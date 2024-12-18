@@ -638,6 +638,11 @@ class UserWizardView(View):
     stage: UserWizardViewStage | None = p_regular(100)
 
 
+@node_subtype_(ViewType.PICKER)
+class PickerView(View):
+    pass
+
+
 @node_subtype_(ViewType.ICON)
 class IconView(View):
     include_color: bool = p_regular(100, default=False)

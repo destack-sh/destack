@@ -214,6 +214,7 @@ enum StructType {
   STRUCT_TYPE_VECTOR4 = 13207;
   STRUCT_TYPE_LINE = 13208;
   STRUCT_TYPE_RECTANGLE_CONSTRAINT = 13209;
+  STRUCT_TYPE_DOM_NODE = 13700;
 }
 
 enum ObjectType {
@@ -319,6 +320,7 @@ enum ObjectType {
   OBJECT_TYPE_VECTOR4 = 13207;
   OBJECT_TYPE_LINE = 13208;
   OBJECT_TYPE_RECTANGLE_CONSTRAINT = 13209;
+  OBJECT_TYPE_DOM_NODE = 13700;
 }
 
 enum AccessMode {
@@ -510,6 +512,7 @@ enum BenchType {
   BENCH_TYPE_VECTOR4 = 13207;
   BENCH_TYPE_LINE = 13208;
   BENCH_TYPE_RECTANGLE_CONSTRAINT = 13209;
+  BENCH_TYPE_DOM_NODE = 13700;
   BENCH_TYPE_ENUM_TYPE = 20001;
   BENCH_TYPE_NODE_TYPE = 20002;
   BENCH_TYPE_STRUCT_TYPE = 20003;
@@ -823,12 +826,12 @@ enum ClientType {
 
 enum MachineType {
   MACHINE_TYPE_UNSPECIFIED = 0;
-  MACHINE_TYPE_HOSTED_RUNTIME = 1;
+  MACHINE_TYPE_RUNTIME = 1;
 }
 
 enum BrowserType {
   BROWSER_TYPE_UNSPECIFIED = 0;
-  BROWSER_TYPE_BROWSERBASE_CHROME = 1;
+  BROWSER_TYPE_REMOTE = 1;
   BROWSER_TYPE_LOCAL = 90;
 }
 
@@ -1315,22 +1318,33 @@ enum ModelType {
 enum StepType {
   STEP_TYPE_UNSPECIFIED = 0;
   STEP_TYPE_START = 1;
-  STEP_TYPE_COMPLETE = 2;
-  STEP_TYPE_FAIL = 3;
-  STEP_TYPE_TRIGGER = 4;
+  STEP_TYPE_TRIGGER = 2;
+  STEP_TYPE_COMPLETE = 10;
+  STEP_TYPE_FAIL = 11;
   STEP_TYPE_GET = 40;
   STEP_TYPE_SEARCH = 41;
-  STEP_TYPE_CREATE = 50;
-  STEP_TYPE_CLONE = 51;
-  STEP_TYPE_UPDATE = 52;
-  STEP_TYPE_DELETE = 53;
-  STEP_TYPE_ACTION = 60;
-  STEP_TYPE_YIELD = 62;
-  STEP_TYPE_PAUSE = 70;
-  STEP_TYPE_RESUME = 71;
-  STEP_TYPE_STOP = 72;
-  STEP_TYPE_LOOP = 501;
-  STEP_TYPE_TEXT = 900;
+  STEP_TYPE_COPY = 50;
+  STEP_TYPE_CREATE = 60;
+  STEP_TYPE_DUPLICATE = 61;
+  STEP_TYPE_UPDATE = 62;
+  STEP_TYPE_DELETE = 63;
+  STEP_TYPE_PASTE = 70;
+  STEP_TYPE_ACTION = 100;
+  STEP_TYPE_YIELD = 102;
+  STEP_TYPE_OBSERVE = 1000;
+  STEP_TYPE_CLICK = 1050;
+  STEP_TYPE_PRESS = 1051;
+  STEP_TYPE_TYPE = 1052;
+  STEP_TYPE_SCROLL = 1053;
+  STEP_TYPE_SELECT = 1054;
+  STEP_TYPE_GO_BACKWARD = 1060;
+  STEP_TYPE_GO_FORWARD = 1061;
+  STEP_TYPE_GO_TO_URL = 1100;
+  STEP_TYPE_GO_TO_TAB = 1101;
+  STEP_TYPE_OPEN_TAB = 1102;
+  STEP_TYPE_CLOSE_TAB = 1103;
+  STEP_TYPE_LOOP = 5001;
+  STEP_TYPE_TEXT = 9000;
 }
 
 enum PortSide {
@@ -1882,6 +1896,21 @@ message SelectOptionsData {
   repeated PropertyReferenceData exclude_properties_ptr = 42;
   repeated PropertyReferenceData select_properties_ptr = 43;
   repeated NodeReferenceData select_fields_ptr = 51;
+}
+
+message DomNodeData {
+  ObjectType metatype = 1;
+  string type = 30;
+  optional string tag_name = 31;
+  optional int32 index = 32;
+  optional string xpath = 33;
+  optional string text = 34;
+  optional google.protobuf.Value attributes = 35;
+  optional bool is_interactive = 40;
+  optional bool is_visible = 41;
+  optional bool is_top = 42;
+  optional bool is_shadow_root = 43;
+  repeated DomNodeData children = 50;
 }
 
 message CodeLineData {
@@ -2768,6 +2797,13 @@ message BrowserData {
   optional string version = 50;
   optional string target_version = 51;
   optional string external_name = 52;
+  optional string external_id = 53;
+  optional string connection_uri = 54;
+  optional string debugger_uri = 55;
+  optional string view_uri = 56;
+  optional NodeReferenceData client_ptr = 57;
+  optional RectangleData size = 60;
+  optional RectangleData target_size = 61;
   NodeMode mode = 90;
 }
 
@@ -2962,21 +2998,6 @@ message StepData {
   NodeMode mode = 90;
 }
 
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message ActionStepData {
-  Agency agency = 100;
-  bool is_dynamic = 101;
-  optional CodeData code = 111;
-  repeated NodeReferenceData tools_ptr = 112;
-  optional NodeReferenceData delegate_ptr = 113;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message FailStepData {
-  optional string error_title = 100;
-  optional TextData error_text = 101;
-}
-
 // Get a single Node.
 message GetStepData {
   optional NodeType node_type = 100;
@@ -2998,7 +3019,7 @@ message CreateStepData {
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
-message CloneStepData {
+message DuplicateStepData {
   optional NodeReferenceData node_ptr = 100;
   optional google.protobuf.Value node_partial_packed = 101;
   bool recursive = 110;
@@ -3016,12 +3037,76 @@ message DeleteStepData {
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
-message LoopStepData {
-  optional NodeReferenceData for_field_ptr = 100;
+message ActionStepData {
+  Agency agency = 100;
+  bool is_dynamic = 101;
+  optional CodeData code = 111;
+  repeated NodeReferenceData tools_ptr = 112;
+  optional NodeReferenceData delegate_ptr = 113;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
-message TextStepData {
+message FailStepData {
+  optional string error_title = 100;
+  optional TextData error_text = 101;
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message ObserveStepData {
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message ClickStepData {
+  optional string xpath = 101;
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message PressStepData {
+  optional string xpath = 101;
+  optional string keys = 110;
+  optional float delay = 111;
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message TypeStepData {
+  optional string xpath = 101;
+  optional string string = 110;
+  optional float delay = 111;
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message ScrollStepData {
+  optional string xpath = 101;
+  optional Vector2Data amount = 110;
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message SelectStepData {
+  optional string xpath = 101;
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message GoBackwardStepData {
+  optional string xpath = 101;
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message GoForwardStepData {
+  optional string xpath = 101;
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message GoToUrlStepData {
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message GoToTabStepData {
+  optional int32 tab_index = 100;
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message LoopStepData {
+  optional NodeReferenceData for_field_ptr = 100;
 }
 
 message TriggerData {
@@ -3273,6 +3358,10 @@ message DetailViewData {
 // A view of a user interface in a Bench.
 message UserWizardViewData {
   optional UserWizardViewStage stage = 100;
+}
+
+// A view of a user interface in a Bench.
+message PickerViewData {
 }
 
 // A view of a user interface in a Bench.

@@ -802,6 +802,59 @@ export interface SelectOptionsData {
     selectFieldsPtr: NodeReferenceData[];
 }
 /**
+ * @generated from protobuf message symbolx.bench.DomNodeData
+ */
+export interface DomNodeData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: string type = 30;
+     */
+    type: string;
+    /**
+     * @generated from protobuf field: optional string tag_name = 31;
+     */
+    tagName?: string;
+    /**
+     * @generated from protobuf field: optional int32 index = 32;
+     */
+    index?: number;
+    /**
+     * @generated from protobuf field: optional string xpath = 33;
+     */
+    xpath?: string;
+    /**
+     * @generated from protobuf field: optional string text = 34;
+     */
+    text?: string;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value attributes = 35;
+     */
+    attributes?: Value;
+    /**
+     * @generated from protobuf field: optional bool is_interactive = 40;
+     */
+    isInteractive?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_visible = 41;
+     */
+    isVisible?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_top = 42;
+     */
+    isTop?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_shadow_root = 43;
+     */
+    isShadowRoot?: boolean;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.DomNodeData children = 50;
+     */
+    children: DomNodeData[];
+}
+/**
  * @generated from protobuf message symbolx.bench.CodeLineData
  */
 export interface CodeLineData {
@@ -3864,6 +3917,34 @@ export interface BrowserData {
      */
     externalName?: string;
     /**
+     * @generated from protobuf field: optional string external_id = 53;
+     */
+    externalId?: string;
+    /**
+     * @generated from protobuf field: optional string connection_uri = 54;
+     */
+    connectionUri?: string;
+    /**
+     * @generated from protobuf field: optional string debugger_uri = 55;
+     */
+    debuggerUri?: string;
+    /**
+     * @generated from protobuf field: optional string view_uri = 56;
+     */
+    viewUri?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 57;
+     */
+    clientPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.RectangleData size = 60;
+     */
+    size?: RectangleData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.RectangleData target_size = 61;
+     */
+    targetSize?: RectangleData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeMode mode = 90;
      */
     mode: NodeMode;
@@ -4586,48 +4667,6 @@ export interface StepData {
     mode: NodeMode;
 }
 /**
- * A data or control flow node in a Flow. Steps are connected by Pipes.
- *
- * @generated from protobuf message symbolx.bench.ActionStepData
- */
-export interface ActionStepData {
-    /**
-     * @generated from protobuf field: symbolx.bench.Agency agency = 100;
-     */
-    agency: Agency;
-    /**
-     * @generated from protobuf field: bool is_dynamic = 101;
-     */
-    isDynamic: boolean;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.CodeData code = 111;
-     */
-    code?: CodeData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tools_ptr = 112;
-     */
-    toolsPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData delegate_ptr = 113;
-     */
-    delegatePtr?: NodeReferenceData;
-}
-/**
- * A data or control flow node in a Flow. Steps are connected by Pipes.
- *
- * @generated from protobuf message symbolx.bench.FailStepData
- */
-export interface FailStepData {
-    /**
-     * @generated from protobuf field: optional string error_title = 100;
-     */
-    errorTitle?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TextData error_text = 101;
-     */
-    errorText?: TextData;
-}
-/**
  * Get a single Node.
  *
  * @generated from protobuf message symbolx.bench.GetStepData
@@ -4683,9 +4722,9 @@ export interface CreateStepData {
 /**
  * A data or control flow node in a Flow. Steps are connected by Pipes.
  *
- * @generated from protobuf message symbolx.bench.CloneStepData
+ * @generated from protobuf message symbolx.bench.DuplicateStepData
  */
-export interface CloneStepData {
+export interface DuplicateStepData {
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 100;
      */
@@ -4728,6 +4767,170 @@ export interface DeleteStepData {
 /**
  * A data or control flow node in a Flow. Steps are connected by Pipes.
  *
+ * @generated from protobuf message symbolx.bench.ActionStepData
+ */
+export interface ActionStepData {
+    /**
+     * @generated from protobuf field: symbolx.bench.Agency agency = 100;
+     */
+    agency: Agency;
+    /**
+     * @generated from protobuf field: bool is_dynamic = 101;
+     */
+    isDynamic: boolean;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.CodeData code = 111;
+     */
+    code?: CodeData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tools_ptr = 112;
+     */
+    toolsPtr: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData delegate_ptr = 113;
+     */
+    delegatePtr?: NodeReferenceData;
+}
+/**
+ * A data or control flow node in a Flow. Steps are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.FailStepData
+ */
+export interface FailStepData {
+    /**
+     * @generated from protobuf field: optional string error_title = 100;
+     */
+    errorTitle?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData error_text = 101;
+     */
+    errorText?: TextData;
+}
+/**
+ * A data or control flow node in a Flow. Steps are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.ObserveStepData
+ */
+export interface ObserveStepData {
+}
+/**
+ * A data or control flow node in a Flow. Steps are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.ClickStepData
+ */
+export interface ClickStepData {
+    /**
+     * @generated from protobuf field: optional string xpath = 101;
+     */
+    xpath?: string;
+}
+/**
+ * A data or control flow node in a Flow. Steps are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.PressStepData
+ */
+export interface PressStepData {
+    /**
+     * @generated from protobuf field: optional string xpath = 101;
+     */
+    xpath?: string;
+    /**
+     * @generated from protobuf field: optional string keys = 110;
+     */
+    keys?: string;
+    /**
+     * @generated from protobuf field: optional float delay = 111;
+     */
+    delay?: number;
+}
+/**
+ * A data or control flow node in a Flow. Steps are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.TypeStepData
+ */
+export interface TypeStepData {
+    /**
+     * @generated from protobuf field: optional string xpath = 101;
+     */
+    xpath?: string;
+    /**
+     * @generated from protobuf field: optional string string = 110;
+     */
+    string?: string;
+    /**
+     * @generated from protobuf field: optional float delay = 111;
+     */
+    delay?: number;
+}
+/**
+ * A data or control flow node in a Flow. Steps are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.ScrollStepData
+ */
+export interface ScrollStepData {
+    /**
+     * @generated from protobuf field: optional string xpath = 101;
+     */
+    xpath?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data amount = 110;
+     */
+    amount?: Vector2Data;
+}
+/**
+ * A data or control flow node in a Flow. Steps are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.SelectStepData
+ */
+export interface SelectStepData {
+    /**
+     * @generated from protobuf field: optional string xpath = 101;
+     */
+    xpath?: string;
+}
+/**
+ * A data or control flow node in a Flow. Steps are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.GoBackwardStepData
+ */
+export interface GoBackwardStepData {
+    /**
+     * @generated from protobuf field: optional string xpath = 101;
+     */
+    xpath?: string;
+}
+/**
+ * A data or control flow node in a Flow. Steps are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.GoForwardStepData
+ */
+export interface GoForwardStepData {
+    /**
+     * @generated from protobuf field: optional string xpath = 101;
+     */
+    xpath?: string;
+}
+/**
+ * A data or control flow node in a Flow. Steps are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.GoToUrlStepData
+ */
+export interface GoToUrlStepData {
+}
+/**
+ * A data or control flow node in a Flow. Steps are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.GoToTabStepData
+ */
+export interface GoToTabStepData {
+    /**
+     * @generated from protobuf field: optional int32 tab_index = 100;
+     */
+    tabIndex?: number;
+}
+/**
+ * A data or control flow node in a Flow. Steps are connected by Pipes.
+ *
  * @generated from protobuf message symbolx.bench.LoopStepData
  */
 export interface LoopStepData {
@@ -4735,13 +4938,6 @@ export interface LoopStepData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData for_field_ptr = 100;
      */
     forFieldPtr?: NodeReferenceData;
-}
-/**
- * A data or control flow node in a Flow. Steps are connected by Pipes.
- *
- * @generated from protobuf message symbolx.bench.TextStepData
- */
-export interface TextStepData {
 }
 /**
  * @generated from protobuf message symbolx.bench.TriggerData
@@ -5641,6 +5837,13 @@ export interface UserWizardViewData {
      * @generated from protobuf field: optional symbolx.bench.UserWizardViewStage stage = 100;
      */
     stage?: UserWizardViewStage;
+}
+/**
+ * A view of a user interface in a Bench.
+ *
+ * @generated from protobuf message symbolx.bench.PickerViewData
+ */
+export interface PickerViewData {
 }
 /**
  * A view of a user interface in a Bench.
@@ -7113,7 +7316,11 @@ export enum StructType {
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_RECTANGLE_CONSTRAINT = 13209;
      */
-    RECTANGLE_CONSTRAINT = 13209
+    RECTANGLE_CONSTRAINT = 13209,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_DOM_NODE = 13700;
+     */
+    DOM_NODE = 13700
 }
 /**
  * @generated from protobuf enum symbolx.bench.ObjectType
@@ -7526,7 +7733,11 @@ export enum ObjectType {
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_RECTANGLE_CONSTRAINT = 13209;
      */
-    RECTANGLE_CONSTRAINT = 13209
+    RECTANGLE_CONSTRAINT = 13209,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_DOM_NODE = 13700;
+     */
+    DOM_NODE = 13700
 }
 /**
  * @generated from protobuf enum symbolx.bench.AccessMode
@@ -8211,6 +8422,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_RECTANGLE_CONSTRAINT = 13209;
      */
     RECTANGLE_CONSTRAINT = 13209,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_DOM_NODE = 13700;
+     */
+    DOM_NODE = 13700,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 20001;
      */
@@ -9359,9 +9574,9 @@ export enum MachineType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MACHINE_TYPE_HOSTED_RUNTIME = 1;
+     * @generated from protobuf enum value: MACHINE_TYPE_RUNTIME = 1;
      */
-    HOSTED_RUNTIME = 1
+    RUNTIME = 1
 }
 /**
  * @generated from protobuf enum symbolx.bench.BrowserType
@@ -9372,9 +9587,9 @@ export enum BrowserType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: BROWSER_TYPE_BROWSERBASE_CHROME = 1;
+     * @generated from protobuf enum value: BROWSER_TYPE_REMOTE = 1;
      */
-    BROWSERBASE_CHROME = 1,
+    REMOTE = 1,
     /**
      * @generated from protobuf enum value: BROWSER_TYPE_LOCAL = 90;
      */
@@ -10981,17 +11196,17 @@ export enum StepType {
      */
     START = 1,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_COMPLETE = 2;
+     * @generated from protobuf enum value: STEP_TYPE_TRIGGER = 2;
      */
-    COMPLETE = 2,
+    TRIGGER = 2,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_FAIL = 3;
+     * @generated from protobuf enum value: STEP_TYPE_COMPLETE = 10;
      */
-    FAIL = 3,
+    COMPLETE = 10,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_TRIGGER = 4;
+     * @generated from protobuf enum value: STEP_TYPE_FAIL = 11;
      */
-    TRIGGER = 4,
+    FAIL = 11,
     /**
      * @generated from protobuf enum value: STEP_TYPE_GET = 40;
      */
@@ -11001,49 +11216,93 @@ export enum StepType {
      */
     SEARCH = 41,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_CREATE = 50;
+     * @generated from protobuf enum value: STEP_TYPE_COPY = 50;
      */
-    CREATE = 50,
+    COPY = 50,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_CLONE = 51;
+     * @generated from protobuf enum value: STEP_TYPE_CREATE = 60;
      */
-    CLONE = 51,
+    CREATE = 60,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_UPDATE = 52;
+     * @generated from protobuf enum value: STEP_TYPE_DUPLICATE = 61;
      */
-    UPDATE = 52,
+    DUPLICATE = 61,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_DELETE = 53;
+     * @generated from protobuf enum value: STEP_TYPE_UPDATE = 62;
      */
-    DELETE = 53,
+    UPDATE = 62,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_ACTION = 60;
+     * @generated from protobuf enum value: STEP_TYPE_DELETE = 63;
      */
-    ACTION = 60,
+    DELETE = 63,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_YIELD = 62;
+     * @generated from protobuf enum value: STEP_TYPE_PASTE = 70;
      */
-    YIELD = 62,
+    PASTE = 70,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_PAUSE = 70;
+     * @generated from protobuf enum value: STEP_TYPE_ACTION = 100;
      */
-    PAUSE = 70,
+    ACTION = 100,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_RESUME = 71;
+     * @generated from protobuf enum value: STEP_TYPE_YIELD = 102;
      */
-    RESUME = 71,
+    YIELD = 102,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_STOP = 72;
+     * @generated from protobuf enum value: STEP_TYPE_OBSERVE = 1000;
      */
-    STOP = 72,
+    OBSERVE = 1000,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_LOOP = 501;
+     * @generated from protobuf enum value: STEP_TYPE_CLICK = 1050;
      */
-    LOOP = 501,
+    CLICK = 1050,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_TEXT = 900;
+     * @generated from protobuf enum value: STEP_TYPE_PRESS = 1051;
      */
-    TEXT = 900
+    PRESS = 1051,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_TYPE = 1052;
+     */
+    TYPE = 1052,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_SCROLL = 1053;
+     */
+    SCROLL = 1053,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_SELECT = 1054;
+     */
+    SELECT = 1054,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_GO_BACKWARD = 1060;
+     */
+    GO_BACKWARD = 1060,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_GO_FORWARD = 1061;
+     */
+    GO_FORWARD = 1061,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_GO_TO_URL = 1100;
+     */
+    GO_TO_URL = 1100,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_GO_TO_TAB = 1101;
+     */
+    GO_TO_TAB = 1101,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_OPEN_TAB = 1102;
+     */
+    OPEN_TAB = 1102,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_CLOSE_TAB = 1103;
+     */
+    CLOSE_TAB = 1103,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_LOOP = 5001;
+     */
+    LOOP = 5001,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_TEXT = 9000;
+     */
+    TEXT = 9000
 }
 /**
  * @generated from protobuf enum symbolx.bench.PortSide
@@ -14452,6 +14711,132 @@ class SelectOptionsData$Type extends MessageType$<SelectOptionsData> {
  * @generated MessageType for protobuf message symbolx.bench.SelectOptionsData
  */
 export const SelectOptionsData = new SelectOptionsData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class DomNodeData$Type extends MessageType$<DomNodeData> {
+    constructor() {
+        super("symbolx.bench.DomNodeData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "tag_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "index", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 33, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "attributes", kind: "message", T: () => Value },
+            { no: 40, name: "is_interactive", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 41, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 42, name: "is_top", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 43, name: "is_shadow_root", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 50, name: "children", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => DomNodeData }
+        ]);
+    }
+    create(value?: PartialMessage<DomNodeData>): DomNodeData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = "";
+        message.children = [];
+        if (value !== undefined)
+            reflectionMergePartial<DomNodeData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DomNodeData): DomNodeData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string type */ 30:
+                    message.type = reader.string();
+                    break;
+                case /* optional string tag_name */ 31:
+                    message.tagName = reader.string();
+                    break;
+                case /* optional int32 index */ 32:
+                    message.index = reader.int32();
+                    break;
+                case /* optional string xpath */ 33:
+                    message.xpath = reader.string();
+                    break;
+                case /* optional string text */ 34:
+                    message.text = reader.string();
+                    break;
+                case /* optional google.protobuf.Value attributes */ 35:
+                    message.attributes = Value.internalBinaryRead(reader, reader.uint32(), options, message.attributes);
+                    break;
+                case /* optional bool is_interactive */ 40:
+                    message.isInteractive = reader.bool();
+                    break;
+                case /* optional bool is_visible */ 41:
+                    message.isVisible = reader.bool();
+                    break;
+                case /* optional bool is_top */ 42:
+                    message.isTop = reader.bool();
+                    break;
+                case /* optional bool is_shadow_root */ 43:
+                    message.isShadowRoot = reader.bool();
+                    break;
+                case /* repeated symbolx.bench.DomNodeData children */ 50:
+                    message.children.push(DomNodeData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: DomNodeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string type = 30; */
+        if (message.type !== "")
+            writer.tag(30, WireType.LengthDelimited).string(message.type);
+        /* optional string tag_name = 31; */
+        if (message.tagName !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.tagName);
+        /* optional int32 index = 32; */
+        if (message.index !== undefined)
+            writer.tag(32, WireType.Varint).int32(message.index);
+        /* optional string xpath = 33; */
+        if (message.xpath !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.xpath);
+        /* optional string text = 34; */
+        if (message.text !== undefined)
+            writer.tag(34, WireType.LengthDelimited).string(message.text);
+        /* optional google.protobuf.Value attributes = 35; */
+        if (message.attributes)
+            Value.internalBinaryWrite(message.attributes, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional bool is_interactive = 40; */
+        if (message.isInteractive !== undefined)
+            writer.tag(40, WireType.Varint).bool(message.isInteractive);
+        /* optional bool is_visible = 41; */
+        if (message.isVisible !== undefined)
+            writer.tag(41, WireType.Varint).bool(message.isVisible);
+        /* optional bool is_top = 42; */
+        if (message.isTop !== undefined)
+            writer.tag(42, WireType.Varint).bool(message.isTop);
+        /* optional bool is_shadow_root = 43; */
+        if (message.isShadowRoot !== undefined)
+            writer.tag(43, WireType.Varint).bool(message.isShadowRoot);
+        /* repeated symbolx.bench.DomNodeData children = 50; */
+        for (let i = 0; i < message.children.length; i++)
+            DomNodeData.internalBinaryWrite(message.children[i], writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.DomNodeData
+ */
+export const DomNodeData = new DomNodeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CodeLineData$Type extends MessageType$<CodeLineData> {
     constructor() {
@@ -21845,6 +22230,13 @@ class BrowserData$Type extends MessageType$<BrowserData> {
             { no: 50, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "target_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 53, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 54, name: "connection_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 55, name: "debugger_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 56, name: "view_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 57, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 60, name: "size", kind: "message", T: () => RectangleData },
+            { no: 61, name: "target_size", kind: "message", T: () => RectangleData },
             { no: 90, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] }
         ]);
     }
@@ -21953,6 +22345,27 @@ class BrowserData$Type extends MessageType$<BrowserData> {
                 case /* optional string external_name */ 52:
                     message.externalName = reader.string();
                     break;
+                case /* optional string external_id */ 53:
+                    message.externalId = reader.string();
+                    break;
+                case /* optional string connection_uri */ 54:
+                    message.connectionUri = reader.string();
+                    break;
+                case /* optional string debugger_uri */ 55:
+                    message.debuggerUri = reader.string();
+                    break;
+                case /* optional string view_uri */ 56:
+                    message.viewUri = reader.string();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 57:
+                    message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional symbolx.bench.RectangleData size */ 60:
+                    message.size = RectangleData.internalBinaryRead(reader, reader.uint32(), options, message.size);
+                    break;
+                case /* optional symbolx.bench.RectangleData target_size */ 61:
+                    message.targetSize = RectangleData.internalBinaryRead(reader, reader.uint32(), options, message.targetSize);
+                    break;
                 case /* symbolx.bench.NodeMode mode */ 90:
                     message.mode = reader.int32();
                     break;
@@ -22052,6 +22465,27 @@ class BrowserData$Type extends MessageType$<BrowserData> {
         /* optional string external_name = 52; */
         if (message.externalName !== undefined)
             writer.tag(52, WireType.LengthDelimited).string(message.externalName);
+        /* optional string external_id = 53; */
+        if (message.externalId !== undefined)
+            writer.tag(53, WireType.LengthDelimited).string(message.externalId);
+        /* optional string connection_uri = 54; */
+        if (message.connectionUri !== undefined)
+            writer.tag(54, WireType.LengthDelimited).string(message.connectionUri);
+        /* optional string debugger_uri = 55; */
+        if (message.debuggerUri !== undefined)
+            writer.tag(55, WireType.LengthDelimited).string(message.debuggerUri);
+        /* optional string view_uri = 56; */
+        if (message.viewUri !== undefined)
+            writer.tag(56, WireType.LengthDelimited).string(message.viewUri);
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 57; */
+        if (message.clientPtr)
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.RectangleData size = 60; */
+        if (message.size)
+            RectangleData.internalBinaryWrite(message.size, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.RectangleData target_size = 61; */
+        if (message.targetSize)
+            RectangleData.internalBinaryWrite(message.targetSize, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeMode mode = 90; */
         if (message.mode !== 0)
             writer.tag(90, WireType.Varint).int32(message.mode);
@@ -23534,136 +23968,6 @@ class StepData$Type extends MessageType$<StepData> {
  */
 export const StepData = new StepData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ActionStepData$Type extends MessageType$<ActionStepData> {
-    constructor() {
-        super("symbolx.bench.ActionStepData", [
-            { no: 100, name: "agency", kind: "enum", T: () => ["symbolx.bench.Agency", Agency, "AGENCY_"] },
-            { no: 101, name: "is_dynamic", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 111, name: "code", kind: "message", T: () => CodeData },
-            { no: 112, name: "tools_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 113, name: "delegate_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<ActionStepData>): ActionStepData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.agency = 0;
-        message.isDynamic = false;
-        message.toolsPtr = [];
-        if (value !== undefined)
-            reflectionMergePartial<ActionStepData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ActionStepData): ActionStepData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.Agency agency */ 100:
-                    message.agency = reader.int32();
-                    break;
-                case /* bool is_dynamic */ 101:
-                    message.isDynamic = reader.bool();
-                    break;
-                case /* optional symbolx.bench.CodeData code */ 111:
-                    message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData tools_ptr */ 112:
-                    message.toolsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData delegate_ptr */ 113:
-                    message.delegatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.delegatePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ActionStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.Agency agency = 100; */
-        if (message.agency !== 0)
-            writer.tag(100, WireType.Varint).int32(message.agency);
-        /* bool is_dynamic = 101; */
-        if (message.isDynamic !== false)
-            writer.tag(101, WireType.Varint).bool(message.isDynamic);
-        /* optional symbolx.bench.CodeData code = 111; */
-        if (message.code)
-            CodeData.internalBinaryWrite(message.code, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tools_ptr = 112; */
-        for (let i = 0; i < message.toolsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.toolsPtr[i], writer.tag(112, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData delegate_ptr = 113; */
-        if (message.delegatePtr)
-            NodeReferenceData.internalBinaryWrite(message.delegatePtr, writer.tag(113, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ActionStepData
- */
-export const ActionStepData = new ActionStepData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class FailStepData$Type extends MessageType$<FailStepData> {
-    constructor() {
-        super("symbolx.bench.FailStepData", [
-            { no: 100, name: "error_title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "error_text", kind: "message", T: () => TextData }
-        ]);
-    }
-    create(value?: PartialMessage<FailStepData>): FailStepData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<FailStepData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FailStepData): FailStepData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional string error_title */ 100:
-                    message.errorTitle = reader.string();
-                    break;
-                case /* optional symbolx.bench.TextData error_text */ 101:
-                    message.errorText = TextData.internalBinaryRead(reader, reader.uint32(), options, message.errorText);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: FailStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string error_title = 100; */
-        if (message.errorTitle !== undefined)
-            writer.tag(100, WireType.LengthDelimited).string(message.errorTitle);
-        /* optional symbolx.bench.TextData error_text = 101; */
-        if (message.errorText)
-            TextData.internalBinaryWrite(message.errorText, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.FailStepData
- */
-export const FailStepData = new FailStepData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class GetStepData$Type extends MessageType$<GetStepData> {
     constructor() {
         super("symbolx.bench.GetStepData", [
@@ -23838,22 +24142,22 @@ class CreateStepData$Type extends MessageType$<CreateStepData> {
  */
 export const CreateStepData = new CreateStepData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CloneStepData$Type extends MessageType$<CloneStepData> {
+class DuplicateStepData$Type extends MessageType$<DuplicateStepData> {
     constructor() {
-        super("symbolx.bench.CloneStepData", [
+        super("symbolx.bench.DuplicateStepData", [
             { no: 100, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 101, name: "node_partial_packed", kind: "message", T: () => Value },
             { no: 110, name: "recursive", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
-    create(value?: PartialMessage<CloneStepData>): CloneStepData {
+    create(value?: PartialMessage<DuplicateStepData>): DuplicateStepData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.recursive = false;
         if (value !== undefined)
-            reflectionMergePartial<CloneStepData>(this, message, value);
+            reflectionMergePartial<DuplicateStepData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CloneStepData): CloneStepData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DuplicateStepData): DuplicateStepData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -23878,7 +24182,7 @@ class CloneStepData$Type extends MessageType$<CloneStepData> {
         }
         return message;
     }
-    internalBinaryWrite(message: CloneStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: DuplicateStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* optional symbolx.bench.NodeReferenceData node_ptr = 100; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
@@ -23895,9 +24199,9 @@ class CloneStepData$Type extends MessageType$<CloneStepData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.CloneStepData
+ * @generated MessageType for protobuf message symbolx.bench.DuplicateStepData
  */
-export const CloneStepData = new CloneStepData$Type();
+export const DuplicateStepData = new DuplicateStepData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class UpdateStepData$Type extends MessageType$<UpdateStepData> {
     constructor() {
@@ -23998,6 +24302,589 @@ class DeleteStepData$Type extends MessageType$<DeleteStepData> {
  */
 export const DeleteStepData = new DeleteStepData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class ActionStepData$Type extends MessageType$<ActionStepData> {
+    constructor() {
+        super("symbolx.bench.ActionStepData", [
+            { no: 100, name: "agency", kind: "enum", T: () => ["symbolx.bench.Agency", Agency, "AGENCY_"] },
+            { no: 101, name: "is_dynamic", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 111, name: "code", kind: "message", T: () => CodeData },
+            { no: 112, name: "tools_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 113, name: "delegate_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<ActionStepData>): ActionStepData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.agency = 0;
+        message.isDynamic = false;
+        message.toolsPtr = [];
+        if (value !== undefined)
+            reflectionMergePartial<ActionStepData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ActionStepData): ActionStepData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.Agency agency */ 100:
+                    message.agency = reader.int32();
+                    break;
+                case /* bool is_dynamic */ 101:
+                    message.isDynamic = reader.bool();
+                    break;
+                case /* optional symbolx.bench.CodeData code */ 111:
+                    message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData tools_ptr */ 112:
+                    message.toolsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData delegate_ptr */ 113:
+                    message.delegatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.delegatePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ActionStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.Agency agency = 100; */
+        if (message.agency !== 0)
+            writer.tag(100, WireType.Varint).int32(message.agency);
+        /* bool is_dynamic = 101; */
+        if (message.isDynamic !== false)
+            writer.tag(101, WireType.Varint).bool(message.isDynamic);
+        /* optional symbolx.bench.CodeData code = 111; */
+        if (message.code)
+            CodeData.internalBinaryWrite(message.code, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tools_ptr = 112; */
+        for (let i = 0; i < message.toolsPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.toolsPtr[i], writer.tag(112, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData delegate_ptr = 113; */
+        if (message.delegatePtr)
+            NodeReferenceData.internalBinaryWrite(message.delegatePtr, writer.tag(113, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ActionStepData
+ */
+export const ActionStepData = new ActionStepData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class FailStepData$Type extends MessageType$<FailStepData> {
+    constructor() {
+        super("symbolx.bench.FailStepData", [
+            { no: 100, name: "error_title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 101, name: "error_text", kind: "message", T: () => TextData }
+        ]);
+    }
+    create(value?: PartialMessage<FailStepData>): FailStepData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<FailStepData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FailStepData): FailStepData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional string error_title */ 100:
+                    message.errorTitle = reader.string();
+                    break;
+                case /* optional symbolx.bench.TextData error_text */ 101:
+                    message.errorText = TextData.internalBinaryRead(reader, reader.uint32(), options, message.errorText);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: FailStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional string error_title = 100; */
+        if (message.errorTitle !== undefined)
+            writer.tag(100, WireType.LengthDelimited).string(message.errorTitle);
+        /* optional symbolx.bench.TextData error_text = 101; */
+        if (message.errorText)
+            TextData.internalBinaryWrite(message.errorText, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.FailStepData
+ */
+export const FailStepData = new FailStepData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ObserveStepData$Type extends MessageType$<ObserveStepData> {
+    constructor() {
+        super("symbolx.bench.ObserveStepData", []);
+    }
+    create(value?: PartialMessage<ObserveStepData>): ObserveStepData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<ObserveStepData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ObserveStepData): ObserveStepData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: ObserveStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ObserveStepData
+ */
+export const ObserveStepData = new ObserveStepData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ClickStepData$Type extends MessageType$<ClickStepData> {
+    constructor() {
+        super("symbolx.bench.ClickStepData", [
+            { no: 101, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ClickStepData>): ClickStepData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<ClickStepData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ClickStepData): ClickStepData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional string xpath */ 101:
+                    message.xpath = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ClickStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional string xpath = 101; */
+        if (message.xpath !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.xpath);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ClickStepData
+ */
+export const ClickStepData = new ClickStepData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PressStepData$Type extends MessageType$<PressStepData> {
+    constructor() {
+        super("symbolx.bench.PressStepData", [
+            { no: 101, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 110, name: "keys", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 111, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<PressStepData>): PressStepData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<PressStepData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PressStepData): PressStepData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional string xpath */ 101:
+                    message.xpath = reader.string();
+                    break;
+                case /* optional string keys */ 110:
+                    message.keys = reader.string();
+                    break;
+                case /* optional float delay */ 111:
+                    message.delay = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PressStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional string xpath = 101; */
+        if (message.xpath !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.xpath);
+        /* optional string keys = 110; */
+        if (message.keys !== undefined)
+            writer.tag(110, WireType.LengthDelimited).string(message.keys);
+        /* optional float delay = 111; */
+        if (message.delay !== undefined)
+            writer.tag(111, WireType.Bit32).float(message.delay);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PressStepData
+ */
+export const PressStepData = new PressStepData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class TypeStepData$Type extends MessageType$<TypeStepData> {
+    constructor() {
+        super("symbolx.bench.TypeStepData", [
+            { no: 101, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 110, name: "string", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 111, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<TypeStepData>): TypeStepData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<TypeStepData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TypeStepData): TypeStepData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional string xpath */ 101:
+                    message.xpath = reader.string();
+                    break;
+                case /* optional string string */ 110:
+                    message.string = reader.string();
+                    break;
+                case /* optional float delay */ 111:
+                    message.delay = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: TypeStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional string xpath = 101; */
+        if (message.xpath !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.xpath);
+        /* optional string string = 110; */
+        if (message.string !== undefined)
+            writer.tag(110, WireType.LengthDelimited).string(message.string);
+        /* optional float delay = 111; */
+        if (message.delay !== undefined)
+            writer.tag(111, WireType.Bit32).float(message.delay);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.TypeStepData
+ */
+export const TypeStepData = new TypeStepData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ScrollStepData$Type extends MessageType$<ScrollStepData> {
+    constructor() {
+        super("symbolx.bench.ScrollStepData", [
+            { no: 101, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 110, name: "amount", kind: "message", T: () => Vector2Data }
+        ]);
+    }
+    create(value?: PartialMessage<ScrollStepData>): ScrollStepData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<ScrollStepData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ScrollStepData): ScrollStepData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional string xpath */ 101:
+                    message.xpath = reader.string();
+                    break;
+                case /* optional symbolx.bench.Vector2Data amount */ 110:
+                    message.amount = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.amount);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ScrollStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional string xpath = 101; */
+        if (message.xpath !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.xpath);
+        /* optional symbolx.bench.Vector2Data amount = 110; */
+        if (message.amount)
+            Vector2Data.internalBinaryWrite(message.amount, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ScrollStepData
+ */
+export const ScrollStepData = new ScrollStepData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class SelectStepData$Type extends MessageType$<SelectStepData> {
+    constructor() {
+        super("symbolx.bench.SelectStepData", [
+            { no: 101, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<SelectStepData>): SelectStepData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<SelectStepData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SelectStepData): SelectStepData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional string xpath */ 101:
+                    message.xpath = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SelectStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional string xpath = 101; */
+        if (message.xpath !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.xpath);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.SelectStepData
+ */
+export const SelectStepData = new SelectStepData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GoBackwardStepData$Type extends MessageType$<GoBackwardStepData> {
+    constructor() {
+        super("symbolx.bench.GoBackwardStepData", [
+            { no: 101, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<GoBackwardStepData>): GoBackwardStepData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<GoBackwardStepData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GoBackwardStepData): GoBackwardStepData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional string xpath */ 101:
+                    message.xpath = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GoBackwardStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional string xpath = 101; */
+        if (message.xpath !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.xpath);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.GoBackwardStepData
+ */
+export const GoBackwardStepData = new GoBackwardStepData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GoForwardStepData$Type extends MessageType$<GoForwardStepData> {
+    constructor() {
+        super("symbolx.bench.GoForwardStepData", [
+            { no: 101, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<GoForwardStepData>): GoForwardStepData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<GoForwardStepData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GoForwardStepData): GoForwardStepData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional string xpath */ 101:
+                    message.xpath = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GoForwardStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional string xpath = 101; */
+        if (message.xpath !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.xpath);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.GoForwardStepData
+ */
+export const GoForwardStepData = new GoForwardStepData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GoToUrlStepData$Type extends MessageType$<GoToUrlStepData> {
+    constructor() {
+        super("symbolx.bench.GoToUrlStepData", []);
+    }
+    create(value?: PartialMessage<GoToUrlStepData>): GoToUrlStepData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<GoToUrlStepData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GoToUrlStepData): GoToUrlStepData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: GoToUrlStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.GoToUrlStepData
+ */
+export const GoToUrlStepData = new GoToUrlStepData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GoToTabStepData$Type extends MessageType$<GoToTabStepData> {
+    constructor() {
+        super("symbolx.bench.GoToTabStepData", [
+            { no: 100, name: "tab_index", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<GoToTabStepData>): GoToTabStepData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<GoToTabStepData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GoToTabStepData): GoToTabStepData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional int32 tab_index */ 100:
+                    message.tabIndex = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GoToTabStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional int32 tab_index = 100; */
+        if (message.tabIndex !== undefined)
+            writer.tag(100, WireType.Varint).int32(message.tabIndex);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.GoToTabStepData
+ */
+export const GoToTabStepData = new GoToTabStepData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class LoopStepData$Type extends MessageType$<LoopStepData> {
     constructor() {
         super("symbolx.bench.LoopStepData", [
@@ -24043,31 +24930,6 @@ class LoopStepData$Type extends MessageType$<LoopStepData> {
  * @generated MessageType for protobuf message symbolx.bench.LoopStepData
  */
 export const LoopStepData = new LoopStepData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class TextStepData$Type extends MessageType$<TextStepData> {
-    constructor() {
-        super("symbolx.bench.TextStepData", []);
-    }
-    create(value?: PartialMessage<TextStepData>): TextStepData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<TextStepData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TextStepData): TextStepData {
-        return target ?? this.create();
-    }
-    internalBinaryWrite(message: TextStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.TextStepData
- */
-export const TextStepData = new TextStepData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TriggerData$Type extends MessageType$<TriggerData> {
     constructor() {
@@ -26086,6 +26948,31 @@ class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
  */
 export const UserWizardViewData = new UserWizardViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class PickerViewData$Type extends MessageType$<PickerViewData> {
+    constructor() {
+        super("symbolx.bench.PickerViewData", []);
+    }
+    create(value?: PartialMessage<PickerViewData>): PickerViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<PickerViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PickerViewData): PickerViewData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: PickerViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PickerViewData
+ */
+export const PickerViewData = new PickerViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class IconViewData$Type extends MessageType$<IconViewData> {
     constructor() {
         super("symbolx.bench.IconViewData", [
@@ -27450,9 +28337,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | UserData | HandleData | ClientData | OrganizationData | MembershipData | InviteData | ServerData | StoreData | DriveData | VaultData | CacheData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | SpaceData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | PipeData | MessageData | RecordData | SessionData | RunData | InterruptData | LogData | SkipData
-export type AnyStructData = RuntimeContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeInfoData | TypeConstraintData | VariableObjectData | MemberObjectData | InputObjectData | OutputObjectData | ScheduleData | FileInfoData | IconData | TextData | TextLineData | TextSpanData | CodeData | CodeLineData | PathData | PathTokenData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ObjectMappingData | FieldMappingData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ContinueData | CallData | ContextData | BreakpointData | LogInfoData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
+export type AnyStructData = RuntimeContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeInfoData | TypeConstraintData | VariableObjectData | MemberObjectData | InputObjectData | OutputObjectData | ScheduleData | FileInfoData | IconData | TextData | TextLineData | TextSpanData | CodeData | CodeLineData | PathData | PathTokenData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ObjectMappingData | FieldMappingData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ContinueData | CallData | ContextData | BreakpointData | LogInfoData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData | DomNodeData
 export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof HandleData | typeof ClientData | typeof OrganizationData | typeof MembershipData | typeof InviteData | typeof ServerData | typeof StoreData | typeof DriveData | typeof VaultData | typeof CacheData | typeof MachineData | typeof BrowserData | typeof FileData | typeof StreamData | typeof SecretData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof PipeData | typeof MessageData | typeof RecordData | typeof SessionData | typeof RunData | typeof InterruptData | typeof LogData | typeof SkipData
-export type AnyStructDataType = typeof RuntimeContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeInfoData | typeof TypeConstraintData | typeof VariableObjectData | typeof MemberObjectData | typeof InputObjectData | typeof OutputObjectData | typeof ScheduleData | typeof FileInfoData | typeof IconData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathTokenData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ObjectMappingData | typeof FieldMappingData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ContinueData | typeof CallData | typeof ContextData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
+export type AnyStructDataType = typeof RuntimeContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeInfoData | typeof TypeConstraintData | typeof VariableObjectData | typeof MemberObjectData | typeof InputObjectData | typeof OutputObjectData | typeof ScheduleData | typeof FileInfoData | typeof IconData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathTokenData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ObjectMappingData | typeof FieldMappingData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ContinueData | typeof CallData | typeof ContextData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData | typeof DomNodeData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -27711,6 +28598,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.VECTOR4]: Vector4Data,
   [ObjectType.LINE]: LineData,
   [ObjectType.RECTANGLE_CONSTRAINT]: RectangleConstraintData,
+  [ObjectType.DOM_NODE]: DomNodeData,
 }
 
 export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
@@ -27815,6 +28703,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.Vector4Data"]: ObjectType.VECTOR4,
   ["symbolx.bench.LineData"]: ObjectType.LINE,
   ["symbolx.bench.RectangleConstraintData"]: ObjectType.RECTANGLE_CONSTRAINT,
+  ["symbolx.bench.DomNodeData"]: ObjectType.DOM_NODE,
 }
 
 export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | string>> = {
@@ -27985,6 +28874,7 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.VECTOR4]: Vector4Data,
   [StructType.LINE]: LineData,
   [StructType.RECTANGLE_CONSTRAINT]: RectangleConstraintData,
+  [StructType.DOM_NODE]: DomNodeData,
 }
 
 export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
@@ -28034,7 +28924,7 @@ export interface BlockSubtypeMapping extends Record<BlockType, BlockSubtype> {
   [BlockType.QUERY]: QueryBlockData,
 }
 
-export type ViewSubtype = TreeViewData | RunViewData | FeedViewData | HubViewData | HelpViewData | DetailViewData | UserWizardViewData | IconViewData;
+export type ViewSubtype = TreeViewData | RunViewData | FeedViewData | HubViewData | HelpViewData | DetailViewData | UserWizardViewData | PickerViewData | IconViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.TREE]: TreeViewData,
   [ViewType.RUN]: RunViewData,
@@ -28043,21 +28933,31 @@ export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.HELP]: HelpViewData,
   [ViewType.DETAIL]: DetailViewData,
   [ViewType.USER_WIZARD]: UserWizardViewData,
+  [ViewType.PICKER]: PickerViewData,
   [ViewType.ICON]: IconViewData,
 }
 
-export type StepSubtype = ActionStepData | FailStepData | GetStepData | SearchStepData | CreateStepData | CloneStepData | UpdateStepData | DeleteStepData | LoopStepData | TextStepData;
+export type StepSubtype = GetStepData | SearchStepData | CreateStepData | DuplicateStepData | UpdateStepData | DeleteStepData | ActionStepData | FailStepData | ObserveStepData | ClickStepData | PressStepData | TypeStepData | ScrollStepData | SelectStepData | GoBackwardStepData | GoForwardStepData | GoToUrlStepData | GoToTabStepData | LoopStepData;
 export interface StepSubtypeMapping extends Record<StepType, StepSubtype> {
-  [StepType.ACTION]: ActionStepData,
-  [StepType.FAIL]: FailStepData,
   [StepType.GET]: GetStepData,
   [StepType.SEARCH]: SearchStepData,
   [StepType.CREATE]: CreateStepData,
-  [StepType.CLONE]: CloneStepData,
+  [StepType.DUPLICATE]: DuplicateStepData,
   [StepType.UPDATE]: UpdateStepData,
   [StepType.DELETE]: DeleteStepData,
+  [StepType.ACTION]: ActionStepData,
+  [StepType.FAIL]: FailStepData,
+  [StepType.OBSERVE]: ObserveStepData,
+  [StepType.CLICK]: ClickStepData,
+  [StepType.PRESS]: PressStepData,
+  [StepType.TYPE]: TypeStepData,
+  [StepType.SCROLL]: ScrollStepData,
+  [StepType.SELECT]: SelectStepData,
+  [StepType.GO_BACKWARD]: GoBackwardStepData,
+  [StepType.GO_FORWARD]: GoForwardStepData,
+  [StepType.GO_TO_URL]: GoToUrlStepData,
+  [StepType.GO_TO_TAB]: GoToTabStepData,
   [StepType.LOOP]: LoopStepData,
-  [StepType.TEXT]: TextStepData,
 }
 
 export type PipeSubtype = SelectPipeData;
@@ -28174,6 +29074,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.VECTOR4]: Vector4Data,
   [ObjectType.LINE]: LineData,
   [ObjectType.RECTANGLE_CONSTRAINT]: RectangleConstraintData,
+  [ObjectType.DOM_NODE]: DomNodeData,
 }
 
 export interface EnumTypeMapping extends Record<EnumType, any> {
@@ -28641,6 +29542,13 @@ export enum BrowserProperty {
   version = 50,
   targetVersion = 51,
   externalName = 52,
+  externalId = 53,
+  connectionUri = 54,
+  debuggerUri = 55,
+  viewUri = 56,
+  clientPtr = 57,
+  size = 60,
+  targetSize = 61,
   mode = 90,
 }
 
@@ -29344,21 +30252,12 @@ export enum UserWizardViewProperty {
   stage = 100,
 }
 
+export enum PickerViewProperty {
+
+}
+
 export enum IconViewProperty {
   includeColor = 100,
-}
-
-export enum ActionStepProperty {
-  agency = 100,
-  isDynamic = 101,
-  code = 111,
-  toolsPtr = 112,
-  delegatePtr = 113,
-}
-
-export enum FailStepProperty {
-  errorTitle = 100,
-  errorText = 101,
 }
 
 export enum GetStepProperty {
@@ -29378,7 +30277,7 @@ export enum CreateStepProperty {
   nodePartialPacked = 100,
 }
 
-export enum CloneStepProperty {
+export enum DuplicateStepProperty {
   nodePtr = 100,
   nodePartialPacked = 101,
   recursive = 110,
@@ -29393,12 +30292,66 @@ export enum DeleteStepProperty {
   nodePtr = 100,
 }
 
-export enum LoopStepProperty {
-  forFieldPtr = 100,
+export enum ActionStepProperty {
+  agency = 100,
+  isDynamic = 101,
+  code = 111,
+  toolsPtr = 112,
+  delegatePtr = 113,
 }
 
-export enum TextStepProperty {
+export enum FailStepProperty {
+  errorTitle = 100,
+  errorText = 101,
+}
 
+export enum ObserveStepProperty {
+
+}
+
+export enum ClickStepProperty {
+  xpath = 101,
+}
+
+export enum PressStepProperty {
+  xpath = 101,
+  keys = 110,
+  delay = 111,
+}
+
+export enum TypeStepProperty {
+  xpath = 101,
+  string = 110,
+  delay = 111,
+}
+
+export enum ScrollStepProperty {
+  xpath = 101,
+  amount = 110,
+}
+
+export enum SelectStepProperty {
+  xpath = 101,
+}
+
+export enum GoBackwardStepProperty {
+  xpath = 101,
+}
+
+export enum GoForwardStepProperty {
+  xpath = 101,
+}
+
+export enum GoToUrlStepProperty {
+
+}
+
+export enum GoToTabStepProperty {
+  tabIndex = 100,
+}
+
+export enum LoopStepProperty {
+  forFieldPtr = 100,
 }
 
 export enum SelectPipeProperty {
@@ -29997,12 +30950,27 @@ export enum RectangleConstraintProperty {
   maxHeight = 53,
 }
 
+export enum DomNodeProperty {
+  metatype = 1,
+  type = 30,
+  tagName = 31,
+  index = 32,
+  xpath = 33,
+  text = 34,
+  attributes = 35,
+  isInteractive = 40,
+  isVisible = 41,
+  isTop = 42,
+  isShadowRoot = 43,
+  children = 50,
+}
+
 export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof HandleProperty | typeof ClientProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty
-export type AnyStructProperty = typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyStructProperty = typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof HandleProperty | typeof ClientProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty
-export type AnyStructPropertyType = typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof HandleProperty | typeof ClientProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty | typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyStructPropertyType = typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof HandleProperty | typeof ClientProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty | typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -30108,6 +31076,7 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.VECTOR4]: Vector4Property,
   [ObjectType.LINE]: LineProperty,
   [ObjectType.RECTANGLE_CONSTRAINT]: RectangleConstraintProperty,
+  [ObjectType.DOM_NODE]: DomNodeProperty,
 }
 
 export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>> = {
@@ -30212,6 +31181,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.VECTOR4]: Vector4Property,
   [ObjectType.LINE]: LineProperty,
   [ObjectType.RECTANGLE_CONSTRAINT]: RectangleConstraintProperty,
+  [ObjectType.DOM_NODE]: DomNodeProperty,
 }
 
 export const BLOCK_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<BlockType, any>> = {
@@ -30231,20 +31201,30 @@ export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
   [ViewType.HELP]: HelpViewProperty,
   [ViewType.DETAIL]: DetailViewProperty,
   [ViewType.USER_WIZARD]: UserWizardViewProperty,
+  [ViewType.PICKER]: PickerViewProperty,
   [ViewType.ICON]: IconViewProperty,
 }
 
 export const STEP_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<StepType, any>> = {
-  [StepType.ACTION]: ActionStepProperty,
-  [StepType.FAIL]: FailStepProperty,
   [StepType.GET]: GetStepProperty,
   [StepType.SEARCH]: SearchStepProperty,
   [StepType.CREATE]: CreateStepProperty,
-  [StepType.CLONE]: CloneStepProperty,
+  [StepType.DUPLICATE]: DuplicateStepProperty,
   [StepType.UPDATE]: UpdateStepProperty,
   [StepType.DELETE]: DeleteStepProperty,
+  [StepType.ACTION]: ActionStepProperty,
+  [StepType.FAIL]: FailStepProperty,
+  [StepType.OBSERVE]: ObserveStepProperty,
+  [StepType.CLICK]: ClickStepProperty,
+  [StepType.PRESS]: PressStepProperty,
+  [StepType.TYPE]: TypeStepProperty,
+  [StepType.SCROLL]: ScrollStepProperty,
+  [StepType.SELECT]: SelectStepProperty,
+  [StepType.GO_BACKWARD]: GoBackwardStepProperty,
+  [StepType.GO_FORWARD]: GoForwardStepProperty,
+  [StepType.GO_TO_URL]: GoToUrlStepProperty,
+  [StepType.GO_TO_TAB]: GoToTabStepProperty,
   [StepType.LOOP]: LoopStepProperty,
-  [StepType.TEXT]: TextStepProperty,
 }
 
 export const PIPE_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<PipeType, any>> = {
@@ -30474,8 +31454,8 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 50, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 50, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 60, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 61, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minRam]: { id: 62, name: 'min_ram', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 256.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -30505,8 +31485,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30613,8 +31593,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30654,6 +31634,13 @@ export const BrowserDataInfo: Record<BrowserProperty, PropertyInfo> = {
   [BrowserProperty.version]: { id: 50, name: 'version', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [BrowserProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [BrowserProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [BrowserProperty.debuggerUri]: { id: 55, name: 'debugger_uri', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [BrowserProperty.viewUri]: { id: 56, name: 'view_uri', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [BrowserProperty.clientPtr]: { id: 57, name: 'client_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [BrowserProperty.size]: { id: 60, name: 'size', component: ObjectType.BROWSER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RECTANGLE },
+  [BrowserProperty.targetSize]: { id: 61, name: 'target_size', component: ObjectType.BROWSER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RECTANGLE },
   [BrowserProperty.mode]: { id: 90, name: 'mode', component: ObjectType.BROWSER, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
@@ -31323,19 +32310,11 @@ export const DetailViewDataInfo: Record<DetailViewProperty, PropertyInfo> = {
 export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo> = {
   [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
+export const PickerViewDataInfo: Record<PickerViewProperty, PropertyInfo> = {
+
+}
 export const IconViewDataInfo: Record<IconViewProperty, PropertyInfo> = {
   [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-}
-export const ActionStepDataInfo: Record<ActionStepProperty, PropertyInfo> = {
-  [ActionStepProperty.agency]: { id: 100, name: 'agency', component: ObjectType.STEP, enumType: EnumType.AGENCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 3, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ActionStepProperty.isDynamic]: { id: 101, name: 'is_dynamic', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ActionStepProperty.code]: { id: 111, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [ActionStepProperty.toolsPtr]: { id: 112, name: 'tools_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [21, 22] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-  [ActionStepProperty.delegatePtr]: { id: 113, name: 'delegate_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [21, 22] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-}
-export const FailStepDataInfo: Record<FailStepProperty, PropertyInfo> = {
-  [FailStepProperty.errorTitle]: { id: 100, name: 'error_title', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [FailStepProperty.errorText]: { id: 101, name: 'error_text', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
 }
 export const GetStepDataInfo: Record<GetStepProperty, PropertyInfo> = {
   [GetStepProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.STEP, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -31351,10 +32330,10 @@ export const SearchStepDataInfo: Record<SearchStepProperty, PropertyInfo> = {
 export const CreateStepDataInfo: Record<CreateStepProperty, PropertyInfo> = {
   [CreateStepProperty.nodePartialPacked]: { id: 100, name: 'node_partial_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
-export const CloneStepDataInfo: Record<CloneStepProperty, PropertyInfo> = {
-  [CloneStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [CloneStepProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [CloneStepProperty.recursive]: { id: 110, name: 'recursive', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+export const DuplicateStepDataInfo: Record<DuplicateStepProperty, PropertyInfo> = {
+  [DuplicateStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [DuplicateStepProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [DuplicateStepProperty.recursive]: { id: 110, name: 'recursive', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const UpdateStepDataInfo: Record<UpdateStepProperty, PropertyInfo> = {
   [UpdateStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
@@ -31363,11 +32342,54 @@ export const UpdateStepDataInfo: Record<UpdateStepProperty, PropertyInfo> = {
 export const DeleteStepDataInfo: Record<DeleteStepProperty, PropertyInfo> = {
   [DeleteStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
+export const ActionStepDataInfo: Record<ActionStepProperty, PropertyInfo> = {
+  [ActionStepProperty.agency]: { id: 100, name: 'agency', component: ObjectType.STEP, enumType: EnumType.AGENCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 3, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ActionStepProperty.isDynamic]: { id: 101, name: 'is_dynamic', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ActionStepProperty.code]: { id: 111, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+  [ActionStepProperty.toolsPtr]: { id: 112, name: 'tools_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [21, 22] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ActionStepProperty.delegatePtr]: { id: 113, name: 'delegate_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [21, 22] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+}
+export const FailStepDataInfo: Record<FailStepProperty, PropertyInfo> = {
+  [FailStepProperty.errorTitle]: { id: 100, name: 'error_title', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FailStepProperty.errorText]: { id: 101, name: 'error_text', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+}
+export const ObserveStepDataInfo: Record<ObserveStepProperty, PropertyInfo> = {
+
+}
+export const ClickStepDataInfo: Record<ClickStepProperty, PropertyInfo> = {
+  [ClickStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+}
+export const PressStepDataInfo: Record<PressStepProperty, PropertyInfo> = {
+  [PressStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [PressStepProperty.keys]: { id: 110, name: 'keys', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [PressStepProperty.delay]: { id: 111, name: 'delay', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+}
+export const TypeStepDataInfo: Record<TypeStepProperty, PropertyInfo> = {
+  [TypeStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [TypeStepProperty.string]: { id: 110, name: 'string', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [TypeStepProperty.delay]: { id: 111, name: 'delay', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+}
+export const ScrollStepDataInfo: Record<ScrollStepProperty, PropertyInfo> = {
+  [ScrollStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ScrollStepProperty.amount]: { id: 110, name: 'amount', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+}
+export const SelectStepDataInfo: Record<SelectStepProperty, PropertyInfo> = {
+  [SelectStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+}
+export const GoBackwardStepDataInfo: Record<GoBackwardStepProperty, PropertyInfo> = {
+  [GoBackwardStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+}
+export const GoForwardStepDataInfo: Record<GoForwardStepProperty, PropertyInfo> = {
+  [GoForwardStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+}
+export const GoToUrlStepDataInfo: Record<GoToUrlStepProperty, PropertyInfo> = {
+
+}
+export const GoToTabStepDataInfo: Record<GoToTabStepProperty, PropertyInfo> = {
+  [GoToTabStepProperty.tabIndex]: { id: 100, name: 'tab_index', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+}
 export const LoopStepDataInfo: Record<LoopStepProperty, PropertyInfo> = {
   [LoopStepProperty.forFieldPtr]: { id: 100, name: 'for_field_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-}
-export const TextStepDataInfo: Record<TextStepProperty, PropertyInfo> = {
-
 }
 export const SelectPipeDataInfo: Record<SelectPipeProperty, PropertyInfo> = {
 
@@ -31897,6 +32919,20 @@ export const RectangleConstraintDataInfo: Record<RectangleConstraintProperty, Pr
   [RectangleConstraintProperty.minHeight]: { id: 52, name: 'min_height', component: ObjectType.RECTANGLE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [RectangleConstraintProperty.maxHeight]: { id: 53, name: 'max_height', component: ObjectType.RECTANGLE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
 }
+export const DomNodeDataInfo: Record<DomNodeProperty, PropertyInfo> = {
+  [DomNodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DOM_NODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [DomNodeProperty.type]: { id: 30, name: 'type', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DomNodeProperty.tagName]: { id: 31, name: 'tag_name', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [DomNodeProperty.index]: { id: 32, name: 'index', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [DomNodeProperty.xpath]: { id: 33, name: 'xpath', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [DomNodeProperty.text]: { id: 34, name: 'text', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [DomNodeProperty.attributes]: { id: 35, name: 'attributes', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true },
+  [DomNodeProperty.isInteractive]: { id: 40, name: 'is_interactive', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [DomNodeProperty.isVisible]: { id: 41, name: 'is_visible', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [DomNodeProperty.isTop]: { id: 42, name: 'is_top', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [DomNodeProperty.isShadowRoot]: { id: 43, name: 'is_shadow_root', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [DomNodeProperty.children]: { id: 50, name: 'children', component: ObjectType.DOM_NODE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DOM_NODE },
+}
 export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo>> = {
   [ObjectType.UNSPECIFIED]: {},
   [ObjectType.BENCH]: BenchDataInfo,
@@ -32000,6 +33036,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.VECTOR4]: Vector4DataInfo,
   [ObjectType.LINE]: LineDataInfo,
   [ObjectType.RECTANGLE_CONSTRAINT]: RectangleConstraintDataInfo,
+  [ObjectType.DOM_NODE]: DomNodeDataInfo,
 }
 
 export const BlockSubtypePropertyInfo: Partial<Record<BlockType, Record<any, PropertyInfo>>> = {
@@ -32018,19 +33055,29 @@ export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, Prope
   [ViewType.HELP]: HelpViewDataInfo,
   [ViewType.DETAIL]: DetailViewDataInfo,
   [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
+  [ViewType.PICKER]: PickerViewDataInfo,
   [ViewType.ICON]: IconViewDataInfo,
 }
 export const StepSubtypePropertyInfo: Partial<Record<StepType, Record<any, PropertyInfo>>> = {
-  [StepType.ACTION]: ActionStepDataInfo,
-  [StepType.FAIL]: FailStepDataInfo,
   [StepType.GET]: GetStepDataInfo,
   [StepType.SEARCH]: SearchStepDataInfo,
   [StepType.CREATE]: CreateStepDataInfo,
-  [StepType.CLONE]: CloneStepDataInfo,
+  [StepType.DUPLICATE]: DuplicateStepDataInfo,
   [StepType.UPDATE]: UpdateStepDataInfo,
   [StepType.DELETE]: DeleteStepDataInfo,
+  [StepType.ACTION]: ActionStepDataInfo,
+  [StepType.FAIL]: FailStepDataInfo,
+  [StepType.OBSERVE]: ObserveStepDataInfo,
+  [StepType.CLICK]: ClickStepDataInfo,
+  [StepType.PRESS]: PressStepDataInfo,
+  [StepType.TYPE]: TypeStepDataInfo,
+  [StepType.SCROLL]: ScrollStepDataInfo,
+  [StepType.SELECT]: SelectStepDataInfo,
+  [StepType.GO_BACKWARD]: GoBackwardStepDataInfo,
+  [StepType.GO_FORWARD]: GoForwardStepDataInfo,
+  [StepType.GO_TO_URL]: GoToUrlStepDataInfo,
+  [StepType.GO_TO_TAB]: GoToTabStepDataInfo,
   [StepType.LOOP]: LoopStepDataInfo,
-  [StepType.TEXT]: TextStepDataInfo,
 }
 export const PipeSubtypePropertyInfo: Partial<Record<PipeType, Record<any, PropertyInfo>>> = {
   [PipeType.SELECT]: SelectPipeDataInfo,
