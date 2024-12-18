@@ -373,6 +373,7 @@ def get_run_options(kind: RunType, options: RunOptions | None):
 def make_run_from_node(
     node: "RunnableNode",
     *,
+    variables: Any | None = None,
     inputs: Any | None = None,
     mode: NodeMode | None = None,
     parent: "Run | None" = None,
@@ -381,6 +382,7 @@ def make_run_from_node(
     from bench.language import Block, Step
     from bench.language.value import coerce_custom_object_scalar
 
+    # context
     if isinstance(node, Block):
         block = node
         step = None
@@ -400,6 +402,7 @@ def make_run_from_node(
     else:
         assert_never(node)
 
+    # build run
     options = get_run_options(kind, node.run_options)
     run = Run(
         parent=parent or node.bench,
@@ -410,11 +413,21 @@ def make_run_from_node(
         options=options,
         mode=mode or get_tracing_context(),
     )
+
+    # variables
+    if variables is None:
+        variables = {}
+    if run.variable_type is not None:
+        variables = coerce_custom_object_scalar(ObjectKind.VARIABLE, variables, run.variable_type)
+        run.variables = variables
+
+    # inputs
     if inputs is None:
         inputs = {}
     if run.input_type is not None:
         inputs = coerce_custom_object_scalar(ObjectKind.INPUT, inputs, run.input_type)
         run.inputs = inputs
+        
     return run
 
 
@@ -469,6 +482,22 @@ def make_runner(
 
     RUN_TYPE = kind or node.run_type
     assert RUN_TYPE is not None, f"no run kind for {node!r}"
+
+    # variables
+    variable_type = node.variable_type
+    if variables is None and variable_type is not None:
+        variables = CustomObject.new(
+            ObjectKind.VARIABLE, {}, typ=variable_type, supergraph=runtime.session._supergraph
+        )
+
+    # inputs
+    input_type = node.input_type
+    if inputs is None and input_type is not None:
+        inputs = CustomObject.new(
+            ObjectKind.INPUT, {}, typ=input_type, supergraph=runtime.session._supergraph
+        )
+
+    # build runner
     options = get_run_options(RUN_TYPE, run.options if run is not None else node.run_options)
     base_kwargs: dict[str, Any] = {
         "runtime": runtime,
@@ -482,6 +511,8 @@ def make_runner(
         "node": node,
         "parent": parent,
     }
+
+    # map to runner
     if RUN_TYPE == RunType.CODE:
         from bench.runtime.code import CodeFunctionRunner
 

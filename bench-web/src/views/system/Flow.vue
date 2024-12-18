@@ -313,7 +313,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :node="flow"
         :tx="() => connection.tx"
       />
-      <div class="flex flex-row flex-wrap items-center gap-x-2">
+      <div class="flex flex-row flex-wrap gap-y-1 items-center gap-x-2">
         <!-- Signature -->
         <!-- Inputs -->
         <FieldList
