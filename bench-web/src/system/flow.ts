@@ -53,11 +53,43 @@ export const PIPE_WIDTH = 2;
 export const STEP_SIZE = { width: FLOW_GRID_STEP * 17, height: FLOW_GRID_STEP * 3 };
 export const STEP_SIZE_HALF = { width: STEP_SIZE.width / 2, height: STEP_SIZE.height / 2 };
 
+// TODO :Cleanup :Architecture: enum/object descriptions should be in language (and exported from there during build)
 export const DEFAULT_TEXT_BY_STEP_TYPE: Partial<Record<StepType, string>> = {
+  // start
   [StepType.START]: "Begin the flow.",
+  [StepType.TRIGGER]: "Trigger the flow.",
+  // end
   [StepType.COMPLETE]: "End the entire flow.",
   [StepType.FAIL]: "Fail the entire flow.",
-  [StepType.YIELD]: "Yield control to someone.",
+  // read
+  [StepType.GET]: "Get a specific Node.",
+  [StepType.SEARCH]: "Search for Nodes.",
+  [StepType.COPY]: "Copy to clipboard.",
+  // write
+  [StepType.CREATE]: "Create a new Node.",
+  [StepType.UPDATE]: "Update a Node.",
+  [StepType.DELETE]: "Delete a Node.",
+  [StepType.DUPLICATE]: "Duplicate the clipboard.",
+  [StepType.PASTE]: "Paste from clipboard.",
+  // run
+  [StepType.ACTION]: "Run something.",
+  [StepType.YIELD]: "Pause and wait for someone.",
+  // application
+  [StepType.OBSERVE]: "Observe the screen.",
+  [StepType.CLICK]: "Click the screen.",
+  [StepType.PRESS]: "Press some keys.",
+  [StepType.TYPE]: "Enter text.",
+  [StepType.SCROLL]: "Scroll the screen.",
+  [StepType.SELECT]: "Select something.",
+  [StepType.GO_BACKWARD]: "Go back in history.",
+  [StepType.GO_FORWARD]: "Go forward in history.",
+  // web
+  [StepType.GO_TO_URL]: "Go to a URL.",
+  [StepType.GO_TO_TAB]: "Switch to a tab.",
+  [StepType.OPEN_TAB]: "Open a new tab.",
+  [StepType.CLOSE_TAB]: "Close a tab.",
+  // containers
+  [StepType.LOOP]: "Loop over a list.",
 };
 
 /** Rounds the given vector to the nearest grid position (in world coordinates). */
@@ -969,7 +1001,7 @@ export class FlowContext {
           canvas.pushPopover({
             trigger: e.target as HTMLElement,
             reference: { x: e.clientX, y: e.clientY },
-            kind: 'view',
+            kind: "view",
             placement: "bottom",
             title: "Add Step",
             component: ViewType.PICKER,

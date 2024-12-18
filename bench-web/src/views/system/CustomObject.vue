@@ -219,7 +219,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
       <!-- Fields (for current value) -->
       <ul
         class="flex flex-col gap-y-1.5"
-        :class="isMinimal ? 'py-3' : ''"
+        :class="!isMinimal ? 'py-3' : ''"
         :style="{ width: width != null ? width + 'px' : '100%' }"
       >
         <!-- NOTE :Incomplete: builtin custom object properties :CustomObjectProperties -->
@@ -229,7 +229,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
           class="mx-auto w-full"
           :class="[
             fieldView.isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[5%]',
-            isMinimal ? 'px-4' : '',
+            !isMinimal ? 'px-4' : '',
           ]"
           :style="{ minWidth: MIN_WIDTH + 'px', minHeight: ROW_HEIGHT_MIN + 'px' }"
         >

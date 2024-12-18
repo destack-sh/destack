@@ -1,4 +1,9 @@
 /**
+ * Our in-Browser runtime.
+ * Build with `tsc browser.ts --module none --removeComments`.
+ */
+
+/**
 * A DOM node.
 */
 type DomNode = {
