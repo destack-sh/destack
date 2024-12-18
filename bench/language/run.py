@@ -72,10 +72,10 @@ class ModelProvider(IdEnum):
     # internal
     # ...?
     # external
-    OPENAI = 100
-    ANTHROPIC = 200
-    GOOGLE = 300
-    META = 400
+    META = 100
+    OPENAI = 200
+    ANTHROPIC = 300
+    GOOGLE = 400
 
 
 @enum_(EnumType.MODEL_TYPE)
@@ -83,18 +83,18 @@ class ModelType(IdEnum):  # :ModelType
     # internal
     ...  # ?
     # external
-    # openai
-    OPENAI_GPT4_0 = 101
-    OPENAI_GPT4_O_MINI = 102
-    OPENAI_O1_PREVIEW = 103
-    OPENAI_O1_MINI = 104
-    # anthropic
-    ANTHROPIC_CLAUDE_3_5_SONNET = 201
-    # google
-    GOOGLE_GEMINI_1_5_PRO = 301
     # meta
-    META_LLAMA_3_1_80B = 401
-    META_LLAMA_3_1_400B = 402
+    META_LLAMA_3_1_80B = 101
+    META_LLAMA_3_1_400B = 102
+    # openai
+    OPENAI_GPT4_0 = 201
+    OPENAI_GPT4_O_MINI = 202
+    OPENAI_O1_PREVIEW = 203
+    OPENAI_O1_MINI = 204
+    # anthropic
+    ANTHROPIC_CLAUDE_3_5_SONNET = 301
+    # google
+    GOOGLE_GEMINI_1_5_PRO = 401
 
     @property
     def provider(self) -> ModelProvider:

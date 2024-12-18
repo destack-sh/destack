@@ -9359,9 +9359,9 @@ export enum MachineType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MACHINE_TYPE_RUNTIME = 1;
+     * @generated from protobuf enum value: MACHINE_TYPE_HOSTED_RUNTIME = 1;
      */
-    RUNTIME = 1
+    HOSTED_RUNTIME = 1
 }
 /**
  * @generated from protobuf enum symbolx.bench.BrowserType
@@ -9372,9 +9372,13 @@ export enum BrowserType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: BROWSER_TYPE_CHROME = 1;
+     * @generated from protobuf enum value: BROWSER_TYPE_BROWSERBASE_CHROME = 1;
      */
-    CHROME = 1
+    BROWSERBASE_CHROME = 1,
+    /**
+     * @generated from protobuf enum value: BROWSER_TYPE_LOCAL = 90;
+     */
+    LOCAL = 90
 }
 /**
  * Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
@@ -10907,21 +10911,21 @@ export enum ModelProvider {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_OPENAI = 100;
+     * @generated from protobuf enum value: MODEL_PROVIDER_META = 100;
      */
-    OPENAI = 100,
+    META = 100,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_ANTHROPIC = 200;
+     * @generated from protobuf enum value: MODEL_PROVIDER_OPENAI = 200;
      */
-    ANTHROPIC = 200,
+    OPENAI = 200,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_GOOGLE = 300;
+     * @generated from protobuf enum value: MODEL_PROVIDER_ANTHROPIC = 300;
      */
-    GOOGLE = 300,
+    ANTHROPIC = 300,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_META = 400;
+     * @generated from protobuf enum value: MODEL_PROVIDER_GOOGLE = 400;
      */
-    META = 400
+    GOOGLE = 400
 }
 /**
  * @generated from protobuf enum symbolx.bench.ModelType
@@ -10932,37 +10936,37 @@ export enum ModelType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_GPT4_0 = 101;
+     * @generated from protobuf enum value: MODEL_TYPE_META_LLAMA_3_1_80B = 101;
      */
-    OPENAI_GPT4_0 = 101,
+    META_LLAMA_3_1_80B = 101,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_GPT4_O_MINI = 102;
+     * @generated from protobuf enum value: MODEL_TYPE_META_LLAMA_3_1_400B = 102;
      */
-    OPENAI_GPT4_O_MINI = 102,
+    META_LLAMA_3_1_400B = 102,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O1_PREVIEW = 103;
+     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_GPT4_0 = 201;
      */
-    OPENAI_O1_PREVIEW = 103,
+    OPENAI_GPT4_0 = 201,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O1_MINI = 104;
+     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_GPT4_O_MINI = 202;
      */
-    OPENAI_O1_MINI = 104,
+    OPENAI_GPT4_O_MINI = 202,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET = 201;
+     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O1_PREVIEW = 203;
      */
-    ANTHROPIC_CLAUDE_3_5_SONNET = 201,
+    OPENAI_O1_PREVIEW = 203,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO = 301;
+     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O1_MINI = 204;
      */
-    GOOGLE_GEMINI_1_5_PRO = 301,
+    OPENAI_O1_MINI = 204,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_META_LLAMA_3_1_80B = 401;
+     * @generated from protobuf enum value: MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET = 301;
      */
-    META_LLAMA_3_1_80B = 401,
+    ANTHROPIC_CLAUDE_3_5_SONNET = 301,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_META_LLAMA_3_1_400B = 402;
+     * @generated from protobuf enum value: MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO = 401;
      */
-    META_LLAMA_3_1_400B = 402
+    GOOGLE_GEMINI_1_5_PRO = 401
 }
 /**
  * @generated from protobuf enum symbolx.bench.StepType
@@ -30470,8 +30474,8 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 50, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 50, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 60, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 61, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minRam]: { id: 62, name: 'min_ram', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 256.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -30501,8 +30505,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30596,7 +30600,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [MachineProperty.type]: { id: 30, name: 'type', component: ObjectType.MACHINE, enumType: EnumType.MACHINE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.type]: { id: 30, name: 'type', component: ObjectType.MACHINE, enumType: EnumType.MACHINE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.title]: { id: 32, name: 'title', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 33, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.text]: { id: 34, name: 'text', component: ObjectType.MACHINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -30609,8 +30613,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },

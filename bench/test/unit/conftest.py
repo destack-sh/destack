@@ -9,7 +9,6 @@ import uvloop
 from bench.language.machine import Machine
 from bench.language.validation import clean_name
 from bench.runtime.cache import MemoryCache
-from bench.runtime.remote import RemoteEngine
 from bench.runtime.runtime import Runtime
 from bench.sql.client import pg_connection
 from bench.sql.engine import sqlstr
@@ -25,7 +24,7 @@ from typing import Any
 from bench.language import Session, Store
 from bench.language.bench import Bench, Client, Package, PackageType, ResourceStatus
 from bench.language.block import Block
-from bench.language.connection import NullEngine
+from bench.language.connection import NullEngine, RemoteEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     NODE_TYPES,
