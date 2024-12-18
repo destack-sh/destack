@@ -250,7 +250,7 @@ class ResourceStatus(IdEnum):
 
 @enum_(EnumType.RESOURCE_OCCUPANCY)
 class ResourceOccupancy(IdEnum):
-    """The occupancy of a resource."""
+    """The occupancy of a resource (i.e. whether/how it's being used)."""
 
     AVAILABLE = 1
     RESERVED = 2

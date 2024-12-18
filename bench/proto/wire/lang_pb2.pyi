@@ -1626,7 +1626,6 @@ class PickerVariant(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PICKER_VARIANT_UNSPECIFIED: _ClassVar[PickerVariant]
     PICKER_VARIANT_DROPDOWN: _ClassVar[PickerVariant]
     PICKER_VARIANT_MULTI_TOGGLE: _ClassVar[PickerVariant]
-    PICKER_VARIANT_COMBOBOX: _ClassVar[PickerVariant]
 
 class UserStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2988,7 +2987,6 @@ BUTTON_VARIANT_LINK: ButtonVariant
 PICKER_VARIANT_UNSPECIFIED: PickerVariant
 PICKER_VARIANT_DROPDOWN: PickerVariant
 PICKER_VARIANT_MULTI_TOGGLE: PickerVariant
-PICKER_VARIANT_COMBOBOX: PickerVariant
 USER_STATUS_UNSPECIFIED: UserStatus
 USER_STATUS_INVITED: UserStatus
 USER_STATUS_RESERVED: UserStatus
@@ -5553,8 +5551,10 @@ class FailStepData(_message.Message):
     def __init__(self, error_title: _Optional[str] = ..., error_text: _Optional[_Union[TextData, _Mapping]] = ...) -> None: ...
 
 class ObserveStepData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("exclude_image",)
+    EXCLUDE_IMAGE_FIELD_NUMBER: _ClassVar[int]
+    exclude_image: bool
+    def __init__(self, exclude_image: bool = ...) -> None: ...
 
 class ClickStepData(_message.Message):
     __slots__ = ("xpath",)
@@ -5609,8 +5609,10 @@ class GoForwardStepData(_message.Message):
     def __init__(self, xpath: _Optional[str] = ...) -> None: ...
 
 class GoToUrlStepData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("url",)
+    URL_FIELD_NUMBER: _ClassVar[int]
+    url: str
+    def __init__(self, url: _Optional[str] = ...) -> None: ...
 
 class GoToTabStepData(_message.Message):
     __slots__ = ("tab_index",)

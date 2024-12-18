@@ -35,7 +35,7 @@ import {
   TypeInfoData,
   TypeKind,
   type AnyNodeData,
-  type PropertyInfo
+  type PropertyInfo,
 } from "@/proto/wire";
 import {
   contentEquals,
@@ -51,7 +51,6 @@ import { getNodeIcon, getTypeIcon, makeIcon } from "@/ui/icon";
 import { getRandomColorType } from "@/ui/style";
 import { assertNever, decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
-
 
 export type TypeIdentity = Pick<
   TypeInfoData,
@@ -128,11 +127,21 @@ export const TITLE_TYPE = makeTypeInfo({
 const _propertyTypeInfos: Record<string, TypeIdentity> = {};
 
 export function getPropertyType(prop: PropertyInfo | PropertyReferenceData): TypeIdentity {
+  // cast to property info if necessary
   if (isStruct(prop, StructType.PROPERTY_REFERENCE)) {
     prop = propertyInfo(prop.type as unknown as ObjectType, prop.id);
   }
-  const cacheKey = `${prop.component}.${prop.id}`;
+
+  // check cache
+  let cacheKey: string;
+  if (prop.componentSubtype != null) {
+    cacheKey = `${prop.component}.${prop.id}.${prop.componentSubtype}`;
+  } else {
+    cacheKey = `${prop.component}.${prop.id}`;
+  }
   const cached = _propertyTypeInfos[cacheKey];
+
+  // get if cache miss
   if (cached == null) {
     let kind: TypeKind;
     let benchType: BenchType | undefined;

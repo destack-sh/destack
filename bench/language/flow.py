@@ -569,7 +569,7 @@ class HasApplicationLocation(BuiltinObject):
 
 @node_subtype_(StepType.OBSERVE)
 class ObserveStep(Step):
-    pass
+    exclude_image: bool | None = p_regular(100, default=False)
 
 
 @node_subtype_(StepType.CLICK)
@@ -618,7 +618,7 @@ class GoForwardStep(Step, HasApplicationLocation):
 
 @node_subtype_(StepType.GO_TO_URL)
 class GoToUrlStep(Step):
-    pass
+    url: str | None = p_regular(100, default=None)
 
 
 @node_subtype_(StepType.GO_TO_TAB)

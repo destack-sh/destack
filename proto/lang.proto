@@ -688,7 +688,7 @@ enum ResourceStatus {
   RESOURCE_STATUS_DECOMMISSIONED = 30;
 }
 
-// The occupancy of a resource.
+// The occupancy of a resource (i.e. whether/how it's being used).
 enum ResourceOccupancy {
   RESOURCE_OCCUPANCY_UNSPECIFIED = 0;
   RESOURCE_OCCUPANCY_AVAILABLE = 1;
@@ -1645,7 +1645,6 @@ enum PickerVariant {
   PICKER_VARIANT_UNSPECIFIED = 0;
   PICKER_VARIANT_DROPDOWN = 1;
   PICKER_VARIANT_MULTI_TOGGLE = 2;
-  PICKER_VARIANT_COMBOBOX = 3;
 }
 
 enum UserStatus {
@@ -3060,6 +3059,7 @@ message FailStepData {
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message ObserveStepData {
+  optional bool exclude_image = 100;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
@@ -3104,6 +3104,7 @@ message GoForwardStepData {
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message GoToUrlStepData {
+  optional string url = 100;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.

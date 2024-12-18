@@ -4812,6 +4812,10 @@ export interface FailStepData {
  * @generated from protobuf message symbolx.bench.ObserveStepData
  */
 export interface ObserveStepData {
+    /**
+     * @generated from protobuf field: optional bool exclude_image = 100;
+     */
+    excludeImage?: boolean;
 }
 /**
  * A data or control flow node in a Flow. Steps are connected by Pipes.
@@ -4916,6 +4920,10 @@ export interface GoForwardStepData {
  * @generated from protobuf message symbolx.bench.GoToUrlStepData
  */
 export interface GoToUrlStepData {
+    /**
+     * @generated from protobuf field: optional string url = 100;
+     */
+    url?: string;
 }
 /**
  * A data or control flow node in a Flow. Steps are connected by Pipes.
@@ -9079,7 +9087,7 @@ export enum ResourceStatus {
     DECOMMISSIONED = 30
 }
 /**
- * The occupancy of a resource.
+ * The occupancy of a resource (i.e. whether/how it's being used).
  *
  * @generated from protobuf enum symbolx.bench.ResourceOccupancy
  */
@@ -12359,11 +12367,7 @@ export enum PickerVariant {
     /**
      * @generated from protobuf enum value: PICKER_VARIANT_MULTI_TOGGLE = 2;
      */
-    MULTI_TOGGLE = 2,
-    /**
-     * @generated from protobuf enum value: PICKER_VARIANT_COMBOBOX = 3;
-     */
-    COMBOBOX = 3
+    MULTI_TOGGLE = 2
 }
 /**
  * @generated from protobuf enum symbolx.bench.UserStatus
@@ -24468,7 +24472,9 @@ export const FailStepData = new FailStepData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ObserveStepData$Type extends MessageType$<ObserveStepData> {
     constructor() {
-        super("symbolx.bench.ObserveStepData", []);
+        super("symbolx.bench.ObserveStepData", [
+            { no: 100, name: "exclude_image", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+        ]);
     }
     create(value?: PartialMessage<ObserveStepData>): ObserveStepData {
         const message = globalThis.Object.create((this.messagePrototype!));
@@ -24477,9 +24483,28 @@ class ObserveStepData$Type extends MessageType$<ObserveStepData> {
         return message;
     }
     internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ObserveStepData): ObserveStepData {
-        return target ?? this.create();
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional bool exclude_image */ 100:
+                    message.excludeImage = reader.bool();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
     }
     internalBinaryWrite(message: ObserveStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional bool exclude_image = 100; */
+        if (message.excludeImage !== undefined)
+            writer.tag(100, WireType.Varint).bool(message.excludeImage);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24850,7 +24875,9 @@ export const GoForwardStepData = new GoForwardStepData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GoToUrlStepData$Type extends MessageType$<GoToUrlStepData> {
     constructor() {
-        super("symbolx.bench.GoToUrlStepData", []);
+        super("symbolx.bench.GoToUrlStepData", [
+            { no: 100, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
     }
     create(value?: PartialMessage<GoToUrlStepData>): GoToUrlStepData {
         const message = globalThis.Object.create((this.messagePrototype!));
@@ -24859,9 +24886,28 @@ class GoToUrlStepData$Type extends MessageType$<GoToUrlStepData> {
         return message;
     }
     internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GoToUrlStepData): GoToUrlStepData {
-        return target ?? this.create();
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional string url */ 100:
+                    message.url = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
     }
     internalBinaryWrite(message: GoToUrlStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional string url = 100; */
+        if (message.url !== undefined)
+            writer.tag(100, WireType.LengthDelimited).string(message.url);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30407,7 +30453,7 @@ export enum FailStepProperty {
 }
 
 export enum ObserveStepProperty {
-
+  excludeImage = 100,
 }
 
 export enum ClickStepProperty {
@@ -30444,7 +30490,7 @@ export enum GoForwardStepProperty {
 }
 
 export enum GoToUrlStepProperty {
-
+  url = 100,
 }
 
 export enum GoToTabStepProperty {
@@ -31350,6 +31396,7 @@ export type PropertyInfo = {
     id: number;
     name: string;
     component: ObjectType;
+    componentSubtype?: number;
     kind: PropertyKind;
     primitiveType?: PrimitiveType;
     enumType?: EnumType;
@@ -31556,8 +31603,8 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 50, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 50, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 60, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 61, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minRam]: { id: 62, name: 'min_ram', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 256.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -31587,8 +31634,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31695,8 +31742,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -32360,15 +32407,15 @@ export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
   [SkipProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ValueBlockDataInfo: Record<ValueBlockProperty, PropertyInfo> = {
-  [ValueBlockProperty.valueType]: { id: 100, name: 'value_type', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [ValueBlockProperty.valuePacked]: { id: 101, name: 'value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [ValueBlockProperty.valueType]: { id: 100, name: 'value_type', component: ObjectType.BLOCK, componentSubtype: 30, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
+  [ValueBlockProperty.valuePacked]: { id: 101, name: 'value_packed', component: ObjectType.BLOCK, componentSubtype: 30, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const ActionBlockDataInfo: Record<ActionBlockProperty, PropertyInfo> = {
-  [ActionBlockProperty.agency]: { id: 100, name: 'agency', component: ObjectType.BLOCK, enumType: EnumType.AGENCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 3, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ActionBlockProperty.isDynamic]: { id: 101, name: 'is_dynamic', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ActionBlockProperty.code]: { id: 111, name: 'code', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [ActionBlockProperty.toolsPtr]: { id: 112, name: 'tools_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [21, 22] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-  [ActionBlockProperty.delegatePtr]: { id: 113, name: 'delegate_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [21, 22] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ActionBlockProperty.agency]: { id: 100, name: 'agency', component: ObjectType.BLOCK, componentSubtype: 21, enumType: EnumType.AGENCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 3, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ActionBlockProperty.isDynamic]: { id: 101, name: 'is_dynamic', component: ObjectType.BLOCK, componentSubtype: 21, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ActionBlockProperty.code]: { id: 111, name: 'code', component: ObjectType.BLOCK, componentSubtype: 21, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+  [ActionBlockProperty.toolsPtr]: { id: 112, name: 'tools_ptr', component: ObjectType.BLOCK, componentSubtype: 21, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [21, 22] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ActionBlockProperty.delegatePtr]: { id: 113, name: 'delegate_ptr', component: ObjectType.BLOCK, componentSubtype: 21, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [21, 22] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const TextBlockDataInfo: Record<TextBlockProperty, PropertyInfo> = {
 
@@ -32377,123 +32424,123 @@ export const FlowBlockDataInfo: Record<FlowBlockProperty, PropertyInfo> = {
 
 }
 export const DatabaseBlockDataInfo: Record<DatabaseBlockProperty, PropertyInfo> = {
-  [DatabaseBlockProperty.queryPtr]: { id: 100, name: 'query_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.QUERY], referenceStruct: StructType.NODE_REFERENCE },
+  [DatabaseBlockProperty.queryPtr]: { id: 100, name: 'query_ptr', component: ObjectType.BLOCK, componentSubtype: 31, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.QUERY], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const QueryBlockDataInfo: Record<QueryBlockProperty, PropertyInfo> = {
-  [QueryBlockProperty.queryPtr]: { id: 100, name: 'query_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.QUERY], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryBlockProperty.queryPtr]: { id: 100, name: 'query_ptr', component: ObjectType.BLOCK, componentSubtype: 32, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.QUERY], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo> = {
-  [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, componentSubtype: 1, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const HelpViewDataInfo: Record<HelpViewProperty, PropertyInfo> = {
-  [HelpViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, enumType: EnumType.HELP_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [HelpViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 411, enumType: EnumType.HELP_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const DetailViewDataInfo: Record<DetailViewProperty, PropertyInfo> = {
-  [DetailViewProperty.expandedSections]: { id: 100, name: 'expanded_sections', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [DetailViewProperty.collapsedSections]: { id: 101, name: 'collapsed_sections', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DetailViewProperty.expandedSections]: { id: 100, name: 'expanded_sections', component: ObjectType.VIEW, componentSubtype: 403, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DetailViewProperty.collapsedSections]: { id: 101, name: 'collapsed_sections', component: ObjectType.VIEW, componentSubtype: 403, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const RunViewDataInfo: Record<RunViewProperty, PropertyInfo> = {
-  [RunViewProperty.inputsPacked]: { id: 100, name: 'inputs_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunViewProperty.inputsPacked]: { id: 100, name: 'inputs_packed', component: ObjectType.VIEW, componentSubtype: 406, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
-  [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 409, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const TreeViewDataInfo: Record<TreeViewProperty, PropertyInfo> = {
-  [TreeViewProperty.nodeTypes]: { id: 100, name: 'node_types', component: ObjectType.VIEW, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewProperty.filterIsPage]: { id: 101, name: 'filter_is_page', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewProperty.isDefaultExpanded]: { id: 102, name: 'is_default_expanded', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewProperty.expandedNodesPtr]: { id: 103, name: 'expanded_nodes_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [TreeViewProperty.collapsedNodesPtr]: { id: 104, name: 'collapsed_nodes_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [TreeViewProperty.preset]: { id: 110, name: 'preset', component: ObjectType.VIEW, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewProperty.nodeTypes]: { id: 100, name: 'node_types', component: ObjectType.VIEW, componentSubtype: 1052, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewProperty.filterIsPage]: { id: 101, name: 'filter_is_page', component: ObjectType.VIEW, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewProperty.isDefaultExpanded]: { id: 102, name: 'is_default_expanded', component: ObjectType.VIEW, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewProperty.expandedNodesPtr]: { id: 103, name: 'expanded_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 1052, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [TreeViewProperty.collapsedNodesPtr]: { id: 104, name: 'collapsed_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 1052, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [TreeViewProperty.preset]: { id: 110, name: 'preset', component: ObjectType.VIEW, componentSubtype: 1052, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const FeedViewDataInfo: Record<FeedViewProperty, PropertyInfo> = {
-  [FeedViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FeedViewProperty.filter]: { id: 101, name: 'filter', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [FeedViewProperty.filterPills]: { id: 102, name: 'filter_pills', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FeedViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, componentSubtype: 1053, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FeedViewProperty.filter]: { id: 101, name: 'filter', component: ObjectType.VIEW, componentSubtype: 1053, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [FeedViewProperty.filterPills]: { id: 102, name: 'filter_pills', component: ObjectType.VIEW, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ButtonViewDataInfo: Record<ButtonViewProperty, PropertyInfo> = {
-  [ButtonViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, enumType: EnumType.BUTTON_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ButtonViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 1200, enumType: EnumType.BUTTON_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const IconViewDataInfo: Record<IconViewProperty, PropertyInfo> = {
-  [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, componentSubtype: 1341, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const PickerViewDataInfo: Record<PickerViewProperty, PropertyInfo> = {
-  [PickerViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, enumType: EnumType.PICKER_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [PickerViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 1331, enumType: EnumType.PICKER_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const GetStepDataInfo: Record<GetStepProperty, PropertyInfo> = {
-  [GetStepProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.STEP, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [GetStepProperty.baseBlockPtr]: { id: 101, name: 'base_block_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [GetStepProperty.filter]: { id: 102, name: 'filter', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [GetStepProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.STEP, componentSubtype: 40, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [GetStepProperty.baseBlockPtr]: { id: 101, name: 'base_block_ptr', component: ObjectType.STEP, componentSubtype: 40, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [GetStepProperty.filter]: { id: 102, name: 'filter', component: ObjectType.STEP, componentSubtype: 40, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
 export const SearchStepDataInfo: Record<SearchStepProperty, PropertyInfo> = {
-  [SearchStepProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.STEP, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [SearchStepProperty.baseBlockPtr]: { id: 101, name: 'base_block_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [SearchStepProperty.filter]: { id: 102, name: 'filter', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [SearchStepProperty.sort]: { id: 103, name: 'sort', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [SearchStepProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.STEP, componentSubtype: 41, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [SearchStepProperty.baseBlockPtr]: { id: 101, name: 'base_block_ptr', component: ObjectType.STEP, componentSubtype: 41, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SearchStepProperty.filter]: { id: 102, name: 'filter', component: ObjectType.STEP, componentSubtype: 41, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [SearchStepProperty.sort]: { id: 103, name: 'sort', component: ObjectType.STEP, componentSubtype: 41, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
 export const CreateStepDataInfo: Record<CreateStepProperty, PropertyInfo> = {
-  [CreateStepProperty.nodePartialPacked]: { id: 100, name: 'node_partial_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [CreateStepProperty.nodePartialPacked]: { id: 100, name: 'node_partial_packed', component: ObjectType.STEP, componentSubtype: 60, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const DuplicateStepDataInfo: Record<DuplicateStepProperty, PropertyInfo> = {
-  [DuplicateStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [DuplicateStepProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [DuplicateStepProperty.recursive]: { id: 110, name: 'recursive', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DuplicateStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, componentSubtype: 61, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [DuplicateStepProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.STEP, componentSubtype: 61, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [DuplicateStepProperty.recursive]: { id: 110, name: 'recursive', component: ObjectType.STEP, componentSubtype: 61, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const UpdateStepDataInfo: Record<UpdateStepProperty, PropertyInfo> = {
-  [UpdateStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [UpdateStepProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [UpdateStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, componentSubtype: 62, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [UpdateStepProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.STEP, componentSubtype: 62, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const DeleteStepDataInfo: Record<DeleteStepProperty, PropertyInfo> = {
-  [DeleteStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [DeleteStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, componentSubtype: 63, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ActionStepDataInfo: Record<ActionStepProperty, PropertyInfo> = {
-  [ActionStepProperty.agency]: { id: 100, name: 'agency', component: ObjectType.STEP, enumType: EnumType.AGENCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 3, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ActionStepProperty.isDynamic]: { id: 101, name: 'is_dynamic', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ActionStepProperty.code]: { id: 111, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [ActionStepProperty.toolsPtr]: { id: 112, name: 'tools_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [21, 22] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-  [ActionStepProperty.delegatePtr]: { id: 113, name: 'delegate_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [21, 22] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ActionStepProperty.agency]: { id: 100, name: 'agency', component: ObjectType.STEP, componentSubtype: 100, enumType: EnumType.AGENCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 3, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ActionStepProperty.isDynamic]: { id: 101, name: 'is_dynamic', component: ObjectType.STEP, componentSubtype: 100, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ActionStepProperty.code]: { id: 111, name: 'code', component: ObjectType.STEP, componentSubtype: 100, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+  [ActionStepProperty.toolsPtr]: { id: 112, name: 'tools_ptr', component: ObjectType.STEP, componentSubtype: 100, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [21, 22] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ActionStepProperty.delegatePtr]: { id: 113, name: 'delegate_ptr', component: ObjectType.STEP, componentSubtype: 100, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [21, 22] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const FailStepDataInfo: Record<FailStepProperty, PropertyInfo> = {
-  [FailStepProperty.errorTitle]: { id: 100, name: 'error_title', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [FailStepProperty.errorText]: { id: 101, name: 'error_text', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [FailStepProperty.errorTitle]: { id: 100, name: 'error_title', component: ObjectType.STEP, componentSubtype: 11, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FailStepProperty.errorText]: { id: 101, name: 'error_text', component: ObjectType.STEP, componentSubtype: 11, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
 }
 export const ObserveStepDataInfo: Record<ObserveStepProperty, PropertyInfo> = {
-
+  [ObserveStepProperty.excludeImage]: { id: 100, name: 'exclude_image', component: ObjectType.STEP, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
 }
 export const ClickStepDataInfo: Record<ClickStepProperty, PropertyInfo> = {
-  [ClickStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ClickStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const PressStepDataInfo: Record<PressStepProperty, PropertyInfo> = {
-  [PressStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [PressStepProperty.keys]: { id: 110, name: 'keys', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [PressStepProperty.delay]: { id: 111, name: 'delay', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [PressStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [PressStepProperty.keys]: { id: 110, name: 'keys', component: ObjectType.STEP, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [PressStepProperty.delay]: { id: 111, name: 'delay', component: ObjectType.STEP, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const TypeStepDataInfo: Record<TypeStepProperty, PropertyInfo> = {
-  [TypeStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TypeStepProperty.string]: { id: 110, name: 'string', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TypeStepProperty.delay]: { id: 111, name: 'delay', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [TypeStepProperty.string]: { id: 110, name: 'string', component: ObjectType.STEP, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [TypeStepProperty.delay]: { id: 111, name: 'delay', component: ObjectType.STEP, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const ScrollStepDataInfo: Record<ScrollStepProperty, PropertyInfo> = {
-  [ScrollStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ScrollStepProperty.amount]: { id: 110, name: 'amount', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [ScrollStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ScrollStepProperty.amount]: { id: 110, name: 'amount', component: ObjectType.STEP, componentSubtype: 1053, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
 }
 export const SelectStepDataInfo: Record<SelectStepProperty, PropertyInfo> = {
-  [SelectStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [SelectStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, componentSubtype: 1054, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const GoBackwardStepDataInfo: Record<GoBackwardStepProperty, PropertyInfo> = {
-  [GoBackwardStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [GoBackwardStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, componentSubtype: 1060, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const GoForwardStepDataInfo: Record<GoForwardStepProperty, PropertyInfo> = {
-  [GoForwardStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [GoForwardStepProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.STEP, componentSubtype: 1061, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const GoToUrlStepDataInfo: Record<GoToUrlStepProperty, PropertyInfo> = {
-
+  [GoToUrlStepProperty.url]: { id: 100, name: 'url', component: ObjectType.STEP, componentSubtype: 1100, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const GoToTabStepDataInfo: Record<GoToTabStepProperty, PropertyInfo> = {
-  [GoToTabStepProperty.tabIndex]: { id: 100, name: 'tab_index', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [GoToTabStepProperty.tabIndex]: { id: 100, name: 'tab_index', component: ObjectType.STEP, componentSubtype: 1101, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const LoopStepDataInfo: Record<LoopStepProperty, PropertyInfo> = {
-  [LoopStepProperty.forFieldPtr]: { id: 100, name: 'for_field_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [LoopStepProperty.forFieldPtr]: { id: 100, name: 'for_field_ptr', component: ObjectType.STEP, componentSubtype: 5001, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SelectPipeDataInfo: Record<SelectPipeProperty, PropertyInfo> = {
 
