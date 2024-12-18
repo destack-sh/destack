@@ -291,6 +291,10 @@ class NodeType(IdEnum):
         return AREA_BY_NODE_TYPE[self]
 
     @property
+    def is_resource(self) -> bool:
+        return self.id >= 2000 and self.id < 3000
+
+    @property
     def is_source(self) -> bool:
         return self.id >= 3000 and self.id < 3100
 
@@ -1083,24 +1087,21 @@ class RunStatus(IdEnum):
     SCHEDULED = 1
     QUEUED = 2
     # active
-    RUNNING = 3
+    PREPARING = 3
+    RUNNING = 4
     # interrupted
-    PAUSED = 4
-    YIELDED = 5
-    WAITING = 6
+    PAUSED = 5
+    YIELDED = 6
+    WAITING = 7
     # terminal
-    CANCELLED = 7
-    ABORTED = 8
-    FAILED = 9
-    COMPLETED = 10
+    CANCELLED = 8
+    ABORTED = 9
+    FAILED = 10
+    COMPLETED = 11
 
     @property
     def is_active(self) -> bool:
         return self in ACTIVE_RUN_STATUSES
-
-    @property
-    def is_stopped(self) -> bool:
-        return self >= 4
 
     @property
     def is_interrupted(self) -> bool:

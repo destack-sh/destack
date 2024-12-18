@@ -1167,6 +1167,7 @@ class RunStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_STATUS_UNSPECIFIED: _ClassVar[RunStatus]
     RUN_STATUS_SCHEDULED: _ClassVar[RunStatus]
     RUN_STATUS_QUEUED: _ClassVar[RunStatus]
+    RUN_STATUS_PREPARING: _ClassVar[RunStatus]
     RUN_STATUS_RUNNING: _ClassVar[RunStatus]
     RUN_STATUS_PAUSED: _ClassVar[RunStatus]
     RUN_STATUS_YIELDED: _ClassVar[RunStatus]
@@ -2639,6 +2640,7 @@ LOG_LEVEL_CRITICAL: LogLevel
 RUN_STATUS_UNSPECIFIED: RunStatus
 RUN_STATUS_SCHEDULED: RunStatus
 RUN_STATUS_QUEUED: RunStatus
+RUN_STATUS_PREPARING: RunStatus
 RUN_STATUS_RUNNING: RunStatus
 RUN_STATUS_PAUSED: RunStatus
 RUN_STATUS_YIELDED: RunStatus

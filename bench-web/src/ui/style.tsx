@@ -192,6 +192,7 @@ export const COLOR_BY_RUN_STATUS: Record<RunStatus, ColorType> = {
   [RunStatus.UNSPECIFIED]: ColorType.GRAY,
   [RunStatus.SCHEDULED]: ColorType.GRAY,
   [RunStatus.QUEUED]: ColorType.GRAY,
+  [RunStatus.PREPARING]: ColorType.GRAY,
   [RunStatus.RUNNING]: ColorType.GREEN,
   [RunStatus.PAUSED]: ColorType.PINK,
   [RunStatus.YIELDED]: ColorType.PINK,

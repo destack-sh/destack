@@ -99,6 +99,8 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "status",
         "task",
         "tracked_run",
+        "variable_type",
+        "variables",
     )
 
     kind: ClassVar[RunType]
@@ -112,6 +114,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         options: RunOptions,
         context: Context,
         parent: "Runner | None" = None,
+        variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
         output_type: TypeBase | None = None,
         mode: NodeMode | None = None,
@@ -124,6 +127,8 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.options = options
 
         self.context = context
+        self.variables = variables
+        self.variable_type = node.variable_type
         self.inputs: CustomObject | None = inputs
         self.input_type = node.input_type
         self.outputs: CustomObject | None = None
@@ -418,6 +423,16 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
     node = run.runnable
     if node is None:
         raise RunImpossibleError(f"no node for {run!r}")
+
+    # variables
+    if run.variables is None and run.variable_type is not None:
+        variables = CustomObject.new(
+            ObjectKind.VARIABLE, {}, typ=run.variable_type, supergraph=runtime.session._supergraph
+        )
+    else:
+        variables = run.variables
+
+    # inputs
     if run.inputs is None and run.input_type is not None:
         inputs = CustomObject.new(
             ObjectKind.INPUT, {}, typ=run.input_type, supergraph=runtime.session._supergraph
@@ -430,6 +445,7 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
         node,
         kind=run.type,
         context=run.context,
+        variables=variables,
         inputs=inputs,
         run=run,
         track=True,
@@ -443,6 +459,7 @@ def make_runner(
     *,
     kind: RunType | None = None,
     context: Context | None = None,
+    variables: CustomObject | None = None,
     inputs: Any | None = None,
     output_type: TypeBase | None = None,
     parent: "Run | None" = None,
@@ -458,6 +475,7 @@ def make_runner(
         "options": options,
         "context": context,
         "inputs": inputs,
+        "variables": variables,
         "output_type": output_type,
         "run": run,
         "track": track,

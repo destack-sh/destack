@@ -141,7 +141,12 @@ export const CONTAINER_STEP_TYPES = STEP_TYPES.filter((st) => st >= 500 && st < 
 // run
 export const TERMINAL_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, RunStatus.FAILED, RunStatus.COMPLETED];
 export const INTERRUPTED_RUN_STATUSES = [RunStatus.PAUSED, RunStatus.YIELDED, RunStatus.WAITING];
-export const ACTIVE_RUN_STATUSES = [RunStatus.RUNNING, RunStatus.PAUSED, ...INTERRUPTED_RUN_STATUSES];
+export const ACTIVE_RUN_STATUSES = [
+  RunStatus.PREPARING,
+  RunStatus.RUNNING,
+  RunStatus.PAUSED,
+  ...INTERRUPTED_RUN_STATUSES,
+];
 
 // view
 export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "number" && v > 0) as ViewType[];

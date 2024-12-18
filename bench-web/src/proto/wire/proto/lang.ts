@@ -10771,37 +10771,41 @@ export enum RunStatus {
      */
     QUEUED = 2,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_RUNNING = 3;
+     * @generated from protobuf enum value: RUN_STATUS_PREPARING = 3;
      */
-    RUNNING = 3,
+    PREPARING = 3,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_PAUSED = 4;
+     * @generated from protobuf enum value: RUN_STATUS_RUNNING = 4;
      */
-    PAUSED = 4,
+    RUNNING = 4,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_YIELDED = 5;
+     * @generated from protobuf enum value: RUN_STATUS_PAUSED = 5;
      */
-    YIELDED = 5,
+    PAUSED = 5,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_WAITING = 6;
+     * @generated from protobuf enum value: RUN_STATUS_YIELDED = 6;
      */
-    WAITING = 6,
+    YIELDED = 6,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_CANCELLED = 7;
+     * @generated from protobuf enum value: RUN_STATUS_WAITING = 7;
      */
-    CANCELLED = 7,
+    WAITING = 7,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_ABORTED = 8;
+     * @generated from protobuf enum value: RUN_STATUS_CANCELLED = 8;
      */
-    ABORTED = 8,
+    CANCELLED = 8,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_FAILED = 9;
+     * @generated from protobuf enum value: RUN_STATUS_ABORTED = 9;
      */
-    FAILED = 9,
+    ABORTED = 9,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_COMPLETED = 10;
+     * @generated from protobuf enum value: RUN_STATUS_FAILED = 10;
      */
-    COMPLETED = 10
+    FAILED = 10,
+    /**
+     * @generated from protobuf enum value: RUN_STATUS_COMPLETED = 11;
+     */
+    COMPLETED = 11
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunType
@@ -31603,8 +31607,8 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 50, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 50, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 60, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 61, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minRam]: { id: 62, name: 'min_ram', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 256.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -31634,8 +31638,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31742,8 +31746,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.18.3", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
