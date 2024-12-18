@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.17.2"
+VERSION = "2024.12.18.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -480,7 +480,7 @@ MACHINE_TABLE = Table(
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("type", PrimitiveType.INT16, default="1"),
+        Column("type", PrimitiveType.INT16),
         Column("title", PrimitiveType.STRING),
         Column("status", PrimitiveType.INT16),
         Column("text", PrimitiveType.JSON, is_nullable=True),

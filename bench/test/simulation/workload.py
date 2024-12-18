@@ -9,7 +9,7 @@ from opentelemetry import trace
 from bench.language import NodeReference
 from bench.language.bench import Bench, Client, Package
 from bench.language.block import Block
-from bench.language.connection import Engine
+from bench.language.connection import Engine, RemoteEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     PUBLIC_NODE_TYPES,
@@ -25,7 +25,6 @@ from bench.language.session import Session
 from bench.language.user import User
 from bench.proto.wire import HostClient, RpcMetadata, SupervisorClient
 from bench.proto.wiring import unpack_builtin_object
-from bench.runtime.remote import RemoteEngine
 from bench.test.simulation.spec import WorkloadSpec, WorkloadType
 from bench.test.simulation.utils import SampledFloat, SampledInt, to_value
 from bench.test.utils import assert_graph_equals

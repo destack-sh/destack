@@ -15,7 +15,7 @@ from bench.language import Bench, Drive, NodeReference, Package, Run, Server, St
 from bench.language.access import Ownable
 from bench.language.block import Block
 from bench.language.builtin import make_builtins
-from bench.language.connection import Engine
+from bench.language.connection import Engine, MemoryEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     BENCH_SLUG,
@@ -60,7 +60,6 @@ from bench.system.graph.graph import (
     extract_commit_area,
     validate_edit,
 )
-from bench.system.graph.memory import MemoryEngine
 from bench.system.graph.postgres import PostgresEngine
 from bench.system.host.core import Host, HostPlugin, unpack_commit
 from bench.system.host.database import DatabasePlugin

@@ -11,6 +11,7 @@ from grpclib.client import Channel
 from opentelemetry import trace
 
 from bench.language.bench import Bench, Client, Package, Server
+from bench.language.connection import RemoteEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     NONCE,
@@ -35,7 +36,6 @@ from bench.proto.wire import (
     SupervisorClient,
 )
 from bench.proto.wiring import pack_rpc_headers
-from bench.runtime.remote import RemoteEngine
 from bench.utils.oracle import Oracle
 from bench.utils.sync import CriticalLock
 from bench.utils.tenacity import RETRY_GRPC_FOREVER

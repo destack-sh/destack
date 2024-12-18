@@ -822,12 +822,13 @@ class ClientType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class MachineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     MACHINE_TYPE_UNSPECIFIED: _ClassVar[MachineType]
-    MACHINE_TYPE_RUNTIME: _ClassVar[MachineType]
+    MACHINE_TYPE_HOSTED_RUNTIME: _ClassVar[MachineType]
 
 class BrowserType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     BROWSER_TYPE_UNSPECIFIED: _ClassVar[BrowserType]
-    BROWSER_TYPE_CHROME: _ClassVar[BrowserType]
+    BROWSER_TYPE_BROWSERBASE_CHROME: _ClassVar[BrowserType]
+    BROWSER_TYPE_LOCAL: _ClassVar[BrowserType]
 
 class PrimitiveType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1281,22 +1282,22 @@ class CodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class ModelProvider(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     MODEL_PROVIDER_UNSPECIFIED: _ClassVar[ModelProvider]
+    MODEL_PROVIDER_META: _ClassVar[ModelProvider]
     MODEL_PROVIDER_OPENAI: _ClassVar[ModelProvider]
     MODEL_PROVIDER_ANTHROPIC: _ClassVar[ModelProvider]
     MODEL_PROVIDER_GOOGLE: _ClassVar[ModelProvider]
-    MODEL_PROVIDER_META: _ClassVar[ModelProvider]
 
 class ModelType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     MODEL_TYPE_UNSPECIFIED: _ClassVar[ModelType]
+    MODEL_TYPE_META_LLAMA_3_1_80B: _ClassVar[ModelType]
+    MODEL_TYPE_META_LLAMA_3_1_400B: _ClassVar[ModelType]
     MODEL_TYPE_OPENAI_GPT4_0: _ClassVar[ModelType]
     MODEL_TYPE_OPENAI_GPT4_O_MINI: _ClassVar[ModelType]
     MODEL_TYPE_OPENAI_O1_PREVIEW: _ClassVar[ModelType]
     MODEL_TYPE_OPENAI_O1_MINI: _ClassVar[ModelType]
     MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET: _ClassVar[ModelType]
     MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO: _ClassVar[ModelType]
-    MODEL_TYPE_META_LLAMA_3_1_80B: _ClassVar[ModelType]
-    MODEL_TYPE_META_LLAMA_3_1_400B: _ClassVar[ModelType]
 
 class StepType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2359,9 +2360,10 @@ CLIENT_TYPE_BENCH_DESKTOP: ClientType
 CLIENT_TYPE_BENCH_MOBILE: ClientType
 CLIENT_TYPE_BENCH_MACHINE: ClientType
 MACHINE_TYPE_UNSPECIFIED: MachineType
-MACHINE_TYPE_RUNTIME: MachineType
+MACHINE_TYPE_HOSTED_RUNTIME: MachineType
 BROWSER_TYPE_UNSPECIFIED: BrowserType
-BROWSER_TYPE_CHROME: BrowserType
+BROWSER_TYPE_BROWSERBASE_CHROME: BrowserType
+BROWSER_TYPE_LOCAL: BrowserType
 PRIMITIVE_TYPE_UNSPECIFIED: PrimitiveType
 PRIMITIVE_TYPE_BOOLEAN: PrimitiveType
 PRIMITIVE_TYPE_INT16: PrimitiveType
@@ -2686,19 +2688,19 @@ CODE_TYPE_SNIPPET: CodeType
 CODE_TYPE_SCRIPT: CodeType
 CODE_TYPE_FUNCTION: CodeType
 MODEL_PROVIDER_UNSPECIFIED: ModelProvider
+MODEL_PROVIDER_META: ModelProvider
 MODEL_PROVIDER_OPENAI: ModelProvider
 MODEL_PROVIDER_ANTHROPIC: ModelProvider
 MODEL_PROVIDER_GOOGLE: ModelProvider
-MODEL_PROVIDER_META: ModelProvider
 MODEL_TYPE_UNSPECIFIED: ModelType
+MODEL_TYPE_META_LLAMA_3_1_80B: ModelType
+MODEL_TYPE_META_LLAMA_3_1_400B: ModelType
 MODEL_TYPE_OPENAI_GPT4_0: ModelType
 MODEL_TYPE_OPENAI_GPT4_O_MINI: ModelType
 MODEL_TYPE_OPENAI_O1_PREVIEW: ModelType
 MODEL_TYPE_OPENAI_O1_MINI: ModelType
 MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET: ModelType
 MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO: ModelType
-MODEL_TYPE_META_LLAMA_3_1_80B: ModelType
-MODEL_TYPE_META_LLAMA_3_1_400B: ModelType
 STEP_TYPE_UNSPECIFIED: StepType
 STEP_TYPE_START: StepType
 STEP_TYPE_COMPLETE: StepType

@@ -5,6 +5,7 @@ import abc
 import asyncio
 import contextlib
 from dataclasses import dataclass
+from functools import wraps
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -22,6 +23,7 @@ from typing import (
 from uuid import UUID
 
 import structlog
+from grpclib import GRPCError
 from more_itertools import first
 from opentelemetry import trace
 
@@ -45,9 +47,13 @@ from bench.proto.wire import (
     GraphScopeData,
     NodeReferenceData,
 )
+from bench.proto.wire.common_pb2 import RpcMetadata
+from bench.proto.wire.lang_pb2 import ExpressionData
+from bench.proto.wire.system_grpc import GraphIOClient, HostClient, SupervisorClient
+from bench.proto.wire.system_pb2 import WatchGetRequest, WatchSearchRequest
 from bench.utils.func import bittuple, group_by, repr_enums
 from bench.utils.task import create_task
-from bench.utils.tenacity import RetryOptions
+from bench.utils.tenacity import RETRY_GRPC, RETRY_GRPC_FOREVER, RetryOptions
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -1204,3 +1210,423 @@ class SplitGetConnection[T: Node](GetConnection[SplitChannel, T], SplitConnectio
             connection_token=result.connection_token,
         )
         return combined_result
+
+
+#
+# Memory
+#
+
+
+class MemoryEngine(Engine["MemoryChannel"]):
+    """A read-only Engine that reads from an in-memory graph."""
+
+    def __init__(
+        self,
+        name: str,
+        scope: GraphScopeData,
+        node_types: bittuple[NodeType],
+        graph: "NodeDataGraph",
+        include_deleted: bool,
+    ):
+        super().__init__(name, scope, node_types)
+        self.graph = graph
+        self._include_deleted = include_deleted
+
+    def __str__(self):
+        return f"'{self.name}' [scope={repr_scope(self.scope)}, node_types={repr_enums(self.node_types)}, graph={self.graph!r}]"
+
+    @property
+    def is_readonly(self) -> bool:
+        return True
+
+    @property
+    def include_deleted(self) -> bool:
+        return self._include_deleted
+
+    async def channel(self, session: "Session"):
+        return MemoryChannel(self, session)
+
+
+class MemoryChannel(Channel[MemoryEngine]):
+    """A read-only Channel to an in-memory graph."""
+
+    def __init__(self, engine: "MemoryEngine", session: "Session"):
+        super().__init__(engine, session)
+
+    def __str__(self):
+        return f"engine={self.engine!r}, session={self.session}"
+
+    @override
+    async def reset(self):
+        pass  # nothing to do
+
+    @override
+    async def close(self):
+        pass  # nothing to do
+
+    @override
+    def _get_connection_cls(
+        self, query: "QueryBuilder", scope: GraphScopeData, options: ConnectionOptions
+    ) -> type[Connection]:
+        if query._type == QueryType.GET:
+            return MemoryGetConnection
+        else:
+            raise RuntimeError(f"unsupported memory read {query!r}")
+
+
+class MemoryGetConnection[T: Node](GetConnection[MemoryChannel, T]):
+    """Search an in-memory Channel."""
+
+    @override
+    async def _do_read(self, query: "QueryBuilder") -> GetResultData:
+        from bench.language import NodeDataGraph, NodeReference
+        from bench.proto import wire
+
+        loaded_graph = self.channel.engine.graph
+        visited_graph = NodeDataGraph(
+            scope=self.channel.engine.scope, node_types=self.channel.engine.node_types
+        )
+
+        # get roots
+        assert query._roots is not None, f"{query!r} has no roots"
+        roots: list[AnyNodeData] = []
+        for root_ptr in query._roots:
+            root_id = str(root_ptr.id)
+            if root_id in visited_graph:
+                continue  # dedupe
+            root = loaded_graph.get(root_id)
+            if root is not None:
+                roots.append(root)
+                visited_graph.add(root)
+
+        # select ancestors
+        ancestor_types = query._ancestor_types or ()
+        if len(ancestor_types) > 0:
+            with tracer.start_as_current_span("memory.fetch.get_ancestors"):
+                current_parents = roots
+                while current_parents:
+                    next_parents = []
+                    for node in current_parents:
+                        if (
+                            node.parent_ptr is not None
+                            and node.parent_ptr.id is not None
+                            and node.parent_ptr.id not in visited_graph
+                            and node.parent_ptr.node_type in ancestor_types
+                        ):
+                            parent = loaded_graph.get(node.parent_ptr.id)
+                            assert parent is not None, f"missing parent {node.parent_ptr!r}"
+                            visited_graph.add(parent)
+                            next_parents.append(parent)
+                    current_parents = next_parents
+
+        # select descendants
+        descendant_types = query._descendant_types or ()
+        if len(descendant_types) > 0:
+            with tracer.start_as_current_span("memory.fetch.get_descendants"):
+                child_types_by_parent: dict[wire.NodeType, tuple[NodeType, ...]] = {
+                    cast(wire.NodeType, node_type): tuple(
+                        t for t in CHILD_NODE_TYPES[node_type] if t in descendant_types
+                    )
+                    for node_type in query.all_node_types
+                }
+                current_parents = roots
+                while current_parents:
+                    next_parents: list[AnyNodeData] = []
+                    for node in current_parents:
+                        child_types = child_types_by_parent[cast(wire.NodeType, node.metatype)]
+                        for child_type in child_types:
+                            children = loaded_graph.get_descendants(node, child_type)
+                            visited_graph.extend(children)
+                            for child in children:
+                                if loaded_graph.has_descendants(child):
+                                    next_parents.append(child)
+                    current_parents = next_parents
+
+        return GetResultData(
+            graph=visited_graph,
+            roots_ptr=[NodeReference._ref_data_from_node_data(r) for r in roots],
+            epoch=None,
+            connection_token=None,
+        )
+
+
+#
+# Remote
+#
+
+
+class RemoteEngine(Engine["RemoteChannel"]):
+    """An engine that proxies to a remote graph store."""
+
+    def __init__(
+        self,
+        name: str,
+        scope: GraphScopeData,
+        node_types: bittuple[NodeType],
+        remote: GraphIOClient | HostClient | SupervisorClient,
+        rpc_metadata: RpcMetadata,
+        write_retry: RetryOptions = RETRY_GRPC,
+    ):
+        super().__init__(name, scope, node_types)
+        from bench.proto.wiring import pack_rpc_headers
+
+        self.remote = remote
+        self.rpc_metadata = rpc_metadata
+        self.rpc_headers = pack_rpc_headers(rpc_metadata)
+        self.write_retry = write_retry
+
+    def __str__(self):
+        return f"{self.name} [scope={repr_scope(self.scope)}, node_types={repr_enums(self.node_types)}, remote={self.remote.__class__.__name__}]"
+
+    @override
+    async def channel(self, session: "Session") -> "RemoteChannel":
+        return RemoteChannel(self, session)
+
+    @property
+    def include_deleted(self) -> bool:
+        return True
+
+    @property
+    def is_readonly(self) -> bool:
+        return False
+
+
+class RemoteChannel(WritableChannel[RemoteEngine]):
+    """A channel to a remote graph."""
+
+    def __str__(self):
+        return f"engine={self.engine!r}, session={self.session}"
+
+    @override
+    async def reset(self):
+        pass  # remote channels use a shared client
+
+    @override
+    async def close(self):
+        pass  # remote channels use a shared client
+
+    def _get_connection_cls(
+        self, query: "QueryBuilder", scope: GraphScopeData, options: ConnectionOptions
+    ) -> type[Connection]:
+        if query._type == QueryType.GET:
+            return RemoteGetConnection
+        elif query._type == QueryType.SEARCH:
+            return RemoteSearchConnection
+        elif query._type == QueryType.AGGREGATE:
+            return RemoteAggregateConnection
+        else:
+            raise RuntimeError(f"unsupported read type {query._type}")
+
+    @property
+    @override
+    def read_retry(self):
+        return RETRY_GRPC_FOREVER
+
+    @staticmethod
+    def _rpc(func):
+        """Wraps an RPC function with tracing & retries."""
+        method_name = func.__name__
+
+        @wraps(func)
+        @tracer.start_as_current_span(f"remote.{method_name}")
+        async def wrapper(self: "RemoteChannel", *args, **kwargs):
+            retry = self.engine.write_retry.new(self.session._oracle)
+            while retry.should_retry:
+                retry.on_attempt()
+                try:
+                    return await func(self, *args, **kwargs)
+                except Exception as e:
+                    logger.error(f"remote.{method_name}.error", channel=self, exc_info=True)
+                    retry.on_error(e)
+                    if not isinstance(e, self.read_retry.retry_on):
+                        raise
+                    if retry.should_retry:
+                        await self.session._oracle.sleep(retry.get_wait_interval())
+            error = retry.to_error()
+            if isinstance(error, (OSError,)):
+                raise ChannelUnavailableError(
+                    self, args[0] if args else None, reason=str(error)
+                ) from error
+            else:
+                raise error
+
+        return wrapper
+
+    @override
+    @_rpc
+    async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResultData:
+        raise ChannelIncapableError(self, edits, reason="flush not yet supported")
+
+    @override
+    @_rpc
+    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> CommitResultData:
+        from bench.proto import wire
+
+        edits = list(edits)
+        request = wire.CommitTransactionRequest(
+            id=str(self.session.tx.id),
+            edits=edits,
+            scope=self.engine.scope,
+            context=self.session._get_context(),
+        )
+        response = await self.engine.remote.commit_transaction(
+            request, metadata=self.engine.rpc_headers
+        )
+        return CommitResultData(cascaded_edits=list(response.cascaded_edits))
+
+
+def _grpc_wrap_error(query: "QueryBuilder", e: GRPCError):
+    """Wraps a GRPCError in something more harmonized."""
+    return e  # NOTE :UX: wrap remote grpc errors :BadRemoteErrors
+
+
+class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
+    """Search a remote channel live."""
+
+    @override
+    async def _do_read(self, query: "QueryBuilder") -> GetResultData:
+        from bench.proto import wire, wiring
+
+        assert query._roots, f"{query!r} has no roots"
+        engine = self.channel.engine
+        roots_ptr = [r._to_data() for r in query._roots]
+        request = wire.GetNodesRequest(
+            scope=engine.scope,
+            roots=roots_ptr,
+            block_ptr=query._base_block._to_ref_data() if query._base_block else None,
+            ancestor_types=[wiring.pack_enum(NodeType, t) for t in query._ancestor_types],
+            descendant_types=[wiring.pack_enum(NodeType, t) for t in query._descendant_types],
+            select=query._select._to_data() if query._select else None,
+            include_deleted=query._include_deleted,
+        )
+        try:
+            response = await self.channel.engine.remote.get_nodes(
+                request, metadata=engine.rpc_headers
+            )
+        except GRPCError as e:
+            raise _grpc_wrap_error(query, e) from e
+        nodes = [wiring.unwrap_some_node(n) for n in response.nodes]
+        graph = NodeDataGraph(scope=engine.scope, node_types=engine.node_types, nodes=nodes)
+        return GetResultData(
+            graph=graph,
+            roots_ptr=roots_ptr,
+            epoch=response.epoch,
+            connection_token=response.connection_token,
+        )
+
+    @override
+    async def _do_subscribe(
+        self, query: "QueryBuilder", token: str | None, epoch: int
+    ) -> AsyncIterator[WatchGetUpdateData]:
+        from bench.proto import wiring
+        from bench.proto.services import unary_stream_rpc
+
+        assert token is not None, f"{self!r} has no token"
+        assert epoch is not None, f"{self!r} has no epoch"
+        watch_req = WatchGetRequest(scope=self.scope, connection_token=token, since_epoch=epoch)
+        async for rep in unary_stream_rpc(self.channel.engine.remote.watch_get, watch_req):
+            update = WatchGetUpdateData(
+                edits=list(rep.edits),
+                cascaded_edits=list(rep.cascaded_edits),
+                added_nodes=[wiring.unwrap_some_node(n) for n in rep.added_nodes],
+                removed_nodes_ptr=list(rep.removed_nodes_ptr),
+                epoch=rep.epoch,
+            )
+            yield update
+
+
+class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
+    """Search a remote channel live."""
+
+    @override
+    async def _do_read(self, query: "QueryBuilder") -> SearchResultData:
+        from bench.proto import wire, wiring
+
+        engine = self.channel.engine
+        request = wire.SearchNodesRequest(
+            scope=engine.scope,
+            node_type=wiring.pack_enum(NodeType, query._node_type),
+            block_ptr=query._base_block._to_ref_data() if query._base_block else None,
+            filter=wiring.pack_builtin_object_maybe(query._filter, ExpressionData),
+            sort=(
+                [wiring.pack_builtin_object(s, ExpressionData) for s in query._sort]
+                if query._sort
+                else []
+            ),
+            ancestor_types=[wiring.pack_enum(NodeType, t) for t in query._ancestor_types],
+            descendant_types=[wiring.pack_enum(NodeType, t) for t in query._descendant_types],
+            count=self.options.count,
+            select=query._select._to_data() if query._select else None,
+        )
+        if query._first:
+            request.first = query._first
+        if query._skip:
+            request.skip = query._skip
+        try:
+            response = await self.channel.engine.remote.search_nodes(
+                request, metadata=engine.rpc_headers
+            )
+        except GRPCError as e:
+            raise _grpc_wrap_error(query, e) from e
+        nodes = [wiring.unwrap_some_node(n) for n in response.nodes]
+        graph = NodeDataGraph(scope=engine.scope, node_types=engine.node_types, nodes=nodes)
+        roots = [graph[cast(str, r.id)] for r in response.roots_ptr]
+        return SearchResultData(
+            graph=graph,
+            roots=roots,
+            roots_ptr=list(response.roots_ptr),
+            total=response.total,
+            epoch=response.epoch,
+            connection_token=response.connection_token,
+        )
+
+    @override
+    async def _do_subscribe(
+        self, query: "QueryBuilder", token: str | None, epoch: int
+    ) -> AsyncIterator[WatchSearchUpdateData]:
+        from bench.proto import wiring
+        from bench.proto.services import unary_stream_rpc
+
+        assert token is not None, f"{self!r} has no token"
+        assert epoch is not None, f"{self!r} has no epoch"
+        watch_req = WatchSearchRequest(scope=self.scope, connection_token=token, since_epoch=epoch)
+        async for rep in unary_stream_rpc(self.channel.engine.remote.watch_search, watch_req):
+            update = WatchSearchUpdateData(
+                edits=list(rep.edits),
+                cascaded_edits=list(rep.cascaded_edits),
+                added_nodes=[wiring.unwrap_some_node(n) for n in rep.added_nodes],
+                removed_nodes_ptr=list(rep.removed_nodes_ptr),
+                roots_ptr=list(rep.roots_ptr),
+                total=rep.total,
+                epoch=rep.epoch,
+            )
+            yield update
+
+
+class RemoteAggregateConnection(AggregateConnection[RemoteChannel]):
+    """Aggregate a remote channel live."""
+
+    @override
+    async def _do_read(self, query: "QueryBuilder") -> AggregateResultData:
+        from bench.proto import wire, wiring
+
+        engine = self.channel.engine
+        assert query._aggregation is not None, f"{query!r} has no aggregation"
+        request = wire.AggregateNodesRequest(
+            node_type=wiring.pack_enum(NodeType, query._node_type),
+            filter=wiring.pack_builtin_object_maybe(query._filter, ExpressionData),
+            aggregation=cast(ExpressionData, query._aggregation._to_data()),
+            scope=engine.scope,
+        )
+        try:
+            response = await engine.remote.aggregate_nodes(request, metadata=engine.rpc_headers)
+        except GRPCError as e:
+            raise _grpc_wrap_error(query, e) from e
+        assert response.aggregation is not None, f"{response!r} has no aggregation"
+        return AggregateResultData(
+            aggregation=response.aggregation,
+            epoch=response.epoch,
+            connection_token=response.connection_token,
+        )
+
+    # NOTE :Incomplete: RemoteAggregateConnection subscription
