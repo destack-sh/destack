@@ -293,8 +293,8 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
   [StepType.TYPE]: "fas fa-keyboard",
   [StepType.SCROLL]: "fas fa-arrows-alt-v",
   [StepType.SELECT]: "fas fa-lasso",
-  [StepType.GO_BACKWARD]: "fas fa-arrow-turn-right",
-  [StepType.GO_FORWARD]: "fas fa-arrow-turn-left",
+  [StepType.GO_BACKWARD]: "fas fa-arrow-turn-left",
+  [StepType.GO_FORWARD]: "fas fa-arrow-turn-right",
   // web
   [StepType.GO_TO_URL]: "fas fa-link",
   [StepType.GO_TO_TAB]: "fas fa-sidebar",

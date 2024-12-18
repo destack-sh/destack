@@ -315,7 +315,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
     > &
       ColumnContent,
   ) {
-    const view = getView(columnIn.type, { forcePrimaryPicker: true });
+    const view = getView(columnIn.type, { forcePickerDropdown: true });
     const padding = getColumnPadding(columnIn.type, view?.type);
     const column: ColumnView = {
       ...columnIn,

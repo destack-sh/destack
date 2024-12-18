@@ -177,7 +177,7 @@ function isSelected(value: SearchItem) {
   if (!props.valueType?.isList) {
     return hasValue.value && value.id == getItemFromValue(props.modelValue)?.id;
   } else {
-    return (props.modelValue as any[]).some((v) => value.id == getItemFromValue(v)?.id);
+    return (props.modelValue as any[])?.some((v) => value.id == getItemFromValue(v)?.id);
   }
 }
 function isActive(item: SearchItem) {

@@ -220,13 +220,15 @@ export const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType
 export const LISTABLE_VIEW_TYPES = new Set([ViewType.PICKER, ViewType.OBJECT, ViewType.STRING, ViewType.NUMBER]);
 export const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE, ViewType.IMAGE, ViewType.AUDIO, ViewType.VIDEO];
 
+/** Gets the View for some type */
 export function getView(
   type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>,
-  options?: { forcePrimaryPicker?: boolean },
+  options?: { forcePickerDropdown?: boolean },
 ): ViewProps | null {
+  const valueType = makeTypeInfo(type);
   if (type.kind == TypeKind.CUSTOM_OBJECT || type.kind == TypeKind.PARTIAL_OBJECT) {
     // object
-    return { type: ViewType.OBJECT, valueType: type as TypeInfoData };
+    return { type: ViewType.OBJECT, valueType };
   } else if (type.benchType != null || type.kind == TypeKind.NODE) {
     if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType!] != null) {
       if (
@@ -237,41 +239,39 @@ export function getView(
         // specific file type view
         return {
           type: VIEW_TYPE_BY_FILE_TYPE[type.constraint.nodeSubtypes[0] as FileType]!,
-          valueType: makeTypeInfo(type),
+          valueType,
           isInline: [FileType.IMAGE, FileType.AUDIO, FileType.VIDEO].includes(
             type.constraint.nodeSubtypes[0] as FileType,
           ),
         };
       } else if (type.benchType == BenchType.FILE) {
         // generic file type view
-        return { type: ViewType.FILE, valueType: makeTypeInfo(type), isInline: true };
+        return { type: ViewType.FILE, valueType, isInline: true };
       }
 
       // specific bench type view
-      return { type: VIEW_TYPE_BY_BENCH_TYPE[type.benchType!]!, valueType: makeTypeInfo(type) };
+      return { type: VIEW_TYPE_BY_BENCH_TYPE[type.benchType!]!, valueType };
     } else if (isEnumType(type.benchType)) {
       // enum type -> picker
-      if (!options?.forcePrimaryPicker && !type.isList && getEnumOptions(type.benchType).length <= 5) {
+      if (!options?.forcePickerDropdown && !type.isList && getEnumOptions(type.benchType).length <= 5) {
         // prefer inline picker for small scalar enums
-        const variant =
-          ICONS_BY_ENUM_TYPE[type.benchType] != null ? PickerVariant.MULTI_TOGGLE : PickerVariant.DROPDOWN;
         return {
           type: ViewType.PICKER,
-          valueType: makeTypeInfo(type),
+          valueType,
           isInline: true,
-          subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant }),
+          subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.MULTI_TOGGLE }),
         };
       } else {
         // regular picker
-        return { type: ViewType.PICKER, valueType: makeTypeInfo(type) };
+        return { type: ViewType.PICKER, valueType };
       }
     } else if (type.kind == TypeKind.NODE || isNodeType(type.benchType)) {
       // node picker
-      return { type: ViewType.PICKER, valueType: makeTypeInfo(type) };
+      return { type: ViewType.PICKER, valueType };
     }
   } else if (type.primitiveType != null && VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType] != null) {
     // primitive
-    return { type: VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!]!, valueType: makeTypeInfo(type) };
+    return { type: VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!]!, valueType };
   }
 
   return null;
