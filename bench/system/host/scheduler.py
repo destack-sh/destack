@@ -93,7 +93,7 @@ class RunPlugin(HostPlugin[Run]):
             await Machine.where(
                 Machine.get_property("parent").eq(self.bench.main_server)
                 & Machine.get_property("status").eq(ResourceStatus.UP)
-                & Machine.get_property("type").eq(MachineType.HOSTED_RUNTIME)
+                & Machine.get_property("type").eq(MachineType.RUNTIME)
             )
             .select_all()
             .to_list()

@@ -29,7 +29,7 @@ notion-client>=2.2.0
 nltk==3.9.1
 opencv-python==4.10.0.84
 pandas>=2.2.2
-playwright==1.48.0
+playwright==1.49.1
 pillow==11.0.0
 psutil==5.9.2
 psycopg[binary,pool]==3.2.3

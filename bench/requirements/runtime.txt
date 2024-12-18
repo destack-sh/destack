@@ -318,7 +318,7 @@ pillow==11.0.0
     #   python-pptx
 platformdirs==4.3.6
     # via black
-playwright==1.48.0
+playwright==1.49.1
     # via -r bench/requirements/runtime.in
 pluggy==1.5.0
     # via pytest
