@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { FieldType, NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
+import { FieldType, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -12,7 +12,7 @@ import { computed, nextTick, ref, toRef } from "vue";
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Pick<
     ViewData,
-    "variant" | "nodePtr" | "orientation"
+    "isMinimal" | "nodePtr" | "orientation"
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -48,12 +48,12 @@ defineExpose<ViewExposed>({ self, id, actions });
     ref="fieldRef"
     class="flex items-center gap-x-1.5 transition-colors duration-75"
     :class="[
-      variant != Variant.STEALTH ? 'w-fit border' : '',
+      !isMinimal ? 'w-fit border' : '',
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
       isSelected ? 'border-gray-400 bg-orange-400/20' : 'border-gray-200 hover:bg-gray-100',
       !isSelected && (isInspected || isHighlighted) ? 'bg-gray-100' : '',
       field.type == FieldType.OPTION || field.type == FieldType.VARIABLE
-        ? variant != Variant.STEALTH
+        ? !isMinimal
           ? 'rounded-2xl pr-2.5'
           : 'rounded'
         : '',

@@ -11,7 +11,7 @@ const COLORS_PER_ROW = 9;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; modelValue?: ColorData } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "variant" | "valueType" | "isInput" | "isInline" | "isDisabled">
+    Pick<ViewData, "name" | "title" | "icon" | "valueType" | "isInput" | "isInline" | "isDisabled">
   >
 >();
 const emit = defineEmits(viewEmits());

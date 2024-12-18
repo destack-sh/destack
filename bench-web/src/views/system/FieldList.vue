@@ -5,7 +5,7 @@ import { createField } from "@/language/field";
 import { useNodeListActions } from "@/language/list";
 import { moveNode, onNodeMorphed } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
-import { BlockType, FieldType, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
+import { BlockType, FieldType, NodeType, Orientation, ViewData, type FieldData } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -31,7 +31,7 @@ const props = defineProps<
     id: string;
     preparedConnection?: PreparedGetConnection;
     fieldType: FieldType;
-  } & Partial<Pick<ViewData, "variant" | "orientation" | "nodePtr">>
+  } & Partial<Pick<ViewData, "isMinimal" | "orientation" | "nodePtr">>
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -159,7 +159,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     </div>
     <ul
       class="flex gap-x-2 gap-y-1 rounded"
-      :class="[isHorizontal ? 'flex-row' : 'flex-col', variant == Variant.STEALTH ? 'px-0.5 py-0.5' : '']"
+      :class="[isHorizontal ? 'flex-row' : 'flex-col', isMinimal ? 'px-0.5 py-0.5' : '']"
       @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
     >
       <!-- Field wrapper -->
@@ -196,14 +196,14 @@ defineExpose<ViewExposed>({ self, id, actions });
           :data-contextmenu-items="FIELD_CONTEXT_ACTIONS.join(',')"
           :prepared-connection="preparedConnection"
           :node-ptr="toNodeRef(field)"
-          :variant="variant"
+          :is-minimal="isMinimal ?? false"
           :draggable="true"
           @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, field)"
         />
       </li>
       <!-- Add button -->
       <button
-        v-if="variant != Variant.STEALTH || fields.length == 0"
+        v-if="!isMinimal || fields.length == 0"
         class="h-[28px] rounded px-1 text-left text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
         :class="isHorizontal ? '' : 'mx-1.5'"
         @click="(e) => onAddFieldAction(e, fieldType, block!, graph, () => connection.tx)"

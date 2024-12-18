@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { makeTypeInfo } from "@/language/field";
-import { BenchType, NodeReferenceData, Region, UserStatus, Variant, ViewData } from "@/proto/wire/";
+import { BenchType, NodeReferenceData, Region, UserStatus, ViewData } from "@/proto/wire/";
 import { toNodeRef } from "@/proto/wiring";
 import { canvas, goToBench } from "@/system/space";
 import { createBench, user } from "@/system/user";
@@ -94,7 +94,6 @@ defineExpose({ self, focus });
         :icon="makeIcon({ faName: 'fas fa-at' })"
         name="Slug"
         title="Slug"
-        :variant="Variant.PRIMARY"
         is-input
         is-disabled
       />

@@ -24,7 +24,6 @@ import {
   RecordData,
   RecordProperty,
   TypeKind,
-  Variant,
   ViewData,
   ViewType,
 } from "@/proto/wire";
@@ -88,7 +87,7 @@ const props = defineProps<
     paddingX?: number;
     paddingY?: number;
     containerGutterWidth?: number;
-  } & Partial<Pick<ViewData, "icon" | "nodePtr" | "variant" | "isInput">>
+  } & Partial<Pick<ViewData, "icon" | "nodePtr" | "isInput" | "isMinimal">>
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -152,7 +151,7 @@ function addSort(column: ColumnView, type: ExpressionType) {
 }
 
 // NOTE :Cleanup: unfortunately we need to wait until the block we're querying actually exists remotely :SearchWithMissingBlock
-const limit = computed(() => (props.variant == Variant.COMPACT ? 10 : 30));
+const limit = computed(() => (props.isMinimal ? 10 : 30));
 const {
   graph: recordGraph,
   roots: records,
@@ -197,14 +196,14 @@ const metaHeaderHeight = computed(() => (historyRef?.value?.isActive ? VIEW_DEFA
 const headerSize = useElementSize(headerRef);
 const containerSize = useElementSize(containerRef);
 const rowWidth = computed(() => {
-  if (props.variant == Variant.COMPACT) {
+  if (props.isMinimal) {
     return containerSize.width.value; // row actions are floating to the left
   } else {
     return containerSize.width.value - GUTTER_WIDTH * 2;
   }
 });
 const bodySize = computed(() => {
-  if (props.variant == Variant.COMPACT) {
+  if (props.isMinimal) {
     return {
       width: containerSize.width.value + (props.containerGutterWidth ?? 0) * 2,
       height: containerSize.height.value - ACTION_HEADER_HEIGHT,
@@ -571,13 +570,13 @@ defineExpose<ViewExposed>({ self, id, actions });
     ref="containerRef"
     class="h-full select-none"
     :style="{
-      marginBottom: variant == Variant.COMPACT ? '0' : `${GUTTER_WIDTH}px`,
+      marginBottom: isMinimal ? '0' : `${GUTTER_WIDTH}px`,
     }"
     @mousedown="(e) => startSelectingIfAllowed(selectionZoneContainer, e)"
   >
     <!-- Meta header -->
     <div
-      v-if="variant != Variant.COMPACT"
+      v-if="!isMinimal"
       data-keep-inspection-in-base-view="true"
       class="group flex w-full max-w-full flex-row items-center px-2"
       :style="{ height: metaHeaderHeight + 'px' }"
@@ -596,12 +595,12 @@ defineExpose<ViewExposed>({ self, id, actions });
     <div
       v-if="block"
       :style="{
-        marginLeft: variant != Variant.COMPACT ? `${GUTTER_WIDTH}px` : undefined,
-        marginRight: variant != Variant.COMPACT ? `${GUTTER_WIDTH}px` : undefined,
+        marginLeft: !isMinimal ? `${GUTTER_WIDTH}px` : undefined,
+        marginRight: !isMinimal ? `${GUTTER_WIDTH}px` : undefined,
       }"
     >
       <!-- Page header (title) -->
-      <div v-if="variant != Variant.COMPACT">
+      <div v-if="!isMinimal">
         <NodeReference
           v-if="block"
           ref="nameRef"
@@ -617,10 +616,10 @@ defineExpose<ViewExposed>({ self, id, actions });
       <div
         class="flex w-full flex-row items-center gap-x-1"
         :style="{
-          height: variant == Variant.COMPACT ? undefined : `${ACTION_HEADER_HEIGHT}px`,
+          height: isMinimal ? undefined : `${ACTION_HEADER_HEIGHT}px`,
           paddingLeft: `${props.paddingX ?? 0}px`,
           paddingRight: `${props.paddingX ?? 0}px`,
-          paddingBottom: variant == Variant.COMPACT ? '8px' : undefined,
+          paddingBottom: isMinimal ? '8px' : undefined,
         }"
       >
         <!-- Expressions (filters/sorts) -->
@@ -663,7 +662,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Selection -->
           <div
             class="flex flex-row items-center rounded border transition-colors duration-150"
-            :class="numSelectedRows > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'"
+            :class="numSelectedRows > 0 ? 'opacity-100' : 'pointer-events-none opacity-0'"
             data-suppress-drag="both"
           >
             <button class="h-full px-2 py-0.5 font-medium hover:bg-gray-100" @click="state.deselect()">
@@ -722,7 +721,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Add record -->
           <button
             class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
-            :class="variant == Variant.COMPACT ? 'text-gray-400 hover:text-gray-700' : ''"
+            :class="isMinimal ? 'text-gray-400 hover:text-gray-700' : ''"
             @click="() => createRecord()"
           >
             <i class="fas fa-plus mr-1.5 text-center" />
@@ -737,7 +736,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       v-if="block"
       id="scroll"
       :size="bodySize"
-      :orientation="variant == Variant.COMPACT ? Orientation.HORIZONTAL : undefined"
+      :orientation="isMinimal ? Orientation.HORIZONTAL : undefined"
       :track-width="ScrollbarWidth.md"
       track-is-overlay
       :style="{
@@ -749,25 +748,22 @@ defineExpose<ViewExposed>({ self, id, actions });
       <div
         ref="bodyRef"
         :style="{
-          paddingLeft:
-            variant != Variant.COMPACT
-              ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0) - ROW_ACTIONS_WIDTH}px`
-              : `${(containerGutterWidth ?? 0) - ROW_ACTIONS_WIDTH}px`,
-          paddingRight:
-            variant != Variant.COMPACT
-              ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0)}px`
-              : `${containerGutterWidth ?? 0}px`,
-          minHeight:
-            variant != Variant.COMPACT
-              ? `${bodySize.height - headerSize.height.value - metaHeaderHeight - ACTION_HEADER_HEIGHT - 30}px`
-              : undefined,
+          paddingLeft: !isMinimal
+            ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0) - ROW_ACTIONS_WIDTH}px`
+            : `${(containerGutterWidth ?? 0) - ROW_ACTIONS_WIDTH}px`,
+          paddingRight: !isMinimal
+            ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0)}px`
+            : `${containerGutterWidth ?? 0}px`,
+          minHeight: !isMinimal
+            ? `${bodySize.height - headerSize.height.value - metaHeaderHeight - ACTION_HEADER_HEIGHT - 30}px`
+            : undefined,
         }"
       >
         <!-- Column headers (sticky) -->
         <div
           ref="columnHeaderRef"
           class="group/header z-20 flex flex-row items-center border-gray-200"
-          :class="[variant != Variant.COMPACT ? 'sticky top-0' : '']"
+          :class="[!isMinimal ? 'sticky top-0' : '']"
           :style="{
             height: `${ROW_HEIGHT_MIN}px`,
           }"
@@ -863,8 +859,8 @@ defineExpose<ViewExposed>({ self, id, actions });
               placeholder="Name..."
               :model-value="column.title"
               :value-type="NAME_TYPE"
-              :variant="Variant.STEALTH"
               is-input
+              is-minimal
               @update:model-value="
                 (newValue) => connection.tx.update(column.field, { name: newValue as string }, { debounce: 'long' })
               "
@@ -877,7 +873,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             class="flex w-full flex-row items-center justify-center border-b text-gray-400 hover:bg-gray-100"
             :style="{
               height: `${ROW_HEIGHT_MIN}px`,
-              width: variant == Variant.COMPACT ? undefined : `calc(100% - ${ROW_ACTIONS_WIDTH}px)`,
+              width: isMinimal ? undefined : `calc(100% - ${ROW_ACTIONS_WIDTH}px)`,
             }"
             @click="
               createField(connection.tx, graph, {
@@ -1034,7 +1030,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               v-bind="column.viewProps"
               class="flex-1 cursor-pointer select-none"
               :model-value="readColumnValue(record, column)"
-              :variant="Variant.STEALTH"
+              is-minimal
               :size="{ width: column.width, height: ROW_HEIGHT_MAX }"
               @update:model-value="(value: any) => writeColumnValue(record, column, value)"
             />

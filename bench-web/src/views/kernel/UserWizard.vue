@@ -1,13 +1,13 @@
 <script lang="ts" setup>
 import { makeTypeInfo } from "@/language/field";
-import { useSubnode } from "@/language/node";
+import { packSubnode, useSubnode } from "@/language/node";
 import { makeEdit } from "@/language/transaction";
 import {
   BenchType,
+  ButtonVariant,
   NodeType,
   Region,
   UserWizardViewStage,
-  Variant,
   ViewData,
   ViewType,
   type NodeReferenceData,
@@ -142,7 +142,6 @@ defineExpose<ViewExposed>({ self, focus });
         :icon="makeIcon({ faName: 'fas fa-user' })"
         name="Name"
         title="Name"
-        :variant="Variant.PRIMARY"
         is-input
       />
       <NativeInput
@@ -152,7 +151,6 @@ defineExpose<ViewExposed>({ self, focus });
         :icon="makeIcon({ faName: 'fas fa-at' })"
         name="slug"
         title="Username"
-        :variant="Variant.PRIMARY"
         is-input
       />
       <NativeInput
@@ -162,7 +160,6 @@ defineExpose<ViewExposed>({ self, focus });
         :icon="makeIcon({ faName: 'fas fa-at' })"
         name="Email"
         title="Email"
-        :variant="Variant.PRIMARY"
         is-input
       />
       <!-- NOTE :UX: add passowrd feedback (see https://zxcvbn-ts.github.io/zxcvbn/) -->
@@ -172,7 +169,6 @@ defineExpose<ViewExposed>({ self, focus });
         :icon="makeIcon({ faName: 'fas fa-key' })"
         name="Password"
         title="Password"
-        :variant="Variant.PRIMARY"
         is-input
         :value-type="makeTypeInfo({ isSecret: true })"
       />
@@ -207,7 +203,7 @@ defineExpose<ViewExposed>({ self, focus });
         :icon="makeIcon({ faName: 'fas fa-shuffle' })"
         :title="stage === UserWizardViewStage.LOG_IN ? 'Sign up' : 'Log in'"
         class="mt-2 w-full"
-        :variant="Variant.COMPACT"
+        :subnode-packed="packSubnode(NodeType.VIEW, ViewType.BUTTON, { variant: ButtonVariant.SECONDARY })"
         @click="() => switchStage()"
       />
     </div>

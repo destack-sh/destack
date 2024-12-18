@@ -14,7 +14,6 @@ import {
   ObjectType,
   Orientation,
   TreeViewPreset,
-  Variant,
   ViewData,
   ViewType,
   type AnyNodeData,
@@ -458,9 +457,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             v-outside.mousedown.stop="cancelRename"
             class="flex-shrink-0"
             is-input
+            is-minimal
             placeholder="Name..."
             :value-type="NAME_TYPE"
-            :variant="Variant.STEALTH"
             :model-value="(node as any).name"
             @keydown.enter.stop.prevent="cancelRename"
             @keydown.escape.stop.prevent="cancelRename"

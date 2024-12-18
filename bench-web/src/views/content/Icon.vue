@@ -29,7 +29,7 @@ const MAX_ROWS = 32;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; modelValue?: IconData } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "variant" | "isInput" | "isInline" | "isDisabled" | "valueType">
+    Pick<ViewData, "name" | "title" | "icon" | "isInput" | "isInline" | "isDisabled" | "valueType">
   >
 >();
 const emit = defineEmits(viewEmits());

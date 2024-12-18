@@ -1,14 +1,6 @@
 // TODO :Architecture: figure out proper all-encompassing event system/bus
 
-import {
-  Orientation,
-  TypeInfoData,
-  Variant,
-  ViewData,
-  ViewType,
-  type NodeReferenceData,
-  type NodeType,
-} from "@/proto/wire";
+import { Orientation, TypeInfoData, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/ui/action";
 import { LISTABLE_VIEW_TYPES } from "@/ui/view";
@@ -58,8 +50,6 @@ export type ViewExposed = (
 ) & {
   /** The virtual actions implemented by this view */
   actions?: Partial<ActionMapImplementation<any>>;
-  /** The supported variants (if any) */
-  variants?: Variant[];
   /** Focus the element at the given anchor inside the view OR return the element to focus. May be a view or any element. */
   focus?: (
     anchor?: FocusAnchor | NodeReferenceData,
@@ -74,8 +64,8 @@ export type ViewExposed = (
 export const ViewContentWrapper: FunctionalComponent<{
   type?: ViewType;
   title?: string;
-  variant?: Variant;
   orientation?: Orientation;
+  isMinimal?: boolean;
   valueType?: TypeInfoData;
 }> = (props, { slots }) => {
   const classBase =
@@ -84,8 +74,7 @@ export const ViewContentWrapper: FunctionalComponent<{
       : props.orientation === Orientation.HORIZONTAL
         ? "flex flex-row items-center justify-between gap-x-5"
         : "flex flex-col";
-  const labelClass =
-    props.variant !== Variant.STEALTH ? "mb-0.5 block font-semibold text-gray-900" : "mb-0.5 block text-gray-700";
+  const labelClass = !props.isMinimal ? "mb-0.5 block font-semibold text-gray-900" : "mb-0.5 block text-gray-700";
   const isUnsupported = props.valueType?.isList && !LISTABLE_VIEW_TYPES.has(props.type!);
 
   return (

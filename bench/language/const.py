@@ -25,7 +25,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.18.1"
+VERSION = "2024.12.18.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -164,7 +164,6 @@ class EnumType(IdEnum):
     # view (23500-23999)
     SPACE_TYPE = 23501
     VIEW_TYPE = 23502
-    VARIANT = 23503
     COLOR_TYPE = 23504
     COLOR_SHADE = 23505
     FONT_TYPE = 23506
@@ -178,6 +177,8 @@ class EnumType(IdEnum):
     TREE_VIEW_PRESET = 23514
     HUB_ASPECT = 23515
     HELP_ASPECT = 23516
+    BUTTON_VARIANT = 23517
+    PICKER_VARIANT = 23518
 
     # user (24000-24499)
     USER_STATUS = 24001

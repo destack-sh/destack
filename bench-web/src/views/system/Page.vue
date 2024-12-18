@@ -59,7 +59,7 @@ const props = defineProps<
     self: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     size: Required<Pick<RectangleData, "width" | "height">>;
-  } & Pick<ViewData, "name" | "icon" | "nodePtr" | "focus" | "variant" | "selection">
+  } & Pick<ViewData, "name" | "icon" | "nodePtr" | "focus" | "isMinimal" | "selection">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");

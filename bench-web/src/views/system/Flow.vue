@@ -14,7 +14,6 @@ import {
   PortSide,
   StepData,
   TypeKind,
-  Variant,
   ViewData,
   ViewType,
 } from "@/proto/wire";
@@ -55,7 +54,7 @@ const GUTTER_WIDTH = 60;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
-    Pick<ViewData, "icon" | "nodePtr" | "focus" | "transform" | "variant">
+    Pick<ViewData, "icon" | "nodePtr" | "focus" | "transform" | "isMinimal">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -275,13 +274,13 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
 <template>
   <div
     ref="containerRef"
-    :class="[variant == Variant.COMPACT ? '' : 'h-full']"
+    :class="[isMinimal ? '' : 'h-full']"
     data-contextmenu-items="flow.edit.create*"
     @mousedown="(e) => startSelectingIfAllowed(selectionZoneContainer, e)"
   >
     <!-- Meta header -->
     <div
-      v-if="variant != Variant.COMPACT"
+      v-if="!isMinimal"
       data-keep-inspection-in-base-view="true"
       class="group flex w-full max-w-full flex-row items-center px-2"
       :style="{ height: (historyRef?.isActive ? VIEW_DEFAULT_BAR_HEADER_HEIGHT : HEADER_HEIGHT) + 'px' }"
@@ -297,7 +296,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     </div>
     <!-- Header -->
     <div
-      v-if="flow && variant != Variant.COMPACT"
+      v-if="flow && !isMinimal"
       ref="headerRef"
       :style="{
         marginLeft: `${GUTTER_WIDTH}px`,
@@ -379,20 +378,19 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       ref="bodyRef"
       class="group/flow relative w-full select-none"
       :class="[
-        variant == Variant.COMPACT ? 'h-full' : '',
+        isMinimal ? 'h-full' : '',
         flowCtx.dragging.value ? (flowCtx.isDraggingPort ? 'cursor-crosshair' : 'cursor-grabbing') : '',
       ]"
       :style="{
-        height:
-          variant != Variant.COMPACT
-            ? `calc(100% - ${HEADER_HEIGHT + headerSize.height.value + 28 /* headerRef margin*/}px)`
-            : undefined,
+        height: !isMinimal
+          ? `calc(100% - ${HEADER_HEIGHT + headerSize.height.value + 28 /* headerRef margin*/}px)`
+          : undefined,
       }"
       @mousedown="(e) => startSelectingIfAllowed(selectionZoneBody, e)"
       @mousemove="(e) => flowCtx.onDragging(e)"
       @mouseleave="flowCtx.cancelDragging()"
       @mouseup="(e) => flowCtx.endDragging(e, { kind: 'canvas' })"
-      @wheel="(e) => (variant != Variant.COMPACT ? flowCtx.onWheel(e) : undefined)"
+      @wheel="(e) => (!isMinimal ? flowCtx.onWheel(e) : undefined)"
       @keydown.esc="flowCtx.cancelDragging()"
     >
       <!-- Background grid (infinitely repeated) -->
@@ -542,7 +540,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           class="pointer-events-auto z-20 mb-3 flex w-fit flex-row items-center gap-x-1 rounded-2xl border border-gray-200 bg-white px-2.5 py-1.5"
           data-suppress-drag="both"
           :class="
-            variant != Variant.COMPACT
+            !isMinimal
               ? 'opacity-100'
               : 'opacity-0 transition-colors duration-150 group-hover/block-line:opacity-100 group-hover/flow:opacity-100'
           "

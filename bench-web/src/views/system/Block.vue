@@ -3,7 +3,7 @@ import { CANVAS_BLOCK_TYPES } from "@/language/const";
 import { unpackSubnodeProperty } from "@/language/node";
 import { makeEdit } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
-import { BlockType, FieldType, NodeReferenceData, NodeType, TypeKind, Variant, ViewData } from "@/proto/wire";
+import { BlockType, FieldType, NodeReferenceData, NodeType, TypeKind, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
@@ -25,7 +25,7 @@ const props = defineProps<
     id: string;
     preparedConnection?: PreparedGetConnection;
     containerGutterWidth?: number;
-  } & Pick<ViewData, "variant" | "nodePtr">
+  } & Partial<Pick<ViewData, "isMinimal" | "nodePtr">>
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -157,7 +157,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       ref="textRef"
       is-input
       class="px-1 py-1"
-      :variant="Variant.STEALTH"
+      :is-minimal="isMinimal"
       :model-value="block.text"
       v-bind="state.getChildState('text')"
       @update:model-value="(newText) => connection.tx.update(block!, { text: newText }, { debounce: 'long' })"
@@ -212,7 +212,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           class="mt-2 h-[400px]"
           v-bind="state.getChildState('flow')"
           :node-ptr="props.nodePtr"
-          :variant="Variant.COMPACT"
+          is-minimal
           :prepared-connection="preparedConnection"
         />
       </template>
@@ -232,7 +232,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         id="database"
         v-bind="state.getChildState('database')"
         :node-ptr="props.nodePtr"
-        :variant="Variant.COMPACT"
+        is-minimal
         :containerGutterWidth="containerGutterWidth"
         is-input
       />

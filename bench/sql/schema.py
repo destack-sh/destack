@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.18.1"
+VERSION = "2024.12.18.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1074,8 +1074,6 @@ VIEW_TABLE = Table(
         Column("node_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("node_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("node_base_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("variant", PrimitiveType.INT16, is_nullable=True),
-        Column("font", PrimitiveType.JSON, is_nullable=True),
         Column("position", PrimitiveType.JSON, is_nullable=True),
         Column("size", PrimitiveType.JSON, is_nullable=True),
         Column("margin", PrimitiveType.JSON, is_nullable=True),
@@ -1090,6 +1088,7 @@ VIEW_TABLE = Table(
         Column("is_disabled", PrimitiveType.BOOLEAN, default="false"),
         Column("is_input", PrimitiveType.BOOLEAN, default="false"),
         Column("is_inline", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_minimal", PrimitiveType.BOOLEAN, default="false"),
         Column("is_loading", PrimitiveType.BOOLEAN, default="false"),
         Column("mode", PrimitiveType.INT16, default="2"),
     ),

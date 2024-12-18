@@ -89,7 +89,6 @@ enum EnumType {
   ENUM_TYPE_NODE_MODE = 23024;
   ENUM_TYPE_SPACE_TYPE = 23501;
   ENUM_TYPE_VIEW_TYPE = 23502;
-  ENUM_TYPE_VARIANT = 23503;
   ENUM_TYPE_COLOR_TYPE = 23504;
   ENUM_TYPE_COLOR_SHADE = 23505;
   ENUM_TYPE_FONT_TYPE = 23506;
@@ -103,6 +102,8 @@ enum EnumType {
   ENUM_TYPE_TREE_VIEW_PRESET = 23514;
   ENUM_TYPE_HUB_ASPECT = 23515;
   ENUM_TYPE_HELP_ASPECT = 23516;
+  ENUM_TYPE_BUTTON_VARIANT = 23517;
+  ENUM_TYPE_PICKER_VARIANT = 23518;
   ENUM_TYPE_USER_STATUS = 24001;
   ENUM_TYPE_ORGANIZATION_STATUS = 24002;
 }
@@ -591,7 +592,6 @@ enum BenchType {
   BENCH_TYPE_NODE_MODE = 23024;
   BENCH_TYPE_SPACE_TYPE = 23501;
   BENCH_TYPE_VIEW_TYPE = 23502;
-  BENCH_TYPE_VARIANT = 23503;
   BENCH_TYPE_COLOR_TYPE = 23504;
   BENCH_TYPE_COLOR_SHADE = 23505;
   BENCH_TYPE_FONT_TYPE = 23506;
@@ -605,6 +605,8 @@ enum BenchType {
   BENCH_TYPE_TREE_VIEW_PRESET = 23514;
   BENCH_TYPE_HUB_ASPECT = 23515;
   BENCH_TYPE_HELP_ASPECT = 23516;
+  BENCH_TYPE_BUTTON_VARIANT = 23517;
+  BENCH_TYPE_PICKER_VARIANT = 23518;
   BENCH_TYPE_USER_STATUS = 24001;
   BENCH_TYPE_ORGANIZATION_STATUS = 24002;
 }
@@ -1451,15 +1453,6 @@ enum ViewType {
   VIEW_TYPE_AGGREGATION = 1363;
 }
 
-// The style variant of a view.
-enum Variant {
-  VARIANT_UNSPECIFIED = 0;
-  VARIANT_PRIMARY = 1;
-  VARIANT_SECONDARY = 2;
-  VARIANT_COMPACT = 3;
-  VARIANT_STEALTH = 4;
-}
-
 // Built-in color types a la SwiftUI or Tailwind.
 enum ColorType {
   COLOR_TYPE_UNSPECIFIED = 0;
@@ -1639,6 +1632,20 @@ enum HelpAspect {
   HELP_ASPECT_RUN = 2;
   HELP_ASPECT_CHAT = 3;
   HELP_ASPECT_VERSION = 4;
+}
+
+enum ButtonVariant {
+  BUTTON_VARIANT_UNSPECIFIED = 0;
+  BUTTON_VARIANT_PRIMARY = 1;
+  BUTTON_VARIANT_SECONDARY = 2;
+  BUTTON_VARIANT_LINK = 3;
+}
+
+enum PickerVariant {
+  PICKER_VARIANT_UNSPECIFIED = 0;
+  PICKER_VARIANT_DROPDOWN = 1;
+  PICKER_VARIANT_MULTI_TOGGLE = 2;
+  PICKER_VARIANT_COMBOBOX = 3;
 }
 
 enum UserStatus {
@@ -3297,8 +3304,6 @@ message ViewData {
   optional google.protobuf.Value subviews_packed = 39;
   optional TypeInfoData value_type = 40;
   optional NodeReferenceData node_ptr = 42;
-  optional Variant variant = 50;
-  optional FontData font = 51;
   optional OffsetData position = 60;
   optional RectangleData size = 61;
   optional OffsetData margin = 62;
@@ -3313,35 +3318,14 @@ message ViewData {
   bool is_disabled = 81;
   bool is_input = 82;
   bool is_inline = 83;
+  bool is_minimal = 84;
   bool is_loading = 85;
   NodeMode mode = 90;
 }
 
 // A view of a user interface in a Bench.
-message TreeViewData {
-  repeated NodeType node_types = 100;
-  optional bool filter_is_page = 101;
-  optional bool is_default_expanded = 102;
-  repeated NodeReferenceData expanded_nodes_ptr = 103;
-  repeated NodeReferenceData collapsed_nodes_ptr = 104;
-  optional TreeViewPreset preset = 110;
-}
-
-// A view of a user interface in a Bench.
-message RunViewData {
-  optional google.protobuf.Value inputs_packed = 100;
-}
-
-// A view of a user interface in a Bench.
-message FeedViewData {
-  optional NodeType query_node_type = 100;
-  optional ExpressionData filter = 101;
-  repeated string filter_pills = 102;
-}
-
-// A view of a user interface in a Bench.
-message HubViewData {
-  HubAspect aspect = 100;
+message UserWizardViewData {
+  optional UserWizardViewStage stage = 100;
 }
 
 // A view of a user interface in a Bench.
@@ -3356,17 +3340,45 @@ message DetailViewData {
 }
 
 // A view of a user interface in a Bench.
-message UserWizardViewData {
-  optional UserWizardViewStage stage = 100;
+message RunViewData {
+  optional google.protobuf.Value inputs_packed = 100;
 }
 
 // A view of a user interface in a Bench.
-message PickerViewData {
+message HubViewData {
+  HubAspect aspect = 100;
+}
+
+// A view of a user interface in a Bench.
+message TreeViewData {
+  repeated NodeType node_types = 100;
+  optional bool filter_is_page = 101;
+  optional bool is_default_expanded = 102;
+  repeated NodeReferenceData expanded_nodes_ptr = 103;
+  repeated NodeReferenceData collapsed_nodes_ptr = 104;
+  optional TreeViewPreset preset = 110;
+}
+
+// A view of a user interface in a Bench.
+message FeedViewData {
+  optional NodeType query_node_type = 100;
+  optional ExpressionData filter = 101;
+  repeated string filter_pills = 102;
+}
+
+// A view of a user interface in a Bench.
+message ButtonViewData {
+  optional ButtonVariant variant = 100;
 }
 
 // A view of a user interface in a Bench.
 message IconViewData {
   bool include_color = 100;
+}
+
+// A view of a user interface in a Bench.
+message PickerViewData {
+  optional PickerVariant variant = 100;
 }
 
 message SpaceData {

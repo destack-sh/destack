@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { SINK_STEP_TYPES, toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
-import { DEFAULT_TEXT_BY_STEP_TYPE, FLOW_PORT_SIZE, getStepSides, STEP_SIZE, useFlowContext } from "@/system/flow";
 import { isRunActive } from "@/language/session";
 import {
   ColorShade,
@@ -11,15 +10,15 @@ import {
   Orientation,
   PortSide,
   StepType,
-  Variant,
   ViewData,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
+import { DEFAULT_TEXT_BY_STEP_TYPE, FLOW_PORT_SIZE, getStepSides, STEP_SIZE, useFlowContext } from "@/system/flow";
 import { runtime } from "@/system/runtime";
 import { canvas } from "@/system/space";
-import { STEP_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
+import { type ActionMapImplementation } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";
-import { menuActionsLike, PopoverInfoIn, pushDefaultMenu, type PopoverInfo } from "@/ui/popover";
+import { PopoverInfoIn, pushDefaultMenu } from "@/ui/popover";
 import { getNodeColorHex, getRunColorHex } from "@/ui/style";
 import { focusInElement } from "@/ui/view";
 import RunStatus from "@/views/builtins/RunStatus.vue";
@@ -32,7 +31,7 @@ import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "transform" | "variant">
+    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "transform">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -161,8 +160,8 @@ defineExpose<ViewExposed>({ self, id, actions });
             class="flex-shrink-0 font-medium transition-colors duration-150"
             :placeholder="toCamelName(StepType, step.type)"
             is-input
+            is-minimal
             :value-type="NAME_TYPE"
-            :variant="Variant.STEALTH"
             :model-value="step.name"
             @update:model-value="
               (newValue) => flowCtx.tx.update(step!, { name: newValue as string }, { debounce: 'long' })
@@ -223,8 +222,8 @@ defineExpose<ViewExposed>({ self, id, actions });
         id="text"
         class=""
         is-input
+        is-minimal
         placeholder="Text..."
-        :variant="Variant.STEALTH"
         :model-value="step.text"
         @update:model-value="(newText) => flowCtx.tx.update(step!, { text: newText }, { debounce: 'long' })"
       />

@@ -2,6 +2,7 @@ import { isEnumType, isNodeType } from "@/language/const";
 import { getEnumOptions } from "@/language/enum";
 import { getStorageKey, makeTypeInfo, type TypeIdentity } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
+import { packSubnode } from "@/language/node";
 import {
   Alignment,
   Anchor,
@@ -12,6 +13,7 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
+  PickerVariant,
   PrimitiveType,
   SelectionData,
   StructType,
@@ -19,7 +21,6 @@ import {
   TypeConstraintData,
   TypeInfoData,
   TypeKind,
-  Variant,
   Vector2Data,
   Vector3Data,
   Vector4Data,
@@ -252,8 +253,14 @@ export function getView(
       // enum type -> picker
       if (!options?.forcePrimaryPicker && !type.isList && getEnumOptions(type.benchType).length <= 5) {
         // prefer inline picker for small scalar enums
-        const variant = ICONS_BY_ENUM_TYPE[type.benchType] != null ? Variant.STEALTH : Variant.COMPACT;
-        return { type: ViewType.PICKER, valueType: makeTypeInfo(type), variant, isInline: true };
+        const variant =
+          ICONS_BY_ENUM_TYPE[type.benchType] != null ? PickerVariant.MULTI_TOGGLE : PickerVariant.DROPDOWN;
+        return {
+          type: ViewType.PICKER,
+          valueType: makeTypeInfo(type),
+          isInline: true,
+          subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant }),
+        };
       } else {
         // regular picker
         return { type: ViewType.PICKER, valueType: makeTypeInfo(type) };

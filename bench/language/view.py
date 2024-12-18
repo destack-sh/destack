@@ -174,17 +174,6 @@ class ViewType(IdEnum):
     AGGREGATION = 1363
 
 
-@enum_(EnumType.VARIANT)
-class Variant(IdEnum):
-    """The style variant of a view."""
-
-    PRIMARY = 1
-    SECONDARY = 2
-    COMPACT = 3
-    STEALTH = 4
-    # ...
-
-
 @enum_(EnumType.COLOR_TYPE)
 class ColorType(IdEnum):
     """Built-in color types a la SwiftUI or Tailwind."""
@@ -509,11 +498,7 @@ class View(SourceNode[ViewData]):
         node_ptr: Optional["NodeReference"] = None
 
     # style
-    variant: Optional[Variant] = p_regular(50, default=None, require=False)
-    font: Optional[Font] = p_regular(
-        51, default=None, require=False, array=False, struct=StructType.FONT
-    )
-    ...  # border/corner/foreground/background/...
+    ...  # font/variant/border/corner/foreground/background/...
 
     # layout
     position: Optional[Offset] = p_regular(
@@ -552,7 +537,7 @@ class View(SourceNode[ViewData]):
     is_disabled: bool = p_regular(81, default=False)
     is_input: bool = p_regular(82, default=False)
     is_inline: bool = p_regular(83, default=False)
-    ...
+    is_minimal: bool = p_regular(84, default=False)
     is_loading: bool = p_regular(85, default=False)
 
     views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
@@ -562,48 +547,22 @@ class View(SourceNode[ViewData]):
         return View(type=typ, name=name, **kwargs)
 
 
-@enum_(EnumType.TREE_VIEW_PRESET)
-class TreeViewPreset(IdEnum):
-    EXPLORE = 1
-    OUTLINE = 2
+#
+# Intrinsics
+#
 
 
-@node_subtype_(ViewType.TREE)
-class TreeView(View):
-    node_types: list[NodeType] = p_regular(100, array=True)
-    filter_is_page: Optional[bool] = p_regular(101, default=None, require=False)
-    is_default_expanded: Optional[bool] = p_regular(102, default=None, require=False)
-    expanded_nodes: list[Node] = p_regular(103, require=False, array=True, references="any")
-    collapsed_nodes: list[Node] = p_regular(104, require=False, array=True, references="any")
+@enum_(EnumType.USER_WIZARD_STAGE)
+class UserWizardViewStage(IdEnum):
+    """The stage of a User view."""
 
-    preset: Optional[TreeViewPreset] = p_regular(110, default=None, require=False)
+    SIGN_UP = 1
+    LOG_IN = 2
 
 
-@node_subtype_(ViewType.RUN)
-class RunView(View):
-    inputs_packed: Any = p_value_packed(100)
-
-
-@node_subtype_(ViewType.FEED)
-class FeedView(View):
-    query_node_type: NodeType | None = p_regular(100, require=False)
-    filter: "Expression | None" = p_regular(
-        101, default=None, require=False, struct=StructType.EXPRESSION
-    )
-    filter_pills: list[str] = p_regular(102, array=True)
-
-
-@enum_(EnumType.HUB_ASPECT)
-class HubAspect(IdEnum):
-    BENCH = 1
-    ACTIVITY = 2
-    CATALOG = 3
-    LIBRARY = 4
-
-
-@node_subtype_(ViewType.HUB)
-class HubView(View):
-    aspect: HubAspect = p_regular(100)
+@node_subtype_(ViewType.USER_WIZARD)
+class UserWizardView(View):
+    stage: UserWizardViewStage | None = p_regular(100)
 
 
 @enum_(EnumType.HELP_ASPECT)
@@ -625,27 +584,123 @@ class DetailView(View):
     collapsed_sections: list[str] = p_regular(101, array=True)
 
 
-@enum_(EnumType.USER_WIZARD_STAGE)
-class UserWizardViewStage(IdEnum):
-    """The stage of a User view."""
-
-    SIGN_UP = 1
-    LOG_IN = 2
+@node_subtype_(ViewType.RUN)
+class RunView(View):
+    inputs_packed: Any = p_value_packed(100)
 
 
-@node_subtype_(ViewType.USER_WIZARD)
-class UserWizardView(View):
-    stage: UserWizardViewStage | None = p_regular(100)
+@enum_(EnumType.HUB_ASPECT)
+class HubAspect(IdEnum):
+    BENCH = 1
+    ACTIVITY = 2
+    CATALOG = 3
+    LIBRARY = 4
 
 
-@node_subtype_(ViewType.PICKER)
-class PickerView(View):
-    pass
+@node_subtype_(ViewType.HUB)
+class HubView(View):
+    aspect: HubAspect = p_regular(100)
+
+
+#
+# Organization
+#
+
+
+@enum_(EnumType.TREE_VIEW_PRESET)
+class TreeViewPreset(IdEnum):
+    EXPLORE = 1
+    OUTLINE = 2
+
+
+@node_subtype_(ViewType.TREE)
+class TreeView(View):
+    node_types: list[NodeType] = p_regular(100, array=True)
+    filter_is_page: Optional[bool] = p_regular(101, default=None, require=False)
+    is_default_expanded: Optional[bool] = p_regular(102, default=None, require=False)
+    expanded_nodes: list[Node] = p_regular(103, require=False, array=True, references="any")
+    collapsed_nodes: list[Node] = p_regular(104, require=False, array=True, references="any")
+
+    preset: Optional[TreeViewPreset] = p_regular(110, default=None, require=False)
+
+
+@node_subtype_(ViewType.FEED)
+class FeedView(View):
+    query_node_type: NodeType | None = p_regular(100, require=False)
+    filter: "Expression | None" = p_regular(
+        101, default=None, require=False, struct=StructType.EXPRESSION
+    )
+    filter_pills: list[str] = p_regular(102, array=True)
+
+
+#
+# Style
+#
+
+
+...
+
+#
+# Controls
+#
+
+
+@enum_(EnumType.BUTTON_VARIANT)
+class ButtonVariant(IdEnum):
+    PRIMARY = 1
+    SECONDARY = 2
+    LINK = 3
+
+
+@node_subtype_(ViewType.BUTTON)
+class ButtonView(View):
+    variant: ButtonVariant | None = p_regular(100)
+
+
+#
+# Numeric
+#
+
+
+...
+
+#
+# Stringy
+#
 
 
 @node_subtype_(ViewType.ICON)
 class IconView(View):
     include_color: bool = p_regular(100, default=False)
+
+
+#
+# Selection
+#
+
+
+@enum_(EnumType.PICKER_VARIANT)
+class PickerVariant(IdEnum):
+    DROPDOWN = 1
+    MULTI_TOGGLE = 2
+
+
+@node_subtype_(ViewType.PICKER)
+class PickerView(View):
+    variant: PickerVariant | None = p_regular(100)
+
+
+#
+# Rich
+#
+
+...
+
+#
+# File
+#
+
+...
 
 
 #
