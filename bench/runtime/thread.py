@@ -68,7 +68,8 @@ class RunHandle:
             self.runtime.resume(*runs_to_resume)
             logger.debug("thread.run.resume", runs=runs_to_resume)
 
-    def on_update(self, update: WatchGetUpdate):
+    def on_update(self, connection: GetConnection, update: WatchGetUpdate):
+        """React to updates on Runs/Interrupts :SupergraphWatch."""
         runs_to_resume: set[Run] = set()
         for node in update.updated.values():
             # react to Run/Interrupt updates in Runtime
@@ -243,7 +244,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                     assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
                     handle = RunHandle(run, run._connection, lock, self)
                     self._owned_runs[run_ptr.id] = handle
-                    run._connection.on_update(handle.on_update)
+                    run._connection.subscribe_on_update(handle.on_update)
             else:
                 # already loaded
                 handle = self._owned_runs[run_ptr.id]

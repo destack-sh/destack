@@ -9,7 +9,7 @@ from git import TYPE_CHECKING
 from opentelemetry import baggage, context, trace
 
 from bench.language.bench import Resource, ResourceStatus
-from bench.language.connection import Connection
+from bench.language.connection import Connection, WatchGetUpdate
 from bench.language.const import (
     BenchError,
     NodeMode,
@@ -53,8 +53,9 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-DEFAULT_TIMEOUT = timedelta(seconds=30)
-DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=30)
+# nocheckin: adjust timeouts
+DEFAULT_TIMEOUT = timedelta(seconds=10)
+DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=10)
 
 
 class Runtime:
@@ -126,7 +127,10 @@ class Runtime:
         condition: Callable[[], bool],
         timeout: timedelta = DEFAULT_TIMEOUT,
     ):
-        """Wait for the given nodes to reach a certain state."""
+        """
+        Wait for the given nodes to reach a certain state.
+        NOTE :Architecture: turn 'busy' (async) wait into Interrupt-based wait for Nodes?
+        """
         if condition():
             return  # already good
 
@@ -136,10 +140,13 @@ class Runtime:
             await self.session.commit()
 
         log = logger.bind(runtime=self, nodes=nodes, condition=condition)
+        nodes_by_id: dict[UUID, Node] = {node.id: node for node in nodes}
         connections: list[Connection] = []
         subs: list[Callable[[], None]] = []
+        complete_signal = asyncio.Event()
 
         def _stop():
+            """Stop waiting."""
             for connection in connections:
                 connection.close()
             connections.clear()
@@ -148,32 +155,50 @@ class Runtime:
             subs.clear()
 
         def _check():
+            """Check if the condition is met, stop if so."""
             if condition():
                 log.debug("runtime.wait_for.complete")
+                complete_signal.set()
                 _stop()
+
+        def _apply_update(update: WatchGetUpdate):
+            """'Apply' the updates from a live connection to our graphs (patching nodes in place)."""
+            touched_any = False
+            for live_node in update.updated.values():
+                our_node = nodes_by_id.get(live_node.id)
+                if our_node is not None:
+                    touched_any = True
+                    our_node._patch_from(live_node)
+            if touched_any:
+                _check()
 
         try:
             # create live connections if needed
+            # NOTE :Architecture: auto-update entire supergraph from connections? :SupergraphWatch
             stale_nodes = [node for node in nodes if not node._is_live]
             stale_nodes_by_type = group_by(stale_nodes, lambda node: node.metatype)
-            for node_type, stale_nodes_of_type in stale_nodes_by_type.items():
+            for node_type, stale_nodes in stale_nodes_by_type.items():
                 node_cls = NODE_CLASS_BY_TYPE[node_type]
-                live_nodes = await node_cls.get(
-                    tuple(n.to_ref() for n in stale_nodes_of_type), live=True
-                )
+                live_nodes = await node_cls.get(tuple(n.to_ref() for n in stale_nodes), live=True)
+                for live_node in live_nodes:  # also patch immediately
+                    our_node = nodes_by_id.get(live_node.id)
+                    if our_node is not None:
+                        our_node._patch_from(live_node)
                 connection = live_nodes[0]._connection
-                assert live_nodes and connection, f"no live connection for {stale_nodes_of_type!r}"
+                assert live_nodes and connection, f"no live connection for {stale_nodes!r}"
                 connections.append(connection)
+                connection.subscribe_on_update(lambda c, u: _apply_update(cast(WatchGetUpdate, u)))
+                log.trace("runtime.wait_for.subscribe", connection=connection)
 
             # subscribe
             for node in nodes:
                 subs.append(self.session._subscribe_on_edit(node, lambda _: _check()))
 
-            # wait until condition is true or timeout
-            log.debug("runtime.wait_for.started")
+            # wait for condition
+            log.debug("runtime.wait_for")
             _check()
-
-            raise NotImplementedError(f"nocheckin: Runtime.wait_for {nodes!r}")
+            await asyncio.wait_for(complete_signal.wait(), timeout=timeout.total_seconds())
+            log.debug("runtime.wait_for.complete")
         except BaseException as e:
             log.error("runtime.wait_for.error", exc_info=e)
             raise

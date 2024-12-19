@@ -1270,6 +1270,14 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                     content_props.append(prop_value)
         return stable_hash(content_props)
 
+    def _patch_from(self, other: Self):
+        """Patches this Node *in place* from another Node."""
+        for prop in self.__wired_properties__.values():
+            if prop.is_computed:
+                continue  # ignore computed properties
+            prop_value = getattr(other, prop.name)
+            self._do_set(prop.name, prop_value, track=False, validate=False)
+
     def _do_get(self, key):
         """Called if an attribute doesn't exist in __dict__ / the usual places."""
 

@@ -450,7 +450,6 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
         _engines=engines,
         _local_epoch=0,
         _supergraph=hosted_bench._supergraph,
-        _split_read=True,
         _oracle=REAL_ORACLE,
         _subject=server,
         _host=host,
