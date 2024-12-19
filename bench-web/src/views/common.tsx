@@ -1,6 +1,6 @@
 // TODO :Architecture: figure out proper all-encompassing event system/bus
 
-import { Orientation, TypeInfoData, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
+import { FieldData, Orientation, TypeInfoData, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/ui/action";
 import { LISTABLE_VIEW_TYPES } from "@/ui/view";
@@ -32,6 +32,11 @@ export function viewEmits(): Partial<typeof VIEW_EMITS> {
 }
 
 export type FocusAnchor = "left" | "right" | "top" | "bottom" | "center";
+
+export type ModelValueOptions = {
+  field: FieldData;
+  path: string[];
+};
 
 export type ViewExposed = (
   | {

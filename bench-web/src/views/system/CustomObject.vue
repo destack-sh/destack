@@ -8,7 +8,7 @@ import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { getFieldViews } from "@/ui/view";
-import { ViewContentWrapper, viewEmits, type ViewComponent, type ViewExposed, type ViewProps } from "@/views/common";
+import { ModelValueOptions, ViewContentWrapper, viewEmits, type ViewComponent, type ViewExposed, type ViewProps } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, ref, toRef, type Ref } from "vue";
 
@@ -163,10 +163,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
     <!-- Inline Object -->
     <div v-else class="w-full">
       <!-- Header -->
-      <div
-        v-if="!isMinimal"
-        class="flex w-full flex-row flex-wrap items-center gap-y-1 border-b px-2.5 py-1"
-      >
+      <div v-if="!isMinimal" class="flex w-full flex-row flex-wrap items-center gap-y-1 border-b px-2.5 py-1">
         <!-- Current value -->
         <template v-if="hasValue">
           <button
@@ -273,14 +270,12 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
                         recurseCustomObject: false,
                       });
                 const newObject = { ...focusedValue, [fieldView.storageKey]: valuePacked };
+                const options: ModelValueOptions = { field: fieldView.field, path: [fieldView.storageKey] };
                 if (!valueType?.isList) {
-                  emit('update:modelValue', newObject, { field: fieldView.field, path: [fieldView.storageKey] });
+                  emit('update:modelValue', newObject, options);
                 } else {
                   const newValues = (props.modelValue as any[]).map((v, i) => (i == focusedValueIdx ? newObject : v));
-                  emit('update:modelValue', newValues, {
-                    field: fieldView.field,
-                    path: [focusedValueIdx, fieldView.storageKey],
-                  });
+                  emit('update:modelValue', newValues, options);
                 }
               }
             "

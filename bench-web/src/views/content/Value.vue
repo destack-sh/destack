@@ -3,7 +3,7 @@ import { RectangleData, NodeType, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { getView } from "@/ui/view";
+import { getViewForType } from "@/ui/view";
 import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, toRef } from "vue";
@@ -25,7 +25,7 @@ const id = toRef(props, "id");
 
 const valueView = computed(() => {
   if (props.valueType == null) return null;
-  else return getView(props.valueType);
+  else return getViewForType(props.valueType);
 });
 
 canvas.registerView(self, id);

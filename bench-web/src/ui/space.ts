@@ -1153,7 +1153,7 @@ export function clearSpace(tx: Transaction, graph: ReadNodeGraph, space: SpaceDa
   for (const root of roots) {
     tx.delete(root);
   }
-  tx.update(space, { focus: undefined, inspectionPtr: undefined }, { debounce: "short" });
+  tx.update(space, { focus: undefined, inspectionPtr: undefined }, { debounce: "long" });
 }
 
 type ViewLayoutIn = {
