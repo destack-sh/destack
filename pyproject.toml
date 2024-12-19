@@ -103,5 +103,6 @@ markers = [
 	"quick: quick to run (for simulations)",
 	"careful: test is slow or resource intensive",
 	"paranoid: test is very slow or resource intensive",
+	"browser: test uses browser",
 ]
 filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]

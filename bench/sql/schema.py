@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.19.1"
+VERSION = "2024.12.19.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -557,7 +557,6 @@ BROWSER_TABLE = Table(
         Column("view_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("size", PrimitiveType.JSON, is_nullable=True),
-        Column("target_size", PrimitiveType.JSON, is_nullable=True),
         Column("is_headless", PrimitiveType.BOOLEAN, default="false"),
         Column("is_insecure", PrimitiveType.BOOLEAN, default="false"),
         Column("mode", PrimitiveType.INT16, default="2"),

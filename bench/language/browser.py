@@ -39,6 +39,12 @@ class BrowserType(IdEnum):
     LOCAL = 90
 
 
+def get_default_browser_size() -> "Vector2":
+    from bench.language.view import Vector2
+
+    return Vector2(x=1280.0, y=1000.0)
+
+
 @node_(NodeType.BROWSER)
 class Browser(PhysicalResource[BrowserData]):
     """A Browser instance for web browsing."""
@@ -63,13 +69,14 @@ class Browser(PhysicalResource[BrowserData]):
     )
 
     # settings
-    size: Optional["Vector2"] = p_regular(
-        60, default=None, require=False, array=False, struct=StructType.VECTOR2
-    )
-    target_size: Optional["Vector2"] = p_regular(
-        61, default=None, require=False, array=False, struct=StructType.VECTOR2
+    size: "Vector2" = p_regular(
+        60,
+        default_factory=get_default_browser_size,
+        require=False,
+        array=False,
+        struct=StructType.VECTOR2,
     )
 
     # flags
-    is_headless: bool = p_regular(70, default=False)
-    is_insecure: bool = p_regular(71, default=False)
+    is_headless: bool = p_system(70, default=False)
+    is_insecure: bool = p_system(71, default=False)
