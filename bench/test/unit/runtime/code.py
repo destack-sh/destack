@@ -250,7 +250,7 @@ async def test_run_code_output_none(local_runtime: RuntimeHandle):
 async def test_run_code_output_scalar(hosted_runtime: RuntimeHandle):
     """
     Run a code function with a scalar, should coerce into object.
-    NOTE: we use the hosted_runtime here as we edit the node subtype property ActionBlock.code
+    NOTE: we use hosted_runtime here as we edit the node subtype property ActionBlock.code
      (and the local runtime works directly in the SQL engine, which can't do hierarchical edits)
     """
     Function = Block.new(

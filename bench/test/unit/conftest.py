@@ -6,7 +6,7 @@ from typing import Mapping
 import pytest
 import uvloop
 
-from bench.language.machine import Machine
+from bench.language.machine import Machine, MachineType
 from bench.language.validation import clean_name
 from bench.runtime.cache import MemoryCache
 from bench.runtime.runtime import Runtime
@@ -378,7 +378,14 @@ async def hosted_bench(global_store: Store, regional_store: Store):
             server=server,
             _is_new=True,  # force create
         )
-        machine = Machine(parent=server, title="Machine1", cpu=0.5, ram=0.5, client=server_client)
+        machine = Machine(
+            type=MachineType.RUNTIME,
+            parent=server,
+            title="Machine1",
+            cpu=0.5,
+            ram=0.5,
+            client=server_client,
+        )
         session._create(machine)
         server_client.machine = machine
         session._create(server_client)

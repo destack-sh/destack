@@ -75,8 +75,8 @@ export const DEFAULT_TEXT_BY_STEP_TYPE: Partial<Record<StepType, string>> = {
   [StepType.ACTION]: "Run something.",
   [StepType.YIELD]: "Pause and wait for someone.",
   // application
-  [StepType.OBSERVE]: "Observe the screen.",
-  [StepType.CLICK]: "Click the screen.",
+  [StepType.OBSERVE]: "Look at the screen.",
+  [StepType.CLICK]: "Click somewhere on the screen.",
   [StepType.PRESS]: "Press some keys.",
   [StepType.TYPE]: "Enter text.",
   [StepType.SCROLL]: "Scroll the screen.",

@@ -134,6 +134,10 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.outputs: CustomObject | None = None
         self.output_type = output_type or node.output_type
         self.error: RunError | None = None
+        assert (
+            self.variable_type is None or self.variables is not None
+        ), f"{self!r} has no variables"
+        assert self.input_type is None or self.inputs is not None, f"{self!r} has no inputs"
 
         self.parent = parent or runtime.active_runner
         self.attempts: list[RunAttempt] = list(run.attempts) if run is not None else []
@@ -427,7 +431,7 @@ def make_run_from_node(
     if run.input_type is not None:
         inputs = coerce_custom_object_scalar(ObjectKind.INPUT, inputs, run.input_type)
         run.inputs = inputs
-        
+
     return run
 
 
@@ -475,7 +479,7 @@ def make_runner(
     variables: CustomObject | None = None,
     inputs: Any | None = None,
     output_type: TypeBase | None = None,
-    parent: "Run | None" = None,
+    parent: "Runner | None" = None,
     run: Run | None = None,
 ) -> "Runner":
     """Make a Runner from a runnable Node."""

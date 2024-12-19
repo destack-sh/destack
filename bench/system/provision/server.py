@@ -8,6 +8,7 @@ from bench.language.const import (
     ClientType,
     NodeType,
 )
+from bench.language.machine import MachineType
 from bench.system.host.core import Commit
 from bench.system.provision.provisioner import Provisioner
 from bench.system.utils.access import ACCESS_TOKEN_LENGTH
@@ -44,7 +45,14 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
                     access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
                 )
                 session._create(client)
-                machine = Machine(parent=server, title="Machine1", cpu=0.5, ram=0.5, client=client)
+                machine = Machine(
+                    type=MachineType.RUNTIME,
+                    parent=server,
+                    title="Machine1",
+                    cpu=0.5,
+                    ram=0.5,
+                    client=client,
+                )
                 session._create(machine)
                 await session.flush(optimistic=True)
                 client.machine = machine
