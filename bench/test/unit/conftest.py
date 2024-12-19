@@ -397,7 +397,11 @@ async def host_service(global_store: Store, regional_store: Store, hosted_bench:
         host.close()
         await host.wait_closed()
 
-        # manually decommission stores (bootstrapping problem since the Host session uses the store)
+        # decommission resources
+        # nocheckin
+
+        # manually decommission stores
+        # (afterwards the others since since the Host session uses the store)
         async with pg_connection(host.global_store, autocommit=True) as conn:
             for store in hosted_bench.stores:
                 await conn.execute(sqlstr(f'DROP DATABASE "{store.external_name}"'))
