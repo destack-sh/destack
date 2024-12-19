@@ -4,7 +4,7 @@ import textwrap
 from typing import Any, Callable, Mapping, cast
 from uuid import UUID
 
-from hypothesis import assume, given
+from hypothesis import HealthCheck, assume, given, settings
 
 from bench.language.bench import Package
 from bench.language.block import Block
@@ -26,16 +26,15 @@ from bench.test.unit.conftest import BUILTIN_OBJECTS, BUILTIN_OBJECTS_BY_TYPE
 
 @given(obj=builtin_objects())
 @examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
-def test_render_builtin_object_expr(
-    obj: BuiltinObject, shared_session: Session, shared_package: Package
-):
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_render_builtin_object_expr(obj: BuiltinObject, session: Session, package: Package):
     # NOTE: rendering Access doesn't work for some reason (issue with empty object),
     #  but we're going to overhaul the auth system soon anyway, so, whatever.
     assume(obj.metatype != StructType.ACCESS)
     assume(obj.metatype != StructType.TEXT)  # :CrummyMarkdown
     assume(obj.metatype != StructType.TYPE_CONSTRAINT)  # coerced to TypeConstraintIn (incomparable)
 
-    renderer = Renderer(RenderOptions(scope=shared_package))
+    renderer = Renderer(RenderOptions(scope=package))
 
     # impute real nodes for required node references (since they're needed for rendering)
     node_references = {}
@@ -79,10 +78,10 @@ def _render_as_stmt(func: Callable[[Any, Any], Mapping[str, BuiltinObject]]):
     """Decorator to check that the function body is exactly equivalent to its (re)rendered form."""
 
     @functools.wraps(func)
-    def _inner(shared_session: Session, shared_package: Package):
+    def _inner(session: Session, package: Package):
         # (line length 96 because it's 100 - 4 for the method indent here)
-        render_options = RenderOptions(scope=shared_package, format=True, format_line_length=96)
-        original_defns = func(shared_session, shared_package)
+        render_options = RenderOptions(scope=package, format=True, format_line_length=96)
+        original_defns = func(session, package)
 
         # render
         rendered = render(*original_defns.values(), options=render_options)
@@ -122,14 +121,14 @@ def _render_as_stmt(func: Callable[[Any, Any], Mapping[str, BuiltinObject]]):
 
 
 @_render_as_stmt
-def test_render_bad_names(shared_session: Session, shared_package: Package):
+def test_render_bad_names(session: Session, package: Package):
     _F_1 = Field.variable("-F_1", str)
     Block_with_Spa_se = Block.new(BlockType.MESSAGE, "Block with Spa'se")
     return {"_F_1": _F_1, "Block_with_Spa_se": Block_with_Spa_se}
 
 
 @_render_as_stmt
-def test_render_choice_block(shared_session: Session, shared_package: Package):
+def test_render_choice_block(session: Session, package: Package):
     ShapeType = Block.new(
         BlockType.CHOICE,
         "ShapeType",
@@ -139,7 +138,7 @@ def test_render_choice_block(shared_session: Session, shared_package: Package):
 
 
 @_render_as_stmt
-def test_render_message_block(shared_session: Session, shared_package: Package):
+def test_render_message_block(session: Session, package: Package):
     ShapeType = Block.new(
         BlockType.CHOICE,
         "ShapeType",
@@ -154,13 +153,13 @@ def test_render_message_block(shared_session: Session, shared_package: Package):
 
 
 @_render_as_stmt
-def test_render_variable_block(shared_session: Session, shared_package: Package):
+def test_render_variable_block(session: Session, package: Package):
     Variable1 = Block.new(BlockType.VALUE, "Variable1", value_type=to_type(int), value=1)
     return {"Variable1": Variable1}
 
 
 @_render_as_stmt
-def test_render_view_block(shared_session: Session, shared_package: Package):
+def test_render_view_block(session: Session, package: Package):
     View_1 = Block.new(BlockType.VIEW, "View 1")
     Button1 = View.new(ViewType.BUTTON, "Button1", node=View_1)
     View_1.views.append(Button1)
@@ -168,7 +167,7 @@ def test_render_view_block(shared_session: Session, shared_package: Package):
 
 
 @_render_as_stmt
-def test_render_field_with_constraint(shared_session: Session, shared_package: Package):
+def test_render_field_with_constraint(session: Session, package: Package):
     Field1 = Field.input(
         "Field1", int, constraint=constraint(min_value=1.0, max_value=10.0, step_value=2.0)
     )
@@ -176,13 +175,13 @@ def test_render_field_with_constraint(shared_session: Session, shared_package: P
 
 
 @_render_as_stmt
-def test_render_variable(shared_session: Session, shared_package: Package):
+def test_render_variable(session: Session, package: Package):
     Variable1 = Block.new(BlockType.VALUE, "Variable1", value_type=to_type(int), value=5)
     return {"Variable1": Variable1}
 
 
 @_render_as_stmt
-def test_render_variable_with_file(shared_session: Session, shared_package: Package):
+def test_render_variable_with_file(session: Session, package: Package):
     File1 = File(
         title="myfile.txt",
         kind=FileKind.DRIVE,
@@ -195,7 +194,7 @@ def test_render_variable_with_file(shared_session: Session, shared_package: Pack
 
 
 @_render_as_stmt
-def test_render_flow(shared_session: Session, shared_package: Package):
+def test_render_flow(session: Session, package: Package):
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
     Flow1.steps.append(Start)
@@ -211,16 +210,16 @@ def test_render_flow(shared_session: Session, shared_package: Package):
 #
 
 
-def test_render_page(shared_session: Session, shared_package: Package):
-    Page = shared_package.blocks.create(name="Page", type=BlockType.PAGE)
+def test_render_page(session: Session, package: Package):
+    Page = package.blocks.create(name="Page", type=BlockType.PAGE)
     Text1 = Page.blocks.append(Block.new(BlockType.TEXT, "Text1", text=md("Hello, world!")))
     rendered_page = render(Page, options=RenderOptions(scope=Page, as_page=True))
     assert Text1.name in rendered_page
 
 
-def test_render_simple_choice_option_ref(shared_session: Session, shared_package: Package):
+def test_render_simple_choice_option_ref(session: Session, package: Package):
     """Rendered node ref in sibling scope should be simplified"""
-    Page = shared_package.blocks.create(name="Page", type=BlockType.PAGE)
+    Page = package.blocks.create(name="Page", type=BlockType.PAGE)
     Choice = Block.new(
         BlockType.CHOICE,
         "Choice",

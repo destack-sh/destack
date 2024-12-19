@@ -119,7 +119,7 @@ def make_session(name: str):
 @pytest.fixture  # :PytestAsyncContext
 async def session_async(request):
     session = make_session(clean_name(request.node.name))
-    await session.open(set_in_context=False)
+    await session.open(_set_in_context=False)
     yield session
     await session.close()
 
@@ -137,9 +137,9 @@ def make_package(session: Session):
 
 @pytest.fixture
 def session(session_async: Session):
-    active_session_token = _active_session.set(session_async)
+    _active_session.set(session_async)
     yield session_async
-    _active_session.reset(active_session_token)
+    _active_session.set(None)
 
 
 @pytest.fixture
@@ -151,34 +151,14 @@ def package(session: Session):
 SHARED_SESSION = make_session("shared")
 
 
-@pytest.fixture(scope="session")
-async def shared_session_async():
-    await SHARED_SESSION.open(set_in_context=False)
-    yield SHARED_SESSION
-    await SHARED_SESSION.close()
-
-
-@pytest.fixture(scope="session")
-def shared_session(shared_session_async: Session):
-    active_session_token = _active_session.set(shared_session_async)
-    yield shared_session_async
-    _active_session.reset(active_session_token)
-
-
-@pytest.fixture(scope="session")
-def shared_package(shared_session: Session):
-    package = make_package(shared_session)
-    return package
-
-
 # init shared builtin objects (in shared session)
 with warnings.catch_warnings(action="ignore"):
-    _active_session_token = _active_session.set(SHARED_SESSION)
+    _active_session.set(SHARED_SESSION)
     BUILTIN_OBJECTS = [
         draw_direct(from_object_type(object_type, reject_invalid=False))
         for object_type in OBJECT_TYPES
     ]
-    _active_session.reset(_active_session_token)
+    _active_session.set(None)
 
 BUILTIN_OBJECTS_BY_TYPE: Mapping[ObjectType, BuiltinObject] = {
     obj.metatype: obj for obj in BUILTIN_OBJECTS
@@ -324,9 +304,9 @@ async def local_runtime_async(global_store: Store, regional_store: Store):
 
 @pytest.fixture
 def local_runtime(local_runtime_async: RuntimeHandle):  # :PytestAsyncContext
-    active_session_token = _active_session.set(local_runtime_async.session)
+    _active_session.set(local_runtime_async.session)
     yield local_runtime_async
-    _active_session.reset(active_session_token)
+    _active_session.set(None)
 
 
 #
@@ -336,6 +316,7 @@ def local_runtime(local_runtime_async: RuntimeHandle):  # :PytestAsyncContext
 
 @pytest.fixture
 async def hosted_bench(global_store: Store, regional_store: Store):
+    _active_session.set(None)
     async with create_global_session(global_store, regional_store, REAL_ORACLE) as session:
         user = User(
             slug="user",
@@ -402,6 +383,7 @@ async def hosted_bench(global_store: Store, regional_store: Store):
 
 @pytest.fixture
 async def host_service(global_store: Store, regional_store: Store, hosted_bench: Bench):
+    _active_session.set(None)
     host = HostService(
         bench_id=hosted_bench.id,
         global_store=global_store,
@@ -492,6 +474,6 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
 
 @pytest.fixture
 def hosted_runtime(hosted_runtime_async: RuntimeHandle):  # :PytestAsyncContext
-    active_session_token = _active_session.set(hosted_runtime_async.session)
+    _active_session.set(hosted_runtime_async.session)
     yield hosted_runtime_async
-    _active_session.reset(active_session_token)
+    _active_session.set(None)

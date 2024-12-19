@@ -2,7 +2,7 @@ from itertools import chain
 from typing import cast
 
 import pytest
-from hypothesis import given
+from hypothesis import HealthCheck, given, settings
 
 from bench.language import Bench, Message, NodeReference, Property, Server
 from bench.language.bench import Client, PackageType
@@ -199,7 +199,8 @@ def test_node_pointers_consistency(session: "Session"):
 
 
 @given(obj=structs)
-def test_builtin_object_clone(obj: BuiltinObject, shared_session: Session):
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_builtin_object_clone(obj: BuiltinObject, session: Session):
     obj_clone = obj.clone()
     assert obj_clone.equals(obj)
 

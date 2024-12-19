@@ -1,7 +1,7 @@
 from typing import cast
 
 import pytest
-from hypothesis import given
+from hypothesis import HealthCheck, given, settings
 
 from bench.language.action import Agency, Call, Continue
 from bench.language.bench import Package
@@ -312,29 +312,29 @@ def test_roundtrip_nested_value(session: Session, package: Package):
 
 @given(obj=builtin_objects())
 @examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_roundtrip_builtin_object_value_data(
-    obj: BuiltinObject, shared_session: Session, shared_package: Package
+    obj: BuiltinObject, session: Session, package: Package
 ):
     packed_wire_obj = wiring.pack_builtin_object(obj)
     packed_json = pack_builtin_object_data(packed_wire_obj)
     unpacked_wire_obj = unpack_builtin_object_data(packed_json)
     unpacked_obj = wiring.unpack_builtin_object(
         unpacked_wire_obj,
-        supergraph=shared_session._supergraph,
-        graph=shared_session._graph,
-        session=shared_session,
+        supergraph=session._supergraph,
+        graph=session._graph,
+        session=session,
     )
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
 
 
 @given(obj=structs)
 @examples([{"obj": obj} for obj in STRUCTS])
-def test_roundtrip_builtin_object_value(
-    obj: BuiltinObject, shared_session: Session, shared_package: Package
-):
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_roundtrip_builtin_object_value(obj: BuiltinObject, session: Session, package: Package):
     packed_json = pack_builtin_object(obj)
     unpacked_obj = unpack_builtin_object(
-        packed_json, session=shared_session, supergraph=shared_session._supergraph
+        packed_json, session=session, supergraph=session._supergraph
     )
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
 

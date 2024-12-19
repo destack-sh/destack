@@ -271,7 +271,7 @@ class SingleClientWorkloadBase[SpecT: SingleClientWorkloadSpec](WorkloadBase[Spe
         self.session = await make_remote_session(
             self.bench_id, self.client, self.host, self.oracle, self.simulation
         )
-        await self.session.open(set_in_context=False)
+        await self.session.open(_set_in_context=False)
         async with self.session.active(readonly=False):
             await self._do_prepare_in_session(self.session)
             await self.session.commit()

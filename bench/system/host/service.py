@@ -382,7 +382,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         )
         self._bench._track_rec(self._session)
         self._main_package._track_rec(self._session)
-        await self._session.open(set_in_context=False)
+        await self._session.open(_set_in_context=False)
         self._session.suspend()
 
         # resume log
