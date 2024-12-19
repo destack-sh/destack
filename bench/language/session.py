@@ -456,14 +456,14 @@ class Session(RuntimeNode[SessionData]):
     #
 
     def _subscribe_on_edit(self, node: Node, sub: Callable[[Node], None]) -> Callable[[], None]:
-        """Subscribe to edits on a node."""
+        """Subscribe to edits on a node :SupergraphWatch."""
         if node.id not in self._on_edit_subs:
             self._on_edit_subs[node.id] = []
         self._on_edit_subs[node.id].append(sub)
         return lambda: self._unsubscribe_on_edit(node, sub)
 
     def _unsubscribe_on_edit(self, node: Node, sub: Callable[[Node], None]) -> None:
-        """Unsubscribe from edits on a node."""
+        """Unsubscribe from edits on a node :SupergraphWatch."""
         if node.id in self._on_edit_subs:
             self._on_edit_subs[node.id].remove(sub)
             if not self._on_edit_subs[node.id]:

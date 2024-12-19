@@ -15,6 +15,7 @@ from typing import (
     Literal,
     Mapping,
     Optional,
+    Self,
     Union,
     cast,
     final,
@@ -466,7 +467,7 @@ class Connection[
         self._result_data: ResultDataT | None = None
         self._epoch: int | None = None
         self._is_closed = False
-        self._update_subscribers: list[Callable[[UpdateT], None]] = []
+        self._update_subscribers: list[Callable[[Any, UpdateT], None]] = []
 
     def __str__(self):
         is_live_postfix = " (live)" if self.is_live else ""
@@ -503,11 +504,16 @@ class Connection[
         return self._epoch
 
     @final
-    def on_update(self, callback: Callable[[UpdateT], None]) -> Callable[[], None]:
+    def subscribe_on_update(self, callback: Callable[[Self, UpdateT], None]) -> Callable[[], None]:
         """Register a callback for updates."""
         assert self.is_live, f"{self!r} is not live"
         self._update_subscribers.append(callback)
-        return lambda: self._update_subscribers.remove(callback)
+        return lambda: self.unsubscribe_on_update(callback)
+
+    @final
+    def unsubscribe_on_update(self, callback: Callable[[Self, UpdateT], None]) -> None:
+        """Unregister a callback for updates."""
+        self._update_subscribers.remove(callback)
 
     @final
     async def connect(self) -> None:
@@ -613,7 +619,7 @@ class Connection[
                         )
                         if update is not None:
                             for callback in self._update_subscribers:
-                                callback(update)
+                                callback(self, update)
                 except Exception as e:
                     last_error = e
                     interval = retry.get_wait_interval()

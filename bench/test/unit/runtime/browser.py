@@ -1,12 +1,13 @@
+from bench.language.bench import ResourceStatus
 from bench.language.browser import Browser
 from bench.test.unit.conftest import RuntimeHandle
 
 
 async def test_acquire_browser_resource_directly(hosted_runtime: RuntimeHandle):
-    browser = Browser.new(title="My Browser")
+    browser = Browser.new(title="My Lil' Browser")
     hosted_runtime.bench.append(browser)
-    await hosted_runtime.commit()
     await browser.wait_until_ready()
+    assert browser.status == ResourceStatus.UP
 
 
 async def test_run_flow_browser(hosted_runtime: RuntimeHandle):
