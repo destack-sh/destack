@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.bench import PhysicalResourceNode
+from bench.language.bench import PhysicalResource
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
 from bench.language.node import Struct, node_, struct_
 from bench.language.property import p_kernel, p_regular, p_system
@@ -9,7 +9,7 @@ from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import Client
-    from bench.language.view import Rectangle
+    from bench.language.view import Vector2
 
 
 @struct_(StructType.DOM_NODE)
@@ -40,7 +40,7 @@ class BrowserType(IdEnum):
 
 
 @node_(NodeType.BROWSER)
-class Browser(PhysicalResourceNode[BrowserData]):
+class Browser(PhysicalResource[BrowserData]):
     """A Browser instance for web browsing."""
 
     type: BrowserType = p_regular(30, default=BrowserType.REMOTE)
@@ -62,9 +62,14 @@ class Browser(PhysicalResourceNode[BrowserData]):
         57, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
     )
 
-    size: Optional["Rectangle"] = p_regular(
-        60, default=None, require=False, array=False, struct=StructType.RECTANGLE
+    # settings
+    size: Optional["Vector2"] = p_regular(
+        60, default=None, require=False, array=False, struct=StructType.VECTOR2
     )
-    target_size: Optional["Rectangle"] = p_regular(
-        61, default=None, require=False, array=False, struct=StructType.RECTANGLE
+    target_size: Optional["Vector2"] = p_regular(
+        61, default=None, require=False, array=False, struct=StructType.VECTOR2
     )
+
+    # flags
+    is_headless: bool = p_regular(70, default=False)
+    is_insecure: bool = p_regular(71, default=False)

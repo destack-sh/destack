@@ -435,13 +435,13 @@ class Session(RuntimeNode[SessionData]):
     # Tracking
     #
 
-    def track(self, node: Node):
-        """Start tracking the node in this session."""
+    def _track(self, node: Node):
+        """Start tracking the Node in this session."""
         if node._session != self:
             node._track_rec(self)
 
-    def track_many(self, *nodes: Node | None, force: bool = False):
-        """Start tracking the nodes in this session."""
+    def _track_many(self, *nodes: Node | None, force: bool = False):
+        """Start tracking the Nodes in this session."""
         for n in nodes:
             if n is None:
                 continue
@@ -450,16 +450,16 @@ class Session(RuntimeNode[SessionData]):
             if n._session is not self:
                 n._track_rec(self)
 
-    def untrack(self, node: Node):
-        """Stop tracking the node in this session."""
+    def _untrack(self, node: Node):
+        """Stop tracking the Node in this session."""
         for n in node._walk_descendants():
             n._untrack_rec()
 
-    def untrack_many(self, *nodes: Node | None):
-        """Stop tracking the nodes in this session."""
+    def _untrack_many(self, *nodes: Node | None):
+        """Stop tracking the Nodes in this session."""
         for n in nodes:
             if n is not None:
-                self.untrack(n)
+                self._untrack(n)
 
     #
     # Edits
@@ -481,7 +481,7 @@ class Session(RuntimeNode[SessionData]):
         return self._context_data
 
     def _create(self, *nodes: Node):
-        """Creates a new node. The operation *is not* applied directly."""
+        """Creates a new Node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
         assert (
             not self._is_readonly and not self._is_suspended
@@ -492,7 +492,7 @@ class Session(RuntimeNode[SessionData]):
                 self._tx.record_edit_event(EditType.CREATE, node)
 
     def _upsert(self, *nodes: Node):
-        """Creates or updates a node. The operation *is not* applied directly."""
+        """Creates or updates a Node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert (
             not self._is_readonly and not self._is_suspended
@@ -508,7 +508,7 @@ class Session(RuntimeNode[SessionData]):
         node: Node,
         operation: EditOperationData | None = None,
     ):
-        """Updates an existing node. The operation *is not* applied directly."""
+        """Updates an existing Node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
         if node.is_attached:  # ignore detached updates
@@ -516,7 +516,7 @@ class Session(RuntimeNode[SessionData]):
             self._tx.record_edit_event(EditType.UPDATE, node, operation=operation)
 
     def _move(self, node: Node, old_parent: Node, new_parent: Node):
-        """Moves a node to a new parent. The operation *is not* applied directly."""
+        """Moves a Node to a new parent. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
         if node.is_attached:
@@ -541,7 +541,7 @@ class Session(RuntimeNode[SessionData]):
             self._tx.record_edit_event(EditType.MOVE, node, operation=operation)
 
     def _delete(self, *nodes: Node):
-        """Deletes a node. The operation *is* applied directly."""
+        """Deletes a Node. The operation *is* applied directly."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
         assert (
             not self._is_readonly and not self._is_suspended
@@ -559,7 +559,7 @@ class Session(RuntimeNode[SessionData]):
             node._graph.remove(node)
 
     def _restore(self, *nodes: Node):
-        """Restores a deleted node. The operation *is* applied directly."""
+        """Restores a deleted Node. The operation *is* applied directly."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
         assert (
             not self._is_readonly and not self._is_suspended
@@ -574,7 +574,7 @@ class Session(RuntimeNode[SessionData]):
             node._graph.add(node)
 
     def _erase(self, *nodes: Node):
-        """Erases a node and its descendants from the graph. The operation *is* applied directly."""
+        """Erases a Node. The operation *is* applied directly."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
         assert (
             not self._is_readonly and not self._is_suspended

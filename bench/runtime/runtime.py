@@ -1,13 +1,14 @@
 import asyncio
 from contextvars import ContextVar
-from datetime import datetime
-from typing import Any, Mapping, cast
+from datetime import datetime, timedelta
+from typing import Any, Callable, Mapping, Sequence, cast
 from uuid import UUID
 
 import structlog
 from git import TYPE_CHECKING
 from opentelemetry import baggage, context, trace
 
+from bench.language.bench import Resource, ResourceStatus
 from bench.language.const import (
     BenchError,
     NodeMode,
@@ -17,9 +18,11 @@ from bench.language.const import (
     RunStatus,
     is_node_type,
 )
-from bench.language.field import Field
+from bench.language.field import Field, TypeIn, TypeInfo, to_type_scalar
 from bench.language.graph import NodeGraph
 from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_TYPE, BreakpointSite, Interrupt
+from bench.language.node import Node
+from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.language.run import Run, RunAttempt, RunError, RunnableNode
 from bench.language.session import Session
 from bench.language.validation import ValidationError, on_invalid_raise
@@ -112,6 +115,51 @@ class Runtime:
         runner = self._active_runner.get(None)
         return runner.mode if runner else self.session.mode
 
+    @tracer.start_as_current_span("runtime.wait_for")
+    async def _wait_for(
+        self,
+        runner: Runner,
+        nodes: Sequence[Node],
+        complete_when: Callable[[], bool],
+        timeout: timedelta,
+    ):
+        """Wait for the given nodes to reach a certain state."""
+        raise NotImplementedError(f"nocheckin: Runtime.wait_for {runner!r} {nodes!r}")
+
+    @tracer.start_as_current_span("runtime.acquire_resources")
+    async def _acquire_resources(
+        self, runner: Runner, resource_types: Sequence[TypeInfo | TypeIn]
+    ) -> list[Resource]:
+        """Acquires the relevant Resources for the given Runner."""
+        # TODO :Incomplete: reuse resources across (unrelated) Runs?
+        resource_types = [to_type_scalar(t) for t in resource_types]
+        resources: list[Resource] = []
+        for resource_type in resource_types:
+            node_type = resource_type.bench_type
+            assert is_node_type(node_type) is not None, f"invalid resource type {resource_type!r}"
+            node_type = NodeType(node_type)
+            assert node_type.is_resource, f"expected resource type, got {node_type!r}"
+
+            # check context for resource
+            # nocheckin ....
+
+            # make new resource
+            resource_cls = NODE_CLASS_BY_TYPE[node_type]
+            assert issubclass(resource_cls, Resource), f"{resource_cls} for {resource_type!r}"
+            resource = resource_cls()
+            self.bench.append(resource)
+
+        # commit and wait for resources to become ready
+        await self.session.commit()
+        await self._wait_for(
+            runner,
+            nodes=resources,
+            complete_when=lambda: all(resource == ResourceStatus.UP for resource in resources),
+            timeout=timedelta(seconds=30),
+        )
+
+        return resources
+
     @tracer.start_as_current_span("runtime.run_runner.attempt")
     async def _do_attempt(self, runner: Runner, retry: RetryState, attempt: RunAttempt):
         trace.get_current_span().set_attribute("runner", repr(runner))
@@ -195,7 +243,7 @@ class Runtime:
                 variables = runner.variables
                 assert variables is not None, f"missing variables in {runner!r}"
                 try:
-                    missing_resources: list[Field] = []
+                    missing_resource_slots: list[Field] = []
                     for field in runner.variable_type._fields:
                         variable_value = variables._do_get(field)
                         if (
@@ -203,7 +251,7 @@ class Runtime:
                             and is_node_type(field.bench_type) is not None
                             and NodeType(field.bench_type).is_resource
                         ):
-                            missing_resources.append(field)
+                            missing_resource_slots.append(field)
                             continue
                         else:
                             check_value(
@@ -218,11 +266,10 @@ class Runtime:
                     return
 
             # acquire missing resource variables
-            # TODO :Incomplete: reuse resources?
-            if missing_resources:
-                with tracer.start_as_current_span("runtime.acquire_resources"):
-                    runner.status = RunStatus.PREPARING
-                    raise NotImplementedError("nocheckin: acquire resources")
+            if missing_resource_slots:
+                resources = await self._acquire_resources(runner, missing_resource_slots)
+                for field, resource in zip(missing_resource_slots, resources):
+                    variables._do_set(field, resource, validate=False)
 
         # check inputs
         if runner.input_type is not None:

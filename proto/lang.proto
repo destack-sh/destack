@@ -2809,8 +2809,10 @@ message BrowserData {
   optional string debugger_uri = 55;
   optional string view_uri = 56;
   optional NodeReferenceData client_ptr = 57;
-  optional RectangleData size = 60;
-  optional RectangleData target_size = 61;
+  optional Vector2Data size = 60;
+  optional Vector2Data target_size = 61;
+  bool is_headless = 70;
+  bool is_insecure = 71;
   NodeMode mode = 90;
 }
 

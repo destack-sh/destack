@@ -62,7 +62,7 @@ from bench.language.const import (
     _active_session,
 )
 from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph, NodeSuperGraph
-from bench.language.list import LocalNodeList, RemoteNodeList
+from bench.language.list import LocalNodeList, RemoteNodeList, attach_node
 from bench.language.property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
@@ -440,6 +440,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     if is_final and (is_node or is_struct) and parent_property is None:
         raise ValueError(f"missing parent property for node {cls}")
     cls.__parent_property__ = parent_property
+    cls.__parent_types__ = parent_property.reference_nodes or () if parent_property else ()
 
     return cls, properties_by_name  # type: ignore
 
@@ -978,6 +979,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     __is_node__: ClassVar[bool] = False
 
     __parent_property__: ClassVar[Property] = UNSET
+    __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     __properties__: ClassVar[dict[str, Property]] = {}
     __properties_by_id__: ClassVar[dict[int, Property]] = {}
     __properties_name_by_id__: ClassVar[dict[int, str]] = {}
@@ -2169,9 +2171,17 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             else:
                 return bench_ident
         elif "ck" in self.__properties__:
-            return f"[ck={self.ck}]"
+            title = getattr(self, "title", None)
+            if title is not None:
+                return f"{title} [ck={self.ck}]"
+            else:
+                return f"[ck={self.ck}]"
         else:
-            return f"[id={self.id}]"
+            title = getattr(self, "title", None)
+            if title is not None:
+                return f"{title} [id={self.id}]"
+            else:
+                return f"[id={self.id}]"
 
     @property
     def code_name(self) -> Optional[str]:
@@ -2189,7 +2199,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     @property
     def absolute_path(self) -> str:
-        if self.__parent_property__ is None or not self.__parent_property__.reference_nodes:
+        if not self.__parent_types__:
             # this is a root node
             ident = self._ident
             assert ident is not None, f"no bench ident for {self!r}"
@@ -2239,43 +2249,46 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return self.deleted_at is not None or (parent is not None and parent.is_deleted)
 
     def delete(self):
-        """Delete this node (move to trash)."""
+        """Delete this Node."""
         assert not self.is_deleted, f"{self!r} is already deleted"
         self.active_session._delete(self)
 
     def restore(self):
-        """Restore this deleted node from the trash."""
+        """Restore this deleted Node from the trash."""
         assert self.is_deleted, f"{self!r} is not deleted"
         self.active_session._restore(self)
 
     def erase(self):
-        """Wipe this node from this universe forever."""
+        """Wipe this Node from this universe forever."""
         self.active_session._erase(self)
 
     def move(self, to: "Node"):
-        """Move this node to a new parent."""
+        """Move this Node to a new parent."""
         to.append(self, move=True)
 
     def append(self, child: "Node", move: bool = False):
-        """Append a node as a child of this node."""
+        """Append a Node as a child of this Node."""
         child_prop = self.get_child_property(child.metatype)
         if child_prop is not None:
             child_list = getattr(self, child_prop.name)
+            child_list.append(child, move=move)
         elif isinstance(child, HasNodeBase):
             base = child.base
             assert base is not None, f"no base for {child!r}"
             child_prop = base.get_child_property(child.metatype)
             if child_prop is not None:
                 child_list = getattr(base, child_prop.name)
+                child_list.append(child, move=move)
             else:
                 raise ValueError(f"no child property for {child.metatype.bench_name} in {base!r}")
+        elif self.metatype in child.__parent_types__:
+            attach_node(child, self, move=move)
         else:
-            raise ValueError(f"no child property for {child.metatype.bench_name} in {self!r}")
-        child_list.append(child, move=move)
+            raise ValueError(f"cannot append {child!r} to {self!r}")
 
     @classmethod
     def get_child_property_or_error(cls, node_type: NodeType) -> Property:
-        """Gets the child property for the given node type."""
+        """Gets the child property for the given Node type."""
         prop = cls.get_child_property(node_type)
         if prop is None:
             raise ValueError(f"no child property for {node_type.bench_name} in {cls.__name__}")
@@ -2283,7 +2296,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     @classmethod
     def get_child_property(cls, node_type: NodeType) -> Property | None:
-        """Gets the child property for the given node type, or None if not found."""
+        """Gets the child property for the given Node type, or None if not found."""
         for prop in cls.__node_child_properties__.values():
             if (
                 prop.reference_nodes

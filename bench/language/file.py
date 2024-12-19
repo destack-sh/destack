@@ -21,7 +21,7 @@ import structlog
 from opentelemetry import trace
 from PIL import Image
 
-from bench.language.bench import Drive, PhysicalResourceNode
+from bench.language.bench import Drive, PhysicalResource
 from bench.language.const import (
     EnumType,
     NodeType,
@@ -480,7 +480,7 @@ class FileBase(BuiltinObject):
     Base class for file info.
     """
 
-    # title overlaps with PhysicalResourceNode.title
+    # title overlaps with PhysicalResource.title
     title: str = p_regular(32, constraint=TITLE_CONSTRAINT)
 
     # content
@@ -779,7 +779,7 @@ class FileInfo(Struct[FileInfoData], FileBase):
 
 
 @node_(NodeType.FILE)
-class File(PhysicalResourceNode[FileData], FileBase):
+class File(PhysicalResource[FileData], FileBase):
     """
     A File stored somewhere (like in a Drive, or externally).
     """

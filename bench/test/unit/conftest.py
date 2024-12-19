@@ -456,7 +456,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
         _host=host,
         _origin=client.to_origin(nonce=None)._to_data(),
     )
-    session.track(hosted_bench)
+    session._track(hosted_bench)
     runner = Runtime(session=session, cache=MemoryCache(hosted_bench), oracle=REAL_ORACLE)
     assert hosted_bench.main_package is not None, f"no main package for {hosted_bench!r}"
     handle = RuntimeHandle(
