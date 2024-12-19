@@ -304,11 +304,17 @@ class Transaction:
                 or self._pending_edit_events[-1].type == EditType.MOVE
             )
         ):
+            # merge operation
             prev_edit = self._pending_edit_events[-1]
             assert prev_edit.operations is not None, f"missing operations for {prev_edit!r}"
             assert operation is not None, f"missing operation for {prev_edit!r}"
             prev_edit.operations.append(operation)
-            return
+            # fire subscriptions
+            subs = self.session._on_edit_subs.get(node.id)
+            if subs is not None:
+                for sub in subs:
+                    sub(node)
+            return  # already handled
 
         # context
         session = self.session
@@ -346,6 +352,12 @@ class Transaction:
             edit_event.node_data = node_data
             node._is_new = False
         self._pending_edit_events.append(edit_event)
+
+        # fire subscriptions
+        subs = self.session._on_edit_subs.get(node.id)
+        if subs is not None:
+            for sub in subs:
+                sub(node)
 
     def _add_pending_edits(self, edits: Sequence[EditData]):
         """Adds full edits to the transaction directly."""

@@ -103,6 +103,24 @@ class _CommitEvent:
         return f"<CommitEvent {self}>"
 
 
+CommitPrepareHook = Callable[
+    ["Session", NodeGraph, NodeDataGraph, Sequence["EditData"], Sequence["EditData"]],
+    Awaitable[Sequence[EditData]],
+]
+CommitHook = Callable[
+    [
+        "Session",
+        NodeGraph,
+        NodeDataGraph,
+        Sequence["EditData"],
+        Sequence["EditData"],
+        Sequence["EditData"],
+    ],
+    Awaitable[None],
+]
+CommitFailedHook = Callable[["Session", BaseException], Awaitable[None]]
+
+
 @timed_node_(NodeType.SESSION)
 class Session(RuntimeNode[SessionData]):
     """
@@ -121,7 +139,10 @@ class Session(RuntimeNode[SessionData]):
     # context
     # ...HasRuntimeContext[80-99]
 
-    # flags
+    # context
+    _origin: ClientOriginData | None = p_runtime(default=None)
+    _subject: EditSubject | None = p_runtime(default=None)
+    _context_data: RuntimeContextData | None = p_runtime(default=None)
     _is_readonly: bool = p_runtime(default=False)
     _is_suspended: bool = p_runtime(default=False)
 
@@ -132,11 +153,6 @@ class Session(RuntimeNode[SessionData]):
     _channels: list[Channel] = p_runtime(default_factory=list)
     _connections: list[Connection] = p_runtime(default_factory=list)
 
-    # context
-    _origin: ClientOriginData | None = p_runtime(default=None)
-    _subject: EditSubject | None = p_runtime(default=None)
-    _context_data: RuntimeContextData | None = p_runtime(default=None)
-
     # transaction
     _tx: Transaction | None = p_runtime(default=None)
     _tx_lock: asyncio.Lock = p_runtime(default_factory=lambda: CriticalLock(name="session"))
@@ -146,36 +162,10 @@ class Session(RuntimeNode[SessionData]):
     _pending_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
     _default_scope: GraphScopeData = p_runtime(default_factory=lambda: EMPTY_SCOPE_DATA)
     _local_epoch: int | None = p_runtime(default=None)
-    _on_commit_prepare: (
-        Callable[
-            [
-                "Session",
-                NodeGraph,
-                NodeDataGraph,
-                Sequence["EditData"],
-                Sequence["EditData"],
-            ],
-            Awaitable[Sequence[EditData]],
-        ]
-        | None
-    ) = p_runtime(default=None)
-    _on_commit: (
-        Callable[
-            [
-                "Session",
-                NodeGraph,
-                NodeDataGraph,
-                Sequence["EditData"],
-                Sequence["EditData"],
-                Sequence["EditData"],
-            ],
-            Awaitable[None],
-        ]
-        | None
-    ) = p_runtime(default=None)
-    _on_commit_failed: Callable[["Session", BaseException], Awaitable[None]] | None = p_runtime(
-        default=None
-    )
+    _on_commit_prepare: CommitPrepareHook | None = p_runtime(default=None)
+    _on_commit: CommitHook | None = p_runtime(default=None)
+    _on_commit_failed: CommitFailedHook | None = p_runtime(default=None)
+    _on_edit_subs: dict[UUID, list[Callable[[Node], None]]] = p_runtime(default_factory=dict)
 
     # runtime
     _oracle: Oracle = p_runtime()
@@ -464,6 +454,20 @@ class Session(RuntimeNode[SessionData]):
     #
     # Edits
     #
+
+    def _subscribe_on_edit(self, node: Node, sub: Callable[[Node], None]) -> Callable[[], None]:
+        """Subscribe to edits on a node."""
+        if node.id not in self._on_edit_subs:
+            self._on_edit_subs[node.id] = []
+        self._on_edit_subs[node.id].append(sub)
+        return lambda: self._unsubscribe_on_edit(node, sub)
+
+    def _unsubscribe_on_edit(self, node: Node, sub: Callable[[Node], None]) -> None:
+        """Unsubscribe from edits on a node."""
+        if node.id in self._on_edit_subs:
+            self._on_edit_subs[node.id].remove(sub)
+            if not self._on_edit_subs[node.id]:
+                del self._on_edit_subs[node.id]
 
     def _get_context(self) -> RuntimeContextData:
         """Gathers context valid for the entire session"""

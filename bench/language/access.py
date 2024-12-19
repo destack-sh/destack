@@ -506,42 +506,40 @@ def _register_system_policies():
             .object(properties_is_system=True),
             PolicyRule(
                 name="CannotCreateOrDeleteSystemNodesDirectly",
-                text=Text.plain("System nodes must be managed through designated methods."),
+                text=Text.plain("System Nodes must be managed through designated methods."),
             )
             .deny(
                 EditType.CREATE, EditType.UPSERT, EditType.DELETE, EditType.RESTORE, EditType.ERASE
             )
             .object(node_types=(*ROOT_NODE_TYPES.tuple, NodeType.CLIENT)),
             PolicyRule(
-                name="CannotEditHandles",
-                text=Text.plain("Handles (like usernames) must be edited through special methods."),
+                name="CannotEditHandles", text=Text.plain("Handles cannot be edited directly.")
             )
             .deny(AccessKind.EDIT)
             .object(node_types=(NodeType.HANDLE,)),
             PolicyRule(
                 name="CannotUpsertLegislativeNodes",
-                # (to prevent ambiguities in evaluation - we could do it, but it would be confusing)
-                text=Text.plain("Nodes that define their own policies cannot be upserted."),
+                text=Text.plain("Nodes with their own Policies cannot be upserted."),
             )
             .deny(EditType.UPSERT)
             .object(node_types=LEGISLATIVE_NODE_TYPES.tuple),
             PolicyRule(
                 name="CannotMoveRuntimeNodes",
-                text=Text.plain("Cannot move or remove runtime nodes"),
+                text=Text.plain("Cannot move Runtime Nodes"),
             )
             .deny(EditType.MOVE, EditType.DELETE, EditType.ERASE)
             .object(node_types=RUNTIME_NODE_TYPES.tuple),
         ),
         Policy(name="OwnerAccess").append(
             PolicyRule(
-                name="OwnerCanDoAnything", text=Text.plain("Owners of a node can do anything.")
+                name="OwnerCanDoAnything", text=Text.plain("Owners of a Node can do anything.")
             )
             .subject(is_owner=True)
             .allow(),
         ),
         Policy(name="StaffAccess").append(
             PolicyRule(
-                name="StaffCanReadAnything", text=Text.plain("Staff users can read anything.")
+                name="StaffCanReadAnything", text=Text.plain("Staff Users can read anything.")
             )
             .subject(is_staff=True)
             .allow(AccessKind.READ),
@@ -558,17 +556,14 @@ def _register_system_policies():
         Policy(name="AuthenticatedAccess").append(
             PolicyRule(
                 name="AuthenticatedCanReadPublic",
-                text=Text.plain("Authenticated users can read public nodes."),
+                text=Text.plain("Authenticated Users can read public Nodes."),
             )
             .subject(is_authenticated=True)
             .allow(AccessKind.READ)
             .object(node_types=PUBLIC_NODE_TYPES.tuple, properties_is_sensitive=False),
         ),
         Policy(name="AnonymousAccess").append(
-            PolicyRule(
-                name="AnonCanReadHandle",
-                text=Text.plain("Everyone can read Handles (to create an account)."),
-            )
+            PolicyRule(name="AnonCanReadHandle", text=Text.plain("Everyone can read Handles."))
             .subject(is_authenticated=False)
             .allow(AccessKind.READ)
             .object((NodeType.HANDLE,))
@@ -1103,7 +1098,7 @@ def evaluate_edit(
             wanted_properties=object_properties,
             root_id=root.id,
             scope_id=scope.id,
-            mode=AccessMode.ATOMIC,
+            mode=AccessMode.ADAPTIVE if access_type == EditType.CREATE else AccessMode.ATOMIC,
             cache=None,
         )
         if decision == PolicyEffect.DENY:
