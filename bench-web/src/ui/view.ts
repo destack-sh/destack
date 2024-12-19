@@ -399,6 +399,10 @@ export function subVector2(vec: Vector2 | null | undefined, sub: Partial<Vector2
   };
 }
 
+export function lengthVector2(vec: Vector2 | null | undefined): number {
+  return Math.sqrt((vec?.x ?? 0) ** 2 + (vec?.y ?? 0) ** 2);
+}
+
 //
 // History
 //
