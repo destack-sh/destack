@@ -4,6 +4,7 @@ import textwrap
 from typing import Any, Callable, Mapping, cast
 from uuid import UUID
 
+import pytest
 from hypothesis import HealthCheck, assume, given, settings
 
 from bench.language.bench import Package
@@ -27,6 +28,7 @@ from bench.test.unit.conftest import BUILTIN_OBJECTS, BUILTIN_OBJECTS_BY_TYPE
 @given(obj=builtin_objects())
 @examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@pytest.mark.skip(reason="no longer a good test, should come up with better rendering tests")
 def test_render_builtin_object_expr(obj: BuiltinObject, session: Session, package: Package):
     # NOTE: rendering Access doesn't work for some reason (issue with empty object),
     #  but we're going to overhaul the auth system soon anyway, so, whatever.

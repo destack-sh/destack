@@ -2,7 +2,7 @@ import abc
 from datetime import datetime
 from enum import Enum
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, Self, TypeVar, Union
 from uuid import UUID
 
 from bench.language.const import (
@@ -14,6 +14,7 @@ from bench.language.const import (
     ReferenceKind,
     Region,
     StructType,
+    active_session,
     enum_,
 )
 from bench.language.list import LocalNodeList
@@ -264,7 +265,7 @@ NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
 
 @node_component()
-class ResourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContext, abc.ABC):
+class Resource[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContext, abc.ABC):
     """
     A Resource in a Bench.
     Resources generally work on the 'desired state' principle.
@@ -289,7 +290,7 @@ class ResourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingConte
     def __content_str__(self):
         value_strs: list[str] = []
         for prop in chain(
-            ResourceNode.__declared_properties__.values(),
+            Resource.__declared_properties__.values(),
             self.__declared_properties__.values(),
         ):
             if (
@@ -339,18 +340,33 @@ class ResourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingConte
 
 
 @node_component()
-class VirtualResourceNode[NodeDataT: AnyNodeData](ResourceNode[NodeDataT]):
+class VirtualResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
     """
-    A 'virtual' resource in a Bench.
+    A 'virtual' Resource in a Bench.
     """
 
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
 
+    @classmethod
+    def new(cls, name: str, **kwargs: Any) -> Self:
+        """Creates a new Resource of this type. Defaults to current Bench"""
+
+        # parent
+        if "parent" not in kwargs:
+            if NodeType.BENCH not in cls.__parent_types__:
+                raise ValueError(f"cannot create {cls!r} without parent")
+            bench = active_session().bench
+            assert bench is not None, "no active Bench"
+            kwargs["parent"] = bench
+
+        resource = cls(name=name, **kwargs)
+        return resource
+
 
 @node_component()
-class PhysicalResourceNode[NodeDataT: AnyNodeData](ResourceNode[NodeDataT]):
+class PhysicalResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
     """
-    A 'physical' resource in a Bench.
+    A 'physical' Resource in a Bench.
     """
 
     title: str = p_regular(32, constraint=TITLE_CONSTRAINT)
@@ -360,13 +376,35 @@ class PhysicalResourceNode[NodeDataT: AnyNodeData](ResourceNode[NodeDataT]):
     )
     owned_by: Optional[Owner] = p_system(37, require=False, array=False, references=OWNER_TYPES)
 
+    @classmethod
+    def new(cls, *, title: str | None = None, **kwargs: Any) -> Self:
+        """Creates a new Resource of this type. Defaults to current Bench"""
+        session = active_session()
+
+        # parent
+        if "parent" not in kwargs:
+            if NodeType.BENCH not in cls.__parent_types__:
+                raise ValueError(f"cannot create {cls!r} without parent")
+            bench = session.bench
+            assert bench is not None, "no active Bench"
+            kwargs["parent"] = bench
+
+        # title
+        if title is None:
+            # fabricate title
+            now = session._oracle.utc()
+            title = cls.metatype.bench_name + now.strftime("%Y-%m-%d %H:%M:%S")
+
+        resource = cls(title=title, **kwargs)
+        return resource
+
 
 CPU_CONSTRAINT = constraint(min_value=0.1, max_value=16.0, step_value=0.1)
 RAM_CONSTRAINT = constraint(min_value=0.1, max_value=256.0, step_value=0.1)
 
 
 @node_(NodeType.SERVER)
-class Server(VirtualResourceNode[ServerData]):
+class Server(VirtualResource[ServerData]):
     """
     A Server provides virtual compute for a Bench's Runtime.
     Physical compute is materialized dynamically on Machines.
@@ -390,7 +428,7 @@ class Server(VirtualResourceNode[ServerData]):
 
 
 @node_(NodeType.STORE)
-class Store(VirtualResourceNode[StoreData]):
+class Store(VirtualResource[StoreData]):
     """A trusty Postgres-compatible database."""
 
     version: str = p_system(50, default=VERSION, default_sql=None)
@@ -404,21 +442,21 @@ class Store(VirtualResourceNode[StoreData]):
 
 
 @node_(NodeType.DRIVE)
-class Drive(VirtualResourceNode[DriveData]):
+class Drive(VirtualResource[DriveData]):
     """Drive for file storage."""
 
     ...
 
 
 @node_(NodeType.VAULT)
-class Vault(VirtualResourceNode[DriveData]):
+class Vault(VirtualResource[DriveData]):
     """Vault for secret storage."""
 
     ...
 
 
 @node_(NodeType.CACHE)
-class Cache(VirtualResourceNode[DriveData]):
+class Cache(VirtualResource[DriveData]):
     """Cache for ephemeral key-value storage."""
 
     ...

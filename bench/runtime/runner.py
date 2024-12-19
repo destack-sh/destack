@@ -1,5 +1,6 @@
 import abc
 import asyncio
+from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -16,9 +17,10 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import Block, Step
+from bench.language.bench import Resource
 from bench.language.code import Code
 from bench.language.const import NodeMode, ObjectKind, RunStatus
-from bench.language.field import TypeBase
+from bench.language.field import TypeBase, TypeIn, TypeInfo
 from bench.language.flow import Pipe
 from bench.language.interrupt import (
     Breakpoint,
@@ -29,7 +31,7 @@ from bench.language.interrupt import (
     InterruptType,
 )
 from bench.language.log import LogInfo
-from bench.language.node import get_tracing_context
+from bench.language.node import Node, get_tracing_context
 from bench.language.run import (
     Context,
     Run,
@@ -260,6 +262,10 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             yield parent
             parent = parent.parent
 
+    #
+    # Interrupts
+    #
+
     @property
     def interrupt(self) -> Interrupt | None:
         assert self.tracked_run is not None, f"{self!r} is not tracked"
@@ -340,18 +346,21 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if self.should_pause:
             self._trap_interrupt(InterruptType.PAUSE)
 
-    def stop(self):
-        """Stop this Runner/Run."""
-        if self.status.is_terminal:
-            return
-        self.is_stopped = True
-        if self.outer_task is not None:
-            self.outer_task.cancel()
-        if self.task is not None:
-            self.task.cancel()
-        if self.tracked_run is not None and not self.is_active:
-            self.tracked_run._mark_stopped()
-            self.status = self.tracked_run.status
+    async def _wait_for(
+        self, nodes: Sequence[Node], complete_when: Callable[[], bool], timeout: timedelta
+    ):
+        """Wait for the given nodes to reach a certain state."""
+        return await self.runtime._wait_for(self, nodes, complete_when, timeout)
+
+    async def _acquire_resources(
+        self, resource_types: Sequence[TypeInfo | TypeIn]
+    ) -> list[Resource]:
+        """Acquires the relevant Resources for the given Runner."""
+        return await self.runtime._acquire_resources(self, resource_types)
+
+    #
+    # Run
+    #
 
     @abc.abstractmethod
     async def run(self) -> None:
@@ -366,6 +375,19 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     def resume(self, runs: Sequence[Run]):  # noqa: B027
         """Resume inner Runs."""
         pass
+
+    def stop(self):
+        """Stop this Runner/Run."""
+        if self.status.is_terminal:
+            return
+        self.is_stopped = True
+        if self.outer_task is not None:
+            self.outer_task.cancel()
+        if self.task is not None:
+            self.task.cancel()
+        if self.tracked_run is not None and not self.is_active:
+            self.tracked_run._mark_stopped()
+            self.status = self.tracked_run.status
 
 
 def get_run_options(kind: RunType, options: RunOptions | None):

@@ -589,7 +589,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
 
         # run plugins on commit (in main session)
         async with self._session.active():
-            self._session.track_many(*graph.nodes, force=True)  # may come from other session
+            self._session._track_many(*graph.nodes, force=True)  # may come from other session
             commit = unpack_commit(
                 session=self._session,
                 graph=graph,

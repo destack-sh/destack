@@ -40,6 +40,62 @@ FieldOrProperty = Union["Field", "Property"]
 NodeTypeOrClass = Union[NodeType, type["Node"]]
 
 
+def attach_node[N: "Node"](node: N, parent: "Node", move: bool = False) -> N:
+    """(Re)attaches a Node to a new parent."""
+
+    old_parent = node.parent
+
+    # check node
+    if old_parent is not None and old_parent != parent:
+        # move
+        if not move:
+            raise ValueError(f"cannot attach {node!r} to {parent!r}: attached to {node.parent!r}")
+        if node.__is_in_package__:  # must be in same package
+            # NOTE :Incomplete: support cross-package moves
+            #  (would have to move descendants and update their .package_ptr?)
+            pkg = cast("PackageNode", node).package
+            assert cast("PackageNode", parent).package == pkg, f"cannot move {node!r} to {parent!r}"
+        if node.__is_in_bench__:  # must be in same bench
+            bench = cast("BenchNode", node).bench
+            assert cast("BenchNode", parent).bench == bench, f"cannot move {node!r} to {parent!r}"
+        node.parent = parent
+    else:
+        # create
+        move = False  # not actually a move
+        node.parent = parent
+        if parent._session is not None:  # validate
+            node._validate_self((), invalid=on_invalid_raise)
+
+    # move node (and descendants) to this parent's graph
+    new_graph = parent._graph
+    if node._graph is not new_graph:
+        old_graph = node._graph
+        assert new_graph.supergraph.has(
+            node._graph.supergraph
+        ), f"{node!r} not in same supergraph as {parent!r} ({node._graph.supergraph!r} != {new_graph.supergraph!r})"
+        moved = node._graph.get_descendants(node, recursive=True)
+        moved = (node, *moved)
+        for n in moved:
+            new_graph.add(n)
+            n._graph = new_graph
+        new_graph.supergraph.remove_graph(old_graph)  # must be in same supergraph
+    else:
+        moved = (node,)  # already in the graph
+        new_graph.update(node)
+
+    # actually move/create in session
+    if parent._session is not None:
+        if move:
+            assert old_parent is not None
+            parent._session._move(node, old_parent=old_parent, new_parent=parent)
+        elif parent.is_attached:
+            # 'create' node in session if it's attached
+            parent._session._create(*moved)
+            parent._session._track_many(*moved)
+
+    return node
+
+
 class NodeList[V: Node](abc.ABC):
     """
     A list of Node 'children' for a parent's child property.
@@ -48,7 +104,6 @@ class NodeList[V: Node](abc.ABC):
 
     __slots__ = (
         "_child_node_cls",
-        "_child_node_parent_types",
         "_child_node_type",
         "_node",
         "_property",
@@ -64,9 +119,6 @@ class NodeList[V: Node](abc.ABC):
         ), f"cannot have many child types: {property!r}"
         self._child_node_type: NodeType = property.reference_nodes[0]
         self._child_node_cls = cast(type[V], NODE_CLASS_BY_TYPE[self._child_node_type])
-        self._child_node_parent_types = (
-            self._child_node_cls.__parent_property__.reference_nodes or ()
-        )
 
     def __repr__(self):
         return (
@@ -85,61 +137,7 @@ class NodeList[V: Node](abc.ABC):
 
     def append(self, node: V, move: bool = False) -> V:
         """Attaches a child node to a parent through a list. If move, may be re-attached."""
-        parent = self._parent
-        old_parent = node.parent
-
-        # check node
-        if old_parent is not None and old_parent != parent:
-            # move
-            if not move:
-                raise ValueError(f"cannot attach {node!r} to {self!r}: attached to {node.parent!r}")
-            if node.__is_in_package__:  # must be in same package
-                # NOTE :Incomplete: support cross-package moves
-                #  (would have to move descendants and update their .package_ptr?)
-                pkg = cast("PackageNode", node).package
-                assert (
-                    cast("PackageNode", parent).package == pkg
-                ), f"cannot move {node!r} to {parent!r}"
-            if node.__is_in_bench__:  # must be in same bench
-                bench = cast("BenchNode", node).bench
-                assert (
-                    cast("BenchNode", parent).bench == bench
-                ), f"cannot move {node!r} to {parent!r}"
-            node.parent = parent
-        else:
-            # create
-            move = False  # not actually a move
-            node.parent = parent
-            if self._node._session is not None:  # validate
-                node._validate_self((), invalid=on_invalid_raise)
-
-        # move node (and descendants) to this parent's graph
-        new_graph = parent._graph
-        if node._graph is not new_graph:
-            old_graph = node._graph
-            assert new_graph.supergraph.has(
-                node._graph.supergraph
-            ), f"{node!r} not in same supergraph as {self!r} ({node._graph.supergraph!r} != {new_graph.supergraph!r})"
-            moved = node._graph.get_descendants(node, recursive=True)
-            moved = (node, *moved)
-            for n in moved:
-                new_graph.add(n)
-                n._graph = new_graph
-            new_graph.supergraph.remove_graph(old_graph)  # must be in same supergraph
-        else:
-            moved = (node,)  # already in the graph
-            new_graph.update(node)
-
-        # actually move/create in session
-        if parent._session is not None:
-            if move:
-                assert old_parent is not None
-                parent._session._move(node, old_parent=old_parent, new_parent=parent)
-            elif parent.is_attached:
-                # 'create' node in session if it's attached
-                parent._session._create(*moved)
-                parent._session.track_many(*moved)
-
+        attach_node(node, parent=self._parent, move=move)
         return node
 
     def extend(self, *nodes: V, move: bool = False):
@@ -301,7 +299,10 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
 
     @property
     def _parent(self) -> "Node":
-        if self._child_node_parent_types and self._child_node_parent_types[0] == NodeType.BENCH:
+        if (
+            len(self._child_node_cls.__parent_types__) > 0
+            and self._child_node_cls.__parent_types__[0] == NodeType.BENCH
+        ):
             bench = None
             if self._node.__is_in_bench__:
                 bench = cast("BenchNode", self._node).bench

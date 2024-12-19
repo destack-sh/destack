@@ -235,7 +235,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
             # set new password
-            session.track(user)  # user is from another session
+            session._track(user)  # user is from another session
             user.password_salt = generate_salt(SALT_LENGTH)
             user.password_hash = hash_password(request.new_password, user.password_salt)
             await session.commit()
@@ -320,7 +320,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                 clients = await Client.where(parent=subject.user).tolist()
             else:
                 clients = (subject.client,)
-                session.track(subject.client)
+                session._track(subject.client)
             for client in clients:
                 client.logged_in_at = None
                 client.access_token = None

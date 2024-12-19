@@ -4,7 +4,7 @@ from bench.language.bench import (
     CPU_CONSTRAINT,
     RAM_CONSTRAINT,
     Bench,
-    PhysicalResourceNode,
+    PhysicalResource,
     Server,
 )
 from bench.language.const import VERSION, EnumType, NodeType, StructType, enum_
@@ -31,7 +31,7 @@ class MachineImage(Struct):
 
 
 @node_(NodeType.MACHINE)
-class Machine(PhysicalResourceNode[MachineData]):
+class Machine(PhysicalResource[MachineData]):
     """
     A Machine provides physical compute.
     Machines may be tied to a Server for our own Runtime or may be manually provisioned.

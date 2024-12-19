@@ -876,8 +876,8 @@ def check_value_scalar_constraint(
     typ: "TypeBase",
     constraint: "TypeConstraint | TypeConstraintIn",
     *,
-    options: CheckOptions,
-    invalid: "ValidationHandler",
+    options: CheckOptions = DEFAULT_CHECK_OPTIONS,
+    invalid: "ValidationHandler" = on_invalid_raise,
 ) -> None:
     """Checks whether the given value satisfies the given scalar constraint."""  # :TypeChecking
     if type(value) is int or type(value) is float:
@@ -903,7 +903,11 @@ def check_value_scalar_constraint(
 
 
 def check_value_scalar(
-    value: SomeValue, typ: "TypeBase", *, options: CheckOptions, invalid: "ValidationHandler"
+    value: SomeValue,
+    typ: "TypeBase",
+    *,
+    options: CheckOptions = DEFAULT_CHECK_OPTIONS,
+    invalid: "ValidationHandler" = on_invalid_raise,
 ) -> None:
     """Checks whether the given scalar value has the expected type."""  # :TypeChecking
     if typ.kind == TypeKind.PRIMITIVE:
@@ -972,7 +976,11 @@ def check_value_scalar(
 
 
 def _check_is_list(
-    value: SomeValue, typ: "TypeBase", *, options: CheckOptions, invalid: "ValidationHandler"
+    value: SomeValue,
+    typ: "TypeBase",
+    *,
+    options: CheckOptions = DEFAULT_CHECK_OPTIONS,
+    invalid: "ValidationHandler" = on_invalid_raise,
 ) -> TypeGuard[list]:
     """Checks whether the given value is a list of the expected dimensions."""
     if not isinstance(value, (list, tuple)):
@@ -987,7 +995,11 @@ def _check_is_list(
 
 
 def _check_is_object(
-    value: SomeValue, typ: "TypeBase", *, options: CheckOptions, invalid: "ValidationHandler"
+    value: SomeValue,
+    typ: "TypeBase",
+    *,
+    options: CheckOptions = DEFAULT_CHECK_OPTIONS,
+    invalid: "ValidationHandler" = on_invalid_raise,
 ) -> TypeGuard[CustomObject]:
     if not isinstance(value, CustomObject):
         invalid(value, "not an object", typ)
@@ -996,7 +1008,11 @@ def _check_is_object(
 
 
 def check_custom_object_scalar(
-    value: SomeValue, typ: "TypeBase", *, options: CheckOptions, invalid: "ValidationHandler"
+    value: SomeValue,
+    typ: "TypeBase",
+    *,
+    options: CheckOptions = DEFAULT_CHECK_OPTIONS,
+    invalid: "ValidationHandler" = on_invalid_raise,
 ) -> None:
     """Checks whether the given object value has the expected type (recursively)."""
     if _check_is_object(value, typ, options=options, invalid=invalid):
@@ -1006,7 +1022,11 @@ def check_custom_object_scalar(
 
 
 def check_value(
-    value: Any, typ: "TypeBase", *, options: CheckOptions, invalid: "ValidationHandler"
+    value: Any,
+    typ: "TypeBase",
+    *,
+    options: CheckOptions = DEFAULT_CHECK_OPTIONS,
+    invalid: "ValidationHandler" = on_invalid_raise,
 ) -> None:
     """
     Checks whether the given value has the expected type (recursively).
@@ -1028,6 +1048,16 @@ def check_value(
         elif _check_is_list(value, typ, options=options, invalid=invalid):
             for element in value:
                 check_value_scalar(element, typ, options=options, invalid=invalid)
+
+
+def is_value(value: Any, typ: "TypeBase", options: CheckOptions = DEFAULT_CHECK_OPTIONS) -> bool:
+    """Checks whether the given value has the expected type (recursively)."""
+    # NOTE :Performance: make is_value more efficient (don't just use check_value?)
+    try:
+        check_value(value, typ, options=options, invalid=on_invalid_raise)
+        return True
+    except Exception:
+        return False
 
 
 #

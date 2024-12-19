@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Collection, cast, final
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, ResourceNode
+from bench.language import Bench, Resource
 from bench.language.bench import ResourceStatus
 from bench.language.const import (
     VERSION,
@@ -22,7 +22,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], abc.ABC):
+class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     """
     A provisioner for some type of Resource.
     Synchronizes the declared state of Resources with their actual (external) state (bidirectionally).
@@ -195,7 +195,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
     async def _do_decommission(self, resource: PT): ...
 
 
-async def provision(host: Host, bench: Bench, resources: Collection[ResourceNode]) -> None:
+async def provision(host: Host, bench: Bench, resources: Collection[Resource]) -> None:
     """Provisions the given resources in *this* environment"""
     from bench.system.provision.registry import get_provisioners_for
 
@@ -209,7 +209,7 @@ async def provision(host: Host, bench: Bench, resources: Collection[ResourceNode
             raise RuntimeError(f"no provisioner for {resource!r} in {provisioners!r}")
 
 
-async def decommission(host: Host, bench: Bench, resources: Collection[ResourceNode]) -> None:
+async def decommission(host: Host, bench: Bench, resources: Collection[Resource]) -> None:
     """Decommissions the given resources in *this* environment"""
     from bench.system.provision.registry import get_provisioners_for
 

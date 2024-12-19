@@ -297,7 +297,7 @@ async def test_crud_node_pointers(omni_session: Session):
         await session.commit()
         bench._untrack_rec()
 
-        session.track(bench)
+        session._track(bench)
         block1 = package.blocks.create(type=BlockType.VIEW)
         block1.fields.create(name="foo", kind=TypeKind.ENUM, bench_type=EnumType.PRIMITIVE_TYPE)
         view11 = block1.views.create(type=ViewType.COLOR, name="View1")
