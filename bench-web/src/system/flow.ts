@@ -30,7 +30,7 @@ import { describeNode, isNode, makeStruct, toNodeRef, type TypedNodeReferenceDat
 import { isDragAllowed } from "@/ui/drag";
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
-import { addVector2, subVector2, type Vector2 } from "@/ui/view";
+import { addVector2, lengthVector2, subVector2, type Vector2 } from "@/ui/view";
 import { generateOrderKey } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
 import { canvas, supergraph } from "@/system/globals";
@@ -50,6 +50,7 @@ export const FLOW_SCALE_MAX = 1.5;
 export const FLOW_SCALE_SPEED = 0.01;
 
 export const PIPE_WIDTH = 2;
+export const PIPE_CONNECTION_DISTANCE = FLOW_GRID_STEP * 2; // minimum distance to consider a connection when dragging a port
 export const STEP_SIZE = { width: FLOW_GRID_STEP * 17, height: FLOW_GRID_STEP * 3 };
 export const STEP_SIZE_HALF = { width: STEP_SIZE.width / 2, height: STEP_SIZE.height / 2 };
 
@@ -902,7 +903,12 @@ export class FlowContext {
       }
     } else if (thing.kind == "port") {
       // create pending pipe
-      this.dragging.value = { thing: thing, viewOffsetByThing: {} };
+      const positionViewportVec = this.worldToViewportVec({
+        x: thing.step.position?.x ?? 0,
+        y: thing.step.position?.y ?? 0,
+      });
+      const viewOffsetToThing = { x: e.clientX - positionViewportVec.x, y: e.clientY - positionViewportVec.y };
+      this.dragging.value = { thing: thing, viewOffsetByThing: { [thing.step.id]: viewOffsetToThing } };
     } else {
       throw new Error(`cannot drag ${thing.kind}`);
     }
@@ -943,13 +949,14 @@ export class FlowContext {
       );
     } else if (thing.kind == "selection") {
       // move all steps in selection (snap each to grid)
+      const tx = this.tx.with({ change: { key: newChangeId(), title: "Move" } });
       for (const node of thing.nodes) {
         if (!isNode(node, NodeType.STEP)) continue;
         const viewOffset = this.dragging.value.viewOffsetByThing[node.id];
         if (viewOffset == null) throw new Error(`no view offset for ${describeNode(node)}`);
         const screenVec = this.viewportToViewVec({ x: e.clientX - viewOffset.x, y: e.clientY - viewOffset.y });
         const worldVec = snapVec(this.viewToWorldVec(screenVec));
-        this.tx.update(
+        tx.update(
           node,
           { position: makeStruct({ metatype: StructType.VECTOR2, x: worldVec.x, y: worldVec.y }) },
           { debounce: "long" },
@@ -989,7 +996,18 @@ export class FlowContext {
     // (re-)connect pipes
     try {
       if (this.draggable?.kind == "port") {
+        const sourceStep = this.draggable.step;
         const sourcePort = { parent: this.draggable.step, side: this.draggable.side };
+        const sourceBounding = this.getStepBoundingBox(sourceStep);
+        if (sourceBounding == null) throw new Error(`no bounding box for ${describeNode(sourceStep)}`);
+        const sourcePos = {
+          x: sourceBounding.x1 + (this.dragging.value?.viewOffsetByThing[sourceStep.id]?.x ?? 0),
+          y: sourceBounding.y1 + (this.dragging.value?.viewOffsetByThing[sourceStep.id]?.y ?? 0),
+        };
+        const cursor = this.cursorWorldPos.value;
+        const distance = lengthVector2(subVector2(sourcePos, cursor));
+        if (distance < PIPE_CONNECTION_DISTANCE) return null;
+
         let targetPort: Port | null = null;
         if (at.kind == "port") {
           targetPort = { parent: at.step, side: at.side };

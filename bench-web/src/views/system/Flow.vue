@@ -25,6 +25,7 @@ import {
   FLOW_GRID_STEP,
   FlowContext,
   pathToSvg,
+  PIPE_CONNECTION_DISTANCE,
   PIPE_WIDTH,
   PipePath,
   STEP_SIZE,
@@ -34,7 +35,7 @@ import { canvas, spaceGraph } from "@/system/space";
 import { PIPE_CONTEXT_ACTIONS, STEP_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { PopoverInfoIn } from "@/ui/popover";
-import { subVector2, VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { lengthVector2, subVector2, VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import FieldList from "@/views/system/FieldList.vue";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
@@ -96,7 +97,12 @@ const fields = flowCtx.fields;
 const stepsAndPipes: Ref<(StepData | PipeData)[]> = computed(() => [...steps.value, ...pipes.value]);
 
 const viewport = flowCtx.viewport;
-const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
+
+//
+// Interaction
+//
+
+// pending
 const pendingPath: Ref<PipePath | null> = computed(() => {
   if (flowCtx.draggable?.kind != "port") return null;
   // preview path between current dragged port and step (or point in canvas if nothing)
@@ -104,6 +110,14 @@ const pendingPath: Ref<PipePath | null> = computed(() => {
   const sourceBounding = flowCtx.getStepBoundingBox(sourceStep);
   if (sourceBounding == null) return null;
   const cursor = flowCtx.cursorWorldPos.value;
+  const sourcePos = {
+    x: sourceBounding.x1 + (flowCtx.dragging.value?.viewOffsetByThing[sourceStep.id]?.x ?? 0),
+    y: sourceBounding.y1 + (flowCtx.dragging.value?.viewOffsetByThing[sourceStep.id]?.y ?? 0),
+  };
+  const distance = lengthVector2(subVector2(sourcePos, cursor));
+  if (distance < PIPE_CONNECTION_DISTANCE) return null;
+
+  // make path
   const targetStep = flowCtx.getStepAt(cursor);
   const isValid =
     targetStep != null &&
@@ -115,32 +129,11 @@ const pendingPath: Ref<PipePath | null> = computed(() => {
     if (target == null) return null;
     return flowCtx.computePath(sourceBounding, target);
   } else {
-    // just direct path
-    const sourceMidpoint = {
-      x: sourceBounding.x1 + sourceBounding.width / 2,
-      y: sourceBounding.y1 + sourceBounding.height / 2,
-    };
-    const midpoint = { x: (sourceMidpoint.x + cursor.x) / 2, y: (sourceMidpoint.y + cursor.y) / 2 };
-    return { start: sourceMidpoint, end: cursor, midpoint };
+    // just direct path, can't actually connect these
+    const midpoint = { x: (sourcePos.x + cursor.x) / 2, y: (sourcePos.y + cursor.y) / 2 };
+    return { start: sourcePos, end: cursor, midpoint };
   }
 });
-
-//
-// Interaction
-//
-
-// wait for initial render to complete so the transition-all doesn't look glitchy on mount
-const isInitialRender = ref(true);
-onMounted(() => {
-  setTimeout(() => {
-    isInitialRender.value = false;
-  }, 100);
-});
-const shouldAnimateTransform = computed(
-  // () => !isInitialRender.value && !flowContext.isDragging && !containerScroll.isScrolling.value,
-  () =>
-    false /* NOTE :UX: animating Flow transform (offset/zoom) sometimes looks good, sometimes janky, so it's disabled */,
-);
 
 // selection
 const selectionOverlayContainerRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
@@ -313,7 +306,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :node="flow"
         :tx="() => connection.tx"
       />
-      <div class="flex flex-row flex-wrap gap-y-1 items-center gap-x-2">
+      <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1">
         <!-- Signature -->
         <!-- Inputs -->
         <FieldList
@@ -399,7 +392,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           v-if="BACKGROUND_STYLE == 'dots'"
           xmlns="http://www.w3.org/2000/svg"
           class="h-full w-full text-gray-200"
-          :class="shouldAnimateTransform ? 'transition duration-150' : ''"
           :style="{
             // extra spacing for smooth infinite scrolling
             width: `${100 / viewport.scale}%`,
@@ -431,7 +423,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           v-else-if="BACKGROUND_STYLE == 'checker'"
           xmlns="http://www.w3.org/2000/svg"
           class="h-full w-full text-gray-200"
-          :class="shouldAnimateTransform ? 'transition duration-150' : ''"
           :style="{
             width: `${105 / viewport.scale}%`,
             height: `${105 / viewport.scale}%`,
@@ -480,7 +471,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <div class="z-0 h-full w-full overflow-hidden">
         <div
           class="relative h-full w-full"
-          :class="shouldAnimateTransform ? 'transition duration-150' : ''"
           :style="{
             transformOrigin: '0 0',
             transform: `scale(${viewport.scale}, ${viewport.scale}) translate(${viewport.transform.translateX}px, ${viewport.transform.translateY}px) `,
@@ -496,6 +486,24 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             :node-ptr="toNodeRef(pipe)"
             class="absolute"
           />
+          <!-- Steps -->
+          <Step
+            v-for="step in steps"
+            :id="step.id"
+            :ref="(ref: any) => (ref ? (stepRefs[step.id] = ref) : delete stepRefs[step.id])"
+            :key="step.id"
+            class="absolute"
+            :class="[flowCtx?.isDraggingStep(step) ? 'cursor-grabbing' : flowCtx.isDragging ? '' : 'cursor-grab']"
+            :style="{
+              width: STEP_SIZE.width + 'px',
+              left: (step.position?.x ?? 0) + 'px',
+              top: (step.position?.y ?? 0) + 'px',
+            }"
+            :node-ptr="toNodeRef(step)"
+            :data-contextmenu-items="STEP_CONTEXT_ACTIONS.join(',')"
+            data-suppress-drag="select"
+            @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step: step! })"
+          />
           <!-- Pending Pipe (above Steps for clarity)-->
           <div v-if="flowCtx.draggable?.kind == 'port'" class="pointer-events-none absolute text-gray-700 opacity-50">
             <svg v-if="pendingPath" class="overflow-visible">
@@ -509,24 +517,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               />
             </svg>
           </div>
-          <!-- Steps -->
-          <Step
-            v-for="step in steps"
-            :id="step.id"
-            :ref="(ref: any) => (ref ? (stepRefs[step.id] = ref) : delete stepRefs[step.id])"
-            :key="step.id"
-            class="absolute"
-            :class="[flowCtx?.isDraggingStep(step) ? 'cursor-grabbing' : 'cursor-grab']"
-            :style="{
-              width: STEP_SIZE.width + 'px',
-              left: (step.position?.x ?? 0) + 'px',
-              top: (step.position?.y ?? 0) + 'px',
-            }"
-            :node-ptr="toNodeRef(step)"
-            :data-contextmenu-items="STEP_CONTEXT_ACTIONS.join(',')"
-            data-suppress-drag="select"
-            @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step: step! })"
-          />
         </div>
       </div>
 
