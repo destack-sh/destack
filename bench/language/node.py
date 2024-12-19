@@ -60,6 +60,7 @@ from bench.language.const import (
     StructType,
     TypeKind,
     _active_session,
+    active_session,
 )
 from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.list import LocalNodeList, RemoteNodeList, attach_node
@@ -2101,6 +2102,15 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return self._connection  # type: ignore (class definition "depends on itself" for some reason)
 
     @property
+    def _is_live(self) -> bool:
+        """Whether this node is live."""
+        return (
+            self._connection is not None
+            and self._connection.is_live
+            and not self._connection._is_closed
+        )
+
+    @property
     def _data_graph(self) -> "NodeDataGraph":
         assert self._connection is not None, f"no connection for {self!r}"
         assert self._connection.result_data is not None, f"no data graph for {self!r}"
@@ -2285,6 +2295,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             attach_node(child, self, move=move)
         else:
             raise ValueError(f"cannot append {child!r} to {self!r}")
+
+    async def wait_until(self, condition: Callable[[Self], bool]):
+        """Wait until the given condition is true."""
+        runtime = active_session().runtime
+        await runtime._wait_for(nodes=[self], condition=lambda: condition(self))
 
     @classmethod
     def get_child_property_or_error(cls, node_type: NodeType) -> Property:

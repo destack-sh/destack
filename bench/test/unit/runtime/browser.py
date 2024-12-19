@@ -6,6 +6,7 @@ async def test_acquire_browser_resource_directly(hosted_runtime: RuntimeHandle):
     browser = Browser.new(title="My Browser")
     hosted_runtime.bench.append(browser)
     await hosted_runtime.commit()
+    await browser.wait_until_ready()
 
 
 async def test_run_flow_browser(hosted_runtime: RuntimeHandle):

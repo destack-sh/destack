@@ -61,7 +61,7 @@ class StoreProvisioner(Provisioner[Store, Store]):
 class NeonStoreProvisioner(StoreProvisioner):
     """Provision Stores with the Neon API."""
 
-    def __init__(self, host: "Host", bench: Bench, neon_api: "NeonApi"):
+    def __init__(self, host: "Host", bench: Bench):
         super().__init__(host, bench)
         self._neon_api = neon_api
 

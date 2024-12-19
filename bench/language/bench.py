@@ -338,6 +338,14 @@ class Resource[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContext, 
         else:
             return ResourceStatus.UP
 
+    async def wait_until_status(self, status: ResourceStatus):
+        """Wait until this Resource reaches the given status."""
+        await self.wait_until(lambda r: r.status == status)
+
+    async def wait_until_ready(self) -> None:
+        """Wait until this Resource is ready."""
+        await self.wait_until(lambda r: r.status == ResourceStatus.UP)
+
 
 @node_component()
 class VirtualResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):

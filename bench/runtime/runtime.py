@@ -9,6 +9,7 @@ from git import TYPE_CHECKING
 from opentelemetry import baggage, context, trace
 
 from bench.language.bench import Resource, ResourceStatus
+from bench.language.connection import Connection
 from bench.language.const import (
     BenchError,
     NodeMode,
@@ -51,6 +52,9 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+DEFAULT_TIMEOUT = timedelta(seconds=30)
+DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=30)
 
 
 class Runtime:
@@ -118,13 +122,63 @@ class Runtime:
     @tracer.start_as_current_span("runtime.wait_for")
     async def _wait_for(
         self,
-        runner: Runner,
         nodes: Sequence[Node],
-        complete_when: Callable[[], bool],
-        timeout: timedelta,
+        condition: Callable[[], bool],
+        timeout: timedelta = DEFAULT_TIMEOUT,
     ):
         """Wait for the given nodes to reach a certain state."""
-        raise NotImplementedError(f"nocheckin: Runtime.wait_for {runner!r} {nodes!r}")
+        if condition():
+            return  # already good
+
+        # ensure nodes are in global graph
+        assert not any(node.is_deleted for node in nodes), f"cannot watch deleted: {nodes!r}"
+        if any(node._is_new for node in nodes):
+            await self.session.commit()
+
+        log = logger.bind(runtime=self, nodes=nodes, condition=condition)
+        connections: list[Connection] = []
+        subs: list[Callable[[], None]] = []
+
+        def _stop():
+            for connection in connections:
+                connection.close()
+            connections.clear()
+            for sub in subs:
+                sub()
+            subs.clear()
+
+        def _check():
+            if condition():
+                log.debug("runtime.wait_for.complete")
+                _stop()
+
+        try:
+            # create live connections if needed
+            stale_nodes = [node for node in nodes if not node._is_live]
+            stale_nodes_by_type = group_by(stale_nodes, lambda node: node.metatype)
+            for node_type, stale_nodes_of_type in stale_nodes_by_type.items():
+                node_cls = NODE_CLASS_BY_TYPE[node_type]
+                live_nodes = await node_cls.get(
+                    tuple(n.to_ref() for n in stale_nodes_of_type), live=True
+                )
+                connection = live_nodes[0]._connection
+                assert live_nodes and connection, f"no live connection for {stale_nodes_of_type!r}"
+                connections.append(connection)
+
+            # subscribe
+            for node in nodes:
+                subs.append(self.session._subscribe_on_edit(node, lambda _: _check()))
+
+            # wait until condition is true or timeout
+            log.debug("runtime.wait_for.started")
+            _check()
+
+            raise NotImplementedError(f"nocheckin: Runtime.wait_for {nodes!r}")
+        except BaseException as e:
+            log.error("runtime.wait_for.error", exc_info=e)
+            raise
+        finally:
+            _stop()
 
     @tracer.start_as_current_span("runtime.acquire_resources")
     async def _acquire_resources(
@@ -140,7 +194,7 @@ class Runtime:
             node_type = NodeType(node_type)
             assert node_type.is_resource, f"expected resource type, got {node_type!r}"
 
-            # check context for resource
+            # check context for matching resource
             # nocheckin ....
 
             # make new resource
@@ -150,12 +204,10 @@ class Runtime:
             self.bench.append(resource)
 
         # commit and wait for resources to become ready
-        await self.session.commit()
         await self._wait_for(
-            runner,
             nodes=resources,
-            complete_when=lambda: all(resource == ResourceStatus.UP for resource in resources),
-            timeout=timedelta(seconds=30),
+            condition=lambda: all(resource == ResourceStatus.UP for resource in resources),
+            timeout=DEFAULT_RESOURCE_TIMEOUT,
         )
 
         return resources

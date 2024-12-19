@@ -350,7 +350,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self, nodes: Sequence[Node], complete_when: Callable[[], bool], timeout: timedelta
     ):
         """Wait for the given nodes to reach a certain state."""
-        return await self.runtime._wait_for(self, nodes, complete_when, timeout)
+        return await self.runtime._wait_for(nodes, complete_when, timeout)
 
     async def _acquire_resources(
         self, resource_types: Sequence[TypeInfo | TypeIn]
