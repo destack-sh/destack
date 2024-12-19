@@ -1123,6 +1123,8 @@ def sample_builtin_object_scalar(typ: "TypeBase") -> "BuiltinObject":
             object_kwargs[prop.name] = [prop_value] if prop.is_list else prop_value
         elif prop.is_node_reference:
             ...  # TODO :Incomplete: :SampleNodeValues
+        elif prop.reference_struct == typ.bench_type:
+            ...  # no recursive sampling
         elif prop.is_struct_reference and not prop.is_required:
             object_kwargs[prop.name] = [] if prop.is_list else None  # don't recurse
         elif prop.is_property_reference:

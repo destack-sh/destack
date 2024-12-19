@@ -194,7 +194,6 @@ class Runtime:
             with tracer.start_as_current_span("runtime.check_variables"):
                 variables = runner.variables
                 assert variables is not None, f"missing variables in {runner!r}"
-
                 try:
                     missing_resources: list[Field] = []
                     for field in runner.variable_type._fields:

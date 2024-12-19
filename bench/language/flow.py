@@ -439,7 +439,7 @@ class Step(SourceNode[StepData]):
 
     @property
     def variable_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_type=FieldType.VARIABLE)
+        return None  # Steps don't have variables?
 
     @property
     def input_type(self) -> "TypeBase | None":

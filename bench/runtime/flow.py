@@ -28,12 +28,19 @@ from bench.language.text import Text
 from bench.language.value import (
     CustomObject,
     OutputObject,
+    coerce_custom_object_scalar,
     make_node_from_partial,
     patch_node_from_partial,
 )
 from bench.runtime.action import ActionRunnerBase
 from bench.runtime.core import RetryableError
-from bench.runtime.runner import Context, Interrupted, Runner, get_run_options, restore_runner
+from bench.runtime.runner import (
+    Context,
+    Interrupted,
+    Runner,
+    make_runner,
+    restore_runner,
+)
 from bench.runtime.runtime import Runtime
 
 logger = structlog.get_logger(__name__)
@@ -105,7 +112,13 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         if self._stop_result is not None:
             logger.debug("flow.complete.skip", flow=self.node, runner=self)
             return  # already stopped
-        self._stop_result = "completed" if outputs is None else outputs
+        if outputs is not None:
+            assert self.output_type is not None, f"{self!r} has no output type"
+            self._stop_result = coerce_custom_object_scalar(
+                ObjectKind.OUTPUT, outputs, self.output_type
+            )
+        else:
+            self._stop_result = "completed"
         self._abort()  # cancel all active steps
         self._stop_event.set()
         logger.debug("flow.complete", flow=self.node, runner=self)
@@ -132,32 +145,26 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             self._stop_event.set()
 
     def _start(
-        self, node: Step | Pipe, *, inputs: CustomObject | None, incoming: Sequence[Run]
+        self,
+        node: Step | Pipe,
+        *,
+        variables: CustomObject | None,
+        inputs: CustomObject | None,
+        incoming: Sequence[Run],
     ) -> Run:
         """Run a Step or Pipe in this Flow."""
-        if isinstance(node, Step):
-            runner_cls = STEP_RUNNER_BY_STEP_TYPE.get(node.type)
-            if runner_cls is None:
-                raise NotImplementedError(f"no supported runner for {node!r}")
-            run_options = get_run_options(RunType.STEP, node.run_options)
-        elif isinstance(node, Pipe):
-            runner_cls = PIPE_RUNNER_BY_PIPE_TYPE.get(node.type)
-            if runner_cls is None:
-                raise NotImplementedError(f"no supported runner for {node!r}")
-            run_options = get_run_options(RunType.PIPE, node.run_options)
-        else:
-            assert_never(node)
-        runner = runner_cls(
+        runner = make_runner(
             runtime=self.runtime,
-            options=run_options,
-            node=node,  # type: ignore
-            flow=self,
-            context=self.context,
-            parent=cast(Runner, self),
-            inputs=inputs,
+            node=node,
             track=True,
+            context=self.context,
+            variables=variables,
+            inputs=inputs,
+            parent=self,
         )
+        assert isinstance(runner, (StepRunnerBase, PipeRunnerBase)), f"unexpected {runner!r}"
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
+        runner.flow = self
         runner.tracked_run.incoming_ptr = tuple(run.to_ref() for run in incoming)
         logger.debug("flow.tick.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
@@ -223,13 +230,18 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                                     inputs[field] = runner.outputs._do_get(field)
 
                         # run it
-                        next_run = self._start(pipe, inputs=inputs, incoming=(runner.tracked_run,))
+                        next_run = self._start(
+                            pipe, variables=None, inputs=inputs, incoming=(runner.tracked_run,)
+                        )
                         outgoing.append(next_run)
             elif isinstance(runner.node, Pipe):
                 # NOTE :Incomplete: allow Steps to wait for multiple incoming Pipes
                 # assemble Step inputs :PipeMapping
                 next_run = self._start(
-                    runner.node.target, inputs=runner.outputs, incoming=(runner.tracked_run,)
+                    runner.node.target,
+                    variables=None,
+                    inputs=runner.outputs,
+                    incoming=(runner.tracked_run,),
                 )
                 outgoing.append(next_run)
             else:
@@ -261,7 +273,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             # start from scratch
             for step in self.get_steps():
                 if step.type == StepType.START:
-                    self._start(step, inputs=self.inputs, incoming=())
+                    self._start(step, variables=None, inputs=self.inputs, incoming=())
         else:
             # resume from interrupted
             # NOTE :Performance: technically we only need to resume Runs with updated Interrupts?
@@ -348,6 +360,7 @@ class StepRunnerBase(Runner[Step], ABC):
         context: Context,
         flow: FlowRunnerBase | None = None,
         parent: Runner | None = None,
+        variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
         output_type: TypeBase | None = None,
         run: Run | None = None,
@@ -359,6 +372,7 @@ class StepRunnerBase(Runner[Step], ABC):
             options=options,
             context=context,
             parent=parent,
+            variables=variables,
             inputs=inputs,
             output_type=output_type,
             run=run,
