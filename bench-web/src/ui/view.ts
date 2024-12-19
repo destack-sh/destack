@@ -220,8 +220,8 @@ export const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType
 export const LISTABLE_VIEW_TYPES = new Set([ViewType.PICKER, ViewType.OBJECT, ViewType.STRING, ViewType.NUMBER]);
 export const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE, ViewType.IMAGE, ViewType.AUDIO, ViewType.VIDEO];
 
-/** Gets the View for some type */
-export function getView(
+/** Gets the View for some value type */
+export function getViewForType(
   type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>,
   options?: { forcePickerDropdown?: boolean },
 ): ViewProps | null {
@@ -295,7 +295,7 @@ export function getFieldViews(
   for (const field of fields) {
     if (options?.types != null && !options.types.includes(field.type)) continue;
     const storageKey = getStorageKey(field, field);
-    const view = getView(field);
+    const view = getViewForType(field);
     fieldViews.push({
       field,
       storageKey,

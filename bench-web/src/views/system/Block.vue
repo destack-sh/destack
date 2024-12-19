@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { CANVAS_BLOCK_TYPES } from "@/language/const";
 import { unpackSubnodeProperty } from "@/language/node";
-import { makeEdit } from "@/language/transaction";
+import { getTransactionOptionsForType, makeEdit } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import { BlockType, FieldType, NodeReferenceData, NodeType, TypeKind, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
@@ -86,13 +86,13 @@ function updateValue(value: any) {
     connection.tx.update(
       block.value,
       makeEdit(block.value, { metatype: NodeType.BLOCK, type: BlockType.VALUE, subnode: { valuePacked } }),
-      { debounce: "short" },
+      valueType != null ? getTransactionOptionsForType(valueType) : { debounce: "short" },
     );
   } else {
     connection.tx.update(
       block.value,
       makeEdit(block.value, { metatype: NodeType.BLOCK, type: BlockType.VALUE, subnode: { valuePacked: undefined } }),
-      { debounce: "short" },
+      valueType != null ? getTransactionOptionsForType(valueType) : { debounce: "short" },
     );
   }
 }

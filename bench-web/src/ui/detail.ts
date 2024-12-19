@@ -16,7 +16,12 @@ import {
 } from "@/language/field";
 import { ReadNodeGraph } from "@/language/graph";
 import { unpackSubnode } from "@/language/node";
-import { makeEditFromSubnode, Transaction, TransactionOptions } from "@/language/transaction";
+import {
+  getTransactionOptionsForType,
+  makeEditFromSubnode,
+  Transaction,
+  TransactionOptions,
+} from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import {
   ActionBlockData,
@@ -57,9 +62,9 @@ import { isNode, makeStruct } from "@/proto/wiring";
 import { canvas } from "@/system/globals";
 import { ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
-import { FULL_WIDTH_VIEW_TYPES, getView } from "@/ui/view";
+import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
-import { ViewProps } from "@/views/common";
+import { ModelValueOptions, ViewProps } from "@/views/common";
 
 export type DetailLayout = {
   sections: DetailSection[];
@@ -189,7 +194,7 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
 
     const title = options?.title ?? getPropertyTitle(prop);
     const propType = options?.props?.valueType ?? getPropertyType(prop);
-    const view = getView(propType);
+    const view = getViewForType(propType);
     if (view == null) throw new Error(`no view for property type: ${title}`);
     const row: DetailViewRow = {
       type: "view",
@@ -219,7 +224,7 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
       },
       write: (newValue) => {
         const tx = txFactory();
-        const options: TransactionOptions = { debounce: "short" };
+        const options: TransactionOptions = getTransactionOptionsForType(propType);
         if (path.length == 1) {
           if (!isSubnode) {
             tx.update(node, { [rootPropKey]: newValue }, options);
@@ -409,7 +414,7 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
       }
 
       // default
-      const defaultView = getView(node, { forcePickerDropdown: true });
+      const defaultView = getViewForType(node, { forcePickerDropdown: true });
       if (defaultView?.type != null) {
         commonRows.push({
           type: "view",
@@ -426,7 +431,7 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
             txFactory().update(
               node,
               { defaultPacked: packValue(newValue, node, { graph, wrapScalar: true }) },
-              { debounce: "short" },
+              getTransactionOptionsForType(node),
             );
           },
         });
@@ -575,10 +580,9 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
         },
         isFullWidth: true,
         read: () => node.valuePacked,
-        write: (newValue, options) => {
-          const tx = txFactory();
+        write: (newValue, options?: ModelValueOptions) => {
           if (options == null) {
-            tx.update(node, { valuePacked: newValue });
+            txFactory().update(node, { valuePacked: newValue });
           } else {
             const operations: EditOperationData[] = [
               {
@@ -589,7 +593,7 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
                 oldValuePacked: (node.valuePacked as any)?.[options.path[0]],
               },
             ];
-            tx.update(node, operations, { debounce: "short" });
+            txFactory().update(node, operations, getTransactionOptionsForType(options.field));
           }
         },
       },

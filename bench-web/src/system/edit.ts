@@ -1,7 +1,6 @@
 import { toCamelName } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import {
-  UNDO_EDIT_BY_TYPE,
   getTransactionBuffer,
   newChangeId,
   newEditId,
@@ -188,6 +187,16 @@ export function invertEditOperation(op: EditOperationData): EditOperationData {
     throw new Error(`cannot invert operation ${op.type}`);
   }
 }
+
+/** Map edit type to inverted edit type */
+export const UNDO_EDIT_BY_TYPE: Partial<Record<EditType, EditType>> = {
+  [EditType.CREATE]: EditType.DELETE,
+  [EditType.UPSERT]: EditType.DELETE,
+  [EditType.UPDATE]: EditType.UPDATE,
+  [EditType.MOVE]: EditType.MOVE,
+  [EditType.DELETE]: EditType.RESTORE,
+  [EditType.RESTORE]: EditType.DELETE,
+};
 
 /** Inverts an edit as an undo/redo of the given edit (in place). */
 export function invertEdit(edit: EditData, editedAt: Timestamp, invertedEdit: EditData, mode: "undo" | "redo"): void {

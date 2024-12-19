@@ -5,7 +5,14 @@ import { makeAndConditional, makeExpression } from "@/language/expression";
 import { createField, getPropertyType, getStorageKey, makeTypeInfo, NAME_TYPE, TypeIdentity } from "@/language/field";
 import { useNodeListActions } from "@/language/list";
 import { moveNode } from "@/language/node";
-import { DebounceLevel, newChangeId, Transaction } from "@/language/transaction";
+import {
+  DebounceLevel,
+  getTransactionBuffer,
+  getTransactionOptionsForType,
+  newChangeId,
+  Transaction,
+  TransactionOptions,
+} from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import {
   BenchType,
@@ -55,7 +62,7 @@ import {
   collapseSelection,
   expandSelection,
   focusInElement,
-  getView,
+  getViewForType,
   VIEW_DEFAULT_BAR_HEADER_HEIGHT,
   VIEW_DEFAULT_HEADER_HEIGHT,
 } from "@/ui/view";
@@ -249,16 +256,6 @@ function getColumnMinWidth(type: TypeIdentity, viewType: ViewType | undefined) {
   }
 }
 
-function getColumnDebounce(type: TypeIdentity, viewType: ViewType | undefined): DebounceLevel {
-  if (type.primitiveType == PrimitiveType.BOOLEAN) {
-    return "tick";
-  } else if (type.benchType == BenchType.TEXT || type.benchType == BenchType.CODE) {
-    return "long";
-  } else {
-    return "short";
-  }
-}
-
 function getColumnPadding(
   type: TypeIdentity,
   viewType: ViewType | undefined,
@@ -295,7 +292,7 @@ type ColumnView = {
   viewComponent: any | undefined;
   viewProps: any | undefined;
   width: number;
-  debounce: DebounceLevel;
+  options: TransactionOptions;
   isInput: boolean;
   isInspected: boolean;
   isHighlighted: boolean;
@@ -315,7 +312,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
     > &
       ColumnContent,
   ) {
-    const view = getView(columnIn.type, { forcePickerDropdown: true });
+    const view = getViewForType(columnIn.type, { forcePickerDropdown: true });
     const padding = getColumnPadding(columnIn.type, view?.type);
     const column: ColumnView = {
       ...columnIn,
@@ -324,7 +321,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       viewComponent: view?.type != null ? getViewComponent(view?.type) : null,
       viewProps: { ...view, isInput: columnIn.isInput },
       width: getColumnMinWidth(columnIn.type, view?.type),
-      debounce: getColumnDebounce(columnIn.type, view?.type),
+      options: getTransactionOptionsForType(columnIn.type),
       paddingTop: padding.paddingTop,
       paddingBottom: padding.paddingBottom,
       isSelected: false,
@@ -397,7 +394,7 @@ function writeColumnValue(
   options?: { tx?: Transaction; debounce?: DebounceLevel },
 ) {
   const tx = options?.tx ?? recordConnection.tx;
-  if (options?.debounce == null) options = { ...(options ?? {}), debounce: column.debounce };
+  if (options?.debounce == null) options = { ...(options ?? {}), ...column.options };
   if (column.kind == "property") {
     tx.update(record, { [column.propertyName]: newValue }, options);
   } else if (column.kind == "field") {

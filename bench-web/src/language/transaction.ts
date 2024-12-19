@@ -1,9 +1,10 @@
-import { getPropertyType } from "@/language/field";
+import { getPropertyType, TypeIdentity } from "@/language/field";
 import { PartialNode, type ReadNodeGraph, type WriteNodeGraph } from "@/language/graph";
 import { makeNode, NodeIn } from "@/language/node";
 import { packValue, unpackValue } from "@/language/value";
 import { getCachedGraphClient, HUMANIZED_OPERATION_STATUS } from "@/proto/services";
 import {
+  BenchType,
   BlockProperty,
   ChangeCategory,
   CommitTransactionRequest,
@@ -16,6 +17,7 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
+  PrimitiveType,
   PROPERTY_ENUM_BY_SUBTYPE,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_SUBTYPE,
@@ -1121,25 +1123,32 @@ export function startTransactionRotation() {
   window.addEventListener("beforeunload", (e) => commitTransactionBuffers());
 }
 
-//
-// Edit handling
-//
+/** Gets the default transaction options for a value type */
 
-export const EDIT_TYPES = [
-  EditType.CREATE,
-  EditType.UPSERT,
-  EditType.UPDATE,
-  EditType.MOVE,
-  EditType.DELETE,
-  EditType.RESTORE,
-  EditType.ERASE,
-];
-/** Map edit type to inverted edit type */
-export const UNDO_EDIT_BY_TYPE: Partial<Record<EditType, EditType>> = {
-  [EditType.CREATE]: EditType.DELETE,
-  [EditType.UPSERT]: EditType.DELETE,
-  [EditType.UPDATE]: EditType.UPDATE,
-  [EditType.MOVE]: EditType.MOVE,
-  [EditType.DELETE]: EditType.RESTORE,
-  [EditType.RESTORE]: EditType.DELETE,
-};
+const TRANSACTION_OPTIONS_TICK: TransactionOptions = { debounce: "tick" };
+const TRANSACTION_OPTIONS_SHORT: TransactionOptions = { debounce: "short" };
+const TRANSACTION_OPTIONS_LONG: TransactionOptions = { debounce: "long" };
+
+const DEBOUNCE_TICK_TYPES: Set<PrimitiveType | BenchType> = new Set([PrimitiveType.BOOLEAN]);
+const DEBOUNCE_LONG_TYPES: Set<PrimitiveType | BenchType> = new Set([
+  BenchType.TEXT,
+  BenchType.CODE,
+  BenchType.OFFSET,
+  BenchType.TRANSFORM,
+  BenchType.VECTOR2,
+  BenchType.VECTOR3,
+  BenchType.VECTOR4,
+  BenchType.LINE,
+  BenchType.RECTANGLE,
+  BenchType.RECTANGLE_CONSTRAINT,
+]);
+
+export function getTransactionOptionsForType(type: TypeIdentity): TransactionOptions {
+  if (DEBOUNCE_TICK_TYPES.has(type.primitiveType!) || DEBOUNCE_TICK_TYPES.has(type.benchType!)) {
+    return TRANSACTION_OPTIONS_TICK;
+  } else if (DEBOUNCE_LONG_TYPES.has(type.primitiveType!) || DEBOUNCE_LONG_TYPES.has(type.benchType!)) {
+    return TRANSACTION_OPTIONS_LONG;
+  } else {
+    return TRANSACTION_OPTIONS_SHORT;
+  }
+}

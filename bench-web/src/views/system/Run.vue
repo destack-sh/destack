@@ -9,6 +9,7 @@ import {
   isRunnable,
   RunnableNode,
 } from "@/language/session";
+import { getTransactionOptionsForType } from "@/language/transaction";
 import { packCustomObjectProperty, unpackCustomObjectProperty } from "@/language/value";
 import {
   BenchType,
@@ -33,7 +34,7 @@ import { ICON_BY_INTERRUPT_TYPE, IconInline } from "@/ui/icon";
 import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { ModelValueOptions, viewEmits, type ViewExposed } from "@/views/common";
 import Picker from "@/views/content/Picker.vue";
 import CustomObject from "@/views/system/CustomObject.vue";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -187,9 +188,12 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
           is-minimal
           :model-value="inputsPacked"
           @update:model-value="
-            (value) => {
+            (value, options?: ModelValueOptions) => {
               const subnode = { [fieldType == FieldType.INPUT ? 'inputsPacked' : 'variablesPacked']: value };
-              state.update({ metatype: NodeType.VIEW, type: ViewType.RUN, subnode }, { debounce: 'short' });
+              state.update(
+                { metatype: NodeType.VIEW, type: ViewType.RUN, subnode },
+                options != null ? getTransactionOptionsForType(options?.field) : { debounce: 'short' },
+              );
             }
           "
         />
