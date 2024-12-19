@@ -179,7 +179,7 @@ class Session(RuntimeNode[SessionData]):
 
     # runtime
     _oracle: Oracle = p_runtime()
-    _active_session_token: list[contextvars.Token] = p_runtime(default_factory=list)
+    _active_session_tokens: list[contextvars.Token] = p_runtime(default_factory=list)
     _rpc_metadata: RpcMetadata | None = p_runtime(default=None)
     _rpc_headers: dict[str, str] | None = p_runtime(default=None)
     _runtime: Optional["Runtime"] = p_runtime(default=None)
@@ -241,7 +241,7 @@ class Session(RuntimeNode[SessionData]):
 
     @property
     def is_active(self):
-        return len(self._active_session_token) > 0
+        return len(self._active_session_tokens) > 0
 
     @property
     def is_suspended(self):
@@ -366,7 +366,7 @@ class Session(RuntimeNode[SessionData]):
         """Called when a connection ends."""
         self._connections.remove(connection)
 
-    async def open(self, *, set_in_context: bool = True):
+    async def open(self, *, _set_in_context: bool = True):
         """Opens the session for regular business. Activates context (by default)."""
         assert not self.closed_at, f"session already closed {self!r}"
         assert not self.opened_at, f"session already open {self!r}"
@@ -382,8 +382,8 @@ class Session(RuntimeNode[SessionData]):
             self._default_scope = GraphScopeData(
                 bench_id=uuid_to_str(self.parent.bench_id), package_id=uuid_to_str(self.parent.id)
             )
-        if set_in_context:
-            self._active_session_token.append(_active_session.set(self))
+        if _set_in_context:
+            self._active_session_tokens.append(_active_session.set(self))
 
         # start flush loop
         self._commit_loop_task = asyncio.create_task(self._run_commit_loop())
@@ -416,10 +416,10 @@ class Session(RuntimeNode[SessionData]):
         # close session
         self.closed_at = self._oracle.utc()
         self.duration = self.closed_at - self.opened_at
-        for token in self._active_session_token:
+        for token in self._active_session_tokens:
             with suppress(ValueError):  # ignore error if token is from other context
                 _active_session.reset(token)
-        self._active_session_token.clear()
+        self._active_session_tokens.clear()
 
         # remove dangling graph if this was a solo session
         # NOTE :Cleanup: not sure how to prune graphs from temporary objects like request sessions :TransientGraphs
@@ -608,20 +608,20 @@ class Session(RuntimeNode[SessionData]):
         """Activate this session in context (as active i.e. not suspended)."""
         was_readonly = self._is_readonly
         was_suspended = self._is_suspended
-        was_active = self._active_session_token is not None
+        was_active = self._active_session_tokens is not None
         self._is_readonly = readonly
         self.unsuspend()
         active_session_token = _active_session.set(self)
-        self._active_session_token.append(active_session_token)
+        self._active_session_tokens.append(active_session_token)
         try:
             yield self
         finally:
             if was_suspended:
                 self.suspend()
-            elif not was_active and active_session_token in self._active_session_token:
+            elif not was_active and active_session_token in self._active_session_tokens:
                 with suppress(ValueError):  # ignore error from bad token
                     _active_session.reset(active_session_token)
-                self._active_session_token.remove(active_session_token)
+                self._active_session_tokens.remove(active_session_token)
             self._is_readonly = was_readonly
 
     async def _run_commit_loop(self):

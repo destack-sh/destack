@@ -181,7 +181,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             _supergraph=self._supergraph,
             _oracle=self._oracle,
         )
-        await self._session.open(set_in_context=False)
+        await self._session.open(_set_in_context=False)
 
         # connect to host
         async with self.session(readonly=True):

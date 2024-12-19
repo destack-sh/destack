@@ -39,6 +39,6 @@ from bench.language.value import DEFAULT_CHECK_OPTIONS, check_value
         "さくら田中",  # Sakura Tanaka (Japanese),
     ],
 )
-def test_validate_international_names(shared_session: Session, name: str):
+def test_validate_international_names(session: Session, name: str):
     name_type = to_type(str, constraint=NAME_CONSTRAINT)
     check_value(name, name_type, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise)
