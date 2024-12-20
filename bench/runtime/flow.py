@@ -7,6 +7,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language.block import FlowBlock
+from bench.language.browser import Browser
 from bench.language.const import NodeType, ObjectKind, RunErrorKind, RunStatus
 from bench.language.field import TypeBase
 from bench.language.flow import (
@@ -14,6 +15,7 @@ from bench.language.flow import (
     DeleteStep,
     DuplicateStep,
     FailStep,
+    GoToUrlStep,
     Pipe,
     PipeType,
     PortSide,
@@ -34,6 +36,7 @@ from bench.language.value import (
 )
 from bench.runtime.action import ActionRunnerBase
 from bench.runtime.core import RetryableError
+from bench.runtime.playwright import playwright_api
 from bench.runtime.runner import (
     Context,
     Interrupted,
@@ -578,23 +581,31 @@ class YieldStepRunner(StepRunnerBase):
         self._check_step_outputs()
 
 
-STEP_RUNNER_BY_STEP_TYPE: dict[StepType, type[StepRunnerBase]] = {
-    # boundary
-    StepType.START: StartStepRunner,
-    StepType.COMPLETE: CompleteStepRunner,
-    StepType.FAIL: FailStepRunner,
-    # read
-    StepType.GET: GetStepRunner,
-    StepType.SEARCH: SearchStepRunner,
-    # write
-    StepType.CREATE: CreateStepRunner,
-    StepType.DUPLICATE: DuplicateStepRunner,
-    StepType.UPDATE: UpdateStepRunner,
-    StepType.DELETE: DeleteStepRunner,
-    # run
-    StepType.ACTION: ActionStepRunner,
-    StepType.YIELD: YieldStepRunner,
-}
+#
+# Application Steps :ActionSteps
+#
+
+...
+
+
+#
+# Browser Steps :ActionSteps
+#
+
+
+class GoToUrlStepRunner(StepRunnerBase):
+    @override
+    async def run(self) -> None:
+        assert self.flow is not None, f"no flow for {self!r}"
+        step = cast(GoToUrlStep, self.node)
+        inputs = cast(GoToUrlStep, self.inputs)
+        url = inputs.url or step.url
+        assert url is not None, "no url to go to"
+        browser = self._get_resource_or_error(Browser)
+        pw_browser = await playwright_api.get_browser(browser)
+        pw_page = pw_browser.pages[0]
+        await pw_page.goto(url)
+
 
 #
 # Pipes
@@ -675,6 +686,29 @@ class StreamPipeRunner(PipeRunnerBase):
     pass
 
 
+#
+# Registry
+#
+
+STEP_RUNNER_BY_STEP_TYPE: dict[StepType, type[StepRunnerBase]] = {
+    # boundary
+    StepType.START: StartStepRunner,
+    StepType.COMPLETE: CompleteStepRunner,
+    StepType.FAIL: FailStepRunner,
+    # read
+    StepType.GET: GetStepRunner,
+    StepType.SEARCH: SearchStepRunner,
+    # write
+    StepType.CREATE: CreateStepRunner,
+    StepType.DUPLICATE: DuplicateStepRunner,
+    StepType.UPDATE: UpdateStepRunner,
+    StepType.DELETE: DeleteStepRunner,
+    # run
+    StepType.ACTION: ActionStepRunner,
+    StepType.YIELD: YieldStepRunner,
+    # application
+    StepType.GO_TO_URL: GoToUrlStepRunner,
+}
 PIPE_RUNNER_BY_PIPE_TYPE: dict[PipeType, type[PipeRunnerBase]] = {
     PipeType.PASS: PassPipeRunner,
     PipeType.SELECT: SelectPipeRunner,

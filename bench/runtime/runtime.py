@@ -27,7 +27,13 @@ from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.language.run import Run, RunAttempt, RunError, RunnableNode
 from bench.language.session import Session
 from bench.language.validation import ValidationError, on_invalid_raise
-from bench.language.value import DEFAULT_CHECK_OPTIONS, CheckOptions, CustomObject, check_value
+from bench.language.value import (
+    DEFAULT_CHECK_OPTIONS,
+    CheckOptions,
+    CustomObject,
+    check_value,
+    is_value,
+)
 from bench.runtime.cache import Cache
 from bench.runtime.core import (
     DYNAMIC_CODE_GLOBALS,
@@ -129,7 +135,7 @@ class Runtime:
     ):
         """
         Wait for the given nodes to reach a certain state.
-        NOTE :Architecture: turn 'busy' (async) wait into Interrupt-based wait for Nodes?
+        NOTE :Architecture: use Interrupts instead of 'busy' (async) wait in Runtime?
         """
         if condition():
             return  # already good
@@ -205,6 +211,25 @@ class Runtime:
         finally:
             _stop()
 
+    def _get_resource[R: Resource = Resource](
+        self, runner: Runner, resource_type: TypeInfo | TypeIn | type[R]
+    ) -> R | None:
+        """Finds a Resource in the current context of a Runner."""
+        resource_type = to_type_scalar(resource_type)
+        assert resource_type.bench_type is not None, f"no bench_type for {resource_type!r}"
+
+        # traverse variables up
+        parent = runner
+        while parent is not None:
+            if parent.variables is not None:
+                for field in parent.variables.fields:
+                    if field.bench_type == resource_type.bench_type:
+                        field_value = parent.variables._do_get(field)
+                        if is_value(field_value, resource_type):
+                            return cast(R, field_value)
+            parent = parent.parent
+        return None
+
     @tracer.start_as_current_span("runtime.acquire_resources")
     async def _acquire_resources(
         self, runner: Runner, resource_types: Sequence[TypeInfo | TypeIn]
@@ -213,6 +238,7 @@ class Runtime:
         # TODO :Incomplete: reuse resources across (unrelated) Runs?
         resource_types = [to_type_scalar(t) for t in resource_types]
         resources: list[Resource] = []
+        now = self.oracle.utc()
         for resource_type in resource_types:
             node_type = resource_type.bench_type
             assert is_node_type(node_type) is not None, f"invalid resource type {resource_type!r}"
@@ -220,18 +246,26 @@ class Runtime:
             assert node_type.is_resource, f"expected resource type, got {node_type!r}"
 
             # check context for matching resource
-            # nocheckin ....
+            resource = self._get_resource(runner, resource_type)
+            if resource is not None:
+                resources.append(resource)
+                continue
 
             # make new resource
             resource_cls = NODE_CLASS_BY_TYPE[node_type]
-            assert issubclass(resource_cls, Resource), f"{resource_cls} for {resource_type!r}"
-            resource = resource_cls()
+            assert issubclass(resource_cls, Resource), f"{resource_cls} in {resource_type!r}"
+            resource_kwargs: dict[str, Any] = {}
+            if "title" in resource_cls.__properties__:
+                resource_kwargs["title"] = f"{resource_cls.__name__} {now.strftime('%Y-%m-%d')}"
+            resource = resource_cls(**resource_kwargs)
             self.bench.append(resource)
+            resources.append(resource)
+            logger.debug("runtime.acquire_resources.new", resource=resource)
 
         # commit and wait for resources to become ready
         await self._wait_for(
             nodes=resources,
-            condition=lambda: all(resource == ResourceStatus.UP for resource in resources),
+            condition=lambda: all(resource.status == ResourceStatus.UP for resource in resources),
             timeout=DEFAULT_RESOURCE_TIMEOUT,
         )
 

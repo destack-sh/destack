@@ -163,8 +163,8 @@ with warnings.catch_warnings(action="ignore"):
 BUILTIN_OBJECTS_BY_TYPE: Mapping[ObjectType, BuiltinObject] = {
     obj.metatype: obj for obj in BUILTIN_OBJECTS
 }
-STRUCTS = [BUILTIN_OBJECTS_BY_TYPE[t] for t in STRUCT_TYPES]
-NODES = [BUILTIN_OBJECTS_BY_TYPE[t] for t in NODE_TYPES]
+STRUCTS = [BUILTIN_OBJECTS_BY_TYPE[t] for t in STRUCT_TYPES if t in BUILTIN_OBJECTS_BY_TYPE]
+NODES = [BUILTIN_OBJECTS_BY_TYPE[t] for t in NODE_TYPES if t in BUILTIN_OBJECTS_BY_TYPE]
 
 
 def create_global_session(global_store: Store, regional_store: Store, oracle: Oracle):

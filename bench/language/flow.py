@@ -248,6 +248,8 @@ class StepType(IdEnum):
     # state
     # ...
 
+    # NOTE :Architecture: should the specific Steps be 'Actions' somehow? :ActionSteps
+
     # application
     OBSERVE = 1000
     CLICK = 1050
