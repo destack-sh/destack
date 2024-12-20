@@ -669,6 +669,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _TypeQueryBuilder):
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":
+        typ = to_type(typ, is_required=True, is_list=False)  # Variables are required by default
         return Field.new(name, typ, type=FieldType.VARIABLE, constraint=constraint, **kwargs)
 
     @staticmethod

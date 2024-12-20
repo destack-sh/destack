@@ -10,7 +10,7 @@
             "**/package-lock.json": true,
             "**/bench-web/**": true,
         },
-        "python.languageServer": "Pylance",
+        "python.languageServer": "Default",
         "python.analysis.typeCheckingMode": "strict",
         "python.analysis.diagnosticMode": "workspace",
         "python.analysis.inlayHints.callArgumentNames": "off",
@@ -24,5 +24,6 @@
         "python.testing.pytestEnabled": true,
         "terminal.integrated.scrollback": 10000,
         "ruff.nativeServer": true,
+        "debug.showBreakpointsInOverviewRuler": true,
     },
 }

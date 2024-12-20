@@ -352,6 +352,21 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         """Wait for the given nodes to reach a certain state."""
         return await self.runtime._wait_for(nodes, complete_when, timeout)
 
+    def _get_resource[R: Resource = Resource](
+        self, resource_type: TypeInfo | TypeIn | type[R]
+    ) -> R | None:
+        """Finds a Resource in the current context of a Runner."""
+        return self.runtime._get_resource(self, resource_type)
+
+    def _get_resource_or_error[R: Resource = Resource](
+        self, resource_type: TypeInfo | TypeIn | type[R]
+    ) -> R:
+        """Finds a Resource in the current context of a Runner."""
+        resource = self._get_resource(resource_type)
+        if resource is None:
+            raise LookupError(f"no resource like {resource_type} found in {self!r}")
+        return resource
+
     async def _acquire_resources(
         self, resource_types: Sequence[TypeInfo | TypeIn]
     ) -> list[Resource]:

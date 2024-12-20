@@ -98,19 +98,19 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         """Number of nodes in the graph"""
         return len(self._nodes_by_id)
 
-    def get(self, node_id_or_ck: K) -> Optional[V]:
+    def get(self, node_key: K) -> Optional[V]:
         """Gets a node by id"""
-        assert isinstance(node_id_or_ck, self.key_type), f"expected str, got {node_id_or_ck!r}"
-        node = self._nodes_by_id.get(node_id_or_ck)
+        assert isinstance(node_key, self.key_type), f"expected str, got {node_key!r}"
+        node = self._nodes_by_id.get(node_key)
         if node is not None:
             return node
-        return self._nodes_by_ck.get(node_id_or_ck)
+        return self._nodes_by_ck.get(node_key)
 
-    def get_or_fail(self, node_id_or_ck: K) -> V:
+    def get_or_fail(self, node_key: K) -> V:
         """Gets a node by id, raising an error if not found"""
-        node = self.get(node_id_or_ck)
+        node = self.get(node_key)
         if node is None:
-            raise KeyError(f"node {node_id_or_ck!r} not found in {self!r}")
+            raise KeyError(f"node {node_key!r} not found in {self!r}")
         return node
 
     def get_by_name(self, name: str, node_type: NodeType | None = None) -> V | None:
