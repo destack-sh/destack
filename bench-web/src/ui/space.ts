@@ -894,7 +894,7 @@ export class SpaceCanvas {
       this.focus({ node: nodePtr as ViewData | TypedNodeReferenceData<NodeType.VIEW> });
     } else if (
       (isNode(node, NodeType.BLOCK) && node.type == BlockType.FLOW) ||
-      isNode(node, NodeType.STEP) ||
+      isNode(node, NodeType.ACTION) ||
       isNode(node, NodeType.PIPE) ||
       (isNode(node, NodeType.FIELD) && getContainingFlow(graph, node) != null)
     ) {

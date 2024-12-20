@@ -304,7 +304,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
                 "
               />
               <!-- Interrupt Continuations -->
-              <div v-if="isNode(interrupt.base, NodeType.STEP)" class="flex flex-row items-center gap-x-[10%]">
+              <div v-if="isNode(interrupt.base, NodeType.ACTION)" class="flex flex-row items-center gap-x-[10%]">
                 <span class="w-[100px]">
                   <span class="max-w-full truncate py-1 text-gray-900">Continue</span>
                 </span>
@@ -317,7 +317,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
                   :value-type="
                     makeTypeInfo({
                       kind: TypeKind.NODE,
-                      benchType: BenchType.STEP,
+                      benchType: BenchType.ACTION,
                       isList: true,
                       constraint: makeTypeConstraint({ nodeScopePtr: [interrupt.base.parentPtr!], nodeMaxDepth: 1 }),
                     })

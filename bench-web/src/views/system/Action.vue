@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import { SINK_STEP_TYPES, toCamelName } from "@/language/const";
+import { SINK_ACTION_TYPES, toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { isRunActive } from "@/language/session";
-import { ColorShade, FailStepData, FieldType, NodeType, Orientation, PortSide, StepType, ViewData } from "@/proto/wire";
+import { ColorShade, FailActionData, FieldType, NodeType, Orientation, PortSide, ActionType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { DEFAULT_TEXT_BY_STEP_TYPE, FLOW_PORT_SIZE, getStepSides, STEP_SIZE, useFlowContext } from "@/system/flow";
+import { DEFAULT_TEXT_BY_ACTION_TYPE, FLOW_PORT_SIZE, getActionSides, ACTION_SIZE, useFlowContext } from "@/system/flow";
 import { runtime } from "@/system/runtime";
 import { canvas } from "@/system/space";
 import { type ActionMapImplementation } from "@/ui/action";
@@ -30,31 +30,31 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-const stepPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.STEP>);
+const actionPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.ACTION>);
 const flowCtx = useFlowContext();
-const stepState = flowCtx.stepsStates.value[stepPtr.value.id!]; // must exist
-const { step, subnode, fields, delegatePtr, delegate, delegateFields } = stepState;
-const isInspected = computed(() => canvas.isInspected(stepPtr.value));
-const isHighlighted = computed(() => canvas.isHighlighted(stepPtr.value));
-const isSelected = computed(() => state.isSelected(stepPtr.value));
-const sides = computed(() => (step.value != null ? getStepSides(step.value) : []));
+const actionState = flowCtx.actionsStates.value[actionPtr.value.id!]; // must exist
+const { action, subnode, fields, delegatePtr, delegate, delegateFields } = actionState;
+const isInspected = computed(() => canvas.isInspected(actionPtr.value));
+const isHighlighted = computed(() => canvas.isHighlighted(actionPtr.value));
+const isSelected = computed(() => state.isSelected(actionPtr.value));
+const sides = computed(() => (action.value != null ? getActionSides(action.value) : []));
 
 const nameRef: Ref<InstanceType<typeof NativeInput> | null> = ref(null);
 const containerRef: Ref<HTMLElement | null> = ref(null);
 
 // run
-const lastRuns = computed(() => runtime.focusedRunTree.getLastActiveRuns({ ck: stepPtr.value?.ck }));
-const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: stepPtr.value?.ck }));
+const lastRuns = computed(() => runtime.focusedRunTree.getLastActiveRuns({ ck: actionPtr.value?.ck }));
+const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: actionPtr.value?.ck }));
 
 //
 // Interaction
 //
 
 // actions
-const actions: Partial<ActionMapImplementation<"space">> & ActionMapImplementation<"step"> = {
+const actions: Partial<ActionMapImplementation<"space">> & ActionMapImplementation<"action"> = {
   // space
   "space.edit.rename": {
-    isEnabled: () => step.value?.type != StepType.TEXT,
+    isEnabled: () => action.value?.type != ActionType.TEXT,
     action: () => {
       nextTick(() => focusInElement(nameRef.value as MaybeElement));
     },
@@ -65,9 +65,9 @@ defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
   <div
-    v-if="step"
+    v-if="action"
     ref="containerRef"
-    class="group/step rounded border outline outline-1 transition-colors duration-150"
+    class="group/action rounded border outline outline-1 transition-colors duration-150"
     :class="[
       isSelected ? 'border-gray-400 bg-orange-100' : '',
       !isSelected && (isInspected || isHighlighted) ? 'border-gray-400 bg-gray-100' : '',
@@ -78,12 +78,12 @@ defineExpose<ViewExposed>({ self, id, actions });
       borderColor: lastRun != null ? getRunColorHex(lastRun.status) : '',
       outlineColor: lastRun != null && isRunActive(lastRun) ? getRunColorHex(lastRun.status) : '',
     }"
-    @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step', step: step! })"
+    @mouseup="(e) => flowCtx.endDragging(e, { kind: 'action', action: action! })"
   >
     <!-- Ports -->
     <div
       v-for="side in ['top', 'bottom', 'left', 'right']"
-      v-if="step.type != StepType.TEXT && !SINK_STEP_TYPES.includes(step.type)"
+      v-if="action.type != ActionType.TEXT && !SINK_ACTION_TYPES.includes(action.type)"
       class="absolute"
       :class="[
         side == 'top' ? '-top-2.5 left-1/2 -translate-x-1/2' : '',
@@ -99,18 +99,18 @@ defineExpose<ViewExposed>({ self, id, actions });
           width: (side == 'top' || side == 'bottom' ? FLOW_PORT_SIZE * 2 : FLOW_PORT_SIZE) + 'px',
           height: (side == 'top' || side == 'bottom' ? FLOW_PORT_SIZE : FLOW_PORT_SIZE * 2) + 'px',
         }"
-        @mousedown="(e) => flowCtx.startDragging(e, { kind: 'port', step: step!, side: PortSide.OUTGOING })"
-        @mouseup="(e) => flowCtx.endDragging(e, { kind: 'port', step: step!, side: PortSide.INCOMING })"
+        @mousedown="(e) => flowCtx.startDragging(e, { kind: 'port', action: action!, side: PortSide.OUTGOING })"
+        @mouseup="(e) => flowCtx.endDragging(e, { kind: 'port', action: action!, side: PortSide.INCOMING })"
       />
     </div>
 
-    <!-- Regular step -->
+    <!-- Regular action -->
     <div
-      v-if="step.type != StepType.TEXT"
+      v-if="action.type != ActionType.TEXT"
       ref="bodyRef"
       class="mx-1 flex w-full flex-row gap-x-2.5 py-1"
       :style="{
-        height: STEP_SIZE.height + 'px',
+        height: ACTION_SIZE.height + 'px',
       }"
     >
       <!-- NOTE :Incomplete: support :DelegateNodes -->
@@ -122,18 +122,18 @@ defineExpose<ViewExposed>({ self, id, actions });
             component: Icon,
             placement: 'bottom-right',
             offset: '-referenceWidth',
-            props: { modelValue: step?.icon, isInput: true },
+            props: { modelValue: action?.icon, isInput: true },
             isEnabled: true,
-            onApply: (newIcon) => flowCtx.tx.update(step!, { icon: newIcon }),
+            onApply: (newIcon) => flowCtx.tx.update(action!, { icon: newIcon }),
           })
         "
         v-tooltip="{ small: true, text: `Change icon` }"
         class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded hover:cursor-pointer hover:saturate-200"
         :style="{
-          backgroundColor: getNodeColorHex(step, ColorShade.S300),
+          backgroundColor: getNodeColorHex(action, ColorShade.S300),
         }"
       >
-        <IconInline ref="iconRef" v-bind="getNodeIcon(step)" class="rounded text-center text-lg text-gray-700" />
+        <IconInline ref="iconRef" v-bind="getNodeIcon(action)" class="rounded text-center text-lg text-gray-700" />
       </div>
       <!-- Main -->
       <div
@@ -149,13 +149,13 @@ defineExpose<ViewExposed>({ self, id, actions });
             id="name"
             ref="nameRef"
             class="flex-shrink-0 font-medium transition-colors duration-150"
-            :placeholder="toCamelName(StepType, step.type)"
+            :placeholder="toCamelName(ActionType, action.type)"
             is-input
             is-minimal
             :value-type="NAME_TYPE"
-            :model-value="step.name"
+            :model-value="action.name"
             @update:model-value="
-              (newValue) => flowCtx.tx.update(step!, { name: newValue as string }, { debounce: 'long' })
+              (newValue) => flowCtx.tx.update(action!, { name: newValue as string }, { debounce: 'long' })
             "
           />
           <!-- Link (if delegate) -->
@@ -179,7 +179,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Delegate -->
           <!-- ...? -->
           <!-- Fields -->
-          <!-- NOTE :Incomplete: better Step body -->
+          <!-- NOTE :Incomplete: better Action body -->
           <span
             v-for="field in fields.filter((f) => f.type == FieldType.INPUT)"
             :key="field.id"
@@ -198,39 +198,39 @@ defineExpose<ViewExposed>({ self, id, actions });
             {{ field.name }}
           </span>
           <span v-if="fields.length == 0" class="text-gray-400">
-            <template v-if="step.type == StepType.FAIL && (subnode as FailStepData).errorTitle != null">
-              {{ (subnode as FailStepData).errorTitle }}
+            <template v-if="action.type == ActionType.FAIL && (subnode as FailActionData).errorTitle != null">
+              {{ (subnode as FailActionData).errorTitle }}
             </template>
-            <template v-else>{{ DEFAULT_TEXT_BY_STEP_TYPE[step.type] ?? "No fields" }}</template>
+            <template v-else>{{ DEFAULT_TEXT_BY_ACTION_TYPE[action.type] ?? "No fields" }}</template>
           </span>
         </div>
       </div>
     </div>
     <!-- Text -->
     <div v-else ref="bodyRef" class="relative px-3 py-1">
-      <!-- Content (:StepHeight) -->
+      <!-- Content (:ActionHeight) -->
       <Text
         id="text"
         class=""
         is-input
         is-minimal
         placeholder="Text..."
-        :model-value="step.text"
-        @update:model-value="(newText) => flowCtx.tx.update(step!, { text: newText }, { debounce: 'long' })"
+        :model-value="action.text"
+        @update:model-value="(newText) => flowCtx.tx.update(action!, { text: newText }, { debounce: 'long' })"
       />
     </div>
 
     <!-- Floating Menu -->
     <div class="absolute -left-5 top-0 flex -translate-x-1 flex-row gap-x-1.5">
       <button
-        class="text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover/step:opacity-100 data-[popover=true]:text-gray-700 data-[popover=true]:opacity-100"
-        @click="(e) => pushDefaultMenu('main', step!, e)"
+        class="text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover/action:opacity-100 data-[popover=true]:text-gray-700 data-[popover=true]:opacity-100"
+        @click="(e) => pushDefaultMenu('main', action!, e)"
       >
         <i class="fas fa-ellipsis-vertical w-5 text-center" />
       </button>
     </div>
 
-    <!-- NOTE :UX: show last step output/error here? -->
+    <!-- NOTE :UX: show last action output/error here? -->
   </div>
   <div v-else ref="containerRef" class="rounded border border-gray-200 bg-white">
     <!-- Should never be rendered by containing flow -->

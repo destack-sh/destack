@@ -10,7 +10,7 @@ import {
   TextData,
   type BlockData,
   type RunData,
-  type StepData
+  type ActionData,
 } from "@/proto/wire";
 import { describeNode, isNode } from "@/proto/wiring";
 import {
@@ -23,16 +23,16 @@ import {
   TimeUpdateInterval,
 } from "@/utils/time";
 
-export type RunnableNode = BlockData | StepData | PipeData;
-export type RunnableNodeType = NodeType.BLOCK | NodeType.STEP | NodeType.PIPE;
+export type RunnableNode = BlockData | ActionData | PipeData;
+export type RunnableNodeType = NodeType.BLOCK | NodeType.ACTION | NodeType.PIPE;
 export type RunnableObject = RunnableNode | TextData | CodeData;
 
 /** Whether the given node is runnable */
 export function isRunnable(node: any | null | undefined): node is RunnableNode {
-  if (isNode(node, NodeType.STEP)) {
+  if (isNode(node, NodeType.ACTION)) {
     return true;
   } else if (isNode(node, NodeType.BLOCK)) {
-    return node.type == BlockType.ACTION || node.type == BlockType.FLOW;
+    return node.type == BlockType.FLOW;
   } else {
     return false;
   }
@@ -56,23 +56,21 @@ export function isRunTerminal(run: RunData): boolean {
 }
 
 export function getRunBasePtr(run: RunData): NodeReferenceData | null {
-  return run.pipePtr ?? run.stepPtr ?? run.blockPtr ?? null;
+  return run.pipePtr ?? run.actionPtr ?? run.blockPtr ?? null;
 }
 
 export function getInterruptBasePtr(interrupt: InterruptData): NodeReferenceData | null {
-  return interrupt.pipePtr ?? interrupt.stepPtr ?? interrupt.blockPtr ?? null;
+  return interrupt.pipePtr ?? interrupt.actionPtr ?? interrupt.blockPtr ?? null;
 }
 
 /** Determine the type of run for some runnable object */
 export function getRunType(runnable: RunnableObject): RunType {
   if (isNode(runnable, NodeType.BLOCK)) {
-    if (runnable.type == BlockType.ACTION) {
-      return RunType.ACTION;
-    } else if (runnable.type == BlockType.FLOW) {
+    if (runnable.type == BlockType.FLOW) {
       return RunType.FLOW;
     }
-  } else if (isNode(runnable, NodeType.STEP)) {
-    return RunType.STEP;
+  } else if (isNode(runnable, NodeType.ACTION)) {
+    return RunType.ACTION;
   }
 
   throw new Error(`unexpected runnable type: ${describeNode(runnable)}`);

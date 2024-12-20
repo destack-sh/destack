@@ -28,7 +28,7 @@ const DEPTH_OFFSET = 12;
 const ROW_HEIGHT = 28;
 const BAR_PADDING = 4;
 const MIN_SPAN_WIDTH = 2;
-const BASE_TYPES = [NodeType.BLOCK, NodeType.STEP]; // NOTE :Incomplete: RunTimeline should be configurable
+const BASE_TYPES = [NodeType.BLOCK, NodeType.ACTION]; // NOTE :Incomplete: RunTimeline should be configurable
 
 const props = defineProps<{ graph: ReadNodeGraph; nodePtr: NodeReferenceData } & Pick<ViewData, "size">>();
 const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;

@@ -24,7 +24,7 @@ import {
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeType,
   PrimitiveType,
-  StepType,
+  ActionType,
   TypeFormat,
   TypeKind,
   ViewType,
@@ -523,7 +523,7 @@ export function useValueSearch(options: {
         } else if ((valueType.value?.constraint?.nodeTypes?.length ?? 0) > 0) {
           metatypes = valueType.value!.constraint!.nodeTypes;
         } else {
-          metatypes = [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW];
+          metatypes = [NodeType.BLOCK, NodeType.ACTION, NodeType.FIELD, NodeType.VIEW];
         }
         return graphIndex({ id: "graph", graph, roots, metatypes });
       }
@@ -881,11 +881,11 @@ export function typeIndex(idx: {
       item.kind = TypeKind.NODE;
       item.benchType = BenchType.BLOCK;
       item.constraint = makeTypeConstraint({ nodeSubtypes: [option.value as BlockType] });
-    } else if (enumType == EnumType.STEP_TYPE) {
+    } else if (enumType == EnumType.ACTION_TYPE) {
       item.title = option.title + " Step";
       item.kind = TypeKind.NODE;
       item.benchType = BenchType.STEP;
-      item.constraint = makeTypeConstraint({ nodeSubtypes: [option.value as StepType] });
+      item.constraint = makeTypeConstraint({ nodeSubtypes: [option.value as ActionType] });
     } else if (enumType == EnumType.VIEW_TYPE) {
       item.title = option.title + " View";
       item.kind = TypeKind.NODE;
@@ -923,7 +923,7 @@ export function typeIndex(idx: {
       const typeFormatItems = getIntrinsicOptions(EnumType.TYPE_FORMAT);
       const fileItems = getIntrinsicOptions(EnumType.FILE_TYPE);
       const blockItems = getIntrinsicOptions(EnumType.BLOCK_TYPE);
-      const stepItems = getIntrinsicOptions(EnumType.STEP_TYPE);
+      const stepItems = getIntrinsicOptions(EnumType.ACTION_TYPE);
       const nodeItems = getIntrinsicOptions(EnumType.BENCH_TYPE);
 
       // and any type definitions from blocks

@@ -30,7 +30,7 @@ import {
   RunProperty,
   RunStatus,
   NodeMode,
-  StepData,
+  ActionData,
   StructType,
   Timestamp,
   type RunData,
@@ -86,7 +86,7 @@ export class RunTree {
     this.runRef = runGraph.getRef(this.runPtr, { id: "runtime.run." + this.id, ignoreAncestors: false }); // :NodeRefStability
     this.runsRef = runGraph.getDescendantsRef(this.runPtr, { metatypes: [NodeType.RUN], includeSelf: true });
     this.runBasePtr = computedValue(
-      () => (this.runRef.value?.stepPtr ?? this.runRef.value?.blockPtr) as TypedNodeReferenceData<RunnableNodeType>,
+      () => (this.runRef.value?.actionPtr ?? this.runRef.value?.blockPtr) as TypedNodeReferenceData<RunnableNodeType>,
     );
     this.runBaseRef = graph.getRef(this.runBasePtr);
     this.runConnection = runConnection;
@@ -306,15 +306,15 @@ export function makeRun(
 ): RunData {
   let benchPtr: NodeReferenceData | undefined = undefined;
   let block: BlockData | undefined = undefined;
-  let step: StepData | undefined = undefined;
+  let action: ActionData | undefined = undefined;
   let pipe: PipeData | undefined = undefined;
   if (isNode(runnable, NodeType.BLOCK)) {
     block = runnable;
     benchPtr = options?.benchPtr ?? runnable.benchPtr;
-  } else if (isNode(runnable, NodeType.STEP)) {
-    step = runnable;
+  } else if (isNode(runnable, NodeType.ACTION)) {
+    action = runnable;
     block = graph.getAncestors(runnable, { includeSelf: true }).find((node) => isNode(node, NodeType.BLOCK));
-    benchPtr = options?.benchPtr ?? step.benchPtr;
+    benchPtr = options?.benchPtr ?? action.benchPtr;
   } else if (isNode(runnable, NodeType.PIPE)) {
     pipe = runnable;
     block = graph.getAncestors(pipe, { includeSelf: true }).find((node) => isNode(node, NodeType.BLOCK));
@@ -332,7 +332,7 @@ export function makeRun(
     status: RunStatus.SCHEDULED,
     mode: options?.mode ?? space.value?.mode ?? NodeMode.PRODUCTION,
     blockPtr: block != null ? toNodeRef(block) : undefined,
-    stepPtr: isNode(runnable, NodeType.STEP) ? toNodeRef(runnable) : undefined,
+    actionPtr: isNode(runnable, NodeType.ACTION) ? toNodeRef(runnable) : undefined,
     pipePtr: isNode(runnable, NodeType.PIPE) ? toNodeRef(runnable) : undefined,
     inputsPacked: options?.inputsPacked ?? undefined,
     options: makeRunOptions(options?.options),

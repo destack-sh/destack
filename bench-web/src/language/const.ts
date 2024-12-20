@@ -21,7 +21,7 @@ import {
   Region,
   RunData,
   RunStatus,
-  StepType,
+  ActionType,
   StructType,
   TypeFormat,
   ViewDataInfo,
@@ -125,18 +125,18 @@ export const LOCAL_NODE_TYPES = NODE_TYPES.filter(isLocalNodeType);
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
 export const CANVAS_BLOCK_TYPES = [BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW];
 export const TYPE_BLOCK_TYPES = [BlockType.CHOICE, BlockType.MESSAGE, BlockType.DATABASE];
-export const RUNNABLE_BLOCK_TYPES = [BlockType.ACTION, BlockType.FLOW];
+export const RUNNABLE_BLOCK_TYPES = [BlockType.FLOW];
 export const CLASSY_BLOCK_TYPES = [BlockType.MESSAGE, ...RUNNABLE_BLOCK_TYPES, BlockType.VALUE, BlockType.DATABASE];
 
-// step
-export const STEP_TYPES = Object.values(StepType).filter((v) => typeof v == "number" && v > 0) as StepType[];
-export const BOUNDARY_STEP_TYPES = STEP_TYPES.filter((st) => st < 50);
-export const SOURCE_STEP_TYPES = [StepType.START];
-export const SINK_STEP_TYPES = [StepType.COMPLETE, StepType.FAIL];
-export const INVISIBLE_STEP_TYPES = [StepType.TEXT];
-export const RUN_STEP_TYPES = STEP_TYPES.filter((st) => st >= 50 && st < 100);
-export const CONTROL_STEP_TYPES = STEP_TYPES.filter((st) => st >= 100 && st < 150);
-export const CONTAINER_STEP_TYPES = STEP_TYPES.filter((st) => st >= 500 && st < 560);
+// action
+export const ACTION_TYPES = Object.values(ActionType).filter((v) => typeof v == "number" && v > 0) as ActionType[];
+export const BOUNDARY_ACTION_TYPES = ACTION_TYPES.filter((st) => st < 50);
+export const SOURCE_ACTION_TYPES = [ActionType.START];
+export const SINK_ACTION_TYPES = [ActionType.COMPLETE, ActionType.FAIL];
+export const INVISIBLE_ACTION_TYPES = [ActionType.TEXT];
+export const RUN_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 50 && st < 100);
+export const CONTROL_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 100 && st < 150);
+export const CONTAINER_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 500 && st < 560);
 
 // run
 export const TERMINAL_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, RunStatus.FAILED, RunStatus.COMPLETED];
@@ -166,7 +166,7 @@ export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
   } else if (node.metatype == ObjectType.FIELD) {
     return (node as FieldData).parentPtr ?? null;
   } else if (node.metatype == ObjectType.RUN) {
-    return (node as RunData).pipePtr ?? (node as RunData).stepPtr ?? (node as RunData).blockPtr ?? null;
+    return (node as RunData).pipePtr ?? (node as RunData).actionPtr ?? (node as RunData).blockPtr ?? null;
   } else if (node.metatype == ObjectType.MESSAGE) {
     return (node as MessageData).blockPtr ?? null;
   } else {
@@ -268,7 +268,6 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.PAGE,
   BlockType.CHOICE,
   BlockType.TEXT,
-  BlockType.ACTION,
   BlockType.FLOW,
   // BlockType.VIEW,
   BlockType.VALUE,
