@@ -6,39 +6,19 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
+from bench.language.action import (
+    Action,
+    ActionType,
+)
 from bench.language.block import FlowBlock
-from bench.language.browser import Browser
-from bench.language.const import NodeType, ObjectKind, RunErrorKind, RunStatus
+from bench.language.const import ObjectKind, RunStatus
 from bench.language.field import TypeBase
-from bench.language.flow import (
-    ClickStep,
-    CreateStep,
-    DeleteStep,
-    DuplicateStep,
-    FailStep,
-    GoToTabStep,
-    GoToUrlStep,
-    Pipe,
-    PipeType,
-    PortSide,
-    Step,
-    StepType,
-    UpdateStep,
-)
-from bench.language.interrupt import BreakpointScope, BreakpointSite, Interrupt, InterruptType
-from bench.language.node import HasNodeBase
-from bench.language.run import Run, RunError, RunErrorType, RunnableNode, RunOptions, RunType
-from bench.language.text import Text
-from bench.language.value import (
-    CustomObject,
-    OutputObject,
-    coerce_custom_object_scalar,
-    make_node_from_partial,
-    patch_node_from_partial,
-)
+from bench.language.flow import Pipe, PipeType, PortSide
+from bench.language.interrupt import BreakpointScope, BreakpointSite, Interrupt
+from bench.language.run import Run, RunError, RunnableNode, RunOptions, RunType
+from bench.language.value import CustomObject, OutputObject, coerce_custom_object_scalar
 from bench.runtime.action import ActionRunnerBase
 from bench.runtime.core import RetryableError
-from bench.runtime.playwright import playwright_api
 from bench.runtime.runner import (
     Context,
     Interrupted,
@@ -86,34 +66,34 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             run=run,
         )
         self._interrupted_runners: list[Runner] = []
-        self._active_runners_by_id: dict[UUID, PipeRunnerBase | StepRunnerBase] = {}
+        self._active_runners_by_id: dict[UUID, PipeRunnerBase | ActionRunnerBase] = {}
         self._stop_result: CustomObject | Literal["completed"] | RunError | Interrupt | None = None
         self._stop_event = Event()
 
     @abstractmethod
-    def get_steps(self) -> Sequence[Step]:
-        """Gets all Steps in this (sub-)Flow."""
+    def get_actions(self) -> Sequence[Action]:
+        """Gets all Actions in this (sub-)Flow."""
         ...
 
     @abstractmethod
-    def get_pipes_at(self, step: Step, side: PortSide) -> Sequence[Pipe]:
-        """Gets all Pipes connected to a Step."""
+    def get_pipes_at(self, action: Action, side: PortSide) -> Sequence[Pipe]:
+        """Gets all Pipes connected to a Action."""
         ...
 
     def _abort(self):
-        """Abort any contained Steps (and any relevant Interrupts)."""
+        """Abort any contained Actions (and any relevant Interrupts)."""
         logger.debug("flow.abort", flow=self.node, runner=self)
 
         for runner in self.runners:
             if not runner.options.suppress_abort and not (
-                isinstance(runner.node, Step) and runner.node.type.is_boundary
+                isinstance(runner.node, Action) and runner.node.type.is_boundary
             ):
                 runner.stop()
                 if runner.tracked_run is not None:
                     self.runtime.close(runner.tracked_run, resume=not self.is_root)
 
     def _complete(self, outputs: CustomObject | None) -> None:
-        """Complete this Flow, aborting all active Steps."""
+        """Complete this Flow, aborting all active Actions."""
         if self._stop_result is not None:
             logger.debug("flow.complete.skip", flow=self.node, runner=self)
             return  # already stopped
@@ -124,17 +104,17 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             )
         else:
             self._stop_result = "completed"
-        self._abort()  # cancel all active steps
+        self._abort()  # cancel all active actions
         self._stop_event.set()
         logger.debug("flow.complete", flow=self.node, runner=self)
 
     def _fail(self, error: RunError) -> None:
-        """Fail this Flow, aborting all active Steps."""
+        """Fail this Flow, aborting all active Actions."""
         if self._stop_result is not None:
             logger.debug("flow.fail.skip", flow=self.node, runner=self)
             return  # already done
         self._stop_result = error
-        self._abort()  # cancel all active steps
+        self._abort()  # cancel all active actions
         self._stop_event.set()
         logger.debug("flow.fail", flow=self.node, runner=self)
 
@@ -151,13 +131,13 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
 
     def _start(
         self,
-        node: Step | Pipe,
+        node: Action | Pipe,
         *,
         variables: CustomObject | None,
         inputs: CustomObject | None,
         incoming: Sequence[Run],
     ) -> Run:
-        """Run a Step or Pipe in this Flow."""
+        """Run a Action or Pipe in this Flow."""
         runner = make_runner(
             runtime=self.runtime,
             node=node,
@@ -167,7 +147,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             inputs=inputs,
             parent=self,
         )
-        assert isinstance(runner, (StepRunnerBase, PipeRunnerBase)), f"unexpected {runner!r}"
+        assert isinstance(runner, (ActionRunnerBase, PipeRunnerBase)), f"unexpected {runner!r}"
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         runner.flow = self
         runner.tracked_run.incoming_ptr = tuple(run.to_ref() for run in incoming)
@@ -181,7 +161,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         runner = run if isinstance(run, Runner) else restore_runner(self.runtime, run)
         if runner in self._interrupted_runners:
             self._interrupted_runners.remove(runner)
-        assert isinstance(runner, (StepRunnerBase, PipeRunnerBase)), f"unexpected {runner!r}"
+        assert isinstance(runner, (ActionRunnerBase, PipeRunnerBase)), f"unexpected {runner!r}"
         runner.flow = self
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.tick.resume", flow=self.node, node=runner.node, runner=runner)
@@ -190,15 +170,15 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         return runner.tracked_run
 
     def _on_stopped(self, runner: Runner, exc: BaseException | None) -> None:
-        """Tick this Flow when a Step or Pipe stops."""
+        """Tick this Flow when a Action or Pipe stops."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.tick.stopped", flow=self.node, node=runner.node, runner=runner, exc=exc)
         self._active_runners_by_id.pop(runner.id)
 
         if runner.status == RunStatus.COMPLETED:
-            # feed forward connected Pipes/Steps
+            # feed forward connected Pipes/Actions
             outgoing: list[Run] = []
-            if isinstance(runner.node, Step):
+            if isinstance(runner.node, Action):
                 if runner.outputs is not None and runner.outputs._kind == ObjectKind.OUTPUT:
                     continuations = cast(OutputObject, runner.outputs).continuations
                 else:
@@ -213,7 +193,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                         if pipe.type == PipeType.OPTION:
                             if continued_option is not None:
                                 # already continued another option, ignore this one
-                                #  (shouldn't happen usually because we validate in Step runner,
+                                #  (shouldn't happen usually because we validate in Action runner,
                                 #   but Flow architecture may change between there and here)
                                 logger.debug("flow.tick.continue.ignore", flow=self.node, pipe=pipe)
                                 continue
@@ -240,8 +220,8 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                         )
                         outgoing.append(next_run)
             elif isinstance(runner.node, Pipe):
-                # NOTE :Incomplete: allow Steps to wait for multiple incoming Pipes
-                # assemble Step inputs :PipeMapping
+                # NOTE :Incomplete: allow Actions to wait for multiple incoming Pipes
+                # assemble Action inputs :PipeMapping
                 next_run = self._start(
                     runner.node.target,
                     variables=None,
@@ -276,9 +256,9 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         runs = self.tracked_run.runs.tolist()
         if not runs:
             # start from scratch
-            for step in self.get_steps():
-                if step.type == StepType.START:
-                    self._start(step, variables=None, inputs=self.inputs, incoming=())
+            for action in self.get_actions():
+                if action.type == ActionType.START:
+                    self._start(action, variables=None, inputs=self.inputs, incoming=())
         else:
             # resume from interrupted
             # NOTE :Performance: technically we only need to resume Runs with updated Interrupts?
@@ -324,318 +304,25 @@ class FlowRunner(FlowRunnerBase[FlowBlock]):
     kind: ClassVar[RunType] = RunType.FLOW
 
     @override
-    def get_steps(self) -> Sequence[Step]:
-        return self.node.steps
+    def get_actions(self) -> Sequence[Action]:
+        return self.node.actions
 
     @override
-    def get_pipes_at(self, step: Step, side: PortSide) -> Sequence[Pipe]:
+    def get_pipes_at(self, action: Action, side: PortSide) -> Sequence[Pipe]:
         if side == PortSide.INCOMING:
             return tuple(
                 pipe
                 for pipe in self.node.pipes
-                if pipe.target_id == step.id and pipe.source is not None
+                if pipe.target_id == action.id and pipe.source is not None
             )
         elif side == PortSide.OUTGOING:
             return tuple(
                 pipe
                 for pipe in self.node.pipes
-                if pipe.source_id == step.id and pipe.target is not None
+                if pipe.source_id == action.id and pipe.target is not None
             )
         else:
             assert_never(side)
-
-
-#
-# Steps
-#
-
-
-class StepRunnerBase(Runner[Step], ABC):
-    """Step Runner in a Flow."""
-
-    kind: ClassVar[RunType] = RunType.STEP
-
-    def __init__(
-        self,
-        *,
-        runtime: Runtime,
-        node: Step,
-        track: bool,
-        options: RunOptions,
-        context: Context,
-        flow: FlowRunnerBase | None = None,
-        parent: Runner | None = None,
-        variables: CustomObject | None = None,
-        inputs: CustomObject | None = None,
-        output_type: TypeBase | None = None,
-        run: Run | None = None,
-    ) -> None:
-        super().__init__(
-            runtime=runtime,
-            node=node,
-            track=track,
-            options=options,
-            context=context,
-            parent=parent,
-            variables=variables,
-            inputs=inputs,
-            output_type=output_type,
-            run=run,
-        )
-        self.flow = flow
-
-    @override
-    def _has_breakpoint_set(self, *sites: BreakpointSite):
-        if super()._has_breakpoint_set(*sites):
-            return True
-        if self.flow is not None:
-            for bp in self.flow.breakpoints:
-                if bp.scope == BreakpointScope.STEP and bp.site in sites:
-                    return True
-        return False
-
-    def _check_step_outputs(self):
-        """Checks the outputs for this Step for Step-specific errors."""
-        # check continuations
-        if (
-            self.flow is not None
-            and self.outputs is not None
-            and self.outputs._kind == ObjectKind.OUTPUT
-            and cast(OutputObject, self.outputs).continuations
-        ):
-            continuations = cast(OutputObject, self.outputs).continuations
-            continued_options: list[Pipe] = []
-            for pipe in self.flow.get_pipes_at(self.node, PortSide.OUTGOING):
-                if pipe.type == PipeType.OPTION and any(
-                    c.node == pipe or c.node == pipe.target for c in continuations
-                ):
-                    continued_options.append(pipe)
-            if len(continued_options) > 1:
-                error = RunError(
-                    kind=RunErrorKind.RUNTIME,
-                    type=RunErrorType.INVALID_CONTINUATION,
-                    title=f"multiple mutually exclusive option pipes: f{continued_options!r}",
-                )
-                raise RetryableError(title=None, error=error)
-
-
-#
-# Boundary Steps
-#
-
-
-class StartStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        self.outputs = self.inputs
-
-
-class CompleteStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        self.outputs = self.inputs
-        if self.flow is not None:
-            self.flow._complete(outputs=self.outputs)
-
-
-class FailStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        step = cast(FailStep, self.node)
-        inputs = cast(FailStep, self.inputs)
-        title = inputs.error_title or step.error_title or "Flow failed"
-        text = inputs.error_text or step.error_text or Text.plain(f"Flow failed at {self.node!r}")
-        raise RetryableError(title=title, text=text)
-
-
-class TriggerStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        raise NotImplementedError
-
-
-#
-# Read Steps
-#
-
-
-class GetStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        raise NotImplementedError
-
-
-class SearchStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        raise NotImplementedError
-
-
-#
-# Write Steps
-#
-
-
-class CreateStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        step = cast(CreateStep, self.node)  # :StepInputType
-        inputs = cast(CreateStep, self.inputs)
-        node_partial = inputs.node_partial or step.node_partial
-        assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r}"
-
-        # create node from partial
-        node = make_node_from_partial(node_partial)
-        if node.parent is None:
-            parent_types = node.__parent_property__.reference_nodes or ()
-            if parent_types == "any" or NodeType.PACKAGE in parent_types:
-                bench = self.session.bench
-                assert bench is not None, f"no bench for {self!r}"
-                node.parent = bench.main_package
-            elif NodeType.BENCH in parent_types:
-                bench = self.session.bench
-                assert bench is not None, f"no bench for {self!r}"
-                node.parent = bench
-            elif (
-                isinstance(node, HasNodeBase)
-                and node.base is not None
-                and (parent_types == "any" or node.base.metatype in parent_types)
-            ):
-                node.parent = node.base
-        assert node.is_attached, f"node {node!r} must be attached"
-        self.session._create(node)
-        logger.debug("step.create", step=self.node, node=node)
-
-        assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
-
-
-class DuplicateStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        step = cast(DuplicateStep, self.node)  # :StepInputType
-        inputs = cast(DuplicateStep, self.inputs)
-        node = inputs.node or step.node
-        node_partial = inputs.node_partial
-        assert node is not None, "no node to clone"
-        assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r}"
-
-        # clone node with partial override
-        cloned_node = node.clone(recursive=inputs.recursive, detach=True)
-        patch_node_from_partial(cloned_node, node_partial)
-        cloned_node_parent = cloned_node.parent or node.parent
-        assert cloned_node_parent is not None, f"cloned node {cloned_node!r} must be attached"
-        cloned_node_parent.append(cloned_node)
-        logger.debug("step.clone", step=self.node, node=cloned_node, partial=node_partial)
-
-        assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": cloned_node}, self.output_type)
-
-
-class UpdateStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        step = cast(UpdateStep, self.node)  # :StepInputType
-        inputs = cast(UpdateStep, self.inputs)
-        node_partial = inputs.node_partial or step.node_partial
-        node = inputs.node or step.node
-        assert node is not None, "no node to update"
-        assert isinstance(node_partial, CustomObject), f"unexpected {inputs.node_partial!r}"
-
-        # update with partial patch
-        patch_node_from_partial(node, node_partial)
-        logger.debug("step.update", step=self.node, node=node, partial=node_partial)
-
-        assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
-
-
-class DeleteStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        step = cast(DeleteStep, self.node)  # :StepInputType
-        inputs = cast(DeleteStep, self.inputs)
-        node = inputs.node or step.node
-        assert node is not None, "no node to delete"
-
-        # delete
-        node.delete()
-        logger.debug("step.delete", step=self.node, node=node)
-
-        assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
-
-
-#
-# Run Steps
-#
-
-
-class ActionStepRunner(ActionRunnerBase[Step], StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        await super().run()
-        self._check_step_outputs()
-
-
-class YieldStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        interrupt = self._trap_interrupt(InterruptType.YIELD)
-        self.outputs = interrupt.outputs
-        self._check_step_outputs()
-
-
-#
-# Application Steps :ActionSteps
-#
-
-
-class ApplicationStepRunnerBase(StepRunnerBase):
-    pass
-
-
-class ClickStepRunner(ApplicationStepRunnerBase):
-    @override
-    async def run(self) -> None:
-        step = cast(ClickStep, self.node)  # :StepInputType
-        inputs = cast(ClickStep, self.inputs)
-        xpath = inputs.xpath or step.xpath
-        assert xpath is not None, "no xpath to click"
-        browser = self._get_resource_or_error(Browser)
-        pw_browser = await playwright_api.get_browser(browser)
-        pw_page = pw_browser.pages[0]
-        await pw_page.click(xpath)
-
-
-#
-# Browser Steps :ActionSteps
-#
-
-
-class GoToUrlStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        step = cast(GoToUrlStep, self.node)  # :StepInputType
-        inputs = cast(GoToUrlStep, self.inputs)
-        url = inputs.url or step.url
-        assert url is not None, "no url to go to"
-        browser = self._get_resource_or_error(Browser)
-        pw_browser = await playwright_api.get_browser(browser)
-        pw_page = pw_browser.pages[0]
-        await pw_page.goto(url)
-
-
-class GoToTabStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        step = cast(GoToTabStep, self.node)  # :StepInputType
-        inputs = cast(GoToTabStep, self.inputs)
-        tab_index = inputs.tab_index or step.tab_index
-        assert tab_index is not None, "no tab index to go to"
-        browser = self._get_resource_or_error(Browser)
-        pw_browser = await playwright_api.get_browser(browser)
-        await pw_browser.pages[tab_index].bring_to_front()
 
 
 #
@@ -717,29 +404,6 @@ class StreamPipeRunner(PipeRunnerBase):
     pass
 
 
-#
-# Registry
-#
-
-STEP_RUNNER_BY_STEP_TYPE: dict[StepType, type[StepRunnerBase]] = {
-    # boundary
-    StepType.START: StartStepRunner,
-    StepType.COMPLETE: CompleteStepRunner,
-    StepType.FAIL: FailStepRunner,
-    # read
-    StepType.GET: GetStepRunner,
-    StepType.SEARCH: SearchStepRunner,
-    # write
-    StepType.CREATE: CreateStepRunner,
-    StepType.DUPLICATE: DuplicateStepRunner,
-    StepType.UPDATE: UpdateStepRunner,
-    StepType.DELETE: DeleteStepRunner,
-    # run
-    StepType.ACTION: ActionStepRunner,
-    StepType.YIELD: YieldStepRunner,
-    # application
-    StepType.GO_TO_URL: GoToUrlStepRunner,
-}
 PIPE_RUNNER_BY_PIPE_TYPE: dict[PipeType, type[PipeRunnerBase]] = {
     PipeType.PASS: PassPipeRunner,
     PipeType.SELECT: SelectPipeRunner,

@@ -11,14 +11,27 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import code
-from bench.language.action import Agency
-from bench.language.block import ActionBlock, Block
+from bench.language.action import (
+    Action,
+    ActionType,
+    ClickAction,
+    CreateAction,
+    DeleteAction,
+    DuplicateAction,
+    FailAction,
+    GoToTabAction,
+    GoToUrlAction,
+    UpdateAction,
+)
+from bench.language.block import Block
+from bench.language.browser import Browser
 from bench.language.code import Code
-from bench.language.const import BlockType, ObjectKind
-from bench.language.field import Field, TypeBase
+from bench.language.const import NodeType, ObjectKind, RunErrorKind
+from bench.language.field import TypeBase
 from bench.language.file import FileBase
-from bench.language.flow import ActionStep, Pipe, Step, StepType
-from bench.language.node import Node, NodeReference, SourceNode
+from bench.language.flow import Pipe, PipeType, PortSide
+from bench.language.interrupt import BreakpointScope, BreakpointSite, InterruptType
+from bench.language.node import HasNodeBase, Node, NodeReference, SourceNode
 from bench.language.project import Projection, ProjectOptions
 from bench.language.query import Query
 from bench.language.render import RenderOptions, render_expr, render_stmt
@@ -28,22 +41,33 @@ from bench.language.run import (
     ModelType,
     Run,
     RunAttempt,
+    RunError,
+    RunErrorType,
     RunnableNode,
     RunOptions,
     RunType,
 )
 from bench.language.text import Text
-from bench.language.value import CustomObject, OutputObject, sample_value, unpack_custom_object
+from bench.language.value import (
+    CustomObject,
+    OutputObject,
+    make_node_from_partial,
+    patch_node_from_partial,
+    sample_value,
+    unpack_custom_object,
+)
 from bench.runtime.code import CodeFunctionRunner
-from bench.runtime.core import ATTEMPT_ONCE, ModelFailedError, RunImpossibleError
+from bench.runtime.core import ATTEMPT_ONCE, ModelFailedError, RetryableError, RunImpossibleError
+from bench.runtime.flow import FlowRunnerBase
+from bench.runtime.playwright import playwright_api
 from bench.runtime.runner import Context, Runner, make_runner, restore_runner
+from bench.runtime.runtime import Runtime
 from bench.utils.func import IdEnum, stable_hash
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-Action = ActionStep | ActionBlock
 CODE_PASS = code("pass")
 
 
@@ -52,78 +76,142 @@ class TaskType(IdEnum):
     RUN = 2
 
 
-class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
+class ActionRunnerBase(Runner[Action]):
     """Action Runner."""
+
+    kind: ClassVar[RunType] = RunType.ACTION
+
+    def __init__(
+        self,
+        *,
+        runtime: Runtime,
+        node: Action,
+        track: bool,
+        options: RunOptions,
+        context: Context,
+        parent: Runner | None = None,
+        variables: CustomObject | None = None,
+        inputs: CustomObject | None = None,
+        output_type: TypeBase | None = None,
+        run: Run | None = None,
+        flow: FlowRunnerBase | None = None,
+    ) -> None:
+        super().__init__(
+            runtime=runtime,
+            node=node,
+            track=track,
+            options=options,
+            context=context,
+            parent=parent,
+            variables=variables,
+            inputs=inputs,
+            output_type=output_type,
+            run=run,
+        )
+        self.flow = flow
+
+    @override
+    def _has_breakpoint_set(self, *sites: BreakpointSite):
+        if super()._has_breakpoint_set(*sites):
+            return True
+        if self.flow is not None:
+            for bp in self.flow.breakpoints:
+                if bp.scope == BreakpointScope.ACTION and bp.site in sites:
+                    return True
+        return False
+
+    def _check_action_outputs(self):
+        """Checks the outputs for this Action for Action-specific errors."""
+        # check continuations
+        if (
+            self.flow is not None
+            and self.outputs is not None
+            and self.outputs._kind == ObjectKind.OUTPUT
+            and cast(OutputObject, self.outputs).continuations
+        ):
+            continuations = cast(OutputObject, self.outputs).continuations
+            continued_options: list[Pipe] = []
+            for pipe in self.flow.get_pipes_at(self.node, PortSide.OUTGOING):
+                if pipe.type == PipeType.OPTION and any(
+                    c.node == pipe or c.node == pipe.target for c in continuations
+                ):
+                    continued_options.append(pipe)
+            if len(continued_options) > 1:
+                error = RunError(
+                    kind=RunErrorKind.RUNTIME,
+                    type=RunErrorType.INVALID_CONTINUATION,
+                    title=f"multiple mutually exclusive option pipes: f{continued_options!r}",
+                )
+                raise RetryableError(title=None, error=error)
 
     @override
     async def run(self) -> None:
-        assert self.node.type in (BlockType.ACTION, StepType.ACTION), f"unexpected {self.node!r}"
         assert self.tracked_run is not None, f"{self!r} must be tracked"
         attempt = self.current_attempt
         assert attempt is not None, f"no current attempt for {self!r}"
         action = cast(Action, self.node)
-        if action.agency == Agency.CODE:
+        if action.type == ActionType.RUN:
             # run directly
             self.outputs = await self._run_implementation(
                 attempt=attempt,
                 code=action.code or Code.empty(),
-                tools=action.tools,
-                variables=self.variables,
-                inputs=self.inputs,
-            )
-        elif action.agency == Agency.DELEGATE:
-            # run delegate directly
-            delegate = action.delegate
-            if not delegate:
-                raise RunImpossibleError(f"no delegate for {self!r}")
-            delegate_runner = self._get_resumable_subrunner(
-                node=delegate,
-                variables=self.variables,
-                inputs=self.inputs,
-                output_type=self.output_type,
-            )
-            await self.runtime.run_runner(delegate_runner)
-            self.outputs = delegate_runner.outputs
-        elif action.agency == Agency.GENERATE:
-            if attempt.code is None:
-                # if attempt doesn't have code yet, generate it
-                #  (the code may be from a previous run at this attempt that was interrupted)
-                if not action.is_dynamic:
-                    # adapt (if needed) & run implementation
-                    update_code = await self._generate_code(
-                        task=TaskType.ADAPT,
-                        inputs=None,
-                        output_type=None,
-                        include_run_context=False,
-                    )
-                    if update_code != CODE_PASS:
-                        await self._run_code(
-                            code=update_code,
-                            node=action,
-                            variables=self.variables,
-                            inputs=None,
-                            output_type=None,
-                        )
-                    attempt._do_set("code", action.code, validate=False)
-                else:
-                    # generate a new implementation every time
-                    implementation_code = await self._generate_code(
-                        task=TaskType.RUN,
-                        inputs=self.inputs,
-                        output_type=self.output_type,
-                        include_run_context=True,
-                    )
-                    attempt._do_set("code", implementation_code, validate=False)
-                self.session.commit_optimistic()
-            self.outputs = await self._run_implementation(
-                attempt=attempt,
-                code=attempt.code or Code.empty(),
-                tools=action.tools,
                 variables=self.variables,
                 inputs=self.inputs,
             )
         else:
-            assert_never(action.agency)
+            raise NotImplementedError("nocheckin: new actions")
+        # elif action.agency == Agency.DELEGATE:
+        #     # run delegate directly
+        #     delegate = action.delegate
+        #     if not delegate:
+        #         raise RunImpossibleError(f"no delegate for {self!r}")
+        #     delegate_runner = self._get_resumable_subrunner(
+        #         node=delegate,
+        #         variables=self.variables,
+        #         inputs=self.inputs,
+        #         output_type=self.output_type,
+        #     )
+        #     await self.runtime.run_runner(delegate_runner)
+        #     self.outputs = delegate_runner.outputs
+        # elif action.agency == Agency.GENERATE:
+        #     if attempt.code is None:
+        #         # if attempt doesn't have code yet, generate it
+        #         #  (the code may be from a previous run at this attempt that was interrupted)
+        #         if not action.is_dynamic:
+        #             # adapt (if needed) & run implementation
+        #             update_code = await self._generate_code(
+        #                 task=TaskType.ADAPT,
+        #                 inputs=None,
+        #                 output_type=None,
+        #                 include_run_context=False,
+        #             )
+        #             if update_code != CODE_PASS:
+        #                 await self._run_code(
+        #                     code=update_code,
+        #                     node=action,
+        #                     variables=self.variables,
+        #                     inputs=None,
+        #                     output_type=None,
+        #                 )
+        #             attempt._do_set("code", action.code, validate=False)
+        #         else:
+        #             # generate a new implementation every time
+        #             implementation_code = await self._generate_code(
+        #                 task=TaskType.RUN,
+        #                 inputs=self.inputs,
+        #                 output_type=self.output_type,
+        #                 include_run_context=True,
+        #             )
+        #             attempt._do_set("code", implementation_code, validate=False)
+        #         self.session.commit_optimistic()
+        #     self.outputs = await self._run_implementation(
+        #         attempt=attempt,
+        #         code=attempt.code or Code.empty(),
+        #         variables=self.variables,
+        #         inputs=self.inputs,
+        #     )
+        # else:
+        #     assert_never(action.agency)
 
     def _get_resumable_subrunner(
         self,
@@ -168,7 +256,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
         model = self.options.model_type or OPENAI_DEFAULT_MODEL
         prompt = make_prompt(
             task=task,
-            runner=self,
+            runner=cast(Runner[RunnableNode], self),
             context=self.context,
             inputs=inputs,
             output_type=output_type,
@@ -212,7 +300,6 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
         self,
         attempt: RunAttempt,
         code: Code,
-        tools: Sequence[Block | Field],
         variables: CustomObject | None,
         inputs: CustomObject | None,
     ) -> CustomObject | None:
@@ -266,7 +353,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
     async def _run_code(
         self,
         code: Code,
-        node: Step | Block | Pipe,
+        node: Action | Block | Pipe,
         variables: CustomObject | None,
         inputs: CustomObject | None = None,
         output_type: TypeBase | None = None,
@@ -287,11 +374,236 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
         return code_runner.outputs
 
 
-class ActionRunner(ActionRunnerBase):
-    """Action Runner."""
+#
+# Boundary Actions
+#
 
-    kind: ClassVar[RunType] = RunType.ACTION
 
+class StartActionRunner(ActionRunnerBase):
+    @override
+    async def run(self) -> None:
+        self.outputs = self.inputs
+
+
+class CompleteActionRunner(ActionRunnerBase):
+    @override
+    async def run(self) -> None:
+        self.outputs = self.inputs
+        if self.flow is not None:
+            self.flow._complete(outputs=self.outputs)
+
+
+class FailActionRunner(ActionRunnerBase):
+    @override
+    async def run(self) -> None:
+        action = cast(FailAction, self.node)
+        inputs = cast(FailAction, self.inputs)
+        title = inputs.error_title or action.error_title or "Flow failed"
+        text = inputs.error_text or action.error_text or Text.plain(f"Flow failed at {self.node!r}")
+        raise RetryableError(title=title, text=text)
+
+
+class TriggerActionRunner(ActionRunnerBase):
+    @override
+    async def run(self) -> None:
+        raise NotImplementedError
+
+
+#
+# Read Actions
+#
+
+
+class GetActionRunner(ActionRunnerBase):
+    @override
+    async def run(self) -> None:
+        raise NotImplementedError
+
+
+class SearchActionRunner(ActionRunnerBase):
+    @override
+    async def run(self) -> None:
+        raise NotImplementedError
+
+
+#
+# Write Actions
+#
+
+
+class CreateActionRunner(ActionRunnerBase):
+    @override
+    async def run(self) -> None:
+        action = cast(CreateAction, self.node)  # :ActionInputType
+        inputs = cast(CreateAction, self.inputs)
+        node_partial = inputs.node_partial or action.node_partial
+        assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r}"
+
+        # create node from partial
+        node = make_node_from_partial(node_partial)
+        if node.parent is None:
+            parent_types = node.__parent_property__.reference_nodes or ()
+            if parent_types == "any" or NodeType.PACKAGE in parent_types:
+                bench = self.session.bench
+                assert bench is not None, f"no bench for {self!r}"
+                node.parent = bench.main_package
+            elif NodeType.BENCH in parent_types:
+                bench = self.session.bench
+                assert bench is not None, f"no bench for {self!r}"
+                node.parent = bench
+            elif (
+                isinstance(node, HasNodeBase)
+                and node.base is not None
+                and (parent_types == "any" or node.base.metatype in parent_types)
+            ):
+                node.parent = node.base
+        assert node.is_attached, f"node {node!r} must be attached"
+        self.session._create(node)
+        logger.debug("action.create", action=self.node, node=node)
+
+        assert self.output_type is not None, f"no output type for {self!r}"
+        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
+
+
+class DuplicateActionRunner(ActionRunnerBase):
+    @override
+    async def run(self) -> None:
+        action = cast(DuplicateAction, self.node)  # :ActionInputType
+        inputs = cast(DuplicateAction, self.inputs)
+        node = inputs.node or action.node
+        node_partial = inputs.node_partial
+        assert node is not None, "no node to clone"
+        assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r}"
+
+        # clone node with partial override
+        cloned_node = node.clone(recursive=not inputs.is_shallow, detach=True)
+        patch_node_from_partial(cloned_node, node_partial)
+        cloned_node_parent = cloned_node.parent or node.parent
+        assert cloned_node_parent is not None, f"cloned node {cloned_node!r} must be attached"
+        cloned_node_parent.append(cloned_node)
+        logger.debug("action.clone", action=self.node, node=cloned_node, partial=node_partial)
+
+        assert self.output_type is not None, f"no output type for {self!r}"
+        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": cloned_node}, self.output_type)
+
+
+class UpdateActionRunner(ActionRunnerBase):
+    @override
+    async def run(self) -> None:
+        action = cast(UpdateAction, self.node)  # :ActionInputType
+        inputs = cast(UpdateAction, self.inputs)
+        node_partial = inputs.node_partial or action.node_partial
+        node = inputs.node or action.node
+        assert node is not None, "no node to update"
+        assert isinstance(node_partial, CustomObject), f"unexpected {inputs.node_partial!r}"
+
+        # update with partial patch
+        patch_node_from_partial(node, node_partial)
+        logger.debug("action.update", action=self.node, node=node, partial=node_partial)
+
+        assert self.output_type is not None, f"no output type for {self!r}"
+        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
+
+
+class DeleteActionRunner(ActionRunnerBase):
+    @override
+    async def run(self) -> None:
+        action = cast(DeleteAction, self.node)  # :ActionInputType
+        inputs = cast(DeleteAction, self.inputs)
+        node = inputs.node or action.node
+        assert node is not None, "no node to delete"
+
+        # delete
+        node.delete()
+        logger.debug("action.delete", action=self.node, node=node)
+
+        assert self.output_type is not None, f"no output type for {self!r}"
+        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
+
+
+#
+# Run Actions
+#
+
+
+class YieldActionRunner(ActionRunnerBase):
+    @override
+    async def run(self) -> None:
+        interrupt = self._trap_interrupt(InterruptType.YIELD)
+        self.outputs = interrupt.outputs
+        self._check_action_outputs()
+
+
+#
+# Application Actions :ActionActions
+#
+
+
+class ApplicationActionRunnerBase(ActionRunnerBase):
+    pass
+
+
+class ClickActionRunner(ApplicationActionRunnerBase):
+    @override
+    async def run(self) -> None:
+        action = cast(ClickAction, self.node)  # :ActionInputType
+        inputs = cast(ClickAction, self.inputs)
+        xpath = inputs.xpath or action.xpath
+        assert xpath is not None, "no xpath to click"
+        browser = self._get_resource_or_error(Browser)
+        pw_browser = await playwright_api.get_browser(browser)
+        pw_page = pw_browser.pages[0]
+        await pw_page.click(xpath)
+
+
+#
+# Browser Actions :ActionActions
+#
+
+
+class GoToUrlActionRunner(ActionRunnerBase):
+    @override
+    async def run(self) -> None:
+        action = cast(GoToUrlAction, self.node)  # :ActionInputType
+        inputs = cast(GoToUrlAction, self.inputs)
+        url = inputs.url or action.url
+        assert url is not None, "no url to go to"
+        browser = self._get_resource_or_error(Browser)
+        pw_browser = await playwright_api.get_browser(browser)
+        pw_page = pw_browser.pages[0]
+        await pw_page.goto(url)
+
+
+class GoToTabActionRunner(ActionRunnerBase):
+    @override
+    async def run(self) -> None:
+        action = cast(GoToTabAction, self.node)  # :ActionInputType
+        inputs = cast(GoToTabAction, self.inputs)
+        tab_index = inputs.tab_index or action.tab_index
+        assert tab_index is not None, "no tab index to go to"
+        browser = self._get_resource_or_error(Browser)
+        pw_browser = await playwright_api.get_browser(browser)
+        await pw_browser.pages[tab_index].bring_to_front()
+
+
+ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunnerBase]] = {
+    # boundary
+    ActionType.START: StartActionRunner,
+    ActionType.COMPLETE: CompleteActionRunner,
+    ActionType.FAIL: FailActionRunner,
+    # read
+    ActionType.GET: GetActionRunner,
+    ActionType.SEARCH: SearchActionRunner,
+    # write
+    ActionType.CREATE: CreateActionRunner,
+    ActionType.DUPLICATE: DuplicateActionRunner,
+    ActionType.UPDATE: UpdateActionRunner,
+    ActionType.DELETE: DeleteActionRunner,
+    # run
+    ActionType.YIELD: YieldActionRunner,
+    # application
+    ActionType.GO_TO_URL: GoToUrlActionRunner,
+}
 
 #
 # Prompts

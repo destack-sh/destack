@@ -47,6 +47,7 @@ from bench.utils.tenacity import RetryOptions
 
 if TYPE_CHECKING:
     from bench.language import (
+        Action,
         Bench,
         Block,
         Breakpoint,
@@ -57,14 +58,13 @@ if TYPE_CHECKING:
         LogLevel,
         NodeReference,
         Pipe,
-        Step,
         TypeBase,
     )
 
 
 # pyright: reportIncompatibleVariableOverride=false
 
-RunnableNode = Union["Block", "Step", "Pipe"]
+RunnableNode = Union["Block", "Action", "Pipe"]
 
 
 @enum_(EnumType.MODEL_PROVIDER)
@@ -390,7 +390,7 @@ class Context(Struct):
 @timed_node_(NodeType.RUN)
 class Run(RuntimeNode[RunData], HasNodeBase):
     """
-    Run a Block, Step or some lambda (Code) in a Session.
+    Run a Block, Action or some lambda (Code) in a Session.
     """
 
     # meta
@@ -403,15 +403,17 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         root_ptr: Optional[NodeReference] = None
         root_id: Optional[UUID] = None
     block: Optional["Block"] = p_internal(32, require=False, array=False, references=NodeType.BLOCK)
-    step: Optional["Step"] = p_internal(33, require=False, array=False, references=NodeType.STEP)
+    action: Optional["Action"] = p_internal(
+        33, require=False, array=False, references=NodeType.ACTION
+    )
     pipe: Optional["Pipe"] = p_internal(34, require=False, array=False, references=NodeType.PIPE)
     if TYPE_CHECKING:
         block_ptr: Optional[NodeReference] = None
         block_id: Optional[UUID] = None
         block_ck: Optional[UUID] = None
-        step_ptr: Optional[NodeReference] = None
-        step_id: Optional[UUID] = None
-        step_ck: Optional[UUID] = None
+        action_ptr: Optional[NodeReference] = None
+        action_id: Optional[UUID] = None
+        action_ck: Optional[UUID] = None
         pipe_ptr: Optional[NodeReference] = None
         pipe_id: Optional[UUID] = None
         pipe_ck: Optional[UUID] = None
@@ -493,11 +495,11 @@ class Run(RuntimeNode[RunData], HasNodeBase):
             return f"{self.type.bench_name}:{path}, {self.status.bench_name}"
 
     @property
-    def runnable(self) -> Union["Block", "Step", "Pipe", None]:
+    def runnable(self) -> Union["Block", "Action", "Pipe", None]:
         if self.type == RunType.PIPE:
             return self.pipe
-        elif self.type == RunType.STEP:
-            return self.step
+        elif self.type == RunType.ACTION:
+            return self.action
         else:
             return self.block
 
@@ -523,8 +525,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     def input_type(self) -> "TypeBase | None":
         if self.pipe is not None:
             return self.pipe.input_type
-        elif self.step is not None:
-            return self.step.input_type
+        elif self.action is not None:
+            return self.action.input_type
         elif self.block is not None:
             return self.block.input_type
         else:
@@ -534,8 +536,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     def output_type(self) -> "TypeBase | None":
         if self.pipe is not None:
             return self.pipe.output_type
-        elif self.step is not None:
-            return self.step.output_type
+        elif self.action is not None:
+            return self.action.output_type
         elif self.block is not None:
             return self.block.output_type
         else:
@@ -545,8 +547,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     def base_ptr(self) -> Optional["NodeReference"]:
         if self.pipe_ptr is not None:
             return self.pipe_ptr
-        elif self.step_ptr is not None:
-            return self.step_ptr
+        elif self.action_ptr is not None:
+            return self.action_ptr
         else:
             return self.block_ptr
 
@@ -554,8 +556,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     def base(self) -> Optional["RunnableNode"]:
         if self.pipe_ptr is not None:
             return self.pipe
-        elif self.step_ptr is not None:
-            return self.step
+        elif self.action_ptr is not None:
+            return self.action
         else:
             return self.block
 
@@ -564,8 +566,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         run_data = cast(RunData, data)
         if run_data.pipe_ptr.metatype != 0:
             return cast(RunData, data).pipe_ptr
-        elif run_data.step_ptr.metatype != 0:
-            return cast(RunData, data).step_ptr
+        elif run_data.action_ptr.metatype != 0:
+            return cast(RunData, data).action_ptr
         else:
             return cast(RunData, data).block_ptr
 

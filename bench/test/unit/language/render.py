@@ -7,12 +7,13 @@ from uuid import UUID
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
 
+from bench.language.action import Action, ActionType
 from bench.language.bench import Package
 from bench.language.block import Block
 from bench.language.const import NODE_TYPES, BlockType, ReferenceKind, StructType
 from bench.language.field import Field, to_type
 from bench.language.file import File, FileKind, FileType
-from bench.language.flow import Pipe, PipeType, Step, StepType
+from bench.language.flow import Pipe, PipeType
 from bench.language.node import BuiltinObject, Node, NodeReference
 from bench.language.render import Renderer, RenderOptions, render, render_expr
 from bench.language.session import Session
@@ -198,10 +199,10 @@ def test_render_variable_with_file(session: Session, package: Package):
 @_render_as_stmt
 def test_render_flow(session: Session, package: Package):
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
-    Start = Step.new(StepType.START, "Start")
-    Flow1.steps.append(Start)
-    Complete = Step.new(StepType.COMPLETE, "Complete")
-    Flow1.steps.append(Complete)
+    Start = Action.new(ActionType.START, "Start")
+    Flow1.actions.append(Start)
+    Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Flow1.actions.append(Complete)
     Pipe1 = Pipe.new(PipeType.PASS, "Pipe1", source=Start, target=Complete)
     Flow1.pipes.append(Pipe1)
     return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Pipe1": Pipe1}
@@ -227,9 +228,9 @@ def test_render_simple_choice_option_ref(session: Session, package: Package):
         "Choice",
         fields=[Field.option("Option1"), Field.option("Option2"), Field.option("Option3")],
     )
-    Function = Block.new(BlockType.ACTION, "Function")
-    Page.blocks.extend(Choice, Function)
+    Page = Block.new(BlockType.PAGE, "Page")
+    Page.blocks.extend(Choice, Page)
     rendered_option = render_expr(
-        Choice.fields.Option2, options=RenderOptions(scope=Function), as_ref=True
+        Choice.fields.Option2, options=RenderOptions(scope=Page), as_ref=True
     )
     assert rendered_option == "Choice.fields.Option2"

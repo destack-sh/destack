@@ -350,7 +350,7 @@ defineExpose<ViewExposed>({
             <button
               v-for="day in weeks.flat()"
               :key="day.toISO()!"
-              class="h-7 w-full rounded text-sm transition-colors duration-75"
+              class="h-8 w-full rounded text-sm transition-colors duration-75"
               :class="[
                 isSamePeriod(day) ? 'text-gray-900' : 'text-gray-400',
                 isSelected(day) ? 'bg-gray-100 font-bold text-gray-900' : 'hover:bg-gray-100',

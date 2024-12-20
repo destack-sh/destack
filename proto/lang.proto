@@ -45,7 +45,6 @@ enum EnumType {
   ENUM_TYPE_TYPE_FORMAT = 21504;
   ENUM_TYPE_OBJECT_KIND = 21505;
   ENUM_TYPE_BLOCK_TYPE = 21506;
-  ENUM_TYPE_AGENCY = 21507;
   ENUM_TYPE_PARTIAL_OBJECT_SCOPE = 21508;
   ENUM_TYPE_SCHEDULE_TYPE = 22001;
   ENUM_TYPE_TIME_INTERVAL = 22002;
@@ -83,7 +82,7 @@ enum EnumType {
   ENUM_TYPE_CODE_TYPE = 23017;
   ENUM_TYPE_MODEL_PROVIDER = 23018;
   ENUM_TYPE_MODEL_TYPE = 23019;
-  ENUM_TYPE_STEP_TYPE = 23020;
+  ENUM_TYPE_ACTION_TYPE = 23020;
   ENUM_TYPE_PORT_SIDE = 23021;
   ENUM_TYPE_PIPE_TYPE = 23022;
   ENUM_TYPE_NODE_MODE = 23024;
@@ -135,7 +134,7 @@ enum NodeType {
   NODE_TYPE_FIELD = 3012;
   NODE_TYPE_QUERY = 3013;
   NODE_TYPE_VIEW = 3020;
-  NODE_TYPE_STEP = 3030;
+  NODE_TYPE_ACTION = 3030;
   NODE_TYPE_PIPE = 3031;
   NODE_TYPE_MESSAGE = 3500;
   NODE_TYPE_RECORD = 3501;
@@ -245,7 +244,7 @@ enum ObjectType {
   OBJECT_TYPE_FIELD = 3012;
   OBJECT_TYPE_QUERY = 3013;
   OBJECT_TYPE_VIEW = 3020;
-  OBJECT_TYPE_STEP = 3030;
+  OBJECT_TYPE_ACTION = 3030;
   OBJECT_TYPE_PIPE = 3031;
   OBJECT_TYPE_MESSAGE = 3500;
   OBJECT_TYPE_RECORD = 3501;
@@ -437,7 +436,7 @@ enum BenchType {
   BENCH_TYPE_FIELD = 3012;
   BENCH_TYPE_QUERY = 3013;
   BENCH_TYPE_VIEW = 3020;
-  BENCH_TYPE_STEP = 3030;
+  BENCH_TYPE_ACTION = 3030;
   BENCH_TYPE_PIPE = 3031;
   BENCH_TYPE_MESSAGE = 3500;
   BENCH_TYPE_RECORD = 3501;
@@ -548,7 +547,6 @@ enum BenchType {
   BENCH_TYPE_TYPE_FORMAT = 21504;
   BENCH_TYPE_OBJECT_KIND = 21505;
   BENCH_TYPE_BLOCK_TYPE = 21506;
-  BENCH_TYPE_AGENCY = 21507;
   BENCH_TYPE_PARTIAL_OBJECT_SCOPE = 21508;
   BENCH_TYPE_SCHEDULE_TYPE = 22001;
   BENCH_TYPE_TIME_INTERVAL = 22002;
@@ -586,7 +584,7 @@ enum BenchType {
   BENCH_TYPE_CODE_TYPE = 23017;
   BENCH_TYPE_MODEL_PROVIDER = 23018;
   BENCH_TYPE_MODEL_TYPE = 23019;
-  BENCH_TYPE_STEP_TYPE = 23020;
+  BENCH_TYPE_ACTION_TYPE = 23020;
   BENCH_TYPE_PORT_SIDE = 23021;
   BENCH_TYPE_PIPE_TYPE = 23022;
   BENCH_TYPE_NODE_MODE = 23024;
@@ -909,7 +907,6 @@ enum BlockType {
   BLOCK_TYPE_TEXT = 2;
   BLOCK_TYPE_CHOICE = 11;
   BLOCK_TYPE_MESSAGE = 12;
-  BLOCK_TYPE_ACTION = 21;
   BLOCK_TYPE_FLOW = 22;
   BLOCK_TYPE_VALUE = 30;
   BLOCK_TYPE_DATABASE = 31;
@@ -917,13 +914,6 @@ enum BlockType {
   BLOCK_TYPE_VIEW = 40;
   BLOCK_TYPE_ROLE = 50;
   BLOCK_TYPE_IDENTITY = 51;
-}
-
-enum Agency {
-  AGENCY_UNSPECIFIED = 0;
-  AGENCY_CODE = 1;
-  AGENCY_DELEGATE = 2;
-  AGENCY_GENERATE = 3;
 }
 
 // The scope of properties in a partial Node object.
@@ -1189,8 +1179,7 @@ enum RunStatus {
 enum RunType {
   RUN_TYPE_UNSPECIFIED = 0;
   RUN_TYPE_CODE = 1;
-  RUN_TYPE_ACTION = 2;
-  RUN_TYPE_STEP = 10;
+  RUN_TYPE_ACTION = 10;
   RUN_TYPE_FLOW = 11;
   RUN_TYPE_PIPE = 12;
 }
@@ -1264,7 +1253,7 @@ enum BreakpointScope {
   BREAKPOINT_SCOPE_UNSPECIFIED = 0;
   BREAKPOINT_SCOPE_SELF = 1;
   BREAKPOINT_SCOPE_CHILD = 2;
-  BREAKPOINT_SCOPE_STEP = 20;
+  BREAKPOINT_SCOPE_ACTION = 20;
   BREAKPOINT_SCOPE_PIPE = 21;
 }
 
@@ -1318,36 +1307,38 @@ enum ModelType {
   MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO = 401;
 }
 
-enum StepType {
-  STEP_TYPE_UNSPECIFIED = 0;
-  STEP_TYPE_START = 1;
-  STEP_TYPE_TRIGGER = 2;
-  STEP_TYPE_COMPLETE = 10;
-  STEP_TYPE_FAIL = 11;
-  STEP_TYPE_GET = 40;
-  STEP_TYPE_SEARCH = 41;
-  STEP_TYPE_COPY = 50;
-  STEP_TYPE_CREATE = 60;
-  STEP_TYPE_DUPLICATE = 61;
-  STEP_TYPE_UPDATE = 62;
-  STEP_TYPE_DELETE = 63;
-  STEP_TYPE_PASTE = 70;
-  STEP_TYPE_ACTION = 100;
-  STEP_TYPE_YIELD = 102;
-  STEP_TYPE_OBSERVE = 1000;
-  STEP_TYPE_CLICK = 1050;
-  STEP_TYPE_PRESS = 1051;
-  STEP_TYPE_TYPE = 1052;
-  STEP_TYPE_SCROLL = 1053;
-  STEP_TYPE_SELECT = 1054;
-  STEP_TYPE_GO_BACKWARD = 1060;
-  STEP_TYPE_GO_FORWARD = 1061;
-  STEP_TYPE_GO_TO_URL = 1100;
-  STEP_TYPE_GO_TO_TAB = 1101;
-  STEP_TYPE_OPEN_TAB = 1102;
-  STEP_TYPE_CLOSE_TAB = 1103;
-  STEP_TYPE_LOOP = 5001;
-  STEP_TYPE_TEXT = 9000;
+enum ActionType {
+  ACTION_TYPE_UNSPECIFIED = 0;
+  ACTION_TYPE_START = 1;
+  ACTION_TYPE_TRIGGER = 2;
+  ACTION_TYPE_COMPLETE = 10;
+  ACTION_TYPE_FAIL = 11;
+  ACTION_TYPE_GET = 40;
+  ACTION_TYPE_SEARCH = 41;
+  ACTION_TYPE_COPY = 50;
+  ACTION_TYPE_CREATE = 60;
+  ACTION_TYPE_DUPLICATE = 61;
+  ACTION_TYPE_UPDATE = 62;
+  ACTION_TYPE_DELETE = 63;
+  ACTION_TYPE_PASTE = 70;
+  ACTION_TYPE_YIELD = 80;
+  ACTION_TYPE_RUN = 100;
+  ACTION_TYPE_GENERATE = 101;
+  ACTION_TYPE_SWITCH = 102;
+  ACTION_TYPE_OBSERVE = 1000;
+  ACTION_TYPE_CLICK = 1050;
+  ACTION_TYPE_PRESS = 1051;
+  ACTION_TYPE_TYPE = 1052;
+  ACTION_TYPE_SCROLL = 1053;
+  ACTION_TYPE_SELECT = 1054;
+  ACTION_TYPE_GO_BACKWARD = 1060;
+  ACTION_TYPE_GO_FORWARD = 1061;
+  ACTION_TYPE_GO_TO_URL = 1100;
+  ACTION_TYPE_GO_TO_TAB = 1101;
+  ACTION_TYPE_OPEN_TAB = 1102;
+  ACTION_TYPE_CLOSE_TAB = 1103;
+  ACTION_TYPE_LOOP = 5001;
+  ACTION_TYPE_TEXT = 9000;
 }
 
 enum PortSide {
@@ -1882,76 +1873,6 @@ message TypeInfoData {
   bool is_secret = 62;
 }
 
-message CallData {
-  ObjectType metatype = 1;
-  NodeReferenceData node_ptr = 30;
-  optional google.protobuf.Value inputs_packed = 31;
-  optional ObjectMappingData mapping = 50;
-  optional CodeData mapping_code = 51;
-}
-
-message ContinueData {
-  ObjectType metatype = 1;
-  NodeReferenceData node_ptr = 30;
-  optional google.protobuf.Value inputs_packed = 31;
-  optional ObjectMappingData mapping = 50;
-}
-
-message SelectOptionsData {
-  ObjectType metatype = 1;
-  bool select_all_properties = 40;
-  repeated PropertyReferenceData include_properties_ptr = 41;
-  repeated PropertyReferenceData exclude_properties_ptr = 42;
-  repeated PropertyReferenceData select_properties_ptr = 43;
-  repeated NodeReferenceData select_fields_ptr = 51;
-}
-
-message DomNodeData {
-  ObjectType metatype = 1;
-  string type = 30;
-  optional string tag_name = 31;
-  optional int32 index = 32;
-  optional string xpath = 33;
-  optional string text = 34;
-  optional google.protobuf.Value attributes = 35;
-  optional bool is_interactive = 40;
-  optional bool is_visible = 41;
-  optional bool is_top = 42;
-  optional bool is_shadow_root = 43;
-  repeated DomNodeData children = 50;
-}
-
-message CodeLineData {
-  ObjectType metatype = 1;
-  optional string content = 32;
-}
-
-message CodeData {
-  ObjectType metatype = 1;
-  repeated CodeLineData lines = 30;
-}
-
-message FileInfoData {
-  ObjectType metatype = 1;
-  string title = 32;
-  FileKind kind = 50;
-  optional string external_url = 53;
-  optional bytes inline_content = 54;
-  FileType type = 60;
-  optional string mime_type = 61;
-  optional FileFormat format = 62;
-  int64 size = 63;
-  optional string sha256 = 64;
-  optional int32 width = 65;
-  optional int32 height = 66;
-  optional float aspect_ratio = 67;
-  optional string codec = 68;
-  optional google.protobuf.Duration duration = 69;
-  optional int32 bitrate = 70;
-  optional int32 channels = 72;
-  optional int32 sample_rate = 73;
-}
-
 message TextOptionsData {
   ObjectType metatype = 1;
   optional float temperature = 30;
@@ -2052,6 +1973,76 @@ message RunErrorData {
 
 message ContextData {
   ObjectType metatype = 1;
+}
+
+message CallData {
+  ObjectType metatype = 1;
+  NodeReferenceData node_ptr = 30;
+  optional google.protobuf.Value inputs_packed = 31;
+  optional ObjectMappingData mapping = 50;
+  optional CodeData mapping_code = 51;
+}
+
+message ContinueData {
+  ObjectType metatype = 1;
+  NodeReferenceData node_ptr = 30;
+  optional google.protobuf.Value inputs_packed = 31;
+  optional ObjectMappingData mapping = 50;
+}
+
+message SelectOptionsData {
+  ObjectType metatype = 1;
+  bool select_all_properties = 40;
+  repeated PropertyReferenceData include_properties_ptr = 41;
+  repeated PropertyReferenceData exclude_properties_ptr = 42;
+  repeated PropertyReferenceData select_properties_ptr = 43;
+  repeated NodeReferenceData select_fields_ptr = 51;
+}
+
+message DomNodeData {
+  ObjectType metatype = 1;
+  string type = 30;
+  optional string tag_name = 31;
+  optional int32 index = 32;
+  optional string xpath = 33;
+  optional string text = 34;
+  optional google.protobuf.Value attributes = 35;
+  optional bool is_interactive = 40;
+  optional bool is_visible = 41;
+  optional bool is_top = 42;
+  optional bool is_shadow_root = 43;
+  repeated DomNodeData children = 50;
+}
+
+message CodeLineData {
+  ObjectType metatype = 1;
+  optional string content = 32;
+}
+
+message CodeData {
+  ObjectType metatype = 1;
+  repeated CodeLineData lines = 30;
+}
+
+message FileInfoData {
+  ObjectType metatype = 1;
+  string title = 32;
+  FileKind kind = 50;
+  optional string external_url = 53;
+  optional bytes inline_content = 54;
+  FileType type = 60;
+  optional string mime_type = 61;
+  optional FileFormat format = 62;
+  int64 size = 63;
+  optional string sha256 = 64;
+  optional int32 width = 65;
+  optional int32 height = 66;
+  optional float aspect_ratio = 67;
+  optional string codec = 68;
+  optional google.protobuf.Duration duration = 69;
+  optional int32 bitrate = 70;
+  optional int32 channels = 72;
+  optional int32 sample_rate = 73;
 }
 
 message ObjectMappingData {
@@ -2252,7 +2243,7 @@ message ChangeData {
 message EditContextData {
   ObjectType metatype = 1;
   optional NodeReferenceData block_ptr = 70;
-  optional NodeReferenceData step_ptr = 71;
+  optional NodeReferenceData action_ptr = 71;
   optional NodeReferenceData session_ptr = 72;
   optional NodeReferenceData run_ptr = 73;
   optional NodeReferenceData run_root_ptr = 74;
@@ -2677,6 +2668,196 @@ message FieldData {
   NodeMode mode = 90;
 }
 
+message RunData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  RunType type = 30;
+  optional NodeReferenceData root_ptr = 31;
+  optional NodeReferenceData block_ptr = 32;
+  optional NodeReferenceData action_ptr = 33;
+  optional NodeReferenceData pipe_ptr = 34;
+  repeated NodeReferenceData incoming_ptr = 36;
+  repeated NodeReferenceData outgoing_ptr = 37;
+  optional ContextData context = 38;
+  RunOptionsData options = 39;
+  RunStatus status = 40;
+  optional google.protobuf.Duration duration = 41;
+  repeated RunAttemptData attempts = 44;
+  optional RunErrorData error = 45;
+  optional google.protobuf.Timestamp scheduled_at = 46;
+  optional int32 scheduled_epoch = 47;
+  optional google.protobuf.Timestamp started_at = 48;
+  optional int32 started_epoch = 49;
+  optional google.protobuf.Timestamp stopped_at = 50;
+  optional google.protobuf.Timestamp interrupted_at = 51;
+  optional NodeReferenceData interrupt_ptr = 52;
+  optional google.protobuf.Timestamp paused_at = 53;
+  optional google.protobuf.Timestamp resumed_at = 54;
+  optional google.protobuf.Timestamp terminated_at = 55;
+  optional int32 terminated_epoch = 56;
+  optional google.protobuf.Value variables_packed = 60;
+  optional google.protobuf.Value inputs_packed = 61;
+  optional google.protobuf.Value intermediates_packed = 62;
+  optional google.protobuf.Value outputs_packed = 63;
+  repeated LogInfoData logs = 65;
+  repeated RunSpanData spans = 66;
+  repeated RunEventData events = 67;
+  optional NodeReferenceData session_ptr = 80;
+  optional NodeReferenceData run_ptr = 81;
+  optional NodeReferenceData run_root_ptr = 82;
+  optional NodeReferenceData client_ptr = 83;
+  optional NodeReferenceData machine_ptr = 84;
+  optional NodeReferenceData server_ptr = 85;
+  optional NodeReferenceData user_ptr = 86;
+  optional NodeReferenceData identity_ptr = 87;
+  NodeMode mode = 90;
+}
+
+message ActionData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData package_ptr = 5;
+  optional NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  ActionType type = 30;
+  string name = 32;
+  string order_key = 33;
+  optional IconData icon = 35;
+  optional TextData text = 36;
+  optional RunOptionsData run_options = 41;
+  repeated NodeReferenceData roles_ptr = 42;
+  optional NodeReferenceData identity_ptr = 43;
+  optional CodeData code = 52;
+  optional NodeReferenceData delegate_ptr = 53;
+  optional Vector2Data position = 80;
+  NodeMode mode = 90;
+}
+
+// Get a single Node.
+message GetActionData {
+  optional NodeType node_type = 100;
+  optional NodeReferenceData base_block_ptr = 101;
+  optional ExpressionData filter = 102;
+}
+
+// Search for Nodes.
+message SearchActionData {
+  optional NodeType node_type = 100;
+  optional NodeReferenceData base_block_ptr = 101;
+  optional ExpressionData filter = 102;
+  repeated ExpressionData sort = 103;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message CreateActionData {
+  optional google.protobuf.Value node_partial_packed = 100;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message DuplicateActionData {
+  optional NodeReferenceData node_ptr = 100;
+  optional google.protobuf.Value node_partial_packed = 101;
+  optional bool is_shallow = 110;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message UpdateActionData {
+  optional NodeReferenceData node_ptr = 100;
+  optional google.protobuf.Value node_partial_packed = 101;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message DeleteActionData {
+  optional NodeReferenceData node_ptr = 100;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message FailActionData {
+  optional string error_title = 100;
+  optional TextData error_text = 101;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message ObserveActionData {
+  optional bool exclude_image = 100;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message ClickActionData {
+  optional string xpath = 101;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message PressActionData {
+  optional string xpath = 101;
+  optional string keys = 110;
+  optional float delay = 111;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message TypeActionData {
+  optional string xpath = 101;
+  optional string string = 110;
+  optional float delay = 111;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message ScrollActionData {
+  optional string xpath = 101;
+  optional Vector2Data amount = 110;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message SelectActionData {
+  optional string xpath = 101;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message GoBackwardActionData {
+  optional string xpath = 101;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message GoForwardActionData {
+  optional string xpath = 101;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message GoToUrlActionData {
+  optional string url = 100;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message GoToTabActionData {
+  optional int32 tab_index = 100;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message LoopActionData {
+  optional NodeReferenceData for_field_ptr = 100;
+}
+
 message QueryData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2747,15 +2928,6 @@ message BlockData {
 message ValueBlockData {
   optional TypeInfoData value_type = 100;
   optional google.protobuf.Value value_packed = 101;
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
-message ActionBlockData {
-  Agency agency = 100;
-  bool is_dynamic = 101;
-  optional CodeData code = 111;
-  repeated NodeReferenceData tools_ptr = 112;
-  optional NodeReferenceData delegate_ptr = 113;
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
@@ -2883,61 +3055,6 @@ message FileData {
   NodeMode mode = 90;
 }
 
-message RunData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  RunType type = 30;
-  optional NodeReferenceData root_ptr = 31;
-  optional NodeReferenceData block_ptr = 32;
-  optional NodeReferenceData step_ptr = 33;
-  optional NodeReferenceData pipe_ptr = 34;
-  repeated NodeReferenceData incoming_ptr = 36;
-  repeated NodeReferenceData outgoing_ptr = 37;
-  optional ContextData context = 38;
-  RunOptionsData options = 39;
-  RunStatus status = 40;
-  optional google.protobuf.Duration duration = 41;
-  repeated RunAttemptData attempts = 44;
-  optional RunErrorData error = 45;
-  optional google.protobuf.Timestamp scheduled_at = 46;
-  optional int32 scheduled_epoch = 47;
-  optional google.protobuf.Timestamp started_at = 48;
-  optional int32 started_epoch = 49;
-  optional google.protobuf.Timestamp stopped_at = 50;
-  optional google.protobuf.Timestamp interrupted_at = 51;
-  optional NodeReferenceData interrupt_ptr = 52;
-  optional google.protobuf.Timestamp paused_at = 53;
-  optional google.protobuf.Timestamp resumed_at = 54;
-  optional google.protobuf.Timestamp terminated_at = 55;
-  optional int32 terminated_epoch = 56;
-  optional google.protobuf.Value variables_packed = 60;
-  optional google.protobuf.Value inputs_packed = 61;
-  optional google.protobuf.Value intermediates_packed = 62;
-  optional google.protobuf.Value outputs_packed = 63;
-  repeated LogInfoData logs = 65;
-  repeated RunSpanData spans = 66;
-  repeated RunEventData events = 67;
-  optional NodeReferenceData session_ptr = 80;
-  optional NodeReferenceData run_ptr = 81;
-  optional NodeReferenceData run_root_ptr = 82;
-  optional NodeReferenceData client_ptr = 83;
-  optional NodeReferenceData machine_ptr = 84;
-  optional NodeReferenceData server_ptr = 85;
-  optional NodeReferenceData user_ptr = 86;
-  optional NodeReferenceData identity_ptr = 87;
-  NodeMode mode = 90;
-}
-
 message PipeData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2975,149 +3092,6 @@ message PipeData {
 // A connection between two Steps in a Flow (source = outgoing, target = incoming).
 // Pipes are stored in the containing Flow or containing Step.
 message SelectPipeData {
-}
-
-message StepData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  optional int64 templated_epoch = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  StepType type = 30;
-  string name = 32;
-  string order_key = 33;
-  optional IconData icon = 35;
-  optional TextData text = 36;
-  optional RunOptionsData run_options = 41;
-  repeated NodeReferenceData roles_ptr = 42;
-  optional NodeReferenceData identity_ptr = 43;
-  optional Vector2Data position = 80;
-  optional RectangleData size = 81;
-  NodeMode mode = 90;
-}
-
-// Get a single Node.
-message GetStepData {
-  optional NodeType node_type = 100;
-  optional NodeReferenceData base_block_ptr = 101;
-  optional ExpressionData filter = 102;
-}
-
-// Search for Nodes.
-message SearchStepData {
-  optional NodeType node_type = 100;
-  optional NodeReferenceData base_block_ptr = 101;
-  optional ExpressionData filter = 102;
-  repeated ExpressionData sort = 103;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message CreateStepData {
-  optional google.protobuf.Value node_partial_packed = 100;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message DuplicateStepData {
-  optional NodeReferenceData node_ptr = 100;
-  optional google.protobuf.Value node_partial_packed = 101;
-  bool recursive = 110;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message UpdateStepData {
-  optional NodeReferenceData node_ptr = 100;
-  optional google.protobuf.Value node_partial_packed = 101;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message DeleteStepData {
-  optional NodeReferenceData node_ptr = 100;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message ActionStepData {
-  Agency agency = 100;
-  bool is_dynamic = 101;
-  optional CodeData code = 111;
-  repeated NodeReferenceData tools_ptr = 112;
-  optional NodeReferenceData delegate_ptr = 113;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message FailStepData {
-  optional string error_title = 100;
-  optional TextData error_text = 101;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message ObserveStepData {
-  optional bool exclude_image = 100;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message ClickStepData {
-  optional string xpath = 101;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message PressStepData {
-  optional string xpath = 101;
-  optional string keys = 110;
-  optional float delay = 111;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message TypeStepData {
-  optional string xpath = 101;
-  optional string string = 110;
-  optional float delay = 111;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message ScrollStepData {
-  optional string xpath = 101;
-  optional Vector2Data amount = 110;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message SelectStepData {
-  optional string xpath = 101;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message GoBackwardStepData {
-  optional string xpath = 101;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message GoForwardStepData {
-  optional string xpath = 101;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message GoToUrlStepData {
-  optional string url = 100;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message GoToTabStepData {
-  optional int32 tab_index = 100;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message LoopStepData {
-  optional NodeReferenceData for_field_ptr = 100;
 }
 
 message TriggerData {
@@ -3163,7 +3137,7 @@ message InterruptData {
   InterruptType type = 30;
   optional NodeReferenceData root_ptr = 31;
   optional NodeReferenceData block_ptr = 32;
-  optional NodeReferenceData step_ptr = 33;
+  optional NodeReferenceData action_ptr = 33;
   optional NodeReferenceData pipe_ptr = 34;
   optional int32 attempt_no = 37;
   optional BreakpointSite breakpoint_site = 38;
@@ -3552,7 +3526,7 @@ message SomeNodeData {
     FieldData field = 23;
     QueryData query = 24;
     ViewData view = 25;
-    StepData step = 26;
+    ActionData action = 26;
     PipeData pipe = 27;
     MessageData message = 28;
     RecordData record = 29;

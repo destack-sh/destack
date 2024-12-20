@@ -29,7 +29,7 @@ ATTEMPT_FOREVER = RunOptions(max_attempts=None)
 BASE_RUN_OPTIONS_BY_KIND = {
     RunType.CODE: ATTEMPT_ONCE,
     RunType.ACTION: ATTEMPT_THRICE,
-    RunType.STEP: ATTEMPT_ONCE,
+    RunType.ACTION: ATTEMPT_ONCE,
     RunType.PIPE: ATTEMPT_ONCE,
     RunType.FLOW: ATTEMPT_ONCE,
 }
