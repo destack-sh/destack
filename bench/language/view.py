@@ -119,59 +119,57 @@ class ViewType(IdEnum):
     PROGRESS = 1101
     AVATAR = 1102
     BADGE = 1103
-
     # illustration
-    SHAPE = 1130
+    SHAPE = 1110
 
     # graphing
-    CHART = 1140
+    CHART = 1200
 
     #
     # Action
     #
 
     # controls
-    BUTTON = 1200
-    MULTI_BUTTON = 1201
-    LINK = 1210
+    BUTTON = 1300
+    MULTI_BUTTON = 1301
+    LINK = 1302
 
     #
     # Content
     #
 
-    VALUE = 1300  # (generic content routed according to value type)
+    VALUE = 1400  # (generic content routed according to value type)
 
     # numeric
-    NUMBER = 1310
-    SLIDER = 1311
+    NUMBER = 1500
+    SLIDER = 1501
 
     # stringy
-    STRING = 1320
-    TEXT = 1321
-    CODE = 1322
-    JSON = 1323
+    STRING = 1600
+    TEXT = 1601
+    CODE = 1602
+    JSON = 1603
 
     # selection
-    TOGGLE = 1330
-    PICKER = 1331
-
-    # rich
-    COLOR = 1340
-    ICON = 1341
+    TOGGLE = 1700
+    PICKER = 1701
+    COLOR = 1702
+    ICON = 1703
+    DATETIME = 1704
     # CALENDAR, MAP, ...
 
     # file
-    FILE = 1350  # (generic file content according to file type)
-    IMAGE = 1353
-    AUDIO = 1354
-    VIDEO = 1355
-    DOCUMENT = 1356
+    FILE = 1900  # (generic file content according to file type)
+    IMAGE = 1901
+    AUDIO = 1902
+    VIDEO = 1903
+    DOCUMENT = 1904
     ...
 
     # expression
-    CONDITIONAL = 1361
-    SORT = 1362
-    AGGREGATION = 1363
+    CONDITIONAL = 2000
+    SORT = 2001
+    AGGREGATION = 2002
 
 
 @enum_(EnumType.COLOR_TYPE)
@@ -690,11 +688,10 @@ class PickerView(View):
     variant: PickerVariant | None = p_regular(100)
 
 
-#
-# Rich
-#
+@node_subtype_(ViewType.DATETIME)
+class DatetimeView(View):
+    is_relative: bool | None = p_regular(100, default=False)
 
-...
 
 #
 # File

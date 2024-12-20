@@ -81,6 +81,24 @@ def make_builtins(session: Session) -> Block:
             agency=Agency.CODE,
             fields=(Field.output("Node", Node, is_required=True),),
         ),
+        StepType.UPDATE: Block.new(
+            BlockType.ACTION,
+            "Update",
+            agency=Agency.CODE,
+            fields=(Field.output("Node", Node, is_required=True),),
+        ),
+        StepType.DELETE: Block.new(
+            BlockType.ACTION,
+            "Delete",
+            agency=Agency.CODE,
+            fields=(Field.output("Node", Node, is_required=True),),
+        ),
+        StepType.DUPLICATE: Block.new(
+            BlockType.ACTION,
+            "Duplicate",
+            agency=Agency.CODE,
+            fields=(Field.output("Node", Node, is_required=True),),
+        ),
     }
     Steps.blocks.extend(*STUB_BY_STEP_TYPE.values())
 

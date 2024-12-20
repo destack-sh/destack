@@ -11,10 +11,12 @@ from bench.language.browser import Browser
 from bench.language.const import NodeType, ObjectKind, RunErrorKind, RunStatus
 from bench.language.field import TypeBase
 from bench.language.flow import (
+    ClickStep,
     CreateStep,
     DeleteStep,
     DuplicateStep,
     FailStep,
+    GoToTabStep,
     GoToUrlStep,
     Pipe,
     PipeType,
@@ -477,7 +479,7 @@ class SearchStepRunner(StepRunnerBase):
 class CreateStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
-        step = cast(CreateStep, self.node)
+        step = cast(CreateStep, self.node)  # :StepInputType
         inputs = cast(CreateStep, self.inputs)
         node_partial = inputs.node_partial or step.node_partial
         assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r}"
@@ -511,7 +513,7 @@ class CreateStepRunner(StepRunnerBase):
 class DuplicateStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
-        step = cast(DuplicateStep, self.node)
+        step = cast(DuplicateStep, self.node)  # :StepInputType
         inputs = cast(DuplicateStep, self.inputs)
         node = inputs.node or step.node
         node_partial = inputs.node_partial
@@ -533,7 +535,7 @@ class DuplicateStepRunner(StepRunnerBase):
 class UpdateStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
-        step = cast(UpdateStep, self.node)
+        step = cast(UpdateStep, self.node)  # :StepInputType
         inputs = cast(UpdateStep, self.inputs)
         node_partial = inputs.node_partial or step.node_partial
         node = inputs.node or step.node
@@ -551,14 +553,17 @@ class UpdateStepRunner(StepRunnerBase):
 class DeleteStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
-        step = cast(DeleteStep, self.node)
+        step = cast(DeleteStep, self.node)  # :StepInputType
         inputs = cast(DeleteStep, self.inputs)
         node = inputs.node or step.node
         assert node is not None, "no node to delete"
 
         # delete
-        self.session._delete(node)
+        node.delete()
         logger.debug("step.delete", step=self.node, node=node)
+
+        assert self.output_type is not None, f"no output type for {self!r}"
+        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
 
 
 #
@@ -585,7 +590,22 @@ class YieldStepRunner(StepRunnerBase):
 # Application Steps :ActionSteps
 #
 
-...
+
+class ApplicationStepRunnerBase(StepRunnerBase):
+    pass
+
+
+class ClickStepRunner(ApplicationStepRunnerBase):
+    @override
+    async def run(self) -> None:
+        step = cast(ClickStep, self.node)  # :StepInputType
+        inputs = cast(ClickStep, self.inputs)
+        xpath = inputs.xpath or step.xpath
+        assert xpath is not None, "no xpath to click"
+        browser = self._get_resource_or_error(Browser)
+        pw_browser = await playwright_api.get_browser(browser)
+        pw_page = pw_browser.pages[0]
+        await pw_page.click(xpath)
 
 
 #
@@ -596,8 +616,7 @@ class YieldStepRunner(StepRunnerBase):
 class GoToUrlStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
-        assert self.flow is not None, f"no flow for {self!r}"
-        step = cast(GoToUrlStep, self.node)
+        step = cast(GoToUrlStep, self.node)  # :StepInputType
         inputs = cast(GoToUrlStep, self.inputs)
         url = inputs.url or step.url
         assert url is not None, "no url to go to"
@@ -605,6 +624,18 @@ class GoToUrlStepRunner(StepRunnerBase):
         pw_browser = await playwright_api.get_browser(browser)
         pw_page = pw_browser.pages[0]
         await pw_page.goto(url)
+
+
+class GoToTabStepRunner(StepRunnerBase):
+    @override
+    async def run(self) -> None:
+        step = cast(GoToTabStep, self.node)  # :StepInputType
+        inputs = cast(GoToTabStep, self.inputs)
+        tab_index = inputs.tab_index or step.tab_index
+        assert tab_index is not None, "no tab index to go to"
+        browser = self._get_resource_or_error(Browser)
+        pw_browser = await playwright_api.get_browser(browser)
+        await pw_browser.pages[tab_index].bring_to_front()
 
 
 #

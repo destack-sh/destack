@@ -555,6 +555,7 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
       rowProperty(PipeProperty.text, { title: false, props: { placeholder: "Text..." } }),
       rowProperty(PipeProperty.type),
       rowProperty(PipeProperty.color),
+      rowProperty(PipeProperty.delay),
     ]);
     sectionRun(PipeProperty.runOptions);
   }

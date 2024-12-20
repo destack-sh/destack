@@ -1,4 +1,4 @@
-import type { Timestamp } from "@/proto/wire";
+import type { TimeOfDay, Timestamp } from "@/proto/wire";
 import { DateTime, Duration } from "luxon";
 import { ref, type Ref } from "vue";
 import { Duration as ProtoDuration } from "@/proto/wire/google/protobuf/duration";
@@ -157,29 +157,32 @@ export function formatRelativeDate(
 
   return formatDuration(Duration.fromMillis(duration), options);
 }
-
 /** Format absolute 'duration' implied by a datetime in the past relative to now  */
 export function formatAbsoluteDate(dt: Timestamp | DateTime) {
   if (!(dt instanceof DateTime)) dt = tsToDt(dt);
 
   const now = getNow(TimeUpdateInterval.MINUTE).value;
-  const diff = now.diff(dt, "days").as("days");
+  const diff = Math.abs(now.diff(dt, "days").as("days"));
   const yesterday = now.minus({ days: 1 });
 
-  if (dt.day == now.day && dt.month == now.month) {
+  if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
     // if it's today, say "Today at <time>"
     return `Today at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
-  } else if (dt.day == yesterday.day && dt.month == yesterday.month) {
+  } else if (dt.day == yesterday.day && dt.month == yesterday.month && dt.year == yesterday.year) {
     // if it's yesterday, say "Yesterday at <time>"
     return `Yesterday at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
-  } else if (diff <= 6) {
-    // if it's within the last week, say "<weekday> at <time>"
+  } else if (diff <= 6 && dt.year == now.year) {
+    // if it's within the last week in same year, say "<weekday> at <time>"
     return `${dt.toFormat("cccc")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
-  } else if (diff <= 364) {
-    // if it's within the last year, say "<month> <day> at <time>"
+  } else if (diff <= 364 && dt.year == now.year) {
+    // if it's within the last year in same year, say "<month> <day> at <time>"
     return `${dt.toFormat("LLL d")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+  } else if (diff <= 6) {
+    // if it's within the last week but different year
+    return `${dt.toFormat("cccc, LLL d, yyyy")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
   } else {
-    return dt.toLocaleString(DateTime.DATETIME_MED);
+    // Different year or more than a year ago
+    return `${dt.toFormat("LLL d, yyyy")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
   }
 }
 
@@ -348,6 +351,7 @@ function toUnits(parts: DurationParts): DurationUnits {
   return units;
 }
 
+/** Parse a duration string into a ProtoDuration. */
 export function timedeltaFromISOFormat(duration: string): ProtoDuration {
   try {
     let sign = 1;
@@ -387,6 +391,7 @@ export function timedeltaFromISOFormat(duration: string): ProtoDuration {
   }
 }
 
+/** Format a duration as an ISO string. */
 export function timedeltaToISOFormat(duration: number | ProtoDuration): string {
   if (typeof duration !== "number") {
     duration = Number(duration.seconds) * 1e3 + duration.nanos / 1e6;
@@ -433,6 +438,24 @@ export function timedeltaToISOFormat(duration: number | ProtoDuration): string {
     }
   }
   return result;
+}
+
+/** Convert a TimeOfDay to an ISO string. */
+export function timeOfDayToISOFormat(timeOfDay: TimeOfDay): string {
+  const hours = timeOfDay.hours.toString().padStart(2, "0");
+  const minutes = timeOfDay.minutes.toString().padStart(2, "0");
+  const seconds = timeOfDay.seconds.toString().padStart(2, "0");
+  const nanos = timeOfDay.nanos ? `.${timeOfDay.nanos.toString().padStart(9, "0")}` : "";
+  return `${hours}:${minutes}:${seconds}${nanos}`;
+}
+
+/** Convert an ISO string to TimeOfDay. */
+export function timeOfDayFromISOFormat(isoString: string): TimeOfDay {
+  const [time, fractions] = isoString.split(".");
+  const [hours, minutes, seconds] = time.split(":").map(Number);
+  const nanos = fractions ? parseInt(fractions.padEnd(9, "0")) : 0;
+
+  return { hours, minutes, seconds, nanos };
 }
 
 /** Converts a duration to milliseconds. */

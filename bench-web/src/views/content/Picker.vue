@@ -297,6 +297,7 @@ defineExpose<ViewExposed>({
           <span v-else class="truncate">{{ v.title ?? "???" }}</span>
         </button>
       </template>
+      <!-- No value -->
       <div
         v-else
         class="mr-2 transition-colors duration-150"

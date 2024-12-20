@@ -89,10 +89,9 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // selection
   [ViewType.TOGGLE]: () => import("@/views/content/Toggle.vue"),
   [ViewType.PICKER]: () => import("@/views/content/Picker.vue"),
-
-  // rich
   [ViewType.COLOR]: () => import("@/views/content/Color.vue"),
   [ViewType.ICON]: () => import("@/views/content/Icon.vue"),
+  [ViewType.DATETIME]: () => import("@/views/content/Datetime.vue"),
 
   // file
   [ViewType.FILE]: () => import("@/views/content/File.vue"),
