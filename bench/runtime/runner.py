@@ -16,7 +16,7 @@ from typing import (
 import structlog
 from opentelemetry import trace
 
-from bench.language import Block, Step
+from bench.language import Action, Block
 from bench.language.bench import Resource
 from bench.language.code import Code
 from bench.language.const import NodeMode, ObjectKind, RunStatus
@@ -176,7 +176,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                     parent=parent_run or self.runtime.bench,
                     type=self.kind,
                     block=node if isinstance(node, Block) else node.block,
-                    step=node if isinstance(node, Step) else None,
+                    action=node if isinstance(node, Action) else None,
                     pipe=node if isinstance(node, Pipe) else None,
                     options=options,
                     status=self.status,
@@ -420,25 +420,25 @@ def make_run_from_node(
     parent: "Run | None" = None,
 ) -> "Run":
     """Creates a Run from a runnable Node."""
-    from bench.language import Block, Step
+    from bench.language import Action, Block
     from bench.language.value import coerce_custom_object_scalar
 
     # context
     if isinstance(node, Block):
         block = node
-        step = None
+        action = None
         pipe = None
         kind = node.run_type
         assert kind is not None, f"no run kind for {node!r}"
-    elif isinstance(node, Step):
-        step = node
-        block = step.block
+    elif isinstance(node, Action):
+        action = node
+        block = action.block
         pipe = None
-        kind = RunType.STEP
+        kind = RunType.ACTION
     elif isinstance(node, Pipe):
         pipe = node
         block = pipe.block
-        step = None
+        action = None
         kind = RunType.PIPE
     else:
         assert_never(node)
@@ -449,7 +449,7 @@ def make_run_from_node(
         parent=parent or node.bench,
         type=kind,
         block=block,
-        step=step,
+        action=action,
         pipe=pipe,
         options=options,
         mode=mode or get_tracing_context(),
@@ -559,19 +559,15 @@ def make_runner(
 
         code = getattr(node, "code", None) or Code.empty()
         runner = CodeFunctionRunner(**base_kwargs, code=code)
-    elif RUN_TYPE == RunType.ACTION:
-        from bench.runtime.action import ActionRunner
-
-        runner = ActionRunner(**base_kwargs)
     elif RUN_TYPE == RunType.FLOW:
         from bench.runtime.flow import FlowRunner
 
         runner = FlowRunner(**base_kwargs)
-    elif RUN_TYPE == RunType.STEP:
-        from bench.runtime.flow import STEP_RUNNER_BY_STEP_TYPE, Step
+    elif RUN_TYPE == RunType.ACTION:
+        from bench.runtime.action import ACTION_RUNNER_BY_ACTION_TYPE, Action
 
-        assert isinstance(node, Step), f"expected Step, got {node!r}"
-        runner_cls = STEP_RUNNER_BY_STEP_TYPE[node.type]
+        assert isinstance(node, Action), f"expected Action, got {node!r}"
+        runner_cls = ACTION_RUNNER_BY_ACTION_TYPE[node.type]
         runner = runner_cls(**base_kwargs)
     elif RUN_TYPE == RunType.PIPE:
         from bench.runtime.flow import PIPE_RUNNER_BY_PIPE_TYPE, Pipe

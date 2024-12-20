@@ -10,6 +10,7 @@ import regex
 import structlog
 from opentelemetry import trace
 
+from bench.language.action import Action
 from bench.language.block import Block
 from bench.language.code import Code, format_code
 from bench.language.const import (
@@ -24,7 +25,6 @@ from bench.language.const import (
     TypeKind,
 )
 from bench.language.field import Field, TypeBase, TypeConstraint, reverse_type_scalar
-from bench.language.flow import Step
 from bench.language.node import BuiltinObject, HasTracingContext, Node, NodeReference, Struct
 from bench.language.path import PathTokenType, get_path, render_path
 from bench.language.property import Property
@@ -494,7 +494,7 @@ def render(*objs: BuiltinObject | CustomObject, options: RenderOptions) -> str:
                     if obj.type == BlockType.VIEW:
                         child_nodes.extend(obj.views)
                     elif obj.type == BlockType.FLOW:
-                        child_nodes.extend(obj.steps)
+                        child_nodes.extend(obj.actions)
         else:
             child_nodes = []
 
@@ -546,31 +546,31 @@ class ViewRenderer(BuiltinObjectRenderer[View]):
         return f"View.new({view_args})"
 
 
-@_renderer(NodeType.STEP)
-class StepRenderer(BuiltinObjectRenderer[Step]):
+@_renderer(NodeType.ACTION)
+class ActionRenderer(BuiltinObjectRenderer[Action]):
     @override
     def render_constructor(
         self,
         renderer: "Renderer",
-        obj: Step,
+        obj: Action,
         kwargs: dict[str, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
-        step_args = renderer._render_args(
+        action_args = renderer._render_args(
             rendered_kwargs.pop("type"),
             rendered_kwargs.pop("name"),
             renderer._render_kwargs(**rendered_kwargs) or None,
         )
-        return f"Step.new({step_args})"
+        return f"Action.new({action_args})"
 
 
 @_renderer(NodeType.PIPE)
-class PipeRenderer(BuiltinObjectRenderer[Step]):
+class PipeRenderer(BuiltinObjectRenderer[Action]):
     @override
     def render_constructor(
         self,
         renderer: "Renderer",
-        obj: Step,
+        obj: Action,
         kwargs: dict[str, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:

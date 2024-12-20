@@ -5,12 +5,12 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 
 from bench.language import Bench, Message, NodeReference, Property, Server
+from bench.language.action import Action, ActionType, DuplicateAction
 from bench.language.bench import Client, PackageType
-from bench.language.block import ActionBlock, Block, ValueBlock
+from bench.language.block import Block, ValueBlock
 from bench.language.code import Code
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field, to_type
-from bench.language.flow import ActionStep, Step
 from bench.language.node import BuiltinObject
 from bench.language.registry import NODE_CLASSES, STRUCT_CLASSES
 from bench.language.session import Session
@@ -67,17 +67,15 @@ def test_node_passthrough(session: "Session"):
 
 def test_node_subtype_property_access(session: "Session"):
     # subtype -> regular property
-    Text1 = Block.new(ActionBlock, "Text1", text=md("Hello!"))
+    Text1 = Block.new(BlockType.TEXT, "Text1", text=md("Hello!"))
     assert Text1.text is not None and Text1.text.to_markdown() == "Hello!"
     Text1.text = md("Hello, world!")
     assert Text1.text is not None and Text1.text.to_markdown() == "Hello, world!"
 
     # subtype -> node ref property
-    BlockStep1 = Step.new(ActionStep, "BlockStep1", tools=[Text1])
-    assert BlockStep1.tools == [Text1]
-    assert BlockStep1.tools_ptr == [
-        Text1.to_ref(),
-    ]
+    BlockAction1 = Action.new(DuplicateAction, "BlockAction1", node=Text1)
+    assert BlockAction1.node == Text1
+    assert BlockAction1.node_ptr == Text1.to_ref()
 
     # subtype -> value packed property
     Value1 = Block.new(ValueBlock, "Value1", value_type=to_type(int), value=42)
@@ -91,11 +89,11 @@ def test_node_subtype_property_access(session: "Session"):
 
 
 def test_node_subtype_pack_unpack(session: "Session"):
-    block = Block.new(ActionBlock, "Text1", text=md("Hello!"))
+    block = Block.new(BlockType.TEXT, "Text1", text=md("Hello!"))
     # pack/unpack wiring
     block_data = block._to_data()
     unpacked_block = cast(
-        ActionBlock, unpack_builtin_object(block_data, expect=Block, supergraph=session._supergraph)
+        Block, unpack_builtin_object(block_data, expect=Block, supergraph=session._supergraph)
     )
     assert unpacked_block.equals(block)
     assert unpacked_block.text is not None and unpacked_block.text.to_markdown() == "Hello!"
@@ -173,7 +171,7 @@ def test_node_pointers_consistency(session: "Session"):
     bench_b.main_store = bench_b.stores.create(name="Store")
     bench_b.main_drive = bench_b.drives.create(name="Drive")
     package_b = bench_b.packages.create(type=PackageType.ROOT, name="Main B", slug="main-b")
-    block_b = package_b.blocks.create(type=BlockType.ACTION, roles=[block_a_1])
+    block_b = package_b.blocks.create(type=BlockType.PAGE, roles=[block_a_1])
     assert block_b.bench_id == bench_b.id
     assert block_b.roles
     assert block_b.roles[0].bench_id == bench_a.id
@@ -233,8 +231,8 @@ async def test_clone_subtree(hosted_runtime: RuntimeHandle):
 async def test_clone_consistency(hosted_runtime: RuntimeHandle):
     """Clone consistency test with references."""
     choice = Block.new(BlockType.CHOICE, "Letter", fields=[Field.option("A"), Field.option("B")])
-    action = Block.new(
-        BlockType.ACTION,
+    action = Action.new(
+        ActionType.RUN,
         "Action",
         fields=[Field.input("Text", Text), Field.output("Choice", choice)],
     )
@@ -261,7 +259,7 @@ async def test_move_subtree(hosted_runtime: RuntimeHandle):
     )
     Block2 = Page1.blocks.append(
         Block.new(
-            BlockType.ACTION,
+            BlockType.FLOW,
             "Block2",
             fields=[Field.input("Text", Text), Field.output("Choice", Block1)],
         )
@@ -299,12 +297,4 @@ async def test_move_subtree(hosted_runtime: RuntimeHandle):
 @pytest.mark.skip("NOTE :Robustness: check circular node ancestry")
 async def test_create_circular_node_ancestry(hosted_runtime: RuntimeHandle):
     """Create a circular node ancestry. Should fail."""
-    # page->block1->block2
-    block1 = Block.new(BlockType.ACTION, "Code1")
-    hosted_runtime.page().blocks.append(block1)
-    block2 = Block.new(BlockType.ACTION, "Code2")
-    block1.blocks.append(block2)
-    await hosted_runtime.session.commit()
-
-    # now force block2->block1
     # ...

@@ -296,7 +296,7 @@ class SingleClientWorkloadBase[SpecT: SingleClientWorkloadSpec](WorkloadBase[Spe
 @dataclass
 class WriteBlockTreeSpec(SingleClientWorkloadSpec):
     type: WorkloadType = WorkloadType.WRITE_BLOCK_TREE
-    block_types: tuple[BlockType, ...] = (BlockType.PAGE, BlockType.ACTION)
+    block_types: tuple[BlockType, ...] = (BlockType.PAGE, BlockType.TEXT)
     edit_types: tuple[EditType, ...] = (EditType.CREATE, EditType.DELETE)
     transactions: int | SampledInt = 1
     transactions_interval: float | SampledFloat = 0.0

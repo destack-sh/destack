@@ -3,9 +3,9 @@ from typing import cast
 import pytest
 from hypothesis import HealthCheck, given, settings
 
-from bench.language.action import Agency, Call, Continue
+from bench.language.action import Action, ActionType, Call, Continue, CreateAction, DuplicateAction
 from bench.language.bench import Package
-from bench.language.block import ActionBlock, Block, ValueBlock
+from bench.language.block import Block, ValueBlock
 from bench.language.code import Code
 from bench.language.const import (
     STRUCT_TYPES,
@@ -19,7 +19,6 @@ from bench.language.const import (
 )
 from bench.language.database import Record
 from bench.language.field import Field, TypeInfo, TypeKind, to_type_scalar
-from bench.language.flow import CreateStep, Step, StepType
 from bench.language.message import Message, MessageType
 from bench.language.node import BuiltinObject, Node
 from bench.language.session import Session
@@ -47,10 +46,9 @@ from bench.test.unit.conftest import BUILTIN_OBJECTS, STRUCTS
 
 def test_custom_object_with_builtin_properties(session: Session, package: Package) -> None:
     """Coerce, pack & unpack custom object with builtin properties."""
-    Action1 = Block.new(
-        BlockType.ACTION,
-        "Action1",
-        agency=Agency.CODE,
+    Flow1 = Block.new(
+        BlockType.FLOW,
+        "Flow1",
         fields=[
             Field.output("Output1", PrimitiveType.INT32),
             Field.output("Output 2 with a Space", Text),
@@ -58,29 +56,29 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
     )
 
     # coerce
-    Action1Output = Action1.to_type_maybe(of="value", field_type=FieldType.OUTPUT)
-    assert Action1Output is not None
+    Flow1Output = Flow1.to_type_maybe(of="value", field_type=FieldType.OUTPUT)
+    assert Flow1Output is not None
     obj = coerce_custom_object_scalar(
         ObjectKind.OUTPUT,
         {
             "Output1": 42,
             "Output 2 with a Space": Text.plain("hello bench!"),
-            "call": Call(node=Action1),
+            "call": Call(node=Flow1),
         },
-        Action1Output,
+        Flow1Output,
     )
-    assert obj.call == Call(node=Action1)
+    assert obj.call == Call(node=Flow1)
 
     # get/set
     obj.call = None
     assert obj.call is None
-    obj.continuations = [Continue(node=Action1)]
-    assert obj.continuations[0].node is Action1
+    obj.continuations = [Continue(node=Flow1)]
+    assert obj.continuations[0].node is Flow1
 
     # pack/unpack
-    obj_packed = pack_custom_object(obj, Action1Output)
+    obj_packed = pack_custom_object(obj, Flow1Output)
     obj_unpacked = unpack_custom_object(
-        ObjectKind.OUTPUT, obj_packed, Action1Output, supergraph=session._supergraph
+        ObjectKind.OUTPUT, obj_packed, Flow1Output, supergraph=session._supergraph
     )
     assert obj_unpacked.equals(obj)
 
@@ -140,19 +138,19 @@ def test_partial_node_message(session: Session, package: Package) -> None:
 def test_partial_node_block(session: Session, package: Package) -> None:
     """Create, update, pack/unpack a partial Block node with subtypes."""
     typ = TypeInfo(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.BLOCK)
-    obj = Block.partial(type=BlockType.ACTION, name="Action1")
+    obj = Action.partial(type=ActionType.DUPLICATE, name="Action1")
 
     # should be init to set/empty/default values for ActionBlock
-    assert obj.type == BlockType.ACTION
+    assert obj.type == ActionType.DUPLICATE
     assert obj.name == "Action1"
-    assert obj.agency == ActionBlock.get_property("agency").default
-    assert obj.text is None
+    assert obj.node is None
+    assert obj.is_shallow is None
 
     # set/get values on properties and subnode properties
-    obj.agency = Agency.CODE
+    obj.is_shallow = True
     obj.text = Text.plain("hello bench!")
     obj.code = Code.from_string("print('hello bench!')")
-    assert obj.agency == Agency.CODE
+    assert obj.is_shallow is True
     assert obj.text == Text.plain("hello bench!")
     assert obj.code == Code.from_string("print('hello bench!')")
 
@@ -164,9 +162,10 @@ def test_partial_node_block(session: Session, package: Package) -> None:
     assert obj_unpacked.equals(obj)
 
     # turn into full node
-    full_obj = cast(ActionBlock, Block.from_partial(obj))
+    full_obj = cast(DuplicateAction, Action.from_partial(obj))
     assert full_obj.id is not None
-    assert full_obj.agency == Agency.CODE
+    assert full_obj.type == ActionType.DUPLICATE
+    assert full_obj.is_shallow is True
     assert full_obj.text == Text.plain("hello bench!")
     assert full_obj.code == Code.from_string("print('hello bench!')")
 
@@ -204,14 +203,14 @@ def test_partial_node_generic(session: Session, package: Package) -> None:
 
 
 def test_partial_node_with_nested_value_packed(session: Session, package: Package) -> None:
-    """Create, update, pack/unpack a partial node with a nested value packed property (CreateStep)."""
-    obj = Step.partial(type=StepType.CREATE)
+    """Create, update, pack/unpack a partial node with a nested value packed property (CreateAction)."""
+    obj = Action.partial(type=ActionType.CREATE)
     typ = obj._type
 
     # should be init to given/empty values
     assert obj.id is None
     assert obj.parent is None
-    assert obj.type == StepType.CREATE
+    assert obj.type == ActionType.CREATE
     assert obj.node_partial is None
 
     # set/get nested value
@@ -228,10 +227,10 @@ def test_partial_node_with_nested_value_packed(session: Session, package: Packag
     assert obj_unpacked.node_partial is not node_partial  # should be a different object instance
 
     # turn into full node
-    full_obj = cast(CreateStep, Step.from_partial(obj, name="CreateStep1"))
+    full_obj = cast(CreateAction, Action.from_partial(obj, name="CreateAction1"))
     assert full_obj.id is not None
-    assert full_obj.name == "CreateStep1"
-    assert full_obj.type == StepType.CREATE
+    assert full_obj.name == "CreateAction1"
+    assert full_obj.type == ActionType.CREATE
     assert full_obj.node_partial == node_partial
 
 

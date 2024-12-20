@@ -1,13 +1,9 @@
-from typing import Mapping
 from uuid import UUID, uuid5
 
-from bench.language.action import Agency
 from bench.language.block import Block
 from bench.language.const import UUID_NAMESPACE, BlockType, NodeMode
-from bench.language.field import Field
-from bench.language.flow import StepType
 from bench.language.graph import NodeGraph
-from bench.language.node import Node, NodeReference, SourceNode
+from bench.language.node import NodeReference, SourceNode
 from bench.language.registry import _complete_bench_setup
 from bench.language.session import Session
 
@@ -50,64 +46,7 @@ def make_builtins(session: Session) -> Block:
     """
     Builtins = Block.new(BlockType.PAGE, "Builtins")
 
-    #
-    # Stubs (schemas and the like for :RichBuiltin implementations)
-    #
-
-    Stubs = Block.new(BlockType.PAGE, "Stubs")
-    Builtins.blocks.append(Stubs)
-
-    # step
-    Steps = Block.new(BlockType.PAGE, "Steps")
-    Stubs.blocks.append(Steps)
-    STUB_BY_STEP_TYPE: Mapping[StepType, Block] = {
-        # read
-        StepType.GET: Block.new(
-            BlockType.ACTION,
-            "Get",
-            agency=Agency.CODE,
-            fields=(Field.output("Node", Node, is_required=True),),
-        ),
-        StepType.SEARCH: Block.new(
-            BlockType.ACTION,
-            "Search",
-            agency=Agency.CODE,
-            fields=(Field.output("Nodes", Node, is_list=True, is_required=True),),
-        ),
-        # write
-        StepType.CREATE: Block.new(
-            BlockType.ACTION,
-            "Create",
-            agency=Agency.CODE,
-            fields=(Field.output("Node", Node, is_required=True),),
-        ),
-        StepType.UPDATE: Block.new(
-            BlockType.ACTION,
-            "Update",
-            agency=Agency.CODE,
-            fields=(Field.output("Node", Node, is_required=True),),
-        ),
-        StepType.DELETE: Block.new(
-            BlockType.ACTION,
-            "Delete",
-            agency=Agency.CODE,
-            fields=(Field.output("Node", Node, is_required=True),),
-        ),
-        StepType.DUPLICATE: Block.new(
-            BlockType.ACTION,
-            "Duplicate",
-            agency=Agency.CODE,
-            fields=(Field.output("Node", Node, is_required=True),),
-        ),
-    }
-    Steps.blocks.extend(*STUB_BY_STEP_TYPE.values())
-
-    #
-    # Computer
-    #
-
-    Computer = Block.new(BlockType.PAGE, "Computer")
-    Builtins.blocks.append(Computer)
+    ...
 
     #
     # Finalize

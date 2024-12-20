@@ -156,6 +156,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       id="text"
       ref="textRef"
       is-input
+      is-minimal
       class="px-1 py-1"
       :is-minimal="isMinimal"
       :model-value="block.text"

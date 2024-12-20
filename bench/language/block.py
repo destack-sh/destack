@@ -11,7 +11,6 @@ from typing import (
 
 import cachetools
 
-from bench.language.action import ActionBase
 from bench.language.const import (
     BenchError,
     BlockType,
@@ -42,6 +41,7 @@ from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import (
+        Action,
         Field,
         Icon,
         NodeReference,
@@ -50,7 +50,6 @@ if TYPE_CHECKING:
         Policy,
         Record,
         RunOptions,
-        Step,
         Text,
         TypeInfo,
         View,
@@ -115,7 +114,7 @@ class Block(SourceNode[BlockData]):
 
     blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
-    steps: LocalNodeList["Step"] = p_node_children(NodeType.STEP)
+    actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
     pipes: LocalNodeList["Pipe"] = p_node_children(NodeType.PIPE)
     views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
     records: RemoteNodeList["Record", RecordData] = p_node_children(
@@ -139,9 +138,7 @@ class Block(SourceNode[BlockData]):
 
     @property
     def run_type(self) -> "RunType | None":
-        if self.type == BlockType.ACTION:
-            return RunType.ACTION
-        elif self.type == BlockType.FLOW:
+        if self.type == BlockType.FLOW:
             return RunType.FLOW
         else:
             return None
@@ -225,12 +222,6 @@ class ValueBlock(Block):
     value: Any = p_value_runtime(
         101, kind=ObjectKind.MEMBER, typ=lambda self: cast("ValueBlock", self).value_type
     )
-
-
-@node_subtype_(BlockType.ACTION)
-class ActionBlock(Block, ActionBase):
-    # ...ActionBase[100-129]
-    pass
 
 
 @node_subtype_(BlockType.TEXT)

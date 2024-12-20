@@ -110,6 +110,7 @@ from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import (
+        Action,
         Bench,
         Block,
         Client,
@@ -127,7 +128,6 @@ if TYPE_CHECKING:
         SearchConnection,
         Server,
         Session,
-        Step,
         User,
     )
 
@@ -1627,10 +1627,10 @@ FieldOrProperty = Union[
     Field if TYPE_CHECKING else "Field", Property if TYPE_CHECKING else "Property", Any
 ]
 NodeTypeOrClass = Union[NodeType, type["Node"]]
-EditSubject = Union["User", "Server", "Block", "Step", "Run"]
-EDIT_SUBJECT_TYPES = (NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN)
+EditSubject = Union["User", "Server", "Block", "Action", "Run"]
+EDIT_SUBJECT_TYPES = (NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.ACTION, NodeType.RUN)
 
-Owner = Union["User", "Organization", "Block", "Step", "Run"]
+Owner = Union["User", "Organization", "Block", "Action", "Run"]
 OWNER_TYPES = (NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN)
 
 
@@ -1651,7 +1651,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     """
 
     # NOTE :Architecture!: we may need a better :NodeInheritance mechanism since some
-    #  nodes have different subtypes with varying properties (e.g. Step or View).
+    #  nodes have different subtypes with varying properties (e.g. Action or View).
     # Mapping their union into database columns is annoying since there may be many,
     #  so maybe this has to wait until we have custom storage engines.
 
@@ -2907,7 +2907,7 @@ def generate_node_name(
     metatype: NodeType, type: Optional[Any], siblings: Collection["Node"]
 ) -> str:
     """Generates a new name for the given node based on its siblings. :AutoNaming"""
-    if metatype == NodeType.BLOCK or metatype == NodeType.VIEW or metatype == NodeType.STEP:
+    if metatype == NodeType.BLOCK or metatype == NodeType.VIEW or metatype == NodeType.ACTION:
         assert isinstance(type, IdEnum), f"expected type for {metatype!r}, got {type!r}"
         base_name = to_casing(type.name, Casing.CAMEL)
         type_siblings = tuple(n for n in siblings if getattr(n, "type") == type)

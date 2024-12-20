@@ -3,12 +3,12 @@ from typing import List, Tuple, cast
 import pytest
 from more_itertools import first
 
+from bench.language.action import Action, ActionType
 from bench.language.bench import Bench, Package, PackageType
 from bench.language.block import FlowBlock
 from bench.language.const import BlockType
 from bench.language.field import Field
 from bench.language.file import File, FileKind, FileType
-from bench.language.flow import Step, StepType
 from bench.language.path import (
     PathError,
     PathLogicError,
@@ -158,14 +158,14 @@ def mock_package_populated(session: Session):
     page11 = page1.blocks.create(name="Page11", type=BlockType.PAGE)
     page21 = page2.blocks.create(name="Page21", type=BlockType.PAGE)
     flow111 = cast(FlowBlock, page11.blocks.create(name="Flow111", type=BlockType.FLOW))
-    step1111 = flow111.steps.append(Step.new(StepType.START, "Step1111"))  # noqa: F841
+    action1111 = flow111.actions.append(Action.new(ActionType.START, "Action1111"))  # noqa: F841
     field1111 = flow111.fields.append(Field.input("Field1111", bool))  # noqa: F841
-    step1112 = flow111.steps.append(Step.new(StepType.START, "Step1112"))
-    step11121 = step1112.steps.append(Step.new(StepType.START, "Step11121"))  # noqa: F841
+    action1112 = flow111.actions.append(Action.new(ActionType.START, "Action1112"))
+    action11121 = action1112.actions.append(Action.new(ActionType.START, "Action11121"))  # noqa: F841
     flow211 = cast(FlowBlock, page21.blocks.create(name="Flow211", type=BlockType.FLOW))
-    step2111 = flow211.steps.append(Step.new(StepType.START, "Step2111"))  # noqa: F841
-    step2112 = flow211.steps.append(Step.new(StepType.START, "Step2112"))  # noqa: F841
-    step2112_t_st = flow211.steps.append(Step.new(StepType.START, "Step2112 TÖST"))  # noqa: F841
+    action2111 = flow211.actions.append(Action.new(ActionType.START, "Action2111"))  # noqa: F841
+    action2112 = flow211.actions.append(Action.new(ActionType.START, "Action2112"))  # noqa: F841
+    action2112_t_st = flow211.actions.append(Action.new(ActionType.START, "Action2112 TÖST"))  # noqa: F841
     choice212 = page21.blocks.create(  # noqa: F841
         name="Choice212",
         type=BlockType.CHOICE,
@@ -189,34 +189,34 @@ def mock_package_populated(session: Session):
         ("Page1", "..", "bench1"),
         ("Page1", "Page11/Flow111", "Flow111"),
         ("Page1", "Page11/Flow111.Field1111", "Field1111"),
-        ("Page1", "Page11/./Flow111/Step1111", "Step1111"),
-        ("Page1", "Page11/./Flow111/Step1111/invalid", None),
-        ("Page1", "Page11/Flow111/Step1111/invalid.property", None),
+        ("Page1", "Page11/./Flow111/Action1111", "Action1111"),
+        ("Page1", "Page11/./Flow111/Action1111/invalid", None),
+        ("Page1", "Page11/Flow111/Action1111/invalid.property", None),
         # from nested
         ("Page11", "..", "Page1"),
         ("Page11", "../..", "bench1"),
         ("Page11", "../Page11/../../Page2/Page21/Flow211", "Flow211"),
         ("Page21", "../../Page1/Page11/Flow111", "Flow111"),
         # container nodes
-        ("Step1111", "~", "Flow111"),
-        ("Step1111", "~/~", "Page11"),
-        ("Step1111", "~Page11", "Page11"),
-        ("Step1111", "~Page21", None),
-        ("Step1111", "~Page1", "Page1"),
-        ("Step1111", "~Page11/Flow111", "Flow111"),
+        ("Action1111", "~", "Flow111"),
+        ("Action1111", "~/~", "Page11"),
+        ("Action1111", "~Page11", "Page11"),
+        ("Action1111", "~Page21", None),
+        ("Action1111", "~Page1", "Page1"),
+        ("Action1111", "~Page11/Flow111", "Flow111"),
         ("Page21", "~Page2", "Page2"),
         ("Page21", "~", "Page2"),
         # 'unique' nodes
         ("Page1", "^Page11", "Page11"),
         ("Page1", "^Flow111", None),
         ("Page11", "^Flow111", "Flow111"),
-        ("Page11", "^Step1111", None),
-        ("Page1", "^Step2112", None),
-        ("Flow111", "^Step1111", "Step1111"),
-        ("Flow111", "^Step1112", "Step1112"),
-        ("Flow111", "^Step11121", "Step11121"),
-        ("Flow211", "^Step2112 TÖST", "Step2112 TÖST"),
-        ("Flow211", "^Step2112_T_ST", "Step2112 TÖST"),
+        ("Page11", "^Action1111", None),
+        ("Page1", "^Action2112", None),
+        ("Flow111", "^Action1111", "Action1111"),
+        ("Flow111", "^Action1112", "Action1112"),
+        ("Flow111", "^Action11121", "Action11121"),
+        ("Flow211", "^Action2112 TÖST", "Action2112 TÖST"),
+        ("Flow211", "^Action2112_T_ST", "Action2112 TÖST"),
     ],
 )
 def test_get_node(
@@ -239,7 +239,7 @@ def test_get_node(
         # to root
         ("bench1", "bench1", "@bench1"),
         ("Page21", "bench1", "@bench1"),
-        ("Step2112", "bench1", "@bench1"),
+        ("Action2112", "bench1", "@bench1"),
         # from root
         ("bench1", "Page11", "@bench1/Page1/Page11"),
         ("bench1", "Flow111", "@bench1/Page1/Page11/Flow111"),
@@ -248,10 +248,10 @@ def test_get_node(
         ("Page1", "Page1", "."),
         ("Page1", "Page2", "@bench1/Page2"),
         ("Page1", "Page11", "Page11"),
-        ("Page1", "Step1111", "Page11/Flow111/Step1111"),
-        ("Page21", "Step1111", "@bench1/Page1/Page11/Flow111/Step1111"),
+        ("Page1", "Action1111", "Page11/Flow111/Action1111"),
+        ("Page21", "Action1111", "@bench1/Page1/Page11/Flow111/Action1111"),
         ("Page11", "Page1", "~Page1"),
-        ("Step1111", "Page1", "~Flow111/~Page11/~Page1"),
+        ("Action1111", "Page1", "~Flow111/~Page11/~Page1"),
         ("Flow211", "Option2121", "^Choice212.Option2121"),
     ],
 )
@@ -283,7 +283,7 @@ def test_shadow_node(session: Session, mock_package: Package):
     choice31 = page3.blocks.create(name="Choice31", type=BlockType.CHOICE)
     page33 = package.blocks.create(name="Page33", type=BlockType.PAGE)
     choice331 = page33.blocks.create(name="Choice331", type=BlockType.CHOICE)
-    code332 = page33.blocks.create(name="Code332", type=BlockType.ACTION)
+    code332 = page33.actions.create(name="Code332", type=ActionType.RUN)
     code332_output1 = code332.fields.append(Field.output("Choice331", choice331))  # noqa: F841
     code332_output3 = code332.fields.append(Field.output("Choice31", choice31))
 

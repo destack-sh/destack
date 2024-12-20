@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.19.2"
+VERSION = "2024.12.20.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1095,8 +1095,8 @@ VIEW_TABLE = Table(
     ),
 )
 
-STEP_TABLE = Table(
-    "bench_step",
+ACTION_TABLE = Table(
+    "bench_action",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
@@ -1134,8 +1134,12 @@ STEP_TABLE = Table(
         Column("identity_id", PrimitiveType.UUID, is_nullable=True),
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("code", PrimitiveType.JSON, is_nullable=True),
+        Column("delegate_id", PrimitiveType.UUID, is_nullable=True),
+        Column("delegate_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("delegate_type", PrimitiveType.INT16, is_nullable=True),
+        Column("delegate_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("position", PrimitiveType.JSON, is_nullable=True),
-        Column("size", PrimitiveType.JSON, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
@@ -1304,9 +1308,9 @@ RUN_TABLE = Table(
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("step_id", PrimitiveType.UUID, is_nullable=True),
-        Column("step_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("step_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("action_id", PrimitiveType.UUID, is_nullable=True),
+        Column("action_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("action_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("pipe_id", PrimitiveType.UUID, is_nullable=True),
         Column("pipe_ck", PrimitiveType.UUID, is_nullable=True),
         Column("pipe_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -1383,9 +1387,9 @@ INTERRUPT_TABLE = Table(
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("step_id", PrimitiveType.UUID, is_nullable=True),
-        Column("step_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("step_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("action_id", PrimitiveType.UUID, is_nullable=True),
+        Column("action_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("action_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("pipe_id", PrimitiveType.UUID, is_nullable=True),
         Column("pipe_ck", PrimitiveType.UUID, is_nullable=True),
         Column("pipe_bench_id", PrimitiveType.UUID, is_nullable=True),

@@ -5,7 +5,7 @@ from .access import (
     PolicyRule,
     Subject,
 )
-from .action import ActionBase, Agency, Call, Continue
+from .action import Action, ActionType, Call, Continue
 from .bench import (
     Bench,
     Cache,
@@ -78,7 +78,7 @@ from .field import (
     to_type_scalar,
 )
 from .file import File, FileFormat, FileKind, FileRetentionMode, FileType
-from .flow import FieldMapping, ObjectMapping, Pipe, PipeType, Step, StepType
+from .flow import FieldMapping, ObjectMapping, Pipe, PipeType
 from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from .interrupt import Breakpoint, BreakpointAction, BreakpointSite, Interrupt, InterruptType
 from .list import LocalNodeList, NodeList, RemoteNodeList, ValueList
@@ -175,8 +175,8 @@ __all__ = [
     "Access",
     "AccessError",
     "AccessType",
-    "ActionBase",
-    "Agency",
+    "Action",
+    "ActionType",
     "AggregateConnection",
     "AggregateOptions",
     "AggregateResult",
@@ -328,8 +328,6 @@ __all__ = [
     "SourceNode",
     "Space",
     "Spacing",
-    "Step",
-    "StepType",
     "Store",
     "Stream",
     "Struct",

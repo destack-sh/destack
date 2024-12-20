@@ -25,7 +25,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.19.2"
+VERSION = "2024.12.20.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -112,7 +112,6 @@ class EnumType(IdEnum):
     TYPE_FORMAT = 21504
     OBJECT_KIND = 21505
     BLOCK_TYPE = 21506
-    AGENCY = 21507
     PARTIAL_OBJECT_SCOPE = 21508
 
     # basic (22000-22499)
@@ -156,7 +155,7 @@ class EnumType(IdEnum):
     CODE_TYPE = 23017
     MODEL_PROVIDER = 23018
     MODEL_TYPE = 23019
-    STEP_TYPE = 23020
+    ACTION_TYPE = 23020
     PORT_SIDE = 23021
     PIPE_TYPE = 23022
     NODE_MODE = 23024
@@ -250,7 +249,7 @@ class NodeType(IdEnum):
     FIELD = 3012  # (based)
     QUERY = 3013
     VIEW = 3020
-    STEP = 3030
+    ACTION = 3030
     PIPE = 3031
     # BADGE? POLICY?
     # TAG?
@@ -660,8 +659,7 @@ class BlockType(IdEnum):
     # SECRET, RESOURCE, PROTOCOL, TAG, ISSUE, METRIC, BLOCK, ...?
 
     # runnable
-    ACTION = 21  # define a code function/script with fields (optionally incl. input/output)
-    FLOW = 22  # define a flow of actions (steps connected with pipes)
+    FLOW = 22  # define a flow of actions (actions connected with pipes)
 
     # data
     VALUE = 30  # define a single-value variable
@@ -1070,8 +1068,7 @@ class NodeMode(IdEnum):
 @enum_(EnumType.RUN_TYPE)
 class RunType(IdEnum):
     CODE = 1
-    ACTION = 2
-    STEP = 10
+    ACTION = 10
     FLOW = 11
     PIPE = 12
 

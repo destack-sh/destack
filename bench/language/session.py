@@ -73,13 +73,13 @@ from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import (
+        Action,
         Bench,
         Block,
         Interrupt,
         NodeReference,
         QueryBuilder,
         Run,
-        Step,
     )
     from bench.runtime.runtime import Runtime
 
@@ -850,7 +850,9 @@ class EditContext(Struct):
     """Additional context for a specific edit (per-edit variable subset of Session context)."""
 
     block: Optional["Block"] = p_internal(70, require=False, array=False, references=NodeType.BLOCK)
-    step: Optional["Step"] = p_internal(71, require=False, array=False, references=NodeType.STEP)
+    action: Optional["Action"] = p_internal(
+        71, require=False, array=False, references=NodeType.ACTION
+    )
     session: Optional["Session"] = p_internal(
         72, require=False, array=False, references=NodeType.SESSION, same_bench=True
     )
@@ -865,7 +867,7 @@ class EditContext(Struct):
     )
     if TYPE_CHECKING:
         block_ptr: Optional[NodeReference] = None
-        step_ptr: Optional[NodeReference] = None
+        action_ptr: Optional[NodeReference] = None
         session_ptr: Optional[NodeReference] = None
         run_ptr: Optional[NodeReference] = None
         run_root_ptr: Optional[NodeReference] = None

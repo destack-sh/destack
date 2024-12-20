@@ -69,11 +69,11 @@ from bench.utils.func import decode_b64vlq, encode_b64vlq
 
 if typing.TYPE_CHECKING:
     from bench.language import (
+        Action,
         Block,
         Expression,
         FileType,
         Icon,
-        Step,
         Text,
     )
 
@@ -233,8 +233,8 @@ class TypeBase(BuiltinObject):
        3. Node (NodeReference, like Package, Block, Field, Record, Run, Signal)
        4. Enum (builtin IdEnum, like FieldKind, NodeType, BenchType, EnumType)
        5. Based Node (NodeReference,  an 'instance' of the block)
-       6. Custom Object (value is CustomObject, like Step outputs, Record value)
-       7. Partial Object (value is a CustomObject + partial Node, like Record partials, CreateSteps)
+       6. Custom Object (value is CustomObject, like Action outputs, Record value)
+       7. Partial Object (value is a CustomObject + partial Node, like Record partials, CreateActions)
        8. Literal (only allowable value is the type itself / or some constant value)
        9. Union (type is union of Field children with oneof=self)
 
@@ -249,8 +249,8 @@ class TypeBase(BuiltinObject):
     kind: TypeKind = p_internal(40)
     primitive_type: Optional[PrimitiveType] = p_regular(41, default=None)
     bench_type: Optional[BenchType] = p_regular(42, default=None)
-    base_type: Union["Block", "Step", None] = p_regular(
-        43, array=False, require=False, default=None, references=(NodeType.BLOCK, NodeType.STEP)
+    base_type: Union["Block", "Action", None] = p_regular(
+        43, array=False, require=False, default=None, references=(NodeType.BLOCK, NodeType.ACTION)
     )
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
@@ -472,7 +472,7 @@ class TypeInfo(Struct, TypeBase):
 TypeIn = Union[
     "TypeBase",
     "Block",
-    "Step",
+    "Action",
     "PrimitiveType",
     "BenchType",
     "TypeFormat",
@@ -494,8 +494,8 @@ def to_type_scalar(
 
     if isinstance(typ, TypeBase):
         return cast("TypeInfo", typ)
-    elif isinstance(typ, Node) and typ.metatype in (NodeType.BLOCK, NodeType.STEP):
-        type_info = cast("Block|Step", typ).to_type_maybe(of=of, field_type=field_type)
+    elif isinstance(typ, Node) and typ.metatype in (NodeType.BLOCK, NodeType.ACTION):
+        type_info = cast("Block|Action", typ).to_type_maybe(of=of, field_type=field_type)
         if type_info is not None:
             assert isinstance(type_info, TypeInfo), f"expected TypeInfo, got {type_info!r}"
             return type_info
@@ -587,7 +587,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _TypeQueryBuilder):
     A custom attribute of some value, the user-defined counterpart to Properties in builtin objects.
     """
 
-    parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
+    parent: Union["Block", "Action", None] = p_node_parent(4, NodeType.BLOCK, NodeType.ACTION)
     type: FieldType = p_internal(30, default=FieldType.VARIABLE)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(32, default=INTEGER_ZERO)

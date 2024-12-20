@@ -1,3 +1,4 @@
+from bench.language.action import Action, ActionType
 from bench.language.bench import Package
 from bench.language.block import Block
 from bench.language.code import code
@@ -35,8 +36,9 @@ def test_evaluate_conditional_property_stringy(session: Session):
 
 
 def test_evaluate_conditional_property_node(session: Session, package: Package):
-    Code1 = Block.new(BlockType.ACTION, "Code1", code=code("pass"))
-    package.blocks.append(Code1)
+    Code1 = Action.new(ActionType.RUN, "Code1", code=code("pass"))
+    page = package.blocks.append(Block.new(BlockType.PAGE, "Page"))
+    page.actions.append(Code1)
     Run1 = make_run_from_node(Code1)
 
     cond = Run.get_property("block").is_equal(Code1)

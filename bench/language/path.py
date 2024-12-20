@@ -5,7 +5,6 @@ from cachetools import LRUCache, cached
 
 from bench.language.bench import Bench, Package
 from bench.language.const import BenchError, EnumType, NodeType, StructType, enum_
-from bench.language.flow import Step
 from bench.language.list import LocalNodeList
 from bench.language.node import (
     BenchNode,
@@ -22,7 +21,7 @@ from bench.utils.func import IdEnum
 from bench.utils.string import to_code_name
 
 if TYPE_CHECKING:
-    from bench.language.field import Field
+    from bench.language import Action, Field
 
 
 class PathError(BenchError, ValueError):
@@ -277,7 +276,7 @@ def _get_descendant(scope: Node, name: str, node_type: NodeType | None = None) -
 
 
 def _get_contained_descendant(scope: Node, name: str) -> Node | None:
-    """Finds a descendant that is directly contained by a scope (in block/page/step/pkg, if any)."""
+    """Finds a descendant that is directly contained by a scope (in block/page/action/pkg, if any)."""
     from bench.language.block import Block
 
     if isinstance(scope, Block):
@@ -285,8 +284,8 @@ def _get_contained_descendant(scope: Node, name: str) -> Node | None:
         for node_type in (NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY):
             if node := _get_child(scope, name, node_type):
                 return node
-        # recurse descendant views/steps
-        for node_type in (NodeType.VIEW, NodeType.STEP):
+        # recurse descendant views/actions
+        for node_type in (NodeType.VIEW, NodeType.ACTION):
             if node := _get_descendant(scope, name, node_type):
                 return node
         # recurse down into blocks until we hit pages
@@ -298,19 +297,19 @@ def _get_contained_descendant(scope: Node, name: str) -> Node | None:
                     return child
                 if not child.is_page:
                     blocks.append(child)
-    elif isinstance(scope, Step):
+    elif isinstance(scope, Action):
         # recurse own fields
         for node_type in (NodeType.FIELD,):
             if node := _get_child(scope, name, node_type):
                 return node
-        # recurse down into steps
-        steps = [scope]
-        while steps:
-            step = steps.pop()
-            for child in step.steps:
+        # recurse down into actions
+        actions = [scope]
+        while actions:
+            action = actions.pop()
+            for child in action.actions:
                 if child.name == name or child.code_name == name:
                     return child
-                steps.append(child)
+                actions.append(child)
     elif isinstance(scope, View):
         # recurse descendant views
         for node_type in (NodeType.VIEW,):
@@ -356,7 +355,7 @@ def _get_unique(scope: Node, name: str) -> Node | None:
      3. Ancestors - descendants of ancestor containers (above parent).
     The rationale is that we generally want to refer to nodes in the same container
      more than we want our child nodes (like an output Field with the name of a ChoiceBlock,
-     or other Steps in the same Flows more than our input Fields).
+     or other Actions in the same Flows more than our input Fields).
     """
     # 'siblings'
     parent = _get_container(scope)
