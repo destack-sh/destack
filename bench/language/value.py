@@ -1292,7 +1292,7 @@ def unpack_value_scalar(
         elif typ.primitive_type == PrimitiveType.DATETIME:
             return datetime.fromisoformat(cast(str, value_packed))
         elif typ.primitive_type == PrimitiveType.DATE:
-            return date.fromisoformat(cast(str, value_packed))
+            return datetime.fromisoformat(cast(str, value_packed)).date()
         elif typ.primitive_type == PrimitiveType.TIME:
             return time.fromisoformat(cast(str, value_packed))
         elif typ.primitive_type == PrimitiveType.INTERVAL:

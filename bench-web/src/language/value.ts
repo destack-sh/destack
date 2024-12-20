@@ -39,7 +39,12 @@ import {
 } from "@/proto/wire";
 import { Duration } from "@/proto/wire/google/protobuf/duration";
 import { isNodeRef, isStruct } from "@/proto/wiring";
-import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@/utils/time";
+import {
+  timedeltaFromISOFormat,
+  timedeltaToISOFormat,
+  timeOfDayFromISOFormat,
+  timeOfDayToISOFormat,
+} from "@/utils/time";
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue[];
@@ -96,7 +101,7 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
     } else if (type.primitiveType == PrimitiveType.DATE) {
       return ProtoDate.toJsDate(value as ProtoDate).toISOString();
     } else if (type.primitiveType == PrimitiveType.TIME) {
-      throw new Error(`:Incomplete ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
+      return timeOfDayToISOFormat(value as TimeOfDay);
     } else if (type.primitiveType == PrimitiveType.INTERVAL) {
       return timedeltaToISOFormat(value as Duration);
     } else if (typeof value == "bigint") {
@@ -138,7 +143,7 @@ function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarVa
     } else if (type.primitiveType == PrimitiveType.DATE) {
       return ProtoDate.fromJsDate(new Date(valuePacked as string));
     } else if (type.primitiveType == PrimitiveType.TIME) {
-      return TimeOfDay.fromJsDate(new Date(valuePacked as string));
+      return timeOfDayFromISOFormat(valuePacked as string);
     } else if (type.primitiveType == PrimitiveType.INTERVAL) {
       return timedeltaFromISOFormat(valuePacked as string);
     } else if (type.primitiveType == PrimitiveType.INT64) {

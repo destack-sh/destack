@@ -1,5 +1,3 @@
-import asyncio
-
 import pytest
 
 from bench.language.bench import ResourceStatus
@@ -17,7 +15,6 @@ async def test_acquire_browser_resource_directly(hosted_runtime: RuntimeHandle):
     hosted_runtime.bench.append(browser)
     await browser.wait_until_ready()
     assert browser.status == ResourceStatus.UP
-    await asyncio.sleep(2)
 
 
 @pytest.mark.browser

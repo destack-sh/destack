@@ -5880,6 +5880,17 @@ export interface PickerViewData {
     variant?: PickerVariant;
 }
 /**
+ * A view of a user interface in a Bench.
+ *
+ * @generated from protobuf message symbolx.bench.DatetimeViewData
+ */
+export interface DatetimeViewData {
+    /**
+     * @generated from protobuf field: optional bool is_relative = 100;
+     */
+    isRelative?: boolean;
+}
+/**
  * @generated from protobuf message symbolx.bench.SpaceData
  */
 export interface SpaceData {
@@ -11624,101 +11635,105 @@ export enum ViewType {
      */
     BADGE = 1103,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SHAPE = 1130;
+     * @generated from protobuf enum value: VIEW_TYPE_SHAPE = 1110;
      */
-    SHAPE = 1130,
+    SHAPE = 1110,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CHART = 1140;
+     * @generated from protobuf enum value: VIEW_TYPE_CHART = 1200;
      */
-    CHART = 1140,
+    CHART = 1200,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BUTTON = 1200;
+     * @generated from protobuf enum value: VIEW_TYPE_BUTTON = 1300;
      */
-    BUTTON = 1200,
+    BUTTON = 1300,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_MULTI_BUTTON = 1201;
+     * @generated from protobuf enum value: VIEW_TYPE_MULTI_BUTTON = 1301;
      */
-    MULTI_BUTTON = 1201,
+    MULTI_BUTTON = 1301,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_LINK = 1210;
+     * @generated from protobuf enum value: VIEW_TYPE_LINK = 1302;
      */
-    LINK = 1210,
+    LINK = 1302,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_VALUE = 1300;
+     * @generated from protobuf enum value: VIEW_TYPE_VALUE = 1400;
      */
-    VALUE = 1300,
+    VALUE = 1400,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 1310;
+     * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 1500;
      */
-    NUMBER = 1310,
+    NUMBER = 1500,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SLIDER = 1311;
+     * @generated from protobuf enum value: VIEW_TYPE_SLIDER = 1501;
      */
-    SLIDER = 1311,
+    SLIDER = 1501,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_STRING = 1320;
+     * @generated from protobuf enum value: VIEW_TYPE_STRING = 1600;
      */
-    STRING = 1320,
+    STRING = 1600,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TEXT = 1321;
+     * @generated from protobuf enum value: VIEW_TYPE_TEXT = 1601;
      */
-    TEXT = 1321,
+    TEXT = 1601,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CODE = 1322;
+     * @generated from protobuf enum value: VIEW_TYPE_CODE = 1602;
      */
-    CODE = 1322,
+    CODE = 1602,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_JSON = 1323;
+     * @generated from protobuf enum value: VIEW_TYPE_JSON = 1603;
      */
-    JSON = 1323,
+    JSON = 1603,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TOGGLE = 1330;
+     * @generated from protobuf enum value: VIEW_TYPE_TOGGLE = 1700;
      */
-    TOGGLE = 1330,
+    TOGGLE = 1700,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PICKER = 1331;
+     * @generated from protobuf enum value: VIEW_TYPE_PICKER = 1701;
      */
-    PICKER = 1331,
+    PICKER = 1701,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 1340;
+     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 1702;
      */
-    COLOR = 1340,
+    COLOR = 1702,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_ICON = 1341;
+     * @generated from protobuf enum value: VIEW_TYPE_ICON = 1703;
      */
-    ICON = 1341,
+    ICON = 1703,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_FILE = 1350;
+     * @generated from protobuf enum value: VIEW_TYPE_DATETIME = 1704;
      */
-    FILE = 1350,
+    DATETIME = 1704,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_IMAGE = 1353;
+     * @generated from protobuf enum value: VIEW_TYPE_FILE = 1900;
      */
-    IMAGE = 1353,
+    FILE = 1900,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 1354;
+     * @generated from protobuf enum value: VIEW_TYPE_IMAGE = 1901;
      */
-    AUDIO = 1354,
+    IMAGE = 1901,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_VIDEO = 1355;
+     * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 1902;
      */
-    VIDEO = 1355,
+    AUDIO = 1902,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DOCUMENT = 1356;
+     * @generated from protobuf enum value: VIEW_TYPE_VIDEO = 1903;
      */
-    DOCUMENT = 1356,
+    VIDEO = 1903,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CONDITIONAL = 1361;
+     * @generated from protobuf enum value: VIEW_TYPE_DOCUMENT = 1904;
      */
-    CONDITIONAL = 1361,
+    DOCUMENT = 1904,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SORT = 1362;
+     * @generated from protobuf enum value: VIEW_TYPE_CONDITIONAL = 2000;
      */
-    SORT = 1362,
+    CONDITIONAL = 2000,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_AGGREGATION = 1363;
+     * @generated from protobuf enum value: VIEW_TYPE_SORT = 2001;
      */
-    AGGREGATION = 1363
+    SORT = 2001,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_AGGREGATION = 2002;
+     */
+    AGGREGATION = 2002
 }
 /**
  * Built-in color types a la SwiftUI or Tailwind.
@@ -27178,6 +27193,52 @@ class PickerViewData$Type extends MessageType$<PickerViewData> {
  */
 export const PickerViewData = new PickerViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class DatetimeViewData$Type extends MessageType$<DatetimeViewData> {
+    constructor() {
+        super("symbolx.bench.DatetimeViewData", [
+            { no: 100, name: "is_relative", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+        ]);
+    }
+    create(value?: PartialMessage<DatetimeViewData>): DatetimeViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<DatetimeViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DatetimeViewData): DatetimeViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional bool is_relative */ 100:
+                    message.isRelative = reader.bool();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: DatetimeViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional bool is_relative = 100; */
+        if (message.isRelative !== undefined)
+            writer.tag(100, WireType.Varint).bool(message.isRelative);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.DatetimeViewData
+ */
+export const DatetimeViewData = new DatetimeViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class SpaceData$Type extends MessageType$<SpaceData> {
     constructor() {
         super("symbolx.bench.SpaceData", [
@@ -29083,7 +29144,7 @@ export interface BlockSubtypeMapping extends Record<BlockType, BlockSubtype> {
   [BlockType.QUERY]: QueryBlockData,
 }
 
-export type ViewSubtype = UserWizardViewData | HelpViewData | DetailViewData | RunViewData | HubViewData | TreeViewData | FeedViewData | ButtonViewData | IconViewData | PickerViewData;
+export type ViewSubtype = UserWizardViewData | HelpViewData | DetailViewData | RunViewData | HubViewData | TreeViewData | FeedViewData | ButtonViewData | IconViewData | PickerViewData | DatetimeViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.USER_WIZARD]: UserWizardViewData,
   [ViewType.HELP]: HelpViewData,
@@ -29095,6 +29156,7 @@ export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.BUTTON]: ButtonViewData,
   [ViewType.ICON]: IconViewData,
   [ViewType.PICKER]: PickerViewData,
+  [ViewType.DATETIME]: DatetimeViewData,
 }
 
 export type StepSubtype = GetStepData | SearchStepData | CreateStepData | DuplicateStepData | UpdateStepData | DeleteStepData | ActionStepData | FailStepData | ObserveStepData | ClickStepData | PressStepData | TypeStepData | ScrollStepData | SelectStepData | GoBackwardStepData | GoForwardStepData | GoToUrlStepData | GoToTabStepData | LoopStepData;
@@ -30425,6 +30487,10 @@ export enum PickerViewProperty {
   variant = 100,
 }
 
+export enum DatetimeViewProperty {
+  isRelative = 100,
+}
+
 export enum GetStepProperty {
   nodeType = 100,
   baseBlockPtr = 101,
@@ -31369,6 +31435,7 @@ export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
   [ViewType.BUTTON]: ButtonViewProperty,
   [ViewType.ICON]: IconViewProperty,
   [ViewType.PICKER]: PickerViewProperty,
+  [ViewType.DATETIME]: DatetimeViewProperty,
 }
 
 export const STEP_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<StepType, any>> = {
@@ -32478,13 +32545,16 @@ export const FeedViewDataInfo: Record<FeedViewProperty, PropertyInfo> = {
   [FeedViewProperty.filterPills]: { id: 102, name: 'filter_pills', component: ObjectType.VIEW, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ButtonViewDataInfo: Record<ButtonViewProperty, PropertyInfo> = {
-  [ButtonViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 1200, enumType: EnumType.BUTTON_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ButtonViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 1300, enumType: EnumType.BUTTON_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const IconViewDataInfo: Record<IconViewProperty, PropertyInfo> = {
-  [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, componentSubtype: 1341, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, componentSubtype: 1703, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const PickerViewDataInfo: Record<PickerViewProperty, PropertyInfo> = {
-  [PickerViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 1331, enumType: EnumType.PICKER_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [PickerViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 1701, enumType: EnumType.PICKER_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+}
+export const DatetimeViewDataInfo: Record<DatetimeViewProperty, PropertyInfo> = {
+  [DatetimeViewProperty.isRelative]: { id: 100, name: 'is_relative', component: ObjectType.VIEW, componentSubtype: 1704, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
 }
 export const GetStepDataInfo: Record<GetStepProperty, PropertyInfo> = {
   [GetStepProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.STEP, componentSubtype: 40, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -33228,6 +33298,7 @@ export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, Prope
   [ViewType.BUTTON]: ButtonViewDataInfo,
   [ViewType.ICON]: IconViewDataInfo,
   [ViewType.PICKER]: PickerViewDataInfo,
+  [ViewType.DATETIME]: DatetimeViewDataInfo,
 }
 export const StepSubtypePropertyInfo: Partial<Record<StepType, Record<any, PropertyInfo>>> = {
   [StepType.GET]: GetStepDataInfo,

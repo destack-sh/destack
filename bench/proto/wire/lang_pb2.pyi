@@ -1432,6 +1432,7 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_PICKER: _ClassVar[ViewType]
     VIEW_TYPE_COLOR: _ClassVar[ViewType]
     VIEW_TYPE_ICON: _ClassVar[ViewType]
+    VIEW_TYPE_DATETIME: _ClassVar[ViewType]
     VIEW_TYPE_FILE: _ClassVar[ViewType]
     VIEW_TYPE_IMAGE: _ClassVar[ViewType]
     VIEW_TYPE_AUDIO: _ClassVar[ViewType]
@@ -2839,6 +2840,7 @@ VIEW_TYPE_TOGGLE: ViewType
 VIEW_TYPE_PICKER: ViewType
 VIEW_TYPE_COLOR: ViewType
 VIEW_TYPE_ICON: ViewType
+VIEW_TYPE_DATETIME: ViewType
 VIEW_TYPE_FILE: ViewType
 VIEW_TYPE_IMAGE: ViewType
 VIEW_TYPE_AUDIO: ViewType
@@ -6107,6 +6109,12 @@ class PickerViewData(_message.Message):
     VARIANT_FIELD_NUMBER: _ClassVar[int]
     variant: PickerVariant
     def __init__(self, variant: _Optional[_Union[PickerVariant, str]] = ...) -> None: ...
+
+class DatetimeViewData(_message.Message):
+    __slots__ = ("is_relative",)
+    IS_RELATIVE_FIELD_NUMBER: _ClassVar[int]
+    is_relative: bool
+    def __init__(self, is_relative: bool = ...) -> None: ...
 
 class SpaceData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "text", "order_key", "policies", "owned_by_ptr", "focus", "selection", "inspection_ptr", "base_ptr", "run_ptr", "mode")

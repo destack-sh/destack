@@ -413,8 +413,9 @@ class Step(SourceNode[StepData]):
             assert field_type is not None, f"missing field_type for object {self!r}"
 
             if field_type == FieldType.INPUT:
-                # steps also have their subtype as input type
+                # steps also have their subtype as input type :StepInputType
                 #  (to enable dynamically setting step properties as inputs)
+                # NOTE :Architecture: :StepInputType handling feels weird
                 typ = TypeInfo(
                     kind=TypeKind.PARTIAL_OBJECT,
                     base_type=base,
@@ -570,7 +571,7 @@ class FailStep(Step):
 
 
 @object_()
-class HasApplicationLocation(BuiltinObject):
+class HasApplicationContext(BuiltinObject):
     position: Optional["Vector2"] = p_regular(
         100, default=None, require=False, array=False, struct=StructType.VECTOR2
     )
@@ -583,41 +584,41 @@ class ObserveStep(Step):
 
 
 @node_subtype_(StepType.CLICK)
-class ClickStep(Step, HasApplicationLocation):
+class ClickStep(Step, HasApplicationContext):
     pass
 
 
 @node_subtype_(StepType.PRESS)
-class PressStep(Step, HasApplicationLocation):
+class PressStep(Step, HasApplicationContext):
     keys: str | None = p_regular(110, default=None)
     delay: float | None = p_regular(111, default=None)
 
 
 @node_subtype_(StepType.TYPE)
-class TypeStep(Step, HasApplicationLocation):
+class TypeStep(Step, HasApplicationContext):
     string: str | None = p_regular(110, default=None)
     delay: float | None = p_regular(111, default=None)
 
 
 @node_subtype_(StepType.SCROLL)
-class ScrollStep(Step, HasApplicationLocation):
+class ScrollStep(Step, HasApplicationContext):
     amount: Optional["Vector2"] = p_regular(
         110, default=None, require=False, array=False, struct=StructType.VECTOR2
     )
 
 
 @node_subtype_(StepType.SELECT)
-class SelectStep(Step, HasApplicationLocation):
+class SelectStep(Step, HasApplicationContext):
     pass
 
 
 @node_subtype_(StepType.GO_BACKWARD)
-class GoBackwardStep(Step, HasApplicationLocation):
+class GoBackwardStep(Step, HasApplicationContext):
     pass
 
 
 @node_subtype_(StepType.GO_FORWARD)
-class GoForwardStep(Step, HasApplicationLocation):
+class GoForwardStep(Step, HasApplicationContext):
     pass
 
 
