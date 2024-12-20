@@ -31,7 +31,7 @@ import {
   ResourceStatus,
   RunStatus,
   NodeMode,
-  StepType,
+  ActionType,
   StructType,
   TypeFormat,
   TypeKind,
@@ -187,7 +187,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.FIELD]: "fas fa-triangle",
   [NodeType.QUERY]: "fas fa-magnifying-glass",
   [NodeType.VIEW]: "fas fa-window-frame",
-  [NodeType.STEP]: "fas fa-step-forward",
+  [NodeType.ACTION]: "fas fa-step-forward",
   [NodeType.PIPE]: "fas fa-pipe-section",
 
   // state
@@ -254,7 +254,6 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.CHOICE]: "fas fa-circle-chevron-down",
   [BlockType.MESSAGE]: "fas fa-envelope",
   // runnable
-  [BlockType.ACTION]: "fas fa-circle-play",
   [BlockType.FLOW]: "fas fa-diagram-project",
   // data
   [BlockType.VALUE]: "fas fa-hexagon",
@@ -267,43 +266,46 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.IDENTITY]: "fas fa-image-user",
 });
 
-export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons<StepType>({
+export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeIcons<ActionType>({
   // boundary
-  [StepType.START]: "fas fa-circle-play",
-  [StepType.COMPLETE]: "fas fa-flag-checkered",
-  [StepType.FAIL]: "fas fa-circle-exclamation",
-  [StepType.TRIGGER]: "fas fa-bolt-lightning",
+  [ActionType.START]: "fas fa-circle-play",
+  [ActionType.COMPLETE]: "fas fa-flag-checkered",
+  [ActionType.FAIL]: "fas fa-circle-exclamation",
+  [ActionType.TRIGGER]: "fas fa-bolt-lightning",
   // read
-  [StepType.GET]: "fas fa-magnifying-glass",
-  [StepType.SEARCH]: "fas fa-magnifying-glass",
-  [StepType.COPY]: "fas fa-copy",
+  [ActionType.GET]: "fas fa-magnifying-glass",
+  [ActionType.SEARCH]: "fas fa-magnifying-glass",
+  [ActionType.COPY]: "fas fa-copy",
   // write
-  [StepType.CREATE]: "fas fa-plus",
-  [StepType.DUPLICATE]: "fas fa-clone",
-  [StepType.UPDATE]: "fas fa-pencil",
-  [StepType.DELETE]: "fas fa-trash",
-  [StepType.PASTE]: "fas fa-paste",
-  // run
-  [StepType.ACTION]: "fas fa-code",
-  [StepType.YIELD]: "fas fa-hand",
+  [ActionType.CREATE]: "fas fa-plus",
+  [ActionType.DUPLICATE]: "fas fa-clone",
+  [ActionType.UPDATE]: "fas fa-pencil",
+  [ActionType.DELETE]: "fas fa-trash",
+  [ActionType.PASTE]: "fas fa-paste",
+  // interrupt
+  [ActionType.YIELD]: "fas fa-hand",
+  // agentive
+  [ActionType.RUN]: "fas fa-code",
+  [ActionType.GENERATE]: "fas fa-shapes",
+  [ActionType.SWITCH]: "fas fa-shuffle",
   // application
-  [StepType.OBSERVE]: "fas fa-eye",
-  [StepType.CLICK]: "fas fa-computer-mouse",
-  [StepType.PRESS]: "fas fa-keyboard",
-  [StepType.TYPE]: "fas fa-keyboard",
-  [StepType.SCROLL]: "fas fa-arrows-alt-v",
-  [StepType.SELECT]: "fas fa-lasso",
-  [StepType.GO_BACKWARD]: "fas fa-arrow-turn-left",
-  [StepType.GO_FORWARD]: "fas fa-arrow-turn-right",
+  [ActionType.OBSERVE]: "fas fa-eye",
+  [ActionType.CLICK]: "fas fa-computer-mouse",
+  [ActionType.PRESS]: "fas fa-keyboard",
+  [ActionType.TYPE]: "fas fa-keyboard",
+  [ActionType.SCROLL]: "fas fa-arrows-alt-v",
+  [ActionType.SELECT]: "fas fa-lasso",
+  [ActionType.GO_BACKWARD]: "fas fa-arrow-turn-left",
+  [ActionType.GO_FORWARD]: "fas fa-arrow-turn-right",
   // web
-  [StepType.GO_TO_URL]: "fas fa-link",
-  [StepType.GO_TO_TAB]: "fas fa-sidebar",
-  [StepType.OPEN_TAB]: "fas fa-plus",
-  [StepType.CLOSE_TAB]: "fas fa-minus",
+  [ActionType.GO_TO_URL]: "fas fa-link",
+  [ActionType.GO_TO_TAB]: "fas fa-sidebar",
+  [ActionType.OPEN_TAB]: "fas fa-plus",
+  [ActionType.CLOSE_TAB]: "fas fa-minus",
   // containers
-  [StepType.LOOP]: "fas fa-repeat",
+  [ActionType.LOOP]: "fas fa-repeat",
   // misc
-  [StepType.TEXT]: "fas fa-align-left",
+  [ActionType.TEXT]: "fas fa-align-left",
 });
 
 export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons<PipeType>({
@@ -640,7 +642,7 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.OBJECT_TYPE]: ICON_BY_OBJECT_TYPE,
   [EnumType.BENCH_TYPE]: ICON_BY_BENCH_TYPE,
   [EnumType.BLOCK_TYPE]: ICON_BY_BLOCK_TYPE,
-  [EnumType.STEP_TYPE]: ICON_BY_STEP_TYPE,
+  [EnumType.ACTION_TYPE]: ICON_BY_ACTION_TYPE,
   [EnumType.PIPE_TYPE]: ICON_BY_PIPE_TYPE,
   [EnumType.VIEW_TYPE]: ICON_BY_VIEW_TYPE,
   [EnumType.ALIGNMENT]: ICON_BY_ALIGNMENT,

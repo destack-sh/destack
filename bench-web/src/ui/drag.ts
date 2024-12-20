@@ -643,7 +643,7 @@ const SELECTION_RANK_DEFAULT = 1;
 const SELECTION_RANK_BY_NODE_TYPE: Partial<Record<NodeType, number>> = {
   [NodeType.FIELD]: 2,
   [NodeType.VIEW]: 3,
-  [NodeType.STEP]: 5,
+  [NodeType.ACTION]: 5,
   [NodeType.PIPE]: 5,
   [NodeType.RECORD]: 5,
   [NodeType.BLOCK]: 10,

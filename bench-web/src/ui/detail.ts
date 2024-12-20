@@ -1,5 +1,5 @@
 import {
-  BOUNDARY_STEP_TYPES,
+  BOUNDARY_ACTION_TYPES,
   getPropertyTitle,
   isNodeType,
   RUNNABLE_BLOCK_TYPES,
@@ -24,10 +24,6 @@ import {
 } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import {
-  ActionBlockData,
-  ActionBlockProperty,
-  ActionStepData,
-  Agency,
   AnyNodeData,
   BenchType,
   BlockData,
@@ -35,7 +31,7 @@ import {
   BlockType,
   EditOperationData,
   EditOperationType,
-  FailStepProperty,
+  FailActionProperty,
   FieldData,
   FieldProperty,
   FieldType,
@@ -52,11 +48,12 @@ import {
   PropertyInfo,
   RecordProperty,
   RunOptionsProperty,
-  StepProperty,
-  StepType,
+  ActionProperty,
+  ActionType,
   TypeConstraintProperty,
   TypeKind,
   ViewType,
+  ActionData,
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
 import { canvas } from "@/system/globals";
@@ -171,7 +168,7 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
       default?: any;
       props?: Partial<ViewProps>;
     },
-  ): DetailViewRow {
+  ): DetailRow {
     if (typeof path == "number") path = [path];
 
     const { prop: rootProp, propKey: rootPropKey, isSubnode } = property(path[0]);
@@ -195,7 +192,9 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
     const title = options?.title ?? getPropertyTitle(prop);
     const propType = options?.props?.valueType ?? getPropertyType(prop);
     const view = getViewForType(propType);
-    if (view == null) throw new Error(`no view for property type: ${title}`);
+    if (view == null) {
+      return { type: "text", title: title === false ? undefined : title, subtitle: options?.subtitle, text: "No View" };
+    }
     const row: DetailViewRow = {
       type: "view",
       title: title === false ? undefined : title,
@@ -319,31 +318,16 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
   }
 
   function actionRows(): DetailRow[] {
-    const action = subnode as ActionStepData | ActionBlockData | undefined;
-    const agency: Agency = action?.agency ?? Agency.GENERATE;
-    const rows: DetailRow[] = [rowProperty(ActionBlockProperty.agency, { title: false, isFullWidth: true })];
-    if (agency == Agency.CODE) {
-      rows.push(rowProperty(ActionBlockProperty.code, { title: false, isFullWidth: true }));
-    } else if (agency == Agency.DELEGATE) {
-      rows.push(rowProperty(ActionBlockProperty.delegatePtr, { title: false, isFullWidth: true }));
-    } else if (agency == Agency.GENERATE) {
-      rows.push(rowProperty(ActionBlockProperty.isDynamic));
-      rows.push(rowProperty(ActionBlockProperty.toolsPtr, { isFullWidth: true }));
-      if (!action?.isDynamic) {
-        rows.push(
-          rowProperty(ActionBlockProperty.code, { subtitle: "(Generated)", isFullWidth: true, isDisabled: true }),
-        );
-      }
-    } else if (agency != Agency.UNSPECIFIED) {
-      assertNever(agency);
-    }
+    const action = subnode as ActionData | undefined;
+    const rows: DetailRow[] = [];
+    rows.push(rowProperty(ActionProperty.code, { title: false, isFullWidth: true }));
+    rows.push(rowProperty(ActionProperty.delegatePtr, { title: false, isFullWidth: true }));
     return rows;
   }
 
   function sectionAction() {
-    const action = subnode as ActionStepData | ActionBlockData | undefined;
-    const summary = action?.agency != null ? toCamelName(Agency, action?.agency) : undefined;
-    section("Action", actionRows(), { summary });
+    const action = subnode as ActionData | undefined;
+    section("Action", actionRows());
   }
 
   function sectionRun(runOptionsProperty: number) {
@@ -383,9 +367,6 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
         actions: [actionAddField(FieldType.VARIABLE)],
       });
       sectionSchema();
-    }
-    if (node.type == BlockType.ACTION) {
-      sectionAction();
     }
     if (RUNNABLE_BLOCK_TYPES.includes(node.type)) {
       sectionRun(BlockProperty.runOptions);
@@ -505,31 +486,27 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
   }
 
   //
-  // Steps
+  // Actions
   //
-  else if (isNode(node, NodeType.STEP)) {
+  else if (isNode(node, NodeType.ACTION)) {
     const commonRows: DetailRow[] = [];
     section(undefined, commonRows);
-    commonRows.push(rowProperty(StepProperty.text, { title: false, props: { placeholder: "Text..." } }));
+    commonRows.push(rowProperty(ActionProperty.text, { title: false, props: { placeholder: "Text..." } }));
 
-    if (node.type == StepType.ACTION) {
-      const action = subnode as ActionStepData | undefined;
-      if (action?.agency == Agency.DELEGATE) {
-        // schema from delegate
-        const delegatePtr = action.delegatePtr;
-        if (delegatePtr != null) {
-          sectionSchema({ subtitle: "(Delegate)", delegatePtr });
-        } else {
-          section("Schema", [{ type: "text", text: "No delegate set." }]);
-        }
+    if (node.type == ActionType.RUN) {
+      const action = subnode as ActionData | undefined;
+      // schema from delegate
+      const delegatePtr = action?.delegatePtr;
+      if (delegatePtr != null) {
+        sectionSchema({ subtitle: "(Delegate)", delegatePtr });
       } else {
-        sectionSchema();
+        section("Schema", [{ type: "text", text: "No delegate set." }]);
       }
       sectionAction();
-    } else if (node.type == StepType.FAIL) {
+    } else if (node.type == ActionType.FAIL) {
       section("Error", [
-        rowProperty(FailStepProperty.errorTitle, { title: "Title" }),
-        rowProperty(FailStepProperty.errorText, { title: "Text" }),
+        rowProperty(FailActionProperty.errorTitle, { title: "Title" }),
+        rowProperty(FailActionProperty.errorText, { title: "Text" }),
       ]);
     } else {
       // add all from subproperty enum
@@ -542,8 +519,8 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
       }
     }
 
-    if (!BOUNDARY_STEP_TYPES.includes(node.type)) {
-      sectionRun(StepProperty.runOptions);
+    if (!BOUNDARY_ACTION_TYPES.includes(node.type)) {
+      sectionRun(ActionProperty.runOptions);
     }
   }
 

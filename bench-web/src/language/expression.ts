@@ -5,7 +5,7 @@ import {
   ExpressionType,
   ObjectType,
   RunData,
-  StepData,
+  ActionData,
   UserData,
   type ExpressionData,
   type SortType
@@ -45,5 +45,5 @@ export function makeAndConditional(clauses: ExpressionData[]): ExpressionData | 
   else return makeExpression({ type: ExpressionType.AND, clauses });
 }
 
-export type EditSubject = UserData | RunData | BlockData | StepData;
+export type EditSubject = UserData | RunData | BlockData | ActionData;
 

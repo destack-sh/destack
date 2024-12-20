@@ -66,7 +66,7 @@ const indices = computed(() => {
     indices["Bench"] = graphIndex({
       id: "bench",
       graph: pkgGraph,
-      metatypes: [NodeType.BLOCK, NodeType.VIEW, NodeType.BLOCK, NodeType.STEP],
+      metatypes: [NodeType.BLOCK, NodeType.VIEW, NodeType.BLOCK, NodeType.ACTION],
       roots: [pkgGraph.getOrError(packagePtr.value)],
       skipDepth: 1,
       maxDepth: isQueryEmpty.value ? 1 : undefined,

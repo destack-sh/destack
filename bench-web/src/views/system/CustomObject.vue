@@ -38,7 +38,7 @@ const width = computed(() => (props.isMinimal ? null : Math.max(MIN_WIDTH, props
 const facetIcon = computed(() => base.value?.icon);
 const facetName = computed(() => base.value?.name);
 const basePtr = computed(
-  () => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | undefined,
+  () => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.ACTION> | undefined,
 );
 const { graph } = props.preparedConnection ?? useExistingConnection(basePtr);
 const base = graph.getRef(basePtr);

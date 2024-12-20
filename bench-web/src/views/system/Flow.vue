@@ -1,8 +1,9 @@
 <script lang="ts" setup>
-import { SOURCE_STEP_TYPES } from "@/language/const";
+import { SOURCE_ACTION_TYPES } from "@/language/const";
 import { makeTypeInfo } from "@/language/field";
 import { newChangeId } from "@/language/transaction";
 import {
+  ActionData,
   AnyNodeData,
   BenchType,
   ChangeCategory,
@@ -12,7 +13,6 @@ import {
   PipeData,
   PipeType,
   PortSide,
-  StepData,
   TypeKind,
   ViewData,
   ViewType,
@@ -20,6 +20,8 @@ import {
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import {
+  ACTION_SIZE,
+  ACTION_SIZE_HALF,
   FLOW_CANVAS_DOT_SIZE,
   FLOW_CONTEXT_KEY,
   FLOW_GRID_STEP,
@@ -28,26 +30,23 @@ import {
   PIPE_CONNECTION_DISTANCE,
   PIPE_WIDTH,
   PipePath,
-  STEP_SIZE,
-  STEP_SIZE_HALF,
 } from "@/system/flow";
 import { canvas, spaceGraph } from "@/system/space";
-import { PIPE_CONTEXT_ACTIONS, STEP_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
+import { ACTION_CONTEXT_ACTIONS, PIPE_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { PopoverInfoIn } from "@/ui/popover";
 import { lengthVector2, subVector2, VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
-import { computedValue } from "@/utils/ref";
-import FieldList from "@/views/system/FieldList.vue";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import Action from "@/views/system/Action.vue";
+import FieldList from "@/views/system/FieldList.vue";
 import Pipe from "@/views/system/Pipe.vue";
-import Step from "@/views/system/Step.vue";
 import { useElementSize } from "@vueuse/core";
-import { computed, onMounted, provide, ref, toRef, type Ref } from "vue";
+import { computed, provide, ref, toRef, type Ref } from "vue";
 
 const BACKGROUND_STYLE: "checker" | "dots" = "dots";
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -72,8 +71,8 @@ const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const headerRef: Ref<HTMLElement | null> = ref(null);
 const bodyRef: Ref<HTMLElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
-const createStepRef: Ref<HTMLButtonElement | null> = ref(null);
-const stepRefs: Ref<Record<string, InstanceType<typeof Step>>> = ref({});
+const createActionRef: Ref<HTMLButtonElement | null> = ref(null);
+const actionRefs: Ref<Record<string, InstanceType<typeof Action>>> = ref({});
 const pipeRefs: Ref<Record<string, InstanceType<typeof Pipe>>> = ref({});
 const headerSize = useElementSize(headerRef);
 
@@ -86,15 +85,15 @@ const flowCtx = new FlowContext({
   view: state.baseViewRef,
   transform: toRef(props, "transform"),
   containerRef: bodyRef,
-  stepRefs: stepRefs,
+  actionRefs: actionRefs,
   flowPtr: nodePtr,
 });
 provide(FLOW_CONTEXT_KEY, flowCtx);
 const flow = flowCtx.flow;
-const steps = flowCtx.steps;
+const actions = flowCtx.actions;
 const pipes = flowCtx.pipes;
 const fields = flowCtx.fields;
-const stepsAndPipes: Ref<(StepData | PipeData)[]> = computed(() => [...steps.value, ...pipes.value]);
+const actionsAndPipes: Ref<(ActionData | PipeData)[]> = computed(() => [...actions.value, ...pipes.value]);
 
 const viewport = flowCtx.viewport;
 
@@ -105,27 +104,27 @@ const viewport = flowCtx.viewport;
 // pending
 const pendingPath: Ref<PipePath | null> = computed(() => {
   if (flowCtx.draggable?.kind != "port") return null;
-  // preview path between current dragged port and step (or point in canvas if nothing)
-  const sourceStep = flowCtx.draggable.step;
-  const sourceBounding = flowCtx.getStepBoundingBox(sourceStep);
+  // preview path between current dragged port and action (or point in canvas if nothing)
+  const sourceAction = flowCtx.draggable.action;
+  const sourceBounding = flowCtx.getActionBoundingBox(sourceAction);
   if (sourceBounding == null) return null;
   const cursor = flowCtx.cursorWorldPos.value;
   const sourcePos = {
-    x: sourceBounding.x1 + (flowCtx.dragging.value?.viewOffsetByThing[sourceStep.id]?.x ?? 0),
-    y: sourceBounding.y1 + (flowCtx.dragging.value?.viewOffsetByThing[sourceStep.id]?.y ?? 0),
+    x: sourceBounding.x1 + (flowCtx.dragging.value?.viewOffsetByThing[sourceAction.id]?.x ?? 0),
+    y: sourceBounding.y1 + (flowCtx.dragging.value?.viewOffsetByThing[sourceAction.id]?.y ?? 0),
   };
   const distance = lengthVector2(subVector2(sourcePos, cursor));
   if (distance < PIPE_CONNECTION_DISTANCE) return null;
 
   // make path
-  const targetStep = flowCtx.getStepAt(cursor);
+  const targetAction = flowCtx.getActionAt(cursor);
   const isValid =
-    targetStep != null &&
-    !SOURCE_STEP_TYPES.includes(targetStep.type) &&
-    !flowCtx.pipes.value.some((pipe) => pipe.sourcePtr?.ck == sourceStep.ck && pipe.targetPtr?.ck == targetStep.ck);
+    targetAction != null &&
+    !SOURCE_ACTION_TYPES.includes(targetAction.type) &&
+    !flowCtx.pipes.value.some((pipe) => pipe.sourcePtr?.ck == sourceAction.ck && pipe.targetPtr?.ck == targetAction.ck);
   if (isValid) {
     // real path preview
-    const target = flowCtx.getStepBoundingBox(targetStep);
+    const target = flowCtx.getActionBoundingBox(targetAction);
     if (target == null) return null;
     return flowCtx.computePath(sourceBounding, target);
   } else {
@@ -145,7 +144,7 @@ const selectionZoneBody = useSelectionZone({ containerEl: bodyRef, overlayEl: se
 function moveNodes(nodes: AnyNodeData[], move: { x: number; y: number }) {
   const tx = flowCtx.tx.with({ change: { key: newChangeId(), title: "Move" } });
   for (const thing of nodes) {
-    if (isNode(thing, NodeType.STEP)) {
+    if (isNode(thing, NodeType.ACTION)) {
       flowCtx.move(thing, move, { tx });
     }
   }
@@ -159,21 +158,21 @@ function pushPopover(popover: PopoverInfoIn, e?: MouseEvent | KeyboardEvent) {
     ...popover,
   });
 }
-const actions: Partial<ActionMapImplementation<"flow" | "space" | "session">> = {
+const implementedActions: Partial<ActionMapImplementation<"flow" | "space" | "session">> = {
   // edit
   "space.edit.rename": () => {
     nameRef.value?.focusIdentifier();
   },
-  "flow.edit.createStep": (action, context) => {
+  "flow.edit.createAction": (action, context) => {
     pushPopover(
       {
         kind: "view",
         component: ViewType.PICKER,
         placement: "inside-top",
-        title: "Add Step",
-        props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
+        title: "Add Action",
+        props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }) },
         onApply: (value) => {
-          flowCtx.createStep({ parent: flow.value!, step: { type: value } });
+          flowCtx.createAction({ parent: flow.value!, action: { type: value } });
         },
       },
       context.event,
@@ -183,34 +182,34 @@ const actions: Partial<ActionMapImplementation<"flow" | "space" | "session">> = 
     if (context.nodes?.length != 1) return;
     const pipe = context.nodes[0];
     if (!isNode(pipe, NodeType.PIPE)) return;
-    const oldTarget = graph.getOrError(pipe.targetPtr!) as StepData;
+    const oldTarget = graph.getOrError(pipe.targetPtr!) as ActionData;
     pushPopover(
       {
         kind: "view",
         component: ViewType.PICKER,
         placement: "bottom-right",
-        title: "Add Step",
-        props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
+        title: "Add Action",
+        props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }) },
         onApply: (value) => {
           const tx = flowCtx.tx.with({ change: { key: newChangeId(), title: "Split Pipe" } });
           // find position
           const pipeMidpoint = flowCtx.pipesStates.value[pipe.id!].path.value?.midpoint;
           if (pipeMidpoint == null) throw new Error("no pipe midpoint");
-          const position = subVector2(pipeMidpoint, { x: STEP_SIZE_HALF.width, y: STEP_SIZE_HALF.height });
-          // create new step
-          const newStep = flowCtx.createStep({ parent: flow.value!, step: { type: value, position }, tx });
-          // create new pipe from new step to old pipe target
+          const position = subVector2(pipeMidpoint, { x: ACTION_SIZE_HALF.width, y: ACTION_SIZE_HALF.height });
+          // create new action
+          const newAction = flowCtx.createAction({ parent: flow.value!, action: { type: value, position }, tx });
+          // create new pipe from new action to old pipe target
           const newPipe = flowCtx.createPipe({
             parent: flow.value!,
-            source: { parent: newStep, side: PortSide.OUTGOING },
+            source: { parent: newAction, side: PortSide.OUTGOING },
             target: { parent: oldTarget, side: PortSide.INCOMING },
             pipe: { type: PipeType.PASS },
             tx,
           });
-          // reconnect old pipe to new step
-          tx.update(pipe, { targetPtr: toNodeRef(newStep) }, { debounce: "long" });
+          // reconnect old pipe to new action
+          tx.update(pipe, { targetPtr: toNodeRef(newAction) }, { debounce: "long" });
           // and go to
-          canvas.inspect({ node: newStep });
+          canvas.inspect({ node: newAction });
         },
       },
       context.event,
@@ -238,18 +237,21 @@ const actions: Partial<ActionMapImplementation<"flow" | "space" | "session">> = 
   "space.navigate.zoomOut": () => flowCtx.zoom("out", "center", 10),
   "space.navigate.reset": () => flowCtx.resetViewport(),
   // select
-  "space.select.all": () => canvas.select(stepsAndPipes.value),
+  "space.select.all": () => canvas.select(actionsAndPipes.value),
 };
 
 // focus
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
   if (typeof anchor == "object") {
-    if (stepRefs.value[anchor.id!] != null) {
-      const stepState = flowCtx.stepsStates.value[anchor.id!];
-      if (stepState.step.value != null && !flowCtx.isInViewport({ kind: "step", step: stepState.step.value })) {
-        flowCtx.panToCenter({ kind: "step", step: stepState.step.value! });
+    if (actionRefs.value[anchor.id!] != null) {
+      const actionState = flowCtx.actionsStates.value[anchor.id!];
+      if (
+        actionState.action.value != null &&
+        !flowCtx.isInViewport({ kind: "action", action: actionState.action.value })
+      ) {
+        flowCtx.panToCenter({ kind: "action", action: actionState.action.value! });
       }
-      return stepRefs.value[anchor.id!].$el;
+      return actionRefs.value[anchor.id!].$el;
     } else if (pipeRefs.value[anchor.id!] != null) {
       const pipeState = flowCtx.pipesStates.value[anchor.id!];
       if (pipeState.pipe.value != null && !flowCtx.isInViewport({ kind: "pipe", pipe: pipeState.pipe.value })) {
@@ -262,7 +264,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
 }
 
 const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
-defineExpose<ViewExposed>({ self, id, actions, focus });
+defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
 </script>
 <template>
   <div
@@ -339,9 +341,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           :node-ptr="props.nodePtr"
           :field-type="FieldType.VARIABLE"
         />
-        <!-- Add step -->
+        <!-- Add action -->
         <button
-          ref="createStepRef"
+          ref="createActionRef"
           class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
           @click="
             (e) =>
@@ -350,18 +352,18 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                 trigger: e.target as HTMLElement,
                 reference: e.target as HTMLElement,
                 component: ViewType.PICKER,
-                title: 'Add Step',
+                title: 'Add Action',
                 placement: 'bottom-left',
                 offset: 'referenceWidth',
-                props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
+                props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }) },
                 onApply: (value) => {
-                  flowCtx.createStep({ parent: flow!, step: { type: value } });
+                  flowCtx.createAction({ parent: flow!, action: { type: value } });
                 },
               })
           "
         >
           <i class="fas fa-plus mr-1.5 text-center" />
-          <span class="">Step</span>
+          <span class="">Action</span>
         </button>
       </div>
     </div>
@@ -486,25 +488,25 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             :node-ptr="toNodeRef(pipe)"
             class="absolute"
           />
-          <!-- Steps -->
-          <Step
-            v-for="step in steps"
-            :id="step.id"
-            :ref="(ref: any) => (ref ? (stepRefs[step.id] = ref) : delete stepRefs[step.id])"
-            :key="step.id"
+          <!-- Actions -->
+          <Action
+            v-for="action in actions"
+            :id="action.id"
+            :ref="(ref: any) => (ref ? (actionRefs[action.id] = ref) : delete actionRefs[action.id])"
+            :key="action.id"
             class="absolute"
-            :class="[flowCtx?.isDraggingStep(step) ? 'cursor-grabbing' : flowCtx.isDragging ? '' : 'cursor-grab']"
+            :class="[flowCtx?.isDraggingAction(action) ? 'cursor-grabbing' : flowCtx.isDragging ? '' : 'cursor-grab']"
             :style="{
-              width: STEP_SIZE.width + 'px',
-              left: (step.position?.x ?? 0) + 'px',
-              top: (step.position?.y ?? 0) + 'px',
+              width: ACTION_SIZE.width + 'px',
+              left: (action.position?.x ?? 0) + 'px',
+              top: (action.position?.y ?? 0) + 'px',
             }"
-            :node-ptr="toNodeRef(step)"
-            :data-contextmenu-items="STEP_CONTEXT_ACTIONS.join(',')"
+            :node-ptr="toNodeRef(action)"
+            :data-contextmenu-items="ACTION_CONTEXT_ACTIONS.join(',')"
             data-suppress-drag="select"
-            @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step: step! })"
+            @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'action', action: action! })"
           />
-          <!-- Pending Pipe (above Steps for clarity)-->
+          <!-- Pending Pipe (above Actions for clarity)-->
           <div v-if="flowCtx.draggable?.kind == 'port'" class="pointer-events-none absolute text-gray-700 opacity-50">
             <svg v-if="pendingPath" class="overflow-visible">
               <path
@@ -535,9 +537,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               : 'opacity-0 transition-colors duration-150 group-hover/block-line:opacity-100 group-hover/flow:opacity-100'
           "
         >
-          <!-- Add step -->
+          <!-- Add action -->
           <button
-            ref="createStepRef"
+            ref="createActionRef"
             class="group/button rounded px-1 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click="
               (e) =>
@@ -545,18 +547,18 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                   kind: 'view',
                   trigger: e.target as HTMLElement,
                   reference: e.target as HTMLElement,
-                  title: 'Add Step',
+                  title: 'Add Action',
                   component: ViewType.PICKER,
                   placement: 'top',
-                  props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
+                  props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }) },
                   onApply: (value) => {
-                    flowCtx.createStep({ parent: flow!, step: { type: value } });
+                    flowCtx.createAction({ parent: flow!, action: { type: value } });
                   },
                 })
             "
           >
             <i class="fas fa-plus mr-1.5 text-center" />
-            <span class="">Step</span>
+            <span class="">Action</span>
           </button>
           <!-- Zoom -->
           <button

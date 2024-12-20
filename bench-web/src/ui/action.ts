@@ -115,7 +115,7 @@ export const ACTION_BUILTIN_IDS = [
   "table.column.wrap",
   "table.column.hide",
   // flow
-  "flow.edit.createStep",
+  "flow.edit.createAction",
   "flow.edit.splitPipe",
   // text
   "text.format.bold",
@@ -421,7 +421,7 @@ export function fireAction(
 }
 
 // track implemented actions & maintain keybindings
-// NOTE: implemented actions may contain disabled actions, we filter those at a later step to avoid updating this too often
+// NOTE: implemented actions may contain disabled actions, we filter those at a later action to avoid updating this too often
 //  (we evaluate the actual action to call only when firing the callback anyway)
 const IMPLEMENTED_ACTIONS_BY_ID: Ref<Record<string, Action>> = shallowRef({});
 export const IMPLEMENTED_ACTIONS: Readonly<Ref<Action[]>> = computed(() =>
@@ -877,10 +877,10 @@ declareActionMap<"table">({
 
 // flow
 declareActionMap<"flow">({
-  "flow.edit.createStep": {
-    icon: "fas fa-step-forward",
-    title: "Create Step",
-    text: "Create a new step",
+  "flow.edit.createAction": {
+    icon: "fas fa-action-forward",
+    title: "Create Action",
+    text: "Create a new action",
   },
   "flow.edit.splitPipe": {
     icon: "fas fa-scissors",
@@ -1210,13 +1210,13 @@ export const NODE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.duplicate", 
 export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const RECORD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
-export const STEP_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
+export const ACTION_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["flow.edit.splitPipe"];
 
 export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]>> = {
   [NodeType.BLOCK]: BLOCK_CONTEXT_ACTIONS,
   [NodeType.RECORD]: RECORD_CONTEXT_ACTIONS,
-  [NodeType.STEP]: STEP_CONTEXT_ACTIONS,
+  [NodeType.ACTION]: ACTION_CONTEXT_ACTIONS,
   [NodeType.PIPE]: PIPE_CONTEXT_ACTIONS,
 };
 

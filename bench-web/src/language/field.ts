@@ -29,7 +29,7 @@ import {
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
   PropertyReferenceData,
-  StepData,
+  ActionData,
   StructType,
   TypeConstraintData,
   TypeInfoData,
@@ -404,8 +404,8 @@ export function createField(
       | TypedNodeReferenceData<NodeType.FIELD>
       | BlockData
       | TypedNodeReferenceData<NodeType.BLOCK>
-      | StepData
-      | TypedNodeReferenceData<NodeType.STEP>;
+      | ActionData
+      | TypedNodeReferenceData<NodeType.ACTION>;
   },
 ): FieldData {
   // eslint-disable-next-line prefer-const
@@ -434,8 +434,8 @@ export function createField(
     } else {
       type = FieldType.VARIABLE;
     }
-  } else if (isNode(target, NodeType.STEP)) {
-    if (fieldIn?.type == null) throw new Error(`missing type for step field: ${describeNode(target)}`);
+  } else if (isNode(target, NodeType.ACTION)) {
+    if (fieldIn?.type == null) throw new Error(`missing type for action field: ${describeNode(target)}`);
     siblings = graph.getChildren(target, NodeType.FIELD);
     parentPtr = toNodeRef(target);
     if (anchor == "start") {

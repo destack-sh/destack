@@ -9,7 +9,7 @@ import {
   ObjectType,
   ResourceStatus,
   RunStatus,
-  StepType,
+  ActionType,
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -131,7 +131,6 @@ export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {
   [BlockType.CHOICE]: ColorType.GREEN,
   [BlockType.MESSAGE]: ColorType.GREEN,
   // runnables
-  [BlockType.ACTION]: ColorType.ORANGE,
   [BlockType.FLOW]: ColorType.ORANGE,
   // view
   [BlockType.VIEW]: ColorType.YELLOW,
@@ -140,42 +139,45 @@ export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {
   [BlockType.IDENTITY]: ColorType.PURPLE,
 };
 
-export const COLOR_BY_STEP_TYPE: Partial<Record<StepType, ColorType>> = {
+export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   // boundary
-  [StepType.START]: ColorType.YELLOW,
-  [StepType.COMPLETE]: ColorType.YELLOW,
-  [StepType.TRIGGER]: ColorType.YELLOW,
-  [StepType.FAIL]: ColorType.DANGER,
+  [ActionType.START]: ColorType.YELLOW,
+  [ActionType.COMPLETE]: ColorType.YELLOW,
+  [ActionType.TRIGGER]: ColorType.YELLOW,
+  [ActionType.FAIL]: ColorType.DANGER,
   // read
-  [StepType.GET]: ColorType.EMERALD,
-  [StepType.SEARCH]: ColorType.EMERALD,
-  [StepType.COPY]: ColorType.EMERALD,
+  [ActionType.GET]: ColorType.EMERALD,
+  [ActionType.SEARCH]: ColorType.EMERALD,
+  [ActionType.COPY]: ColorType.EMERALD,
   // write
-  [StepType.CREATE]: ColorType.SKY,
-  [StepType.DUPLICATE]: ColorType.SKY,
-  [StepType.UPDATE]: ColorType.SKY,
-  [StepType.DELETE]: ColorType.SKY,
-  [StepType.PASTE]: ColorType.SKY,
-  // run
-  [StepType.ACTION]: ColorType.ORANGE,
-  [StepType.YIELD]: ColorType.PINK,
+  [ActionType.CREATE]: ColorType.SKY,
+  [ActionType.DUPLICATE]: ColorType.SKY,
+  [ActionType.UPDATE]: ColorType.SKY,
+  [ActionType.DELETE]: ColorType.SKY,
+  [ActionType.PASTE]: ColorType.SKY,
+  // interrupt
+  [ActionType.YIELD]: ColorType.PINK,
+  // agentive
+  [ActionType.RUN]: ColorType.ORANGE,
+  [ActionType.GENERATE]: ColorType.ORANGE,
+  [ActionType.SWITCH]: ColorType.ORANGE,
   // application
-  [StepType.OBSERVE]: ColorType.EMERALD,
-  [StepType.CLICK]: ColorType.ORANGE,
-  [StepType.PRESS]: ColorType.ORANGE,
-  [StepType.TYPE]: ColorType.ORANGE,
-  [StepType.SCROLL]: ColorType.ORANGE,
-  [StepType.SELECT]: ColorType.ORANGE,
-  [StepType.GO_BACKWARD]: ColorType.ORANGE,
-  [StepType.GO_FORWARD]: ColorType.ORANGE,
+  [ActionType.OBSERVE]: ColorType.EMERALD,
+  [ActionType.CLICK]: ColorType.ORANGE,
+  [ActionType.PRESS]: ColorType.ORANGE,
+  [ActionType.TYPE]: ColorType.ORANGE,
+  [ActionType.SCROLL]: ColorType.ORANGE,
+  [ActionType.SELECT]: ColorType.ORANGE,
+  [ActionType.GO_BACKWARD]: ColorType.ORANGE,
+  [ActionType.GO_FORWARD]: ColorType.ORANGE,
   // web
-  [StepType.GO_TO_URL]: ColorType.ORANGE,
-  [StepType.GO_TO_TAB]: ColorType.ORANGE,
-  [StepType.OPEN_TAB]: ColorType.ORANGE,
-  [StepType.CLOSE_TAB]: ColorType.ORANGE,
+  [ActionType.GO_TO_URL]: ColorType.ORANGE,
+  [ActionType.GO_TO_TAB]: ColorType.ORANGE,
+  [ActionType.OPEN_TAB]: ColorType.ORANGE,
+  [ActionType.CLOSE_TAB]: ColorType.ORANGE,
   // containers
-  [StepType.TEXT]: ColorType.GRAY,
-  [StepType.LOOP]: ColorType.YELLOW,
+  [ActionType.TEXT]: ColorType.GRAY,
+  [ActionType.LOOP]: ColorType.YELLOW,
 };
 
 export const COLOR_BY_LOG_LEVEL: Record<LogLevel, ColorType> = {
@@ -222,9 +224,9 @@ export function getNodeColor(node: AnyNodeData): ColorType | undefined {
     if (COLOR_BY_BLOCK_TYPE[node.type] != null) {
       return COLOR_BY_BLOCK_TYPE[node.type]!;
     }
-  } else if (isNode(node, NodeType.STEP)) {
-    if (COLOR_BY_STEP_TYPE[node.type] != null) {
-      return COLOR_BY_STEP_TYPE[node.type]!;
+  } else if (isNode(node, NodeType.ACTION)) {
+    if (COLOR_BY_ACTION_TYPE[node.type] != null) {
+      return COLOR_BY_ACTION_TYPE[node.type]!;
     }
   }
 

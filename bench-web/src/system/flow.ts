@@ -1,9 +1,10 @@
-import { INVISIBLE_STEP_TYPES, SINK_STEP_TYPES, SOURCE_STEP_TYPES } from "@/language/const";
+import { INVISIBLE_ACTION_TYPES, SINK_ACTION_TYPES, SOURCE_ACTION_TYPES } from "@/language/const";
+import { makeTypeInfo } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
-import { makeNodeName, NodeIn, unpackSubnode, unpackSubnodeProperty } from "@/language/node";
+import { makeNodeName, NodeIn, unpackSubnode } from "@/language/node";
 import { newChangeId, type Transaction, type TransactionOptions } from "@/language/transaction";
 import {
-  Agency,
+  ActionType,
   BenchType,
   BlockData,
   BlockType,
@@ -16,30 +17,28 @@ import {
   PipeType,
   PortSide,
   SelectionData,
-  StepType,
   StructType,
   TransformData,
   TypeKind,
   Vector2Data,
   ViewData,
   ViewType,
+  type ActionData,
   type AnyNodeData,
-  type StepData,
 } from "@/proto/wire";
 import { describeNode, isNode, makeStruct, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { canvas, supergraph } from "@/system/globals";
 import { isDragAllowed } from "@/ui/drag";
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
 import { addVector2, lengthVector2, subVector2, type Vector2 } from "@/ui/view";
 import { generateOrderKey } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
-import { canvas, supergraph } from "@/system/globals";
 import { log } from "@/utils/log";
 import { computedValue } from "@/utils/ref";
-import type Step from "@/views/system/Step.vue";
+import type Action from "@/views/system/Action.vue";
 import { useMouse } from "@vueuse/core";
 import { computed, inject, ref, shallowRef, triggerRef, watch, type Ref } from "vue";
-import { makeTypeInfo } from "@/language/field";
 
 export const FLOW_GRID_STEP = 16;
 export const FLOW_PORT_SIZE = 12;
@@ -51,46 +50,45 @@ export const FLOW_SCALE_SPEED = 0.01;
 
 export const PIPE_WIDTH = 2;
 export const PIPE_CONNECTION_DISTANCE = FLOW_GRID_STEP * 2; // minimum distance to consider a connection when dragging a port
-export const STEP_SIZE = { width: FLOW_GRID_STEP * 17, height: FLOW_GRID_STEP * 3 };
-export const STEP_SIZE_HALF = { width: STEP_SIZE.width / 2, height: STEP_SIZE.height / 2 };
+export const ACTION_SIZE = { width: FLOW_GRID_STEP * 17, height: FLOW_GRID_STEP * 3 };
+export const ACTION_SIZE_HALF = { width: ACTION_SIZE.width / 2, height: ACTION_SIZE.height / 2 };
 
 // TODO :Cleanup :Architecture: enum/object descriptions should be in language (and exported from there during build)
-export const DEFAULT_TEXT_BY_STEP_TYPE: Partial<Record<StepType, string>> = {
+export const DEFAULT_TEXT_BY_ACTION_TYPE: Partial<Record<ActionType, string>> = {
   // start
-  [StepType.START]: "Begin the flow.",
-  [StepType.TRIGGER]: "Trigger the flow.",
+  [ActionType.START]: "Begin the flow.",
+  [ActionType.TRIGGER]: "Trigger the flow.",
   // end
-  [StepType.COMPLETE]: "End the entire flow.",
-  [StepType.FAIL]: "Fail the entire flow.",
+  [ActionType.COMPLETE]: "End the entire flow.",
+  [ActionType.FAIL]: "Fail the entire flow.",
   // read
-  [StepType.GET]: "Get a specific Node.",
-  [StepType.SEARCH]: "Search for Nodes.",
-  [StepType.COPY]: "Copy to clipboard.",
+  [ActionType.GET]: "Get a specific Node.",
+  [ActionType.SEARCH]: "Search for Nodes.",
+  [ActionType.COPY]: "Copy to clipboard.",
   // write
-  [StepType.CREATE]: "Create a new Node.",
-  [StepType.UPDATE]: "Update a Node.",
-  [StepType.DELETE]: "Delete a Node.",
-  [StepType.DUPLICATE]: "Duplicate the clipboard.",
-  [StepType.PASTE]: "Paste from clipboard.",
+  [ActionType.CREATE]: "Create a new Node.",
+  [ActionType.UPDATE]: "Update a Node.",
+  [ActionType.DELETE]: "Delete a Node.",
+  [ActionType.DUPLICATE]: "Duplicate the clipboard.",
+  [ActionType.PASTE]: "Paste from clipboard.",
   // run
-  [StepType.ACTION]: "Run something.",
-  [StepType.YIELD]: "Pause and wait for someone.",
+  [ActionType.YIELD]: "Pause and wait for someone.",
   // application
-  [StepType.OBSERVE]: "Look at the screen.",
-  [StepType.CLICK]: "Click somewhere on the screen.",
-  [StepType.PRESS]: "Press some keys.",
-  [StepType.TYPE]: "Enter text.",
-  [StepType.SCROLL]: "Scroll the screen.",
-  [StepType.SELECT]: "Select something.",
-  [StepType.GO_BACKWARD]: "Go back in history.",
-  [StepType.GO_FORWARD]: "Go forward in history.",
+  [ActionType.OBSERVE]: "Look at the screen.",
+  [ActionType.CLICK]: "Click somewhere on the screen.",
+  [ActionType.PRESS]: "Press some keys.",
+  [ActionType.TYPE]: "Enter text.",
+  [ActionType.SCROLL]: "Scroll the screen.",
+  [ActionType.SELECT]: "Select something.",
+  [ActionType.GO_BACKWARD]: "Go back in history.",
+  [ActionType.GO_FORWARD]: "Go forward in history.",
   // web
-  [StepType.GO_TO_URL]: "Navigate to a URL.",
-  [StepType.GO_TO_TAB]: "Switch to a tab.",
-  [StepType.OPEN_TAB]: "Open a new tab.",
-  [StepType.CLOSE_TAB]: "Close a tab.",
+  [ActionType.GO_TO_URL]: "Navigate to a URL.",
+  [ActionType.GO_TO_TAB]: "Switch to a tab.",
+  [ActionType.OPEN_TAB]: "Open a new tab.",
+  [ActionType.CLOSE_TAB]: "Close a tab.",
   // containers
-  [StepType.LOOP]: "Loop over a list.",
+  [ActionType.LOOP]: "Loop over a list.",
 };
 
 /** Rounds the given vector to the nearest grid position (in world coordinates). */
@@ -105,7 +103,7 @@ export function snapScalar(x: number): number {
 }
 
 export type Port = {
-  parent: StepData;
+  parent: ActionData;
   side: PortSide;
 };
 
@@ -124,75 +122,68 @@ export type BoundingBox = { x1: number; y1: number; x2: number; y2: number; widt
 
 export type FlowThing =
   | { kind: "canvas" }
-  | { kind: "step"; step: StepData }
+  | { kind: "action"; action: ActionData }
   | { kind: "pipe"; pipe: PipeData }
   | { kind: "selection"; selection: SelectionData; nodes: AnyNodeData[] }
-  | { kind: "port"; step: StepData; side: PortSide };
+  | { kind: "port"; action: ActionData; side: PortSide };
 
-/** Step state in a Flow. */
-export class StepState {
+/** Action state in a Flow. */
+export class ActionState {
   // self
   flow: FlowContext;
-  stepPtr: TypedNodeReferenceData<NodeType.STEP>;
-  step: Ref<StepData | null>;
+  actionPtr: TypedNodeReferenceData<NodeType.ACTION>;
+  action: Ref<ActionData | null>;
   subnode: Ref<any | null>;
-  delegatePtr: Ref<TypedNodeReferenceData<NodeType.BLOCK> | null>;
-  delegate: Ref<BlockData | null>;
+  delegatePtr: Ref<TypedNodeReferenceData<NodeType.BLOCK | NodeType.ACTION> | null>;
+  delegate: Ref<BlockData | ActionData | null>;
   fields: Ref<FieldData[]>;
-  stepFields: Ref<FieldData[]>;
+  actionFields: Ref<FieldData[]>;
   delegateFields: Ref<FieldData[]>;
   // layout
   boundingBox: Ref<BoundingBox | null> = shallowRef(null);
 
-  constructor(flow: FlowContext, step: StepData) {
+  constructor(flow: FlowContext, action: ActionData) {
     this.flow = flow;
-    this.stepPtr = toNodeRef(step);
-    this.step = flow.graph.getRef(this.stepPtr, { ignoreAncestors: true });
+    this.actionPtr = toNodeRef(action);
+    this.action = flow.graph.getRef(this.actionPtr, { ignoreAncestors: true });
     this.subnode = computed(() => {
-      if (this.step.value == null) return null;
-      return unpackSubnode(NodeType.STEP, this.step.value.type, this.step.value.subnodePacked);
+      if (this.action.value == null) return null;
+      return unpackSubnode(NodeType.ACTION, this.action.value.type, this.action.value.subnodePacked);
     });
     this.delegatePtr = computedValue(() => {
-      if (this.step.value?.type == StepType.ACTION) {
-        const delegatePtr = unpackSubnodeProperty(
-          NodeType.STEP,
-          StepType.ACTION,
-          this.step.value?.subnodePacked,
-          "delegatePtr",
-        );
-        return delegatePtr as TypedNodeReferenceData<NodeType.BLOCK> | null;
+      if (this.action.value?.type == ActionType.RUN) {
+        return this.action.value.delegatePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.ACTION> | null;
       } else {
         return null;
       }
     });
     this.delegate = flow.graph.getRef(this.delegatePtr);
     this.delegateFields = flow.graph.getChildrenRef(this.delegatePtr, NodeType.FIELD);
-    this.stepFields = flow.graph.getChildrenRef(step, NodeType.FIELD);
+    this.actionFields = flow.graph.getChildrenRef(action, NodeType.FIELD);
     this.fields = computed(() => {
-      const stepType = this.step.value?.type;
-      if (stepType == StepType.START) {
+      const actionType = this.action.value?.type;
+      if (actionType == ActionType.START) {
         return this.flow.fields.value.filter((f) => f.type == FieldType.INPUT);
-      } else if (stepType == StepType.COMPLETE) {
+      } else if (actionType == ActionType.COMPLETE) {
         return this.flow.fields.value.filter((f) => f.type == FieldType.OUTPUT);
-      } else if (stepType == StepType.ACTION) {
-        const agency = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, this.step.value?.subnodePacked, "agency");
-        if (agency == Agency.DELEGATE) {
+      } else if (actionType == ActionType.RUN) {
+        if (this.action.value?.delegatePtr != null) {
           return this.delegateFields.value;
         } else {
-          return this.stepFields.value;
+          return this.actionFields.value;
         }
-      } else if (stepType == StepType.CREATE) {
+      } else if (actionType == ActionType.CREATE) {
         // TODO :Incomplete: builtin stub fields
         return [];
-      } else if (stepType == StepType.YIELD) {
-        return this.stepFields.value;
+      } else if (actionType == ActionType.YIELD) {
+        return this.actionFields.value;
       } else {
         return [];
       }
     });
     // layout
     this.boundingBox = computedValue(() =>
-      this.step.value != null ? this.flow.getStepBoundingBox(this.step.value) : null,
+      this.action.value != null ? this.flow.getActionBoundingBox(this.action.value) : null,
     );
   }
 }
@@ -203,8 +194,8 @@ export class PipeState {
   flow: FlowContext;
   pipePtr: TypedNodeReferenceData<NodeType.PIPE>;
   pipe: Ref<PipeData | null>;
-  source: Ref<StepData | null>;
-  target: Ref<StepData | null>;
+  source: Ref<ActionData | null>;
+  target: Ref<ActionData | null>;
 
   // layout
   path: Ref<PipePath | null>;
@@ -215,17 +206,17 @@ export class PipeState {
     this.pipePtr = toNodeRef(pipe);
     this.pipe = flow.graph.getRef(this.pipePtr);
     this.source = flow.graph.getRef(
-      computed(() => this.pipe.value?.sourcePtr as TypedNodeReferenceData<NodeType.STEP> | null),
+      computed(() => this.pipe.value?.sourcePtr as TypedNodeReferenceData<NodeType.ACTION> | null),
     );
     this.target = flow.graph.getRef(
-      computed(() => this.pipe.value?.targetPtr as TypedNodeReferenceData<NodeType.STEP> | null),
+      computed(() => this.pipe.value?.targetPtr as TypedNodeReferenceData<NodeType.ACTION> | null),
     );
 
     // layout
     this.path = computed(() => {
       if (this.source.value == null || this.target.value == null) return null;
-      const sourceBounding = this.flow.getStepBoundingBox(this.source.value);
-      const targetBounding = this.flow.getStepBoundingBox(this.target.value);
+      const sourceBounding = this.flow.getActionBoundingBox(this.source.value);
+      const targetBounding = this.flow.getActionBoundingBox(this.target.value);
       if (sourceBounding == null || targetBounding == null) return null;
       const path = this.flow.computePath(sourceBounding, targetBounding);
       return path;
@@ -238,7 +229,7 @@ export class PipeState {
 }
 const mouse = useMouse();
 
-/** An entire flow canvas (including steps, sub-steps, pipes, etc.) */
+/** An entire flow canvas (including actions, sub-actions, pipes, etc.) */
 export class FlowContext {
   spaceGraph: ReadNodeGraph;
   graph: ReadNodeGraph;
@@ -247,7 +238,7 @@ export class FlowContext {
 
   view: Ref<ViewData | null>;
   update: (update: Partial<NodeIn<NodeType.VIEW>>, options?: TransactionOptions) => void;
-  stepRefs: Ref<Record<string, InstanceType<typeof Step>>>;
+  actionRefs: Ref<Record<string, InstanceType<typeof Action>>>;
   containerRef: Ref<HTMLElement | null>;
   dragging: Ref<{ thing: FlowThing; viewOffsetByThing: Record<string, { x: number; y: number }> } | null> = ref(null);
   cursorWorldPos: Ref<Vector2>;
@@ -259,10 +250,10 @@ export class FlowContext {
   flowPtr: Ref<TypedNodeReferenceData<NodeType.BLOCK> | null>;
   flow: Ref<BlockData | null>;
   fields: Ref<FieldData[]>;
-  steps: Ref<StepData[]>;
+  actions: Ref<ActionData[]>;
   pipes: Ref<PipeData[]>;
 
-  stepsStates: Ref<Record<string, StepState>> = shallowRef({});
+  actionsStates: Ref<Record<string, ActionState>> = shallowRef({});
   pipesStates: Ref<Record<string, PipeState>> = shallowRef({});
   contentBoundingBox: Ref<BoundingBox | null>;
 
@@ -275,7 +266,7 @@ export class FlowContext {
     view: Ref<ViewData | null>;
     transform: Ref<TransformData | null | undefined>;
     containerRef: Ref<HTMLElement | null>;
-    stepRefs: Ref<Record<string, InstanceType<typeof Step>>>;
+    actionRefs: Ref<Record<string, InstanceType<typeof Action>>>;
     flowPtr: Ref<TypedNodeReferenceData<NodeType.BLOCK>>;
   }) {
     this.spaceGraph = context.spaceGraph;
@@ -287,7 +278,7 @@ export class FlowContext {
     // view
     this.view = context.view;
     this.containerRef = context.containerRef;
-    this.stepRefs = context.stepRefs;
+    this.actionRefs = context.actionRefs;
     this.cursorWorldPos = computed(() => this.viewportToWorldVec({ x: mouse.x.value, y: mouse.y.value }));
     this.viewport = computed(() => {
       if (context.transform.value != null) {
@@ -311,7 +302,7 @@ export class FlowContext {
         const scaleY = containerBounding.height / contentHeight;
         let scale = Math.min(scaleX, scaleY);
 
-        // clamp scale between min/max and round to step
+        // clamp scale between min/max and round to action
         scale = Math.max(FLOW_SCALE_MIN, Math.min(1.0, scale));
         scale = Math.round(scale / FLOW_SCALE_SPEED) * FLOW_SCALE_SPEED;
 
@@ -330,22 +321,24 @@ export class FlowContext {
     this.flowPtr = context.flowPtr;
     this.flow = this.graph.getRef(context.flowPtr);
     this.fields = this.graph.getChildrenRef(this.flow, NodeType.FIELD);
-    this.steps = this.graph.getChildrenRef(this.flow, NodeType.STEP);
+    this.actions = this.graph.getChildrenRef(this.flow, NodeType.ACTION);
     this.pipes = this.graph.getChildrenRef(this.flow, NodeType.PIPE);
 
-    // maintain step/pipe contexts
+    // maintain action/pipe contexts
     watch(
-      this.steps,
+      this.actions,
       () => {
-        const stepsIds = this.steps.value.map((s) => s.id);
-        this.steps.value
-          .filter((step) => this.stepsStates.value[step.id] == null)
+        const actionsIds = this.actions.value.map((s) => s.id);
+        this.actions.value
+          .filter((action) => this.actionsStates.value[action.id] == null)
           .forEach(
-            (step) => ((this.stepsStates.value[step.id] = new StepState(this, step)), triggerRef(this.stepsStates)),
+            (action) => (
+              (this.actionsStates.value[action.id] = new ActionState(this, action)), triggerRef(this.actionsStates)
+            ),
           );
-        Object.keys(this.stepsStates.value)
-          .filter((stepId) => !stepsIds.includes(stepId))
-          .forEach((stepId) => (delete this.stepsStates.value[stepId], triggerRef(this.stepsStates)));
+        Object.keys(this.actionsStates.value)
+          .filter((actionId) => !actionsIds.includes(actionId))
+          .forEach((actionId) => (delete this.actionsStates.value[actionId], triggerRef(this.actionsStates)));
       },
       { immediate: true },
     );
@@ -389,31 +382,31 @@ export class FlowContext {
     return this.dragging.value != null;
   }
 
-  isDraggingPortAt(step: StepData, side?: PortSide): boolean {
+  isDraggingPortAt(action: ActionData, side?: PortSide): boolean {
     return (
       this.dragging.value?.thing.kind == "port" &&
-      this.dragging.value?.thing.step.id == step.id &&
+      this.dragging.value?.thing.action.id == action.id &&
       (!side || this.dragging.value?.thing.side == side)
     );
   }
 
-  isDraggingStep(step: StepData): boolean {
-    return this.dragging.value?.thing.kind == "step" && this.dragging.value?.thing.step.id == step.id;
+  isDraggingAction(action: ActionData): boolean {
+    return this.dragging.value?.thing.kind == "action" && this.dragging.value?.thing.action.id == action.id;
   }
 
-  getStepComponent(step: StepData): InstanceType<typeof Step> | null {
-    const stepRef = this.stepRefs.value[step.id!];
-    return stepRef != null ? stepRef : null;
+  getActionComponent(action: ActionData): InstanceType<typeof Action> | null {
+    const actionRef = this.actionRefs.value[action.id!];
+    return actionRef != null ? actionRef : null;
   }
 
-  /** Gets the (reactive) estimated boundng box for a Step (in world coordinates). */
-  getStepBoundingBox(step: StepData): BoundingBox | null {
-    const stepState = this.stepsStates.value[step.id!];
-    if (stepState == null) return null;
-    const x1 = step.position?.x ?? 0;
-    const y1 = step.position?.y ?? 0;
-    const x2 = x1 + STEP_SIZE.width;
-    const y2 = y1 + STEP_SIZE.height;
+  /** Gets the (reactive) estimated boundng box for a Action (in world coordinates). */
+  getActionBoundingBox(action: ActionData): BoundingBox | null {
+    const actionState = this.actionsStates.value[action.id!];
+    if (actionState == null) return null;
+    const x1 = action.position?.x ?? 0;
+    const y1 = action.position?.y ?? 0;
+    const x2 = x1 + ACTION_SIZE.width;
+    const y2 = y1 + ACTION_SIZE.height;
     return { x1, y1, x2, y2, width: x2 - x1, height: y2 - y1 };
   }
 
@@ -454,20 +447,20 @@ export class FlowContext {
 
   /** Computes the bounding box for all things in this flow (in world coordinates). */
   computeContentBoundingBox(): BoundingBox | null {
-    const steps = this.steps.value;
-    if (steps.length == 0) return null;
-    let x1 = steps[0].position?.x ?? 0;
-    let y1 = steps[0].position?.y ?? 0;
-    let x2 = steps[0].position?.x ?? 0;
-    let y2 = steps[0].position?.y ?? 0;
-    for (const step of steps) {
-      if (INVISIBLE_STEP_TYPES.includes(step.type!)) continue;
-      const state = this.stepsStates.value[step.id!];
+    const actions = this.actions.value;
+    if (actions.length == 0) return null;
+    let x1 = actions[0].position?.x ?? 0;
+    let y1 = actions[0].position?.y ?? 0;
+    let x2 = actions[0].position?.x ?? 0;
+    let y2 = actions[0].position?.y ?? 0;
+    for (const action of actions) {
+      if (INVISIBLE_ACTION_TYPES.includes(action.type!)) continue;
+      const state = this.actionsStates.value[action.id!];
       if (state == null) continue;
-      x1 = Math.min(x1, step.position?.x ?? 0);
-      y1 = Math.min(y1, step.position?.y ?? 0);
-      x2 = Math.max(x2, (step.position?.x ?? 0) + STEP_SIZE.width);
-      y2 = Math.max(y2, (step.position?.y ?? 0) + STEP_SIZE.height);
+      x1 = Math.min(x1, action.position?.x ?? 0);
+      y1 = Math.min(y1, action.position?.y ?? 0);
+      x2 = Math.max(x2, (action.position?.x ?? 0) + ACTION_SIZE.width);
+      y2 = Math.max(y2, (action.position?.y ?? 0) + ACTION_SIZE.height);
     }
     return { x1, y1, x2, y2, width: x2 - x1, height: y2 - y1 };
   }
@@ -685,8 +678,8 @@ export class FlowContext {
   getBoundingBox(thing: FlowThing): BoundingBox | null {
     if (thing.kind == "canvas") {
       return this.contentBoundingBox.value;
-    } else if (thing.kind == "step") {
-      return this.stepsStates.value[thing.step.id!]?.boundingBox.value;
+    } else if (thing.kind == "action") {
+      return this.actionsStates.value[thing.action.id!]?.boundingBox.value;
     } else if (thing.kind == "pipe") {
       const pipeState = this.pipesStates.value[thing.pipe.id!];
       if (pipeState == null) return null;
@@ -789,7 +782,7 @@ export class FlowContext {
   }
 
   /** Zoom the convas around the given origin (panning as needed) */
-  zoom(direction: "in" | "out" | number, originViewVec: { x: number; y: number } | "center", steps: number) {
+  zoom(direction: "in" | "out" | number, originViewVec: { x: number; y: number } | "center", actions: number) {
     const containerBounding = this.containerRef.value?.getBoundingClientRect();
     if (containerBounding == null) throw new Error("no container bounding");
     if (originViewVec == "center") {
@@ -799,9 +792,9 @@ export class FlowContext {
     const currentZoom = this.currentViewport.scale;
     let newZoom: number;
     if (direction == "in") {
-      newZoom = Math.min(FLOW_SCALE_MAX, currentZoom + FLOW_SCALE_SPEED * steps);
+      newZoom = Math.min(FLOW_SCALE_MAX, currentZoom + FLOW_SCALE_SPEED * actions);
     } else if (direction == "out") {
-      newZoom = Math.max(FLOW_SCALE_MIN, currentZoom - FLOW_SCALE_SPEED * steps);
+      newZoom = Math.max(FLOW_SCALE_MIN, currentZoom - FLOW_SCALE_SPEED * actions);
     } else {
       newZoom = direction;
     }
@@ -880,35 +873,38 @@ export class FlowContext {
     if (thing.kind == "canvas") {
       // start panning canvas
       this.dragging.value = { thing, viewOffsetByThing: {} };
-    } else if (thing.kind == "step") {
-      // start moving step
-      if (canvas.isSelected(thing.step)) {
+    } else if (thing.kind == "action") {
+      // start moving action
+      if (canvas.isSelected(thing.action)) {
         // promote to selection
         const nodes = supergraph.getManyMaybe(canvas.selection!.nodesPtr);
-        const steps = nodes.filter((s) => isNode(s, NodeType.STEP));
+        const actions = nodes.filter((s) => isNode(s, NodeType.ACTION));
         const viewOffsetByThing: Record<string, { x: number; y: number }> = {};
-        for (const step of steps) {
-          const positionViewportVec = this.worldToViewportVec({ x: step.position?.x ?? 0, y: step.position?.y ?? 0 });
-          viewOffsetByThing[step.id] = { x: e.clientX - positionViewportVec.x, y: e.clientY - positionViewportVec.y };
+        for (const action of actions) {
+          const positionViewportVec = this.worldToViewportVec({
+            x: action.position?.x ?? 0,
+            y: action.position?.y ?? 0,
+          });
+          viewOffsetByThing[action.id] = { x: e.clientX - positionViewportVec.x, y: e.clientY - positionViewportVec.y };
         }
         thing = { kind: "selection", selection: canvas.selection!, nodes };
         this.dragging.value = { thing, viewOffsetByThing };
       } else {
         const positionViewportVec = this.worldToViewportVec({
-          x: thing.step.position?.x ?? 0,
-          y: thing.step.position?.y ?? 0,
+          x: thing.action.position?.x ?? 0,
+          y: thing.action.position?.y ?? 0,
         });
         const viewOffsetToThing = { x: e.clientX - positionViewportVec.x, y: e.clientY - positionViewportVec.y };
-        this.dragging.value = { thing, viewOffsetByThing: { [thing.step.id]: viewOffsetToThing } };
+        this.dragging.value = { thing, viewOffsetByThing: { [thing.action.id]: viewOffsetToThing } };
       }
     } else if (thing.kind == "port") {
       // create pending pipe
       const positionViewportVec = this.worldToViewportVec({
-        x: thing.step.position?.x ?? 0,
-        y: thing.step.position?.y ?? 0,
+        x: thing.action.position?.x ?? 0,
+        y: thing.action.position?.y ?? 0,
       });
       const viewOffsetToThing = { x: e.clientX - positionViewportVec.x, y: e.clientY - positionViewportVec.y };
-      this.dragging.value = { thing: thing, viewOffsetByThing: { [thing.step.id]: viewOffsetToThing } };
+      this.dragging.value = { thing: thing, viewOffsetByThing: { [thing.action.id]: viewOffsetToThing } };
     } else {
       throw new Error(`cannot drag ${thing.kind}`);
     }
@@ -936,22 +932,22 @@ export class FlowContext {
         },
         { debounce: "long" },
       );
-    } else if (thing.kind == "step") {
-      // move step (snap to grid)
-      const viewOffset = this.dragging.value.viewOffsetByThing[thing.step.id];
-      if (viewOffset == null) throw new Error(`no view offset for ${describeNode(thing.step)}`);
+    } else if (thing.kind == "action") {
+      // move action (snap to grid)
+      const viewOffset = this.dragging.value.viewOffsetByThing[thing.action.id];
+      if (viewOffset == null) throw new Error(`no view offset for ${describeNode(thing.action)}`);
       const screenVec = this.viewportToViewVec({ x: e.clientX - viewOffset.x, y: e.clientY - viewOffset.y });
       const worldVec = snapVec(this.viewToWorldVec(screenVec));
       this.tx.update(
-        thing.step,
+        thing.action,
         { position: makeStruct({ metatype: StructType.VECTOR2, x: worldVec.x, y: worldVec.y }) },
         { debounce: "long" },
       );
     } else if (thing.kind == "selection") {
-      // move all steps in selection (snap each to grid)
+      // move all actions in selection (snap each to grid)
       const tx = this.tx.with({ change: { key: newChangeId(), title: "Move" } });
       for (const node of thing.nodes) {
-        if (!isNode(node, NodeType.STEP)) continue;
+        if (!isNode(node, NodeType.ACTION)) continue;
         const viewOffset = this.dragging.value.viewOffsetByThing[node.id];
         if (viewOffset == null) throw new Error(`no view offset for ${describeNode(node)}`);
         const screenVec = this.viewportToViewVec({ x: e.clientX - viewOffset.x, y: e.clientY - viewOffset.y });
@@ -980,11 +976,11 @@ export class FlowContext {
   canPortsConnect(sourcePort: Port, targetPort: Port) {
     return (
       !portEquals(sourcePort, targetPort) /* can't connect same port */ &&
-      !SINK_STEP_TYPES.includes(sourcePort.parent.type) /* can't go from sink */ &&
-      !SOURCE_STEP_TYPES.includes(targetPort?.parent.type) /* can't go to source */ &&
+      !SINK_ACTION_TYPES.includes(sourcePort.parent.type) /* can't go from sink */ &&
+      !SOURCE_ACTION_TYPES.includes(targetPort?.parent.type) /* can't go to source */ &&
       !this.pipes.value.some(
         (pipe) => pipe.sourcePtr?.ck == sourcePort.parent.ck && pipe.targetPtr?.ck == targetPort.parent.ck,
-      ) /* can't connect same two Steps twice */
+      ) /* can't connect same two Actions twice */
     );
   }
 
@@ -996,13 +992,13 @@ export class FlowContext {
     // (re-)connect pipes
     try {
       if (this.draggable?.kind == "port") {
-        const sourceStep = this.draggable.step;
-        const sourcePort = { parent: this.draggable.step, side: this.draggable.side };
-        const sourceBounding = this.getStepBoundingBox(sourceStep);
-        if (sourceBounding == null) throw new Error(`no bounding box for ${describeNode(sourceStep)}`);
+        const sourceAction = this.draggable.action;
+        const sourcePort = { parent: this.draggable.action, side: this.draggable.side };
+        const sourceBounding = this.getActionBoundingBox(sourceAction);
+        if (sourceBounding == null) throw new Error(`no bounding box for ${describeNode(sourceAction)}`);
         const sourcePos = {
-          x: sourceBounding.x1 + (this.dragging.value?.viewOffsetByThing[sourceStep.id]?.x ?? 0),
-          y: sourceBounding.y1 + (this.dragging.value?.viewOffsetByThing[sourceStep.id]?.y ?? 0),
+          x: sourceBounding.x1 + (this.dragging.value?.viewOffsetByThing[sourceAction.id]?.x ?? 0),
+          y: sourceBounding.y1 + (this.dragging.value?.viewOffsetByThing[sourceAction.id]?.y ?? 0),
         };
         const cursor = this.cursorWorldPos.value;
         const distance = lengthVector2(subVector2(sourcePos, cursor));
@@ -1010,43 +1006,43 @@ export class FlowContext {
 
         let targetPort: Port | null = null;
         if (at.kind == "port") {
-          targetPort = { parent: at.step, side: at.side };
-        } else if (at.kind == "step") {
-          targetPort = { parent: at.step, side: getOtherSide(sourcePort.side) };
+          targetPort = { parent: at.action, side: at.side };
+        } else if (at.kind == "action") {
+          targetPort = { parent: at.action, side: getOtherSide(sourcePort.side) };
         } else {
-          // dragged into emptyness, open step picker
+          // dragged into emptyness, open action picker
           const targetPosition = this.viewportToWorldVec({ x: e.clientX, y: e.clientY });
           canvas.pushPopover({
             trigger: e.target as HTMLElement,
             reference: { x: e.clientX, y: e.clientY },
             kind: "view",
             placement: "bottom",
-            title: "Add Step",
+            title: "Add Action",
             component: ViewType.PICKER,
             props: {
-              valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }),
+              valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
             },
             onApply: (value) => {
               const tx = this.tx.with({ change: { key: newChangeId() } });
-              const step = this.createStep({
+              const action = this.createAction({
                 parent: this.flow.value!,
-                near: { x: targetPosition.x - STEP_SIZE.width / 2, y: targetPosition.y - STEP_SIZE.height / 2 },
-                step: { type: value },
+                near: { x: targetPosition.x - ACTION_SIZE.width / 2, y: targetPosition.y - ACTION_SIZE.height / 2 },
+                action: { type: value },
                 tx,
               });
               if (
-                step.type != StepType.TEXT &&
-                this.canPortsConnect(sourcePort, { parent: step, side: PortSide.INCOMING })
+                action.type != ActionType.TEXT &&
+                this.canPortsConnect(sourcePort, { parent: action, side: PortSide.INCOMING })
               ) {
                 this.createPipe({
                   parent: this.flow.value!,
                   pipe: { type: PipeType.PASS },
                   source: sourcePort,
-                  target: { parent: step, side: PortSide.INCOMING },
+                  target: { parent: action, side: PortSide.INCOMING },
                   tx,
                 });
               }
-              canvas.inspect({ node: step, view: this.view.value });
+              canvas.inspect({ node: action, view: this.view.value });
             },
           });
           return;
@@ -1079,14 +1075,14 @@ export class FlowContext {
     this.dragging.value = null;
   }
 
-  /** Gets the (first) Step at the given position (in world coordinates) */
-  getStepAt(position: Vector2, filter?: (step: StepData) => boolean): StepData | null {
-    let steps = this.steps.value;
+  /** Gets the (first) Action at the given position (in world coordinates) */
+  getActionAt(position: Vector2, filter?: (action: ActionData) => boolean): ActionData | null {
+    let actions = this.actions.value;
     if (filter != null) {
-      steps = steps.filter(filter);
+      actions = actions.filter(filter);
     }
-    const hit = steps.find((step) => {
-      const bounding = this.getStepBoundingBox(step);
+    const hit = actions.find((action) => {
+      const bounding = this.getActionBoundingBox(action);
       return (
         bounding != null &&
         bounding.x1 <= position.x &&
@@ -1117,9 +1113,9 @@ export class FlowContext {
   }
 
   /** Gets the pipes connected to the given port. */
-  getPipesAtPort(step: StepData, side: PortSide): PipeData[] {
-    if (side == PortSide.INCOMING) return this.pipes.value.filter((pipe) => pipe.targetPtr?.ck == step.ck);
-    else return this.pipes.value.filter((pipe) => pipe.sourcePtr?.ck == step.ck);
+  getPipesAtPort(action: ActionData, side: PortSide): PipeData[] {
+    if (side == PortSide.INCOMING) return this.pipes.value.filter((pipe) => pipe.targetPtr?.ck == action.ck);
+    else return this.pipes.value.filter((pipe) => pipe.sourcePtr?.ck == action.ck);
   }
 
   /** Gets the hex color of the given pipe. */
@@ -1131,12 +1127,12 @@ export class FlowContext {
     }
   }
 
-  /** Gets the computed (reactive) fields for a given step (may be from the flow or related nodes). */
-  getStepFields(step: StepData, side: PortSide) {
-    const state = this.stepsStates.value[step.id!];
+  /** Gets the computed (reactive) fields for a given action (may be from the flow or related nodes). */
+  getActionFields(action: ActionData, side: PortSide) {
+    const state = this.actionsStates.value[action.id!];
     if (state == null || this.flow.value == null) return null;
-    return getStepFields(this.spaceGraph, step, side, {
-      stepFields: state.stepFields.value,
+    return getActionFields(this.spaceGraph, action, side, {
+      actionFields: state.actionFields.value,
       flow: this.flow.value,
       flowFields: this.fields.value,
       node: state.delegate.value,
@@ -1146,12 +1142,12 @@ export class FlowContext {
 
   /** Moves the thing */
   move(
-    thing: StepData | PipeData,
+    thing: ActionData | PipeData,
     move: { x: number; y: number },
     options?: { tx?: Transaction } & TransactionOptions,
   ) {
     const tx = options?.tx ?? this.tx;
-    if (isNode(thing, NodeType.STEP)) {
+    if (isNode(thing, NodeType.ACTION)) {
       tx.update(thing, { position: addVector2(thing.position, move) }, { debounce: "long", ...options });
     } else if (isNode(thing, NodeType.PIPE)) {
       throw new Error(":Incomplete: move pipe");
@@ -1166,13 +1162,13 @@ export class FlowContext {
     size: { width: number; height: number },
     options?: {
       bias?: "right" | "down";
-      maxSteps?: number;
+      maxActions?: number;
       margin?: { x: number; y: number };
     },
   ): Vector2Data | null {
     near = snapVec(near);
     const position = { ...near };
-    const { maxSteps = 100, margin = { x: FLOW_GRID_STEP, y: FLOW_GRID_STEP * 4 }, bias = "down" } = options ?? {};
+    const { maxActions = 100, margin = { x: FLOW_GRID_STEP, y: FLOW_GRID_STEP * 4 }, bias = "down" } = options ?? {};
     const hitOffsets = [
       { x: 0, y: 0 },
       { x: size.width, y: 0 },
@@ -1181,7 +1177,7 @@ export class FlowContext {
       { x: size.width / 2, y: size.height / 2 },
     ];
     if (margin.x != 0 || margin.y != 0) {
-      // add hitoffsets for every step [0, margin.x] and [0, margin.y]
+      // add hitoffsets for every action [0, margin.x] and [0, margin.y]
       for (let testX = 0; testX < margin.x; testX += FLOW_GRID_STEP) {
         for (let testY = 0; testY < margin.y; testY += FLOW_GRID_STEP) {
           hitOffsets.push({ x: -testX, y: -testY });
@@ -1192,13 +1188,13 @@ export class FlowContext {
       }
     }
 
-    let numSteps = 0;
-    while (numSteps < maxSteps) {
-      // check if there's any overlapping step at the position (including bounding corners)
+    let numActions = 0;
+    while (numActions < maxActions) {
+      // check if there's any overlapping action at the position (including bounding corners)
       let hit = false;
       for (const hitOffset of hitOffsets) {
         const hitPosition = addVector2(position, hitOffset);
-        if (this.getStepAt(hitPosition) != null) {
+        if (this.getActionAt(hitPosition) != null) {
           hit = true;
           break;
         }
@@ -1208,7 +1204,7 @@ export class FlowContext {
         return { ...position, metatype: ObjectType.VECTOR2 };
       }
 
-      // advance step
+      // advance action
       if (bias === "right") {
         position.x += FLOW_GRID_STEP;
       } else if (bias === "down") {
@@ -1216,19 +1212,19 @@ export class FlowContext {
       } else {
         assertNever(bias);
       }
-      numSteps++;
+      numActions++;
     }
 
     return null;
   }
 
-  /** Creates a Step */
-  createStep(options: {
-    step: { type: StepType } & Partial<StepData>;
-    parent: StepData | TypedNodeReferenceData<NodeType.STEP> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>;
+  /** Creates a Action */
+  createAction(options: {
+    action: { type: ActionType } & Partial<ActionData>;
+    parent: ActionData | TypedNodeReferenceData<NodeType.ACTION> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>;
     near?: Vector2 | null; // in world coordinates
     tx?: Transaction;
-  }): StepData {
+  }): ActionData {
     const parent = isNode(options.parent) ? options.parent : this.graph.getOrError(options.parent);
     const parentPtr = toNodeRef(parent);
     const packagePtr = parent.packagePtr;
@@ -1236,33 +1232,33 @@ export class FlowContext {
     if (flow == null) throw new Error(`no flow for ${describeNode(parent)}`);
 
     // position in graph
-    const siblings = this.graph.getChildren(parent, NodeType.STEP);
+    const siblings = this.graph.getChildren(parent, NodeType.ACTION);
     const orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
     const position =
-      options.step.position ??
+      options.action.position ??
       this.findEmptySpace(
-        options.near ?? subVector2(this.centerVec!, { x: STEP_SIZE.width / 2, y: STEP_SIZE.height / 2 }),
-        STEP_SIZE,
+        options.near ?? subVector2(this.centerVec!, { x: ACTION_SIZE.width / 2, y: ACTION_SIZE.height / 2 }),
+        ACTION_SIZE,
       );
 
     // create
-    const step = (options.tx ?? this.tx).create({
-      metatype: NodeType.STEP,
-      name: makeNodeName(this.graph, { metatype: ObjectType.STEP, type: options.step.type, parentPtr }),
+    const action = (options.tx ?? this.tx).create({
+      metatype: NodeType.ACTION,
+      name: makeNodeName(this.graph, { metatype: ObjectType.ACTION, type: options.action.type, parentPtr }),
       orderKey,
-      ...options.step,
+      ...options.action,
       position: position ?? undefined,
-      type: options.step.type as any,
+      type: options.action.type as any,
       parentPtr,
       packagePtr,
     });
-    canvas.inspect({ node: step, view: this.view.value });
-    return step;
+    canvas.inspect({ node: action, view: this.view.value });
+    return action;
   }
 
   /** Creates a Pipe */
   createPipe(options: {
-    parent: StepData | TypedNodeReferenceData<NodeType.STEP> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>;
+    parent: ActionData | TypedNodeReferenceData<NodeType.ACTION> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>;
     pipe: { type: PipeType } & Partial<PipeData>;
     source: Port;
     target: Port;
@@ -1317,43 +1313,44 @@ export function getOtherSide(side: PortSide): PortSide {
   return side == PortSide.INCOMING ? PortSide.OUTGOING : PortSide.INCOMING;
 }
 
-/** Gets the sides that a Step has ports on */
-export function getStepSides(step: StepData): PortSide[] {
-  if (step.type == StepType.TEXT) return []; // no ports
+/** Gets the sides that a Action has ports on */
+export function getActionSides(action: ActionData): PortSide[] {
+  if (action.type == ActionType.TEXT) return []; // no ports
   const sides: PortSide[] = [];
-  if (!SOURCE_STEP_TYPES.includes(step.type)) sides.push(PortSide.INCOMING);
-  if (!SINK_STEP_TYPES.includes(step.type)) sides.push(PortSide.OUTGOING);
+  if (!SOURCE_ACTION_TYPES.includes(action.type)) sides.push(PortSide.INCOMING);
+  if (!SINK_ACTION_TYPES.includes(action.type)) sides.push(PortSide.OUTGOING);
   return sides;
 }
 
-/** Gets the computed (reactive) fields for a given step (may be from the flow or related nodes). */
-export function getStepFields(
+/** Gets the computed (reactive) fields for a given action (may be from the flow or related nodes). */
+export function getActionFields(
   graph: ReadNodeGraph,
-  step: StepData,
+  action: ActionData,
   side: PortSide,
   related?: {
-    stepFields: FieldData[];
+    actionFields: FieldData[];
     flow: BlockData;
     flowFields: FieldData[];
-    node: BlockData | StepData | undefined | null;
+    node: BlockData | ActionData | undefined | null;
     nodeFields: FieldData[];
   },
 ): {
   type: FieldType;
   fields: FieldData[];
-  fieldParent: BlockData | StepData;
+  fieldParent: BlockData | ActionData;
 } | null {
   if (related == null) {
     // get related nodes (not reactive)
-    const flow = getContainingFlow(graph, step);
+    const flow = getContainingFlow(graph, action);
     if (flow == null) return null;
-    let node: BlockData | StepData | undefined | null = null;
-    if (step.type == StepType.ACTION) {
-      const nodePtr = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, step.subnodePacked, "delegatePtr");
-      node = graph.getMaybe(nodePtr) as BlockData | StepData | undefined;
-    }
+    // nocheckin
+    let node: BlockData | ActionData | undefined | null = null;
+    // if (action.type == ActionType.ACTION) {
+    //   const nodePtr = unpackSubnodeProperty(NodeType.ACTION, ActionType.ACTION, action.subnodePacked, "delegatePtr");
+    //   node = graph.getMaybe(nodePtr) as BlockData | ActionData | undefined;
+    // }
     related = {
-      stepFields: graph.getChildren(step, NodeType.FIELD),
+      actionFields: graph.getChildren(action, NodeType.FIELD),
       flow,
       flowFields: graph.getChildren(flow, NodeType.FIELD),
       node,
@@ -1361,7 +1358,7 @@ export function getStepFields(
     };
   }
 
-  if (step.type == StepType.START) {
+  if (action.type == ActionType.START) {
     // from flow's input fields
     if (related.flow == null) return null;
     return {
@@ -1369,7 +1366,7 @@ export function getStepFields(
       fields: side == PortSide.OUTGOING ? related.flowFields.filter((f) => f.type == FieldType.INPUT) : [],
       fieldParent: related.flow!,
     };
-  } else if (step.type == StepType.COMPLETE) {
+  } else if (action.type == ActionType.COMPLETE) {
     // from flow's output fields
     if (related.flow == null) return null;
     return {
@@ -1377,15 +1374,15 @@ export function getStepFields(
       fields: side == PortSide.INCOMING ? related.flowFields.filter((f) => f.type == FieldType.OUTPUT) : [],
       fieldParent: related.flow,
     };
-  } else if (step.type == StepType.ACTION) {
+  } else if (action.type == ActionType.RUN && action.delegatePtr != null) {
     // from block
     if (related.node == null) return null;
     const type = side == PortSide.INCOMING ? FieldType.INPUT : FieldType.OUTPUT;
     return { type: type, fields: related.nodeFields.filter((f) => f.type == type), fieldParent: related.node };
   } else {
-    // step itself
+    // action itself
     const type = side == PortSide.INCOMING ? FieldType.INPUT : FieldType.OUTPUT;
-    return { type: type, fields: related.stepFields.filter((f) => f.type == type), fieldParent: step };
+    return { type: type, fields: related.actionFields.filter((f) => f.type == type), fieldParent: action };
   }
 }
 
