@@ -89,21 +89,21 @@ class ActionType(IdEnum):
     DELETE = 63
     PASTE = 70
 
-    # interrupt
-    YIELD = 80  # to something
-
-    # agentive
-    RUN = 100  # run code / a delegate
-    GENERATE = 101
-    SWITCH = 102
-
     # session
+    YIELD = 80  # to something
     # PAUSE, RESUME, STOP, ...
+
+    # static
+    CODE = 100
+    DELEGATE = 101
+    # dynamic
+    GENERATE = 110
+    TRANSFORM = 111
+    EXTRACT = 112
+    SWITCH = 120
 
     # state
     # ...
-
-    # NOTE :Architecture: should the specific Actions be 'Actions' somehow? :ActionActions
 
     # application
     OBSERVE = 1000
@@ -233,7 +233,7 @@ class Action(SourceNode[ActionData]):
         run_options: RunOptions | None = None,
     ) -> "Pipe":
         """Connects a target Action to this Action."""
-        from bench.language.block import Block
+        from bench.language import Block, Pipe
 
         parent = parent or self.parent
         assert parent is not None, f"{self!r} is not attached to a parent"
@@ -266,7 +266,7 @@ class Action(SourceNode[ActionData]):
         field_type: FieldType | None = None,
     ) -> "TypeBase | None":
         """Gets a type represented by this Action (if any)"""
-        from bench.language.field import TypeInfo
+        from bench.language import TypeInfo
 
         if of == "instance":
             typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)

@@ -1310,8 +1310,11 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_DELETE: _ClassVar[ActionType]
     ACTION_TYPE_PASTE: _ClassVar[ActionType]
     ACTION_TYPE_YIELD: _ClassVar[ActionType]
-    ACTION_TYPE_RUN: _ClassVar[ActionType]
+    ACTION_TYPE_CODE: _ClassVar[ActionType]
+    ACTION_TYPE_DELEGATE: _ClassVar[ActionType]
     ACTION_TYPE_GENERATE: _ClassVar[ActionType]
+    ACTION_TYPE_TRANSFORM: _ClassVar[ActionType]
+    ACTION_TYPE_EXTRACT: _ClassVar[ActionType]
     ACTION_TYPE_SWITCH: _ClassVar[ActionType]
     ACTION_TYPE_OBSERVE: _ClassVar[ActionType]
     ACTION_TYPE_CLICK: _ClassVar[ActionType]
@@ -2727,8 +2730,11 @@ ACTION_TYPE_UPDATE: ActionType
 ACTION_TYPE_DELETE: ActionType
 ACTION_TYPE_PASTE: ActionType
 ACTION_TYPE_YIELD: ActionType
-ACTION_TYPE_RUN: ActionType
+ACTION_TYPE_CODE: ActionType
+ACTION_TYPE_DELEGATE: ActionType
 ACTION_TYPE_GENERATE: ActionType
+ACTION_TYPE_TRANSFORM: ActionType
+ACTION_TYPE_EXTRACT: ActionType
 ACTION_TYPE_SWITCH: ActionType
 ACTION_TYPE_OBSERVE: ActionType
 ACTION_TYPE_CLICK: ActionType

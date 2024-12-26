@@ -36,7 +36,7 @@ def test_evaluate_conditional_property_stringy(session: Session):
 
 
 def test_evaluate_conditional_property_node(session: Session, package: Package):
-    Code1 = Action.new(ActionType.RUN, "Code1", code=code("pass"))
+    Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
     page = package.blocks.append(Block.new(BlockType.PAGE, "Page"))
     page.actions.append(Code1)
     Run1 = make_run_from_node(Code1)

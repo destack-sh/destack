@@ -19,7 +19,7 @@ async def test_run_action_directly(local_runtime: RuntimeHandle):
     """Run a Action directly."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
-    Code = Action.new(ActionType.RUN, "Code", code=code("pass"))
+    Code = Action.new(ActionType.CODE, "Code", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Code, Complete)
     local_runtime.page().blocks.append(Flow1)
@@ -57,7 +57,7 @@ async def test_run_flow_spurious(local_runtime: RuntimeHandle):
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Flow1.actions.append(Action.new(ActionType.START, "Start"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Code1 = Action.new(ActionType.RUN, "Code1", code=code("pass"))
+    Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
     # don't actually connect the actions
     Flow1.actions.extend(Start, Complete, Code1)
     local_runtime.page().blocks.append(Flow1)
@@ -90,7 +90,7 @@ async def test_run_flow_create_in_test_mode(local_runtime: RuntimeHandle):
     )
     Start = Action.new(ActionType.START, "Start")
     Create = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Create",
         code=code("""\
 block = Block.new(BlockType.TEXT, "Test")
@@ -169,7 +169,7 @@ async def test_run_flow_force_invalid_input(local_runtime: RuntimeHandle):
     )
     Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Code1",
         code=code("return {'Output1': Input1}"),
         fields=(Field.input("Input1", str, is_required=True),),
@@ -198,7 +198,7 @@ async def test_run_flow_code_action(local_runtime: RuntimeHandle):
     )
     Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Code1",
         code=code("return {'Output1': 2 * Input1}"),
         fields=(
@@ -222,7 +222,7 @@ async def test_run_flow_error(local_runtime: RuntimeHandle):
     """Run a code Action that raises an error. Flow should abort and fail."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
-    Code1 = Action.new(ActionType.RUN, "Code1", code=code("raise ValueError"))
+    Code1 = Action.new(ActionType.CODE, "Code1", code=code("raise ValueError"))
     Flow1.actions.extend(Start, Code1)
     Start.connect(PipeType.PASS, Code1)
     local_runtime.page().blocks.extend(Flow1)
@@ -238,7 +238,7 @@ async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Code1",
         code=code("raise ValueError('error')"),
         run_options=RunOptions(suppress_fail=True),
@@ -375,9 +375,9 @@ async def test_run_flow_race(local_runtime: RuntimeHandle):
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Race1 = Action.new(ActionType.RUN, "Race1", code=code("await asyncio.sleep(1)"))
-    Race2 = Action.new(ActionType.RUN, "Race2", code=code("await asyncio.sleep(2)"))
-    Race3 = Action.new(ActionType.RUN, "Race3", code=code("await asyncio.sleep(3)"))
+    Race1 = Action.new(ActionType.CODE, "Race1", code=code("await asyncio.sleep(1)"))
+    Race2 = Action.new(ActionType.CODE, "Race2", code=code("await asyncio.sleep(2)"))
+    Race3 = Action.new(ActionType.CODE, "Race3", code=code("await asyncio.sleep(3)"))
     Flow1.actions.extend(Start, Race1, Race2, Race3, Complete)
     Start.connect(PipeType.PASS, Race1)
     Start.connect(PipeType.PASS, Race2)
@@ -399,7 +399,7 @@ async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
     """Runs an infinite loop that's not infinite because it also completes immediately."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
-    Loop = Action.new(ActionType.RUN, "Loop", code=code("pass"))
+    Loop = Action.new(ActionType.CODE, "Loop", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Loop, Complete)
     Start.connect(PipeType.PASS, Loop)
@@ -416,10 +416,10 @@ async def test_run_flow_select_continuations_manually(local_runtime: RuntimeHand
     """Runs a Flow with manually selected Continuations."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
-    Router = Action.new(ActionType.RUN, "Router", code=code("pass"))
-    Code2 = Action.new(ActionType.RUN, "Code2", code=code("pass"))
-    Code3 = Action.new(ActionType.RUN, "Code3", code=code("pass"))
-    Code4 = Action.new(ActionType.RUN, "Code4", code=code("pass"))
+    Router = Action.new(ActionType.CODE, "Router", code=code("pass"))
+    Code2 = Action.new(ActionType.CODE, "Code2", code=code("pass"))
+    Code3 = Action.new(ActionType.CODE, "Code3", code=code("pass"))
+    Code4 = Action.new(ActionType.CODE, "Code4", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Router, Code2, Code3, Code4, Complete)
     Start.connect(PipeType.PASS, Router)
@@ -483,7 +483,7 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     """Run a long async flow script and abort it. All pending actions should be aborted."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
-    Code1 = Action.new(ActionType.RUN, "Code1", code=code("await asyncio.sleep(5)"))
+    Code1 = Action.new(ActionType.CODE, "Code1", code=code("await asyncio.sleep(5)"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Code1, Complete)
     Start.connect(PipeType.PASS, Code1)
@@ -557,7 +557,7 @@ async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
     # outer flow
     FlowOuter = Block.new(BlockType.FLOW, "FlowOuter")
     StartOuter = Action.new(ActionType.START, "Start")
-    ActionOuter = Action.new(ActionType.RUN, "Action", delegate=FlowInner)
+    ActionOuter = Action.new(ActionType.CODE, "Action", delegate=FlowInner)
     CompleteOuter = Action.new(ActionType.COMPLETE, "Complete")
     FlowOuter.actions.extend(StartOuter, ActionOuter, CompleteOuter)
     StartOuter.connect(PipeType.PASS, ActionOuter)
@@ -619,7 +619,7 @@ async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
         ActionType.YIELD, "Yield", run_options=RunOptions(breakpoints=[Breakpoint.before()])
     )
     Action1 = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Action1",
         code=code("pass"),
         run_options=RunOptions(
@@ -682,8 +682,8 @@ async def test_run_flow_pause_resume(local_runtime: RuntimeHandle):
     """Run a long async Flow and pause it, then resume it."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
-    Action1 = Action.new(ActionType.RUN, "Action1", code=code("await sleep(0.2)"))
-    Action2 = Action.new(ActionType.RUN, "Action2", code=code("await sleep(0.2)"))
+    Action1 = Action.new(ActionType.CODE, "Action1", code=code("await sleep(0.2)"))
+    Action2 = Action.new(ActionType.CODE, "Action2", code=code("await sleep(0.2)"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Action1, Action2, Complete)
     Start.connect(PipeType.PASS, Action1)
@@ -713,7 +713,7 @@ async def test_run_flow_autoclose_interrupts(local_runtime: RuntimeHandle):
     Start = Action.new(ActionType.START, "Start")
     Yield = Action.new(ActionType.YIELD, "Yield")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Pass = Action.new(ActionType.RUN, "Pass", code=code("pass"))
+    Pass = Action.new(ActionType.CODE, "Pass", code=code("pass"))
     Flow.actions.extend(Start, Yield, Pass, Complete)
     Start.connect(PipeType.PASS, Yield)
     Start.connect(PipeType.PASS, Pass)
