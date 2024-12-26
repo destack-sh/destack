@@ -2189,14 +2189,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             else:
                 return bench_ident
         elif "ck" in self.__properties__:
-            title = getattr(self, "title", None)
-            if title is not None:
+            if "title" in self.__properties__ and (title := getattr(self, "title", None)):
                 return f"{title} [ck={self.ck}]"
             else:
                 return f"[ck={self.ck}]"
         else:
-            title = getattr(self, "title", None)
-            if title is not None:
+            if "title" in self.__properties__ and (title := getattr(self, "title", None)):
                 return f"{title} [id={self.id}]"
             else:
                 return f"[id={self.id}]"
@@ -2210,9 +2208,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 return slug
         if "name" in self.__properties__:
             name = getattr(self, "name")
-            if name is None:
-                return None
-            return to_code_name(name)
+            if name:
+                return to_code_name(name)
         return None
 
     @property

@@ -840,17 +840,20 @@ def coerce_value(
 
 
 class ProxyReadObject:
-    """An object that wraps another object for get with a default object on attribute access."""
+    """
+    A proxy for a CustomObject that defaults to another object if the value is not set.
+    """
 
     __slots__ = ("default", "obj")
 
-    def __init__(self, obj: Any, default: Any):
+    def __init__(self, obj: CustomObject, default: Any):
         self.obj = obj
         self.default = default
 
     def __getattr__(self, name: str) -> Any:
         try:
-            return getattr(self.obj, name)
+            if (value := getattr(self.obj, name)) is not None and value != ():
+                return value
         except AttributeError:
             pass
         return getattr(self.default, name)
