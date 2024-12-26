@@ -5,7 +5,7 @@ from hypothesis import HealthCheck, given, settings
 
 from bench.language.action import Action, ActionType, Call, Continue, CreateAction, DuplicateAction
 from bench.language.bench import Package
-from bench.language.block import Block, ValueBlock
+from bench.language.block import Block, VariableBlock
 from bench.language.code import Code
 from bench.language.const import (
     STRUCT_TYPES,
@@ -239,7 +239,7 @@ def test_roundtrip_scalar_value(session: Session, package: Package) -> None:
 
     # first set in constructor
     type_info = to_type_scalar(PrimitiveType.INT32)
-    block = Block.new(ValueBlock, name="Variable1", value_type=type_info, value=7)
+    block = Block.new(VariableBlock, name="Variable1", value_type=type_info, value=7)
     assert block.value == 7
     assert unpack_value(block.value_packed, type_info, wrap_scalar=True) == 7
 

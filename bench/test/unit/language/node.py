@@ -7,7 +7,7 @@ from hypothesis import HealthCheck, given, settings
 from bench.language import Bench, Message, NodeReference, Property, Server
 from bench.language.action import Action, ActionType, DuplicateAction
 from bench.language.bench import Client, PackageType
-from bench.language.block import Block, ValueBlock
+from bench.language.block import Block, VariableBlock
 from bench.language.code import Code
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field, to_type
@@ -78,7 +78,7 @@ def test_node_subtype_property_access(session: "Session"):
     assert BlockAction1.node_ptr == Text1.to_ref()
 
     # subtype -> value packed property
-    Value1 = Block.new(ValueBlock, "Value1", value_type=to_type(int), value=42)
+    Value1 = Block.new(VariableBlock, "Value1", value_type=to_type(int), value=42)
     assert Value1.value_type == to_type(int)
     assert Value1.value == 42
     Value1.value = 43

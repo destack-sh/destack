@@ -126,7 +126,7 @@ export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "n
 export const CANVAS_BLOCK_TYPES = [BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW];
 export const TYPE_BLOCK_TYPES = [BlockType.CHOICE, BlockType.MESSAGE, BlockType.DATABASE];
 export const RUNNABLE_BLOCK_TYPES = [BlockType.FLOW];
-export const CLASSY_BLOCK_TYPES = [BlockType.MESSAGE, ...RUNNABLE_BLOCK_TYPES, BlockType.VALUE, BlockType.DATABASE];
+export const CLASSY_BLOCK_TYPES = [BlockType.MESSAGE, ...RUNNABLE_BLOCK_TYPES, BlockType.VARIABLE, BlockType.DATABASE];
 
 // action
 export const ACTION_TYPES = Object.values(ActionType).filter((v) => typeof v == "number" && v > 0) as ActionType[];
@@ -270,7 +270,7 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.TEXT,
   BlockType.FLOW,
   // BlockType.VIEW,
-  BlockType.VALUE,
+  BlockType.VARIABLE,
   BlockType.DATABASE,
 ];
 export const EXPOSED_PIPE_TYPES = [PipeType.PASS, PipeType.OPTION, PipeType.SELECT];

@@ -256,7 +256,7 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   // runnable
   [BlockType.FLOW]: "fas fa-diagram-project",
   // data
-  [BlockType.VALUE]: "fas fa-hexagon",
+  [BlockType.VARIABLE]: "fas fa-hexagon",
   [BlockType.QUERY]: "fas fa-magnifying-glass",
   [BlockType.DATABASE]: "fas fa-database",
   // view

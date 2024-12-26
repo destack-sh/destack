@@ -215,12 +215,12 @@ class Block(SourceNode[BlockData]):
         return Block(type=typ, name=name, **kwargs)  # type: ignore
 
 
-@node_subtype_(BlockType.VALUE, passthrough_get=("value",), passthrough_set=("value",))
-class ValueBlock(Block):
+@node_subtype_(BlockType.VARIABLE, passthrough_get=("value",), passthrough_set=("value",))
+class VariableBlock(Block):
     value_type: Optional["TypeInfo"] = p_regular(100, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(101)
     value: Any = p_value_runtime(
-        101, kind=ObjectKind.MEMBER, typ=lambda self: cast("ValueBlock", self).value_type
+        101, kind=ObjectKind.MEMBER, typ=lambda self: cast("VariableBlock", self).value_type
     )
 
 

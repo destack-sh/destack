@@ -901,7 +901,7 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BLOCK_TYPE_CHOICE: _ClassVar[BlockType]
     BLOCK_TYPE_MESSAGE: _ClassVar[BlockType]
     BLOCK_TYPE_FLOW: _ClassVar[BlockType]
-    BLOCK_TYPE_VALUE: _ClassVar[BlockType]
+    BLOCK_TYPE_VARIABLE: _ClassVar[BlockType]
     BLOCK_TYPE_DATABASE: _ClassVar[BlockType]
     BLOCK_TYPE_QUERY: _ClassVar[BlockType]
     BLOCK_TYPE_VIEW: _ClassVar[BlockType]
@@ -2435,7 +2435,7 @@ BLOCK_TYPE_TEXT: BlockType
 BLOCK_TYPE_CHOICE: BlockType
 BLOCK_TYPE_MESSAGE: BlockType
 BLOCK_TYPE_FLOW: BlockType
-BLOCK_TYPE_VALUE: BlockType
+BLOCK_TYPE_VARIABLE: BlockType
 BLOCK_TYPE_DATABASE: BlockType
 BLOCK_TYPE_QUERY: BlockType
 BLOCK_TYPE_VIEW: BlockType
@@ -3769,6 +3769,24 @@ class MachineImageData(_message.Message):
     metatype: ObjectType
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
 
+class PathTokenData(_message.Message):
+    __slots__ = ("metatype", "type", "name")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    type: PathTokenType
+    name: str
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[PathTokenType, str]] = ..., name: _Optional[str] = ...) -> None: ...
+
+class PathData(_message.Message):
+    __slots__ = ("metatype", "tokens")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    TOKENS_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    tokens: _containers.RepeatedCompositeFieldContainer[PathTokenData]
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., tokens: _Optional[_Iterable[_Union[PathTokenData, _Mapping]]] = ...) -> None: ...
+
 class ColorData(_message.Message):
     __slots__ = ("metatype", "type", "shade", "hex")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -3922,24 +3940,6 @@ class IconData(_message.Message):
     vsc_name: str
     color: ColorData
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[IconKind, str]] = ..., emoji: _Optional[str] = ..., fa_name: _Optional[str] = ..., vsc_name: _Optional[str] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
-
-class PathTokenData(_message.Message):
-    __slots__ = ("metatype", "type", "name")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    type: PathTokenType
-    name: str
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[PathTokenType, str]] = ..., name: _Optional[str] = ...) -> None: ...
-
-class PathData(_message.Message):
-    __slots__ = ("metatype", "tokens")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TOKENS_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    tokens: _containers.RepeatedCompositeFieldContainer[PathTokenData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., tokens: _Optional[_Iterable[_Union[PathTokenData, _Mapping]]] = ...) -> None: ...
 
 class ChangeVignetteData(_message.Message):
     __slots__ = ("metatype", "name", "title", "subtype", "icon")
@@ -5291,7 +5291,7 @@ class BlockData(_message.Message):
     mode: NodeMode
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[BlockType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., variables_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., run_options: _Optional[_Union[RunOptionsData, _Mapping]] = ..., policies: _Optional[_Iterable[_Union[PolicyData, _Mapping]]] = ..., delegated_policies: _Optional[_Iterable[_Union[PolicyData, _Mapping]]] = ..., roles_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
 
-class ValueBlockData(_message.Message):
+class VariableBlockData(_message.Message):
     __slots__ = ("value_type", "value_packed")
     VALUE_TYPE_FIELD_NUMBER: _ClassVar[int]
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]

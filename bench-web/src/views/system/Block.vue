@@ -53,16 +53,16 @@ const isSelected = computed(() => state.isSelected(nodePtr.value));
 //
 
 const valueType = computed(() => {
-  if (block.value?.type != BlockType.VALUE) {
+  if (block.value?.type != BlockType.VARIABLE) {
     return undefined;
   }
-  return unpackSubnodeProperty(NodeType.BLOCK, BlockType.VALUE, block.value.subnodePacked, "valueType");
+  return unpackSubnodeProperty(NodeType.BLOCK, BlockType.VARIABLE, block.value.subnodePacked, "valueType");
 });
 const value = computed(() => {
-  if (block.value?.type != BlockType.VALUE || valueType.value == null) {
+  if (block.value?.type != BlockType.VARIABLE || valueType.value == null) {
     return undefined;
   }
-  const valuePacked = unpackSubnodeProperty(NodeType.BLOCK, BlockType.VALUE, block.value.subnodePacked, "valuePacked");
+  const valuePacked = unpackSubnodeProperty(NodeType.BLOCK, BlockType.VARIABLE, block.value.subnodePacked, "valuePacked");
   if (valueType == null) {
     return undefined;
   } else if (valueType.value.kind == TypeKind.CUSTOM_OBJECT || valueType.value.kind == TypeKind.PARTIAL_OBJECT) {
@@ -76,8 +76,8 @@ const value = computed(() => {
   }
 });
 function updateValue(value: any) {
-  if (block.value?.type != BlockType.VALUE) throw new Error(`no value block`);
-  const valueType = unpackSubnodeProperty(NodeType.BLOCK, BlockType.VALUE, block.value.subnodePacked, "valueType");
+  if (block.value?.type != BlockType.VARIABLE) throw new Error(`no value block`);
+  const valueType = unpackSubnodeProperty(NodeType.BLOCK, BlockType.VARIABLE, block.value.subnodePacked, "valueType");
   const valuePacked =
     valueType?.kind == TypeKind.CUSTOM_OBJECT || valueType?.kind == TypeKind.PARTIAL_OBJECT
       ? value
@@ -85,13 +85,13 @@ function updateValue(value: any) {
   if (valuePacked != null) {
     connection.tx.update(
       block.value,
-      makeEdit(block.value, { metatype: NodeType.BLOCK, type: BlockType.VALUE, subnode: { valuePacked } }),
+      makeEdit(block.value, { metatype: NodeType.BLOCK, type: BlockType.VARIABLE, subnode: { valuePacked } }),
       valueType != null ? getTransactionOptionsForType(valueType) : { debounce: "short" },
     );
   } else {
     connection.tx.update(
       block.value,
-      makeEdit(block.value, { metatype: NodeType.BLOCK, type: BlockType.VALUE, subnode: { valuePacked: undefined } }),
+      makeEdit(block.value, { metatype: NodeType.BLOCK, type: BlockType.VARIABLE, subnode: { valuePacked: undefined } }),
       valueType != null ? getTransactionOptionsForType(valueType) : { debounce: "short" },
     );
   }
@@ -219,7 +219,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       </template>
       <!-- State -->
       <Value
-        v-if="block.type == BlockType.VALUE"
+        v-if="block.type == BlockType.VARIABLE"
         id="value"
         class="max-h-[320px]"
         :value-type="valueType"
