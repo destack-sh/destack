@@ -150,7 +150,7 @@ describe("merge nodes", () => {
   const base1 = makeNode({
     metatype: NodeType.BLOCK,
     packagePtr: toNodeRef(pkg),
-    type: BlockType.VALUE,
+    type: BlockType.VARIABLE,
     name: "Block1",
     subnodePacked: { fruity: 3, fluffy: false },
   });

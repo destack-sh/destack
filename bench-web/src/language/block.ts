@@ -14,7 +14,7 @@ import {
   PackageData,
   TypeInfoData,
   TypeKind,
-  ValueBlockData
+  VariableBlockData
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { generateOrderKey } from "@/utils/fractional";
@@ -50,8 +50,8 @@ export function createBlock(
   if (options.block.subnode == null) options.block.subnode = {};
 
   // add value type if not given
-  if (options.block.type == BlockType.VALUE && (options.block.subnode as ValueBlockData).valueType == null) {
-    (options.block.subnode as ValueBlockData).valueType = makeTypeInfo({
+  if (options.block.type == BlockType.VARIABLE && (options.block.subnode as VariableBlockData).valueType == null) {
+    (options.block.subnode as VariableBlockData).valueType = makeTypeInfo({
       kind: TypeKind.STRUCT,
       benchType: BenchType.TEXT,
     });

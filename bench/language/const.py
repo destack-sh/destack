@@ -25,7 +25,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.26.0"
+VERSION = "2024.12.26.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -662,7 +662,7 @@ class BlockType(IdEnum):
     FLOW = 22  # define a flow of actions (actions connected with pipes)
 
     # data
-    VALUE = 30  # define a single-value variable
+    VARIABLE = 30  # define a single-value variable
     DATABASE = 31  # define a database with records & queries
     QUERY = 32  # define a set of queries
 
@@ -692,7 +692,7 @@ BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
 class BlockTypes:
     TYPES = bittuple(*tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
     RUNNABLE = bittuple(*tuple(t for t in BLOCK_TYPES if 20 <= t.id < 30))
-    CLASSES = bittuple(BlockType.MESSAGE, *RUNNABLE, BlockType.VALUE, BlockType.DATABASE)
+    CLASSES = bittuple(BlockType.MESSAGE, *RUNNABLE, BlockType.VARIABLE, BlockType.DATABASE)
 
 
 class ReferenceKind(IdEnum):

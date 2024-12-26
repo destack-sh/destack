@@ -157,7 +157,7 @@ def test_render_message_block(session: Session, package: Package):
 
 @_render_as_stmt
 def test_render_variable_block(session: Session, package: Package):
-    Variable1 = Block.new(BlockType.VALUE, "Variable1", value_type=to_type(int), value=1)
+    Variable1 = Block.new(BlockType.VARIABLE, "Variable1", value_type=to_type(int), value=1)
     return {"Variable1": Variable1}
 
 
@@ -179,7 +179,7 @@ def test_render_field_with_constraint(session: Session, package: Package):
 
 @_render_as_stmt
 def test_render_variable(session: Session, package: Package):
-    Variable1 = Block.new(BlockType.VALUE, "Variable1", value_type=to_type(int), value=5)
+    Variable1 = Block.new(BlockType.VARIABLE, "Variable1", value_type=to_type(int), value=5)
     return {"Variable1": Variable1}
 
 
@@ -192,7 +192,7 @@ def test_render_variable_with_file(session: Session, package: Package):
         mime_type="text/plain",
         size=1024,
     )
-    Variable1 = Block.new(BlockType.VALUE, "Variable1", value_type=to_type(File), value=File1)
+    Variable1 = Block.new(BlockType.VARIABLE, "Variable1", value_type=to_type(File), value=File1)
     return {"File1": File1, "Variable1": Variable1}
 
 

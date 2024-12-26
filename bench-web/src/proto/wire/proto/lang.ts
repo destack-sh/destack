@@ -1404,6 +1404,36 @@ export interface MachineImageData {
     metatype: ObjectType;
 }
 /**
+ * @generated from protobuf message symbolx.bench.PathTokenData
+ */
+export interface PathTokenData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbolx.bench.PathTokenType type = 31;
+     */
+    type: PathTokenType;
+    /**
+     * @generated from protobuf field: optional string name = 32;
+     */
+    name?: string;
+}
+/**
+ * @generated from protobuf message symbolx.bench.PathData
+ */
+export interface PathData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.PathTokenData tokens = 31;
+     */
+    tokens: PathTokenData[];
+}
+/**
  * @generated from protobuf message symbolx.bench.ColorData
  */
 export interface ColorData {
@@ -1677,36 +1707,6 @@ export interface IconData {
      * @generated from protobuf field: optional symbolx.bench.ColorData color = 40;
      */
     color?: ColorData;
-}
-/**
- * @generated from protobuf message symbolx.bench.PathTokenData
- */
-export interface PathTokenData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbolx.bench.PathTokenType type = 31;
-     */
-    type: PathTokenType;
-    /**
-     * @generated from protobuf field: optional string name = 32;
-     */
-    name?: string;
-}
-/**
- * @generated from protobuf message symbolx.bench.PathData
- */
-export interface PathData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.PathTokenData tokens = 31;
-     */
-    tokens: PathTokenData[];
 }
 /**
  * @generated from protobuf message symbolx.bench.ChangeVignetteData
@@ -4309,9 +4309,9 @@ export interface BlockData {
 /**
  * A building block with logic, types, UI, state, auth, AI, ...
  *
- * @generated from protobuf message symbolx.bench.ValueBlockData
+ * @generated from protobuf message symbolx.bench.VariableBlockData
  */
-export interface ValueBlockData {
+export interface VariableBlockData {
     /**
      * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 100;
      */
@@ -9824,9 +9824,9 @@ export enum BlockType {
      */
     FLOW = 22,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_VALUE = 30;
+     * @generated from protobuf enum value: BLOCK_TYPE_VARIABLE = 30;
      */
-    VALUE = 30,
+    VARIABLE = 30,
     /**
      * @generated from protobuf enum value: BLOCK_TYPE_DATABASE = 31;
      */
@@ -16481,6 +16481,123 @@ class MachineImageData$Type extends MessageType$<MachineImageData> {
  */
 export const MachineImageData = new MachineImageData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class PathTokenData$Type extends MessageType$<PathTokenData> {
+    constructor() {
+        super("symbolx.bench.PathTokenData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathTokenType", PathTokenType, "PATH_TOKEN_TYPE_"] },
+            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<PathTokenData>): PathTokenData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        if (value !== undefined)
+            reflectionMergePartial<PathTokenData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PathTokenData): PathTokenData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbolx.bench.PathTokenType type */ 31:
+                    message.type = reader.int32();
+                    break;
+                case /* optional string name */ 32:
+                    message.name = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PathTokenData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.PathTokenType type = 31; */
+        if (message.type !== 0)
+            writer.tag(31, WireType.Varint).int32(message.type);
+        /* optional string name = 32; */
+        if (message.name !== undefined)
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PathTokenData
+ */
+export const PathTokenData = new PathTokenData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PathData$Type extends MessageType$<PathData> {
+    constructor() {
+        super("symbolx.bench.PathData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 31, name: "tokens", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PathTokenData }
+        ]);
+    }
+    create(value?: PartialMessage<PathData>): PathData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.tokens = [];
+        if (value !== undefined)
+            reflectionMergePartial<PathData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PathData): PathData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* repeated symbolx.bench.PathTokenData tokens */ 31:
+                    message.tokens.push(PathTokenData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PathData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* repeated symbolx.bench.PathTokenData tokens = 31; */
+        for (let i = 0; i < message.tokens.length; i++)
+            PathTokenData.internalBinaryWrite(message.tokens[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PathData
+ */
+export const PathData = new PathData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class ColorData$Type extends MessageType$<ColorData> {
     constructor() {
         super("symbolx.bench.ColorData", [
@@ -17316,123 +17433,6 @@ class IconData$Type extends MessageType$<IconData> {
  * @generated MessageType for protobuf message symbolx.bench.IconData
  */
 export const IconData = new IconData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class PathTokenData$Type extends MessageType$<PathTokenData> {
-    constructor() {
-        super("symbolx.bench.PathTokenData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathTokenType", PathTokenType, "PATH_TOKEN_TYPE_"] },
-            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<PathTokenData>): PathTokenData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.type = 0;
-        if (value !== undefined)
-            reflectionMergePartial<PathTokenData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PathTokenData): PathTokenData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbolx.bench.PathTokenType type */ 31:
-                    message.type = reader.int32();
-                    break;
-                case /* optional string name */ 32:
-                    message.name = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PathTokenData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.PathTokenType type = 31; */
-        if (message.type !== 0)
-            writer.tag(31, WireType.Varint).int32(message.type);
-        /* optional string name = 32; */
-        if (message.name !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.name);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PathTokenData
- */
-export const PathTokenData = new PathTokenData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class PathData$Type extends MessageType$<PathData> {
-    constructor() {
-        super("symbolx.bench.PathData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "tokens", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PathTokenData }
-        ]);
-    }
-    create(value?: PartialMessage<PathData>): PathData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.tokens = [];
-        if (value !== undefined)
-            reflectionMergePartial<PathData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PathData): PathData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* repeated symbolx.bench.PathTokenData tokens */ 31:
-                    message.tokens.push(PathTokenData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PathData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* repeated symbolx.bench.PathTokenData tokens = 31; */
-        for (let i = 0; i < message.tokens.length; i++)
-            PathTokenData.internalBinaryWrite(message.tokens[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PathData
- */
-export const PathData = new PathData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ChangeVignetteData$Type extends MessageType$<ChangeVignetteData> {
     constructor() {
@@ -23509,20 +23509,20 @@ class BlockData$Type extends MessageType$<BlockData> {
  */
 export const BlockData = new BlockData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ValueBlockData$Type extends MessageType$<ValueBlockData> {
+class VariableBlockData$Type extends MessageType$<VariableBlockData> {
     constructor() {
-        super("symbolx.bench.ValueBlockData", [
+        super("symbolx.bench.VariableBlockData", [
             { no: 100, name: "value_type", kind: "message", T: () => TypeInfoData },
             { no: 101, name: "value_packed", kind: "message", T: () => Value }
         ]);
     }
-    create(value?: PartialMessage<ValueBlockData>): ValueBlockData {
+    create(value?: PartialMessage<VariableBlockData>): VariableBlockData {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<ValueBlockData>(this, message, value);
+            reflectionMergePartial<VariableBlockData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ValueBlockData): ValueBlockData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VariableBlockData): VariableBlockData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -23544,7 +23544,7 @@ class ValueBlockData$Type extends MessageType$<ValueBlockData> {
         }
         return message;
     }
-    internalBinaryWrite(message: ValueBlockData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: VariableBlockData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* optional symbolx.bench.TypeInfoData value_type = 100; */
         if (message.valueType)
             TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
@@ -23558,9 +23558,9 @@ class ValueBlockData$Type extends MessageType$<ValueBlockData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.ValueBlockData
+ * @generated MessageType for protobuf message symbolx.bench.VariableBlockData
  */
-export const ValueBlockData = new ValueBlockData$Type();
+export const VariableBlockData = new VariableBlockData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TextBlockData$Type extends MessageType$<TextBlockData> {
     constructor() {
@@ -28918,9 +28918,9 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.SKIP]: SkipData,
 }
 
-export type BlockSubtype = ValueBlockData | TextBlockData | FlowBlockData | DatabaseBlockData | QueryBlockData;
+export type BlockSubtype = VariableBlockData | TextBlockData | FlowBlockData | DatabaseBlockData | QueryBlockData;
 export interface BlockSubtypeMapping extends Record<BlockType, BlockSubtype> {
-  [BlockType.VALUE]: ValueBlockData,
+  [BlockType.VARIABLE]: VariableBlockData,
   [BlockType.TEXT]: TextBlockData,
   [BlockType.FLOW]: FlowBlockData,
   [BlockType.DATABASE]: DatabaseBlockData,
@@ -30192,7 +30192,7 @@ export enum SkipProperty {
   orderKey = 31,
 }
 
-export enum ValueBlockProperty {
+export enum VariableBlockProperty {
   valueType = 100,
   valuePacked = 101,
 }
@@ -31182,7 +31182,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
 }
 
 export const BLOCK_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<BlockType, any>> = {
-  [BlockType.VALUE]: ValueBlockProperty,
+  [BlockType.VARIABLE]: VariableBlockProperty,
   [BlockType.TEXT]: TextBlockProperty,
   [BlockType.FLOW]: FlowBlockProperty,
   [BlockType.DATABASE]: DatabaseBlockProperty,
@@ -32257,9 +32257,9 @@ export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
   [SkipProperty.referencePtr]: { id: 30, name: 'reference_ptr', component: ObjectType.SKIP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
-export const ValueBlockDataInfo: Record<ValueBlockProperty, PropertyInfo> = {
-  [ValueBlockProperty.valueType]: { id: 100, name: 'value_type', component: ObjectType.BLOCK, componentSubtype: 30, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [ValueBlockProperty.valuePacked]: { id: 101, name: 'value_packed', component: ObjectType.BLOCK, componentSubtype: 30, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+export const VariableBlockDataInfo: Record<VariableBlockProperty, PropertyInfo> = {
+  [VariableBlockProperty.valueType]: { id: 100, name: 'value_type', component: ObjectType.BLOCK, componentSubtype: 30, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
+  [VariableBlockProperty.valuePacked]: { id: 101, name: 'value_packed', component: ObjectType.BLOCK, componentSubtype: 30, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const TextBlockDataInfo: Record<TextBlockProperty, PropertyInfo> = {
 
@@ -33031,7 +33031,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
 }
 
 export const BlockSubtypePropertyInfo: Partial<Record<BlockType, Record<any, PropertyInfo>>> = {
-  [BlockType.VALUE]: ValueBlockDataInfo,
+  [BlockType.VARIABLE]: VariableBlockDataInfo,
   [BlockType.TEXT]: TextBlockDataInfo,
   [BlockType.FLOW]: FlowBlockDataInfo,
   [BlockType.DATABASE]: DatabaseBlockDataInfo,

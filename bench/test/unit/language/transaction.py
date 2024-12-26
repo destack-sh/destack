@@ -1,5 +1,5 @@
 from bench.language.action import Action, ActionType, DuplicateAction
-from bench.language.block import Block, FlowBlock, ValueBlock
+from bench.language.block import Block, FlowBlock, VariableBlock
 from bench.language.const import BlockType, EditOperationType
 from bench.language.field import Field
 from bench.language.node import Node
@@ -19,7 +19,7 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     Flow1 = Block.new(FlowBlock, name="Flow1")
     Action1 = Action.new(DuplicateAction, name="Text1")
     Flow1.actions.append(Action1)
-    Value1 = Block.new(ValueBlock, name="Value1")
+    Value1 = Block.new(VariableBlock, name="Value1")
     hosted_runtime.page().blocks.extend(Message1, Flow1, Value1)
     await session.commit()
 

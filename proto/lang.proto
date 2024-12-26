@@ -908,7 +908,7 @@ enum BlockType {
   BLOCK_TYPE_CHOICE = 11;
   BLOCK_TYPE_MESSAGE = 12;
   BLOCK_TYPE_FLOW = 22;
-  BLOCK_TYPE_VALUE = 30;
+  BLOCK_TYPE_VARIABLE = 30;
   BLOCK_TYPE_DATABASE = 31;
   BLOCK_TYPE_QUERY = 32;
   BLOCK_TYPE_VIEW = 40;
@@ -2089,6 +2089,17 @@ message MachineImageData {
   ObjectType metatype = 1;
 }
 
+message PathTokenData {
+  ObjectType metatype = 1;
+  PathTokenType type = 31;
+  optional string name = 32;
+}
+
+message PathData {
+  ObjectType metatype = 1;
+  repeated PathTokenData tokens = 31;
+}
+
 message ColorData {
   ObjectType metatype = 1;
   optional ColorType type = 31;
@@ -2175,17 +2186,6 @@ message IconData {
   optional string fa_name = 33;
   optional string vsc_name = 34;
   optional ColorData color = 40;
-}
-
-message PathTokenData {
-  ObjectType metatype = 1;
-  PathTokenType type = 31;
-  optional string name = 32;
-}
-
-message PathData {
-  ObjectType metatype = 1;
-  repeated PathTokenData tokens = 31;
 }
 
 message ChangeVignetteData {
@@ -2928,7 +2928,7 @@ message BlockData {
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
-message ValueBlockData {
+message VariableBlockData {
   optional TypeInfoData value_type = 100;
   optional google.protobuf.Value value_packed = 101;
 }

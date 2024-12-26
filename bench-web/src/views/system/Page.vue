@@ -143,7 +143,7 @@ const { activeDropZone } = useMultiDropZone({
         const variableType = makeTypeInfo({ kind: TypeKind.NODE, benchType: BenchType.FILE });
         const block = createBlock(connection.tx, graph, {
           block: {
-            type: BlockType.VALUE,
+            type: BlockType.VARIABLE,
             subnode: {
               valueType: variableType,
               valuePacked: packValue(toNodeRef(upload.file.value!), variableType),
