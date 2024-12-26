@@ -47,11 +47,11 @@ const unit = computed(() => {
   if (props.valueType?.primitiveType == PrimitiveType.DATE) {
     return "Date";
   } else if (props.valueType?.primitiveType == PrimitiveType.DATETIME) {
-    return "Date and Time";
+    return "Date/Time";
   } else if (props.valueType?.primitiveType == PrimitiveType.TIME) {
     return "Time";
   } else {
-    return "Date and Time";
+    return "Date/Time";
   }
 });
 const dateTime: Ref<DateTime | null> = computed(() => {
@@ -64,7 +64,7 @@ const dateTime: Ref<DateTime | null> = computed(() => {
       month: (value as ProtoDate).month,
       day: (value as ProtoDate).day,
     });
-  } else if (unit.value == "Date and Time") {
+  } else if (unit.value == "Date/Time") {
     return tsToDt(value as Timestamp);
   } else {
     const dt = DateTime.now();
@@ -132,7 +132,7 @@ function formatDisplayString(dt: DateTime): string {
     displayString = dateString.value;
   } else if (unit.value == "Time") {
     displayString = timeString.value;
-  } else if (unit.value == "Date and Time" && dateTime.value) {
+  } else if (unit.value == "Date/Time" && dateTime.value) {
     displayString = formatAbsoluteDate(props.modelValue as Timestamp);
   } else {
     displayString = "???";
@@ -143,7 +143,7 @@ function formatDisplayString(dt: DateTime): string {
 function setDateString(string: string) {
   let parsedDateTime = DateTime.fromFormat(string, "yyyy/MM/dd");
   if (!parsedDateTime.isValid) return;
-  if (unit.value == "Date and Time" && dateTime.value) {
+  if (unit.value == "Date/Time" && dateTime.value) {
     parsedDateTime = parsedDateTime.set({ hour: dateTime.value.hour, minute: dateTime.value.minute });
   }
   applyDateTime(parsedDateTime);
@@ -152,7 +152,7 @@ function setDateString(string: string) {
 function setTimeString(string: string) {
   let parsedDateTime = DateTime.fromFormat(string, "HH:mm");
   if (!parsedDateTime.isValid) return;
-  if (unit.value == "Date and Time" && dateTime.value) {
+  if (unit.value == "Date/Time" && dateTime.value) {
     parsedDateTime = parsedDateTime.set({
       year: dateTime.value.year,
       month: dateTime.value.month,
@@ -174,7 +174,7 @@ function isSelected(day: DateTime): boolean {
     return false;
   } else if (unit.value == "Date") {
     return day.day === (props.modelValue as ProtoDate).day && day.month === dateTime.value.month;
-  } else if (unit.value == "Date and Time") {
+  } else if (unit.value == "Date/Time") {
     return day.hasSame(dateTime.value, "day") && day.month === dateTime.value.month;
   } else {
     return day.hour === (props.modelValue as TimeOfDay).hours && day.minute === (props.modelValue as TimeOfDay).minutes;
@@ -195,13 +195,13 @@ function selectDay(day: DateTime) {
 }
 
 function applyDateTime(value: DateTime) {
-	let modelValue: Timestamp | ProtoDate | TimeOfDay;
+  let modelValue: Timestamp | ProtoDate | TimeOfDay;
   if (unit.value == "Date") {
-		modelValue = { year: value.year, month: value.month, day: value.day } as ProtoDate;
-  } else if (unit.value == "Date and Time") {
-		modelValue = dtToTs(value);
+    modelValue = { year: value.year, month: value.month, day: value.day } as ProtoDate;
+  } else if (unit.value == "Date/Time") {
+    modelValue = dtToTs(value);
   } else {
-		modelValue = { hours: value.hour, minutes: value.minute, seconds: 0 } as TimeOfDay;
+    modelValue = { hours: value.hour, minutes: value.minute, seconds: 0 } as TimeOfDay;
   }
   apply(modelValue);
 }
@@ -270,6 +270,7 @@ defineExpose<ViewExposed>({
       <!-- Current value display -->
       <template v-if="modelValue">
         <IconInline
+          v-if="icon || !isMinimal"
           v-bind="icon ?? ICON_BY_PRIMITIVE_TYPE[valueType?.primitiveType ?? PrimitiveType.DATETIME]"
           class="w-5 text-center text-gray-700"
         />
@@ -290,6 +291,7 @@ defineExpose<ViewExposed>({
         :class="isMinimal ? 'opacity-0 group-hover:opacity-100' : ''"
       >
         <IconInline
+          v-if="icon || !isMinimal"
           v-bind="icon ?? ICON_BY_PRIMITIVE_TYPE[valueType?.primitiveType ?? PrimitiveType.DATETIME]"
           class="mr-1.5 w-5"
         />
@@ -331,10 +333,7 @@ defineExpose<ViewExposed>({
             <button class="text-gray-600 hover:text-gray-900" @click="goToPreviousPeriod">
               <i class="fas fa-chevron-left" />
             </button>
-            <button 
-              class="font-medium rounded hover:bg-gray-100 px-1" 
-              @click="currentMonth = DateTime.now()"
-            >
+            <button class="rounded px-1 font-medium hover:bg-gray-100" @click="currentMonth = DateTime.now()">
               {{ currentMonth.toFormat("LLLL yyyy") }}
             </button>
             <button class="text-gray-600 hover:text-gray-900" @click="goToNextPeriod">

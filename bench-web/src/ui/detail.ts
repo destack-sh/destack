@@ -493,7 +493,7 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
     section(undefined, commonRows);
     commonRows.push(rowProperty(ActionProperty.text, { title: false, props: { placeholder: "Text..." } }));
 
-    if (node.type == ActionType.RUN) {
+    if (node.type == ActionType.DELEGATE) {
       const action = subnode as ActionData | undefined;
       // schema from delegate
       const delegatePtr = action?.delegatePtr;

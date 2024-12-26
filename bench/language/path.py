@@ -16,12 +16,11 @@ from bench.language.node import (
 )
 from bench.language.property import p_regular
 from bench.language.validation import NAME_REGEX_CHAR, SLUG_REGEX_CHAR
-from bench.language.view import View
 from bench.utils.func import IdEnum
 from bench.utils.string import to_code_name
 
 if TYPE_CHECKING:
-    from bench.language import Action, Field
+    from bench.language import Field
 
 
 class PathError(BenchError, ValueError):
@@ -277,7 +276,7 @@ def _get_descendant(scope: Node, name: str, node_type: NodeType | None = None) -
 
 def _get_contained_descendant(scope: Node, name: str) -> Node | None:
     """Finds a descendant that is directly contained by a scope (in block/page/action/pkg, if any)."""
-    from bench.language.block import Block
+    from bench.language import Action, Block, View
 
     if isinstance(scope, Block):
         # recurse child triggers/fields/queries

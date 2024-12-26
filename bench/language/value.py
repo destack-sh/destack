@@ -839,6 +839,23 @@ def coerce_value(
             ]
 
 
+class ProxyReadObject:
+    """An object that wraps another object for get with a default object on attribute access."""
+
+    __slots__ = ("default", "obj")
+
+    def __init__(self, obj: Any, default: Any):
+        self.obj = obj
+        self.default = default
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            return getattr(self.obj, name)
+        except AttributeError:
+            pass
+        return getattr(self.default, name)
+
+
 #
 # Type checking :TypeChecking
 #

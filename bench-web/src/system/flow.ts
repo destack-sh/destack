@@ -1,7 +1,7 @@
 import { INVISIBLE_ACTION_TYPES, SINK_ACTION_TYPES, SOURCE_ACTION_TYPES } from "@/language/const";
 import { makeTypeInfo } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
-import { makeNodeName, NodeIn, unpackSubnode } from "@/language/node";
+import { makeNodeName, NodeIn, unpackSubnode, unpackSubnodeProperty } from "@/language/node";
 import { newChangeId, type Transaction, type TransactionOptions } from "@/language/transaction";
 import {
   ActionType,
@@ -151,7 +151,7 @@ export class ActionState {
       return unpackSubnode(NodeType.ACTION, this.action.value.type, this.action.value.subnodePacked);
     });
     this.delegatePtr = computedValue(() => {
-      if (this.action.value?.type == ActionType.RUN) {
+      if (this.action.value?.type == ActionType.DELEGATE) {
         return this.action.value.delegatePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.ACTION> | null;
       } else {
         return null;
@@ -166,7 +166,7 @@ export class ActionState {
         return this.flow.fields.value.filter((f) => f.type == FieldType.INPUT);
       } else if (actionType == ActionType.COMPLETE) {
         return this.flow.fields.value.filter((f) => f.type == FieldType.OUTPUT);
-      } else if (actionType == ActionType.RUN) {
+      } else if (actionType == ActionType.DELEGATE) {
         if (this.action.value?.delegatePtr != null) {
           return this.delegateFields.value;
         } else {
@@ -1345,10 +1345,9 @@ export function getActionFields(
     if (flow == null) return null;
     // nocheckin
     let node: BlockData | ActionData | undefined | null = null;
-    // if (action.type == ActionType.ACTION) {
-    //   const nodePtr = unpackSubnodeProperty(NodeType.ACTION, ActionType.ACTION, action.subnodePacked, "delegatePtr");
-    //   node = graph.getMaybe(nodePtr) as BlockData | ActionData | undefined;
-    // }
+    if (action.type == ActionType.DELEGATE && action.delegatePtr != null) {
+      node = graph.getMaybe(action.delegatePtr) as BlockData | ActionData | undefined;
+    }
     related = {
       actionFields: graph.getChildren(action, NodeType.FIELD),
       flow,
@@ -1374,7 +1373,7 @@ export function getActionFields(
       fields: side == PortSide.INCOMING ? related.flowFields.filter((f) => f.type == FieldType.OUTPUT) : [],
       fieldParent: related.flow,
     };
-  } else if (action.type == ActionType.RUN && action.delegatePtr != null) {
+  } else if (action.type == ActionType.DELEGATE && action.delegatePtr != null) {
     // from block
     if (related.node == null) return null;
     const type = side == PortSide.INCOMING ? FieldType.INPUT : FieldType.OUTPUT;

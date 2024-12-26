@@ -283,7 +283,7 @@ def test_shadow_node(session: Session, mock_package: Package):
     choice31 = page3.blocks.create(name="Choice31", type=BlockType.CHOICE)
     page33 = package.blocks.create(name="Page33", type=BlockType.PAGE)
     choice331 = page33.blocks.create(name="Choice331", type=BlockType.CHOICE)
-    code332 = page33.actions.create(name="Code332", type=ActionType.RUN)
+    code332 = page33.actions.create(name="Code332", type=ActionType.CODE)
     code332_output1 = code332.fields.append(Field.output("Choice331", choice331))  # noqa: F841
     code332_output3 = code332.fields.append(Field.output("Choice31", choice31))
 

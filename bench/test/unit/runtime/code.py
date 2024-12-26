@@ -15,7 +15,7 @@ from bench.test.unit.conftest import RuntimeHandle
 async def test_run_code_empty(local_runtime: RuntimeHandle):
     """Empty Code with optional input/output Fields should work."""
     Code1 = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Code1",
         fields=(Field.input("Input1", int), Field.output("Output1", int)),
     )
@@ -28,7 +28,7 @@ async def test_run_code_empty(local_runtime: RuntimeHandle):
 
 async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
     """Code block with a syntax error should re-raise that error."""
-    InvalidCode = Action.new(ActionType.RUN, "InvalidCode", code=code("!!invalid!!"))
+    InvalidCode = Action.new(ActionType.CODE, "InvalidCode", code=code("!!invalid!!"))
     local_runtime.page().actions.append(InvalidCode)
     await local_runtime.commit()
 
@@ -41,7 +41,7 @@ async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
 async def test_run_code_capture_logs(local_runtime: RuntimeHandle):
     """All logging functions should be captured."""
     Logs101 = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Logs101",
         code=code("""\
 import builtins
@@ -86,7 +86,7 @@ critical('critical1')
 async def test_run_code_capture_logs_on_error(local_runtime: RuntimeHandle):
     """Logs should also be captured if the code raises an error."""
     Logs102 = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Logs102",
         code=code("""\
 print('print1')
@@ -108,7 +108,7 @@ print('print3')
 async def test_run_code_capture_log_size_overflow(local_runtime: RuntimeHandle):
     """Logs should only be captured up to a certain size."""
     Logs103 = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Logs103",
         code=code(f"""\
 for i in range(0, {MAX_LOGS_PER_CAPTURE + 5}):
@@ -126,7 +126,7 @@ for i in range(0, {MAX_LOGS_PER_CAPTURE + 5}):
 async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
     """Logs should only be captured up to a certain size."""
     Logs103 = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Logs103",
         code=code(f"""print('x' * {MAX_LOG_LINE_LENGTH + 5})"""),
     )
@@ -141,7 +141,7 @@ async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
 async def test_run_code_invalid_inputs(local_runtime: RuntimeHandle):
     """Code block with invalid inputs should fail immediately (no attempts)."""
     Code1 = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "InvalidCode",
         code=code("pass"),
         fields=(Field.input("Input1", int, is_required=True),),
@@ -160,7 +160,7 @@ async def test_run_code_invalid_inputs(local_runtime: RuntimeHandle):
 async def test_run_code_invalid_outputs(local_runtime: RuntimeHandle):
     """Code block with invalid outputs should fail."""
     Code1 = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "InvalidCode",
         code=code("return 'invalid'"),
         fields=(Field.output("Output1", int),),
@@ -177,7 +177,7 @@ async def test_run_code_invalid_outputs(local_runtime: RuntimeHandle):
 async def test_run_code_coerce_inputs(local_runtime: RuntimeHandle):
     """All the input fields values should be coerced to the correct type."""
     Function = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Function",
         code=code("return {'Output1': Input1, 'Output2': Input2}"),
         fields=(
@@ -197,7 +197,7 @@ async def test_run_code_coerce_inputs(local_runtime: RuntimeHandle):
 async def test_run_code_inputs_in_context(local_runtime: RuntimeHandle):
     """All the input fields values should be in context (even if not used and unset)."""
     Function = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Function",
         code=code("""\
 assert Input1 == 3
@@ -223,7 +223,7 @@ assert Very_WEIRD__THER_Input == 7
 async def test_run_code_output_none(local_runtime: RuntimeHandle):
     """A noop code function should work and return None."""
     Function = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Function",
         code=code("""pass"""),
         fields=(Field.input("Input1", int),),
@@ -241,7 +241,7 @@ async def test_run_code_output_scalar(hosted_runtime: RuntimeHandle):
      (and the local runtime works directly in the SQL engine, which can't do hierarchical edits)
     """
     Function = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Function",
         code=code("""return {"Result1": Input1 * 4}"""),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
@@ -255,7 +255,7 @@ async def test_run_code_output_scalar(hosted_runtime: RuntimeHandle):
 
     # run with cast return value
     Function = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Function",
         code=code("return {'Result1': Input1 * 1.7}"),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
@@ -267,7 +267,7 @@ async def test_run_code_output_scalar(hosted_runtime: RuntimeHandle):
 
     # run with bad return value
     Function = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Function",
         code=code("return {'Result1': 'stringy'}"),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
@@ -281,7 +281,7 @@ async def test_run_code_output_scalar(hosted_runtime: RuntimeHandle):
 async def test_run_code_output_tuple(local_runtime: RuntimeHandle):
     """Run a code function with a tuple, should coerce into object."""
     Function = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Function",
         code=code("""return {"Result1": Input1 > 10, "Result2": Input1 * 4, "Result3": None}"""),
         fields=(
@@ -306,7 +306,7 @@ async def test_run_code_output_tuple(local_runtime: RuntimeHandle):
 async def test_run_code_output_dict(local_runtime: RuntimeHandle):
     """Run a code function with a dict, should coerce into object."""
     Function = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Function",
         code=code("""return {"Result1": Input1 > 10, "Result2": Input1 * 4}"""),
         fields=(
@@ -330,7 +330,7 @@ async def test_run_code_output_choice(local_runtime: RuntimeHandle):
         fields=[Field.option("Red"), Field.option("Green"), Field.option("Blue")],
     )
     Function = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Function",
         code=code("""\
 Color = get_node("^Color")
@@ -349,7 +349,7 @@ return {"Color": Color.Red}
 async def test_run_code_output_generic_node(local_runtime: RuntimeHandle):
     """Run a code function that outputs a generic node field."""
     Function = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Function",
         code=code("""\
 return {"Output": [self]}
@@ -366,7 +366,7 @@ return {"Output": [self]}
 async def test_run_code_return_detached_node(hosted_runtime: RuntimeHandle):
     """Run a code function that returns a detached Node. Should error."""
     Function = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Function",
         fields=[Field.output("Output", Block), Field.output("Text", Text)],
     )
@@ -395,7 +395,7 @@ return {'Text': text}
 async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):
     """Raise a retryable error. Should be detected and retried."""
     CodeBlock = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Code1",
         code=code("""raise RetryableError('error1')"""),
         run_options=RunOptions(max_attempts=3),
@@ -412,7 +412,7 @@ async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):
 async def test_run_code_raise_unretryable_error(local_runtime: RuntimeHandle):
     """Raise an unretryable error. Should be detected and not retried."""
     CodeBlock = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Code1",
         code=code("""raise NonRetryableError('error1')"""),
         run_options=RunOptions(max_attempts=3),
@@ -429,7 +429,7 @@ async def test_run_code_raise_unretryable_error(local_runtime: RuntimeHandle):
 async def test_run_code_abort(local_runtime: RuntimeHandle):
     """Run a long async code script and abort it."""
     CodeBlock = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Code1",
         code=code("""await asyncio.sleep(5)"""),
     )

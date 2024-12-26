@@ -158,8 +158,11 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   // interrupt
   [ActionType.YIELD]: ColorType.PINK,
   // agentive
-  [ActionType.RUN]: ColorType.ORANGE,
+  [ActionType.CODE]: ColorType.ORANGE,
+  [ActionType.DELEGATE]: ColorType.ORANGE,
   [ActionType.GENERATE]: ColorType.ORANGE,
+  [ActionType.TRANSFORM]: ColorType.ORANGE,
+  [ActionType.EXTRACT]: ColorType.ORANGE,
   [ActionType.SWITCH]: ColorType.ORANGE,
   // application
   [ActionType.OBSERVE]: ColorType.EMERALD,

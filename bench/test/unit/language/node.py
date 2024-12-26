@@ -232,7 +232,7 @@ async def test_clone_consistency(hosted_runtime: RuntimeHandle):
     """Clone consistency test with references."""
     choice = Block.new(BlockType.CHOICE, "Letter", fields=[Field.option("A"), Field.option("B")])
     action = Action.new(
-        ActionType.RUN,
+        ActionType.CODE,
         "Action",
         fields=[Field.input("Text", Text), Field.output("Choice", choice)],
     )

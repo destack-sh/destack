@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from asyncio import Event
-from typing import ClassVar, Literal, Sequence, assert_never, cast, override
+from typing import Any, ClassVar, Literal, Sequence, assert_never, cast, override
 from uuid import UUID
 
 import structlog
@@ -66,7 +66,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             run=run,
         )
         self._interrupted_runners: list[Runner] = []
-        self._active_runners_by_id: dict[UUID, PipeRunnerBase | ActionRunnerBase] = {}
+        self._active_runners_by_id: dict[UUID, PipeRunnerBase | ActionRunnerBase[Any]] = {}
         self._stop_result: CustomObject | Literal["completed"] | RunError | Interrupt | None = None
         self._stop_event = Event()
 
