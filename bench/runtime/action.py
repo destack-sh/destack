@@ -40,7 +40,7 @@ from bench.language.value import (
     patch_node_from_partial,
 )
 from bench.runtime.code import CodeFunctionRunner
-from bench.runtime.core import ATTEMPT_ONCE, RetryableError
+from bench.runtime.core import ATTEMPT_ONCE, RetryableError, RunImpossibleError
 from bench.runtime.playwright import playwright_api
 from bench.runtime.runner import Context, Runner, make_runner, restore_runner
 from bench.runtime.runtime import Runtime
@@ -87,6 +87,7 @@ class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
             output_type=output_type,
             run=run,
         )
+        assert self.inputs is not None, f"no inputs for {self!r}"
         self.action_inputs = cast(A, ProxyReadObject(obj=self.inputs, default=self.node))
         self.flow = flow
 
@@ -326,12 +327,22 @@ class CodeActionRunner(ActionRunnerBase):
         )
         await self.runtime.run_runner(code_runner)
         self.outputs = code_runner.outputs
+        self._check_action_outputs()
 
 
 class DelegateActionRunner(ActionRunnerBase):
     @override
     async def run(self) -> None:
-        raise NotImplementedError(f"nocheckin: {self!r}")
+        delegate = self.node.delegate
+        if not delegate:
+            raise RunImpossibleError("no delegate")
+        delegate_runner = self._get_resumable_subrunner(
+            node=delegate,
+            variables=self.variables,
+            inputs=self.inputs,
+            output_type=self.output_type,
+        )
+        await self.runtime.run_runner(delegate_runner)
 
 
 #

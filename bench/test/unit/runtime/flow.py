@@ -544,7 +544,7 @@ async def test_run_flow_yield(local_runtime: RuntimeHandle):
 
 
 async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
-    "Run a FLow inside another Flow and yield from there. Should propagate and resume properly."
+    """Run a FLow inside another Flow and yield from there. Should propagate and resume properly."""
     # inner flow
     FlowInner = Block.new(BlockType.FLOW, "FlowInner")
     StartInner = Action.new(ActionType.START, "StartInner")
@@ -557,7 +557,7 @@ async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
     # outer flow
     FlowOuter = Block.new(BlockType.FLOW, "FlowOuter")
     StartOuter = Action.new(ActionType.START, "Start")
-    ActionOuter = Action.new(ActionType.CODE, "Action", delegate=FlowInner)
+    ActionOuter = Action.new(ActionType.DELEGATE, "Action", delegate=FlowInner)
     CompleteOuter = Action.new(ActionType.COMPLETE, "Complete")
     FlowOuter.actions.extend(StartOuter, ActionOuter, CompleteOuter)
     StartOuter.connect(PipeType.PASS, ActionOuter)
