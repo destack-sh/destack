@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 
 from bench.language.action import Action, ActionType
@@ -12,6 +14,7 @@ from bench.test.unit.conftest import RuntimeHandle
 
 @pytest.mark.browser
 async def test_acquire_browser_resource_directly(hosted_runtime: RuntimeHandle):
+    """Acquire a Browser directly and wait for it to be ready."""
     browser = Browser.new(title="My Lil' Browser")
     hosted_runtime.bench.append(browser)
     await browser.wait_until_ready()
@@ -20,13 +23,16 @@ async def test_acquire_browser_resource_directly(hosted_runtime: RuntimeHandle):
 
 @pytest.mark.browser
 async def test_run_flow_browser_go_to_url(hosted_runtime: RuntimeHandle):
+    """Use a Browser as a 'variable' in a Flow to open a URL."""
     Flow = Block.new(BlockType.FLOW, name="Flow", fields=[Field.variable("Browser", Browser)])
     Start = Action.new(ActionType.START, name="Start")
     GoToUrl = Action.new(ActionType.GO_TO_URL, name="GoToUrl", url="https://google.com")
+    Wait = Action.new(ActionType.WAIT, name="Wait", delay=timedelta(seconds=3))
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
-    Flow.actions.extend(Start, GoToUrl, Complete)
+    Flow.actions.extend(Start, GoToUrl, Wait, Complete)
     Start.connect(PipeType.PASS, target=GoToUrl)
-    GoToUrl.connect(PipeType.PASS, target=Complete)
+    GoToUrl.connect(PipeType.PASS, target=Wait)
+    Wait.connect(PipeType.PASS, target=Complete)
     await hosted_runtime.commit()
 
     runner = await hosted_runtime.run(Flow)

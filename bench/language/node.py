@@ -7,6 +7,7 @@ from collections import defaultdict
 from dataclasses import InitVar
 from datetime import datetime
 from enum import IntEnum
+from itertools import chain
 from sys import intern
 from typing import (
     TYPE_CHECKING,
@@ -1543,7 +1544,7 @@ StructParentKey = Union["Property", "Field"]
 
 @object_()
 class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
-    """A base for structs with properties."""
+    """A Struct is an ordered collection of Properties."""
 
     metatype: ClassVar[StructType]  # type: ignore
 
@@ -1553,7 +1554,7 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
     parent_key: StructParentKey | None = p_runtime(default=None)
 
     def __content_str__(self) -> str:
-        # default __content_str__ for structs with all set properties
+        # default __content_str__ for Structs with all set properties
         value_strs = []
         for prop in self.__declared_properties__.values():
             prop_value = getattr(self, prop.name)
@@ -1852,20 +1853,55 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                         raise ValueError(f"missing required property: {prop!r}")
                 self._do_set(prop.name, prop_value, track=False, validate=False)
 
+    def __content_str__(self) -> str:
+        # default __content_str__ for Nodes with all set properties (incl. subtypes)
+        value_strs = []
+        properties = self.__declared_properties__.values()
+        if self.__has_subtypes__:
+            subtype = self.__dict__["type"]
+            subtype_cls = self.__subclass_by_subtype__.get(subtype)
+            if subtype_cls is not None:
+                properties = chain(properties, subtype_cls.__subtype_extra_properties__.values())
+        for prop in properties:
+            if (
+                prop.id is UNSET
+                or prop.id is None
+                or prop.reference_kind == ReferenceKind.NODE_CHILDREN
+                or prop.is_sensitive
+                or prop.id < 30
+                or prop.name in ("type", "name", "order_key")
+            ):
+                continue
+            prop_value = getattr(self, prop.name)
+            if prop_value is not None and not (isinstance(prop_value, Sequence) and not prop_value):
+                if prop.is_enum:
+                    if prop.is_list:
+                        prop_value_str = "|".join(p.bench_name for p in prop_value)
+                    else:
+                        prop_value_str = prop_value.bench_name  # type: ignore
+                elif isinstance(prop_value, Node):
+                    prop_value_str = f"<{prop_value._ident_key} ...>"
+                elif (
+                    isinstance(prop_value, (list, tuple))
+                    and prop_value
+                    and isinstance(prop_value[0], Node)
+                ):
+                    prop_value_str = (
+                        f"[{', '.join(f'<{node.ident_str} ...>' for node in prop_value)}]"
+                    )
+                else:
+                    prop_value_str = repr(prop_value)
+                value_strs.append(f"{prop.name}={prop_value_str}")
+        return ", ".join(value_strs)
+
     @final
     def __str__(self):  # type: ignore
         # override the default __str__ for nodes
         content_str = self.__content_str__()
         if content_str:
             content_str = f" ({content_str})"
-        ident_str = self.code_name
-        if ident_str is None:
-            ident_str = str(self.id)
         status_str = " [deleted]" if self.deleted_at is not None else ""
-        if self.__parent_property__ is None:
-            return f"{ident_str}{content_str}{status_str}"
-        else:
-            return f"{self.absolute_path}{content_str}{status_str}"
+        return f"{self._ident_key}{content_str}{status_str}"
 
     @final
     def __repr__(self):  # type: ignore
@@ -2198,6 +2234,16 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 return f"{title} [id={self.id}]"
             else:
                 return f"[id={self.id}]"
+
+    @property
+    def _ident_key(self) -> str:
+        """Get the identifier string for this node."""
+        ident_str = self.code_name
+        if ident_str is None:
+            ident_str = str(self.id)
+        if self.__parent_property__ is not None:
+            return self.absolute_path
+        return ident_str
 
     @property
     def code_name(self) -> Optional[str]:

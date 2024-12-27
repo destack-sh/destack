@@ -432,6 +432,7 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunnerBase[Any]]] = {
     # static
     ActionType.CODE: CodeActionRunner,
     ActionType.DELEGATE: DelegateActionRunner,
+    ActionType.WAIT: WaitActionRunner,
     # dynamic
     ActionType.GENERATE: DynamicActionRunner,
     ActionType.TRANSFORM: DynamicActionRunner,
