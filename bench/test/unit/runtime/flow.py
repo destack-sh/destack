@@ -15,7 +15,7 @@ from bench.runtime.runner import Interrupted, make_run_from_node, make_runner
 from bench.test.unit.conftest import RuntimeHandle
 
 
-async def test_run_action_directly(local_runtime: RuntimeHandle):
+async def test_run_flow_action_directly(local_runtime: RuntimeHandle):
     """Run a Action directly."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -30,7 +30,7 @@ async def test_run_action_directly(local_runtime: RuntimeHandle):
     _ = await local_runtime.run(Complete)
 
 
-async def test_run_pipe_directly(local_runtime: RuntimeHandle):
+async def test_run_flow_pipe_directly(local_runtime: RuntimeHandle):
     """Run a Pipe directly."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")

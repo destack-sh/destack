@@ -511,6 +511,7 @@ export function useValueSearch(options: {
         const graph = benchGraph.nodeTypes.has(nodeType) ? benchGraph : pkgGraph;
         let roots: AnyNodeData[] | undefined = undefined;
         let metatypes: NodeType[] = [];
+        const subtypes: number[] | undefined = valueType.value?.constraint?.nodeSubtypes;
         if (valueType.value?.baseTypePtr != null) {
           // based node
           const base = graph.get(valueType.value.baseTypePtr);
@@ -525,7 +526,8 @@ export function useValueSearch(options: {
         } else {
           metatypes = [NodeType.BLOCK, NodeType.ACTION, NodeType.FIELD, NodeType.VIEW];
         }
-        return graphIndex({ id: "graph", graph, roots, metatypes });
+        const filter = subtypes != null ? (node: AnyNodeData) => subtypes.includes((node as any).type) : undefined;
+        return graphIndex({ id: "graph", graph, roots, metatypes, filter });
       }
     } else if (options.valueType.value?.benchType == BenchType.TYPE_INFO) {
       // some type
@@ -884,7 +886,7 @@ export function typeIndex(idx: {
     } else if (enumType == EnumType.ACTION_TYPE) {
       item.title = option.title + " Step";
       item.kind = TypeKind.NODE;
-      item.benchType = BenchType.STEP;
+      item.benchType = BenchType.ACTION;
       item.constraint = makeTypeConstraint({ nodeSubtypes: [option.value as ActionType] });
     } else if (enumType == EnumType.VIEW_TYPE) {
       item.title = option.title + " View";

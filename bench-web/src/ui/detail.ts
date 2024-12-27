@@ -317,19 +317,6 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
     });
   }
 
-  function actionRows(): DetailRow[] {
-    const action = subnode as ActionData | undefined;
-    const rows: DetailRow[] = [];
-    rows.push(rowProperty(ActionProperty.code, { title: false, isFullWidth: true }));
-    rows.push(rowProperty(ActionProperty.delegatePtr, { title: false, isFullWidth: true }));
-    return rows;
-  }
-
-  function sectionAction() {
-    const action = subnode as ActionData | undefined;
-    section("Action", actionRows());
-  }
-
   function sectionRun(runOptionsProperty: number) {
     section(
       "Run",
@@ -493,7 +480,10 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
     section(undefined, commonRows);
     commonRows.push(rowProperty(ActionProperty.text, { title: false, props: { placeholder: "Text..." } }));
 
-    if (node.type == ActionType.DELEGATE) {
+    if (node.type == ActionType.CODE) {
+      commonRows.push(rowProperty(ActionProperty.code, { isFullWidth: true }));
+    } else if (node.type == ActionType.DELEGATE) {
+      commonRows.push(rowProperty(ActionProperty.delegatePtr, { isFullWidth: false }));
       const action = subnode as ActionData | undefined;
       // schema from delegate
       const delegatePtr = action?.delegatePtr;
@@ -502,7 +492,6 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
       } else {
         section("Schema", [{ type: "text", text: "No delegate set." }]);
       }
-      sectionAction();
     } else if (node.type == ActionType.FAIL) {
       section("Error", [
         rowProperty(FailActionProperty.errorTitle, { title: "Title" }),

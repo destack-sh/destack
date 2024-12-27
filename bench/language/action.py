@@ -186,15 +186,14 @@ class Action(SourceNode[ActionData]):
         struct=StructType.CODE,
         description="Current implementation code for this action.",
     )
-    delegate: Union["Block", "Action", None] = p_regular(
+    delegate: Union["Block", None] = p_regular(
         53,
         require=False,
         array=False,
-        references=(NodeType.ACTION, NodeType.BLOCK),
+        references=(NodeType.BLOCK,),
         constraint=constraint(node_subtypes=[BlockType.FLOW]),
         description="Current implementation for this action.",
     )
-    # tools?
     if TYPE_CHECKING:
         delegate_ptr: "NodeReference | None" = None
 
@@ -280,10 +279,8 @@ class Action(SourceNode[ActionData]):
                 return parent.output_type if parent is not None else None
 
             base = self
-            # nocheckin action delegate
-            # if self.type == ActionType.ACTION and cast(ActionAction, self).delegate_ptr:
-            #     delegate = cast(ActionAction, self).delegate
-            #     base = delegate or self
+            if self.type == ActionType.DELEGATE and self.delegate_ptr is not None:
+                base = self.delegate
             # assert field_type is not None, f"missing field_type for object {self!r}"
 
             if field_type == FieldType.INPUT:
