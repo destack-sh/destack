@@ -3918,6 +3918,59 @@ export interface FailActionData {
 /**
  * A data or control flow node in a Flow. Actions are connected by Pipes.
  *
+ * @generated from protobuf message symbolx.bench.CodeActionData
+ */
+export interface CodeActionData {
+}
+/**
+ * A data or control flow node in a Flow. Actions are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.DelegateActionData
+ */
+export interface DelegateActionData {
+}
+/**
+ * A data or control flow node in a Flow. Actions are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.WaitActionData
+ */
+export interface WaitActionData {
+    /**
+     * @generated from protobuf field: optional google.protobuf.Duration delay = 100;
+     */
+    delay?: Duration;
+}
+/**
+ * A data or control flow node in a Flow. Actions are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.GenerateActionData
+ */
+export interface GenerateActionData {
+}
+/**
+ * A data or control flow node in a Flow. Actions are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.TransformActionData
+ */
+export interface TransformActionData {
+}
+/**
+ * A data or control flow node in a Flow. Actions are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.ExtractActionData
+ */
+export interface ExtractActionData {
+}
+/**
+ * A data or control flow node in a Flow. Actions are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.RouteActionData
+ */
+export interface RouteActionData {
+}
+/**
+ * A data or control flow node in a Flow. Actions are connected by Pipes.
+ *
  * @generated from protobuf message symbolx.bench.ObserveActionData
  */
 export interface ObserveActionData {
@@ -11211,6 +11264,10 @@ export enum ActionType {
      */
     DELEGATE = 101,
     /**
+     * @generated from protobuf enum value: ACTION_TYPE_WAIT = 102;
+     */
+    WAIT = 102,
+    /**
      * @generated from protobuf enum value: ACTION_TYPE_GENERATE = 110;
      */
     GENERATE = 110,
@@ -11223,9 +11280,9 @@ export enum ActionType {
      */
     EXTRACT = 112,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_SWITCH = 120;
+     * @generated from protobuf enum value: ACTION_TYPE_ROUTE = 120;
      */
-    SWITCH = 120,
+    ROUTE = 120,
     /**
      * @generated from protobuf enum value: ACTION_TYPE_OBSERVE = 1000;
      */
@@ -22427,6 +22484,202 @@ class FailActionData$Type extends MessageType$<FailActionData> {
  */
 export const FailActionData = new FailActionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class CodeActionData$Type extends MessageType$<CodeActionData> {
+    constructor() {
+        super("symbolx.bench.CodeActionData", []);
+    }
+    create(value?: PartialMessage<CodeActionData>): CodeActionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<CodeActionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CodeActionData): CodeActionData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: CodeActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.CodeActionData
+ */
+export const CodeActionData = new CodeActionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class DelegateActionData$Type extends MessageType$<DelegateActionData> {
+    constructor() {
+        super("symbolx.bench.DelegateActionData", []);
+    }
+    create(value?: PartialMessage<DelegateActionData>): DelegateActionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<DelegateActionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DelegateActionData): DelegateActionData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: DelegateActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.DelegateActionData
+ */
+export const DelegateActionData = new DelegateActionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class WaitActionData$Type extends MessageType$<WaitActionData> {
+    constructor() {
+        super("symbolx.bench.WaitActionData", [
+            { no: 100, name: "delay", kind: "message", T: () => Duration }
+        ]);
+    }
+    create(value?: PartialMessage<WaitActionData>): WaitActionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<WaitActionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: WaitActionData): WaitActionData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional google.protobuf.Duration delay */ 100:
+                    message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: WaitActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional google.protobuf.Duration delay = 100; */
+        if (message.delay)
+            Duration.internalBinaryWrite(message.delay, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.WaitActionData
+ */
+export const WaitActionData = new WaitActionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GenerateActionData$Type extends MessageType$<GenerateActionData> {
+    constructor() {
+        super("symbolx.bench.GenerateActionData", []);
+    }
+    create(value?: PartialMessage<GenerateActionData>): GenerateActionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<GenerateActionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GenerateActionData): GenerateActionData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: GenerateActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.GenerateActionData
+ */
+export const GenerateActionData = new GenerateActionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class TransformActionData$Type extends MessageType$<TransformActionData> {
+    constructor() {
+        super("symbolx.bench.TransformActionData", []);
+    }
+    create(value?: PartialMessage<TransformActionData>): TransformActionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<TransformActionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TransformActionData): TransformActionData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: TransformActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.TransformActionData
+ */
+export const TransformActionData = new TransformActionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ExtractActionData$Type extends MessageType$<ExtractActionData> {
+    constructor() {
+        super("symbolx.bench.ExtractActionData", []);
+    }
+    create(value?: PartialMessage<ExtractActionData>): ExtractActionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<ExtractActionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ExtractActionData): ExtractActionData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: ExtractActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ExtractActionData
+ */
+export const ExtractActionData = new ExtractActionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class RouteActionData$Type extends MessageType$<RouteActionData> {
+    constructor() {
+        super("symbolx.bench.RouteActionData", []);
+    }
+    create(value?: PartialMessage<RouteActionData>): RouteActionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<RouteActionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RouteActionData): RouteActionData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: RouteActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.RouteActionData
+ */
+export const RouteActionData = new RouteActionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class ObserveActionData$Type extends MessageType$<ObserveActionData> {
     constructor() {
         super("symbolx.bench.ObserveActionData", [
@@ -28942,7 +29195,7 @@ export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.DATETIME]: DatetimeViewData,
 }
 
-export type ActionSubtype = GetActionData | SearchActionData | CreateActionData | DuplicateActionData | UpdateActionData | DeleteActionData | FailActionData | ObserveActionData | ClickActionData | PressActionData | TypeActionData | ScrollActionData | SelectActionData | GoBackwardActionData | GoForwardActionData | GoToUrlActionData | GoToTabActionData | LoopActionData;
+export type ActionSubtype = GetActionData | SearchActionData | CreateActionData | DuplicateActionData | UpdateActionData | DeleteActionData | FailActionData | CodeActionData | DelegateActionData | WaitActionData | GenerateActionData | TransformActionData | ExtractActionData | RouteActionData | ObserveActionData | ClickActionData | PressActionData | TypeActionData | ScrollActionData | SelectActionData | GoBackwardActionData | GoForwardActionData | GoToUrlActionData | GoToTabActionData | LoopActionData;
 export interface ActionSubtypeMapping extends Record<ActionType, ActionSubtype> {
   [ActionType.GET]: GetActionData,
   [ActionType.SEARCH]: SearchActionData,
@@ -28951,6 +29204,13 @@ export interface ActionSubtypeMapping extends Record<ActionType, ActionSubtype> 
   [ActionType.UPDATE]: UpdateActionData,
   [ActionType.DELETE]: DeleteActionData,
   [ActionType.FAIL]: FailActionData,
+  [ActionType.CODE]: CodeActionData,
+  [ActionType.DELEGATE]: DelegateActionData,
+  [ActionType.WAIT]: WaitActionData,
+  [ActionType.GENERATE]: GenerateActionData,
+  [ActionType.TRANSFORM]: TransformActionData,
+  [ActionType.EXTRACT]: ExtractActionData,
+  [ActionType.ROUTE]: RouteActionData,
   [ActionType.OBSERVE]: ObserveActionData,
   [ActionType.CLICK]: ClickActionData,
   [ActionType.PRESS]: PressActionData,
@@ -30302,6 +30562,34 @@ export enum FailActionProperty {
   errorText = 101,
 }
 
+export enum CodeActionProperty {
+
+}
+
+export enum DelegateActionProperty {
+
+}
+
+export enum WaitActionProperty {
+  delay = 100,
+}
+
+export enum GenerateActionProperty {
+
+}
+
+export enum TransformActionProperty {
+
+}
+
+export enum ExtractActionProperty {
+
+}
+
+export enum RouteActionProperty {
+
+}
+
 export enum ObserveActionProperty {
   excludeImage = 100,
 }
@@ -31211,6 +31499,13 @@ export const ACTION_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ActionType, any>> =
   [ActionType.UPDATE]: UpdateActionProperty,
   [ActionType.DELETE]: DeleteActionProperty,
   [ActionType.FAIL]: FailActionProperty,
+  [ActionType.CODE]: CodeActionProperty,
+  [ActionType.DELEGATE]: DelegateActionProperty,
+  [ActionType.WAIT]: WaitActionProperty,
+  [ActionType.GENERATE]: GenerateActionProperty,
+  [ActionType.TRANSFORM]: TransformActionProperty,
+  [ActionType.EXTRACT]: ExtractActionProperty,
+  [ActionType.ROUTE]: RouteActionProperty,
   [ActionType.OBSERVE]: ObserveActionProperty,
   [ActionType.CLICK]: ClickActionProperty,
   [ActionType.PRESS]: PressActionProperty,
@@ -32344,6 +32639,27 @@ export const FailActionDataInfo: Record<FailActionProperty, PropertyInfo> = {
   [FailActionProperty.errorTitle]: { id: 100, name: 'error_title', component: ObjectType.ACTION, componentSubtype: 11, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FailActionProperty.errorText]: { id: 101, name: 'error_text', component: ObjectType.ACTION, componentSubtype: 11, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
 }
+export const CodeActionDataInfo: Record<CodeActionProperty, PropertyInfo> = {
+
+}
+export const DelegateActionDataInfo: Record<DelegateActionProperty, PropertyInfo> = {
+
+}
+export const WaitActionDataInfo: Record<WaitActionProperty, PropertyInfo> = {
+  [WaitActionProperty.delay]: { id: 100, name: 'delay', component: ObjectType.ACTION, componentSubtype: 102, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isRuntime: true, isWired: true, isStored: true },
+}
+export const GenerateActionDataInfo: Record<GenerateActionProperty, PropertyInfo> = {
+
+}
+export const TransformActionDataInfo: Record<TransformActionProperty, PropertyInfo> = {
+
+}
+export const ExtractActionDataInfo: Record<ExtractActionProperty, PropertyInfo> = {
+
+}
+export const RouteActionDataInfo: Record<RouteActionProperty, PropertyInfo> = {
+
+}
 export const ObserveActionDataInfo: Record<ObserveActionProperty, PropertyInfo> = {
   [ObserveActionProperty.excludeImage]: { id: 100, name: 'exclude_image', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
 }
@@ -33058,6 +33374,13 @@ export const ActionSubtypePropertyInfo: Partial<Record<ActionType, Record<any, P
   [ActionType.UPDATE]: UpdateActionDataInfo,
   [ActionType.DELETE]: DeleteActionDataInfo,
   [ActionType.FAIL]: FailActionDataInfo,
+  [ActionType.CODE]: CodeActionDataInfo,
+  [ActionType.DELEGATE]: DelegateActionDataInfo,
+  [ActionType.WAIT]: WaitActionDataInfo,
+  [ActionType.GENERATE]: GenerateActionDataInfo,
+  [ActionType.TRANSFORM]: TransformActionDataInfo,
+  [ActionType.EXTRACT]: ExtractActionDataInfo,
+  [ActionType.ROUTE]: RouteActionDataInfo,
   [ActionType.OBSERVE]: ObserveActionDataInfo,
   [ActionType.CLICK]: ClickActionDataInfo,
   [ActionType.PRESS]: PressActionDataInfo,

@@ -1324,10 +1324,11 @@ enum ActionType {
   ACTION_TYPE_YIELD = 80;
   ACTION_TYPE_CODE = 100;
   ACTION_TYPE_DELEGATE = 101;
+  ACTION_TYPE_WAIT = 102;
   ACTION_TYPE_GENERATE = 110;
   ACTION_TYPE_TRANSFORM = 111;
   ACTION_TYPE_EXTRACT = 112;
-  ACTION_TYPE_SWITCH = 120;
+  ACTION_TYPE_ROUTE = 120;
   ACTION_TYPE_OBSERVE = 1000;
   ACTION_TYPE_CLICK = 1050;
   ACTION_TYPE_PRESS = 1051;
@@ -2799,6 +2800,35 @@ message DeleteActionData {
 message FailActionData {
   optional string error_title = 100;
   optional TextData error_text = 101;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message CodeActionData {
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message DelegateActionData {
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message WaitActionData {
+  optional google.protobuf.Duration delay = 100;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message GenerateActionData {
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message TransformActionData {
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message ExtractActionData {
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message RouteActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.

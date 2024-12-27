@@ -1,3 +1,4 @@
+import asyncio
 from abc import ABC
 from typing import TYPE_CHECKING, Any, ClassVar, cast, override
 
@@ -9,13 +10,16 @@ from bench.language.action import (
     Action,
     ActionType,
     ClickAction,
+    CodeAction,
     CreateAction,
+    DelegateAction,
     DeleteAction,
     DuplicateAction,
     FailAction,
     GoToTabAction,
     GoToUrlAction,
     UpdateAction,
+    WaitAction,
 )
 from bench.language.browser import Browser
 from bench.language.const import NodeType, ObjectKind, RunErrorKind
@@ -157,7 +161,7 @@ class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
 
 
 #
-# Boundary Actions
+# Boundary
 #
 
 
@@ -190,7 +194,7 @@ class TriggerActionRunner(ActionRunnerBase):
 
 
 #
-# Read Actions
+# Read
 #
 
 
@@ -207,7 +211,7 @@ class SearchActionRunner(ActionRunnerBase):
 
 
 #
-# Write Actions
+# Write
 #
 
 
@@ -294,7 +298,7 @@ class DeleteActionRunner(ActionRunnerBase[DeleteAction]):
 
 
 #
-# Session Actions
+# Session
 #
 
 
@@ -307,11 +311,11 @@ class YieldActionRunner(ActionRunnerBase):
 
 
 #
-# Static Actions
+# Static
 #
 
 
-class CodeActionRunner(ActionRunnerBase):
+class CodeActionRunner(ActionRunnerBase[CodeAction]):
     @override
     async def run(self) -> None:
         code_runner = CodeFunctionRunner(
@@ -330,7 +334,7 @@ class CodeActionRunner(ActionRunnerBase):
         self._check_action_outputs()
 
 
-class DelegateActionRunner(ActionRunnerBase):
+class DelegateActionRunner(ActionRunnerBase[DelegateAction]):
     @override
     async def run(self) -> None:
         delegate = self.node.delegate
@@ -345,8 +349,15 @@ class DelegateActionRunner(ActionRunnerBase):
         await self.runtime.run_runner(delegate_runner)
 
 
+class WaitActionRunner(ActionRunnerBase[WaitAction]):
+    @override
+    async def run(self) -> None:
+        if self.action_inputs.delay is not None:
+            await asyncio.sleep(self.action_inputs.delay.total_seconds())
+
+
 #
-# Dynamic Actions
+# Dynamic
 #
 
 
@@ -357,7 +368,7 @@ class DynamicActionRunner(ActionRunnerBase):
 
 
 #
-# Application Actions
+# Application
 #
 
 
@@ -377,7 +388,7 @@ class ClickActionRunner(ApplicationActionRunnerBase[ClickAction]):
 
 
 #
-# Browser Actions
+# Browser
 #
 
 
@@ -424,7 +435,7 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunnerBase[Any]]] = {
     ActionType.GENERATE: DynamicActionRunner,
     ActionType.TRANSFORM: DynamicActionRunner,
     ActionType.EXTRACT: DynamicActionRunner,
-    ActionType.SWITCH: DynamicActionRunner,
+    ActionType.ROUTE: DynamicActionRunner,
     # application
     ActionType.GO_TO_URL: GoToUrlActionRunner,
     ActionType.GO_TO_TAB: GoToTabActionRunner,
