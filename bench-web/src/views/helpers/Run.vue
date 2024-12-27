@@ -36,7 +36,7 @@ import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
 import { ModelValueOptions, viewEmits, type ViewExposed } from "@/views/common";
 import Picker from "@/views/content/Picker.vue";
-import CustomObject from "@/views/system/CustomObject.vue";
+import CustomObject from "@/views/structs/CustomObject.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = 32;

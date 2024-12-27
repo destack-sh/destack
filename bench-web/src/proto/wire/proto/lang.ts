@@ -5802,6 +5802,21 @@ export interface HubViewData {
 /**
  * A view of a user interface in a Bench.
  *
+ * @generated from protobuf message symbolx.bench.ListViewData
+ */
+export interface ListViewData {
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeType query_node_type = 100;
+     */
+    queryNodeType?: NodeType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 101;
+     */
+    filter?: ExpressionData;
+}
+/**
+ * A view of a user interface in a Bench.
+ *
  * @generated from protobuf message symbolx.bench.TreeViewData
  */
 export interface TreeViewData {
@@ -5844,10 +5859,6 @@ export interface FeedViewData {
      * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 101;
      */
     filter?: ExpressionData;
-    /**
-     * @generated from protobuf field: repeated string filter_pills = 102;
-     */
-    filterPills: string[];
 }
 /**
  * A view of a user interface in a Bench.
@@ -11528,6 +11539,14 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_HELP = 411;
      */
     HELP = 411,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_ACTIVITY = 412;
+     */
+    ACTIVITY = 412,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_CATALOG = 413;
+     */
+    CATALOG = 413,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_WINDOW = 1000;
      */
@@ -26943,6 +26962,59 @@ class HubViewData$Type extends MessageType$<HubViewData> {
  */
 export const HubViewData = new HubViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class ListViewData$Type extends MessageType$<ListViewData> {
+    constructor() {
+        super("symbolx.bench.ListViewData", [
+            { no: 100, name: "query_node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 101, name: "filter", kind: "message", T: () => ExpressionData }
+        ]);
+    }
+    create(value?: PartialMessage<ListViewData>): ListViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<ListViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ListViewData): ListViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional symbolx.bench.NodeType query_node_type */ 100:
+                    message.queryNodeType = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ExpressionData filter */ 101:
+                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ListViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional symbolx.bench.NodeType query_node_type = 100; */
+        if (message.queryNodeType !== undefined)
+            writer.tag(100, WireType.Varint).int32(message.queryNodeType);
+        /* optional symbolx.bench.ExpressionData filter = 101; */
+        if (message.filter)
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ListViewData
+ */
+export const ListViewData = new ListViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class TreeViewData$Type extends MessageType$<TreeViewData> {
     constructor() {
         super("symbolx.bench.TreeViewData", [
@@ -27039,13 +27111,11 @@ class FeedViewData$Type extends MessageType$<FeedViewData> {
     constructor() {
         super("symbolx.bench.FeedViewData", [
             { no: 100, name: "query_node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 101, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 102, name: "filter_pills", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
+            { no: 101, name: "filter", kind: "message", T: () => ExpressionData }
         ]);
     }
     create(value?: PartialMessage<FeedViewData>): FeedViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.filterPills = [];
         if (value !== undefined)
             reflectionMergePartial<FeedViewData>(this, message, value);
         return message;
@@ -27060,9 +27130,6 @@ class FeedViewData$Type extends MessageType$<FeedViewData> {
                     break;
                 case /* optional symbolx.bench.ExpressionData filter */ 101:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
-                    break;
-                case /* repeated string filter_pills */ 102:
-                    message.filterPills.push(reader.string());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -27082,9 +27149,6 @@ class FeedViewData$Type extends MessageType$<FeedViewData> {
         /* optional symbolx.bench.ExpressionData filter = 101; */
         if (message.filter)
             ExpressionData.internalBinaryWrite(message.filter, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* repeated string filter_pills = 102; */
-        for (let i = 0; i < message.filterPills.length; i++)
-            writer.tag(102, WireType.LengthDelimited).string(message.filterPills[i]);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29184,13 +29248,14 @@ export interface BlockSubtypeMapping extends Record<BlockType, BlockSubtype> {
   [BlockType.QUERY]: QueryBlockData,
 }
 
-export type ViewSubtype = UserWizardViewData | HelpViewData | DetailViewData | RunViewData | HubViewData | TreeViewData | FeedViewData | ButtonViewData | IconViewData | PickerViewData | DatetimeViewData;
+export type ViewSubtype = UserWizardViewData | HelpViewData | DetailViewData | RunViewData | HubViewData | ListViewData | TreeViewData | FeedViewData | ButtonViewData | IconViewData | PickerViewData | DatetimeViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.USER_WIZARD]: UserWizardViewData,
   [ViewType.HELP]: HelpViewData,
   [ViewType.DETAIL]: DetailViewData,
   [ViewType.RUN]: RunViewData,
   [ViewType.HUB]: HubViewData,
+  [ViewType.LIST]: ListViewData,
   [ViewType.TREE]: TreeViewData,
   [ViewType.FEED]: FeedViewData,
   [ViewType.BUTTON]: ButtonViewData,
@@ -30498,6 +30563,11 @@ export enum HubViewProperty {
   aspect = 100,
 }
 
+export enum ListViewProperty {
+  queryNodeType = 100,
+  filter = 101,
+}
+
 export enum TreeViewProperty {
   nodeTypes = 100,
   filterIsPage = 101,
@@ -30510,7 +30580,6 @@ export enum TreeViewProperty {
 export enum FeedViewProperty {
   queryNodeType = 100,
   filter = 101,
-  filterPills = 102,
 }
 
 export enum ButtonViewProperty {
@@ -31487,6 +31556,7 @@ export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
   [ViewType.DETAIL]: DetailViewProperty,
   [ViewType.RUN]: RunViewProperty,
   [ViewType.HUB]: HubViewProperty,
+  [ViewType.LIST]: ListViewProperty,
   [ViewType.TREE]: TreeViewProperty,
   [ViewType.FEED]: FeedViewProperty,
   [ViewType.BUTTON]: ButtonViewProperty,
@@ -31751,8 +31821,8 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 50, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.27.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.27.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 50, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.27.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.27.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 60, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 61, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minRam]: { id: 62, name: 'min_ram', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 256.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -31782,8 +31852,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.27.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.27.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.27.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.27.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31890,8 +31960,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.27.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.27.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.27.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.27.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -32588,6 +32658,10 @@ export const RunViewDataInfo: Record<RunViewProperty, PropertyInfo> = {
 export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
   [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 409, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
+export const ListViewDataInfo: Record<ListViewProperty, PropertyInfo> = {
+  [ListViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, componentSubtype: 1050, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ListViewProperty.filter]: { id: 101, name: 'filter', component: ObjectType.VIEW, componentSubtype: 1050, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+}
 export const TreeViewDataInfo: Record<TreeViewProperty, PropertyInfo> = {
   [TreeViewProperty.nodeTypes]: { id: 100, name: 'node_types', component: ObjectType.VIEW, componentSubtype: 1052, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TreeViewProperty.filterIsPage]: { id: 101, name: 'filter_is_page', component: ObjectType.VIEW, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
@@ -32599,7 +32673,6 @@ export const TreeViewDataInfo: Record<TreeViewProperty, PropertyInfo> = {
 export const FeedViewDataInfo: Record<FeedViewProperty, PropertyInfo> = {
   [FeedViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, componentSubtype: 1053, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FeedViewProperty.filter]: { id: 101, name: 'filter', component: ObjectType.VIEW, componentSubtype: 1053, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [FeedViewProperty.filterPills]: { id: 102, name: 'filter_pills', component: ObjectType.VIEW, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ButtonViewDataInfo: Record<ButtonViewProperty, PropertyInfo> = {
   [ButtonViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 1300, enumType: EnumType.BUTTON_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -33363,6 +33436,7 @@ export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, Prope
   [ViewType.DETAIL]: DetailViewDataInfo,
   [ViewType.RUN]: RunViewDataInfo,
   [ViewType.HUB]: HubViewDataInfo,
+  [ViewType.LIST]: ListViewDataInfo,
   [ViewType.TREE]: TreeViewDataInfo,
   [ViewType.FEED]: FeedViewDataInfo,
   [ViewType.BUTTON]: ButtonViewDataInfo,

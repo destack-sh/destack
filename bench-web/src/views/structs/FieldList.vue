@@ -22,7 +22,7 @@ import {
 } from "@/ui/drag";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
-import Field from "@/views/system/Field.vue";
+import Field from "@/views/nodes/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<

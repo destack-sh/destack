@@ -228,6 +228,7 @@ class NodeType(IdEnum):
     DRIVE = 2003  # object store like S3/MinIO, maybe block storage later
     VAULT = 2004  # secret storage
     CACHE = 2005  # ephemeral key-value store
+
     # resource (physical)
     MACHINE = 2100
     BROWSER = 2101
@@ -235,6 +236,9 @@ class NodeType(IdEnum):
     STREAM = 2111
     SECRET = 2112
     # ACCOUNT, DOMAIN, EMAIL, PHONE, APPLICATION, ...
+
+    # synchronization
+    # POOL, LOCK, BARRIER, CONDITION, ...?
 
     #
     # Local (3000-4000)
@@ -253,9 +257,6 @@ class NodeType(IdEnum):
     PIPE = 3031
     # BADGE? POLICY?
     # TAG?
-
-    # synchronization
-    # POOL, LOCK, BARRIER, CONDITION, ...?
 
     # state
     MESSAGE = 3500  # (based, timed)

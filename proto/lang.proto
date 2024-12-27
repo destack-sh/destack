@@ -1399,6 +1399,8 @@ enum ViewType {
   VIEW_TYPE_TIMELINE = 408;
   VIEW_TYPE_HUB = 409;
   VIEW_TYPE_HELP = 411;
+  VIEW_TYPE_ACTIVITY = 412;
+  VIEW_TYPE_CATALOG = 413;
   VIEW_TYPE_WINDOW = 1000;
   VIEW_TYPE_TAB = 1002;
   VIEW_TYPE_HISTORY = 1003;
@@ -3362,6 +3364,12 @@ message HubViewData {
 }
 
 // A view of a user interface in a Bench.
+message ListViewData {
+  optional NodeType query_node_type = 100;
+  optional ExpressionData filter = 101;
+}
+
+// A view of a user interface in a Bench.
 message TreeViewData {
   repeated NodeType node_types = 100;
   optional bool filter_is_page = 101;
@@ -3375,7 +3383,6 @@ message TreeViewData {
 message FeedViewData {
   optional NodeType query_node_type = 100;
   optional ExpressionData filter = 101;
-  repeated string filter_pills = 102;
 }
 
 // A view of a user interface in a Bench.

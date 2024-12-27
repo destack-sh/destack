@@ -18,8 +18,9 @@ import RunStatus from "@/views/builtins/RunStatus.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import Tree from "@/views/system/Tree.vue";
+import Tree from "@/views/collections/Tree.vue";
 import { computed, Ref, ref, toRef } from "vue";
+import Catalog from "@/views/helpers/Catalog.vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -93,11 +94,7 @@ const USER_MENU_ITEMS = computed(() => {
   if (isAuthenticated.value && !hasLocalBench.value) {
     items.push(menuItemFromAction("user.navigate.activate", { category: "primary" }));
   }
-  items.push(
-    ...[
-      menuItemFromAction("user.security.logout", { category: "secondary" }),
-    ],
-  );
+  items.push(...[menuItemFromAction("user.security.logout", { category: "secondary" })]);
   return items;
 });
 
@@ -245,6 +242,7 @@ defineExpose<ViewExposed>({ self });
         </div>
       </Scroll>
     </div>
+    <Catalog v-else-if="aspect == HubAspect.CATALOG" id="catalog" :size="{ width: size?.width, height: bodyHeight }" />
     <div v-else class="mx-5">
       <span class="text-red-600">{{ toCamelName(HubAspect, aspect) }}</span>
     </div>

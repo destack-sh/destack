@@ -44,6 +44,7 @@ import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
 const DEPTH_OFFSET = 16;
+const ITEM_HEIGHT = 28;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 
 const props = defineProps<
@@ -186,7 +187,6 @@ const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
 const editingNodePtr: Ref<NodeReferenceData | null> = ref(null);
 const editingNameRef: Ref<InstanceType<typeof NativeInput>[]> = ref([]);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
-
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
 function cancelRename() {
@@ -418,6 +418,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           :style="{
             paddingLeft: 6 + depth * DEPTH_OFFSET + 'px',
             paddingRight: 8 + 'px',
+            height: ITEM_HEIGHT + 'px',
           }"
           role="treeitem"
           data-suppress-drag="select"
