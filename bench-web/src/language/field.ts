@@ -146,10 +146,15 @@ export function getPropertyType(prop: PropertyInfo | PropertyReferenceData): Typ
     let kind: TypeKind;
     let benchType: BenchType | undefined;
     let primitiveType: PrimitiveType | undefined;
+    let constraint: TypeConstraintData | undefined =
+      prop.constraint != null ? makeTypeConstraint(prop.constraint) : undefined;
     if ((prop.referenceNodes?.length ?? 0) > 0) {
       kind = TypeKind.NODE;
       if (prop.referenceNodes == "any") {
         benchType = undefined;
+      } else if ((prop.referenceNodes?.length ?? 0) > 1) {
+        benchType = undefined;
+        constraint = makeTypeConstraint({ ...constraint, nodeSubtypes: prop.referenceNodes! });
       } else {
         benchType = prop.referenceNodes![0] as unknown as BenchType;
       }
@@ -346,8 +351,9 @@ export function getConstrainedTypeName(type: TypeIdentity): string | null {
   const metatypeName = toCamelName(BenchType, type.benchType);
   if (isNodeType(type.benchType) && type.constraint?.nodeSubtypes?.length == 1) {
     const enumType = getSubtypeEnum(type.benchType);
-    if (enumType != null) {
-      return getEnumTitle(enumType, type.constraint.nodeSubtypes[0]);
+    const subtype = type.constraint.nodeSubtypes[0];
+    if ((enumType as any)?.[subtype] != null) {
+      return getEnumTitle(enumType!, subtype);
     } else {
       return metatypeName;
     }

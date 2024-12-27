@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.26.1"
+VERSION = "2024.12.27.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1137,7 +1137,6 @@ ACTION_TABLE = Table(
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("delegate_id", PrimitiveType.UUID, is_nullable=True),
         Column("delegate_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("delegate_type", PrimitiveType.INT16, is_nullable=True),
         Column("delegate_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("position", PrimitiveType.JSON, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="2"),

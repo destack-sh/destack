@@ -1343,7 +1343,6 @@ export function getActionFields(
     // get related nodes (not reactive)
     const flow = getContainingFlow(graph, action);
     if (flow == null) return null;
-    // nocheckin
     let node: BlockData | ActionData | undefined | null = null;
     if (action.type == ActionType.DELEGATE && action.delegatePtr != null) {
       node = graph.getMaybe(action.delegatePtr) as BlockData | ActionData | undefined;

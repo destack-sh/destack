@@ -59,9 +59,8 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-# nocheckin: adjust timeouts
-DEFAULT_TIMEOUT = timedelta(seconds=10)
-DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=10)
+DEFAULT_WAIT_TIMEOUT = timedelta(seconds=30)
+DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=30)
 
 
 class Runtime:
@@ -131,7 +130,7 @@ class Runtime:
         self,
         nodes: Sequence[Node],
         condition: Callable[[], bool],
-        timeout: timedelta = DEFAULT_TIMEOUT,
+        timeout: timedelta = DEFAULT_WAIT_TIMEOUT,
     ):
         """
         Wait for the given nodes to reach a certain state.
