@@ -287,11 +287,12 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   // static
   [ActionType.CODE]: "fas fa-code",
   [ActionType.DELEGATE]: "fas fa-code",
+  [ActionType.WAIT]: "fas fa-clock",
   // dynamic
   [ActionType.GENERATE]: "fas fa-maximize",
   [ActionType.TRANSFORM]: "fas fa-shuffle",
   [ActionType.EXTRACT]: "fas fa-minimize",
-  [ActionType.SWITCH]: "fas fa-split",
+  [ActionType.ROUTE]: "fas fa-split",
   // application
   [ActionType.OBSERVE]: "fas fa-eye",
   [ActionType.CLICK]: "fas fa-computer-mouse",

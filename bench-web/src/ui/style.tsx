@@ -155,15 +155,17 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   [ActionType.UPDATE]: ColorType.SKY,
   [ActionType.DELETE]: ColorType.SKY,
   [ActionType.PASTE]: ColorType.SKY,
-  // interrupt
+  // session
   [ActionType.YIELD]: ColorType.PINK,
-  // agentive
+  // static
   [ActionType.CODE]: ColorType.ORANGE,
   [ActionType.DELEGATE]: ColorType.ORANGE,
-  [ActionType.GENERATE]: ColorType.ORANGE,
-  [ActionType.TRANSFORM]: ColorType.ORANGE,
-  [ActionType.EXTRACT]: ColorType.ORANGE,
-  [ActionType.SWITCH]: ColorType.ORANGE,
+  [ActionType.WAIT]: ColorType.ORANGE,
+  // dynamic
+  [ActionType.GENERATE]: ColorType.PINK,
+  [ActionType.TRANSFORM]: ColorType.PINK,
+  [ActionType.EXTRACT]: ColorType.PINK,
+  [ActionType.ROUTE]: ColorType.PINK,
   // application
   [ActionType.OBSERVE]: ColorType.EMERALD,
   [ActionType.CLICK]: ColorType.ORANGE,

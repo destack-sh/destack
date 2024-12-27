@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Literal, Optional, Type, Union, assert_never, cast
 
 import cachetools
@@ -70,7 +71,7 @@ if TYPE_CHECKING:
 class ActionType(IdEnum):
     # start
     START = 1  # source with inputs
-    TRIGGER = 2  # source or intermediary
+    TRIGGER = 2  # source with trigger
     # end
     COMPLETE = 10  # terminate with outputs
     FAIL = 11  # terminate with error
@@ -96,11 +97,12 @@ class ActionType(IdEnum):
     # static
     CODE = 100
     DELEGATE = 101
+    WAIT = 102
     # dynamic
     GENERATE = 110
     TRANSFORM = 111
     EXTRACT = 112
-    SWITCH = 120
+    ROUTE = 120
 
     # state
     # ...
@@ -292,7 +294,7 @@ class Action(SourceNode[ActionData]):
                     base_type=base,
                     bench_type=NodeType.ACTION,
                     base_field_type=field_type,
-                    partial_scope=PartialObjectScope.SUBTYPE,
+                    partial_scope=PartialObjectScope.FULL,
                     constraint=TypeConstraint(node_subtypes=[self.type]),
                 )
             else:
@@ -424,7 +426,7 @@ class DeleteAction(Action):
 
 
 #
-# Run
+# Session
 #
 
 
@@ -434,6 +436,56 @@ class FailAction(Action):
     error_text: Optional["Text"] = p_regular(
         101, default=None, require=False, array=False, struct=StructType.TEXT
     )
+
+
+#
+# Static
+#
+
+
+@node_subtype_(ActionType.CODE)
+class CodeAction(Action):
+    pass
+
+
+@node_subtype_(ActionType.DELEGATE)
+class DelegateAction(Action):
+    pass
+
+
+@node_subtype_(ActionType.WAIT)
+class WaitAction(Action):
+    delay: timedelta | None = p_regular(100, default=None)
+
+
+#
+# Dynamic
+#
+
+
+@object_()
+class HasDynamicContext(BuiltinObject):
+    pass
+
+
+@node_subtype_(ActionType.GENERATE)
+class GenerateAction(Action, HasDynamicContext):
+    pass
+
+
+@node_subtype_(ActionType.TRANSFORM)
+class TransformAction(Action, HasDynamicContext):
+    pass
+
+
+@node_subtype_(ActionType.EXTRACT)
+class ExtractAction(Action, HasDynamicContext):
+    pass
+
+
+@node_subtype_(ActionType.ROUTE)
+class RouteAction(Action, HasDynamicContext):
+    pass
 
 
 #

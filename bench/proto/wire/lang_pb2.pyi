@@ -1312,10 +1312,11 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_YIELD: _ClassVar[ActionType]
     ACTION_TYPE_CODE: _ClassVar[ActionType]
     ACTION_TYPE_DELEGATE: _ClassVar[ActionType]
+    ACTION_TYPE_WAIT: _ClassVar[ActionType]
     ACTION_TYPE_GENERATE: _ClassVar[ActionType]
     ACTION_TYPE_TRANSFORM: _ClassVar[ActionType]
     ACTION_TYPE_EXTRACT: _ClassVar[ActionType]
-    ACTION_TYPE_SWITCH: _ClassVar[ActionType]
+    ACTION_TYPE_ROUTE: _ClassVar[ActionType]
     ACTION_TYPE_OBSERVE: _ClassVar[ActionType]
     ACTION_TYPE_CLICK: _ClassVar[ActionType]
     ACTION_TYPE_PRESS: _ClassVar[ActionType]
@@ -2732,10 +2733,11 @@ ACTION_TYPE_PASTE: ActionType
 ACTION_TYPE_YIELD: ActionType
 ACTION_TYPE_CODE: ActionType
 ACTION_TYPE_DELEGATE: ActionType
+ACTION_TYPE_WAIT: ActionType
 ACTION_TYPE_GENERATE: ActionType
 ACTION_TYPE_TRANSFORM: ActionType
 ACTION_TYPE_EXTRACT: ActionType
-ACTION_TYPE_SWITCH: ActionType
+ACTION_TYPE_ROUTE: ActionType
 ACTION_TYPE_OBSERVE: ActionType
 ACTION_TYPE_CLICK: ActionType
 ACTION_TYPE_PRESS: ActionType
@@ -5086,6 +5088,36 @@ class FailActionData(_message.Message):
     error_title: str
     error_text: TextData
     def __init__(self, error_title: _Optional[str] = ..., error_text: _Optional[_Union[TextData, _Mapping]] = ...) -> None: ...
+
+class CodeActionData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class DelegateActionData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class WaitActionData(_message.Message):
+    __slots__ = ("delay",)
+    DELAY_FIELD_NUMBER: _ClassVar[int]
+    delay: _duration_pb2.Duration
+    def __init__(self, delay: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...) -> None: ...
+
+class GenerateActionData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class TransformActionData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ExtractActionData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class RouteActionData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
 
 class ObserveActionData(_message.Message):
     __slots__ = ("exclude_image",)

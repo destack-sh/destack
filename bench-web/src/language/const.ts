@@ -131,7 +131,7 @@ export const CLASSY_BLOCK_TYPES = [BlockType.MESSAGE, ...RUNNABLE_BLOCK_TYPES, B
 // action
 export const ACTION_TYPES = Object.values(ActionType).filter((v) => typeof v == "number" && v > 0) as ActionType[];
 export const BOUNDARY_ACTION_TYPES = ACTION_TYPES.filter((st) => st < 50);
-export const SOURCE_ACTION_TYPES = [ActionType.START];
+export const SOURCE_ACTION_TYPES = [ActionType.START, ActionType.TRIGGER];
 export const SINK_ACTION_TYPES = [ActionType.COMPLETE, ActionType.FAIL];
 export const INVISIBLE_ACTION_TYPES = [ActionType.TEXT];
 export const RUN_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 50 && st < 100);
