@@ -232,6 +232,25 @@ class Runtime:
             parent = parent.parent
         return None
 
+    def _create_resource(
+        self, resource_type: TypeInfo, title: str | None = None, **kwargs: Any
+    ) -> Resource:
+        """Create a new Resource of the given type."""
+        # get class
+        node_type = resource_type.bench_type
+        assert is_node_type(node_type), f"invalid resource type {resource_type!r}"
+        node_type = NodeType(node_type)
+        resource_cls = NODE_CLASS_BY_TYPE[node_type]
+        assert issubclass(resource_cls, Resource), f"{resource_cls} in {resource_type!r}"
+        # create resource
+        resource_kwargs: dict[str, Any] = {}
+        if "title" in resource_cls.__properties__ and title is None:  # title it
+            resource_kwargs["title"] = generate_random_name()
+        resource_kwargs.update(kwargs)
+        resource = resource_cls(**resource_kwargs)
+        self.bench.append(resource)
+        return resource
+
     @tracer.start_as_current_span("runtime.acquire_resources")
     async def _acquire_resources(
         self,
@@ -244,26 +263,19 @@ class Runtime:
         resources_to_acquire: list[Resource] = [r for r in resources if isinstance(r, Resource)]
         for resource_type in resource_types:
             node_type = resource_type.bench_type
-            assert is_node_type(node_type) is not None, f"invalid resource type {resource_type!r}"
+            assert is_node_type(node_type), f"invalid resource type {resource_type!r}"
             node_type = NodeType(node_type)
             assert node_type.is_resource, f"expected resource type, got {node_type!r}"
 
-            # check context for matching resource
+            # check context for matching resource or create new one
             resource = self._get_resource(runner, resource_type)
             if resource is not None:
                 resources_to_acquire.append(resource)
-                continue
-
-            # make new resource
-            resource_cls = NODE_CLASS_BY_TYPE[node_type]
-            assert issubclass(resource_cls, Resource), f"{resource_cls} in {resource_type!r}"
-            resource_kwargs: dict[str, Any] = {}
-            if "title" in resource_cls.__properties__:
-                resource_kwargs["title"] = generate_random_name()
-            resource = resource_cls(**resource_kwargs)
-            self.bench.append(resource)
-            resources_to_acquire.append(resource)
-            logger.debug("runtime.acquire_resources.new", resource=resource)
+                logger.trace("runtime.acquire_resources.reuse", resource=resource)
+            else:
+                resource = self._create_resource(resource_type)
+                resources_to_acquire.append(resource)
+                logger.debug("runtime.acquire_resources.new", resource=resource)
 
         # commit and wait for resources to become ready
         await self._wait_for(
@@ -273,6 +285,8 @@ class Runtime:
             ),
             timeout=DEFAULT_RESOURCE_TIMEOUT,
         )
+
+        # nocheckin: deccomission resourcers on error/complete?
 
         return resources_to_acquire
 

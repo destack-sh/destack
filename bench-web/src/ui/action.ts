@@ -31,6 +31,7 @@ import {
   type MaybeRef,
   type Ref,
 } from "vue";
+import { isResourceNodeType } from "@/language/const";
 
 export const IS_IN_ALT_MODE = useKeyModifier("Alt");
 
@@ -127,6 +128,11 @@ export const ACTION_BUILTIN_IDS = [
   // code
   "code.edit.format",
   "code.edit.comment",
+  // resource
+  "resource.status.provision",
+  "resource.status.decommission",
+  "resource.status.wake",
+  "resource.status.sleep",
   // view
   "view.history.goBackward",
   "view.history.goForward",
@@ -951,6 +957,30 @@ declareActionMap<"code">({
   },
 });
 
+// resource
+declareActionMap<"resource">({
+  "resource.status.provision": {
+    icon: "fas fa-power-off",
+    title: "Provision",
+    text: "Provision this Resource",
+  },
+  "resource.status.decommission": {
+    icon: "fas fa-skull",
+    title: "Decommission",
+    text: "Decommission this Resource",
+  },
+  "resource.status.wake": {
+    icon: "fas fa-sun",
+    title: "Wake",
+    text: "Wake this Resource",
+  },
+  "resource.status.sleep": {
+    icon: "fas fa-snooze",
+    title: "Sleep",
+    text: "Sleep this Resource",
+  },
+});
+
 // view
 declareActionMap<"view">({
   // history
@@ -1212,6 +1242,12 @@ export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const RECORD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const ACTION_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["flow.edit.splitPipe"];
+export const RESOURCE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
+  "resource.status.provision",
+  "resource.status.decommission",
+  "resource.status.wake",
+  "resource.status.sleep",
+];
 
 export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]>> = {
   [NodeType.BLOCK]: BLOCK_CONTEXT_ACTIONS,
@@ -1223,15 +1259,26 @@ export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]
 /** Gets the base Actions for a Node. */
 export function getNodeActions(node: AnyNodeData): Action[] {
   const actions: ActionBuiltinId[] = [];
-  if (!NON_DUPLICATABLE_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
-    actions.push("space.edit.duplicate");
+  const nodeType = node.metatype as unknown as NodeType;
+  const isResource = isResourceNodeType(nodeType);
+  // duplicate/delete
+  if (!isResource) {
+    if (!NON_DUPLICATABLE_NODE_TYPES.includes(nodeType)) {
+      actions.push("space.edit.duplicate");
+    }
+    actions.push("space.edit.delete");
   }
-  actions.push("space.edit.delete");
+  // rename
   if ("title" in node || "name" in node) {
     actions.push("space.edit.rename");
   }
-  if (CONTEXT_ACTIONS_BY_TYPE[node.metatype as unknown as NodeType] != null) {
-    actions.push(...CONTEXT_ACTIONS_BY_TYPE[node.metatype as unknown as NodeType]!);
+  // general context actions
+  if (CONTEXT_ACTIONS_BY_TYPE[nodeType] != null) {
+    actions.push(...CONTEXT_ACTIONS_BY_TYPE[nodeType]!);
+  }
+  // resource actions
+  if (isResource) {
+    actions.push(...RESOURCE_CONTEXT_ACTIONS);
   }
   return actions.map(getAction);
 }

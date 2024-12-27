@@ -45,7 +45,7 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import Block from "@/views/system/Block.vue";
+import Block from "@/views/nodes/Block.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;

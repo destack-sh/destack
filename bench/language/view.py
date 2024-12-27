@@ -76,6 +76,8 @@ class ViewType(IdEnum):
     TIMELINE = 408
     HUB = 409
     HELP = 411
+    ACTIVITY = 412
+    CATALOG = 413
 
     #
     # Organization
@@ -602,8 +604,16 @@ class HubView(View):
 
 
 #
-# Organization
+# Collections
 #
+
+
+@node_subtype_(ViewType.LIST)
+class ListView(View):
+    query_node_type: NodeType | None = p_regular(100, require=False)
+    filter: "Expression | None" = p_regular(
+        101, default=None, require=False, struct=StructType.EXPRESSION
+    )
 
 
 @enum_(EnumType.TREE_VIEW_PRESET)
@@ -629,7 +639,6 @@ class FeedView(View):
     filter: "Expression | None" = p_regular(
         101, default=None, require=False, struct=StructType.EXPRESSION
     )
-    filter_pills: list[str] = p_regular(102, array=True)
 
 
 #

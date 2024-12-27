@@ -36,7 +36,7 @@ import { generateOrderKey } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { computedValue } from "@/utils/ref";
-import type Action from "@/views/system/Action.vue";
+import type Action from "@/views/nodes/Action.vue";
 import { useMouse } from "@vueuse/core";
 import { computed, inject, ref, shallowRef, triggerRef, watch, type Ref } from "vue";
 

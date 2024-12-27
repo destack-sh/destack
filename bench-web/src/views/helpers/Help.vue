@@ -14,8 +14,8 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import Inspect from "@/views/system/Detail.vue";
-import Start from "@/views/system/Run.vue";
+import Inspect from "@/views/helpers/Detail.vue";
+import Start from "@/views/helpers/Run.vue";
 import { computed, nextTick, ref, Ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;

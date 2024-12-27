@@ -10,7 +10,7 @@ import { DetailSection, makeInspectLayout } from "@/ui/detail";
 import { computedValue } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
-import FieldList from "@/views/system/FieldList.vue";
+import FieldList from "@/views/structs/FieldList.vue";
 import { computed, toRef } from "vue";
 
 const SECTION_HEADER_HEIGHT = 32;

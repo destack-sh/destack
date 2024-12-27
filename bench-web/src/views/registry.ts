@@ -17,26 +17,26 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // kernel
   [ViewType.USER_WIZARD]: () => import("@/views/kernel/UserWizard.vue"),
   [ViewType.BENCH_WIZARD]: () => import("@/views/kernel/BenchWizard.vue"),
-  [ViewType.EMPTY]: () => import("@/views/system/Empty.vue"),
+  [ViewType.EMPTY]: () => import("@/views/helpers/Empty.vue"),
 
   // system
   // nodes
-  [ViewType.PAGE]: () => import("@/views/system/Page.vue"),
-  [ViewType.BLOCK]: () => import("@/views/system/Block.vue"),
-  [ViewType.FIELD]: () => import("@/views/system/Field.vue"),
-  [ViewType.DATABASE]: () => import("@/views/system/Database.vue"),
-  [ViewType.FLOW]: () => import("@/views/system/Flow.vue"),
-  [ViewType.STEP]: () => import("@/views/system/Action.vue"),
-  [ViewType.PIPE]: () => import("@/views/system/Pipe.vue"),
+  [ViewType.PAGE]: () => import("@/views/nodes/Page.vue"),
+  [ViewType.BLOCK]: () => import("@/views/nodes/Block.vue"),
+  [ViewType.FIELD]: () => import("@/views/nodes/Field.vue"),
+  [ViewType.DATABASE]: () => import("@/views/nodes/Database.vue"),
+  [ViewType.FLOW]: () => import("@/views/nodes/Flow.vue"),
+  [ViewType.STEP]: () => import("@/views/nodes/Action.vue"),
+  [ViewType.PIPE]: () => import("@/views/nodes/Pipe.vue"),
   // structs
-  [ViewType.OBJECT]: () => import("@/views/system/CustomObject.vue"),
-  [ViewType.FIELD_LIST]: () => import("@/views/system/FieldList.vue"),
+  [ViewType.OBJECT]: () => import("@/views/structs/CustomObject.vue"),
+  [ViewType.FIELD_LIST]: () => import("@/views/structs/FieldList.vue"),
   // helpers
-  [ViewType.TREE]: () => import("@/views/system/Tree.vue"),
-  [ViewType.DETAIL]: () => import("@/views/system/Detail.vue"),
-  [ViewType.RUN]: () => import("@/views/system/Run.vue"),
-  [ViewType.HUB]: () => import("@/views/system/Hub.vue"),
-  [ViewType.HELP]: () => import("@/views/system/Help.vue"),
+  [ViewType.TREE]: () => import("@/views/collections/Tree.vue"),
+  [ViewType.DETAIL]: () => import("@/views/helpers/Detail.vue"),
+  [ViewType.RUN]: () => import("@/views/helpers/Run.vue"),
+  [ViewType.HUB]: () => import("@/views/helpers/Hub.vue"),
+  [ViewType.HELP]: () => import("@/views/helpers/Help.vue"),
 
   //
   // Organization

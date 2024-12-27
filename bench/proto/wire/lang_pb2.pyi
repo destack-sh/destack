@@ -1387,6 +1387,8 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_TIMELINE: _ClassVar[ViewType]
     VIEW_TYPE_HUB: _ClassVar[ViewType]
     VIEW_TYPE_HELP: _ClassVar[ViewType]
+    VIEW_TYPE_ACTIVITY: _ClassVar[ViewType]
+    VIEW_TYPE_CATALOG: _ClassVar[ViewType]
     VIEW_TYPE_WINDOW: _ClassVar[ViewType]
     VIEW_TYPE_TAB: _ClassVar[ViewType]
     VIEW_TYPE_HISTORY: _ClassVar[ViewType]
@@ -2794,6 +2796,8 @@ VIEW_TYPE_RUN: ViewType
 VIEW_TYPE_TIMELINE: ViewType
 VIEW_TYPE_HUB: ViewType
 VIEW_TYPE_HELP: ViewType
+VIEW_TYPE_ACTIVITY: ViewType
+VIEW_TYPE_CATALOG: ViewType
 VIEW_TYPE_WINDOW: ViewType
 VIEW_TYPE_TAB: ViewType
 VIEW_TYPE_HISTORY: ViewType
@@ -6065,6 +6069,14 @@ class HubViewData(_message.Message):
     aspect: HubAspect
     def __init__(self, aspect: _Optional[_Union[HubAspect, str]] = ...) -> None: ...
 
+class ListViewData(_message.Message):
+    __slots__ = ("query_node_type", "filter")
+    QUERY_NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    FILTER_FIELD_NUMBER: _ClassVar[int]
+    query_node_type: NodeType
+    filter: ExpressionData
+    def __init__(self, query_node_type: _Optional[_Union[NodeType, str]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ...) -> None: ...
+
 class TreeViewData(_message.Message):
     __slots__ = ("node_types", "filter_is_page", "is_default_expanded", "expanded_nodes_ptr", "collapsed_nodes_ptr", "preset")
     NODE_TYPES_FIELD_NUMBER: _ClassVar[int]
@@ -6082,14 +6094,12 @@ class TreeViewData(_message.Message):
     def __init__(self, node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., filter_is_page: bool = ..., is_default_expanded: bool = ..., expanded_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., collapsed_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., preset: _Optional[_Union[TreeViewPreset, str]] = ...) -> None: ...
 
 class FeedViewData(_message.Message):
-    __slots__ = ("query_node_type", "filter", "filter_pills")
+    __slots__ = ("query_node_type", "filter")
     QUERY_NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
     FILTER_FIELD_NUMBER: _ClassVar[int]
-    FILTER_PILLS_FIELD_NUMBER: _ClassVar[int]
     query_node_type: NodeType
     filter: ExpressionData
-    filter_pills: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, query_node_type: _Optional[_Union[NodeType, str]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., filter_pills: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, query_node_type: _Optional[_Union[NodeType, str]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ...) -> None: ...
 
 class ButtonViewData(_message.Message):
     __slots__ = ("variant",)
