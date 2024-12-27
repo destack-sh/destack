@@ -36,6 +36,7 @@ from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.log import Log
 from bench.language.node import GraphScope, patch_graph, sync_node
 from bench.language.property import Property
+from bench.language.query import QueryBuilder
 from bench.language.session import RuntimeContext, Session
 from bench.language.transaction import edit_data_graph, edit_graph
 from bench.language.user import User
@@ -460,6 +461,21 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         validate_context(subject, context, edits)
 
         return scope
+
+    @override
+    def _adapt_read_query(self, subject: Subject, query: QueryBuilder) -> QueryBuilder:
+        query = super()._adapt_read_query(subject, query)
+
+        # restrict to this bench if it's a in-bench query
+        #  (non-local because those are already in-bench)
+        if (
+            self._bench is not None
+            and NodeType.BENCH in query._node_cls.__roots__
+            and query._node_cls.__area__ != NodeArea.LOCAL
+        ):
+            query = query.where(query._node_cls.get_property("bench").eq(self._bench.to_ref()))
+
+        return query
 
     def _update_loaded_graphs(
         self,
