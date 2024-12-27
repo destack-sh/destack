@@ -109,6 +109,7 @@ class ViewType(IdEnum):
     GALLERY = 1054
     BOARD = 1055
     # ROW, COLUMN, ...?
+    # CALENDAR, MAP, ...?
 
     #
     # Style
@@ -156,7 +157,7 @@ class ViewType(IdEnum):
     COLOR = 1702
     ICON = 1703
     DATETIME = 1704
-    # CALENDAR, MAP, ...
+    DURATION = 1705
 
     # file
     FILE = 1900  # (generic file content according to file type)

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.27.0"
+VERSION = "2024.12.27.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -610,7 +610,7 @@ FILE_TABLE = Table(
         Column("height", PrimitiveType.INT32, is_nullable=True),
         Column("aspect_ratio", PrimitiveType.FLOAT32, is_nullable=True),
         Column("codec", PrimitiveType.STRING, is_nullable=True),
-        Column("duration", PrimitiveType.INTERVAL, is_nullable=True),
+        Column("duration", PrimitiveType.DURATION, is_nullable=True),
         Column("bitrate", PrimitiveType.INT32, is_nullable=True),
         Column("channels", PrimitiveType.INT32, is_nullable=True),
         Column("sample_rate", PrimitiveType.INT32, is_nullable=True),
@@ -1184,7 +1184,7 @@ PIPE_TABLE = Table(
         Column("condition", PrimitiveType.JSON, is_nullable=True),
         Column("constraint", PrimitiveType.JSON, is_nullable=True),
         Column("mapping", PrimitiveType.JSON, is_nullable=True),
-        Column("delay", PrimitiveType.INTERVAL, is_nullable=True),
+        Column("delay", PrimitiveType.DURATION, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="2"),
         Column("color", PrimitiveType.JSON, is_nullable=True),
         Column("is_hidden", PrimitiveType.BOOLEAN, default="false"),
@@ -1257,7 +1257,7 @@ SESSION_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
-        Column("duration", PrimitiveType.INTERVAL, is_nullable=True),
+        Column("duration", PrimitiveType.DURATION, is_nullable=True),
         Column("opened_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
@@ -1320,7 +1320,7 @@ RUN_TABLE = Table(
         Column("context", PrimitiveType.JSON, is_nullable=True),
         Column("options", PrimitiveType.JSON),
         Column("status", PrimitiveType.INT16, default="1"),
-        Column("duration", PrimitiveType.INTERVAL, is_nullable=True),
+        Column("duration", PrimitiveType.DURATION, is_nullable=True),
         Column("attempts", PrimitiveType.JSON, is_array=True),
         Column("error", PrimitiveType.JSON, is_nullable=True),
         Column("scheduled_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -1395,7 +1395,7 @@ INTERRUPT_TABLE = Table(
         Column("attempt_no", PrimitiveType.INT32, is_nullable=True),
         Column("breakpoint_site", PrimitiveType.INT16, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
-        Column("duration", PrimitiveType.INTERVAL, is_nullable=True),
+        Column("duration", PrimitiveType.DURATION, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
         Column("trigger_ck", PrimitiveType.UUID, is_nullable=True),

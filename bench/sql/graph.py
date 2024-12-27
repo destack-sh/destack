@@ -521,7 +521,7 @@ def _pack_builtin_object_data_prop_scalar(prop: Property, value: Any) -> SqlPrim
         return unpack_proto_date(cast(Date, value))
     elif prop.primitive_type == PrimitiveType.TIME:
         return unpack_proto_time(cast(TimeOfDay, value))
-    elif prop.primitive_type == PrimitiveType.INTERVAL:
+    elif prop.primitive_type == PrimitiveType.DURATION:
         return value.ToTimedelta()
     else:
         return value
@@ -551,7 +551,7 @@ def _pack_builtin_object_value_prop_scalar(prop: Property, value: Any) -> SqlPri
         return datetime.date.fromisoformat(value)
     elif prop.primitive_type == PrimitiveType.TIME:
         return datetime.time.fromisoformat(value)
-    elif prop.primitive_type == PrimitiveType.INTERVAL:
+    elif prop.primitive_type == PrimitiveType.DURATION:
         return timedelta_from_isoformat(value)
     else:
         return value
@@ -587,7 +587,7 @@ def _unpack_builtin_object_data_prop_scalar(
         return pack_proto_date(value_packed)
     elif prop.primitive_type == PrimitiveType.TIME:
         return pack_proto_time(value_packed)
-    elif prop.primitive_type == PrimitiveType.INTERVAL:
+    elif prop.primitive_type == PrimitiveType.DURATION:
         dur = Duration()
         dur.FromTimedelta(value_packed)
         return dur

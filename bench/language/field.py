@@ -396,7 +396,7 @@ class TypeBase(BuiltinObject):
             PrimitiveType.DATETIME,
             PrimitiveType.DATE,
             PrimitiveType.TIME,
-            PrimitiveType.INTERVAL,
+            PrimitiveType.DURATION,
         ):
             return True
         else:

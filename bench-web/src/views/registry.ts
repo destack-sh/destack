@@ -92,6 +92,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.COLOR]: () => import("@/views/content/Color.vue"),
   [ViewType.ICON]: () => import("@/views/content/Icon.vue"),
   [ViewType.DATETIME]: () => import("@/views/content/Datetime.vue"),
+  [ViewType.DURATION]: () => import("@/views/content/Duration.vue"),
 
   // file
   [ViewType.FILE]: () => import("@/views/content/File.vue"),

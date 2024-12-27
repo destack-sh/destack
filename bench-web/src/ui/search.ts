@@ -866,7 +866,6 @@ export function typeIndex(idx: {
       item.primitiveType = option.value as PrimitiveType;
       item.kind = TypeKind.PRIMITIVE;
     } else if (enumType == EnumType.TYPE_FORMAT) {
-      // :TypeFormat
       item.primitiveType = Math.floor((option.value as number) / 100) as PrimitiveType;
       item.kind = TypeKind.PRIMITIVE;
       item.format = option.value as TypeFormat;
@@ -884,7 +883,7 @@ export function typeIndex(idx: {
       item.benchType = BenchType.BLOCK;
       item.constraint = makeTypeConstraint({ nodeSubtypes: [option.value as BlockType] });
     } else if (enumType == EnumType.ACTION_TYPE) {
-      item.title = option.title + " Step";
+      item.title = option.title + " Action";
       item.kind = TypeKind.NODE;
       item.benchType = BenchType.ACTION;
       item.constraint = makeTypeConstraint({ nodeSubtypes: [option.value as ActionType] });
@@ -925,8 +924,8 @@ export function typeIndex(idx: {
       const typeFormatItems = getIntrinsicOptions(EnumType.TYPE_FORMAT);
       const fileItems = getIntrinsicOptions(EnumType.FILE_TYPE);
       const blockItems = getIntrinsicOptions(EnumType.BLOCK_TYPE);
-      const stepItems = getIntrinsicOptions(EnumType.ACTION_TYPE);
-      const nodeItems = getIntrinsicOptions(EnumType.BENCH_TYPE);
+      const actionItems = getIntrinsicOptions(EnumType.ACTION_TYPE);
+      const nodeItems = getIntrinsicOptions(EnumType.NODE_TYPE);
 
       // and any type definitions from blocks
       const graphItems: TypeItem[] = walkGraph({
@@ -945,10 +944,9 @@ export function typeIndex(idx: {
         ...primitiveItems,
         ...typeFormatItems,
         ...fileItems,
-        anyNodeTypeItem(idx.id),
         ...graphItems,
         ...blockItems,
-        ...stepItems,
+        ...actionItems,
         ...nodeItems,
       ];
       return allItems;

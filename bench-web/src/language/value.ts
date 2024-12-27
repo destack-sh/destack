@@ -102,7 +102,7 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
       return ProtoDate.toJsDate(value as ProtoDate).toISOString();
     } else if (type.primitiveType == PrimitiveType.TIME) {
       return timeOfDayToISOFormat(value as TimeOfDay);
-    } else if (type.primitiveType == PrimitiveType.INTERVAL) {
+    } else if (type.primitiveType == PrimitiveType.DURATION) {
       return timedeltaToISOFormat(value as Duration);
     } else if (typeof value == "bigint") {
       // NOTE :Robustness: we pack bigints as numbers, which is only safe up to 2^53-1
@@ -144,7 +144,7 @@ function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarVa
       return ProtoDate.fromJsDate(new Date(valuePacked as string));
     } else if (type.primitiveType == PrimitiveType.TIME) {
       return timeOfDayFromISOFormat(valuePacked as string);
-    } else if (type.primitiveType == PrimitiveType.INTERVAL) {
+    } else if (type.primitiveType == PrimitiveType.DURATION) {
       return timedeltaFromISOFormat(valuePacked as string);
     } else if (type.primitiveType == PrimitiveType.INT64) {
       // see packing above

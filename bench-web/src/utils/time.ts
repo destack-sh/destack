@@ -59,19 +59,26 @@ const TIME_UNIT_MILLIS: Record<TimeUnit, number> = {
   w: 1000 * 60 * 60 * 24 * 7,
   y: 1000 * 60 * 60 * 24 * 365.2425,
 };
-const TIME_UNIT_NAMES: Record<TimeUnit, string> = {
-  ms: "millisecond",
-  s: "second",
-  m: "minute",
-  h: "hour",
-  d: "day",
-  w: "week",
-  y: "year",
+
+const TIME_UNIT_FORMATS: Record<TimeUnit, { short: string; regular: string; long: string }> = {
+  ms: { short: "ms", regular: "msec", long: "millisecond" },
+  s: { short: "s", regular: "sec", long: "second" },
+  m: { short: "m", regular: "min", long: "minute" },
+  h: { short: "h", regular: "hr", long: "hour" },
+  d: { short: "d", regular: "day", long: "day" },
+  w: { short: "w", regular: "wk", long: "week" },
+  y: { short: "y", regular: "yr", long: "year" },
 };
+
 const TIME_UNITS_SHORT: TimeUnit[] = ["ms", "s", "m", "h", "d", "w", "y"];
 const DIGITS_PER_UNIT: Partial<Record<TimeUnit, number>> = {
   ms: 2,
   s: 2,
+  m: 1,
+  h: 1,
+  d: 1,
+  w: 1,
+  y: 1,
 };
 
 export type FormatDurationOptions = {
@@ -79,16 +86,20 @@ export type FormatDurationOptions = {
   minValue?: number;
   tooSmall?: string;
   maxUnit?: TimeUnit;
-  short?: boolean;
+  format?: "short" | "regular" | "long";
   digits?: number;
+  extended?: boolean;
 };
 
 /**
- * Formats a duration into the nearest (ideally >1, less then <1 of next available unit)
- * Like 3.7s, 48m, 2d, 1w, 3y.
+ * Formats a duration into a human readable string.
+ * Like:
+ * - short: 3.7s, 48m, 2d, 1w, 3y (rounded to nearest unit)
+ * - regular: 1 sec 30 msec, 48 min, 2 days 4 hrs, 1 wk 2 days, 3 yr 6 mo (all non-zero parts)
+ * - long: 1 second 30 milliseconds, 48 minutes, 2 days 4 hours, 1 week 2 days, 3 years 6 months (all non-zero parts)
  */
 export function formatDuration(duration: number | ProtoDuration | Duration, options?: FormatDurationOptions): string {
-  const { minUnit = "ms", maxUnit = "y", minValue, tooSmall = "now", short = true } = options ?? {};
+  const { minUnit = "ms", maxUnit = "y", minValue, tooSmall = "now", format = "short", extended = false } = options ?? {};
   let durationMs: number;
   if (duration instanceof Duration) {
     durationMs = duration.as("milliseconds");
@@ -98,38 +109,65 @@ export function formatDuration(duration: number | ProtoDuration | Duration, opti
     durationMs = Number(duration.seconds) * 1000 + duration.nanos / 1e6;
   }
 
-  // find largest unit that fits
-  let currentUnit: TimeUnit = minUnit;
-  for (let i = TIME_UNITS_SHORT.indexOf(minUnit); i <= TIME_UNITS_SHORT.indexOf(maxUnit); i++) {
+  // if using condensed format, find largest unit that fits and round to it
+  if (format === "short" && !extended) {
+    let currentUnit: TimeUnit = minUnit;
+    for (let i = TIME_UNITS_SHORT.indexOf(minUnit); i <= TIME_UNITS_SHORT.indexOf(maxUnit); i++) {
+      const unit = TIME_UNITS_SHORT[i];
+      if (durationMs >= TIME_UNIT_MILLIS[unit]) {
+        currentUnit = unit;
+      }
+    }
+
+    // if value is too small, use special string
+    if (minValue != null && durationMs < TIME_UNIT_MILLIS[currentUnit] * minValue) {
+      return tooSmall;
+    }
+
+    // convert/round
+    let roundedValue: string;
+    const unitValue = durationMs / TIME_UNIT_MILLIS[currentUnit];
+    const digits = options?.digits ?? DIGITS_PER_UNIT[currentUnit];
+    if (digits != null) {
+      const numDigits = Math.round(unitValue).toString().length;
+      const precision = Math.max(0, digits - numDigits);
+      roundedValue = unitValue.toFixed(precision);
+    } else {
+      roundedValue = unitValue.toFixed(0);
+    }
+
+    const unitFormat = TIME_UNIT_FORMATS[currentUnit];
+    return `${roundedValue}${unitFormat.short}`;
+  }
+
+  // for extended format, build up all non-zero parts
+  const parts: string[] = [];
+  let remaining = durationMs;
+
+  for (let i = TIME_UNITS_SHORT.indexOf(maxUnit); i >= TIME_UNITS_SHORT.indexOf(minUnit); i--) {
     const unit = TIME_UNITS_SHORT[i];
-    if (durationMs >= TIME_UNIT_MILLIS[unit]) {
-      currentUnit = unit;
+    const unitMs = TIME_UNIT_MILLIS[unit];
+    const value = Math.floor(remaining / unitMs);
+    if (value > 0) {
+      const unitFormat = TIME_UNIT_FORMATS[unit];
+      if (format === "short") {
+        parts.push(`${value}${unitFormat.short}`);
+      } else {
+        const unitStr = format === "regular" ? unitFormat.regular : unitFormat.long;
+        parts.push(`${value} ${value === 1 ? unitStr : unitStr + "s"}`);
+      }
+      remaining = remaining % unitMs;
     }
   }
 
-  // if value is too small, use special string
-  if (minValue != null && durationMs < TIME_UNIT_MILLIS[currentUnit] * minValue) {
+  if (parts.length === 0) {
     return tooSmall;
-  }
-
-  // convert/round
-  let roundedValue: string;
-  const unitValue = durationMs / TIME_UNIT_MILLIS[currentUnit];
-  const digits = options?.digits ?? DIGITS_PER_UNIT[currentUnit];
-  if (digits != null) {
-    const numDigits = Math.round(unitValue).toString().length;
-    const precision = Math.max(0, digits - numDigits);
-    roundedValue = unitValue.toFixed(precision);
+  } else if (format === "short") {
+    return parts.join("");
+  } else if (format === "regular") {
+    return parts.join(" ");
   } else {
-    roundedValue = unitValue.toFixed(0);
-  }
-
-  // format
-  if (short) {
-    return `${roundedValue}${currentUnit}`;
-  } else {
-    const unitName = parseFloat(roundedValue) == 1 ? TIME_UNIT_NAMES[currentUnit] : TIME_UNIT_NAMES[currentUnit] + "s";
-    return `${roundedValue} ${unitName}`;
+    return parts.join(", ");
   }
 }
 
@@ -211,7 +249,7 @@ type DurationPart = [string, string, number | null, boolean];
 type DurationParts = DurationPart[];
 type DurationUnits = [string, number][];
 
-function parseDate(segment: string): DurationParts {
+function parseISODate(segment: string): DurationParts {
   const parts: DurationParts = [];
   switch (segment.length) {
     case 8:
@@ -235,7 +273,7 @@ function parseDate(segment: string): DurationParts {
   throw new Error(`unable to parse '${segment}' into date parts`);
 }
 
-function parseTime(segment: string): DurationParts {
+function parseISOTime(segment: string): DurationParts {
   const parts: DurationParts = [];
   switch (segment.length) {
     case 8:
@@ -258,7 +296,7 @@ function parseTime(segment: string): DurationParts {
   throw new Error(`unable to parse '${segment}' into time parts`);
 }
 
-function parseDesignators(duration: string): DurationParts {
+function parseISODesignators(duration: string): DurationParts {
   const parts: DurationParts = [];
   const dateContext: [string, string][] = [
     ["Y", "years"],
@@ -308,23 +346,23 @@ function parseDesignators(duration: string): DurationParts {
   return parts;
 }
 
-function parseDuration(duration: string): DurationParts {
+function parseISODuration(duration: string): DurationParts {
   if (!duration.startsWith("P")) {
     throw new Error("durations must begin with the character 'P'");
   }
 
   const parts: DurationParts = [];
   if (/[A-Z]$/.test(duration)) {
-    return parseDesignators(duration.slice(1));
+    return parseISODesignators(duration.slice(1));
   } else {
     const [dateSegment, timeSegment] = duration.slice(1).split("T");
-    if (dateSegment) parts.push(...parseDate(dateSegment));
-    if (timeSegment) parts.push(...parseTime(timeSegment));
+    if (dateSegment) parts.push(...parseISODate(dateSegment));
+    if (timeSegment) parts.push(...parseISOTime(timeSegment));
     return parts;
   }
 }
 
-function toUnits(parts: DurationParts): DurationUnits {
+function toISOUnits(parts: DurationParts): DurationUnits {
   const units: DurationUnits = [];
   for (const [value, unit, limit, integerOnly] of parts) {
     if (!((integerOnly && /^\d+$/.test(value)) || /^\d+\.?\d*$/.test(value))) {
@@ -359,8 +397,8 @@ export function timedeltaFromISOFormat(duration: string): ProtoDuration {
       sign = -1;
       duration = duration.slice(1);
     }
-    const parts = parseDuration(duration);
-    const units = toUnits(parts);
+    const parts = parseISODuration(duration);
+    const units = toISOUnits(parts);
     let totalSeconds = 0;
     for (const [unit, quantity] of units) {
       switch (unit) {
@@ -450,8 +488,8 @@ export function timeOfDayToISOFormat(timeOfDay: TimeOfDay): string {
 }
 
 /** Convert an ISO string to TimeOfDay. */
-export function timeOfDayFromISOFormat(isoString: string): TimeOfDay {
-  const [time, fractions] = isoString.split(".");
+export function timeOfDayFromISOFormat(ISOString: string): TimeOfDay {
+  const [time, fractions] = ISOString.split(".");
   const [hours, minutes, seconds] = time.split(":").map(Number);
   const nanos = fractions ? parseInt(fractions.padEnd(9, "0")) : 0;
 
@@ -483,4 +521,95 @@ export function timestampToMs(timestamp: Timestamp | DateTime): number {
 /** Compare two timestamps. */
 export function compareTimestamps(a: Timestamp | DateTime, b: Timestamp | DateTime): number {
   return timestampToMs(a) - timestampToMs(b);
+}
+
+/** Map of unit variations to standardized unit names */
+export const DURATION_UNIT_MAP = {
+  y: "years",
+  yr: "years",
+  yrs: "years",
+  year: "years",
+  years: "years",
+  mo: "months",
+  mon: "months",
+  month: "months",
+  months: "months",
+  w: "weeks",
+  wk: "weeks",
+  wks: "weeks",
+  week: "weeks",
+  weeks: "weeks",
+  d: "days",
+  day: "days",
+  days: "days",
+  h: "hours",
+  hr: "hours",
+  hrs: "hours",
+  hour: "hours",
+  hours: "hours",
+  m: "minutes",
+  min: "minutes",
+  mins: "minutes",
+  minute: "minutes",
+  minutes: "minutes",
+  s: "seconds",
+  sec: "seconds",
+  secs: "seconds",
+  second: "seconds",
+  seconds: "seconds",
+  // additional fun variations
+  mth: "months",
+  mths: "months",
+  dy: "days",
+  mn: "minutes",
+  sc: "seconds",
+} as const;
+
+export type DurationUnit = keyof typeof DURATION_UNIT_MAP;
+
+/** Parse duration string like "1y 2mo 3d 4h 5m 6s" with generous formatting flexibility. */
+export function parseDurationString(input: string): Duration | null {
+  // normalize input by removing extra whitespace, commas, and making case-insensitive
+  const normalized = input
+    .toLowerCase()
+    .trim()
+    .replace(/[,\s]+/g, " ") // handle multiple commas/spaces
+    .replace(/and/g, " ") // allow "1 hour and 30 minutes"
+    .replace(/\+/g, " "); // allow "1h+30m"
+
+  if (!normalized) return null;
+
+  // match duration parts with flexible unit names
+  const durationRegex = /(-?\d*\.?\d+)\s*([a-z]+)/g;
+  const matches = normalized.matchAll(durationRegex);
+  if (!matches) return null;
+
+  const values: Record<string, number> = {
+    years: 0,
+    months: 0,
+    weeks: 0,
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  };
+
+  for (const match of matches) {
+    const [_, numStr, unitStr] = match;
+    if (!numStr || !unitStr) {
+      continue;
+    }
+    const value = parseFloat(numStr);
+    if (isNaN(value)) {
+      continue;
+    }
+    const unit = DURATION_UNIT_MAP[unitStr as DurationUnit];
+    if (unit) {
+      values[unit] += value; // Add to existing value to handle duplicates
+    }
+  }
+
+  // only create duration if we found valid values
+  const hasValues = Object.values(values).some((v) => v !== 0);
+  return hasValues ? Duration.fromObject(values) : null;
 }

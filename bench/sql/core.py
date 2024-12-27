@@ -642,7 +642,7 @@ POSTGRES_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, PostgresColumnType] = {
     PrimitiveType.DATETIME: PostgresColumnType.TIMESTAMP,
     PrimitiveType.DATE: PostgresColumnType.DATE,
     PrimitiveType.TIME: PostgresColumnType.TIME,
-    PrimitiveType.INTERVAL: PostgresColumnType.INTERVAL,
+    PrimitiveType.DURATION: PostgresColumnType.INTERVAL,
     PrimitiveType.JSON: PostgresColumnType.JSONB,
     PrimitiveType.VECTOR: PostgresColumnType.BYTEA,
     PrimitiveType.UUID: PostgresColumnType.UUID,
@@ -664,7 +664,7 @@ PG_CAST_PRIMITIVE_TYPE: dict[PrimitiveType, str] = {
     PrimitiveType.DATETIME: "timestamptz",
     PrimitiveType.DATE: "date",
     PrimitiveType.TIME: "time",
-    PrimitiveType.INTERVAL: "interval",
+    PrimitiveType.DURATION: "interval",
     PrimitiveType.JSON: "jsonb",
     PrimitiveType.UUID: "uuid",
 }

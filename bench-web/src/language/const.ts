@@ -317,7 +317,7 @@ export const EXPOSED_PRIMITIVE_TYPES = [
   PrimitiveType.DATE,
   PrimitiveType.DATETIME,
   PrimitiveType.TIME,
-  PrimitiveType.INTERVAL,
+  PrimitiveType.DURATION,
 ];
 export const EXPOSED_ANCHORS = [
   // the rest are exposed too but as additional flags (start/end)

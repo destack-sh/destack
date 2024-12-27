@@ -851,7 +851,7 @@ class PrimitiveType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PRIMITIVE_TYPE_DATETIME: _ClassVar[PrimitiveType]
     PRIMITIVE_TYPE_DATE: _ClassVar[PrimitiveType]
     PRIMITIVE_TYPE_TIME: _ClassVar[PrimitiveType]
-    PRIMITIVE_TYPE_INTERVAL: _ClassVar[PrimitiveType]
+    PRIMITIVE_TYPE_DURATION: _ClassVar[PrimitiveType]
 
 class FieldType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1428,6 +1428,7 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_COLOR: _ClassVar[ViewType]
     VIEW_TYPE_ICON: _ClassVar[ViewType]
     VIEW_TYPE_DATETIME: _ClassVar[ViewType]
+    VIEW_TYPE_DURATION: _ClassVar[ViewType]
     VIEW_TYPE_FILE: _ClassVar[ViewType]
     VIEW_TYPE_IMAGE: _ClassVar[ViewType]
     VIEW_TYPE_AUDIO: _ClassVar[ViewType]
@@ -2401,7 +2402,7 @@ PRIMITIVE_TYPE_VECTOR: PrimitiveType
 PRIMITIVE_TYPE_DATETIME: PrimitiveType
 PRIMITIVE_TYPE_DATE: PrimitiveType
 PRIMITIVE_TYPE_TIME: PrimitiveType
-PRIMITIVE_TYPE_INTERVAL: PrimitiveType
+PRIMITIVE_TYPE_DURATION: PrimitiveType
 FIELD_TYPE_UNSPECIFIED: FieldType
 FIELD_TYPE_VARIABLE: FieldType
 FIELD_TYPE_MEMBER: FieldType
@@ -2834,6 +2835,7 @@ VIEW_TYPE_PICKER: ViewType
 VIEW_TYPE_COLOR: ViewType
 VIEW_TYPE_ICON: ViewType
 VIEW_TYPE_DATETIME: ViewType
+VIEW_TYPE_DURATION: ViewType
 VIEW_TYPE_FILE: ViewType
 VIEW_TYPE_IMAGE: ViewType
 VIEW_TYPE_AUDIO: ViewType

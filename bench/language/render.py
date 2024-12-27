@@ -290,7 +290,7 @@ class Renderer:
             elif typ.primitive_type == PrimitiveType.TIME:
                 value_iso = cast(time, value).isoformat()
                 return f"time.fromisoformat({value_iso!r})"
-            elif typ.primitive_type == PrimitiveType.INTERVAL:
+            elif typ.primitive_type == PrimitiveType.DURATION:
                 value_iso = timedelta_to_isoformat(cast(timedelta, value))
                 return f"timedelta_from_isoformat({value_iso!r})"
             else:
