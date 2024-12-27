@@ -25,7 +25,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.27.0"
+VERSION = "2024.12.27.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -895,7 +895,7 @@ class PrimitiveType(IdEnum):
     DATETIME = 30
     DATE = 31
     TIME = 32
-    INTERVAL = 33
+    DURATION = 33
 
     @property
     def is_numeric(self) -> bool:
@@ -925,7 +925,7 @@ PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
     PrimitiveType.DATETIME: datetime,
     PrimitiveType.DATE: date,
     PrimitiveType.TIME: time,
-    PrimitiveType.INTERVAL: timedelta,
+    PrimitiveType.DURATION: timedelta,
 }
 PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     bool: PrimitiveType.BOOLEAN,
@@ -936,7 +936,7 @@ PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     datetime: PrimitiveType.DATETIME,
     date: PrimitiveType.DATE,
     time: PrimitiveType.TIME,
-    timedelta: PrimitiveType.INTERVAL,
+    timedelta: PrimitiveType.DURATION,
     UUID: PrimitiveType.UUID,
 }
 

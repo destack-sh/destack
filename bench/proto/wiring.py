@@ -144,7 +144,7 @@ def pack_builtin_object_prop_scalar(obj: BuiltinObject, prop: Property, value: A
         ts = Timestamp()
         ts.FromDatetime(value)
         return ts
-    elif prop.primitive_type == PrimitiveType.INTERVAL:
+    elif prop.primitive_type == PrimitiveType.DURATION:
         dur = Duration()
         dur.FromTimedelta(value)
         return dur
@@ -183,7 +183,7 @@ def unpack_builtin_object_prop_scalar(
             return unpack_proto_json(value)
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return Timestamp.ToDatetime(value, tzinfo=pytz.utc)
-        elif prop.primitive_type == PrimitiveType.INTERVAL:
+        elif prop.primitive_type == PrimitiveType.DURATION:
             return Duration.ToTimedelta(value)
         else:
             return value

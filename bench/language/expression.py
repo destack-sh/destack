@@ -477,7 +477,7 @@ def _lower_expression_value(typ: "TypeBase", value: Any) -> Any:
             value = value.timestamp() * 1e9
         else:
             raise ValueError(f"unexpected value type: {type(value).__name__}")
-    elif typ.primitive_type == PrimitiveType.INTERVAL:
+    elif typ.primitive_type == PrimitiveType.DURATION:
         if isinstance(value, Duration):
             value = value.seconds + value.nanos / 1e9
         elif isinstance(value, datetime.timedelta):
@@ -677,7 +677,7 @@ def type_supports_expression(typ: "TypeBase", op: ExpressionType) -> bool:
         if typ.primitive_type is not None and (
             typ.primitive_type.is_numeric
             or typ.primitive_type
-            in (PrimitiveType.STRING, PrimitiveType.DATETIME, PrimitiveType.INTERVAL)
+            in (PrimitiveType.STRING, PrimitiveType.DATETIME, PrimitiveType.DURATION)
         ):
             return True
     elif op.kind == ExpressionKind.CONDITIONAL:

@@ -219,6 +219,7 @@ export const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType
   [PrimitiveType.DATETIME]: ViewType.DATETIME,
   [PrimitiveType.DATE]: ViewType.DATETIME,
   [PrimitiveType.TIME]: ViewType.DATETIME,
+  [PrimitiveType.DURATION]: ViewType.DURATION,
 };
 export const LISTABLE_VIEW_TYPES = new Set([ViewType.PICKER, ViewType.OBJECT, ViewType.STRING, ViewType.NUMBER]);
 export const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE, ViewType.IMAGE, ViewType.AUDIO, ViewType.VIDEO];

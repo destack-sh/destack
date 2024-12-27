@@ -316,9 +316,9 @@ STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
     PrimitiveType.JSON: JSON_STRATEGY,
     PrimitiveType.BYTES: st.binary(),
     PrimitiveType.DATETIME: st.datetimes(timezones=st.just(pytz.utc)),
-    PrimitiveType.INTERVAL: st.timedeltas(
-        min_value=MIN_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.INTERVAL],
-        max_value=MAX_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.INTERVAL],
+    PrimitiveType.DURATION: st.timedeltas(
+        min_value=MIN_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.DURATION],
+        max_value=MAX_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.DURATION],
     ),
 }
 STRATEGY_BY_PROPERTY: dict[str, st.SearchStrategy] = {

@@ -482,7 +482,7 @@ export const ICON_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, IconData>> = 
   [PrimitiveType.DATETIME]: "fas fa-calendar",
   [PrimitiveType.DATE]: "fas fa-calendar",
   [PrimitiveType.TIME]: "fas fa-clock",
-  [PrimitiveType.INTERVAL]: "fas fa-stopwatch",
+  [PrimitiveType.DURATION]: "fas fa-stopwatch",
 });
 
 export const ICON_BY_TYPE_FORMAT: Partial<Record<TypeFormat, IconData>> = _makeIcons({

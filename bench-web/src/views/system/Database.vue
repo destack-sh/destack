@@ -248,7 +248,7 @@ function getColumnMinWidth(type: TypeIdentity, viewType: ViewType | undefined) {
     type.primitiveType == PrimitiveType.DATE ||
     type.primitiveType == PrimitiveType.DATETIME ||
     type.primitiveType == PrimitiveType.TIME ||
-    type.primitiveType == PrimitiveType.INTERVAL
+    type.primitiveType == PrimitiveType.DURATION
   ) {
     return 150;
   } else {

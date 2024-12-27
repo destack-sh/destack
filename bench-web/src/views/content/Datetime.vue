@@ -1,19 +1,18 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, ViewType, PrimitiveType, type Timestamp, RectangleData, ObjectType } from "@/proto/wire";
-import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
-import { canvas } from "@/system/space";
-import { computed, Ref, ref, toRef, watch } from "vue";
-import { DateTime, WeekdayNumbers } from "luxon";
-import { ICON_BY_PRIMITIVE_TYPE, IconInline, makeIcon } from "@/ui/icon";
-import type { PopoverInfoIn } from "@/ui/popover";
-import { tsToDt, dtToTs, formatAbsoluteDate } from "@/utils/time";
+import { NodeType, ObjectType, PrimitiveType, RectangleData, ViewData, ViewType, type Timestamp } from "@/proto/wire";
 import type { Date as ProtoDate } from "@/proto/wire/proto/google/type/date";
 import type { TimeOfDay } from "@/proto/wire/proto/google/type/timeofday";
+import { type TypedNodeReferenceData } from "@/proto/wiring";
+import { canvas } from "@/system/space";
+import { ICON_BY_PRIMITIVE_TYPE, IconInline } from "@/ui/icon";
+import type { PopoverInfoIn } from "@/ui/popover";
+import { dtToTs, formatAbsoluteDate, tsToDt } from "@/utils/time";
+import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { DateTime, WeekdayNumbers } from "luxon";
+import { computed, Ref, ref, toRef, watch } from "vue";
 
-const MIN_WIDTH = 320;
+const MIN_WIDTH = 280;
 const DEFAULT_WIDTH = 400;
-const MAX_HEIGHT = 360;
 
 const props = defineProps<
   {
@@ -265,14 +264,15 @@ defineExpose<ViewExposed>({
       role="button"
       :disabled="isDisabled || !isInput"
       class="group flex w-full flex-row items-center gap-x-1.5 rounded border-gray-200 hover:border-gray-200 data-[popover=true]:border-gray-200"
-      :class="[!isMinimal ? 'border px-2.5 py-1' : '']"
+      :class="[!isMinimal ? 'border px-2 py-1' : '']"
     >
       <!-- Current value display -->
       <template v-if="modelValue">
         <IconInline
           v-if="icon || !isMinimal"
           v-bind="icon ?? ICON_BY_PRIMITIVE_TYPE[valueType?.primitiveType ?? PrimitiveType.DATETIME]"
-          class="w-5 text-center text-gray-700"
+          class="w-5 text-center group-hover:text-gray-700"
+          :class="dateString ? 'text-gray-700' : 'text-gray-400'"
         />
         <span class="truncate">{{ formatDisplayString(currentMonth) }}</span>
         <!-- Clear button -->
@@ -287,7 +287,7 @@ defineExpose<ViewExposed>({
       <!-- No value -->
       <span
         v-else
-        class="text-gray-400 transition-colors duration-150"
+        class="text-gray-400 transition-colors duration-150 group-hover:text-gray-700"
         :class="isMinimal ? 'opacity-0 group-hover:opacity-100' : ''"
       >
         <IconInline

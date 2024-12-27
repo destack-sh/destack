@@ -870,7 +870,7 @@ MIN_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, Any] = {
     PrimitiveType.INT64: -(2**63),
     PrimitiveType.FLOAT32: -3.4028235e38,
     PrimitiveType.FLOAT64: -1.7976931348623157e308,
-    PrimitiveType.INTERVAL: timedelta(days=-(1000 * 365)),
+    PrimitiveType.DURATION: timedelta(days=-(1000 * 365)),
 }
 MAX_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, Any] = {
     PrimitiveType.INT16: 2**15 - 1,
@@ -878,7 +878,7 @@ MAX_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, Any] = {
     PrimitiveType.INT64: 2**63 - 1,
     PrimitiveType.FLOAT32: 3.4028235e38,
     PrimitiveType.FLOAT64: 1.7976931348623157e308,
-    PrimitiveType.INTERVAL: timedelta(days=(1000 * 365)),
+    PrimitiveType.DURATION: timedelta(days=(1000 * 365)),
 }
 
 
@@ -1129,7 +1129,7 @@ def sample_scalar_value(typ: "TypeBase") -> ScalarValue | None:
             return date(2024, 6, 12)
         elif typ.primitive_type == PrimitiveType.TIME:
             return time(12, 34, 56)
-        elif typ.primitive_type == PrimitiveType.INTERVAL:
+        elif typ.primitive_type == PrimitiveType.DURATION:
             return timedelta(seconds=42)
         else:
             raise RuntimeError(f"unexpected primitive type {typ.primitive_type!r}")
@@ -1267,7 +1267,7 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> 
                 return unpack_proto_time(value).isoformat()
             else:
                 return cast(time, value).isoformat()
-        elif typ.primitive_type == PrimitiveType.INTERVAL:
+        elif typ.primitive_type == PrimitiveType.DURATION:
             if type(value) is Duration:
                 return timedelta_to_isoformat(value.ToTimedelta())
             else:
@@ -1315,7 +1315,7 @@ def unpack_value_scalar(
             return datetime.fromisoformat(cast(str, value_packed)).date()
         elif typ.primitive_type == PrimitiveType.TIME:
             return time.fromisoformat(cast(str, value_packed))
-        elif typ.primitive_type == PrimitiveType.INTERVAL:
+        elif typ.primitive_type == PrimitiveType.DURATION:
             return timedelta_from_isoformat(cast(str, value_packed))
         else:
             return cast(PrimitiveValue, value_packed)
@@ -1352,7 +1352,7 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeBase") -> Scalar
         elif typ.primitive_type == PrimitiveType.TIME:
             dt = time.fromisoformat(cast(str, value_packed))
             return pack_proto_time(dt)
-        elif typ.primitive_type == PrimitiveType.INTERVAL:
+        elif typ.primitive_type == PrimitiveType.DURATION:
             dur = Duration()
             dur.FromTimedelta(timedelta_from_isoformat(cast(str, value_packed)))
             return dur
