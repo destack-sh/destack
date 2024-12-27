@@ -7,7 +7,6 @@ from collections import defaultdict
 from dataclasses import InitVar
 from datetime import datetime
 from enum import IntEnum
-from itertools import chain
 from sys import intern
 from typing import (
     TYPE_CHECKING,
@@ -1861,7 +1860,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             subtype = self.__dict__["type"]
             subtype_cls = self.__subclass_by_subtype__.get(subtype)
             if subtype_cls is not None:
-                properties = chain(properties, subtype_cls.__subtype_extra_properties__.values())
+                properties = subtype_cls.__subtype_extra_properties__.values()
         for prop in properties:
             if (
                 prop.id is UNSET
@@ -1873,25 +1872,28 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             ):
                 continue
             prop_value = getattr(self, prop.name)
-            if prop_value is not None and not (isinstance(prop_value, Sequence) and not prop_value):
-                if prop.is_enum:
-                    if prop.is_list:
-                        prop_value_str = "|".join(p.bench_name for p in prop_value)
-                    else:
-                        prop_value_str = prop_value.bench_name  # type: ignore
-                elif isinstance(prop_value, Node):
-                    prop_value_str = f"<{prop_value._ident_key} ...>"
-                elif (
-                    isinstance(prop_value, (list, tuple))
-                    and prop_value
-                    and isinstance(prop_value[0], Node)
-                ):
-                    prop_value_str = (
-                        f"[{', '.join(f'<{node.ident_str} ...>' for node in prop_value)}]"
-                    )
+            if (
+                prop_value is None
+                or (isinstance(prop_value, Sequence) and not prop_value)
+                or prop_value == prop.default
+            ):
+                continue
+            if prop.is_enum:
+                if prop.is_list:
+                    prop_value_str = "|".join(p.bench_name for p in prop_value)
                 else:
-                    prop_value_str = repr(prop_value)
-                value_strs.append(f"{prop.name}={prop_value_str}")
+                    prop_value_str = prop_value.bench_name  # type: ignore
+            elif isinstance(prop_value, Node):
+                prop_value_str = f"<{prop_value._ident_key} ...>"
+            elif (
+                isinstance(prop_value, (list, tuple))
+                and prop_value
+                and isinstance(prop_value[0], Node)
+            ):
+                prop_value_str = f"[{', '.join(f'<{node.ident_str} ...>' for node in prop_value)}]"
+            else:
+                prop_value_str = repr(prop_value)
+            value_strs.append(f"{prop.name}={prop_value_str}")
         return ", ".join(value_strs)
 
     @final

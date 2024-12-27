@@ -32,10 +32,7 @@ def get_provisioners_for(host: Host, bench: Bench) -> list[Provisioner]:
         LocalhostMachineProvisioner,
     )
     from bench.system.provision.server import ElasticServerProvisioner
-    from bench.system.provision.store import (
-        LocalhostStoreProvisioner,
-        NeonStoreProvisioner,
-    )
+    from bench.system.provision.store import LocalhostStoreProvisioner, NeonStoreProvisioner
 
     provisioners: list[type[Provisioner]] = []
     if ENV == Env.TEST:
@@ -63,6 +60,7 @@ def get_provisioners_for(host: Host, bench: Bench) -> list[Provisioner]:
             S3DriveProvisioner,
             machine_provisioner,
             S3DriveProvisioner,
+            LocalhostBrowserProvisioner,
         ]
     elif ENV == Env.STAGE or ENV == Env.PROD:
         provisioners = [
