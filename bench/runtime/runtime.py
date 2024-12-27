@@ -49,6 +49,7 @@ from bench.runtime.runner import (
     restore_runner,
 )
 from bench.utils.func import group_by
+from bench.utils.naming import generate_random_name
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RetryState
 
@@ -204,6 +205,8 @@ class Runtime:
             _check()
             await asyncio.wait_for(complete_signal.wait(), timeout=timeout.total_seconds())
             log.debug("runtime.wait_for.complete")
+        except asyncio.TimeoutError as e:
+            raise TimeoutError(f"timed out waiting for {nodes!r}") from e
         except BaseException as e:
             log.error("runtime.wait_for.error", exc_info=e)
             raise
@@ -231,13 +234,14 @@ class Runtime:
 
     @tracer.start_as_current_span("runtime.acquire_resources")
     async def _acquire_resources(
-        self, runner: Runner, resource_types: Sequence[TypeInfo | TypeIn]
+        self,
+        runner: Runner,
+        resources: Sequence[Resource | TypeInfo | TypeIn],
     ) -> list[Resource]:
         """Acquires the relevant Resources for the given Runner."""
         # TODO :Incomplete: reuse resources across (unrelated) Runs?
-        resource_types = [to_type_scalar(t) for t in resource_types]
-        resources: list[Resource] = []
-        now = self.oracle.utc()
+        resource_types = [to_type_scalar(t) for t in resources if not isinstance(t, Resource)]
+        resources_to_acquire: list[Resource] = [r for r in resources if isinstance(r, Resource)]
         for resource_type in resource_types:
             node_type = resource_type.bench_type
             assert is_node_type(node_type) is not None, f"invalid resource type {resource_type!r}"
@@ -247,7 +251,7 @@ class Runtime:
             # check context for matching resource
             resource = self._get_resource(runner, resource_type)
             if resource is not None:
-                resources.append(resource)
+                resources_to_acquire.append(resource)
                 continue
 
             # make new resource
@@ -255,20 +259,22 @@ class Runtime:
             assert issubclass(resource_cls, Resource), f"{resource_cls} in {resource_type!r}"
             resource_kwargs: dict[str, Any] = {}
             if "title" in resource_cls.__properties__:
-                resource_kwargs["title"] = f"{resource_cls.__name__} {now.strftime('%Y-%m-%d')}"
+                resource_kwargs["title"] = generate_random_name()
             resource = resource_cls(**resource_kwargs)
             self.bench.append(resource)
-            resources.append(resource)
+            resources_to_acquire.append(resource)
             logger.debug("runtime.acquire_resources.new", resource=resource)
 
         # commit and wait for resources to become ready
         await self._wait_for(
-            nodes=resources,
-            condition=lambda: all(resource.status == ResourceStatus.UP for resource in resources),
+            nodes=resources_to_acquire,
+            condition=lambda: all(
+                resource.status == ResourceStatus.UP for resource in resources_to_acquire
+            ),
             timeout=DEFAULT_RESOURCE_TIMEOUT,
         )
 
-        return resources
+        return resources_to_acquire
 
     @tracer.start_as_current_span("runtime.run_runner.attempt")
     async def _do_attempt(self, runner: Runner, retry: RetryState, attempt: RunAttempt):

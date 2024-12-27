@@ -368,10 +368,11 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         return resource
 
     async def _acquire_resources(
-        self, resource_types: Sequence[TypeInfo | TypeIn]
+        self,
+        resources: Sequence[Resource | TypeInfo | TypeIn],
     ) -> list[Resource]:
         """Acquires the relevant Resources for the given Runner."""
-        return await self.runtime._acquire_resources(self, resource_types)
+        return await self.runtime._acquire_resources(self, resources)
 
     #
     # Run
