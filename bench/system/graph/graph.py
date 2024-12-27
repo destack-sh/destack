@@ -15,7 +15,6 @@ from opentelemetry import trace
 from bench.language import Expression, NodeReference, SelectOptions, Session, Subject
 from bench.language.access import (
     AccessError,
-    adapt_read_query,
     evaluate_and_adapt_read,
     evaluate_edit,
     generate_access_matrix,
@@ -34,7 +33,7 @@ from bench.language.const import (
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.node import EDIT_SUBJECT_TYPES, EMPTY_SCOPE_DATA, Node
 from bench.language.query import NodeNotFoundError, QueryBuilder
-from bench.language.registry import NODE_CLASS_BY_TYPE
+from bench.language.registry import ANCESTOR_NODE_TYPES, NODE_CLASS_BY_TYPE
 from bench.language.session import RuntimeContext
 from bench.language.transaction import edit_data_graph
 from bench.language.validation import ValidationError, on_invalid_raise
@@ -185,6 +184,24 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT, f"scope mismatch: {scope.bench_id} != {self.bench_id}"
             )
+
+    def _adapt_read_query(self, subject: Subject, query: "QueryBuilder") -> "QueryBuilder":
+        """
+        Adapt read options based on the access to pre-filter as feasible while enabling the complete post-read check.
+        Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
+        """
+
+        query = query.clone()
+
+        # query ancestors up to root
+        for ancestor_type in ANCESTOR_NODE_TYPES[query._node_type]:
+            if ancestor_type not in query._ancestor_types:
+                query._ancestor_types.append(ancestor_type)
+
+        # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
+        # TODO :Performance :Security: also pre-filter read options for owner?
+
+        return query
 
     async def start(self):
         self.tasks.start_scheduled(
@@ -349,7 +366,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                         include_deleted=include_deleted,
                         select=select,
                     )
-                    adapted_query = adapt_read_query(subject, query)
+                    adapted_query = self._adapt_read_query(subject, query)
                     channel = await session._get_channel_for(
                         scope, adapted_query.all_node_types, include_deleted=False, is_readonly=True
                     )
@@ -505,7 +522,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     include_deleted=request.include_deleted,
                     select=select,
                 )
-                adapted_query = adapt_read_query(subject, query)
+                adapted_query = self._adapt_read_query(subject, query)
 
             # get nodes
             with self.tracer.start_as_current_span("graph.get.read") as span:
@@ -643,7 +660,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     skip=request.skip or None,
                     select=select,
                 )
-                adapted_query = adapt_read_query(subject, query)
+                adapted_query = self._adapt_read_query(subject, query)
 
             # read the nodes
             with self.tracer.start_as_current_span("graph.search.read") as span:
@@ -749,7 +766,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     filter=filter,
                     aggregation=aggregation,
                 )
-                adapted_query = adapt_read_query(subject, query)
+                adapted_query = self._adapt_read_query(subject, query)
 
             with self.tracer.start_as_current_span("graph.aggregate.read") as span:
                 async with self._graph_lock.read(query):

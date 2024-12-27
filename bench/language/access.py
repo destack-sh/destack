@@ -52,7 +52,6 @@ from bench.language.property import (
     p_system,
 )
 from bench.language.registry import (
-    ANCESTOR_NODE_TYPES,
     CHILD_NODE_TYPES,
     _on_completing_setup,
 )
@@ -897,25 +896,6 @@ def evaluate_access(
     else:
         assert_never(mode)
     return decision, composite_allowed_properties
-
-
-def adapt_read_query(subject: Subject, query: "QueryBuilder") -> "QueryBuilder":
-    """
-    Adapt read options based on the access to pre-filter as feasible while enabling the complete post-read check.
-    Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
-    """
-
-    query = query.clone()
-
-    # query ancestors up to root
-    for ancestor_type in ANCESTOR_NODE_TYPES[query._node_type]:
-        if ancestor_type not in query._ancestor_types:
-            query._ancestor_types.append(ancestor_type)
-
-    # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
-    # TODO :Performance :Security: also pre-filter read options for owner?
-
-    return query
 
 
 @tracer.start_as_current_span("access.evaluate_and_adapt_read")
