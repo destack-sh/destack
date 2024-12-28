@@ -13,7 +13,7 @@ import {
 } from "@/proto/wiring";
 import local, { BENCH_SCOPE, LOCAL_SPACE_ID, PACKAGE_SCOPE, spaceGraphLocal, spacePtr } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
-import { setCanvas } from "@/system/globals";
+import { setCanvas, setSpace } from "@/system/globals";
 import { createDesktopDefaultSpace, SpaceCanvas } from "@/ui/space";
 import { toaster } from "@/ui/toast";
 import { log } from "@/utils/log";
@@ -55,6 +55,7 @@ pkgConnection.onError((e) => {
 // space (local if we don't have a Space in that Bench, otherwise from the current Package)
 export const spaceGraph = new ProxyNodeGraph({ graph: spaceGraphLocal, filter: DEFAULT_NODE_FILTER });
 export const space = spaceGraph.getRef(local.spacePtr);
+setSpace(space);
 export const { connection: spaceConnection } = useExistingConnection(local.spacePtr, {
   isRequired: false,
 });

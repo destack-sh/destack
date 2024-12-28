@@ -5,8 +5,23 @@ import { NodeTypeMapping, ObjectType, PROPERTY_ENUM_BY_TYPE, ViewData } from "@/
 
 import { NodeType } from "@/proto/wire";
 import { canvas } from "@/system/space";
-import { ActionContext, ActionMapImplementation } from "@/ui/action";
+import { ActionContext, ActionMapImplementation, declareActions } from "@/ui/action";
 import { computed, Ref } from "vue";
+
+// list
+declareActions<"list">({
+  // create
+  "list.create.above": {
+    icon: "fas fa-arrow-up",
+    title: "Create Above",
+    text: "Create a new item above this item",
+  },
+  "list.create.below": {
+    icon: "fas fa-arrow-down",
+    title: "Create Below",
+    text: "Create a new item below this item",
+  },
+});
 
 /** Actions to move up/down in a flat node level (assumes all the parents are the same, i.e. all nodes are siblings) */
 export function useNodeListActions<T extends NodeType>(options: {

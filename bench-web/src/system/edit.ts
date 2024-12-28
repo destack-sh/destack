@@ -19,6 +19,8 @@ import {
   ViewData,
 } from "@/proto/wire";
 import { EMPTY_SCOPE, describeEdit } from "@/proto/wiring";
+import { canvas } from "@/system/globals";
+import { provideActions } from "@/ui/action";
 import { assertNever } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { watch } from "vue";
@@ -225,3 +227,29 @@ export function invertEdit(edit: EditData, editedAt: Timestamp, invertedEdit: Ed
     invertedEdit.operations = edit.operations.map((op) => invertEditOperation(op)).reverse();
   }
 }
+
+// history
+export const HISTORY_ACTIONS = provideActions<"space.history">({
+  "space.history.undo": {
+    icon: "fas fa-arrow-turn-left",
+    title: "Undo",
+    text: "Undo the last action or edit",
+    shortcuts: ["mod+z"],
+    isEnabled: () => getEditStack(canvas.graph, canvas.focusedView).canUndo,
+    action: (action, ctx) => {
+      const stack = getEditStack(canvas.graph, canvas.focusedView);
+      stack.undo();
+    },
+  },
+  "space.history.redo": {
+    icon: "fas fa-arrow-turn-right",
+    title: "Redo",
+    text: "Redo the last undone action or edit",
+    shortcuts: ["mod+shift+z"],
+    isEnabled: () => getEditStack(canvas.graph, canvas.focusedView).canRedo,
+    action: (action, ctx) => {
+      const stack = getEditStack(canvas.graph, canvas.focusedView);
+      stack.redo();
+    },
+  },
+});

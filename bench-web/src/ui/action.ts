@@ -1,37 +1,21 @@
-import { getEditStack } from "@/system/edit";
+import { isResourceNodeType } from "@/language/const";
 import { ReadNodeGraph } from "@/language/graph";
-import { cloneNodes } from "@/language/node";
-import { getAllTransactionBuffers, newChangeId } from "@/language/transaction";
-import { NodeType, ViewType, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
+import { NodeType, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { isDeveloperMode } from "@/system/client";
-import { ConnectionBase } from "@/system/connection";
-import { supergraph } from "@/system/globals";
-import { canvas, hasLocalBench, pkg, space } from "@/system/space";
+import type { ConnectionBase } from "@/system/connection";
+import { canvas, space, supergraph } from "@/system/globals";
 import { makeIcon } from "@/ui/icon";
 import { keytrap, type KeySignature } from "@/ui/keymap";
-import { clearSpace, createDesktopDefaultSpace } from "@/ui/space";
-import { toaster, ToastLevel } from "@/ui/toast";
+import { toaster } from "@/ui/toast";
 import { collectViewComponentsUp } from "@/ui/view";
 import { type FilterPrefix } from "@/utils/functools";
-import { DISCORD_URL, IS_DEV } from "@/utils/globals";
+import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
-import { generateRandomName } from "@/utils/naming";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views/common";
 import { useKeyModifier } from "@vueuse/core";
-import {
-  computed,
-  getCurrentInstance,
-  ref,
-  shallowRef,
-  toValue,
-  triggerRef,
-  watch,
-  type MaybeRef,
-  type Ref,
-} from "vue";
-import { isResourceNodeType } from "@/language/const";
+import { computed, getCurrentInstance, shallowRef, toValue, triggerRef, watch, type MaybeRef, type Ref } from "vue";
 
 export const IS_IN_ALT_MODE = useKeyModifier("Alt");
 
@@ -162,13 +146,13 @@ export const ACTION_BUILTIN_IDS = [
   "user.navigate.activate",
   "user.navigate.goToHome",
   // developer
-  "developer.test.developerMode",
-  "developer.test.retryAllFailed",
-  "developer.test.addEmptyView",
-  "developer.toast.success",
-  "developer.toast.info",
-  "developer.toast.debug",
-  "developer.toast.error",
+  "debug.test.developerMode",
+  "debug.test.retryAllFailed",
+  "debug.test.addEmptyView",
+  "debug.toast.success",
+  "debug.toast.info",
+  "debug.toast.debug",
+  "debug.toast.error",
 ] as const;
 export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_BUILTIN_IDS.reduce(
   (acc, id, idx) => ({ ...acc, [id]: idx }),
@@ -254,17 +238,18 @@ export function addAction(kind: ActionKind, in_: ActionIn) {
 }
 
 /** Contributes actions globally (same implementation everywhere) */
-export function contributeActionMap<T extends string>(map: Partial<ActionMapContribution<T>>) {
+export function provideActions<T extends string>(map: Partial<ActionMapContribution<T>>) {
   Object.entries(map).forEach(([id, action]) =>
     addAction("static", { ...(action as ActionIn), id: id as ActionBuiltinId }),
   );
 }
 
 /** Declares actions to be implemented virtually. */
-export function declareActionMap<T extends string>(map: Partial<ActionMapDeclaration<T>>) {
+export function declareActions<T extends string>(map: Partial<ActionMapDeclaration<T>>): Partial<ActionMapDeclaration<T>> {
   Object.entries(map).forEach(([id, action]) =>
     addAction("virtual", { ...(action as ActionIn), id: id as ActionBuiltinId }),
   );
+  return map;
 }
 
 export function getAction(id: ActionBuiltinId): Action {
@@ -433,45 +418,52 @@ const IMPLEMENTED_ACTIONS_BY_ID: Ref<Record<string, Action>> = shallowRef({});
 export const IMPLEMENTED_ACTIONS: Readonly<Ref<Action[]>> = computed(() =>
   Object.values(IMPLEMENTED_ACTIONS_BY_ID.value),
 );
-watch(
-  [DECLARED_ACTIONS, canvas.focusedViewComponentsById],
-  () => {
-    const implementedActions: Record<string, Action> = {};
+let _isWatching = false;
 
-    // static actions
-    Object.values(DECLARED_ACTIONS.value)
-      .filter((a) => a.kind == "static" || (a.kind == "virtual" && a.action != null))
-      .forEach((a) => (implementedActions[a.id] = a));
+/** Watches for changes in actions and updates the keytrap accordingly. Should only be called once. */
+export function watchActions() {
+  if (_isWatching) throw new Error("watchActions already called");
+  _isWatching = true;
+  return watch(
+    [DECLARED_ACTIONS, canvas.focusedViewComponentsById],
+    () => {
+      const implementedActions: Record<string, Action> = {};
 
-    // collect virtual actions bottom up
-    for (const view of Object.values(canvas.focusedViewComponentsById.value)) {
-      for (const [actionId, action] of Object.entries(view.exposed?.actions ?? {})) {
-        if (implementedActions[actionId] != null) continue; // already declared (either static or by lower view)
-        const declaration = DECLARED_ACTIONS_BY_ID.value[actionId];
-        if (declaration == null) throw new Error(`no declaration for virtual action: ${actionId}`);
-        implementedActions[actionId] = { ...declaration, ...action };
+      // static actions
+      Object.values(DECLARED_ACTIONS.value)
+        .filter((a) => a.kind == "static" || (a.kind == "virtual" && a.action != null))
+        .forEach((a) => (implementedActions[a.id] = a));
+
+      // collect virtual actions bottom up
+      for (const view of Object.values(canvas.focusedViewComponentsById.value)) {
+        for (const [actionId, action] of Object.entries(view.exposed?.actions ?? {})) {
+          if (implementedActions[actionId] != null) continue; // already declared (either static or by lower view)
+          const declaration = DECLARED_ACTIONS_BY_ID.value[actionId];
+          if (declaration == null) throw new Error(`no declaration for virtual action: ${actionId}`);
+          implementedActions[actionId] = { ...declaration, ...action };
+        }
       }
-    }
 
-    // diff & update keytrap
-    const oldImplemented = IMPLEMENTED_ACTIONS_BY_ID.value;
-    const removedActions = Object.keys(oldImplemented).filter((id) => implementedActions[id] == null);
-    const addedActions = Object.keys(implementedActions).filter((id) => oldImplemented[id] == null);
-    removedActions.forEach((id) => keytrap.unbind(oldImplemented[id].shortcuts ?? []));
-    addedActions.forEach((id) => {
-      const action = implementedActions[id];
-      if ((action.shortcuts?.length ?? 0) > 0) {
-        keytrap.bind(action.shortcuts!, (e) => fireActionFromEvent(action, e), { key: id, replace: true });
-      }
-    });
+      // diff & update keytrap
+      const oldImplemented = IMPLEMENTED_ACTIONS_BY_ID.value;
+      const removedActions = Object.keys(oldImplemented).filter((id) => implementedActions[id] == null);
+      const addedActions = Object.keys(implementedActions).filter((id) => oldImplemented[id] == null);
+      removedActions.forEach((id) => keytrap.unbind(oldImplemented[id].shortcuts ?? []));
+      addedActions.forEach((id) => {
+        const action = implementedActions[id];
+        if ((action.shortcuts?.length ?? 0) > 0) {
+          keytrap.bind(action.shortcuts!, (e) => fireActionFromEvent(action, e), { key: id, replace: true });
+        }
+      });
 
-    IMPLEMENTED_ACTIONS_BY_ID.value = implementedActions;
-  },
-  { immediate: true },
-);
+      IMPLEMENTED_ACTIONS_BY_ID.value = implementedActions;
+    },
+    { immediate: true },
+  );
+}
 
 /** Gets the nodes in the context of an Action. Only returns the nodes if they are part of tbe same connection. */
-function getNodesFromContext(ctx: ActionContext | undefined): {
+export function getNodesForAction(action: Action, ctx: ActionContext | undefined): {
   connection: ConnectionBase<any, any> | null;
   graph: ReadNodeGraph | null;
   nodes: AnyNodeData[];
@@ -509,723 +501,6 @@ function getNodesFromContext(ctx: ActionContext | undefined): {
   }
   return { connection, graph, nodes };
 }
-
-// space
-declareActionMap<"space">({
-  // edit
-  "space.edit.rename": {
-    icon: "fas fa-pencil",
-    title: "Rename",
-    text: "Rename this item",
-    shortcuts: ["f2"],
-  },
-  "space.edit.move": {
-    icon: "fas fa-arrows-turn-right",
-    title: "Move",
-    text: "Move this item",
-  },
-  "space.edit.copy": {
-    icon: "fas fa-copy",
-    title: "Copy",
-    text: "Copy this item",
-    shortcuts: ["mod+c"],
-  },
-  "space.edit.cut": {
-    icon: "fas fa-scissors",
-    title: "Cut",
-    text: "Cut this item",
-    shortcuts: ["mod+x"],
-  },
-  "space.edit.paste": {
-    icon: "fas fa-paste",
-    title: "Paste",
-    text: "Paste this item",
-    shortcuts: ["mod+v"],
-  },
-  "space.edit.duplicate": {
-    icon: "fas fa-clone",
-    title: "Duplicate",
-    text: "Duplicate this item",
-    shortcuts: ["mod+d"],
-    action: (action, ctx) => {
-      const { connection, graph, nodes } = getNodesFromContext(ctx);
-      if (connection == null || graph == null || nodes.length == 0) {
-        return; // no action, but suppress anyway to avoid triggering browser shortcuts
-      }
-      const clonedNodes = cloneNodes(connection.tx, graph, nodes);
-      canvas.select(clonedNodes);
-      if (clonedNodes.length > 0) {
-        canvas.goToNode(clonedNodes[0]);
-        canvas.inspect({ node: clonedNodes[0], view: canvas.focusedViewPtr.value });
-      }
-      return true;
-    },
-  },
-  "space.edit.delete": {
-    icon: "fas fa-trash",
-    title: "Delete",
-    text: "Delete this item",
-    shortcuts: ["del", "backspace"],
-    action: (action, ctx) => {
-      const { connection, graph, nodes } = getNodesFromContext(ctx);
-      if (connection == null || graph == null || nodes.length == 0) {
-        return false; // bubble up
-      }
-      const tx = connection.tx.with({ change: { key: newChangeId(), title: "Delete" } });
-      for (const node of nodes) {
-        tx.delete(node);
-      }
-      return true;
-    },
-  },
-  // navigate
-  "space.navigate.open": {
-    icon: "fas fa-arrow-up-right",
-    title: "Open",
-    text: "Open this node in a new view",
-    shortcuts: ["mod+enter"],
-  },
-  "space.navigate.up": {
-    icon: "fas fa-arrow-up",
-    title: "Navigate Up",
-    text: "Navigate up",
-    shortcuts: ["up"],
-  },
-  "space.navigate.down": {
-    icon: "fas fa-arrow-down",
-    title: "Navigate Down",
-    text: "Navigate down",
-    shortcuts: ["down"],
-  },
-  "space.navigate.left": {
-    icon: "fas fa-arrow-left",
-    title: "Navigate Left",
-    text: "Navigate left",
-    shortcuts: ["left"],
-  },
-  "space.navigate.right": {
-    icon: "fas fa-arrow-right",
-    title: "Navigate Right",
-    text: "Navigate right",
-    shortcuts: ["right"],
-  },
-  "space.navigate.zoomIn": {
-    icon: "fas fa-search-plus",
-    title: "Zoom In",
-    text: "Zoom in",
-    shortcuts: ["plus", "mod+plus"],
-  },
-  "space.navigate.zoomOut": {
-    icon: "fas fa-search-minus",
-    title: "Zoom Out",
-    text: "Zoom out",
-    shortcuts: ["minus", "mod+minus"],
-  },
-  "space.navigate.reset": {
-    icon: "fas fa-arrows-to-dot",
-    title: "Reset",
-    text: "Reset",
-    shortcuts: ["0"],
-  },
-  "space.navigate.enter": {
-    icon: "fas fa-arrow-in",
-    title: "Navigate In",
-    text: "Navigate in",
-    shortcuts: ["enter"],
-  },
-  "space.navigate.exit": {
-    icon: "fas fa-arrow-out",
-    title: "Navigate Out",
-    text: "Navigate out",
-    shortcuts: ["esc"],
-  },
-  "space.navigate.pageUp": {
-    icon: "fas fa-arrow-up-to-line",
-    title: "Page Up",
-    text: "Page up",
-    shortcuts: ["pageup"],
-  },
-  "space.navigate.pageDown": {
-    icon: "fas fa-arrow-down-to-line",
-    title: "Page Down",
-    text: "Page down",
-    shortcuts: ["pagedown"],
-  },
-  "space.navigate.goBackward": {
-    icon: "fas fa-arrow-turn-left",
-    title: "Go Back",
-    text: "Go back in view history",
-    shortcuts: ["mod+shift+backspace"],
-  },
-  "space.navigate.goForward": {
-    icon: "fas fa-arrow-turn-right",
-    title: "Go Forward",
-    text: "Go forward in view history",
-    shortcuts: ["mod+shift+enter"],
-  },
-  // select
-  "space.select.all": {
-    icon: "fas fa-check-square",
-    title: "Select All",
-    text: "Select all items",
-    shortcuts: ["mod+a"],
-  },
-  "space.select.up": {
-    icon: "fas fa-square-caret-up",
-    title: "Select Up",
-    text: "Select up",
-    shortcuts: ["shift+up"],
-  },
-  "space.select.down": {
-    icon: "fas fa-square-caret-down",
-    title: "Select Down",
-    text: "Select down",
-    shortcuts: ["shift+down"],
-  },
-  "space.select.left": {
-    icon: "fas fa-square-caret-left",
-    title: "Select Left",
-    text: "Select left",
-    shortcuts: ["shift+left"],
-  },
-  "space.select.right": {
-    icon: "fas fa-square-caret-right",
-    title: "Select Right",
-    text: "Select right",
-    shortcuts: ["shift+right"],
-  },
-  "space.select.clear": {
-    icon: "fas fa-times",
-    title: "Clear Selection",
-    text: "Clear selection",
-    shortcuts: ["esc"],
-    action: (action, ctx) => {
-      if (canvas.selection != null) {
-        canvas.deselect();
-      }
-    },
-  },
-  // move
-  "space.move.up": {
-    icon: "fas fa-square-up",
-    title: "Move Up",
-    text: "Move up",
-    shortcuts: ["alt+up"],
-  },
-  "space.move.down": {
-    icon: "fas fa-square-down",
-    title: "Move Down",
-    text: "Move down",
-    shortcuts: ["alt+down"],
-  },
-  "space.move.left": {
-    icon: "fas fa-square-left",
-    title: "Move Left",
-    text: "Move left",
-    shortcuts: ["alt+left", "shift+tab"],
-  },
-  "space.move.right": {
-    icon: "fas fa-square-right",
-    title: "Move Right",
-    text: "Move right",
-    shortcuts: ["alt+right", "tab"],
-  },
-  // search
-  "space.search.findInView": {
-    icon: "fas fa-magnifying-glass",
-    title: "Search in View",
-    text: "Find in this view",
-    shortcuts: ["mod+f"],
-  },
-  "space.search.replaceInView": {
-    icon: "fas fa-right-left",
-    title: "Replace in View",
-    text: "Replace in this view",
-    shortcuts: ["mod+r"],
-  },
-  "space.search.findInSpace": {
-    icon: "fas fa-magnifying-glass",
-    title: "Search in Space",
-    text: "Find in this space",
-    shortcuts: ["mod+shift+f"],
-  },
-  "space.search.replaceInSpace": {
-    icon: "fas fa-right-left",
-    title: "Replace in Space",
-    text: "Replace in this space",
-    shortcuts: ["mod+shift+r"],
-  },
-});
-
-// history
-contributeActionMap<"space.history">({
-  "space.history.undo": {
-    icon: "fas fa-arrow-turn-left",
-    title: "Undo",
-    text: "Undo the last action or edit",
-    shortcuts: ["mod+z"],
-    isEnabled: () => getEditStack(canvas.graph, canvas.focusedView).canUndo,
-    action: (action, ctx) => {
-      const stack = getEditStack(canvas.graph, canvas.focusedView);
-      stack.undo();
-    },
-  },
-  "space.history.redo": {
-    icon: "fas fa-arrow-turn-right",
-    title: "Redo",
-    text: "Redo the last undone action or edit",
-    shortcuts: ["mod+shift+z"],
-    isEnabled: () => getEditStack(canvas.graph, canvas.focusedView).canRedo,
-    action: (action, ctx) => {
-      const stack = getEditStack(canvas.graph, canvas.focusedView);
-      stack.redo();
-    },
-  },
-});
-
-// session
-declareActionMap<"session">({
-  // session
-  "session.run.start": {
-    icon: "fas fa-play",
-    title: "Run",
-    text: "Run this node",
-    shortcuts: ["ctrl+r", "meta+enter"],
-  },
-  "session.run.pause": {
-    icon: "fas fa-pause",
-    title: "Pause",
-    text: "Pause this node",
-  },
-  "session.run.resume": {
-    icon: "fas fa-play",
-    title: "Resume",
-    text: "Resume this node",
-  },
-  "session.run.kill": {
-    icon: "fas fa-stop",
-    title: "Kill",
-    text: "Kill this node",
-  },
-});
-
-// list
-declareActionMap<"list">({
-  // create
-  "list.create.above": {
-    icon: "fas fa-arrow-up",
-    title: "Create Above",
-    text: "Create a new item above this item",
-  },
-  "list.create.below": {
-    icon: "fas fa-arrow-down",
-    title: "Create Below",
-    text: "Create a new item below this item",
-  },
-});
-
-// tree
-declareActionMap<"tree">({
-  // create
-  "tree.create.above": {
-    icon: "fas fa-arrow-up",
-    title: "Create Above",
-    text: "Create a new item above this item",
-  },
-  "tree.create.below": {
-    icon: "fas fa-arrow-down",
-    title: "Create Below",
-    text: "Create a new item below this item",
-  },
-  "tree.create.inside": {
-    icon: "fas fa-arrow-right",
-    title: "Create Inside",
-    text: "Create a new item inside this item",
-  },
-});
-
-// table
-declareActionMap<"table">({
-  // create
-  "table.create.record": {
-    icon: "fas fa-plus",
-    title: "Create Record",
-    text: "Create a new record",
-  },
-  // column
-  "table.column.sortAscending": {
-    icon: "fas fa-arrow-up",
-    title: "Sort Ascending",
-    text: "Sort this column in ascending order",
-  },
-  "table.column.sortDescending": {
-    icon: "fas fa-arrow-down",
-    title: "Sort Descending",
-    text: "Sort this column in descending order",
-  },
-  "table.column.filter": {
-    icon: "fas fa-filter",
-    title: "Filter",
-    text: "Filter this column",
-  },
-  "table.column.wrap": {
-    icon: "fas fa-align-justify",
-    title: "Wrap",
-    text: "Wrap this column",
-  },
-  "table.column.hide": {
-    type: "toggle",
-    icon: "fas fa-eye-slash",
-    title: "Hide",
-    text: "Hide this column",
-  },
-});
-
-// flow
-declareActionMap<"flow">({
-  "flow.edit.createAction": {
-    icon: "fas fa-action-forward",
-    title: "Create Action",
-    text: "Create a new action",
-  },
-  "flow.edit.splitPipe": {
-    icon: "fas fa-scissors",
-    title: "Split Pipe",
-    text: "Split this pipe",
-  },
-});
-
-// text
-declareActionMap<"text">({
-  // format
-  "text.format.bold": {
-    type: "toggle",
-    icon: "fas fa-bold",
-    title: "Bold",
-    text: "Bold text",
-    shortcuts: ["mod+b"],
-  },
-  "text.format.italic": {
-    type: "toggle",
-    icon: "fas fa-italic",
-    title: "Italic",
-    text: "Italicize text",
-    shortcuts: ["mod+i"],
-  },
-  "text.format.strikethrough": {
-    type: "toggle",
-    icon: "fas fa-strikethrough",
-    title: "Strikethrough",
-    text: "Strikethrough text",
-  },
-  "text.format.underline": {
-    type: "toggle",
-    icon: "fas fa-underline",
-    title: "Underline",
-    text: "Underline text",
-    shortcuts: ["mod+u"],
-  },
-  "text.format.code": {
-    type: "toggle",
-    icon: "fas fa-code",
-    title: "Code",
-    text: "Code text",
-  },
-  // edit
-  "text.edit.hardBreak": {
-    icon: "fas fa-arrow-down",
-    title: "Hard Break",
-    text: "Insert a hard break",
-    shortcuts: ["shift+enter"],
-  },
-});
-
-// code
-declareActionMap<"code">({
-  // edit
-  "code.edit.format": {
-    icon: "fas fa-code",
-    title: "Format",
-    text: "Reformat the code",
-    shortcuts: ["mod+alt+l"],
-  },
-  "code.edit.comment": {
-    icon: "fas fa-code",
-    title: "Comment",
-    text: "Comment/uncomment these lines",
-    shortcuts: ["ctrl+t"],
-  },
-});
-
-// resource
-declareActionMap<"resource">({
-  "resource.status.provision": {
-    icon: "fas fa-power-off",
-    title: "Provision",
-    text: "Provision this Resource",
-  },
-  "resource.status.decommission": {
-    icon: "fas fa-skull",
-    title: "Decommission",
-    text: "Decommission this Resource",
-  },
-  "resource.status.wake": {
-    icon: "fas fa-sun",
-    title: "Wake",
-    text: "Wake this Resource",
-  },
-  "resource.status.sleep": {
-    icon: "fas fa-snooze",
-    title: "Sleep",
-    text: "Sleep this Resource",
-  },
-});
-
-// view
-declareActionMap<"view">({
-  // history
-  "view.history.goBackward": {
-    icon: "fas fa-chevron-left",
-    title: "Go Back",
-    text: "Go back to the previous view",
-    shortcuts: ["mod+shift+backspace"],
-  },
-  "view.history.goForward": {
-    icon: "fas fa-chevron-right",
-    title: "Go Forward",
-    text: "Go forward to the next view",
-    shortcuts: ["mod+shift+enter"],
-  },
-  // navigate
-  "view.navigate.duplicateTab": {
-    icon: "fas fa-copy",
-    title: "Duplicate Tab",
-    text: "Duplicate the current tab",
-  },
-  "view.navigate.focusPreviousTab": {
-    icon: "fas fa-chevron-left",
-    title: "Focus Previous Tab",
-    text: "Navigate to the previous tab",
-    shortcuts: ["alt+shift+tab", "ctrl+shift+tab"],
-  },
-  "view.navigate.focusNextTab": {
-    icon: "fas fa-chevron-right",
-    title: "Focus Next Tab",
-    text: "Navigate to the next tab",
-    shortcuts: ["alt+tab", "ctrl+tab"],
-  },
-  "view.navigate.closeTab": {
-    icon: "fas fa-xmark",
-    title: "Close Tab",
-    text: "Close this tab",
-    shortcuts: ["mod+w", "ctrl+w"],
-  },
-  "view.navigate.closeOtherTabs": {
-    icon: "fas fa-xmark",
-    title: "Close Other Tabs",
-    text: "Close all other tabs",
-  },
-  "view.navigate.focusPreviousFrame": {
-    icon: "fas fa-chevrons-left",
-    title: "Focus Previous Frame",
-    text: "Navigate to the previous frame",
-    shortcuts: ["ctrl+mod+shift+space"],
-  },
-  "view.navigate.focusNextFrame": {
-    icon: "fas fa-chevrons-right",
-    title: "Focus Next Frame",
-    text: "Navigate to the next frame",
-    shortcuts: ["shift+mod+space"],
-  },
-  "view.navigate.closeFrame": {
-    icon: "fas fa-xmark",
-    title: "Close Frame",
-    text: "Close this frame",
-    shortcuts: ["mod+shift+w"],
-  },
-  "view.navigate.focusPreviousSplit": {
-    icon: "fas fa-chevron-up",
-    title: "Focus Previous Split",
-    text: "Navigate to the previous split",
-    shortcuts: ["ctrl+shift+up", "ctrl+shift+left"],
-  },
-  "view.navigate.focusNextSplit": {
-    icon: "fas fa-chevron-down",
-    title: "Focus Next Split",
-    text: "Navigate to the next split",
-    shortcuts: ["ctrl+shift+down", "ctrl+shift+right"],
-  },
-  "view.navigate.closeSplit": {
-    icon: "fas fa-xmark",
-    title: "Close Split",
-    text: "Close this split",
-  },
-  // layout
-  "view.layout.splitUp": {
-    icon: "fas fa-reflect-vertical",
-    title: "Split Up",
-    text: "Split this view vertically (new split above)",
-  },
-  "view.layout.splitDown": {
-    icon: "fas fa-reflect-vertical",
-    title: "Split Down",
-    text: "Split this view vertically (new split below)",
-  },
-  "view.layout.splitLeft": {
-    icon: "fas fa-reflect-horizontal",
-    title: "Split Left",
-    text: "Split this view horizontally (new split left)",
-  },
-  "view.layout.splitRight": {
-    icon: "fas fa-reflect-horizontal",
-    title: "Split Right",
-    text: "Split this view horizontally (new split right)",
-  },
-  "view.layout.pinSplit": {
-    type: "toggle",
-    icon: "fas fa-thumbtack",
-    title: "Pin Split",
-    text: "Pin this split to an absolute size",
-  },
-});
-contributeActionMap<"view">({
-  // canvas
-  "view.space.resetDefault": {
-    isEnabled: hasLocalBench,
-    title: "Restore Default Space",
-    text: "Reset the space to the default layout",
-    icon: "fas fa-galaxy",
-    action: () => {
-      if (pkg.value == null || space.value == null) return;
-      const tx = canvas.tx();
-      clearSpace(tx, canvas.graph, space.value);
-      createDesktopDefaultSpace(tx, space.value);
-    },
-  },
-});
-
-// developer actions
-contributeActionMap<"developer">({
-  // test
-  "developer.test.developerMode": {
-    type: "toggle",
-    icon: "fas fa-binary",
-    title: "Developer Mode",
-    text: "Developer Mode enables some advanced and some weird features.",
-    isChecked: isDeveloperMode,
-    action: () => {
-      isDeveloperMode.value = !isDeveloperMode.value;
-      toaster.success({
-        override: "developer.toggleDeveloperMode",
-        title: isDeveloperMode.value ? "Developer Mode Enabled" : "Developer Mode Disabled",
-        text: isDeveloperMode.value ? "Welcome to the dark side." : "Back to the normal side.",
-        icon: "fas fa-binary",
-        actions: [
-          {
-            title: isDeveloperMode.value ? "Disable" : "Enable",
-            icon: makeIcon({ faName: isDeveloperMode.value ? "fas fa-toggle-off" : "fas fa-toggle-on" }),
-            action: () => {
-              isDeveloperMode.value = !isDeveloperMode.value;
-            },
-          },
-        ],
-      });
-    },
-    shortcuts: ["alt+f12", "f12"],
-  },
-  "developer.test.retryAllFailed": {
-    isEnabled: isDeveloperMode,
-    icon: "fas fa-redo",
-    title: "Retry All Failed Commits",
-    text: "Retry all current failed transactions",
-    action: () => {
-      getAllTransactionBuffers().forEach((txBuffer) => {
-        Object.values(txBuffer.failedCommits?.value ?? {}).forEach((commit) => txBuffer.retry!(commit.id));
-      });
-    },
-  },
-  "developer.test.addEmptyView": {
-    isEnabled: isDeveloperMode,
-    icon: "fas fa-window-frame",
-    title: "Add Empty View",
-    text: "Adds an empty debug view to this root",
-    action: () => {
-      const name = toCasing(generateRandomName().toUpperCase(), Casing.CAMEL, true);
-      canvas.addView({ type: ViewType.EMPTY, name, title: name });
-    },
-  },
-  // toast
-  "developer.toast.info": {
-    icon: "fas fa-info-circle",
-    title: "Info",
-    text: "Show an info toast",
-    action: () => testToast(ToastLevel.INFO),
-  },
-  "developer.toast.debug": {
-    icon: "fas fa-bug",
-    title: "Debug",
-    text: "Show a debug toast",
-    action: () => testToast(ToastLevel.DEBUG),
-  },
-  "developer.toast.error": {
-    icon: "fas fa-exclamation-triangle",
-    title: "Error",
-    text: "Show an error toast",
-    action: () => testToast(ToastLevel.ERROR),
-  },
-  "developer.toast.success": {
-    icon: "fas fa-check-circle",
-    title: "Success",
-    text: "Show a success toast",
-    action: () => testToast(ToastLevel.SUCCESS),
-  },
-});
-
-function testToast(level: ToastLevel) {
-  toaster.add({
-    level,
-    title: ToastLevel[level],
-    text: "This is a test toast. Lorem ipsum dolor sit amet. Much more text.",
-    durationMs: 60000,
-  });
-}
-
-// space actions
-contributeActionMap<"space">({
-  "space.launch.documentation": {
-    title: "Open Documentation",
-    text: "Get help from our examples and guides",
-    icon: "fas fa-book-open",
-    action: ACTION_COMING_SOON,
-  },
-  "space.launch.discord": {
-    title: "Open Discord",
-    text: "Join the community on Discord",
-    icon: "fab fa-discord",
-    url: DISCORD_URL,
-    action: () => {
-      // open in new tab
-    },
-  },
-  "space.launch.notifications": {
-    title: "Open Notifications",
-    text: "View your notifications",
-    icon: "fas fa-bell",
-    isEnabled: ref(false),
-    action: ACTION_COMING_SOON,
-  },
-  "space.launch.fullscreen": {
-    type: "toggle",
-    icon: "fas fa-maximize",
-    title: "Toggle Fullscreen",
-    text: "Toggle fullscreen mode",
-    action: () => {
-      const isFullscreen = document.fullscreenElement != null;
-      if (isFullscreen) document.exitFullscreen();
-      else document.documentElement.requestFullscreen();
-    },
-  },
-});
 
 //
 // Node context actions

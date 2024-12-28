@@ -4,7 +4,7 @@ import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/const";
 import { makeTypeInfo } from "@/language/field";
 import { uploadFile } from "@/language/file";
 import { isDescendantOf } from "@/language/graph";
-import { useNodeListActions } from "@/language/list";
+import { useNodeListActions } from "@/ui/list";
 import { moveNode, NodeIn } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
 import { packValue } from "@/language/value";

@@ -46,6 +46,7 @@ import {
 } from "@/proto/wiring";
 import { supergraph, useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
 import { pkgConnection, pkgGraph, space, spaceConnection } from "@/system/space";
+import { declareActions } from "@/ui/action";
 import { makeIcon } from "@/ui/icon";
 import { log } from "@/utils/log";
 import { computedValue } from "@/utils/ref";
@@ -417,3 +418,29 @@ export function getInterruptActions(interrupt: InterruptData): RuntimeAction[] {
   }
   return actions;
 }
+
+// session
+declareActions<"session">({
+  // session
+  "session.run.start": {
+    icon: "fas fa-play",
+    title: "Run",
+    text: "Run this node",
+    shortcuts: ["ctrl+r", "meta+enter"],
+  },
+  "session.run.pause": {
+    icon: "fas fa-pause",
+    title: "Pause",
+    text: "Pause this node",
+  },
+  "session.run.resume": {
+    icon: "fas fa-play",
+    title: "Resume",
+    text: "Resume this node",
+  },
+  "session.run.kill": {
+    icon: "fas fa-stop",
+    title: "Kill",
+    text: "Kill this node",
+  },
+});

@@ -13,6 +13,10 @@ import { registerViewComponents } from "@/views/registry";
 import posthog from "posthog-js";
 import { createApp } from "vue";
 import Space from "./Space.vue";
+import { watchActions } from "@/ui/action";
+import { HISTORY_ACTIONS } from "@/system/edit";
+import { DEBUG_ACTIONS } from "@/system/debug";
+import { RESOURCE_ACTIONS } from "@/system/resource";
 
 async function init() {
   const app = createApp(Space);
@@ -40,7 +44,7 @@ async function init() {
   window.addEventListener("dragover", (e) => e.preventDefault(), false);
   window.addEventListener("drop", (e) => e.preventDefault(), false);
 
-  // set vue stuff
+  // setup vue stuff
   if (IS_DEV) {
     app.config.performance = true;
   }
@@ -54,13 +58,17 @@ async function init() {
   app.directive("hover", HOVER_DIRECTIVE);
   app.directive("outside", EVENT_OUTSIDE_DIRECTIVE);
 
-  // start our own stuff
+  // setup our own stuff
   await registerViewComponents();
   toaster.run();
   keytrap.track(document);
   startTransactionBuffers();
   setInterval(sendRemoteKeepAlives, GRPC_KEEPALIVE_INTERVAL_SECONDS * 1000);
-  
+  watchActions();
+  // (register actions that may not be imported directly)
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  [HISTORY_ACTIONS, DEBUG_ACTIONS, RESOURCE_ACTIONS];
+
   app.mount("#app");
 }
 

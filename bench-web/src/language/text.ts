@@ -1,5 +1,6 @@
 import { defaultSortStruct } from "@/language/order";
 import { ObjectType, TextData, TextLineData, TextLineType, TextSpanData } from "@/proto/wire";
+import { declareActions } from "@/ui/action";
 import { PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
 import { Node as PmNode } from "prosemirror-model";
 
@@ -151,3 +152,48 @@ export function estimateTextHeight(text: TextData, width?: number): number {
   height *= 1.1; // padding for justify
   return height;
 }
+
+// text
+declareActions<"text">({
+  // format
+  "text.format.bold": {
+    type: "toggle",
+    icon: "fas fa-bold",
+    title: "Bold",
+    text: "Bold text",
+    shortcuts: ["mod+b"],
+  },
+  "text.format.italic": {
+    type: "toggle",
+    icon: "fas fa-italic",
+    title: "Italic",
+    text: "Italicize text",
+    shortcuts: ["mod+i"],
+  },
+  "text.format.strikethrough": {
+    type: "toggle",
+    icon: "fas fa-strikethrough",
+    title: "Strikethrough",
+    text: "Strikethrough text",
+  },
+  "text.format.underline": {
+    type: "toggle",
+    icon: "fas fa-underline",
+    title: "Underline",
+    text: "Underline text",
+    shortcuts: ["mod+u"],
+  },
+  "text.format.code": {
+    type: "toggle",
+    icon: "fas fa-code",
+    title: "Code",
+    text: "Code text",
+  },
+  // edit
+  "text.edit.hardBreak": {
+    icon: "fas fa-arrow-down",
+    title: "Hard Break",
+    text: "Insert a hard break",
+    shortcuts: ["shift+enter"],
+  },
+});
