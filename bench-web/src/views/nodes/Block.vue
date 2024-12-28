@@ -158,7 +158,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       is-input
       is-minimal
       class="px-1 py-1"
-      :is-minimal="isMinimal"
       :model-value="block.text"
       v-bind="state.getChildState('text')"
       @update:model-value="(newText) => connection.tx.update(block!, { text: newText }, { debounce: 'long' })"
@@ -174,7 +173,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :field-type="block.type == BlockType.CHOICE ? FieldType.OPTION : FieldType.MEMBER"
       />
       <!-- Runnable -->
-      <template v-if="block.type == BlockType.ACTION || block.type == BlockType.FLOW">
+      <template v-if="block.type == BlockType.FLOW">
         <!-- Signature -->
         <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1">
           <FieldList

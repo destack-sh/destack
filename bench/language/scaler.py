@@ -7,6 +7,13 @@ from bench.proto.wire.lang_pb2 import ScalerData
 from bench.utils.func import IdEnum
 
 
+@enum_(EnumType.SCALER_TYPE)
+class ScalerType(IdEnum):
+    # NOTE: should match respective NodeType
+    MACHINE = 2100
+    BROWSER = 2101
+
+
 @enum_(EnumType.SCALER_STRATEGY)
 class ScalerStrategy(IdEnum):
     MANUAL = 1

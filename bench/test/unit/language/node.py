@@ -6,7 +6,7 @@ from hypothesis import HealthCheck, given, settings
 
 from bench.language import Bench, Message, NodeReference, Property
 from bench.language.action import Action, ActionType, DuplicateAction
-from bench.language.bench import Client, PackageType
+from bench.language.bench import Client, Package, PackageType
 from bench.language.block import Block, VariableBlock
 from bench.language.code import Code
 from bench.language.const import BlockType, ClientType, NodeType
@@ -291,7 +291,11 @@ async def test_move_subtree(hosted_runtime: RuntimeHandle):
     assert Page2.blocks == [Block1, Block2, Block3]
 
 
-@pytest.mark.skip("NOTE :Robustness: check circular node ancestry")
-async def test_create_circular_node_ancestry(hosted_runtime: RuntimeHandle):
+async def test_create_circular_node_ancestry(session: Session, package: Package):
     """Create a circular node ancestry. Should fail."""
-    # ...
+    # nocheckin
+    Page: Block = Block.new(BlockType.PAGE, "Page")
+    with pytest.raises(ValueError):
+        Page.blocks.append(Page)
+    package.blocks.append(Page)
+    await session.commit()

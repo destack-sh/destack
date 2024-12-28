@@ -167,12 +167,9 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.INVITE]: "fas fa-circle-nodes",
 
   // resource
-  [NodeType.SERVER]: "fas fa-server",
+  [NodeType.SCALER]: "fas fa-scale-unbalanced",
   [NodeType.MACHINE]: "fas fa-computer-classic",
   [NodeType.STORE]: "fas fa-database",
-  [NodeType.DRIVE]: "fas fa-hdd",
-  [NodeType.VAULT]: "fas fa-treasure-chest",
-  [NodeType.CACHE]: "fas fa-bolt-lightning",
   [NodeType.FILE]: "fas fa-file",
   [NodeType.SECRET]: "fas fa-key",
   [NodeType.BROWSER]: "fas fa-browser",

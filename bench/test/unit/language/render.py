@@ -222,7 +222,7 @@ def test_render_page(session: Session, package: Package):
 
 def test_render_simple_choice_option_ref(session: Session, package: Package):
     """Rendered node ref in sibling scope should be simplified"""
-    Page = package.blocks.create(name="Page", type=BlockType.PAGE)
+    Page: Block = package.blocks.create(name="Page", type=BlockType.PAGE)
     Choice = Block.new(
         BlockType.CHOICE,
         "Choice",
