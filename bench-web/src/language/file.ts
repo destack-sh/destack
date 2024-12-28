@@ -5,7 +5,6 @@ import { getCachedHostClient } from "@/proto/services";
 import {
   BenchData,
   DownloadFilesResponse_DownloadHandle,
-  DriveData,
   EXTENSIONS_BY_FILE_FORMAT,
   FILE_FORMAT_BY_EXTENSION,
   FILE_FORMAT_BY_MIME_TYPE,
@@ -43,7 +42,6 @@ export type FileUpload = {
   status: Ref<FileStatus>;
   isActive: Ref<boolean>;
   bench: BenchData;
-  parent: DriveData | null;
   nodePtr: NodeReferenceData;
   file: Ref<FileData | null>;
   content: File;
@@ -78,7 +76,6 @@ export const activeFileUploads = computed(() => fileUploads.value.filter((u) => 
 export async function extractFile(
   content: File,
   identity: NodeReferenceData,
-  parent: DriveData | null,
   bench: BenchData,
 ): Promise<FileData> {
   const title = content.name;
@@ -105,7 +102,7 @@ export async function extractFile(
   const file = makeNode({
     metatype: NodeType.FILE,
     id: identity.id,
-    parentPtr: parent ? toNodeRef(parent) : undefined,
+    parentPtr: toNodeRef(bench),
     benchPtr: toNodeRef(bench),
     region: bench.region,
     status: ResourceStatus.UP,
@@ -197,7 +194,7 @@ async function doUploadFiles(
     try {
       upload.status.value = FileStatus.PREPARING;
       if (options?.validate) {
-        upload.file.value = await extractFile(upload.content, upload.nodePtr, upload.parent, upload.bench);
+        upload.file.value = await extractFile(upload.content, upload.nodePtr, upload.bench);
         options.validate(upload, upload.file.value);
       }
     } catch (e) {
@@ -261,7 +258,6 @@ export function uploadFiles(
   txFactory: () => Transaction,
   contents: File[],
   options: {
-    parent?: DriveData;
     bench: BenchData;
     allowedTypes?: FileType[];
     allowedFormats?: FileFormat[];
@@ -272,7 +268,6 @@ export function uploadFiles(
     const upload: FileUpload = {
       status: shallowRef(FileStatus.PENDING),
       isActive: computed(() => upload.status.value != FileStatus.COMPLETED && upload.status.value != FileStatus.FAILED),
-      parent: options?.parent ?? null,
       bench: options.bench,
       nodePtr: fileIdentity,
       file: shallowRef(null),
@@ -313,7 +308,6 @@ export function uploadFile(
   txFactory: () => Transaction,
   content: File,
   options: {
-    parent?: DriveData;
     bench: BenchData;
     allowedTypes?: FileType[];
     allowedFormats?: FileFormat[];

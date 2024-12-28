@@ -51,6 +51,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_MACHINE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_BROWSER_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_STORE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_SCALER_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SCALER_STRATEGY: _ClassVar[EnumType]
     ENUM_TYPE_PRIMITIVE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FIELD_ZONE: _ClassVar[EnumType]
@@ -541,6 +542,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_MACHINE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_BROWSER_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_STORE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_SCALER_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_SCALER_STRATEGY: _ClassVar[BenchType]
     BENCH_TYPE_PRIMITIVE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_FIELD_ZONE: _ClassVar[BenchType]
@@ -831,6 +833,12 @@ class StoreType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     STORE_TYPE_UNSPECIFIED: _ClassVar[StoreType]
     STORE_TYPE_POSTGRES: _ClassVar[StoreType]
+
+class ScalerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SCALER_TYPE_UNSPECIFIED: _ClassVar[ScalerType]
+    SCALER_TYPE_MACHINE: _ClassVar[ScalerType]
+    SCALER_TYPE_BROWSER: _ClassVar[ScalerType]
 
 class ScalerStrategy(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1693,6 +1701,7 @@ ENUM_TYPE_CLIENT_TYPE: EnumType
 ENUM_TYPE_MACHINE_TYPE: EnumType
 ENUM_TYPE_BROWSER_TYPE: EnumType
 ENUM_TYPE_STORE_TYPE: EnumType
+ENUM_TYPE_SCALER_TYPE: EnumType
 ENUM_TYPE_SCALER_STRATEGY: EnumType
 ENUM_TYPE_PRIMITIVE_TYPE: EnumType
 ENUM_TYPE_FIELD_ZONE: EnumType
@@ -2144,6 +2153,7 @@ BENCH_TYPE_CLIENT_TYPE: BenchType
 BENCH_TYPE_MACHINE_TYPE: BenchType
 BENCH_TYPE_BROWSER_TYPE: BenchType
 BENCH_TYPE_STORE_TYPE: BenchType
+BENCH_TYPE_SCALER_TYPE: BenchType
 BENCH_TYPE_SCALER_STRATEGY: BenchType
 BENCH_TYPE_PRIMITIVE_TYPE: BenchType
 BENCH_TYPE_FIELD_ZONE: BenchType
@@ -2389,6 +2399,9 @@ BROWSER_TYPE_UNSPECIFIED: BrowserType
 BROWSER_TYPE_CHROMIUM: BrowserType
 STORE_TYPE_UNSPECIFIED: StoreType
 STORE_TYPE_POSTGRES: StoreType
+SCALER_TYPE_UNSPECIFIED: ScalerType
+SCALER_TYPE_MACHINE: ScalerType
+SCALER_TYPE_BROWSER: ScalerType
 SCALER_STRATEGY_UNSPECIFIED: ScalerStrategy
 SCALER_STRATEGY_MANUAL: ScalerStrategy
 SCALER_STRATEGY_AUTO: ScalerStrategy

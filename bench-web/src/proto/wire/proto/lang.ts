@@ -6345,9 +6345,13 @@ export enum EnumType {
      */
     STORE_TYPE = 21080,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCALER_STRATEGY = 21090;
+     * @generated from protobuf enum value: ENUM_TYPE_SCALER_TYPE = 21090;
      */
-    SCALER_STRATEGY = 21090,
+    SCALER_TYPE = 21090,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_SCALER_STRATEGY = 21091;
+     */
+    SCALER_STRATEGY = 21091,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 21501;
      */
@@ -8224,9 +8228,13 @@ export enum BenchType {
      */
     STORE_TYPE = 21080,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCALER_STRATEGY = 21090;
+     * @generated from protobuf enum value: BENCH_TYPE_SCALER_TYPE = 21090;
      */
-    SCALER_STRATEGY = 21090,
+    SCALER_TYPE = 21090,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SCALER_STRATEGY = 21091;
+     */
+    SCALER_STRATEGY = 21091,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_PRIMITIVE_TYPE = 21501;
      */
@@ -9292,6 +9300,23 @@ export enum StoreType {
      * @generated from protobuf enum value: STORE_TYPE_POSTGRES = 1;
      */
     POSTGRES = 1
+}
+/**
+ * @generated from protobuf enum symbolx.bench.ScalerType
+ */
+export enum ScalerType {
+    /**
+     * @generated from protobuf enum value: SCALER_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: SCALER_TYPE_MACHINE = 2100;
+     */
+    MACHINE = 2100,
+    /**
+     * @generated from protobuf enum value: SCALER_TYPE_BROWSER = 2101;
+     */
+    BROWSER = 2101
 }
 /**
  * @generated from protobuf enum symbolx.bench.ScalerStrategy
@@ -28036,6 +28061,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.MACHINE_TYPE]: MachineType,
   [EnumType.BROWSER_TYPE]: BrowserType,
   [EnumType.STORE_TYPE]: StoreType,
+  [EnumType.SCALER_TYPE]: ScalerType,
   [EnumType.SCALER_STRATEGY]: ScalerStrategy,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FIELD_ZONE]: FieldType,
@@ -28418,6 +28444,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.MACHINE_TYPE]: MachineType,
   [EnumType.BROWSER_TYPE]: BrowserType,
   [EnumType.STORE_TYPE]: StoreType,
+  [EnumType.SCALER_TYPE]: ScalerType,
   [EnumType.SCALER_STRATEGY]: ScalerStrategy,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FIELD_ZONE]: FieldType,
