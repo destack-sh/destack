@@ -1200,7 +1200,7 @@ class ConditionalType(IdEnum):
 
 @enum_(EnumType.AGGREGATION_TYPE)
 class AggregationType(IdEnum):
-    EXISTS = 400
+    EXISTENCE = 400
     COUNT = 401
     SUM = 402
     MIN = 403

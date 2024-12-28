@@ -1,17 +1,15 @@
 import {
-  ResolveHostsResponse_HostInfo,
   GraphScopeData,
   HostClient,
   RpcMetadata,
-  SupervisorClient,
-  type IGraphIOClient,
+  SupervisorClient
 } from "@/proto/wire";
 import { CLIENT_TYPE, clientInfo, clientMeta } from "@/system/client";
 import { toaster } from "@/ui/toast";
 import { SUPERVISOR_URL } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { formatDuration } from "@/utils/time";
-import { GrpcStatusCode, GrpcWebFetchTransport, type GrpcWebOptions } from "@protobuf-ts/grpcweb-transport";
+import { GrpcStatusCode, GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
 import {
   RpcError,
   type MethodInfo,

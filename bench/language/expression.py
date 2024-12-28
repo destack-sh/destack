@@ -275,7 +275,7 @@ class ExpressionTypes:  # :ExpressionOps
     }
     SCORED = {ConditionalType.NEAR, *STRING}
     # aggregations
-    BOOLEAN = {AggregationType.EXISTS}
+    BOOLEAN = {AggregationType.EXISTENCE}
     SCALAR = {
         AggregationType.COUNT,
         AggregationType.SUM,

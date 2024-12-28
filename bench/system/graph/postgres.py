@@ -216,7 +216,7 @@ class PostgresAggregateConnection(AggregateConnection):
     @_pg_method
     async def _do_read(self, query: "QueryBuilder") -> AggregateResultData:
         assert query._aggregation is not None
-        if query._aggregation.type == AggregationType.EXISTS:
+        if query._aggregation.type == AggregationType.EXISTENCE:
             async with self.channel.connection.lock:
                 exists = await pg_graph_exists(
                     cur=self.channel.cur, ctx=self.channel.engine.context, query=query

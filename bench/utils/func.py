@@ -517,7 +517,13 @@ class IdEnum(enum.IntEnum):
 
     @staticmethod
     def combine(name: str, *enums: type["IdEnum"]) -> type["IdEnum"]:
-        combined = IdEnum(name, {t.name: t.id for e in enums for t in e})
+        combined_ids = {}
+        for e in enums:
+            for t in e:
+                if t.name in combined_ids:
+                    raise ValueError(f"duplicate enum name: {t.name} from {enums}")
+                combined_ids[t.name] = t.id
+        combined = IdEnum(name, combined_ids)
         return typing.cast(type["IdEnum"], combined)
 
 

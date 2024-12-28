@@ -10085,9 +10085,9 @@ export enum ExpressionType {
      */
     NOT_IN = 333,
     /**
-     * @generated from protobuf enum value: EXPRESSION_TYPE_EXISTS = 400;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_EXISTS = 340;
      */
-    EXISTS = 400,
+    EXISTS = 340,
     /**
      * @generated from protobuf enum value: EXPRESSION_TYPE_NOT_EXISTS = 341;
      */
@@ -10096,6 +10096,10 @@ export enum ExpressionType {
      * @generated from protobuf enum value: EXPRESSION_TYPE_NEAR = 350;
      */
     NEAR = 350,
+    /**
+     * @generated from protobuf enum value: EXPRESSION_TYPE_EXISTENCE = 400;
+     */
+    EXISTENCE = 400,
     /**
      * @generated from protobuf enum value: EXPRESSION_TYPE_COUNT = 401;
      */
@@ -10289,9 +10293,9 @@ export enum AggregationType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: AGGREGATION_TYPE_EXISTS = 400;
+     * @generated from protobuf enum value: AGGREGATION_TYPE_EXISTENCE = 400;
      */
-    EXISTS = 400,
+    EXISTENCE = 400,
     /**
      * @generated from protobuf enum value: AGGREGATION_TYPE_COUNT = 401;
      */
