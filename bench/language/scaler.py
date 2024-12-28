@@ -1,7 +1,7 @@
 from bench.language.bench import StaticResource
 from bench.language.const import EnumType, NodeType, enum_
 from bench.language.node import node_, node_subtype_
-from bench.language.property import p_regular
+from bench.language.property import p_regular, p_system
 from bench.language.validation import constraint
 from bench.proto.wire.lang_pb2 import ScalerData
 from bench.utils.func import IdEnum
@@ -26,10 +26,10 @@ class Scaler(StaticResource[ScalerData]):
     A Scaler is a static Resource that automatically scales a dynamic Resource.
     """
 
-    type: NodeType = p_regular(30)
+    type: ScalerType = p_system(30)
 
     # content
-    strategy: ScalerStrategy = p_regular(50)
+    strategy: ScalerStrategy = p_regular(50, default=ScalerStrategy.AUTO, default_sql=None)
     target_count: int = p_regular(51, default=0, constraint=constraint(min_value=0))
     min_count: int = p_regular(52, default=0, constraint=constraint(min_value=0, max_value=16))
     max_count: int = p_regular(53, default=16, constraint=constraint(min_value=0, max_value=64))

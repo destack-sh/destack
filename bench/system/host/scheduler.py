@@ -155,7 +155,7 @@ class RunPlugin(HostPlugin[Run]):
             )
 
 
-class MessageTriggerPlugin(DeferredHostPlugin[Message | Trigger]):
+class MessagePlugin(DeferredHostPlugin[Message | Trigger]):
     """Process active Triggers when they receive Messages."""
 
     watch_types = bittuple(NodeType.MESSAGE, NodeType.TRIGGER)
@@ -163,7 +163,7 @@ class MessageTriggerPlugin(DeferredHostPlugin[Message | Trigger]):
     ...
 
 
-class ScheduleTriggerPlugin(DeferredHostPlugin[Trigger]):
+class SchedulePlugin(DeferredHostPlugin[Trigger]):
     """Process active Triggers according to their Schedule."""
 
     watch_types = bittuple(NodeType.TRIGGER)

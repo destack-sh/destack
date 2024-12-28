@@ -20,6 +20,7 @@ from bench.language.const import (
     Region,
 )
 from bench.language.node import EMPTY_SCOPE_DATA
+from bench.language.scaler import ScalerStrategy, ScalerType
 from bench.language.session import Session
 from bench.language.user import Handle, Organization, UserStatus
 from bench.proto import wiring
@@ -454,9 +455,11 @@ async def create_default_bench(
     global_store: Store,
     session: Session,
 ) -> Bench:
+    """Creates a new Bench with all the default stuff."""
+
     from bench.system.provision.provisioner import provision
 
-    # create bench
+    # Bench
     bench = Bench(
         main_handle=main_handle,
         slug=main_handle.slug,
@@ -467,16 +470,25 @@ async def create_default_bench(
     session._create(bench)
     await session.flush(optimistic=True)
 
-    # create resources (in pending state, resources are managed by hosts)
+    # main Store
     store = bench.stores.create(region=bench.region, name="Store")
     await session.flush(optimistic=True)
     bench.main_store = store
     await session.flush(optimistic=True)
-
     # immediately provision local store
     await provision(HostProxy(global_store, session), bench, (store,))
 
-    # create main branch/package
+    # default Scalers
+    machine_scaler = bench.scalers.create(  # noqa: F841
+        type=ScalerType.MACHINE,
+        strategy=ScalerStrategy.AUTO,
+        name="Machine Scaler",
+        min_count=1,
+        target_count=1,
+        max_count=4,
+    )
+
+    # main Package
     session._engines += (local_pg_engine_from_store(name=f"pg-local-{bench.slug}", store=store),)
     main_package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
     await session.flush(optimistic=True)

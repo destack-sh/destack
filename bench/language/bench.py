@@ -368,6 +368,12 @@ class DynamicResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
         36, default=ResourceOccupancy.RESERVED, default_sql=None
     )
     owned_by: Optional[Owner] = p_system(37, require=False, array=False, references=OWNER_TYPES)
+    scaler: Optional["Scaler"] = p_system(
+        38, require=False, array=False, references=NodeType.SCALER
+    )
+    if TYPE_CHECKING:
+        scaler_id: Optional[UUID] = None
+        scaler_ptr: Optional[NodeReference] = None
 
     @classmethod
     def new(cls, *, title: str | None = None, **kwargs: Any) -> Self:

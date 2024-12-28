@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.28.2"
+VERSION = "2024.12.28.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -391,6 +391,8 @@ MACHINE_TABLE = Table(
         Column("owned_by_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scaler_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scaler_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("activated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("deactivated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("reset_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -439,6 +441,8 @@ BROWSER_TABLE = Table(
         Column("owned_by_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scaler_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scaler_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("activated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("deactivated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("reset_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -489,6 +493,8 @@ FILE_TABLE = Table(
         Column("owned_by_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scaler_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scaler_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("activated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("deactivated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("reset_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -546,6 +552,8 @@ STREAM_TABLE = Table(
         Column("owned_by_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scaler_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scaler_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("activated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("deactivated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("reset_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -585,6 +593,8 @@ SECRET_TABLE = Table(
         Column("owned_by_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scaler_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scaler_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("activated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("deactivated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("reset_at", PrimitiveType.DATETIME, is_nullable=True),

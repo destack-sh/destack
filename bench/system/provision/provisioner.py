@@ -28,8 +28,8 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     Synchronizes the declared state of Resources with their actual (external) state (bidirectionally).
     """
 
-    """The nodes this Provisioner can handle (separate from node types to watch in HostPlugin.)"""
-    resource_type: NodeType
+    provision_type: NodeType
+    provision_subtype: int | None = None
 
     def __init__(self, host: Host, bench: Bench):
         super().__init__(host, bench)
@@ -37,7 +37,13 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
 
     @property
     def slug(self) -> str:
-        return self.resource_type.bench_name.lower()
+        return self.provision_type.bench_name.lower()
+
+    def _filter_resource(self, resource: PT) -> bool:
+        """Whether to consider this Resource for provisioning."""
+        if self.provision_subtype is not None:
+            return getattr(resource, "type", None) == self.provision_subtype
+        return True
 
     @final
     async def start(self) -> None:
@@ -45,21 +51,25 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
         await self._do_start()
 
         # check resources / provision declared resources
-        if self.resource_type in STATIC_RESOURCE_NODE_TYPES:
+        if self.provision_type in STATIC_RESOURCE_NODE_TYPES:
             resources = cast(
                 list[PT],
-                self.bench._graph.get_descendants(self.bench, self.resource_type, recursive=True),
+                self.bench._graph.get_descendants(self.bench, self.provision_type, recursive=True),
             )
+            if self.provision_subtype is not None:
+                resources = [r for r in resources if self._filter_resource(r)]
         else:
-            provision_cls = cast(type[PT], NODE_CLASS_BY_TYPE[self.resource_type])
-            resources = (
-                await provision_cls.where(
-                    provision_cls.get_property("bench").eq(self.bench)
-                    & provision_cls.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
+            provision_cls = cast(type[PT], NODE_CLASS_BY_TYPE[self.provision_type])
+            resources_query = provision_cls.where(
+                provision_cls.get_property("bench").eq(self.bench)
+                & provision_cls.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
+            ).select_all()
+            if self.provision_subtype is not None:
+                resources_query = resources_query.where(
+                    provision_cls.get_property("subtype").eq(self.provision_subtype)
                 )
-                .select_all()
-                .tolist()
-            )
+            resources = await resources_query.tolist()
+            resources = [r for r in resources if self._filter_resource(r)]
 
         # auto migrate resources to current version
         for resource in resources:
@@ -84,13 +94,18 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     async def _do_start(self) -> None:
         pass  # to be overridden
 
-    @final
     @tracer.start_as_current_span("provisioner.on_commit_deferred")
     async def on_commit_deferred(self, commit: Commit[WT]) -> None:
         trace.get_current_span().set_attribute("plugin", self.name)
+        commit = commit.trim_to(
+            lambda r: r.metatype != self.provision_type or self._filter_resource(cast(PT, r))
+        )
+        if commit.is_empty:
+            return
+
         # handle edit by updating resource
-        if commit.has(self.resource_type):
-            subcommit = cast(Commit[PT], commit.trim_to(self.resource_type))
+        if commit.has(self.provision_type):
+            subcommit = cast(Commit[PT], commit.trim_to(self.provision_type))
             for resource in subcommit.added:
                 if resource.target_status.is_extant and not resource.status.is_extant:
                     await self.provision(resource)
@@ -105,10 +120,6 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
             for resource in subcommit.removed:
                 if resource.status.is_extant:
                     await self.decommission(resource)
-        await self._do_on_commit_deferred(commit)
-
-    async def _do_on_commit_deferred(self, commit: Commit[WT]) -> None:
-        pass  # to be overridden
 
     @final
     async def provision(self, resource: PT):
@@ -197,12 +208,12 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
 
 async def provision(host: Host, bench: Bench, resources: Collection[Resource]) -> None:
     """Provisions the given resources in *this* environment"""
-    from bench.system.provision.registry import get_provisioners_for
+    from bench.system.provision.registry import get_provisioners
 
-    provisioners = get_provisioners_for(host, bench)
+    provisioners = get_provisioners(host, bench)
     for resource in resources:
         for provisioner in provisioners:
-            if resource.metatype == provisioner.resource_type:
+            if resource.metatype == provisioner.provision_type:
                 await provisioner.provision(resource)
                 break
         else:
@@ -211,12 +222,12 @@ async def provision(host: Host, bench: Bench, resources: Collection[Resource]) -
 
 async def decommission(host: Host, bench: Bench, resources: Collection[Resource]) -> None:
     """Decommissions the given resources in *this* environment"""
-    from bench.system.provision.registry import get_provisioners_for
+    from bench.system.provision.registry import get_provisioners
 
-    provisioners = get_provisioners_for(host, bench)
+    provisioners = get_provisioners(host, bench)
     for resource in resources:
         for provisioner in provisioners:
-            if resource.metatype == provisioner.resource_type:
+            if resource.metatype == provisioner.provision_type:
                 await provisioner.decommission(resource)
                 break
         else:

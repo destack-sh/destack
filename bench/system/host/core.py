@@ -3,7 +3,17 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from itertools import chain
-from typing import Any, ClassVar, Collection, Generator, Iterable, Sequence, final, override
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Collection,
+    Generator,
+    Iterable,
+    Sequence,
+    final,
+    override,
+)
 from uuid import UUID
 
 import bitarray
@@ -52,34 +62,55 @@ class Commit[T: Node]:
     def edited(self) -> Iterable[T]:
         return chain(self.added, self.updated, self.removed)
 
-    def has(self, node_types: NodeType | tuple[NodeType, ...] | bittuple[NodeType]) -> bool:
-        """Check if the diff contains any of the given node types."""
-        if isinstance(node_types, NodeType):
-            return node_types in self.edited_types
-        elif isinstance(node_types, tuple):
-            return any(t in self.edited_types for t in node_types)
+    @property
+    def is_empty(self) -> bool:
+        return not self.added and not self.updated and not self.removed
+
+    def has(
+        self, filter: NodeType | tuple[NodeType, ...] | bittuple[NodeType] | Callable[[T], bool]
+    ) -> bool:
+        """Check if the diff contains any nodes matching the filter."""
+        if callable(filter):
+            return any(filter(node) for node in self.edited)
+        elif isinstance(filter, NodeType):
+            return filter in self.edited_types
+        elif isinstance(filter, tuple):
+            return any(t in self.edited_types for t in filter)
         else:
-            return (self.edited_types.bits & node_types.bits).any()
+            return (self.edited_types.bits & filter.bits).any()
 
     def trim_to(
-        self, node_types: NodeType | tuple[NodeType, ...] | bittuple[NodeType]
+        self, filter: NodeType | tuple[NodeType, ...] | bittuple[NodeType] | Callable[[T], bool]
     ) -> "Commit[T]":
-        """Trims the diff to only include the given node types."""
-        if isinstance(node_types, NodeType):
-            node_types = bittuple(node_types)
-        elif isinstance(node_types, tuple):
-            node_types = bittuple(*node_types)
-        return Commit(
-            edits=[e for e in self.edits if NodeType(e.node_ptr.node_type) in node_types],
-            cascaded_edits=[
-                e for e in self.cascaded_edits if NodeType(e.node_ptr.node_type) in node_types
-            ],
-            edited_types=self.edited_types & node_types,
-            added=tuple(node for node in self.added if node.metatype in node_types),
-            updated=tuple(node for node in self.updated if node.metatype in node_types),
-            removed=tuple(node for node in self.removed if node.metatype in node_types),
-            epoch=self.epoch,
-        )
+        """Trims the diff to only include nodes matching the filter."""
+        if callable(filter):
+            return Commit(
+                edits=[e for e in self.edits if any(filter(n) for n in self.edited)],
+                cascaded_edits=[
+                    e for e in self.cascaded_edits if any(filter(n) for n in self.edited)
+                ],
+                edited_types=self.edited_types,  # Can't trim bits since we don't know types
+                added=tuple(node for node in self.added if filter(node)),
+                updated=tuple(node for node in self.updated if filter(node)),
+                removed=tuple(node for node in self.removed if filter(node)),
+                epoch=self.epoch,
+            )
+        else:
+            if isinstance(filter, NodeType):
+                filter = bittuple(filter)
+            elif isinstance(filter, tuple):
+                filter = bittuple(*filter)
+            return Commit(
+                edits=[e for e in self.edits if NodeType(e.node_ptr.node_type) in filter],
+                cascaded_edits=[
+                    e for e in self.cascaded_edits if NodeType(e.node_ptr.node_type) in filter
+                ],
+                edited_types=self.edited_types & filter,
+                added=tuple(node for node in self.added if node.metatype in filter),
+                updated=tuple(node for node in self.updated if node.metatype in filter),
+                removed=tuple(node for node in self.removed if node.metatype in filter),
+                epoch=self.epoch,
+            )
 
 
 def unpack_commit(
