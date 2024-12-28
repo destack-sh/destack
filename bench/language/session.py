@@ -477,8 +477,6 @@ class Session(RuntimeNode[SessionData]):
                 context.client_ptr.CopyFrom(self.client_ptr._to_data())
             if self.machine_ptr is not None:
                 context.machine_ptr.CopyFrom(self.machine_ptr._to_data())
-            if self.server_ptr is not None:
-                context.server_ptr.CopyFrom(self.server_ptr._to_data())
             if self.user_ptr is not None:
                 context.user_ptr.CopyFrom(self.user_ptr._to_data())
             self._context_data = context

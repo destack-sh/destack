@@ -146,7 +146,6 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         client_type: ClientType,
         client_id: UUID,
         client_access_token: str,
-        server_id: UUID | None,
         machine_id: UUID | None,
         oracle: Oracle,
         mode: "RuntimeThreadMode",
@@ -160,7 +159,6 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             client_type=client_type,
             client_id=client_id,
             client_access_token=client_access_token,
-            server_id=server_id,
             machine_id=machine_id,
             mode=mode,
         )
@@ -181,7 +179,6 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         return {
             "bench_id": self._bench_id,
             "client_id": self._client_id,
-            "server_id": self._server_id,
             "machine_id": self._machine_id,
             "thread_id": self.id,
         }
@@ -190,7 +187,6 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         set_baggage(
             bench_id=self._bench_id,
             client_id=self._client_id,
-            server_id=self._server_id,
             machine_id=self._machine_id,
             thread_id=self.id,
             thread_nonce=NONCE,

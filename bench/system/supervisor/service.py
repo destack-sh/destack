@@ -127,11 +127,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                 bench = client.parent
                 assert bench is not None, f"{client!r} has no bench"
                 return Subject(
-                    is_authenticated=True,
-                    client=client,
-                    server=client.server,
-                    machine=client.machine,
-                    owned=[bench],
+                    is_authenticated=True, client=client, machine=client.machine, owned=[bench]
                 )
             else:
                 raise RuntimeError(f"unexpected client: {client!r}")
@@ -472,17 +468,13 @@ async def create_default_bench(
     await session.flush(optimistic=True)
 
     # create resources (in pending state, resources are managed by hosts)
-    server = bench.servers.create(region=bench.region, name="Server")
     store = bench.stores.create(region=bench.region, name="Store")
-    drive = bench.drives.create(region=bench.region, name="Drive")
     await session.flush(optimistic=True)
-    bench.main_server = server
     bench.main_store = store
-    bench.main_drive = drive
     await session.flush(optimistic=True)
 
     # immediately provision local store
-    await provision(HostProxy(global_store, session), bench, (store, drive))
+    await provision(HostProxy(global_store, session), bench, (store,))
 
     # create main branch/package
     session._engines += (local_pg_engine_from_store(name=f"pg-local-{bench.slug}", store=store),)

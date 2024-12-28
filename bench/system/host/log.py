@@ -90,8 +90,6 @@ class LogPlugin(HostPlugin):
                 log_data.client_ptr.CopyFrom(context_data.client_ptr)
             if context_data.machine_ptr.metatype != 0:
                 log_data.machine_ptr.CopyFrom(context_data.machine_ptr)
-            if context_data.server_ptr.metatype != 0:
-                log_data.server_ptr.CopyFrom(context_data.server_ptr)
             if context_data.user_ptr.metatype != 0:
                 log_data.user_ptr.CopyFrom(context_data.user_ptr)
             if edit.context.identity_ptr.metatype != 0:

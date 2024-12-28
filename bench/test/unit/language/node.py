@@ -4,13 +4,14 @@ from typing import cast
 import pytest
 from hypothesis import HealthCheck, given, settings
 
-from bench.language import Bench, Message, NodeReference, Property, Server
+from bench.language import Bench, Message, NodeReference, Property
 from bench.language.action import Action, ActionType, DuplicateAction
 from bench.language.bench import Client, PackageType
 from bench.language.block import Block, VariableBlock
 from bench.language.code import Code
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field, to_type
+from bench.language.machine import Machine
 from bench.language.node import BuiltinObject
 from bench.language.registry import NODE_CLASSES, STRUCT_CLASSES
 from bench.language.session import Session
@@ -105,9 +106,7 @@ def test_node_pointers_consistency(session: "Session"):
     assert bench_a.to_ref().equals(
         NodeReference(node_type=NodeType.BENCH, id=bench_a.id, ck=bench_a.ck, bench_id=bench_a.id)
     )
-    bench_a.main_server = server_a = bench_a.servers.create(name="Server")
     bench_a.main_store = bench_a.stores.create(name="Store")
-    bench_a.main_drive = bench_a.drives.create(name="Drive")
 
     # sub bench, above package pointers
     package_a = bench_a.packages.create(type=PackageType.ROOT, name="Main", slug="main")
@@ -121,8 +120,8 @@ def test_node_pointers_consistency(session: "Session"):
     assert package_a.parent_ptr.id == bench_a.id
 
     # sub bench nested pointers
-    server_a: Server = Server(parent=bench_a, name="Main")
-    assert server_a.bench_id == bench_a.id
+    machine_a = Machine(parent=bench_a, title="Main")
+    assert machine_a.bench_id == bench_a.id
     client_a = Client(
         parent=bench_a,
         seen_at=session._oracle.utc(),
@@ -167,9 +166,7 @@ def test_node_pointers_consistency(session: "Session"):
 
     # refs pointing to different bench
     bench_b = Bench(slug="testb", name="testb")
-    bench_b.main_server = bench_b.servers.create(name="Server")
     bench_b.main_store = bench_b.stores.create(name="Store")
-    bench_b.main_drive = bench_b.drives.create(name="Drive")
     package_b = bench_b.packages.create(type=PackageType.ROOT, name="Main B", slug="main-b")
     block_b = package_b.blocks.create(type=BlockType.PAGE, roles=[block_a_1])
     assert block_b.bench_id == bench_b.id

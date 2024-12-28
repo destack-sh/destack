@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Union, cast
 
-from bench.language.bench import PhysicalResource
+from bench.language.bench import DynamicResource
 from bench.language.const import NodeType, ObjectKind, StructType
 from bench.language.field import TypeInfo
 from bench.language.node import (
@@ -15,16 +15,16 @@ from bench.language.property import (
 from bench.proto.wire import SecretData
 
 if TYPE_CHECKING:
-    from bench.language import Vault
+    from bench.language import Bench
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @node_(NodeType.SECRET)
-class Secret(PhysicalResource[SecretData]):
+class Secret(DynamicResource[SecretData]):
     """A secret value."""
 
-    parent: Union["Vault", None] = p_node_parent(4, NodeType.VAULT, is_system=True)
+    parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH, is_system=True)
 
     # content
     value_type: TypeInfo = p_regular(50, struct=StructType.TYPE_INFO)

@@ -7,7 +7,6 @@ from uuid import UUID
 
 from bench.language.const import (
     REGION,
-    VERSION,
     ClientType,
     EnumType,
     NodeType,
@@ -36,28 +35,19 @@ from bench.language.property import (
     p_regular,
     p_system,
 )
-from bench.language.validation import (
-    NAME_CONSTRAINT,
-    SLUG_CONSTRAINT,
-    TITLE_CONSTRAINT,
-    constraint,
-)
+from bench.language.validation import NAME_CONSTRAINT, SLUG_CONSTRAINT, TITLE_CONSTRAINT
 from bench.proto.wire import (
     AnyNodeData,
     BenchData,
     ClientData,
     DependencyData,
-    DriveData,
     PackageData,
-    ServerData,
-    StoreData,
 )
 from bench.utils.func import IdEnum, bittuple, generate_encryption_key
 
 if TYPE_CHECKING:
     from bench.language import (
         Block,
-        Drive,
         Handle,
         Icon,
         Machine,
@@ -65,7 +55,7 @@ if TYPE_CHECKING:
         Organization,
         Policy,
         Region,
-        Server,
+        Scaler,
         Space,
         Store,
         Text,
@@ -109,27 +99,12 @@ class Bench(BenchNode[BenchData]):
     )
     policies: list["Policy"] = p_regular(39, struct=StructType.POLICY, array=True)
 
-    # (virtual) resources
+    # (static) resources
     main_store: Optional["Store"] = p_system(
         40, require=False, array=False, references=NodeType.STORE, fk=True, same_bench=True
     )
-    main_server: Optional["Server"] = p_system(
-        41, require=False, array=False, references=NodeType.SERVER, fk=True, same_bench=True
-    )
-    main_drive: Optional["Drive"] = p_system(
-        42, require=False, array=False, references=NodeType.DRIVE, fk=True, same_bench=True
-    )
-    main_vault: Optional["Vault"] = p_system(
-        43, require=False, array=False, references=NodeType.VAULT, fk=True, same_bench=True
-    )
-    main_cache: Optional["Cache"] = p_system(
-        44, require=False, array=False, references=NodeType.CACHE, fk=True, same_bench=True
-    )
     stores: LocalNodeList["Store"] = p_node_children(NodeType.STORE)
-    servers: LocalNodeList["Server"] = p_node_children(NodeType.SERVER)
-    drives: LocalNodeList["Drive"] = p_node_children(NodeType.DRIVE)
-    vaults: LocalNodeList["Vault"] = p_node_children(NodeType.VAULT)
-    caches: LocalNodeList["Cache"] = p_node_children(NodeType.CACHE)
+    scalers: LocalNodeList["Scaler"] = p_node_children(NodeType.SCALER)
 
     # content
     main_package: Optional["Package"] = p_regular(
@@ -358,9 +333,9 @@ class Resource[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContext, 
 
 
 @node_component()
-class VirtualResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
+class StaticResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
     """
-    A 'virtual' Resource in a Bench.
+    A 'static' Resource in a Bench.
     """
 
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
@@ -382,9 +357,9 @@ class VirtualResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
 
 
 @node_component()
-class PhysicalResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
+class DynamicResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
     """
-    A 'physical' Resource in a Bench.
+    A 'dynamic' Resource in a Bench.
     """
 
     title: str = p_regular(32, constraint=TITLE_CONSTRAINT)
@@ -417,69 +392,6 @@ class PhysicalResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
         return resource
 
 
-CPU_CONSTRAINT = constraint(min_value=0.1, max_value=16.0, step_value=0.1)
-RAM_CONSTRAINT = constraint(min_value=0.1, max_value=256.0, step_value=0.1)
-
-
-@node_(NodeType.SERVER)
-class Server(VirtualResource[ServerData]):
-    """
-    A Server provides virtual compute for a Bench's Runtime.
-    Physical compute is materialized dynamically on Machines.
-    """
-
-    version: str = p_system(50, default=VERSION, default_sql=None)
-    target_version: str = p_system(51, default=VERSION, default_sql=None)
-
-    min_cpu: Optional[float] = p_system(
-        60, default=None, description="vCPU count", constraint=CPU_CONSTRAINT
-    )
-    max_cpu: Optional[float] = p_system(
-        61, default=None, description="vCPU count", constraint=CPU_CONSTRAINT
-    )
-    min_ram: Optional[float] = p_system(
-        62, default=None, description="GB", constraint=RAM_CONSTRAINT
-    )
-    max_ram: Optional[float] = p_system(
-        63, default=None, description="GB", constraint=RAM_CONSTRAINT
-    )
-
-
-@node_(NodeType.STORE)
-class Store(VirtualResource[StoreData]):
-    """A trusty Postgres-compatible database."""
-
-    version: str = p_system(50, default=VERSION, default_sql=None)
-    target_version: str = p_system(51, default=VERSION, default_sql=None)
-
-    external_name: Optional[str] = p_kernel(60, require=False, default=None, sensitive=True)
-    external_id: Optional[str] = p_kernel(61, require=False, default=None, sensitive=True)
-    connection_uri: Optional[str] = p_kernel(
-        62, require=False, default=None, encrypt=True, defer=True, sensitive=True
-    )
-
-
-@node_(NodeType.DRIVE)
-class Drive(VirtualResource[DriveData]):
-    """Drive for file storage."""
-
-    ...
-
-
-@node_(NodeType.VAULT)
-class Vault(VirtualResource[DriveData]):
-    """Vault for secret storage."""
-
-    ...
-
-
-@node_(NodeType.CACHE)
-class Cache(VirtualResource[DriveData]):
-    """Cache for ephemeral key-value storage."""
-
-    ...
-
-
 @node_(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH))
 class Client(BenchNode[ClientData]):
     """A client to a Bench."""
@@ -503,9 +415,6 @@ class Client(BenchNode[ClientData]):
 
     space: Optional["Space"] = p_system(
         60, array=False, require=False, references=NodeType.SPACE, fk=True
-    )
-    server: Optional["Server"] = p_system(
-        61, array=False, require=False, references=NodeType.SERVER, fk=True
     )
     machine: Optional["Machine"] = p_system(
         62, array=False, require=False, references=NodeType.MACHINE, fk=True

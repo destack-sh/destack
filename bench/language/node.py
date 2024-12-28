@@ -126,7 +126,6 @@ if TYPE_CHECKING:
         QueryBuilder,
         Run,
         SearchConnection,
-        Server,
         Session,
         User,
     )
@@ -1627,8 +1626,14 @@ FieldOrProperty = Union[
     Field if TYPE_CHECKING else "Field", Property if TYPE_CHECKING else "Property", Any
 ]
 NodeTypeOrClass = Union[NodeType, type["Node"]]
-EditSubject = Union["User", "Server", "Block", "Action", "Run"]
-EDIT_SUBJECT_TYPES = (NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.ACTION, NodeType.RUN)
+EditSubject = Union["User", "Machine", "Block", "Action", "Run"]
+EDIT_SUBJECT_TYPES = (
+    NodeType.USER,
+    NodeType.MACHINE,
+    NodeType.BLOCK,
+    NodeType.ACTION,
+    NodeType.RUN,
+)
 
 Owner = Union["User", "Organization", "Block", "Action", "Run"]
 OWNER_TYPES = (NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN)
@@ -2621,9 +2626,6 @@ class HasRuntimeContext(BuiltinObject):
     machine: Optional["Machine"] = p_internal(
         84, require=False, array=False, references=NodeType.MACHINE, same_bench=True
     )
-    server: Optional["Server"] = p_internal(
-        85, require=False, array=False, references=NodeType.SERVER, same_bench=True
-    )
     user: Optional["User"] = p_internal(86, require=False, array=False, references=NodeType.USER)
     identity: Optional["Block"] = p_internal(
         87,
@@ -2643,8 +2645,6 @@ class HasRuntimeContext(BuiltinObject):
         client_id: Optional[UUID] = None
         machine_ptr: Optional[NodeReference] = None
         machine_id: Optional[UUID] = None
-        server_ptr: Optional[NodeReference] = None
-        server_id: Optional[UUID] = None
         user_ptr: Optional[NodeReference] = None
         user_id: Optional[UUID] = None
         identity_ptr: Optional[NodeReference] = None

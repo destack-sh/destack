@@ -103,7 +103,6 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
     client_type = get_from_env("CLIENT_TYPE", typ=ClientType, description="Type of client")
     client_id = get_from_env("CLIENT_ID", typ=UUID, description="Node id of current client")
     client_access_token = get_from_env("CLIENT_ACCESS_TOKEN", description="Access token for client")
-    server_id = get_from_env_maybe("SERVER_ID", typ=UUID, description="Node id of current server")
     machine_id = get_from_env_maybe(
         "MACHINE_ID", typ=UUID, description="Node id of current machine"
     )
@@ -130,7 +129,6 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
             client_type=client_type,
             client_id=client_id,
             client_access_token=client_access_token,
-            server_id=server_id,
             machine_id=machine_id,
             max_threads=max_threads,
             max_concurrency_per_thread=max_concurrency_per_thread,
@@ -146,7 +144,6 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
             client_type=client_type,
             client_id=client_id,
             client_access_token=client_access_token,
-            server_id=server_id,
             machine_id=machine_id,
             oracle=REAL_ORACLE,
             mode=mode,

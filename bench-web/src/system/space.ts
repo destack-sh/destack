@@ -1,4 +1,4 @@
-import { SOURCE_NODE_TYPES, VIRTUAL_RESOURCE_NODE_TYPES } from "@/language/const";
+import { SOURCE_NODE_TYPES, STATIC_RESOURCE_NODE_TYPES } from "@/language/const";
 import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/language/graph";
 import { getHostClient } from "@/proto/services";
 import { BenchData, ChangeCategory, NodeType, SpaceType } from "@/proto/wire";
@@ -25,7 +25,7 @@ export const { graph: benchGraph, connection: benchConnection } = useGetConnecti
   computed(() => ({
     scope: BENCH_SCOPE.value,
     roots: [local.benchPtr.value!],
-    descendantTypes: [NodeType.PACKAGE, ...VIRTUAL_RESOURCE_NODE_TYPES],
+    descendantTypes: [NodeType.PACKAGE, ...STATIC_RESOURCE_NODE_TYPES],
     isEnabled: local.benchPtr.value != null,
   })),
 );

@@ -1,19 +1,18 @@
 import { blockToType } from "@/language/block";
 import {
-  isEnumType,
   isBenchNodeType,
+  isEnumType,
   isNodeType,
-  isSourceNodeType,
   isStructType,
   isUnloadedNodeType,
-  isVirtualResourceNodeType,
-  TYPE_BLOCK_TYPES,
+  TYPE_BLOCK_TYPES
 } from "@/language/const";
 import { EnumOption, getEnumOption, getEnumOptions } from "@/language/enum";
 import { makeExpression } from "@/language/expression";
 import { getSubtypeEnum, makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/field";
 import type { NodeSuperGraph, ReadNodeGraph, TypedNodeKey } from "@/language/graph";
 import {
+  ActionType,
   BenchType,
   BlockData,
   BlockType,
@@ -24,7 +23,6 @@ import {
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeType,
   PrimitiveType,
-  ActionType,
   TypeFormat,
   TypeKind,
   ViewType,
@@ -36,10 +34,9 @@ import { isNode, makeScope, propertyReference, toNodeRef } from "@/proto/wiring"
 import { BENCH_SCOPE } from "@/system/client";
 import {
   acquireConnection,
-  dropConnection,
   releaseConnection,
   RemoteSearchConnection,
-  SearchConnectionParams,
+  SearchConnectionParams
 } from "@/system/connection";
 import { supergraph } from "@/system/globals";
 import { benchGraph, pkgGraph } from "@/system/space";
@@ -57,14 +54,12 @@ import { tryOnBeforeUnmount, useDebounce } from "@vueuse/core";
 import {
   computed,
   markRaw,
-  onBeforeUnmount,
   ref,
   shallowRef,
   toValue,
-  triggerRef,
   watch,
   type MaybeRef,
-  type Ref,
+  type Ref
 } from "vue";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {

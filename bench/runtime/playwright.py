@@ -93,7 +93,7 @@ class PlaywrightApi:
             if pw_context is None:
                 pw_context = await self.provision_local(browser)
             return pw_context
-        elif browser.type == BrowserType.REMOTE:
+        elif browser.type == BrowserType.CHROMIUM:
             # nocheckin: revisit.. when do we close the context? after the containing Run? timeout?
             pw_context = self._context_by_id.get(browser.id)
             if pw_context is None:

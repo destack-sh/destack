@@ -8,18 +8,13 @@ from .access import (
 from .action import Action, ActionType, Call, Continue
 from .bench import (
     Bench,
-    Cache,
     Client,
     Dependency,
-    Drive,
+    DynamicResource,
     Package,
-    PhysicalResource,
     Resource,
     ResourceStatus,
-    Server,
-    Store,
-    Vault,
-    VirtualResource,
+    StaticResource,
 )
 from .block import Block
 from .browser import Browser, BrowserType
@@ -126,8 +121,10 @@ from .run import (
     TextOptions,
     VideoOptions,
 )
+from .scaler import Scaler
 from .secret import Secret
 from .session import EditContext, RuntimeContext, Session
+from .store import Store
 from .stream import Stream
 from .text import Text, TextSpan, md, text
 from .transaction import (
@@ -198,7 +195,6 @@ __all__ = [
     "BrowserType",
     "BuiltinObject",
     "C",
-    "Cache",
     "Call",
     "Change",
     "ChangeCategory",
@@ -222,7 +218,7 @@ __all__ = [
     "Continue",
     "CustomObject",
     "Dependency",
-    "Drive",
+    "DynamicResource",
     "Edit",
     "EditContext",
     "EditOperation",
@@ -284,7 +280,6 @@ __all__ = [
     "PackageNode",
     "PackageNode",
     "Path",
-    "PhysicalResource",
     "Pipe",
     "PipeType",
     "Policy",
@@ -314,6 +309,7 @@ __all__ = [
     "RunType",
     "RuntimeContext",
     "S",
+    "Scaler",
     "ScheduleType",
     "SearchConnection",
     "SearchOptions",
@@ -321,13 +317,13 @@ __all__ = [
     "SearchResultData",
     "Secret",
     "SelectOptions",
-    "Server",
     "Session",
     "SortMode",
     "SortType",
     "SourceNode",
     "Space",
     "Spacing",
+    "StaticResource",
     "Store",
     "Stream",
     "Struct",
@@ -348,14 +344,12 @@ __all__ = [
     "ValidationError",
     "Value",
     "ValueList",
-    "Vault",
     "Vector2",
     "Vector3",
     "Vector4",
     "VideoOptions",
     "View",
     "ViewType",
-    "VirtualResource",
     "WatchAggregateUpdateData",
     "WatchGetUpdateData",
     "WatchSearchUpdateData",

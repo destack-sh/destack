@@ -25,22 +25,18 @@ MACHINE_PROVISIONER_TYPE = get_from_env_maybe(
 def get_provisioners_for(host: Host, bench: Bench) -> list[Provisioner]:
     """Gets all available provisioners for that Bench in *this* environment"""
     from bench.system.provision.browser import LocalhostBrowserProvisioner
-    from bench.system.provision.drive import S3DriveProvisioner
     from bench.system.provision.machine import (
         DockerMachineProvisioner,
         KubernetesMachineProvisioner,
         LocalhostMachineProvisioner,
     )
-    from bench.system.provision.server import ElasticServerProvisioner
     from bench.system.provision.store import LocalhostStoreProvisioner, NeonStoreProvisioner
 
     provisioners: list[type[Provisioner]] = []
     if ENV == Env.TEST:
         provisioners = [
             LocalhostStoreProvisioner,
-            ElasticServerProvisioner,
             LocalhostMachineProvisioner,
-            S3DriveProvisioner,
             LocalhostBrowserProvisioner,
         ]
     elif ENV == Env.DEV:
@@ -57,17 +53,13 @@ def get_provisioners_for(host: Host, bench: Bench) -> list[Provisioner]:
 
         provisioners = [
             LocalhostStoreProvisioner,
-            S3DriveProvisioner,
             machine_provisioner,
-            S3DriveProvisioner,
             LocalhostBrowserProvisioner,
         ]
     elif ENV == Env.STAGE or ENV == Env.PROD:
         provisioners = [
             NeonStoreProvisioner,
-            ElasticServerProvisioner,
             KubernetesMachineProvisioner,
-            S3DriveProvisioner,
             BrowserbaseBrowserProvisioner,
         ]
     else:

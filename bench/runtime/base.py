@@ -10,14 +10,14 @@ import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
 
-from bench.language.bench import Bench, Client, Package, Server
+from bench.language.bench import Bench, Client, Package
 from bench.language.connection import RemoteEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     NONCE,
     PUBLIC_NODE_TYPES,
     SOURCE_NODE_TYPES,
-    VIRTUAL_RESOURCE_NODE_TYPES,
+    STATIC_RESOURCE_NODE_TYPES,
     ClientType,
     NodeType,
 )
@@ -44,7 +44,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 BENCH_QUERY = Bench.include_descendants(
-    NodeType.HANDLE, NodeType.PACKAGE, *VIRTUAL_RESOURCE_NODE_TYPES
+    NodeType.HANDLE, NodeType.PACKAGE, *STATIC_RESOURCE_NODE_TYPES
 ).select_all()
 PACKAGE_QUERY = (
     Package.include_descendants(*SOURCE_NODE_TYPES)
@@ -75,7 +75,6 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         client_type: ClientType,
         client_id: UUID,
         client_access_token: str,
-        server_id: UUID | None,
         machine_id: UUID | None,
         mode: "RuntimeThreadMode",
     ):
@@ -110,8 +109,6 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         self._tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{self._bench_id or ''}"
         )
-        self._server_id = server_id
-        self._server: Server | None = None
         self._machine_id = machine_id
         self._machine: Machine | None = None
         self._client_id = client_id
@@ -188,12 +185,8 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             # get bench
             self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
             self._session.parent = self._bench
-            main_server = self._bench.main_server
-            assert main_server, f"{self._bench!r} has no main server"
             self._client = await Client.get(id=self._client_id)
-            assert self._client, f"{main_server!r} has no client {self._client_id}"
-            if self._server_id:
-                self._server = self._bench.servers.get(self._server_id)
+            assert self._client, f"{self._bench!r} has no client {self._client_id}"
             if self._machine_id:
                 self._machine = await Machine.get(id=self._machine_id)
 
@@ -203,12 +196,11 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         # update session context
         self._session.client = self._client
         self._session.machine = self._machine
-        self._session.server = self._server
         if isinstance(self._client.parent, User):
             self._session.user = self._client.parent
             self._session._subject = self._client.parent
         elif isinstance(self._client.parent, Bench):
-            self._session._subject = self._client.server
+            self._session._subject = self._client.machine
         else:
             raise ValueError(f"unknown client parent {self._client.parent!r} in {self!r}")
         self._session._origin = (
