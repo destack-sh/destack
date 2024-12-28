@@ -1,14 +1,15 @@
 import base64
 import json
+from typing import Annotated
 
 import structlog
 import typer
 from more_itertools import first
 from rich import print
 
-from bench.cli.utils import async_to_sync_blocking
+from bench.cli.utils import async_to_sync_blocking, parse_region
 from bench.language import Bench, User
-from bench.language.bench import Client
+from bench.language.bench import Client, ResourceStatus
 from bench.language.const import (
     BENCH_SLUG,
     CLOUD,
@@ -33,7 +34,7 @@ logger = structlog.get_logger(__name__)
 
 @app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")
 @async_to_sync_blocking
-async def bootstrap(region: Region = Region.ZURICH):
+async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)] = REGION):
     from bench.system.supervisor.service import create_default_bench
     from bench.system.utils.session import (
         global_session,
@@ -84,9 +85,15 @@ async def bootstrap(region: Region = Region.ZURICH):
         await session.commit()
 
 
-@app.command(name="make-machine-client", help="gets or creates a Machine Client for a Bench")
+@app.command(
+    name="make-local-machine", help="gets or creates a local Machine (and Client) for a Bench"
+)
 @async_to_sync_blocking
-async def make_machine_client(bench_slug: str, title: str = "Localhost"):
+async def make_local_machine(
+    bench_slug: str,
+    title: str = "Localhost",
+    region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
+):
     from bench.system.utils.access import ACCESS_TOKEN_LENGTH
     from bench.system.utils.session import (
         global_session,
@@ -96,7 +103,7 @@ async def make_machine_client(bench_slug: str, title: str = "Localhost"):
 
     global_store = global_store_from_env()
     global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-    regional_store = regional_store_from_env()
+    regional_store = regional_store_from_env(region=region)
     regional_pg_engine = pg_engine_from_store(
         f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
     )
@@ -110,7 +117,10 @@ async def make_machine_client(bench_slug: str, title: str = "Localhost"):
         )
         assert len(bench.servers) == 1, f"{bench!r} has unexpected servers: {bench.servers!r}"
         server = bench.servers[0]
-        machines = await Machine.where(Machine.get_property("parent").eq(server)).tolist()
+        machines = await Machine.where(
+            Machine.get_property("parent").eq(server)
+            & Machine.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
+        ).tolist()
         machine = first(machines, None)
         if machine is None:
             raise ValueError(f"{server!r} has no machines")

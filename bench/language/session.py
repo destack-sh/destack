@@ -704,9 +704,10 @@ class Session(RuntimeNode[SessionData]):
             raise
 
     def _make_pending_graph(self) -> NodeGraph:
+        node_types = {node.metatype for node in self._pending_nodes_by_id.values()}
         graph = NodeGraph(
             scope=self._default_scope,
-            node_types=NODE_TYPES,
+            node_types=node_types,
             nodes=self._pending_nodes_by_id.values(),
             supergraph=self._supergraph,
         )
@@ -715,7 +716,8 @@ class Session(RuntimeNode[SessionData]):
 
     def _make_pending_data_graph(self) -> NodeDataGraph:
         """Get graphs with all the pending nodes."""
-        data_graph = NodeDataGraph(scope=self._default_scope, node_types=NODE_TYPES)
+        node_types = {node.metatype for node in self._pending_nodes_by_id.values()}
+        data_graph = NodeDataGraph(scope=self._default_scope, node_types=node_types)
         for node in self._pending_nodes_by_id.values():
             data_graph.add(node._to_data())
         return data_graph

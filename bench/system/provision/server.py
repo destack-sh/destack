@@ -40,7 +40,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
                 client = Client(
                     parent=self.bench,
                     type=ClientType.BENCH_MACHINE,
-                    title="Machine1",
+                    title="Runtime1",
                     server=server,
                     access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
                 )
@@ -48,7 +48,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
                 machine = Machine(
                     type=MachineType.RUNTIME,
                     parent=server,
-                    title="Machine1",
+                    title="Runtime1",
                     cpu=0.5,
                     ram=0.5,
                     client=client,

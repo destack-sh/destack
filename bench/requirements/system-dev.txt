@@ -469,7 +469,7 @@ tqdm==4.67.0
     #   google-generativeai
     #   magika
     #   openai
-typer==0.13.0
+typer==0.15.1
     # via -r bench/requirements/base.in
 types-awscrt==0.23.0
     # via botocore-stubs

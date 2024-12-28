@@ -1,11 +1,11 @@
 import signal
 import subprocess
-from typing import Optional
+from typing import Annotated, Optional
 
 import structlog
 import typer
 
-from bench.cli.utils import async_to_sync_blocking
+from bench.cli.utils import async_to_sync_blocking, parse_region
 from bench.language import Bench, Store
 from bench.language.const import REGION, NodeArea, Region
 from bench.system.utils.session import regional_store_from_env
@@ -20,7 +20,9 @@ logger = structlog.get_logger(__name__)
 @app.command()
 @async_to_sync_blocking
 async def shell(
-    area: NodeArea = NodeArea.GLOBAL, region: Region = REGION, bench: Optional[str] = None
+    area: NodeArea = NodeArea.GLOBAL,
+    region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
+    bench: Optional[str] = None,
 ):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
     from bench.system.utils.session import (

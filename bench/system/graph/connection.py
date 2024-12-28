@@ -67,7 +67,7 @@ class Connection[
         self.hash = query._stable_hash()
         self.token: str = generate_access_token(length=8)
         self.query = query
-        self._node_types = bittuple(*query.all_node_types)
+        self.node_types = bittuple(*query.all_node_types)
         self._subscribers: list[ConnectionSubscription[UpdateT]] = []
         self.oracle = oracle
         now_ns = oracle.time_ns()
@@ -91,10 +91,6 @@ class Connection[
     @final
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
-
-    @property
-    def node_types(self):
-        return self._node_types
 
     @property
     def has_result(self) -> bool:
@@ -246,7 +242,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
         for edit in edits:
             # filter type
             node_type = NodeType(edit.node_ptr.node_type)
-            if node_type not in self._node_types:
+            if node_type not in self.node_types:
                 continue  # irrelevant type
             edit_type = EditType(edit.type)
 
@@ -427,7 +423,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
             is_relevant = (
                 self._block_ck is None or self._block_ck == getattr(node, "block_ptr").ck
             ) and (self.query._filter is None or evaluate_conditional(self.query._filter, node))
-            if not is_relevant:
+            if not (is_relevant or is_extant):
                 continue  # ignore irrelevant edit
             is_add = edit.type in (EditType.CREATE, EditType.UPSERT, EditType.RESTORE)
             is_remove = edit.type in (EditType.DELETE, EditType.ERASE)
@@ -653,6 +649,7 @@ class ConnectionIndex:
         cascaded_edits: Sequence[EditData],
         epoch: int,
     ):
-        """Updates all active connections with a new commit (maybe async)."""
+        """Updates all active connections with a new commit."""
         for connection in self._connections_by_hash.values():
-            connection.on_commit(graph, edits, cascaded_edits, epoch)
+            if (connection.node_types.bits & graph.node_types.bits).any():
+                connection.on_commit(graph, edits, cascaded_edits, epoch)

@@ -5,8 +5,11 @@ import subprocess
 from typing import TYPE_CHECKING
 
 import structlog
+import typer
 import uvloop
 from opentelemetry import trace
+
+from bench.language.const import Region
 
 if TYPE_CHECKING:
     pass
@@ -51,6 +54,19 @@ def run_shell_sync(cmd: str, check=True, **kwargs):
     subprocess.run(cmd, shell=True, check=check, **kwargs)
 
 
-class InconsistencyError(RuntimeError):
-    def __init__(self, msg: str):
-        super().__init__(f"bench internal state is inconsistent: {msg}")
+def parse_region(region: str | Region) -> Region:
+    """Parse a Region from a string."""
+    if isinstance(region, Region):
+        return region
+    region = region.upper()
+    try:
+        if region in Region.__members__:
+            # try by name
+            return Region[region]
+        else:
+            # try by value
+            return Region(int(region))
+    except ValueError as e:
+        raise typer.BadParameter(
+            f"invalid region: '{region.lower()}' (expected: {'|'.join(r.name.lower() for r in Region)})"
+        ) from e

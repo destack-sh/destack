@@ -183,22 +183,9 @@ const focusedNode = computed(() => focusedItem.value?.node);
 // Interaction
 //
 
-const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
-const editingNodePtr: Ref<NodeReferenceData | null> = ref(null);
 const editingNameRef: Ref<InstanceType<typeof NativeInput>[]> = ref([]);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
-
-function cancelRename() {
-  editingNodePtr.value = null;
-  queryRef.value?.focus();
-}
-
-watch(isFocusAbsolute, (isFocused) => {
-  if (!isFocused) {
-    cancelRename();
-  }
-});
 
 function isFocused(node: { id?: string }): boolean {
   return node.id == focusPtr.value?.id;
@@ -328,15 +315,6 @@ const actions: Partial<ActionMapImplementation<"space">> = {
     if (ctx.nodes?.[0] == null) return false;
     canvas.goToNode(ctx.nodes[0], { skipSelf: preset.value == TreeViewPreset.OUTLINE });
   },
-  // duplicate
-  "space.edit.rename": (action, ctx) => {
-    if (ctx.nodes?.[0] == null) return false;
-    editingNodePtr.value = isNode(ctx.nodes[0]) ? toNodeRef(ctx.nodes[0]) : ctx.nodes[0];
-    nextTick(() => {
-      editingNameRef.value?.[0]?.focus?.();
-      editingNameRef.value?.[0]?.select?.();
-    });
-  },
   // select
   "space.select.all": () => canvas.select(expandedItems.value.map((item) => item.node)),
 };
@@ -440,7 +418,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           <button class="group/icon relative mr-1.5 flex-shrink-0" @click.stop="() => toggleExpanded(node)">
             <IconInline
               v-bind="getNodeIcon(node)"
-              class="w-5 transition-colors duration-75"
+              class="w-5 text-center transition-colors duration-75"
               :class="hasChildren ? 'group-hover/node:opacity-0' : ''"
             />
             <span
@@ -450,27 +428,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               ><i class="fas fa-chevron-right"
             /></span>
           </button>
-          <!-- Name (editable) if editing -->
-          <NativeInput
-            v-if="node.id == editingNodePtr?.id"
-            :id="node.id + '.name'"
-            ref="editingNameRef"
-            v-outside.mousedown.stop="cancelRename"
-            class="flex-shrink-0"
-            is-input
-            is-minimal
-            placeholder="Name..."
-            :value-type="NAME_TYPE"
-            :model-value="(node as any).name"
-            @keydown.enter.stop.prevent="cancelRename"
-            @keydown.escape.stop.prevent="cancelRename"
-            @update:model-value="
-              (newValue) => connection.tx.update(node, { name: newValue as string }, { debounce: 'long' })
-            "
-          />
-          <!-- Name otherwise -->
+          <!-- Name -->
           <span
-            v-else
             class="max-w-full select-none truncate"
             v-html="nodeTitlesMarked[i] ?? (node as any).name ?? toCamelName(NodeType, node.metatype)"
           />

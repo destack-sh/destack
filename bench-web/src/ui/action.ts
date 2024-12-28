@@ -113,10 +113,9 @@ export const ACTION_BUILTIN_IDS = [
   "code.edit.format",
   "code.edit.comment",
   // resource
-  "resource.status.provision",
+  "resource.status.activate",
+  "resource.status.suspend",
   "resource.status.decommission",
-  "resource.status.wake",
-  "resource.status.sleep",
   // view
   "view.history.goBackward",
   "view.history.goForward",
@@ -245,7 +244,9 @@ export function provideActions<T extends string>(map: Partial<ActionMapContribut
 }
 
 /** Declares actions to be implemented virtually. */
-export function declareActions<T extends string>(map: Partial<ActionMapDeclaration<T>>): Partial<ActionMapDeclaration<T>> {
+export function declareActions<T extends string>(
+  map: Partial<ActionMapDeclaration<T>>,
+): Partial<ActionMapDeclaration<T>> {
   Object.entries(map).forEach(([id, action]) =>
     addAction("virtual", { ...(action as ActionIn), id: id as ActionBuiltinId }),
   );
@@ -463,7 +464,10 @@ export function watchActions() {
 }
 
 /** Gets the nodes in the context of an Action. Only returns the nodes if they are part of tbe same connection. */
-export function getNodesForAction(action: Action, ctx: ActionContext | undefined): {
+export function getNodesForAction(
+  action: Action,
+  ctx: ActionContext | undefined,
+): {
   connection: ConnectionBase<any, any> | null;
   graph: ReadNodeGraph | null;
   nodes: AnyNodeData[];
@@ -518,10 +522,9 @@ export const RECORD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const ACTION_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["flow.edit.splitPipe"];
 export const RESOURCE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
-  "resource.status.provision",
+  "resource.status.activate",
   "resource.status.decommission",
-  "resource.status.wake",
-  "resource.status.sleep",
+  "resource.status.suspend",
 ];
 
 export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]>> = {

@@ -8,6 +8,7 @@ import { BENCH_SCOPE } from "@/system/client";
 import { useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
+import { getNodeIcon, IconInline } from "@/ui/icon";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { computed, Ref, ref, toRef } from "vue";
@@ -78,9 +79,15 @@ defineExpose<ViewExposed & { total: Ref<number | undefined>; roots: Ref<AnyNodeD
           height: ITEM_HEIGHT + 'px',
         }"
         data-suppress-drag="select"
+        @click="canvas.goToNode(node)"
       >
+        <!-- Icon -->
+        <IconInline
+          v-bind="getNodeIcon(node)"
+          class="mr-1.5 w-5 text-center text-gray-700 transition-colors duration-75"
+        />
         <!-- nocheckin: List item -->
-        {{ node.title }}
+        <span class="max-w-full select-none truncate">{{ node.title }}</span>
       </li>
       <!-- Empty -->
       <div
