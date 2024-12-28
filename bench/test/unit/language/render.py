@@ -229,7 +229,7 @@ def test_render_simple_choice_option_ref(session: Session, package: Package):
         fields=[Field.option("Option1"), Field.option("Option2"), Field.option("Option3")],
     )
     Page = Block.new(BlockType.PAGE, "Page")
-    Page.blocks.extend(Choice, Page)
+    Page.blocks.extend(Choice)
     rendered_option = render_expr(
         Choice.fields.Option2, options=RenderOptions(scope=Page), as_ref=True
     )

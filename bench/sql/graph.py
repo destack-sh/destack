@@ -206,7 +206,7 @@ def map_builtin_object_to_table(
         elif prop.default is not UNSET and prop.default is not None:
             if isinstance(prop.default, bool):
                 column.default = "false" if prop.default is False else "true"
-            elif isinstance(prop.default, int):
+            elif isinstance(prop.default, (int, float)):
                 column.default = str(prop.default)
             elif isinstance(prop.default, str):
                 column.default = f"'{prop.default}'::character varying"

@@ -825,8 +825,7 @@ class MachineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class BrowserType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     BROWSER_TYPE_UNSPECIFIED: _ClassVar[BrowserType]
-    BROWSER_TYPE_REMOTE: _ClassVar[BrowserType]
-    BROWSER_TYPE_LOCAL: _ClassVar[BrowserType]
+    BROWSER_TYPE_CHROMIUM: _ClassVar[BrowserType]
 
 class StoreType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2387,8 +2386,7 @@ CLIENT_TYPE_BENCH_MACHINE: ClientType
 MACHINE_TYPE_UNSPECIFIED: MachineType
 MACHINE_TYPE_RUNTIME: MachineType
 BROWSER_TYPE_UNSPECIFIED: BrowserType
-BROWSER_TYPE_REMOTE: BrowserType
-BROWSER_TYPE_LOCAL: BrowserType
+BROWSER_TYPE_CHROMIUM: BrowserType
 STORE_TYPE_UNSPECIFIED: StoreType
 STORE_TYPE_POSTGRES: StoreType
 SCALER_STRATEGY_UNSPECIFIED: ScalerStrategy

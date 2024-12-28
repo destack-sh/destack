@@ -172,7 +172,7 @@ class Interrupt(RuntimeNode[InterruptData]):
 
     def __content_str__(self):
         node = self.runnable
-        path = node.absolute_path if node else "<lambda>"
+        path = node.absolute_path if node else "???"
         if self.duration is not None:
             duration_str = f"{self.duration.total_seconds():.3f}s"
             return (

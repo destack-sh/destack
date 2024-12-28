@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.27.1"
+VERSION = "2024.12.28.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -403,8 +403,8 @@ MACHINE_TABLE = Table(
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
         Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("cpu", PrimitiveType.FLOAT32, default="1"),
-        Column("ram", PrimitiveType.FLOAT32, default="1"),
+        Column("cpu", PrimitiveType.FLOAT32),
+        Column("ram", PrimitiveType.FLOAT32),
         Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
