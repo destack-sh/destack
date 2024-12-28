@@ -1,6 +1,6 @@
 import { HELPER_VIEW_TYPES, ROOT_VIEW_TYPES, toCamelName } from "@/language/const";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
-import { cloneNode, generateNodeName, makeNode, NodeIn, packSubnode, unpackSubnode } from "@/language/node";
+import { cloneNode, cloneNodes, generateNodeName, makeNode, NodeIn, packSubnode, unpackSubnode } from "@/language/node";
 import { getOrderKey, updateOrder } from "@/language/order";
 import { getRunBasePtr } from "@/language/session";
 import {
@@ -43,8 +43,9 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { getContainingFlow } from "@/system/flow";
-import { supergraph } from "@/system/globals";
-import { canvas, inspectionBasePtr, inspectionPtr, space } from "@/system/space";
+import { canvas, supergraph } from "@/system/globals";
+import { inspectionBasePtr, inspectionPtr, pkg, space } from "@/system/space";
+import { declareActions, getNodesForAction } from "@/ui/action";
 import type { SplitAnchor } from "@/ui/drag";
 import { toIconMaybe } from "@/ui/icon";
 import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
@@ -65,6 +66,7 @@ import {
 import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey, generateOrderKeys } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
+import { DISCORD_URL } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
@@ -1248,3 +1250,393 @@ export function createDesktopEmptySpace(tx: Transaction, space: SpaceData): { pr
   ]);
   return { primary: layout.viewsByName["Main"] };
 }
+
+//
+// Actions
+//
+
+// space
+declareActions<"space">({
+  // edit
+  "space.edit.rename": {
+    icon: "fas fa-pencil",
+    title: "Rename",
+    text: "Rename this item",
+    shortcuts: ["f2"],
+  },
+  "space.edit.move": {
+    icon: "fas fa-arrows-turn-right",
+    title: "Move",
+    text: "Move this item",
+  },
+  "space.edit.copy": {
+    icon: "fas fa-copy",
+    title: "Copy",
+    text: "Copy this item",
+    shortcuts: ["mod+c"],
+  },
+  "space.edit.cut": {
+    icon: "fas fa-scissors",
+    title: "Cut",
+    text: "Cut this item",
+    shortcuts: ["mod+x"],
+  },
+  "space.edit.paste": {
+    icon: "fas fa-paste",
+    title: "Paste",
+    text: "Paste this item",
+    shortcuts: ["mod+v"],
+  },
+  "space.edit.duplicate": {
+    icon: "fas fa-clone",
+    title: "Duplicate",
+    text: "Duplicate this item",
+    shortcuts: ["mod+d"],
+    action: (action, ctx) => {
+      const { connection, graph, nodes } = getNodesForAction(action, ctx);
+      if (connection == null || graph == null || nodes.length == 0) {
+        return; // no action, but suppress anyway to avoid triggering browser shortcuts
+      }
+      const clonedNodes = cloneNodes(connection.tx, graph, nodes);
+      canvas.select(clonedNodes);
+      if (clonedNodes.length > 0) {
+        canvas.goToNode(clonedNodes[0]);
+        canvas.inspect({ node: clonedNodes[0], view: canvas.focusedViewPtr.value });
+      }
+      return true;
+    },
+  },
+  "space.edit.delete": {
+    icon: "fas fa-trash",
+    title: "Delete",
+    text: "Delete this item",
+    shortcuts: ["del", "backspace"],
+    action: (action, ctx) => {
+      const { connection, graph, nodes } = getNodesForAction(action, ctx);
+      if (connection == null || graph == null || nodes.length == 0) {
+        return false; // bubble up
+      }
+      const tx = connection.tx.with({ change: { key: newChangeId(), title: "Delete" } });
+      for (const node of nodes) {
+        tx.delete(node);
+      }
+      return true;
+    },
+  },
+  // navigate
+  "space.navigate.open": {
+    icon: "fas fa-arrow-up-right",
+    title: "Open",
+    text: "Open this node in a new view",
+    shortcuts: ["mod+enter"],
+  },
+  "space.navigate.up": {
+    icon: "fas fa-arrow-up",
+    title: "Navigate Up",
+    text: "Navigate up",
+    shortcuts: ["up"],
+  },
+  "space.navigate.down": {
+    icon: "fas fa-arrow-down",
+    title: "Navigate Down",
+    text: "Navigate down",
+    shortcuts: ["down"],
+  },
+  "space.navigate.left": {
+    icon: "fas fa-arrow-left",
+    title: "Navigate Left",
+    text: "Navigate left",
+    shortcuts: ["left"],
+  },
+  "space.navigate.right": {
+    icon: "fas fa-arrow-right",
+    title: "Navigate Right",
+    text: "Navigate right",
+    shortcuts: ["right"],
+  },
+  "space.navigate.zoomIn": {
+    icon: "fas fa-search-plus",
+    title: "Zoom In",
+    text: "Zoom in",
+    shortcuts: ["plus", "mod+plus"],
+  },
+  "space.navigate.zoomOut": {
+    icon: "fas fa-search-minus",
+    title: "Zoom Out",
+    text: "Zoom out",
+    shortcuts: ["minus", "mod+minus"],
+  },
+  "space.navigate.reset": {
+    icon: "fas fa-arrows-to-dot",
+    title: "Reset",
+    text: "Reset",
+    shortcuts: ["0"],
+  },
+  "space.navigate.enter": {
+    icon: "fas fa-arrow-in",
+    title: "Navigate In",
+    text: "Navigate in",
+    shortcuts: ["enter"],
+  },
+  "space.navigate.exit": {
+    icon: "fas fa-arrow-out",
+    title: "Navigate Out",
+    text: "Navigate out",
+    shortcuts: ["esc"],
+  },
+  "space.navigate.pageUp": {
+    icon: "fas fa-arrow-up-to-line",
+    title: "Page Up",
+    text: "Page up",
+    shortcuts: ["pageup"],
+  },
+  "space.navigate.pageDown": {
+    icon: "fas fa-arrow-down-to-line",
+    title: "Page Down",
+    text: "Page down",
+    shortcuts: ["pagedown"],
+  },
+  "space.navigate.goBackward": {
+    icon: "fas fa-arrow-turn-left",
+    title: "Go Back",
+    text: "Go back in view history",
+    shortcuts: ["mod+shift+backspace"],
+  },
+  "space.navigate.goForward": {
+    icon: "fas fa-arrow-turn-right",
+    title: "Go Forward",
+    text: "Go forward in view history",
+    shortcuts: ["mod+shift+enter"],
+  },
+  // select
+  "space.select.all": {
+    icon: "fas fa-check-square",
+    title: "Select All",
+    text: "Select all items",
+    shortcuts: ["mod+a"],
+  },
+  "space.select.up": {
+    icon: "fas fa-square-caret-up",
+    title: "Select Up",
+    text: "Select up",
+    shortcuts: ["shift+up"],
+  },
+  "space.select.down": {
+    icon: "fas fa-square-caret-down",
+    title: "Select Down",
+    text: "Select down",
+    shortcuts: ["shift+down"],
+  },
+  "space.select.left": {
+    icon: "fas fa-square-caret-left",
+    title: "Select Left",
+    text: "Select left",
+    shortcuts: ["shift+left"],
+  },
+  "space.select.right": {
+    icon: "fas fa-square-caret-right",
+    title: "Select Right",
+    text: "Select right",
+    shortcuts: ["shift+right"],
+  },
+  "space.select.clear": {
+    icon: "fas fa-times",
+    title: "Clear Selection",
+    text: "Clear selection",
+    shortcuts: ["esc"],
+    action: (action, ctx) => {
+      if (canvas.selection != null) {
+        canvas.deselect();
+      }
+    },
+  },
+  // move
+  "space.move.up": {
+    icon: "fas fa-square-up",
+    title: "Move Up",
+    text: "Move up",
+    shortcuts: ["alt+up"],
+  },
+  "space.move.down": {
+    icon: "fas fa-square-down",
+    title: "Move Down",
+    text: "Move down",
+    shortcuts: ["alt+down"],
+  },
+  "space.move.left": {
+    icon: "fas fa-square-left",
+    title: "Move Left",
+    text: "Move left",
+    shortcuts: ["alt+left", "shift+tab"],
+  },
+  "space.move.right": {
+    icon: "fas fa-square-right",
+    title: "Move Right",
+    text: "Move right",
+    shortcuts: ["alt+right", "tab"],
+  },
+  // search
+  "space.search.findInView": {
+    icon: "fas fa-magnifying-glass",
+    title: "Search in View",
+    text: "Find in this view",
+    shortcuts: ["mod+f"],
+  },
+  "space.search.replaceInView": {
+    icon: "fas fa-right-left",
+    title: "Replace in View",
+    text: "Replace in this view",
+    shortcuts: ["mod+r"],
+  },
+  "space.search.findInSpace": {
+    icon: "fas fa-magnifying-glass",
+    title: "Search in Space",
+    text: "Find in this space",
+    shortcuts: ["mod+shift+f"],
+  },
+  "space.search.replaceInSpace": {
+    icon: "fas fa-right-left",
+    title: "Replace in Space",
+    text: "Replace in this space",
+    shortcuts: ["mod+shift+r"],
+  },
+  "space.launch.discord": {
+    title: "Open Discord",
+    text: "Join the community on Discord",
+    icon: "fab fa-discord",
+    url: DISCORD_URL,
+    action: () => {
+      // open in new tab
+    },
+  },
+  "space.launch.fullscreen": {
+    type: "toggle",
+    icon: "fas fa-maximize",
+    title: "Toggle Fullscreen",
+    text: "Toggle fullscreen mode",
+    action: () => {
+      const isFullscreen = document.fullscreenElement != null;
+      if (isFullscreen) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    },
+  },
+});
+
+// view
+declareActions<"view">({
+  // history
+  "view.history.goBackward": {
+    icon: "fas fa-chevron-left",
+    title: "Go Back",
+    text: "Go back to the previous view",
+    shortcuts: ["mod+shift+backspace"],
+  },
+  "view.history.goForward": {
+    icon: "fas fa-chevron-right",
+    title: "Go Forward",
+    text: "Go forward to the next view",
+    shortcuts: ["mod+shift+enter"],
+  },
+  // navigate
+  "view.navigate.duplicateTab": {
+    icon: "fas fa-copy",
+    title: "Duplicate Tab",
+    text: "Duplicate the current tab",
+  },
+  "view.navigate.focusPreviousTab": {
+    icon: "fas fa-chevron-left",
+    title: "Focus Previous Tab",
+    text: "Navigate to the previous tab",
+    shortcuts: ["alt+shift+tab", "ctrl+shift+tab"],
+  },
+  "view.navigate.focusNextTab": {
+    icon: "fas fa-chevron-right",
+    title: "Focus Next Tab",
+    text: "Navigate to the next tab",
+    shortcuts: ["alt+tab", "ctrl+tab"],
+  },
+  "view.navigate.closeTab": {
+    icon: "fas fa-xmark",
+    title: "Close Tab",
+    text: "Close this tab",
+    shortcuts: ["mod+w", "ctrl+w"],
+  },
+  "view.navigate.closeOtherTabs": {
+    icon: "fas fa-xmark",
+    title: "Close Other Tabs",
+    text: "Close all other tabs",
+  },
+  "view.navigate.focusPreviousFrame": {
+    icon: "fas fa-chevrons-left",
+    title: "Focus Previous Frame",
+    text: "Navigate to the previous frame",
+    shortcuts: ["ctrl+mod+shift+space"],
+  },
+  "view.navigate.focusNextFrame": {
+    icon: "fas fa-chevrons-right",
+    title: "Focus Next Frame",
+    text: "Navigate to the next frame",
+    shortcuts: ["shift+mod+space"],
+  },
+  "view.navigate.closeFrame": {
+    icon: "fas fa-xmark",
+    title: "Close Frame",
+    text: "Close this frame",
+    shortcuts: ["mod+shift+w"],
+  },
+  "view.navigate.focusPreviousSplit": {
+    icon: "fas fa-chevron-up",
+    title: "Focus Previous Split",
+    text: "Navigate to the previous split",
+    shortcuts: ["ctrl+shift+up", "ctrl+shift+left"],
+  },
+  "view.navigate.focusNextSplit": {
+    icon: "fas fa-chevron-down",
+    title: "Focus Next Split",
+    text: "Navigate to the next split",
+    shortcuts: ["ctrl+shift+down", "ctrl+shift+right"],
+  },
+  "view.navigate.closeSplit": {
+    icon: "fas fa-xmark",
+    title: "Close Split",
+    text: "Close this split",
+  },
+  // layout
+  "view.layout.splitUp": {
+    icon: "fas fa-reflect-vertical",
+    title: "Split Up",
+    text: "Split this view vertically (new split above)",
+  },
+  "view.layout.splitDown": {
+    icon: "fas fa-reflect-vertical",
+    title: "Split Down",
+    text: "Split this view vertically (new split below)",
+  },
+  "view.layout.splitLeft": {
+    icon: "fas fa-reflect-horizontal",
+    title: "Split Left",
+    text: "Split this view horizontally (new split left)",
+  },
+  "view.layout.splitRight": {
+    icon: "fas fa-reflect-horizontal",
+    title: "Split Right",
+    text: "Split this view horizontally (new split right)",
+  },
+  "view.layout.pinSplit": {
+    type: "toggle",
+    icon: "fas fa-thumbtack",
+    title: "Pin Split",
+    text: "Pin this split to an absolute size",
+  },
+  "view.space.resetDefault": {
+    title: "Restore Default Space",
+    text: "Reset the space to the default layout",
+    icon: "fas fa-galaxy",
+    action: () => {
+      if (pkg.value == null || space.value == null) return;
+      const tx = canvas.tx();
+      clearSpace(tx, canvas.graph, space.value);
+      createDesktopDefaultSpace(tx, space.value);
+    },
+  },
+});

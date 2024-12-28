@@ -2,7 +2,7 @@
 import { blockToType } from "@/language/block";
 import { toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField } from "@/language/field";
-import { useNodeListActions } from "@/language/list";
+import { useNodeListActions } from "@/ui/list";
 import { moveNode, onNodeMorphed } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
 import { BlockType, FieldType, NodeType, Orientation, ViewData, type FieldData } from "@/proto/wire";

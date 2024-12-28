@@ -1,5 +1,6 @@
 import { defaultSortStruct } from "@/language/order";
 import { ObjectType, type CodeData, type CodeLineData } from "@/proto/wire";
+import { declareActions } from "@/ui/action";
 import { Text as PmText } from "@codemirror/state";
 
 export function mapCodeToCmDoc(code: CodeData): string {
@@ -38,3 +39,24 @@ export function estimateCodeHeight(code: CodeData, width?: number): number {
   }
   return height;
 }
+
+//
+// Actions
+//
+
+// code
+declareActions<"code">({
+  // edit
+  "code.edit.format": {
+    icon: "fas fa-code",
+    title: "Format",
+    text: "Reformat the code",
+    shortcuts: ["mod+alt+l"],
+  },
+  "code.edit.comment": {
+    icon: "fas fa-code",
+    title: "Comment",
+    text: "Comment/uncomment these lines",
+    shortcuts: ["ctrl+t"],
+  },
+});

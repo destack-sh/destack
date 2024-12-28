@@ -20,7 +20,7 @@ import {
   wrapProtoOneOf,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { ACTION_COMING_SOON, contributeActionMap } from "@/ui/action";
+import { ACTION_COMING_SOON, provideActions } from "@/ui/action";
 import local, { persistentInfo } from "@/system/client";
 import { clearConnections, useGetConnection } from "@/system/connection";
 import { makeNode } from "@/language/node";
@@ -187,7 +187,7 @@ function userWizardView(view: { title: string; stage: UserWizardViewStage }): Vi
   };
 }
 
-contributeActionMap<"user">({
+provideActions<"user">({
   "user.security.signup": {
     icon: "fas fa-right-from-bracket",
     title: "Sign Up",

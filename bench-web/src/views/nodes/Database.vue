@@ -3,7 +3,7 @@ import { blockToType } from "@/language/block";
 import { getPropertyName, getPropertyTitle, TYPE_BLOCK_TYPES } from "@/language/const";
 import { makeAndConditional, makeExpression } from "@/language/expression";
 import { createField, getPropertyType, getStorageKey, makeTypeInfo, NAME_TYPE, TypeIdentity } from "@/language/field";
-import { useNodeListActions } from "@/language/list";
+import { useNodeListActions } from "@/ui/list";
 import { moveNode } from "@/language/node";
 import {
   DebounceLevel,
@@ -79,6 +79,7 @@ import NativeInput from "@/views/content/NativeInput.vue";
 import { getViewComponent } from "@/views/registry";
 import { MaybeElement, useElementSize, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
+import { useNodeTableActions } from "@/ui/table";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -535,7 +536,7 @@ const actions: Partial<ActionMapImplementation<"space" | "table" | "list">> = {
   "space.edit.rename": () => {
     nameRef.value?.focusIdentifier();
   },
-  ...useNodeListActions({
+  ...useNodeTableActions({
     nodeType: NodeType.RECORD,
     self: state.baseViewRef,
     graph: graph,

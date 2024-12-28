@@ -28,6 +28,7 @@ import {
 } from "@/proto/wire";
 import { describeNode, isNode, makeStruct, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, supergraph } from "@/system/globals";
+import { declareActions } from "@/ui/action";
 import { isDragAllowed } from "@/ui/drag";
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
@@ -1410,3 +1411,21 @@ export function pathToSvg(path: PipePath): string {
     return `M ${path.start.x} ${path.start.y} C ${path.control1.x} ${path.control1.y}, ${path.control2.x} ${path.control2.y}, ${path.end.x} ${path.end.y}`;
   }
 }
+
+//
+// Actions
+//
+
+// flow
+declareActions<"flow">({
+  "flow.edit.createAction": {
+    icon: "fas fa-action-forward",
+    title: "Create Action",
+    text: "Create a new action",
+  },
+  "flow.edit.splitPipe": {
+    icon: "fas fa-scissors",
+    title: "Split Pipe",
+    text: "Split this pipe",
+  },
+});

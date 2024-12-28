@@ -338,6 +338,16 @@ class Resource[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContext, 
         else:
             return ResourceStatus.UP
 
+    def provision(self) -> None:
+        """Provision this Resource."""
+        assert not self.status.is_extant, f"{self!r} already exists"
+        self.activated_at = self.active_session._oracle.utc()
+
+    def decommission(self) -> None:
+        """Decommission this Resource."""
+        assert self.status.is_extant, f"{self!r} does not exist"
+        self.decommissioned_at = self.active_session._oracle.utc()
+
     async def wait_until_status(self, status: ResourceStatus):
         """Wait until this Resource reaches the given status."""
         await self.wait_until(lambda r: r.status == status)
