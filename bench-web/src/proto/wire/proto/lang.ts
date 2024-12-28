@@ -3930,6 +3930,10 @@ export interface BrowserData {
      */
     ownedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 38;
+     */
+    scalerPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 40;
      */
     activatedAt?: Timestamp;
@@ -4155,6 +4159,10 @@ export interface FileData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owned_by_ptr = 37;
      */
     ownedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 38;
+     */
+    scalerPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 40;
      */
@@ -4837,6 +4845,10 @@ export interface MachineData {
      */
     ownedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 38;
+     */
+    scalerPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 40;
      */
     activatedAt?: Timestamp;
@@ -5497,9 +5509,9 @@ export interface ScalerData {
      */
     subnodePacked?: JsonValue;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeType type = 30;
+     * @generated from protobuf field: symbolx.bench.ScalerType type = 30;
      */
-    type: NodeType;
+    type: ScalerType;
     /**
      * @generated from protobuf field: string name = 32;
      */
@@ -5659,6 +5671,10 @@ export interface SecretData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owned_by_ptr = 37;
      */
     ownedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 38;
+     */
+    scalerPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 40;
      */
@@ -5994,6 +6010,10 @@ export interface StreamData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owned_by_ptr = 37;
      */
     ownedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 38;
+     */
+    scalerPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 40;
      */
@@ -22517,6 +22537,7 @@ class BrowserData$Type extends MessageType$<BrowserData> {
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "occupancy", kind: "enum", T: () => ["symbolx.bench.ResourceOccupancy", ResourceOccupancy, "RESOURCE_OCCUPANCY_"] },
             { no: 37, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 38, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "activated_at", kind: "message", T: () => Timestamp },
             { no: 41, name: "deactivated_at", kind: "message", T: () => Timestamp },
             { no: 42, name: "reset_at", kind: "message", T: () => Timestamp },
@@ -22616,6 +22637,9 @@ class BrowserData$Type extends MessageType$<BrowserData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData owned_by_ptr */ 37:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 38:
+                    message.scalerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scalerPtr);
                     break;
                 case /* optional google.protobuf.Timestamp activated_at */ 40:
                     message.activatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activatedAt);
@@ -22740,6 +22764,9 @@ class BrowserData$Type extends MessageType$<BrowserData> {
         /* optional symbolx.bench.NodeReferenceData owned_by_ptr = 37; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 38; */
+        if (message.scalerPtr)
+            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp activated_at = 40; */
         if (message.activatedAt)
             Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -22995,6 +23022,7 @@ class FileData$Type extends MessageType$<FileData> {
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "occupancy", kind: "enum", T: () => ["symbolx.bench.ResourceOccupancy", ResourceOccupancy, "RESOURCE_OCCUPANCY_"] },
             { no: 37, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 38, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "activated_at", kind: "message", T: () => Timestamp },
             { no: 41, name: "deactivated_at", kind: "message", T: () => Timestamp },
             { no: 42, name: "reset_at", kind: "message", T: () => Timestamp },
@@ -23099,6 +23127,9 @@ class FileData$Type extends MessageType$<FileData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData owned_by_ptr */ 37:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 38:
+                    message.scalerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scalerPtr);
                     break;
                 case /* optional google.protobuf.Timestamp activated_at */ 40:
                     message.activatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activatedAt);
@@ -23241,6 +23272,9 @@ class FileData$Type extends MessageType$<FileData> {
         /* optional symbolx.bench.NodeReferenceData owned_by_ptr = 37; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 38; */
+        if (message.scalerPtr)
+            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp activated_at = 40; */
         if (message.activatedAt)
             Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -24391,6 +24425,7 @@ class MachineData$Type extends MessageType$<MachineData> {
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "occupancy", kind: "enum", T: () => ["symbolx.bench.ResourceOccupancy", ResourceOccupancy, "RESOURCE_OCCUPANCY_"] },
             { no: 37, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 38, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "activated_at", kind: "message", T: () => Timestamp },
             { no: 41, name: "deactivated_at", kind: "message", T: () => Timestamp },
             { no: 42, name: "reset_at", kind: "message", T: () => Timestamp },
@@ -24489,6 +24524,9 @@ class MachineData$Type extends MessageType$<MachineData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData owned_by_ptr */ 37:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 38:
+                    message.scalerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scalerPtr);
                     break;
                 case /* optional google.protobuf.Timestamp activated_at */ 40:
                     message.activatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activatedAt);
@@ -24604,6 +24642,9 @@ class MachineData$Type extends MessageType$<MachineData> {
         /* optional symbolx.bench.NodeReferenceData owned_by_ptr = 37; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 38; */
+        if (message.scalerPtr)
+            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp activated_at = 40; */
         if (message.activatedAt)
             Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -26092,7 +26133,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ScalerType", ScalerType, "SCALER_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 34, name: "text", kind: "message", T: () => TextData },
@@ -26174,7 +26215,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* symbolx.bench.NodeType type */ 30:
+                case /* symbolx.bench.ScalerType type */ 30:
                     message.type = reader.int32();
                     break;
                 case /* string name */ 32:
@@ -26276,7 +26317,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeType type = 30; */
+        /* symbolx.bench.ScalerType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
         /* string name = 32; */
@@ -26412,6 +26453,7 @@ class SecretData$Type extends MessageType$<SecretData> {
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "occupancy", kind: "enum", T: () => ["symbolx.bench.ResourceOccupancy", ResourceOccupancy, "RESOURCE_OCCUPANCY_"] },
             { no: 37, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 38, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "activated_at", kind: "message", T: () => Timestamp },
             { no: 41, name: "deactivated_at", kind: "message", T: () => Timestamp },
             { no: 42, name: "reset_at", kind: "message", T: () => Timestamp },
@@ -26496,6 +26538,9 @@ class SecretData$Type extends MessageType$<SecretData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData owned_by_ptr */ 37:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 38:
+                    message.scalerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scalerPtr);
                     break;
                 case /* optional google.protobuf.Timestamp activated_at */ 40:
                     message.activatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activatedAt);
@@ -26590,6 +26635,9 @@ class SecretData$Type extends MessageType$<SecretData> {
         /* optional symbolx.bench.NodeReferenceData owned_by_ptr = 37; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 38; */
+        if (message.scalerPtr)
+            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp activated_at = 40; */
         if (message.activatedAt)
             Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -27115,6 +27163,7 @@ class StreamData$Type extends MessageType$<StreamData> {
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "occupancy", kind: "enum", T: () => ["symbolx.bench.ResourceOccupancy", ResourceOccupancy, "RESOURCE_OCCUPANCY_"] },
             { no: 37, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 38, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "activated_at", kind: "message", T: () => Timestamp },
             { no: 41, name: "deactivated_at", kind: "message", T: () => Timestamp },
             { no: 42, name: "reset_at", kind: "message", T: () => Timestamp },
@@ -27197,6 +27246,9 @@ class StreamData$Type extends MessageType$<StreamData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData owned_by_ptr */ 37:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 38:
+                    message.scalerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scalerPtr);
                     break;
                 case /* optional google.protobuf.Timestamp activated_at */ 40:
                     message.activatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activatedAt);
@@ -27285,6 +27337,9 @@ class StreamData$Type extends MessageType$<StreamData> {
         /* optional symbolx.bench.NodeReferenceData owned_by_ptr = 37; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 38; */
+        if (message.scalerPtr)
+            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp activated_at = 40; */
         if (message.activatedAt)
             Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -28239,9 +28294,9 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
 }
 
 export type ScalerSubtype = MachineScalerData | BrowserScalerData;
-export interface ScalerSubtypeMapping extends Record<NodeType, ScalerSubtype> {
-  [NodeType.MACHINE]: MachineScalerData,
-  [NodeType.BROWSER]: BrowserScalerData,
+export interface ScalerSubtypeMapping extends Record<ScalerType, ScalerSubtype> {
+  [ScalerType.MACHINE]: MachineScalerData,
+  [ScalerType.BROWSER]: BrowserScalerData,
 }
 
 export type BlockSubtype = VariableBlockData | TextBlockData | FlowBlockData | DatabaseBlockData | QueryBlockData;
@@ -28752,6 +28807,7 @@ export enum MachineProperty {
   region = 35,
   occupancy = 36,
   ownedByPtr = 37,
+  scalerPtr = 38,
   activatedAt = 40,
   deactivatedAt = 41,
   resetAt = 42,
@@ -28789,6 +28845,7 @@ export enum BrowserProperty {
   region = 35,
   occupancy = 36,
   ownedByPtr = 37,
+  scalerPtr = 38,
   activatedAt = 40,
   deactivatedAt = 41,
   resetAt = 42,
@@ -28828,6 +28885,7 @@ export enum FileProperty {
   region = 35,
   occupancy = 36,
   ownedByPtr = 37,
+  scalerPtr = 38,
   activatedAt = 40,
   deactivatedAt = 41,
   resetAt = 42,
@@ -28874,6 +28932,7 @@ export enum StreamProperty {
   region = 35,
   occupancy = 36,
   ownedByPtr = 37,
+  scalerPtr = 38,
   activatedAt = 40,
   deactivatedAt = 41,
   resetAt = 42,
@@ -28902,6 +28961,7 @@ export enum SecretProperty {
   region = 35,
   occupancy = 36,
   ownedByPtr = 37,
+  scalerPtr = 38,
   activatedAt = 40,
   deactivatedAt = 41,
   resetAt = 42,
@@ -30731,7 +30791,7 @@ export const ScalerDataInfo: Record<ScalerProperty, PropertyInfo> = {
   [ScalerProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [ScalerProperty.type]: { id: 30, name: 'type', component: ObjectType.SCALER, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.type]: { id: 30, name: 'type', component: ObjectType.SCALER, enumType: EnumType.SCALER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.name]: { id: 32, name: 'name', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.status]: { id: 33, name: 'status', component: ObjectType.SCALER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.text]: { id: 34, name: 'text', component: ObjectType.SCALER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -30742,7 +30802,7 @@ export const ScalerDataInfo: Record<ScalerProperty, PropertyInfo> = {
   [ScalerProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ScalerProperty.strategy]: { id: 50, name: 'strategy', component: ObjectType.SCALER, enumType: EnumType.SCALER_STRATEGY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.strategy]: { id: 50, name: 'strategy', component: ObjectType.SCALER, enumType: EnumType.SCALER_STRATEGY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.targetCount]: { id: 51, name: 'target_count', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.minCount]: { id: 52, name: 'min_count', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, constraint: { minValue: 0, maxValue: 16, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.maxCount]: { id: 53, name: 'max_count', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 16, constraint: { minValue: 0, maxValue: 64, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -30774,8 +30834,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.28.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.28.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30801,14 +30861,15 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [MachineProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.MACHINE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.activatedAt]: { id: 40, name: 'activated_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.deactivatedAt]: { id: 41, name: 'deactivated_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.resetAt]: { id: 42, name: 'reset_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.28.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.28.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.28.3", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30837,6 +30898,7 @@ export const BrowserDataInfo: Record<BrowserProperty, PropertyInfo> = {
   [BrowserProperty.region]: { id: 35, name: 'region', component: ObjectType.BROWSER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.BROWSER, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [BrowserProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [BrowserProperty.activatedAt]: { id: 40, name: 'activated_at', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.deactivatedAt]: { id: 41, name: 'deactivated_at', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.resetAt]: { id: 42, name: 'reset_at', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -30875,6 +30937,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.region]: { id: 35, name: 'region', component: ObjectType.FILE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.FILE, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [FileProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.activatedAt]: { id: 40, name: 'activated_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.deactivatedAt]: { id: 41, name: 'deactivated_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.resetAt]: { id: 42, name: 'reset_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -30920,6 +30983,7 @@ export const StreamDataInfo: Record<StreamProperty, PropertyInfo> = {
   [StreamProperty.region]: { id: 35, name: 'region', component: ObjectType.STREAM, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.STREAM, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [StreamProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [StreamProperty.activatedAt]: { id: 40, name: 'activated_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.deactivatedAt]: { id: 41, name: 'deactivated_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.resetAt]: { id: 42, name: 'reset_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -30947,6 +31011,7 @@ export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.region]: { id: 35, name: 'region', component: ObjectType.SECRET, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.SECRET, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.SECRET, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [SecretProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.SECRET, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [SecretProperty.activatedAt]: { id: 40, name: 'activated_at', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.deactivatedAt]: { id: 41, name: 'deactivated_at', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.resetAt]: { id: 42, name: 'reset_at', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },

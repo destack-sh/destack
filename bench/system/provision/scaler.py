@@ -1,0 +1,156 @@
+import abc
+import asyncio
+from typing import Any, Sequence, cast, final, override
+
+import structlog
+from opentelemetry import trace
+
+from bench.language.bench import Bench, DynamicResource, Resource, ResourceStatus
+from bench.language.browser import Browser
+from bench.language.const import NodeType
+from bench.language.machine import Machine
+from bench.language.registry import NODE_CLASS_BY_TYPE
+from bench.language.scaler import Scaler, ScalerType
+from bench.system.host.core import Commit, Host
+from bench.system.provision.provisioner import Provisioner
+from bench.utils.func import bittuple, group_by
+from bench.utils.naming import generate_random_name
+
+# pyright: reportIncompatibleVariableOverride=false
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
+
+
+class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], abc.ABC):
+    """A Provisioner that scales a dynamic Resource for all the Scalers of its type."""
+
+    provision_type = NodeType.SCALER
+    provision_subtype: ScalerType
+    scale_type: NodeType
+
+    def __init__(self, host: Host, bench: Bench):
+        super().__init__(host, bench)
+        self._scalers_to_reconcile: set[Scaler] = set()
+        self._reconcile_event: asyncio.Event = asyncio.Event()
+        resource_cls = NODE_CLASS_BY_TYPE[self.scale_type]
+        assert issubclass(resource_cls, Resource), f"bad scaler type {self!r}"
+        self._resource_cls: type[Resource] = resource_cls
+
+    @property
+    def slug(self) -> str:
+        return self.provision_subtype.bench_name.lower()
+
+    @final
+    @tracer.start_as_current_span("scaler.reconcile")
+    async def _do_reconcile(self, scalers: tuple[Scaler, ...]) -> None:
+        """Reconcile the Scalers and the Resources they scale."""
+
+        # get scalers
+        scalers = tuple(self._scalers_to_reconcile)  # nocheckin look at all scalers?
+        scalers_by_id = {s.id: s for s in scalers}
+        self._scalers_to_reconcile.clear()
+        self._reconcile_event.clear()
+
+        # get resources
+        resources_query = self._resource_cls.where(
+            self._resource_cls.get_property("bench").eq(self.bench)
+            & self._resource_cls.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
+            & self._resource_cls.get_property("scaler").exists()
+        ).select_all()
+        resources = cast(list[WT], await resources_query.tolist())
+        resources_by_scalar = group_by(resources, lambda r: r.scaler_id)
+
+        if not scalers and not resources:
+            return  # nothing to do
+
+        # reconcile
+        async with self.host.session(commit=True):
+            for scaler_id, resource_group in resources_by_scalar.items():
+                scaler = scalers_by_id.get(scaler_id) if scaler_id is not None else None
+                if scaler is None or not scaler.is_extant:
+                    # decommission
+                    for resource in resource_group:
+                        resource.decommission()
+                elif scaler.is_active:
+                    # rebalance resource group
+                    self._rebalance(scaler, resource_group)
+
+    def _rebalance(self, scaler: Scaler, resource_group: Sequence[WT]) -> None:
+        """Rebalance a Scaler's (dynamic) Resource group."""
+        if len(resource_group) > scaler.target_count:
+            # decommission excess resources
+            for resource in resource_group[scaler.target_count :]:
+                resource.decommission()
+        elif len(resource_group) < scaler.target_count:
+            # provision missing resources
+            for _ in range(scaler.target_count - len(resource_group)):
+                resource_kwargs: dict[str, Any] = {}
+                if "title" in self._resource_cls.__properties__:  # title it
+                    resource_kwargs["title"] = generate_random_name()
+                resource = self._resource_cls(**resource_kwargs)
+                self.bench.append(resource)
+
+    @final
+    async def _reconcile_forever(self):
+        while True:
+            await self._reconcile_event.wait()
+            scalers = tuple(self._scalers_to_reconcile)
+            self._scalers_to_reconcile.clear()
+            self._reconcile_event.clear()
+            await self._do_reconcile(scalers)
+
+    @override
+    async def _do_start(self) -> None:
+        self.tasks.run(self._reconcile_forever(), task_id=f"{self.slug}.reconcile")
+
+    @final
+    @tracer.start_as_current_span("scaler.on_commit_deferred")
+    async def on_commit_deferred(self, commit: Commit[Scaler | WT]) -> None:
+        trace.get_current_span().set_attribute("plugin", self.name)
+        commit = commit.trim_to(
+            lambda r: r.metatype != self.provision_type or self._filter_resource(cast(Scaler, r))
+        )
+        if commit.is_empty:
+            return
+
+        # add scalers to reconcile
+        for node in commit.edited:
+            if node.metatype == self.provision_type:
+                self._scalers_to_reconcile.add(cast(Scaler, node))
+                self._reconcile_event.set()
+            else:
+                scaler = getattr(node, "scaler", None)
+                if isinstance(scaler, Scaler) and scaler.type == self.provision_subtype:
+                    self._scalers_to_reconcile.add(scaler)
+                    self._reconcile_event.set()
+
+    @override
+    async def _do_provision(self, resource: Scaler):
+        self._scalers_to_reconcile.add(resource)
+        self._reconcile_event.set()
+        async with self.host.session(commit=True):
+            resource.status = ResourceStatus.UP  # Scalar is automatically considered up?
+
+    @override
+    async def _do_update(self, resource: Scaler):
+        self._scalers_to_reconcile.add(resource)
+        self._reconcile_event.set()
+
+    @override
+    async def _do_decommission(self, resource: Scaler):
+        self._scalers_to_reconcile.add(resource)
+        self._reconcile_event.set()
+        # can't decommission Scaler?
+
+
+class MachineScalerProvisioner(ScalerProvisioner[Machine]):
+    watch_types = bittuple(NodeType.SCALER, NodeType.MACHINE)
+    provision_subtype = ScalerType.MACHINE
+    scale_type = NodeType.MACHINE
+
+
+class BrowserScalerProvisioner(ScalerProvisioner[Browser]):
+    watch_types = bittuple(NodeType.SCALER, NodeType.BROWSER)
+    provision_subtype = ScalerType.BROWSER
+    scale_type = NodeType.BROWSER

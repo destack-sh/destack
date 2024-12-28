@@ -34,7 +34,7 @@ class StoreProvisioner(Provisioner[Store, Store]):
     """Base for provisioning Stores."""
 
     watch_types = bittuple(NodeType.STORE)
-    resource_type = NodeType.STORE
+    provision_type = NodeType.STORE
 
     async def _do_migrate(self, resource: Store):
         """Migrate the store to its indicated 'version'."""

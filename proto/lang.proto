@@ -2868,6 +2868,7 @@ message BrowserData {
   Region region = 35;
   ResourceOccupancy occupancy = 36;
   optional NodeReferenceData owned_by_ptr = 37;
+  optional NodeReferenceData scaler_ptr = 38;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;
@@ -2928,6 +2929,7 @@ message FileData {
   Region region = 35;
   ResourceOccupancy occupancy = 36;
   optional NodeReferenceData owned_by_ptr = 37;
+  optional NodeReferenceData scaler_ptr = 38;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;
@@ -3110,6 +3112,7 @@ message MachineData {
   Region region = 35;
   ResourceOccupancy occupancy = 36;
   optional NodeReferenceData owned_by_ptr = 37;
+  optional NodeReferenceData scaler_ptr = 38;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;
@@ -3309,7 +3312,7 @@ message ScalerData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
-  NodeType type = 30;
+  ScalerType type = 30;
   string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
@@ -3356,6 +3359,7 @@ message SecretData {
   Region region = 35;
   ResourceOccupancy occupancy = 36;
   optional NodeReferenceData owned_by_ptr = 37;
+  optional NodeReferenceData scaler_ptr = 38;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;
@@ -3445,6 +3449,7 @@ message StreamData {
   Region region = 35;
   ResourceOccupancy occupancy = 36;
   optional NodeReferenceData owned_by_ptr = 37;
+  optional NodeReferenceData scaler_ptr = 38;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;

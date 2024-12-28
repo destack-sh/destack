@@ -1,63 +1,33 @@
-import enum
-from typing import assert_never
-
 from bench.language.bench import Bench
 from bench.system.host.core import Host
 from bench.system.provision.browser import BrowserbaseBrowserProvisioner
 from bench.system.provision.provisioner import Provisioner
 from bench.utils.env import ENV, Env
-from bench.utils.utils import get_from_env_maybe
 
 
-class MachineProvisionerType(enum.StrEnum):
-    LOCALHOST = "localhost"
-    DOCKER = "docker"
-    KUBERNETES = "kubernetes"
-
-
-MACHINE_PROVISIONER_TYPE = get_from_env_maybe(
-    "MACHINE_PROVISIONER_TYPE",
-    typ=MachineProvisionerType,
-    description="The machine provisioner to use (during development)",
-)
-
-
-def get_provisioners_for(host: Host, bench: Bench) -> list[Provisioner]:
+def get_provisioners(host: Host, bench: Bench) -> list[Provisioner]:
     """Gets all available provisioners for that Bench in *this* environment"""
     from bench.system.provision.browser import LocalhostBrowserProvisioner
     from bench.system.provision.machine import (
-        DockerMachineProvisioner,
         KubernetesMachineProvisioner,
         LocalhostMachineProvisioner,
     )
+    from bench.system.provision.scaler import BrowserScalerProvisioner, MachineScalerProvisioner
     from bench.system.provision.store import LocalhostStoreProvisioner, NeonStoreProvisioner
 
-    provisioners: list[type[Provisioner]] = []
-    if ENV == Env.TEST:
+    provisioners: list[type[Provisioner]]
+    if ENV == Env.TEST or ENV == Env.DEV:
         provisioners = [
+            BrowserScalerProvisioner,
+            MachineScalerProvisioner,
             LocalhostStoreProvisioner,
             LocalhostMachineProvisioner,
             LocalhostBrowserProvisioner,
         ]
-    elif ENV == Env.DEV:
-        # dynamic machine provisioner
-        assert MACHINE_PROVISIONER_TYPE is not None, "MACHINE_PROVISIONER_TYPE not set"
-        if MACHINE_PROVISIONER_TYPE == MachineProvisionerType.LOCALHOST:
-            machine_provisioner = LocalhostMachineProvisioner
-        elif MACHINE_PROVISIONER_TYPE == MachineProvisionerType.DOCKER:
-            machine_provisioner = DockerMachineProvisioner
-        elif MACHINE_PROVISIONER_TYPE == MachineProvisionerType.KUBERNETES:
-            machine_provisioner = KubernetesMachineProvisioner
-        else:
-            assert_never(MACHINE_PROVISIONER_TYPE)
-
-        provisioners = [
-            LocalhostStoreProvisioner,
-            machine_provisioner,
-            LocalhostBrowserProvisioner,
-        ]
     elif ENV == Env.STAGE or ENV == Env.PROD:
         provisioners = [
+            BrowserScalerProvisioner,
+            MachineScalerProvisioner,
             NeonStoreProvisioner,
             KubernetesMachineProvisioner,
             BrowserbaseBrowserProvisioner,

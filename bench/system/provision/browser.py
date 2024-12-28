@@ -12,7 +12,7 @@ class BrowserbaseBrowserProvisioner(Provisioner[Browser, Browser]):
     """Provision Browsers on localhost."""
 
     watch_types = bittuple(NodeType.BROWSER)
-    resource_type = NodeType.BROWSER
+    provision_type = NodeType.BROWSER
 
     @override
     async def _do_provision(self, resource: Browser):
@@ -27,16 +27,16 @@ class LocalhostBrowserProvisioner(Provisioner[Browser, Browser]):
     """Provision Browsers on localhost."""
 
     watch_types = bittuple(NodeType.BROWSER)
-    resource_type = NodeType.BROWSER
+    provision_type = NodeType.BROWSER
 
     @override
     async def _do_provision(self, resource: Browser):
         async with self.host.session(commit=True):
-            await playwright_api.provision_local(resource)
+            await playwright_api.provision_local_browser(resource)
             resource.status = ResourceStatus.UP
 
     @override
     async def _do_decommission(self, resource: Browser):
         async with self.host.session(commit=True):
-            await playwright_api.decommission_local(resource)
+            await playwright_api.decommission_local_browser(resource)
             resource.status = ResourceStatus.DECOMMISSIONED
