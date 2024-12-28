@@ -137,14 +137,14 @@ def test_partial_node_message(session: Session, package: Package) -> None:
 
 def test_partial_node_block(session: Session, package: Package) -> None:
     """Create, update, pack/unpack a partial Block node with subtypes."""
-    typ = TypeInfo(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.BLOCK)
+    typ = TypeInfo(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.ACTION)
     obj = Action.partial(type=ActionType.DUPLICATE, name="Action1")
 
     # should be init to set/empty/default values for ActionBlock
     assert obj.type == ActionType.DUPLICATE
     assert obj.name == "Action1"
     assert obj.node is None
-    assert obj.is_shallow is None
+    assert obj.is_shallow is False
 
     # set/get values on properties and subnode properties
     obj.is_shallow = True

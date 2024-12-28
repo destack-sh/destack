@@ -613,6 +613,9 @@ class FieldRenderer(BuiltinObjectRenderer[Field]):
         # kind=literal is implicit if option
         if obj.type == FieldType.OPTION:
             kwargs.pop("kind")
+        # is_required=True is implicit if variable
+        if obj.type == FieldType.VARIABLE and obj.is_required is True:
+            kwargs.pop("is_required", None)
         return kwargs
 
     @override

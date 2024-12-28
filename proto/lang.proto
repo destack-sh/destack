@@ -826,8 +826,7 @@ enum MachineType {
 
 enum BrowserType {
   BROWSER_TYPE_UNSPECIFIED = 0;
-  BROWSER_TYPE_REMOTE = 1;
-  BROWSER_TYPE_LOCAL = 90;
+  BROWSER_TYPE_CHROMIUM = 1;
 }
 
 enum StoreType {

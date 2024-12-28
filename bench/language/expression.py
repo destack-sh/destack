@@ -497,7 +497,8 @@ def _get_node_prop_expression_value(node: Node | AnyNodeData, prop: Property) ->
             value = None
         else:
             value = getattr(node, prop.name)
-    return _lower_expression_value(prop.type_info, value)
+    value = _lower_expression_value(prop.type_info, value)
+    return value
 
 
 NODE_PROPERTY_KEY_BY_FIELD_TYPE: dict[FieldType, str] = {

@@ -241,7 +241,7 @@ async def test_clone_consistency(hosted_runtime: RuntimeHandle):
     page_clone = hosted_runtime.page().clone()
     choice_clone = page_clone.blocks.get("Letter")
     assert choice_clone is not None
-    action_clone = page_clone.blocks.get("Action")
+    action_clone = page_clone.actions.get("Action")
     assert action_clone is not None
     assert action_clone.fields.Choice.base_type == choice_clone
     await hosted_runtime.commit()

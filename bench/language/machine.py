@@ -45,5 +45,9 @@ class Machine(DynamicResource[MachineData]):
         55, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
     )
 
-    cpu: float = p_system(60, description="vCPU count", default=1, constraint=CPU_CONSTRAINT)
-    ram: float = p_system(61, description="GB", default=1, constraint=RAM_CONSTRAINT)
+    cpu: float = p_system(
+        60, description="vCPU count", default=1.0, default_sql=None, constraint=CPU_CONSTRAINT
+    )
+    ram: float = p_system(
+        61, description="GB", default=1.0, default_sql=None, constraint=RAM_CONSTRAINT
+    )

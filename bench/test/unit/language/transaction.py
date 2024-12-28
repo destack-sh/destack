@@ -49,8 +49,8 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     assert get_last_operation().path == [Block.get_property("roles").key]
 
     # nested scalar struct set
-    Action1.position = Vector2(x=3, y=4)
-    Action1.position.x = 4
+    Action1.position = Vector2(x=3.0, y=4.0)
+    Action1.position.x = 4.0
     assert get_last_operation().type == EditOperationType.SET
     assert get_last_operation().path == [
         Action.get_property("position").key,
@@ -58,7 +58,7 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     ]
 
     # nested scalar struct clear
-    Action1.position.x = 5
+    Action1.position.x = 5.0
     assert get_last_operation().type == EditOperationType.SET
     assert get_last_operation().path == [
         Action.get_property("position").key,
@@ -71,7 +71,7 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     assert get_last_operation().path == [
         Node.get_property("subnode_packed").key,
         str(ActionType.DUPLICATE),
-        Action.get_property("is_shallow").key,
+        DuplicateAction.get_property("is_shallow").key,
     ]
 
     # subtype clear (indirect via computed property)
@@ -80,7 +80,7 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     assert get_last_operation().path == [
         Node.get_property("subnode_packed").key,
         str(ActionType.DUPLICATE),
-        Action.get_property("is_shallow").key,
+        DuplicateAction.get_property("is_shallow").key,
     ]
 
     # commit

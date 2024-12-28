@@ -449,6 +449,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
         _oracle=REAL_ORACLE,
         _host=host,
         _origin=client.to_origin(nonce=None)._to_data(),
+        _subject=machine,
     )
     session._track(hosted_bench)
     runner = Runtime(session=session, cache=MemoryCache(hosted_bench), oracle=REAL_ORACLE)
