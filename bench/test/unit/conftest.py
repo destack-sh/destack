@@ -362,7 +362,7 @@ async def hosted_bench(global_store: Store, regional_store: Store):
         machine = Machine(
             type=MachineType.RUNTIME,
             parent=server,
-            title="Machine1",
+            title="Runtime1",
             cpu=0.5,
             ram=0.5,
             client=server_client,

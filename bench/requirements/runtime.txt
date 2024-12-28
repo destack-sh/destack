@@ -501,7 +501,7 @@ tqdm==4.67.0
     #   magika
     #   nltk
     #   openai
-typer==0.13.0
+typer==0.15.1
     # via -r bench/requirements/base.in
 typing-extensions==4.12.2
     # via

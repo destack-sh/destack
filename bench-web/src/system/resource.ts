@@ -35,28 +35,22 @@ function applyResourceAction(
 
 // resource
 export const RESOURCE_ACTIONS = provideActions<"resource">({
-  "resource.status.provision": {
+  "resource.status.activate": {
     icon: "fas fa-power-off",
     title: "Provision",
     text: "Provision this Resource",
     action: (action, context) => applyResourceAction(action, context, activateResource),
   },
+	"resource.status.suspend": {
+    icon: "fas fa-snooze",
+    title: "Suspend",
+    text: "Suspend this Resource",
+    action: (action, context) => applyResourceAction(action, context, suspendResource),
+	},
   "resource.status.decommission": {
     icon: "fas fa-skull",
     title: "Decommission",
     text: "Decommission this Resource",
     action: (action, context) => applyResourceAction(action, context, decommissionResource),
-  },
-  "resource.status.wake": {
-    icon: "fas fa-sun",
-    title: "Wake",
-    text: "Wake this Resource",
-    action: (action, context) => applyResourceAction(action, context, activateResource),
-  },
-  "resource.status.sleep": {
-    icon: "fas fa-snooze",
-    title: "Sleep",
-    text: "Sleep this Resource",
-    action: (action, context) => applyResourceAction(action, context, suspendResource),
   },
 });

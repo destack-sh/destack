@@ -1,7 +1,7 @@
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Annotated, Optional
 
 import structlog
 import typer
@@ -9,7 +9,7 @@ from more_itertools import first
 from rich import print
 from rich.console import Console
 
-from bench.cli.utils import async_to_sync_blocking
+from bench.cli.utils import async_to_sync_blocking, parse_region
 from bench.language import Bench, Store
 from bench.language.const import REGION, VERSION, NodeArea, NodeType, Region
 from bench.sql.client import pg_connection
@@ -52,6 +52,7 @@ BENCH_QUERY = Bench.include_descendants(Store).select_all()
 @async_to_sync_blocking
 async def make(
     area: Optional[NodeArea] = None,
+    region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
     dry_run: bool = typer.Option(default=False, help="only print, don't store"),
@@ -61,7 +62,7 @@ async def make(
     start = time.time()
     global_store = global_store_from_env()
     global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-    regional_store = regional_store_from_env()
+    regional_store = regional_store_from_env(region)
     regional_pg_engine = pg_engine_from_store(
         f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
     )
@@ -180,7 +181,7 @@ async def apply(
         default=None, help="the migration to migrate to [default=latest]"
     ),
     region: Optional[Region] = typer.Option(  # noqa: B008
-        default=None, help="the region to migrate [default=current]"
+        default=REGION, help="the region to migrate [default=current]", parser=parse_region
     ),
     bench: Optional[str] = typer.Option(
         default=None, help="the local bench to migrate, global otherwise"
@@ -228,7 +229,9 @@ async def apply(
 @app.command()
 @async_to_sync_blocking
 async def introspect(
-    area: Optional[NodeArea] = None, region: Optional[Region] = None, bench: Optional[str] = None
+    area: Optional[NodeArea] = None,
+    region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
+    bench: Optional[str] = None,
 ):  # type: ignore
     """Introspect the current schema of the Postgres instance."""
 

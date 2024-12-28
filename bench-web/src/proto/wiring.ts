@@ -62,6 +62,7 @@ export function describeNode(node: {
   if ("updatedEpoch" in node) nodeParts.push(`updatedEpoch=${node.updatedEpoch}`);
   if (node.name) nodeParts.push(`name='${node.name}'`);
   if (node.slug) nodeParts.push(`slug=${node.slug}`);
+  if (node.title) nodeParts.push(`title='${node.title}'`);
   if (!isNodeRef(node) && nodeType != null && node.type != null) {
     // coerce 'type' property into actual name
     const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[nodeType as unknown as ObjectType];
@@ -72,7 +73,6 @@ export function describeNode(node: {
       }
     }
   }
-  if (node.title) nodeParts.push(`title='${node.title}'`);
   if (node.parentPtr) nodeParts.push(`parent=${toCamelName(NodeType, node.parentPtr.nodeType)}:${node.parentPtr.id}`);
   if ("benchId" in node) nodeParts.push(`benchId=${node.benchId}`);
   if ("benchCk" in node) nodeParts.push(`benchId=${node.benchCk}`);
