@@ -111,22 +111,20 @@ async def make_local_machine(
         global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0
     ) as session:
         bench = (
-            await Bench.include_descendants(NodeType.SERVER, NodeType.MACHINE, NodeType.CLIENT)
+            await Bench.include_descendants(NodeType.MACHINE, NodeType.CLIENT)
             .select_all()
             .get(slug=bench_slug)
         )
-        assert len(bench.servers) == 1, f"{bench!r} has unexpected servers: {bench.servers!r}"
-        server = bench.servers[0]
         machines = await Machine.where(
-            Machine.get_property("parent").eq(server)
+            Machine.get_property("bench").eq(bench)
             & Machine.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
         ).tolist()
         machine = first(machines, None)
         if machine is None:
-            raise ValueError(f"{server!r} has no machines")
+            raise ValueError(f"{bench!r} has no machines")
         clients = (
             await Client.where(
-                Client.get_property("parent").eq(server)
+                Client.get_property("parent").eq(machine)
                 & Client.get_property("type").eq(ClientType.BENCH_MACHINE)
             )
             .select_all()
@@ -139,7 +137,6 @@ async def make_local_machine(
                 type=ClientType.BENCH_MACHINE,
                 title=title,
                 access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
-                server=server,
                 machine=machine,
                 seen_at=REAL_ORACLE.utc(),
             )
@@ -147,7 +144,6 @@ async def make_local_machine(
 
         client_env = {
             "BENCH_ID": str(bench.id),
-            "SERVER_ID": str(server.id),
             "MACHINE_ID": str(machine.id),
             "CLIENT_TYPE": str(int(client.type)),
             "CLIENT_ID": str(client.id),

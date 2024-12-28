@@ -5,7 +5,7 @@ import psycopg
 import structlog
 from opentelemetry import trace
 
-from bench.language.bench import Bench, Store
+from bench.language import Bench, Store
 from bench.language.connection import (
     AggregateConnection,
     AggregateResultData,

@@ -10,7 +10,7 @@ import structlog
 from kubernetes_asyncio import client as k8
 from opentelemetry import trace
 
-from bench.language import Bench, Machine, ResourceStatus, Server
+from bench.language import Bench, Machine, ResourceStatus
 from bench.language.const import CLOUD, NodeType
 from bench.proto.networking import dockerify_url, minikubeify_url
 from bench.system.host.core import Host
@@ -72,7 +72,6 @@ def _get_machine_env_vars(
         "SUPERVISOR_URL": supervisor_url,
         # bench
         "BENCH_ID": str(bench.id),
-        "SERVER_ID": str(machine.parent.id) if isinstance(machine.parent, Server) else None,
         "MACHINE_ID": str(machine.id),
         "CLIENT_ID": str(client.id),
         "CLIENT_TYPE": str(client.type.value),
@@ -146,8 +145,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
 
     @override
     async def _do_start(self) -> None:
-        servers = self.bench.servers.tolist()
-        machines = await Machine.where(Machine.get_property("parent").in_(servers)).tolist()
+        machines = await Machine.where(Machine.get_property("bench").eq(self.bench)).tolist()
         containers: list[docker.models.containers.Container] = self._docker_client.containers.list(
             all=True
         )
@@ -271,8 +269,6 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
             "cloud": CLOUD.slug,
             "region": machine.region.slug,
         }
-        if isinstance(machine.parent, Server):
-            labels["server_id"] = str(machine.parent.id)
         # TODO :Security!: kubernetes-deployed machines should not be trusted
         env_vars = _get_machine_env_vars(machine, is_trusted=True, is_in_minikube=IS_DEV or IS_TEST)
 
@@ -369,8 +365,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
 
     @override
     async def _do_start(self) -> None:
-        servers = self.bench.servers.tolist()
-        machines = await Machine.where(Machine.get_property("parent").in_(servers)).tolist()
+        machines = await Machine.where(Machine.get_property("bench").eq(self.bench)).tolist()
         machines_by_external_name: dict[str, Machine] = {
             m.external_name or self._get_external_name(m): m for m in machines
         }

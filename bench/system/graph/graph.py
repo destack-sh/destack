@@ -428,7 +428,6 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         if context is None:
             context = RuntimeContext(
                 client=subject.client,
-                server=subject.server,
                 user=subject.user,
                 _supergraph=subject._supergraph,
             )

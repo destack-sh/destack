@@ -75,11 +75,11 @@ export function isResourceNodeType(nodeType: NodeType): boolean {
   return nodeType >= 2000 && nodeType < 2200;
 }
 
-export function isVirtualResourceNodeType(nodeType: NodeType): boolean {
+export function isStaticResourceNodeType(nodeType: NodeType): boolean {
   return nodeType >= 2000 && nodeType < 2100;
 }
 
-export function isPhysicalResourceNodeType(nodeType: NodeType): boolean {
+export function isDynamicResourceNodeType(nodeType: NodeType): boolean {
   return nodeType >= 2100 && nodeType < 2200;
 }
 
@@ -101,7 +101,7 @@ export function isBenchNodeType(nodeType: NodeType): boolean {
 
 /** Whether the node type isn't loaded by default */
 export function isUnloadedNodeType(nodeType: NodeType): boolean {
-  return !isSourceNodeType(nodeType) && !isVirtualResourceNodeType(nodeType);
+  return !isSourceNodeType(nodeType) && !isStaticResourceNodeType(nodeType);
 }
 
 // node types :NodeTypes
@@ -118,7 +118,8 @@ export const STATE_NODE_TYPES = NODE_TYPES.filter(isStateNodeType);
 export const RUNTIME_NODE_TYPES = NODE_TYPES.filter(isRuntimeNodeType);
 export const TIMED_NODE_TYPES = [NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.MESSAGE];
 export const RESOURCE_NODE_TYPES = NODE_TYPES.filter(isResourceNodeType);
-export const VIRTUAL_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isVirtualResourceNodeType);
+export const STATIC_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isStaticResourceNodeType);
+export const DYNAMIC_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isDynamicResourceNodeType);
 export const LOCAL_NODE_TYPES = NODE_TYPES.filter(isLocalNodeType);
 
 // block types

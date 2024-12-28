@@ -20,7 +20,7 @@ class BrowserbaseBrowserProvisioner(Provisioner[Browser, Browser]):
 
     @override
     async def _do_provision(self, resource: Browser):
-        resource.type = BrowserType.REMOTE  # :SubtypeProvisioning
+        resource.type = BrowserType.CHROMIUM  # :SubtypeProvisioning
         raise NotImplementedError(f"nocheckin: provision {resource!r}")
 
     @override

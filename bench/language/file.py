@@ -21,7 +21,7 @@ import structlog
 from opentelemetry import trace
 from PIL import Image
 
-from bench.language.bench import Drive, PhysicalResource
+from bench.language.bench import DynamicResource
 from bench.language.const import (
     EnumType,
     NodeType,
@@ -60,7 +60,7 @@ from bench.utils.utils import get_from_env
 if TYPE_CHECKING:
     from magika import Magika
 
-    from bench.language import Session
+    from bench.language import Bench, Session
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -480,7 +480,7 @@ class FileBase(BuiltinObject):
     Base class for file info.
     """
 
-    # title overlaps with PhysicalResource.title
+    # title overlaps with DynamicResource.title
     title: str = p_regular(32, constraint=TITLE_CONSTRAINT)
 
     # content
@@ -779,12 +779,12 @@ class FileInfo(Struct[FileInfoData], FileBase):
 
 
 @node_(NodeType.FILE)
-class File(PhysicalResource[FileData], FileBase):
+class File(DynamicResource[FileData], FileBase):
     """
     A File stored somewhere (like in a Drive, or externally).
     """
 
-    parent: Union["Drive", None] = p_node_parent(4, NodeType.DRIVE, is_system=True)
+    parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH, is_system=True)
 
     # content/info
     # ...FileInfoBase[50-79]
@@ -994,7 +994,7 @@ async def upload(
     mime_type: str | None = None,
     type: FileType | None = None,
     format: FileFormat | str | None = None,
-    drive: "Drive | None" = None,
+    bench: "Bench | None" = None,
     session: "Session | None" = None,
 ) -> "File":
     """Uploads the given file to the given (or current) session."""
@@ -1004,15 +1004,14 @@ async def upload(
         file_in, title, mime_type=mime_type, type=type, format=format
     )
 
-    # drive
+    # bench
     if session is None:
         session = active_session()
-    if drive is None:
+    if bench is None:
         bench = session.bench
-        drive = bench.main_drive if bench is not None else None
-        if drive is None:
-            raise ValueError(f"no drive to upload file {title!r} to in {session!r}")
-    file.parent = drive
+        if bench is None:
+            raise ValueError(f"no Bench to upload file {title!r} to in {session!r}")
+    file.parent = bench
 
     # upload file, then create in session
     await upload_batch(files=[file], file_contents=[content], session=session)

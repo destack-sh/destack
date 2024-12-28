@@ -11,7 +11,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Bench, Drive, NodeReference, Package, Run, Server, Store, Subject
+from bench.language import Bench, NodeReference, Package, Run, Store, Subject
 from bench.language.access import Ownable
 from bench.language.block import Block
 from bench.language.builtin import make_builtins
@@ -23,7 +23,7 @@ from bench.language.const import (
     LOCAL_NODE_TYPES,
     REGIONAL_NODE_TYPES,
     SOURCE_NODE_TYPES,
-    VIRTUAL_RESOURCE_NODE_TYPES,
+    STATIC_RESOURCE_NODE_TYPES,
     ClientType,
     ConditionalType,
     EditType,
@@ -34,6 +34,7 @@ from bench.language.expression import C
 from bench.language.file import File, FileBase, FileKind
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.log import Log
+from bench.language.machine import Machine
 from bench.language.node import GraphScope, patch_graph, sync_node
 from bench.language.property import Property
 from bench.language.query import QueryBuilder
@@ -90,7 +91,7 @@ S3_PRESIGNED_URL_EXPIRY = get_from_env(
 )
 
 BENCH_QUERY = Bench.include_descendants(
-    NodeType.HANDLE, NodeType.PACKAGE, *VIRTUAL_RESOURCE_NODE_TYPES
+    NodeType.HANDLE, NodeType.PACKAGE, *STATIC_RESOURCE_NODE_TYPES
 ).select_all()
 PACKAGE_QUERY = (
     Package.include_ancestors(Bench)
@@ -229,7 +230,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         # get client
         is_staff = False
         user: User | None = None
-        server: Server | None = None
+        machine: Machine | None = None
         owned: list[Ownable] = []
         if metadata.client_id and metadata.client_access_token:
             if not metadata.client_type:
@@ -253,7 +254,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
                 is_staff = client.parent.is_staff
                 user = client.parent
             elif isinstance(client.parent, Bench):
-                server = client.server
+                machine = client.machine
                 owned = [self._bench]  # NOTE :Robustness: Machines own their Benches for now
             else:
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client parent")
@@ -271,7 +272,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             is_staff=is_staff,
             client=client,
             user=user,
-            server=server,
+            machine=machine,
             owned=owned,
             _supergraph=supergraph,
         )
@@ -672,19 +673,16 @@ class HostService(GraphIoServiceBase, Host, HostBase):
                     f"unexpected file: {file_data!r} (kind={file_data.kind}, sha256={file_data.sha256})",
                 )
             if file_data.parent_ptr.metatype != 0:
-                drive = self.bench._graph.get(UUID(file_data.parent_ptr.id))
-                if not isinstance(drive, Drive):
+                if file_data.parent_ptr.id != str(self.bench.id):
                     raise GRPCError(
                         GRPCStatus.INVALID_ARGUMENT,
-                        f"unexpected drive: {file_data.parent_ptr!r}->{drive!r}",
+                        f"unexpected parent: {file_data.parent_ptr!r}->{self.bench!r}",
                     )
             else:  # default to main drive
-                drive = self.bench.main_drive
-                assert drive, f"{self.bench!r} has no main drive"
-                file_data.parent_ptr.CopyFrom(drive._to_ref_data())
+                file_data.parent_ptr.CopyFrom(self.bench._to_ref_data())
 
             # presign post URL
-            file_key = get_file_key(drive, file_data.sha256, file_data.title)
+            file_key = get_file_key(self.bench, file_data.sha256, file_data.title)
             file_metadata: dict[str, str] = {"2": file_data.id}
             for prop in FileBase.__declared_properties__.values():
                 if prop.id is None or prop.id < 50:
@@ -702,7 +700,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
                 file_fields["Content-Type"] = file_data.mime_type
             file_fields["Content-Length"] = str(file_data.size)
             presigned_post: dict = s3_client.generate_presigned_post(
-                Bucket=get_drive_bucket(drive),
+                Bucket=get_drive_bucket(self.bench),
                 Key=file_key,
                 Fields=file_fields,
                 Conditions=[{k: v} for k, v in file_fields.items()],
@@ -712,7 +710,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             fields.update(presigned_post["fields"])
             get_url = s3_client.generate_presigned_url(
                 "get_object",
-                Params={"Bucket": get_drive_bucket(drive), "Key": file_key},
+                Params={"Bucket": get_drive_bucket(self.bench), "Key": file_key},
                 ExpiresIn=S3_PRESIGNED_URL_EXPIRY,
             )
             handle = UploadFilesResponse.UploadHandle(
@@ -743,10 +741,8 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         for file in files:
             if file.kind not in (FileKind.DRIVE, FileKind.DRIVE_INLINE) or not file.sha256:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"unexpected file: {file.kind}")
-            drive = file.parent
-            assert drive, f"no drive for {file!r}"
-            bucket = get_drive_bucket(drive)
-            file_key = get_file_key(drive, file.sha256, file.title)
+            bucket = get_drive_bucket(self.bench)
+            file_key = get_file_key(self.bench, file.sha256, file.title)
             get_url = s3_client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": bucket, "Key": file_key},
@@ -772,15 +768,8 @@ def validate_context(subject: Subject, context: RuntimeContext, edits: Sequence[
             GRPCStatus.INVALID_ARGUMENT,
             f"bad user context for {subject!r}: {context.user_ptr!r}",
         )
-    if subject.server_ptr and (
-        not context.server_ptr or context.server_ptr.id != subject.server_ptr.id
-    ):
-        raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT,
-            f"bad server context for {subject!r}: {context.server_ptr!r}",
-        )
     if subject.client.type == ClientType.BENCH_MACHINE:
-        if not context.machine or context.machine.parent != subject.server:
+        if not context.machine or context.machine != subject.machine:
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT,
                 f"bad machine context for {subject!r}: {context.machine!r}",
@@ -788,12 +777,12 @@ def validate_context(subject: Subject, context: RuntimeContext, edits: Sequence[
     # NOTE :Incomplete: validate Edit context in Host
 
 
-def get_drive_bucket(drive: Drive) -> str:
-    bucket_name = f"bench-{ENV.value}-{CLOUD.name.lower()}-{drive.region.slug}-files"
+def get_drive_bucket(bench: Bench) -> str:
+    bucket_name = f"bench-{ENV.value}-{CLOUD.name.lower()}-{bench.region.slug}-files"
     return bucket_name
 
 
-def get_file_key(drive: Drive, sha256: str, title: str) -> str:
+def get_file_key(bench: Bench, sha256: str, title: str) -> str:
     """Gets the key for a file in the given bucket."""
-    file_key = f"{drive.id}/{sha256}/{title}"
+    file_key = f"{bench.id}/{sha256}/{title}"
     return file_key

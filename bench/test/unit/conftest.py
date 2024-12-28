@@ -126,9 +126,7 @@ async def session_async(request):
 
 def make_package(session: Session):
     bench = Bench(name="test", slug="test")
-    bench.main_server = bench.servers.create(name="Server")
     bench.main_store = bench.stores.create(name="Store")
-    bench.main_drive = bench.drives.create(name="Drive")
     package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
     session.parent = bench
     session._graph.update(session, _force_update_parent=True)
@@ -349,19 +347,16 @@ async def hosted_bench(global_store: Store, regional_store: Store):
             global_store=global_store,
             session=session,
         )
-        server = bench.main_server
-        assert server is not None, f"no main server for {bench!r}"
         server_client = Client(
             parent=bench,
             title="Server",
             type=ClientType.BENCH_MACHINE,
             access_token="server",
-            server=server,
             _is_new=True,  # force create
         )
         machine = Machine(
             type=MachineType.RUNTIME,
-            parent=server,
+            parent=bench,
             title="Runtime1",
             cpu=0.5,
             ram=0.5,
@@ -417,13 +412,11 @@ async def host(host_service: HostService):
 async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
     user = hosted_bench.owner
     assert isinstance(user, User), f"unexpected bench owner: {user!r}"
-    server = hosted_bench.main_server
-    assert server is not None, f"no main server for {hosted_bench!r}"
-    machine = next(iter(server._graph.get_descendants(server, NodeType.MACHINE)))
+    machine = next(iter(hosted_bench._graph.get_descendants(hosted_bench, NodeType.MACHINE)))
     assert isinstance(machine, Machine), f"unexpected machine: {machine!r}"
 
     # get server client
-    client = next(iter(server._graph.get_descendants(hosted_bench, NodeType.CLIENT)))
+    client = next(iter(hosted_bench._graph.get_descendants(hosted_bench, NodeType.CLIENT)))
     assert isinstance(client, Client), f"unexpected client: {client!r}"
     client_data = client._to_data()
     assert client_data.access_token, f"no access token for {client!r}"
@@ -446,7 +439,6 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
     )
     session = Session(
         parent=hosted_bench,
-        server=server,
         machine=machine,
         client=client,
         _is_readonly=False,
@@ -455,7 +447,6 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
         _local_epoch=0,
         _supergraph=hosted_bench._supergraph,
         _oracle=REAL_ORACLE,
-        _subject=server,
         _host=host,
         _origin=client.to_origin(nonce=None)._to_data(),
     )

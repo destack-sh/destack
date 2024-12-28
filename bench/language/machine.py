@@ -1,15 +1,10 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.bench import (
-    CPU_CONSTRAINT,
-    RAM_CONSTRAINT,
-    Bench,
-    PhysicalResource,
-    Server,
-)
+from bench.language.bench import DynamicResource
 from bench.language.const import VERSION, EnumType, NodeType, StructType, enum_
 from bench.language.node import Struct, node_, struct_
-from bench.language.property import p_internal, p_kernel, p_node_parent, p_regular, p_system
+from bench.language.property import p_internal, p_kernel, p_regular, p_system
+from bench.language.validation import CPU_CONSTRAINT, RAM_CONSTRAINT
 from bench.proto.wire.lang_pb2 import MachineData
 from bench.utils.func import IdEnum
 
@@ -31,14 +26,13 @@ class MachineImage(Struct):
 
 
 @node_(NodeType.MACHINE)
-class Machine(PhysicalResource[MachineData]):
+class Machine(DynamicResource[MachineData]):
     """
     A Machine provides physical compute.
     Machines may be tied to a Server for our own Runtime or may be manually provisioned.
     """
 
-    parent: Server | Bench | None = p_node_parent(4, NodeType.SERVER, NodeType.BENCH)
-    type: MachineType = p_regular(30)
+    type: MachineType = p_regular(30, default=MachineType.RUNTIME)
 
     version: str = p_system(50, default=VERSION, default_sql=None)
     target_version: str = p_internal(51, default=VERSION, default_sql=None)
@@ -51,7 +45,5 @@ class Machine(PhysicalResource[MachineData]):
         55, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
     )
 
-    cpu: float = p_system(60, description="vCPU count", constraint=CPU_CONSTRAINT)
-    target_cpu: Optional[float] = p_regular(61, default=None, description="vCPU count")
-    ram: float = p_regular(62, description="GB", constraint=RAM_CONSTRAINT)
-    target_ram: Optional[float] = p_regular(63, default=None, description="GB")
+    cpu: float = p_system(60, description="vCPU count", default=1, constraint=CPU_CONSTRAINT)
+    ram: float = p_system(61, description="GB", default=1, constraint=RAM_CONSTRAINT)

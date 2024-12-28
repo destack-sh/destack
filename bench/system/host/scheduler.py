@@ -84,14 +84,13 @@ class RunPlugin(HostPlugin[Run]):
         """Push Runs to relevant Machines."""
         op.retry.on_attempt()
         run = op.run
-        assert self.bench.main_server, f"missing main server for {self.bench!r}"
-        log = logger.bind(host=self, run=run, server=self.bench.main_server, retry=op.retry)
+        log = logger.bind(host=self, run=run, retry=op.retry)
 
         # select machines to process run on
         # NOTE :Performance: maybe not re-load available Machines in RunPlugin every time?
         available_machines = (
             await Machine.where(
-                Machine.get_property("parent").eq(self.bench.main_server)
+                Machine.get_property("parent").eq(self.bench)
                 & Machine.get_property("status").eq(ResourceStatus.UP)
                 & Machine.get_property("type").eq(MachineType.RUNTIME)
             )
@@ -137,11 +136,7 @@ class RunPlugin(HostPlugin[Run]):
                     run.duration = run.terminated_at - run.started_at
                 run.error = error
             log.error(
-                "scheduler.run.failed",
-                server=self.bench.main_server,
-                machines=available_machines,
-                error=error,
-                span="current",
+                "scheduler.run.failed", machines=available_machines, error=error, span="current"
             )
         else:
             # retry later
@@ -153,7 +148,6 @@ class RunPlugin(HostPlugin[Run]):
             )
             log.trace(
                 "scheduler.run.retry",
-                server=self.bench.main_server,
                 machines=available_machines,
                 interval=op.retry.get_wait_interval,
                 retry=op.retry,

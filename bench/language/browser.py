@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.bench import PhysicalResource
+from bench.language.bench import DynamicResource
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
 from bench.language.node import Struct, node_, struct_
 from bench.language.property import p_kernel, p_regular, p_system
@@ -35,8 +35,7 @@ class DomNode(Struct):
 
 @enum_(EnumType.BROWSER_TYPE)
 class BrowserType(IdEnum):
-    REMOTE = 1
-    LOCAL = 90
+    CHROMIUM = 1
 
 
 def get_default_browser_size() -> "Vector2":
@@ -46,10 +45,10 @@ def get_default_browser_size() -> "Vector2":
 
 
 @node_(NodeType.BROWSER)
-class Browser(PhysicalResource[BrowserData]):
+class Browser(DynamicResource[BrowserData]):
     """A Browser instance for web browsing."""
 
-    type: BrowserType = p_regular(30, default=BrowserType.REMOTE)
+    type: BrowserType = p_regular(30, default=BrowserType.CHROMIUM)
 
     version: str | None = p_regular(50, default=None)
     target_version: Optional[str] = p_regular(51, default=None)

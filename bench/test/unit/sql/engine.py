@@ -6,16 +6,7 @@ import psycopg
 import pytest
 from psycopg import sql
 
-from bench.language import (
-    Bench,
-    Block,
-    BlockType,
-    Client,
-    NodeReference,
-    PrimitiveType,
-    Server,
-    Store,
-)
+from bench.language import Bench, Block, BlockType, Client, NodeReference, PrimitiveType, Store
 from bench.language.bench import PackageType
 from bench.language.const import ClientType, EnumType, NodeType, Region, UserStatus
 from bench.language.field import TypeKind
@@ -278,9 +269,7 @@ async def test_crud_node_pointers(omni_session: Session):
         )
         session._create(bench)
         await session.flush()
-        server = bench.servers.create(name="Production A")
         store = bench.stores.create(name="Production A")
-        drive = bench.drives.create(name="Production A")
         client = Client(
             parent=bench,
             type=ClientType.BENCH_MOBILE,
@@ -291,9 +280,7 @@ async def test_crud_node_pointers(omni_session: Session):
         package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
         await session.flush()
         session.parent = bench  # patch in the session parent
-        bench.main_server = server
         bench.main_store = store
-        bench.main_drive = drive
         await session.commit()
         bench._untrack_rec()
 
@@ -305,14 +292,6 @@ async def test_crud_node_pointers(omni_session: Session):
         await session.commit()
 
         # read back
-        server = await Server.include_ancestors().get(id=server.id)
-        assert server.parent_ptr
-        assert server.parent_ptr.equals(bench.to_ref())
-        assert server.bench_id == bench.id
-        assert server.to_ref().equals(
-            NodeReference(node_type=NodeType.SERVER, id=server.id, ck=server.ck, bench_id=bench.id)
-        )
-
         client = await Client.include_ancestors().get(id=client.id)
         assert client.bench_id == bench.id
         assert client.to_ref().equals(

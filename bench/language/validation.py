@@ -112,6 +112,8 @@ EMAIL_CONSTRAINT = TypeConstraintIn(regex=EMAIL_REGEX)
 URL_CONSTRAINT = TypeConstraintIn(regex=URL_REGEX)
 PHONE_NUMBER_CONSTRAINT = TypeConstraintIn(regex=PHONE_NUMBER_REGEX)
 EMOJI_CONSTRAINT = TypeConstraintIn(regex=EMOJI_REGEX)
+CPU_CONSTRAINT = TypeConstraintIn(min_value=0.1, max_value=16.0, step_value=0.1)
+RAM_CONSTRAINT = TypeConstraintIn(min_value=0.1, max_value=256.0, step_value=0.1)
 
 
 def clean_name(name: str, sub="-") -> str:

@@ -297,7 +297,7 @@ def test_unnamed_node(session: Session, mock_package: Package):
 
     assert package.bench
     file = File(
-        parent=package.bench.main_drive,
+        parent=package.bench,
         kind=FileKind.DRIVE,
         title="myfile.txt",
         type=FileType.TEXT,

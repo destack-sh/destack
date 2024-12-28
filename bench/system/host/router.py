@@ -11,7 +11,7 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from bench.language import Bench, Package, Store, Subject
-from bench.language.const import SOURCE_NODE_TYPES, VIRTUAL_RESOURCE_NODE_TYPES, NodeArea, NodeType
+from bench.language.const import SOURCE_NODE_TYPES, STATIC_RESOURCE_NODE_TYPES, NodeArea, NodeType
 from bench.proto.services import ServiceBase
 from bench.proto.wire import GraphScopeData, HostBase, ServiceKind
 from bench.proto.wire.common_pb2 import RpcMetadata
@@ -53,7 +53,7 @@ S3_PRESIGNED_URL_EXPIRY = get_from_env(
 )
 
 BENCH_QUERY = Bench.include_descendants(
-    NodeType.HANDLE, NodeType.PACKAGE, *VIRTUAL_RESOURCE_NODE_TYPES
+    NodeType.HANDLE, NodeType.PACKAGE, *STATIC_RESOURCE_NODE_TYPES
 ).select_all()
 PACKAGE_QUERY = (
     Package.include_ancestors(Bench)

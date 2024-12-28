@@ -104,6 +104,8 @@ class EnumType(IdEnum):
     CLIENT_TYPE = 21050
     MACHINE_TYPE = 21060
     BROWSER_TYPE = 21070
+    STORE_TYPE = 21080
+    SCALER_STRATEGY = 21090
 
     # type (21500-21999)
     PRIMITIVE_TYPE = 21501
@@ -222,14 +224,11 @@ class NodeType(IdEnum):
     # Regional (2000-3000)
     #
 
-    # resource (virtual)
-    SERVER = 2000  # elastic compute
+    # resource (static)
+    SCALER = 2000
     STORE = 2001  # real database
-    DRIVE = 2003  # object store like S3/MinIO, maybe block storage later
-    VAULT = 2004  # secret storage
-    CACHE = 2005  # ephemeral key-value store
 
-    # resource (physical)
+    # resource (dynamic)
     MACHINE = 2100
     BROWSER = 2101
     FILE = 2110
@@ -341,8 +340,8 @@ NODE_TYPES_BY_AREA = {
 
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 RESOURCE_NODE_TYPES = _get_node_types(2000, 2200)
-VIRTUAL_RESOURCE_NODE_TYPES = _get_node_types(2000, 2100)
-PHYSICAL_RESOURCE_NODE_TYPES = _get_node_types(2100, 2200)
+STATIC_RESOURCE_NODE_TYPES = _get_node_types(2000, 2100)
+DYNAMIC_RESOURCE_NODE_TYPES = _get_node_types(2100, 2200)
 SOURCE_NODE_TYPES = _get_node_types(3000, 3100)
 STATE_NODE_TYPES = _get_node_types(3500, 3600)
 RUNTIME_NODE_TYPES = _get_node_types(3600, 3700)
