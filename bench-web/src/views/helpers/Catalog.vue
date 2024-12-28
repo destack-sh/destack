@@ -50,7 +50,7 @@ defineExpose<ViewExposed>({ self, id });
           }"
         >
           <!-- Type -->
-          <span class="font-medium">{{ toCamelName(NodeType, resourceType) }}</span>
+          <span class="font-medium">{{ toCamelName(NodeType, resourceType) }}s</span>
           <!-- Count badge -->
           <span
             v-if="listRefs[resourceType]?.total != null"

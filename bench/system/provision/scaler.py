@@ -78,18 +78,24 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
 
     def _rebalance(self, scaler: Scaler, resource_group: Sequence[WT]) -> None:
         """Rebalance a Scaler's (dynamic) Resource group."""
+        added: list[WT] = []
+        removed: list[WT] = []
         if len(resource_group) > scaler.target_count:
             # decommission excess resources
             for resource in resource_group[scaler.target_count :]:
                 resource.decommission()
+                removed.append(resource)
         elif len(resource_group) < scaler.target_count:
             # provision missing resources
             for _ in range(scaler.target_count - len(resource_group)):
                 resource_kwargs: dict[str, Any] = {}
                 if "title" in self._resource_cls.__properties__:  # title it
                     resource_kwargs["title"] = generate_random_name()
-                resource = self._resource_cls(**resource_kwargs)
+                resource = cast(WT, self._resource_cls(**resource_kwargs))
                 self.bench.append(resource)
+                added.append(resource)
+        if added or removed:
+            logger.info("scaler.rebalance", scaler=scaler, added=added, removed=removed)
 
     @final
     async def _reconcile_forever(self):

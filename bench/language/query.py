@@ -651,7 +651,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
         )
         query = self.where(filter) if filter is not None else self
-        query = query.aggregate(A(AggregationType.EXISTS))
+        query = query.aggregate(A(AggregationType.EXISTENCE))
         query._type = QueryType.AGGREGATE
         trace.get_current_span().set_attribute("query", repr(query))
 

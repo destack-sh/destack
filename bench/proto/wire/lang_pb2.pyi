@@ -1057,6 +1057,7 @@ class ExpressionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     EXPRESSION_TYPE_EXISTS: _ClassVar[ExpressionType]
     EXPRESSION_TYPE_NOT_EXISTS: _ClassVar[ExpressionType]
     EXPRESSION_TYPE_NEAR: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_EXISTENCE: _ClassVar[ExpressionType]
     EXPRESSION_TYPE_COUNT: _ClassVar[ExpressionType]
     EXPRESSION_TYPE_SUM: _ClassVar[ExpressionType]
     EXPRESSION_TYPE_MIN: _ClassVar[ExpressionType]
@@ -1112,7 +1113,7 @@ class ConditionalType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class AggregationType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     AGGREGATION_TYPE_UNSPECIFIED: _ClassVar[AggregationType]
-    AGGREGATION_TYPE_EXISTS: _ClassVar[AggregationType]
+    AGGREGATION_TYPE_EXISTENCE: _ClassVar[AggregationType]
     AGGREGATION_TYPE_COUNT: _ClassVar[AggregationType]
     AGGREGATION_TYPE_SUM: _ClassVar[AggregationType]
     AGGREGATION_TYPE_MIN: _ClassVar[AggregationType]
@@ -2566,6 +2567,7 @@ EXPRESSION_TYPE_NOT_IN: ExpressionType
 EXPRESSION_TYPE_EXISTS: ExpressionType
 EXPRESSION_TYPE_NOT_EXISTS: ExpressionType
 EXPRESSION_TYPE_NEAR: ExpressionType
+EXPRESSION_TYPE_EXISTENCE: ExpressionType
 EXPRESSION_TYPE_COUNT: ExpressionType
 EXPRESSION_TYPE_SUM: ExpressionType
 EXPRESSION_TYPE_MIN: ExpressionType
@@ -2609,7 +2611,7 @@ CONDITIONAL_TYPE_EXISTS: ConditionalType
 CONDITIONAL_TYPE_NOT_EXISTS: ConditionalType
 CONDITIONAL_TYPE_NEAR: ConditionalType
 AGGREGATION_TYPE_UNSPECIFIED: AggregationType
-AGGREGATION_TYPE_EXISTS: AggregationType
+AGGREGATION_TYPE_EXISTENCE: AggregationType
 AGGREGATION_TYPE_COUNT: AggregationType
 AGGREGATION_TYPE_SUM: AggregationType
 AGGREGATION_TYPE_MIN: AggregationType

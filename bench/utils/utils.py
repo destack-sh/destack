@@ -17,7 +17,7 @@ def str_to_bool(value: str | None) -> bool:
 def get_from_env_maybe[T](
     key: str,
     *,
-    description: str,
+    description: str | None = None,
     default: Optional[T] = None,
     optional: bool = True,
     typ: type[T] = str,
@@ -63,7 +63,7 @@ def get_from_env_maybe[T](
 def get_from_env[T](
     key: str,
     *,
-    description: str,
+    description: str | None = None,
     default: Optional[T] = None,
     typ: Type[T] = str,
 ) -> T:
