@@ -45,7 +45,7 @@ from bench.language.value import (
 )
 from bench.runtime.code import CodeFunctionRunner
 from bench.runtime.core import ATTEMPT_ONCE, RetryableError, RunImpossibleError
-from bench.runtime.playwright import playwright_api
+from bench.runtime.playwright import playwright_client
 from bench.runtime.runner import Context, Runner, make_runner, restore_runner
 from bench.runtime.runtime import Runtime
 
@@ -383,7 +383,7 @@ class ClickActionRunner(ApplicationActionRunnerBase[ClickAction]):
         xpath = self.action_inputs.xpath
         assert xpath is not None, "no xpath to click"
         browser = self._get_resource_or_error(Browser)
-        pw_browser = await playwright_api.get_browser(browser)
+        pw_browser = await playwright_client.get_client(browser)
         pw_page = pw_browser.pages[0]
         await pw_page.click(xpath)
 
@@ -399,7 +399,7 @@ class GoToUrlActionRunner(ApplicationActionRunnerBase[GoToUrlAction]):
         url = self.action_inputs.url
         assert url is not None, "no url to go to"
         browser = self._get_resource_or_error(Browser)
-        pw_browser = await playwright_api.get_browser(browser)
+        pw_browser = await playwright_client.get_client(browser)
         pw_page = pw_browser.pages[0]
         await pw_page.goto(url)
 
@@ -410,7 +410,7 @@ class GoToTabActionRunner(ApplicationActionRunnerBase[GoToTabAction]):
         tab_index = self.action_inputs.tab_index
         assert tab_index is not None, "no tab index to go to"
         browser = self._get_resource_or_error(Browser)
-        pw_browser = await playwright_api.get_browser(browser)
+        pw_browser = await playwright_client.get_client(browser)
         await pw_browser.pages[tab_index].bring_to_front()
 
 
