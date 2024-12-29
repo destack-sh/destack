@@ -48,13 +48,13 @@ class Browser(DynamicResource[BrowserData]):
     target_version: Optional[str] = p_regular(51, default=None)
     external_name: Optional[str] = p_kernel(52, require=False, default=None, sensitive=True)
     external_id: Optional[str] = p_kernel(53, require=False, default=None, sensitive=True)
-    connection_uri: Optional[str] = p_kernel(
+    connection_uri: Optional[str] = p_system(
         54, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
-    debugger_uri: Optional[str] = p_kernel(
+    debugger_uri: Optional[str] = p_system(
         55, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
-    view_uri: Optional[str] = p_kernel(
+    view_uri: Optional[str] = p_system(
         56, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
     client: Optional["Client"] = p_system(

@@ -185,7 +185,9 @@ class Runtime:
             stale_nodes_by_type = group_by(stale_nodes, lambda node: node.metatype)
             for node_type, stale_nodes in stale_nodes_by_type.items():
                 node_cls = NODE_CLASS_BY_TYPE[node_type]
-                live_nodes = await node_cls.get(tuple(n.to_ref() for n in stale_nodes), live=True)
+                live_nodes = await node_cls.select_all().get(
+                    tuple(n.to_ref() for n in stale_nodes), live=True
+                )
                 for live_node in live_nodes:  # also patch immediately
                     our_node = nodes_by_id.get(live_node.id)
                     if our_node is not None:

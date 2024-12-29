@@ -3,7 +3,7 @@ from typing import override
 from bench.language.bench import ResourceStatus
 from bench.language.browser import Browser
 from bench.language.const import NodeType
-from bench.runtime.playwright import playwright_api
+from bench.system.provision.playwright import playwright_server
 from bench.system.provision.provisioner import Provisioner
 from bench.utils.func import bittuple
 
@@ -42,17 +42,17 @@ class LocalhostBrowserProvisioner(Provisioner[Browser, Browser]):
         ).tolist()
         async with self.host.session(commit=True):
             for browser in browsers:
-                await playwright_api.provision_local_browser(browser)
+                browser.connection_uri = await playwright_server.start_browser(browser)
                 browser.status = ResourceStatus.UP
 
     @override
     async def _do_provision(self, resource: Browser):
         async with self.host.session(commit=True):
-            await playwright_api.provision_local_browser(resource)
+            resource.connection_uri = await playwright_server.start_browser(resource)
             resource.status = ResourceStatus.UP
 
     @override
     async def _do_decommission(self, resource: Browser):
         async with self.host.session(commit=True):
-            await playwright_api.decommission_local_browser(resource)
+            await playwright_server.stop_browser(resource)
             resource.status = ResourceStatus.DECOMMISSIONED
