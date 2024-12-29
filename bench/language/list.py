@@ -58,13 +58,21 @@ def attach_node[N: "Node"](node: N, parent: "Node", move: bool = False) -> N:
         if node.__is_in_bench__:  # must be in same bench
             bench = cast("BenchNode", node).bench
             assert cast("BenchNode", parent).bench == bench, f"cannot move {node!r} to {parent!r}"
-        node.parent = parent
     else:
         # create
         move = False  # not actually a move
-        node.parent = parent
         if parent._session is not None:  # validate
             node._validate_self((), invalid=on_invalid_raise)
+
+    # check for circular ancestry
+    seen: list[Node] = [node]
+    n = parent
+    while n is not None:
+        if n in seen:
+            raise ValueError(f"circular ancestry: {node!r} -> {n!r} -> {node!r}")
+        seen.append(n)
+        n = n.parent
+    node.parent = parent
 
     # move node (and descendants) to this parent's graph
     new_graph = parent._graph

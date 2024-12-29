@@ -25,7 +25,7 @@ from bench.utils.env import ENV, Env
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-DEFAULT_BROWSER_SIZE = Vector2(x=1280, y=1080)
+DEFAULT_BROWSER_SIZE = Vector2(x=1280.0, y=1080.0)
 
 
 class PlaywrightApi:
