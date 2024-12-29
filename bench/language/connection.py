@@ -11,6 +11,7 @@ from typing import (
     Any,
     AsyncIterator,
     Callable,
+    ClassVar,
     Collection,
     Literal,
     Mapping,
@@ -264,12 +265,16 @@ def origin_matches(origin: ClientOriginData, other: ClientOriginData) -> bool:
 class Engine[C: "Channel"](abc.ABC):
     """A Graph IO service to perform IO on some subgraph."""
 
+    _engine_id: ClassVar[int] = 0
+
     def __init__(
         self,
         name: str,
         scope: GraphScopeData,
         node_types: bittuple[NodeType],
     ):
+        self.id = self.__class__._engine_id
+        self.__class__._engine_id += 1
         self.name = name
         self.scope = scope
         self.node_types = node_types
@@ -295,10 +300,6 @@ class Engine[C: "Channel"](abc.ABC):
     def include_deleted(self) -> bool:
         """Whether this channel includes deleted nodes."""
         ...
-
-    @property
-    def id(self) -> int | str | UUID:
-        return id(self)
 
     @abc.abstractmethod
     async def channel(self, session: "Session") -> C:
