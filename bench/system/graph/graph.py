@@ -918,7 +918,7 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
                 GRPCStatus.PERMISSION_DENIED, f"bad created_by in {edit!r}: {edit.subject_ptr!r}"
             )
     # origin
-    if not edit.origin or UUID(edit.origin.id) != subject.client.id:
+    if not edit.origin.id or UUID(edit.origin.id) != subject.client.id:
         raise GRPCError(
             GRPCStatus.PERMISSION_DENIED,
             f"origin mismatch in {edit!r}: {edit.origin!r} != {subject.client!r}",

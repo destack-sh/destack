@@ -32,12 +32,6 @@ from bench.sql.migration import (
     read_migrations_from_pg,
 )
 from bench.sql.migration import sql_migrate as _migrate
-from bench.system.utils.session import (
-    global_session,
-    global_store_from_env,
-    pg_engine_from_store,
-    regional_store_from_env,
-)
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.utils import format_python
 
@@ -59,6 +53,13 @@ async def make(
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
+    from bench.system.utils.session import (
+        global_session,
+        global_store_from_env,
+        pg_engine_from_store,
+        regional_store_from_env,
+    )
+
     start = time.time()
     global_store = global_store_from_env()
     global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
@@ -188,6 +189,13 @@ async def apply(
     ),
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
+    from bench.system.utils.session import (
+        global_session,
+        global_store_from_env,
+        pg_engine_from_store,
+        regional_store_from_env,
+    )
+
     start = time.time()
     global_store = global_store_from_env()
     global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
@@ -234,6 +242,12 @@ async def introspect(
     bench: Optional[str] = None,
 ):  # type: ignore
     """Introspect the current schema of the Postgres instance."""
+    from bench.system.utils.session import (
+        global_session,
+        global_store_from_env,
+        pg_engine_from_store,
+        regional_store_from_env,
+    )
 
     start = time.perf_counter()
     global_store = global_store_from_env()

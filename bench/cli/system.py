@@ -22,7 +22,6 @@ from bench.language.const import (
     UserStatus,
 )
 from bench.language.machine import Machine
-from bench.system.utils.session import regional_store_from_env
 from bench.utils.env import ENV
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import REAL_ORACLE
@@ -40,6 +39,7 @@ async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)]
         global_session,
         global_store_from_env,
         pg_engine_from_store,
+        regional_store_from_env,
     )
 
     global_store = global_store_from_env()
@@ -99,6 +99,7 @@ async def make_local_machine(
         global_session,
         global_store_from_env,
         pg_engine_from_store,
+        regional_store_from_env,
     )
 
     global_store = global_store_from_env()
