@@ -39,7 +39,7 @@ _global_exec = exec
 @app.callback(invoke_without_command=True)
 @app.command()
 @async_to_sync
-async def local(
+async def shell(
     bench: str = typer.Option(..., help="Bench slug"),
     user: str | None = typer.Option(None, help="User slug"),
 ) -> None:  # type: ignore

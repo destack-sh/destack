@@ -1229,7 +1229,7 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
       type: ViewType.HELP,
       name: "Detail",
       orientation: Orientation.VERTICAL,
-      size: makeStruct({ metatype: StructType.RECTANGLE, width: 500 }),
+      size: makeStruct({ metatype: StructType.RECTANGLE, width: 600 }),
       constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 400, maxWidth: 800 }),
       subnode: { aspect: HelpAspect.DETAIL },
     },
