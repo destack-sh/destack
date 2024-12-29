@@ -30,6 +30,18 @@ class LocalhostBrowserProvisioner(Provisioner[Browser, Browser]):
     provision_type = NodeType.BROWSER
 
     @override
+    async def _do_start(self) -> None:
+        # local 'Browsers' are always just 'declared' on start
+        browsers = await Browser.where(
+            Browser.get_property("bench").eq(self.bench)
+            & Browser.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
+        ).tolist()
+        async with self.host.session(commit=True):
+            for browser in browsers:
+                await playwright_api.provision_local_browser(browser)
+                browser.status = ResourceStatus.UP
+
+    @override
     async def _do_provision(self, resource: Browser):
         async with self.host.session(commit=True):
             await playwright_api.provision_local_browser(resource)

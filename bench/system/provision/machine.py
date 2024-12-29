@@ -120,6 +120,10 @@ class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
         )
 
     @override
+    async def _do_start(self) -> None:
+        pass
+
+    @override
     async def _do_provision(self, resource: Machine):
         async with self.host.session(commit=True):
             resource.connection_uri = self._local_machine_url

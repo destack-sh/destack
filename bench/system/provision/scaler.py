@@ -43,12 +43,12 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
 
     @final
     @tracer.start_as_current_span("scaler.reconcile")
-    async def _do_reconcile(self, scalers: tuple[Scaler, ...]) -> None:
+    async def _do_reconcile(self, scalers: tuple[Scaler, ...] | None = None) -> None:
         """Reconcile the Scalers and the Resources they scale."""
 
         # get scalers
-        scalers = tuple(self._scalers_to_reconcile)  # nocheckin look at all scalers?
-        scalers_by_id = {s.id: s for s in scalers}
+        scalers = scalers if scalers is not None else tuple(self.bench.scalers)
+        scalers = tuple(s for s in scalers if s.type == self.provision_subtype)
         self._scalers_to_reconcile.clear()
         self._reconcile_event.clear()
 
@@ -66,9 +66,9 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
 
         # reconcile
         async with self.host.session(commit=True):
-            for scaler_id, resource_group in resources_by_scalar.items():
-                scaler = scalers_by_id.get(scaler_id) if scaler_id is not None else None
-                if scaler is None or not scaler.is_extant:
+            for scaler in scalers:
+                resource_group = resources_by_scalar.get(scaler.id) or ()
+                if not scaler.is_extant:
                     # decommission
                     for resource in resource_group:
                         resource.decommission()
@@ -88,14 +88,22 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
         elif len(resource_group) < scaler.target_count:
             # provision missing resources
             for _ in range(scaler.target_count - len(resource_group)):
-                resource_kwargs: dict[str, Any] = {}
+                resource_kwargs: dict[str, Any] = {"scaler": scaler}
                 if "title" in self._resource_cls.__properties__:  # title it
                     resource_kwargs["title"] = generate_random_name()
                 resource = cast(WT, self._resource_cls(**resource_kwargs))
                 self.bench.append(resource)
                 added.append(resource)
         if added or removed:
-            logger.info("scaler.rebalance", scaler=scaler, added=added, removed=removed)
+            logger.info(
+                "scaler.rebalance",
+                scaler=scaler,
+                resource_group=resource_group,
+                added=added,
+                removed=removed,
+            )
+        else:
+            logger.trace("scaler.rebalance.noop", scaler=scaler, resource_group=resource_group)
 
     @final
     async def _reconcile_forever(self):
@@ -104,10 +112,11 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
             scalers = tuple(self._scalers_to_reconcile)
             self._scalers_to_reconcile.clear()
             self._reconcile_event.clear()
-            await self._do_reconcile(scalers)
+            await self._do_reconcile(scalers or None)
 
     @override
     async def _do_start(self) -> None:
+        self._reconcile_event.set()  # always reconcile on start
         self.tasks.run(self._reconcile_forever(), task_id=f"{self.slug}.reconcile")
 
     @final
@@ -125,7 +134,7 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
             if node.metatype == self.provision_type:
                 self._scalers_to_reconcile.add(cast(Scaler, node))
                 self._reconcile_event.set()
-            else:
+            elif node.metatype == self.scale_type:
                 scaler = getattr(node, "scaler", None)
                 if isinstance(scaler, Scaler) and scaler.type == self.provision_subtype:
                     self._scalers_to_reconcile.add(scaler)

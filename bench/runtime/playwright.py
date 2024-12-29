@@ -41,6 +41,7 @@ class PlaywrightApi:
     async def _get_playwright(self):
         if self._playwright is None:
             self._playwright = await async_playwright().start()
+            logger.debug("playwright.start", playwright=self._playwright)
         return self._playwright
 
     @tracer.start_as_current_span("playwright.start_local_browser")
@@ -65,12 +66,14 @@ class PlaywrightApi:
             self._local_browser = await playwright.chromium.launch(
                 headless=False, args=chromium_args
             )
+            logger.debug("playwright.start_local_browser", local_browser=self._local_browser)
         return self._local_browser
 
     @tracer.start_as_current_span("playwright.provision")
     async def provision_local_browser(self, browser: Browser) -> PlaywrightContext:
         """Provisions a local Browser."""
-        assert browser.id not in self._context_by_id, f"browser {browser!r} already provisioned"
+        if browser.id in self._context_by_id:
+            return self._context_by_id[browser.id]  # already provisioned
         pw_browser = await self._get_playwright_browser()
         size = browser.size or DEFAULT_BROWSER_SIZE
         pw_context: PlaywrightContext = await pw_browser.new_context(
@@ -81,14 +84,16 @@ class PlaywrightApi:
         )
         _ = await pw_context.new_page()
         self._context_by_id[browser.id] = pw_context
+        logger.debug("playwright.provision", browser=browser, pw_context=pw_context)
         return pw_context
 
     @tracer.start_as_current_span("playwright.decommission")
     async def decommission_local_browser(self, browser: Browser):
         """Decommissions a local Browser (if any)."""
         if browser.id in self._context_by_id:
-            context = self._context_by_id.pop(browser.id)
-            await context.close()
+            pw_context = self._context_by_id.pop(browser.id)
+            await pw_context.close()
+            logger.debug("playwright.decommission", browser=browser, pw_context=pw_context)
 
     async def get_browser(self, browser: Browser) -> PlaywrightContext:
         """Gets a BrowserContext for a Browser."""
@@ -108,6 +113,7 @@ class PlaywrightApi:
                 pw_context = await pw_browser.new_context()
                 _ = await pw_context.new_page()
                 self._context_by_id[browser.id] = pw_context
+                logger.trace("playwright.connect", browser=browser, pw_context=pw_context)
         return pw_context
 
     async def close_browser(self, browser: Browser):
@@ -118,6 +124,7 @@ class PlaywrightApi:
         if browser.id in self._remote_browser_by_id:
             pw_browser = self._remote_browser_by_id.pop(browser.id)
             await pw_browser.close()
+        logger.trace("playwright.close", browser=browser)
 
     async def close(self):
         if self._local_browser is not None:

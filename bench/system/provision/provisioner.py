@@ -34,10 +34,11 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     def __init__(self, host: Host, bench: Bench):
         super().__init__(host, bench)
         self._lock = asyncio.Lock()
+        self._slug = self.provision_type.bench_name.lower()
 
     @property
     def slug(self) -> str:
-        return self.provision_type.bench_name.lower()
+        return self._slug
 
     def _filter_resource(self, resource: PT) -> bool:
         """Whether to consider this Resource for provisioning."""
