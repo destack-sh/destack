@@ -1,26 +1,32 @@
-from uuid import UUID
+import functools
+from typing import Any
 
+import aioconsole
 import structlog
 import typer
 
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench
+from bench.language.bench import Client, Package
 from bench.language.connection import RemoteEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     PUBLIC_NODE_TYPES,
+    SOURCE_NODE_TYPES,
     STATIC_RESOURCE_NODE_TYPES,
-    ClientType,
     NodeArea,
     NodeType,
 )
-from bench.language.graph import NodeSuperGraph
 from bench.language.node import EMPTY_SCOPE_DATA, GraphScope
+from bench.language.path import get_node, get_path
+from bench.language.render import RenderOptions, render
 from bench.language.session import Session
+from bench.language.user import User
 from bench.proto import wire
 from bench.proto.services import get_channel, get_rpc_metadata
 from bench.proto.wire.lang_pb2 import GraphScopeData
 from bench.proto.wire.system_grpc import HostClient, SupervisorClient
+from bench.runtime.core import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 from bench.utils.utils import get_from_env
@@ -34,7 +40,10 @@ _global_exec = exec
 @app.callback(invoke_without_command=True)
 @app.command()
 @async_to_sync_blocking
-async def local(bench_slug: str, user: str | None = None):  # type: ignore
+async def local(
+    bench: str = typer.Option(..., help="Bench slug"),
+    user: str | None = typer.Option(None, help="User slug"),
+) -> None:  # type: ignore
     """Open a runtime-like shell to a Bench."""
     from bench.system.utils.session import (
         global_session,
@@ -42,16 +51,7 @@ async def local(bench_slug: str, user: str | None = None):  # type: ignore
         pg_engine_from_store,
     )
 
-    # nocheckin: just pick a client?
     supervisor_url = get_from_env("SUPERVISOR_URL")
-    client_type = get_from_env("CLIENT_TYPE", typ=ClientType)
-    client_id = get_from_env("CLIENT_ID", typ=UUID)
-    client_access_token = get_from_env("CLIENT_ACCESS_TOKEN")
-    rpc_metadata = get_rpc_metadata(
-        client_type=client_type,
-        client_id=client_id,
-        client_access_token=client_access_token,
-    )
     supervisor = SupervisorClient(get_channel(supervisor_url))
     host = HostClient(get_channel(supervisor_url))
 
@@ -59,12 +59,26 @@ async def local(bench_slug: str, user: str | None = None):  # type: ignore
     global_store = global_store_from_env()
     global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
     async with global_session(global_store, (global_pg_engine,), REAL_ORACLE) as session:
-        bench = await Bench.get(slug=bench_slug)
+        bench_node = await Bench.get(slug=bench)
+        if user is not None:
+            user_node = await User.get(slug=user)
+        else:
+            user_node = await User.get(id=bench_node.owner_id)
+
+        client = await Client.select_all().where(parent=user_node).one_or_none()
+        assert client is not None, f"no client for {user_node!r}"
+        assert client.access_token, f"no access token for {client!r}"
+        rpc_metadata = get_rpc_metadata(
+            client_type=client.type,
+            client_id=client.id,
+            client_access_token=client.access_token,
+        )
 
     # prepare real remote session
-    supergraph = NodeSuperGraph(bench.to_ref())
+    supergraph = session._supergraph
+    supergraph._root_ptr = bench_node.to_ref()
     bench_scope = GraphScopeData(
-        metatype=wire.ObjectType.OBJECT_TYPE_GRAPH_SCOPE, bench_id=str(bench.id)
+        metatype=wire.ObjectType.OBJECT_TYPE_GRAPH_SCOPE, bench_id=str(bench_node.id)
     )
     remote_engines = (
         # global engine
@@ -88,7 +102,7 @@ async def local(bench_slug: str, user: str | None = None):  # type: ignore
     )
     session = Session(
         _is_readonly=False,
-        _default_scope=GraphScope(bench_id=bench.id)._to_data(),
+        _default_scope=GraphScope(bench_id=bench_node.id)._to_data(),
         _engines=remote_engines,
         _supervisor=supervisor,
         _host=host,
@@ -96,20 +110,45 @@ async def local(bench_slug: str, user: str | None = None):  # type: ignore
         _oracle=REAL_ORACLE,
     )
     async with session:
-        # load full bench
-        bench = (
+        # load full Bench/Packages
+        bench_node = (
             await Bench.include_descendants(
                 NodeType.HANDLE, NodeType.PACKAGE, *STATIC_RESOURCE_NODE_TYPES
             )
             .select_all()
-            .get(bench.to_ref(), mode="both")
+            .get(bench_node.to_ref(), mode="both")
         )
-        assert bench.main_store, f"{bench_slug!r} has no main store"
-        session.parent = bench  # patch in bench for pg context
-        session._default_scope = GraphScope(bench_id=bench.id)._to_data()
+        assert bench_node.main_store, f"{bench!r} has no main store"
+        session.parent = bench_node  # patch in bench for pg context
+        session._default_scope = GraphScope(bench_id=bench_node.id)._to_data()
+        main_package = await (
+            Package.include_ancestors(Bench)
+            .include_descendants(*SOURCE_NODE_TYPES)
+            .select_all()
+            .deselect(Bench.encryption_key)
+        ).get(bench_node.main_package_ptr, mode="both")
+        # reload User in session
+        session.user = await User.get(id=user_node.id)
+        session.client = client
+        session._subject = session.user
+        session._origin = client.to_origin(nonce=None)._to_data()
 
-        # enter a repl, commit on
-        glbls = {"bench": bench_slug, "session": session}
-
-        # execute and commit code in an eval loop from stdin
-        # await session.commit()
+        # enter a repl
+        _get_node = functools.partial(get_node, main_package)
+        _get_path = functools.partial(get_path, main_package)
+        _render = functools.partial(render, options=RenderOptions(scope=main_package))
+        glbls: dict[str, Any] = {
+            **STATIC_CODE_GLOBALS,
+            **DYNAMIC_CODE_GLOBALS,
+            "session": session,
+            "bench": bench,
+            "package": main_package,
+            "user": session.user,
+            "get_node": _get_node,
+            "get_path": _get_path,
+            "render": _render,
+        }
+        banner = "=" * 40 + f"\nBench: {bench_node.slug}\n" + f"User: {user_node.slug}\n" + "=" * 40
+        # IPython.start_ipython(argv=["--autoawait=asyncio"], user_ns=glbls, banner=banner)
+        # code.InteractiveConsole(glbls).interact(banner=banner)
+        await aioconsole.interact(banner=banner, locals=glbls)

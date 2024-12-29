@@ -616,6 +616,17 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     tolist = search  # type: ignore
     to_list = search  # type: ignore
 
+    @tracer.start_as_current_span("query.one_or_none")
+    async def one_or_none(self) -> NodeT | None:
+        """Returns the unique result matching the query (one or none, errors otherwise)."""
+        results = await self.first(1).search()
+        if len(results) == 1:
+            return results[0]
+        elif len(results) == 0:
+            return None
+        else:
+            raise MultipleNodesFoundError(query=self, result=results)
+
     @tracer.start_as_current_span("query.count")
     async def count(
         self, filter: Optional["Expression"] = None, mode: ConnectMode = "unpacked", **kwargs

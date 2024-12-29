@@ -8,7 +8,6 @@ import typer
 from bench.cli.utils import async_to_sync_blocking, parse_region
 from bench.language import Bench, Store
 from bench.language.const import REGION, NodeArea, Region
-from bench.system.utils.session import regional_store_from_env
 from bench.utils.func import sanitize_connection_uri
 from bench.utils.oracle import REAL_ORACLE
 
@@ -29,6 +28,7 @@ async def shell(
         global_session,
         global_store_from_env,
         pg_engine_from_store,
+        regional_store_from_env,
     )
 
     global_store = global_store_from_env()
