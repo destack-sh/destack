@@ -1,11 +1,10 @@
 import functools
 from typing import Any
 
-import aioconsole
 import structlog
 import typer
 
-from bench.cli.utils import async_to_sync_blocking
+from bench.cli.utils import async_to_sync, repl
 from bench.language import Bench
 from bench.language.bench import Client, Package
 from bench.language.connection import RemoteEngine
@@ -26,7 +25,7 @@ from bench.proto import wire
 from bench.proto.services import get_channel, get_rpc_metadata
 from bench.proto.wire.lang_pb2 import GraphScopeData
 from bench.proto.wire.system_grpc import HostClient, SupervisorClient
-from bench.runtime.core import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
+from bench.runtime.core import STATIC_CODE_GLOBALS
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 from bench.utils.utils import get_from_env
@@ -39,7 +38,7 @@ _global_exec = exec
 
 @app.callback(invoke_without_command=True)
 @app.command()
-@async_to_sync_blocking
+@async_to_sync
 async def local(
     bench: str = typer.Option(..., help="Bench slug"),
     user: str | None = typer.Option(None, help="User slug"),
@@ -133,22 +132,24 @@ async def local(
         session._subject = session.user
         session._origin = client.to_origin(nonce=None)._to_data()
 
-        # enter a repl
+        # prepare repl context
         _get_node = functools.partial(get_node, main_package)
         _get_path = functools.partial(get_path, main_package)
         _render = functools.partial(render, options=RenderOptions(scope=main_package))
         glbls: dict[str, Any] = {
             **STATIC_CODE_GLOBALS,
-            **DYNAMIC_CODE_GLOBALS,
             "session": session,
-            "bench": bench,
+            "bench": bench_node,
             "package": main_package,
             "user": session.user,
             "get_node": _get_node,
             "get_path": _get_path,
             "render": _render,
         }
+
+        # enter repl
         banner = "=" * 40 + f"\nBench: {bench_node.slug}\n" + f"User: {user_node.slug}\n" + "=" * 40
-        # IPython.start_ipython(argv=["--autoawait=asyncio"], user_ns=glbls, banner=banner)
-        # code.InteractiveConsole(glbls).interact(banner=banner)
-        await aioconsole.interact(banner=banner, locals=glbls)
+        vars = globals()
+        vars.update(locals())
+        vars.update(glbls)
+        await repl(banner, vars)

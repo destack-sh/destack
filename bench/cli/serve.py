@@ -6,7 +6,7 @@ import structlog
 import typer
 from grpclib.utils import graceful_exit
 
-from bench.cli.utils import async_to_sync_blocking
+from bench.cli.utils import async_to_sync
 from bench.language.const import ClientType
 from bench.proto.services import GrpcServer, ServiceBase
 from bench.runtime.thread import RuntimeThread
@@ -37,7 +37,7 @@ async def _do_serve(handlers: list[ServiceBase], *, host: str, port: int, watch:
 
 
 @app.command()
-@async_to_sync_blocking
+@async_to_sync
 async def system(
     host: str,
     port: int,
@@ -64,7 +64,7 @@ async def system(
 
 
 @app.command()
-@async_to_sync_blocking
+@async_to_sync
 async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
     from bench.system.supervisor.service import SupervisorService
     from bench.system.utils.session import global_store_from_env
@@ -78,7 +78,7 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
 
 
 @app.command()
-@async_to_sync_blocking
+@async_to_sync
 async def host(host: str, port: int, watch: bool = False, no_check: bool = False):
     from bench.system.host.router import HostRouterService
     from bench.system.utils.session import global_store_from_env
@@ -92,7 +92,7 @@ async def host(host: str, port: int, watch: bool = False, no_check: bool = False
 
 
 @app.command()
-@async_to_sync_blocking
+@async_to_sync
 async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = False):
     from bench.runtime.service import RuntimeService, RuntimeThreadMode
 

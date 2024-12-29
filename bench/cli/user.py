@@ -1,7 +1,7 @@
 import structlog
 import typer
 
-from bench.cli.utils import async_to_sync_blocking
+from bench.cli.utils import async_to_sync
 from bench.language import User
 from bench.language.const import (
     NodeArea,
@@ -15,7 +15,7 @@ logger = structlog.get_logger(__name__)
 
 
 @app.command(help="check whether the current Bench state is properly migrated")
-@async_to_sync_blocking
+@async_to_sync
 async def unwaitlist(user_slug: str):
     from bench.system.utils.session import (
         global_session,

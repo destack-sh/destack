@@ -9,7 +9,7 @@ from more_itertools import first
 from rich import print
 from rich.console import Console
 
-from bench.cli.utils import async_to_sync_blocking, parse_region
+from bench.cli.utils import async_to_sync, parse_region
 from bench.language import Bench, Store
 from bench.language.const import REGION, VERSION, NodeArea, NodeType, Region
 from bench.sql.client import pg_connection
@@ -43,7 +43,7 @@ BENCH_QUERY = Bench.include_descendants(Store).select_all()
 
 
 @app.command(help="generate SQL migrations")
-@async_to_sync_blocking
+@async_to_sync
 async def make(
     area: Optional[NodeArea] = None,
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
@@ -175,7 +175,7 @@ async def make(
 
 
 @app.command(help="apply SQL migrations")
-@async_to_sync_blocking
+@async_to_sync
 async def apply(
     area: NodeArea = typer.Option(default=NodeArea.GLOBAL, help="the area to migrate"),  # noqa: B008
     target: Optional[str] = typer.Option(
@@ -235,7 +235,7 @@ async def apply(
 
 
 @app.command()
-@async_to_sync_blocking
+@async_to_sync
 async def introspect(
     area: Optional[NodeArea] = None,
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,

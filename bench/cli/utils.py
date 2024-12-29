@@ -1,13 +1,23 @@
+import ast
 import asyncio
 import functools
 import os
 import subprocess
-from typing import TYPE_CHECKING
+import textwrap
+import traceback
+from typing import TYPE_CHECKING, Any
 
 import structlog
 import typer
 import uvloop
 from opentelemetry import trace
+from prompt_toolkit import PromptSession
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.lexers import PygmentsLexer
+from prompt_toolkit.styles import Style
+from pygments.lexers import PythonLexer
 
 from bench.language.const import Region
 
@@ -18,7 +28,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-def async_to_sync_blocking(func=None):
+def async_to_sync(func=None):
     """Automatically convert async functions to sync if not called in async context."""
 
     def decorate(func):
@@ -70,3 +80,83 @@ def parse_region(region: str | Region) -> Region:
         raise typer.BadParameter(
             f"invalid region: '{region.lower()}' (expected: {'|'.join(r.name.lower() for r in Region)})"
         ) from e
+
+
+#
+# Repl
+#
+
+
+def _contains_await(src: str) -> bool:
+    """Return True if the given source code contains an 'await' anywhere."""
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return False
+    return any(isinstance(node, ast.Await) for node in ast.walk(tree))
+
+
+async def eval_async(source: str, env: dict[str, Any]) -> Any:
+    """Evaluate/execute code asynchronously, supporting top-level await."""
+    # If the code has an await anywhere, wrap it in an async def
+    if _contains_await(source):
+        wrapped = f"async def _temp_func():\n{textwrap.indent(source, '    ')}"
+        try:
+            exec(wrapped, env, env)  # Defines _temp_func in env
+            return await env["_temp_func"]()
+        finally:
+            env.pop("_temp_func", None)
+    else:
+        # If it's an expression, eval it; otherwise, exec it
+        try:
+            code_obj = compile(source, "<repl>", "eval")
+            return eval(code_obj, env, env)
+        except SyntaxError:
+            code_obj = compile(source, "<repl>", "exec")
+            exec(code_obj, env, env)
+            return None
+
+
+fancy_style = Style.from_dict(
+    {
+        "pygments.keyword": "bold ansigreen",
+        "pygments.comment": "italic ansiwhite",
+        "pygments.string": "ansimagenta",
+        "pygments.number": "ansiblue",
+        "prompt": "bold ansiyellow",
+    }
+)
+
+
+async def repl(banner: str, vars: dict[str, Any]):
+    """Interactive async Python shell with syntax highlighting, auto-suggestions, etc."""
+    print(banner)  # noqa: T201
+
+    kb = KeyBindings()
+
+    @kb.add("c-c")
+    @kb.add("c-d")
+    def _(event):
+        event.app.exit()
+
+    session = PromptSession(
+        lexer=PygmentsLexer(PythonLexer),
+        history=InMemoryHistory(),
+        auto_suggest=AutoSuggestFromHistory(),
+        key_bindings=kb,
+        style=fancy_style,
+    )
+
+    while True:
+        try:
+            text = await session.prompt_async(">>> ")
+            if not text.strip():
+                continue
+            try:
+                result = await eval_async(text, vars)
+                if result is not None:
+                    print(repr(result))  # noqa: T201
+            except Exception:
+                traceback.print_exc()
+        except (EOFError, KeyboardInterrupt):
+            break

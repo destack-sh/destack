@@ -1,13 +1,13 @@
 import typer
 from rich.console import Console
 
-from bench.cli.utils import async_to_sync_blocking
+from bench.cli.utils import async_to_sync
 
 app = typer.Typer(short_help="test utilities")
 
 
 @app.command("prune")
-@async_to_sync_blocking
+@async_to_sync
 async def prune(prefix="test"):
     from bench.sql.client import pg_connection
     from bench.sql.engine import pg_select_raw, sqlstr
