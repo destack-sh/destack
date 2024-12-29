@@ -152,6 +152,7 @@ class Session(RuntimeNode[SessionData]):
     _engines: tuple["Engine", ...] = p_runtime(default_factory=tuple)
     _channels: list[Channel] = p_runtime(default_factory=list)
     _connections: list[Connection] = p_runtime(default_factory=list)
+    _lock_by_engine_id: dict[int, asyncio.Lock] = p_runtime(default_factory=dict)
 
     # transaction
     _tx: Transaction | None = p_runtime(default=None)
@@ -307,14 +308,23 @@ class Session(RuntimeNode[SessionData]):
         return candidate_engines[0]
 
     async def _get_channel(self, engine: Engine) -> Channel:
-        """Gets or creates a channel"""
+        """Gets or creates a Channel into an Engine"""
         for channel in self._channels:
             if channel.engine.id == engine.id:
                 return channel
         else:
-            channel = await engine.channel(self)
-            self._channels.append(channel)
-            return channel
+            # acquire under lock to avoid race condition
+            if engine.id not in self._lock_by_engine_id:
+                self._lock_by_engine_id[engine.id] = asyncio.Lock()
+            async with self._lock_by_engine_id[engine.id]:
+                # check again in case another task created channel while waiting
+                for channel in self._channels:
+                    if channel.engine.id == engine.id:
+                        return channel
+                # acquire channel
+                channel = await engine.channel(self)
+                self._channels.append(channel)
+                return channel
 
     def _touch_channel(self, channel: Channel):
         """Touch a Channel to mark it as used in the current transaction."""

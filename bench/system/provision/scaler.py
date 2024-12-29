@@ -36,10 +36,11 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
         resource_cls = NODE_CLASS_BY_TYPE[self.scale_type]
         assert issubclass(resource_cls, Resource), f"bad scaler type {self!r}"
         self._resource_cls: type[Resource] = resource_cls
+        self._slug = f"{self.provision_subtype.bench_name.lower()}_scaler"
 
     @property
     def slug(self) -> str:
-        return self.provision_subtype.bench_name.lower()
+        return self._slug
 
     @final
     @tracer.start_as_current_span("scaler.reconcile")
@@ -156,7 +157,8 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
     async def _do_decommission(self, resource: Scaler):
         self._scalers_to_reconcile.add(resource)
         self._reconcile_event.set()
-        # can't decommission Scaler?
+        async with self.host.session(commit=True):
+            resource.status = ResourceStatus.DECOMMISSIONED
 
 
 class MachineScalerProvisioner(ScalerProvisioner[Machine]):

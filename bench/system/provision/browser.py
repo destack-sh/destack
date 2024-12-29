@@ -15,6 +15,10 @@ class BrowserbaseBrowserProvisioner(Provisioner[Browser, Browser]):
     provision_type = NodeType.BROWSER
 
     @override
+    async def _do_start(self) -> None:
+        pass
+
+    @override
     async def _do_provision(self, resource: Browser):
         raise NotImplementedError(f"nocheckin: provision {resource!r}")
 
@@ -31,7 +35,7 @@ class LocalhostBrowserProvisioner(Provisioner[Browser, Browser]):
 
     @override
     async def _do_start(self) -> None:
-        # local 'Browsers' are always just 'declared' on start
+        # local Browsers have to be re-provisioned on start (since playwright is a subprocess)
         browsers = await Browser.where(
             Browser.get_property("bench").eq(self.bench)
             & Browser.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
