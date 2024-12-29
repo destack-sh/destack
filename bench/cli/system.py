@@ -7,7 +7,7 @@ import typer
 from more_itertools import first
 from rich import print
 
-from bench.cli.utils import async_to_sync_blocking, parse_region
+from bench.cli.utils import async_to_sync, parse_region
 from bench.language import Bench, User
 from bench.language.bench import Client, ResourceStatus
 from bench.language.const import (
@@ -32,7 +32,7 @@ logger = structlog.get_logger(__name__)
 
 
 @app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")
-@async_to_sync_blocking
+@async_to_sync
 async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)] = REGION):
     from bench.system.supervisor.service import create_default_bench
     from bench.system.utils.session import (
@@ -88,7 +88,7 @@ async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)]
 @app.command(
     name="make-local-machine", help="gets or creates a local Machine (and Client) for a Bench"
 )
-@async_to_sync_blocking
+@async_to_sync
 async def make_local_machine(
     bench_slug: str,
     title: str = "Localhost",
@@ -158,7 +158,7 @@ async def make_local_machine(
 
 
 @app.command(name="create-image-pull-secret", help="create image pull secret in local cluster")
-@async_to_sync_blocking
+@async_to_sync
 async def create_image_pull_secret(*, ghcr_username: str, ghcr_token: str):
     from kubernetes_asyncio import client as k8
     from kubernetes_asyncio.client import CoreV1Api as KubernetesCoreV1Api

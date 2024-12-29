@@ -407,6 +407,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             MessagePlugin(self, self._bench),
             SchedulePlugin(self, self._bench),
             database_plugin,
+            # LogPlugin(self, self._bench), # TODO :Broken: re-enable LogPlugin
             *self._provisioners,
         )
         await asyncio.gather(*(plugin.start() for plugin in self._plugins))
@@ -659,7 +660,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
     async def upload_files(
         self, request: UploadFilesRequest, headers: Mapping
     ) -> UploadFilesResponse:
-        # TODO :Broken :Security: evaluate file upload access
+        # TODO :Security: evaluate file upload access
         s3_client = get_s3_client_for_presigning(request.environment)
         handles: list[UploadFilesResponse.UploadHandle] = []
         for file_data in request.files:
@@ -723,7 +724,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
     async def download_files(
         self, request: DownloadFilesRequest, headers: Mapping
     ) -> DownloadFilesResponse:
-        # TODO :Broken :Security!: evaluate file download access
+        # TODO :Security!: evaluate file download access
         s3_client = get_s3_client_for_presigning(request.environment)
 
         # get files
