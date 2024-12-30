@@ -15,9 +15,9 @@ import {
   BenchType,
   ContinueData,
   FieldType,
-  InterruptData,
-  InterruptStatus,
-  InterruptType,
+  InterruptionData,
+  InterruptionStatus,
+  InterruptionType,
   NodeType,
   ObjectType,
   RunData,
@@ -30,7 +30,7 @@ import {
 import { isNode, makeStruct, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getInterruptActions, runtime } from "@/system/runtime";
 import { canvas, pkg, pkgGraph } from "@/system/space";
-import { ICON_BY_INTERRUPT_TYPE, IconInline } from "@/ui/icon";
+import { ICON_BY_INTERRUPTION_TYPE, IconInline } from "@/ui/icon";
 import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
@@ -42,7 +42,7 @@ import { computed, ref, toRef, type Ref } from "vue";
 const HEADER_HEIGHT = 32;
 const SECTION_HEADER_HEIGHT = 32;
 const ROW_HEIGHT = 28;
-const INTERRUPT_TYPES = [InterruptType.YIELD]; // NOTE :UX: make shown interrupt types configurable
+const INTERRUPT_TYPES = [InterruptionType.YIELD]; // NOTE :UX: make shown interrupt types configurable
 
 const props = defineProps<
   {
@@ -112,15 +112,15 @@ function getRunObjectValue(fieldType: FieldType) {
 }
 
 // interrupts
-type InterruptInfo = {
+type InterruptionInfo = {
   base: RunnableNode | null;
-  interrupt: InterruptData;
+  interruption: InterruptionData;
   continuations: ContinueData[];
   inputType: TypeInfoData;
   outputType: TypeInfoData;
 };
 const interrupts = computed(() => {
-  const interrupts: InterruptInfo[] = [];
+  const interrupts: InterruptionInfo[] = [];
   for (const interrupt of runTree.value.interrupts) {
     if (!INTERRUPT_TYPES.includes(interrupt.type)) continue;
     const base = runTree.value.getBase(getInterruptBasePtr(interrupt)!)!;
@@ -140,15 +140,15 @@ const interrupts = computed(() => {
       interrupt.outputsPacked!,
       "continuations",
     );
-    interrupts.push({ base, interrupt, inputType, outputType, continuations: continuations ?? [] });
+    interrupts.push({ base, interruption: interrupt, inputType, outputType, continuations: continuations ?? [] });
   }
   return interrupts;
 });
-function setContinuations(interrupt: InterruptInfo, value: ContinueData[]) {
+function setContinuations(interrupt: InterruptionInfo, value: ContinueData[]) {
   const continuationsPacked = packCustomObjectProperty(ObjectType.OUTPUT_OBJECT, value, "continuations");
   runTree.value.tx.update(
-    interrupt.interrupt,
-    { outputsPacked: { ...(interrupt.interrupt.outputsPacked as any), ...((continuationsPacked as any) ?? {}) } },
+    interrupt.interruption,
+    { outputsPacked: { ...(interrupt.interruption.outputsPacked as any), ...((continuationsPacked as any) ?? {}) } },
     { debounce: "tick" },
   );
 }
@@ -259,27 +259,30 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
           }"
         >
           <span class="font-semibold">Interruptions</span>
-          <span v-if="interrupts.some((i) => i.interrupt.status == InterruptStatus.OPEN)" class="ml-1.5 text-gray-400">
-            ({{ interrupts.filter((i) => i.interrupt.status == InterruptStatus.OPEN).length }} open)
+          <span
+            v-if="interrupts.some((i) => i.interruption.status == InterruptionStatus.OPEN)"
+            class="ml-1.5 text-gray-400"
+          >
+            ({{ interrupts.filter((i) => i.interruption.status == InterruptionStatus.OPEN).length }} open)
           </span>
         </div>
         <div class="flex flex-col gap-y-1.5">
           <!-- Interrupt -->
-          <div v-for="interrupt of interrupts" :key="interrupt.interrupt.id" class="">
+          <div v-for="interrupt of interrupts" :key="interrupt.interruption.id" class="">
             <!-- Interrupt Header -->
             <div class="flex flex-row items-center gap-x-1.5">
               <!-- Highlight -->
               <IconInline
                 v-tooltip="{ title: 'Interrupted', small: true, group: 'run.status' }"
                 class="w-5 text-center transition-colors duration-150"
-                :class="interrupt.interrupt.status == InterruptStatus.OPEN ? 'text-pink-500' : 'text-gray-700'"
-                v-bind="ICON_BY_INTERRUPT_TYPE[interrupt.interrupt.type]"
+                :class="interrupt.interruption.status == InterruptionStatus.OPEN ? 'text-pink-500' : 'text-gray-700'"
+                v-bind="ICON_BY_INTERRUPTION_TYPE[interrupt.interruption.type]"
               />
               <!-- Node -->
               <span>{{ interrupt.base?.name ?? "???" }}</span>
               <!-- Duration -->
               <span class="ml-0.5 text-gray-400">
-                {{ getInterruptDurationString(interrupt.interrupt, { minUnit: "s" }) }}
+                {{ getInterruptDurationString(interrupt.interruption, { minUnit: "s" }) }}
               </span>
               <!-- Meta/Controls -->
               <div class="ml-auto flex flex-row items-center gap-x-1">
@@ -287,7 +290,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
               </div>
             </div>
             <!-- Interrupt Body -->
-            <div v-if="interrupt.interrupt.status == InterruptStatus.OPEN">
+            <div v-if="interrupt.interruption.status == InterruptionStatus.OPEN">
               <!-- Interrupt Outputs -->
               <CustomObject
                 id="interrupt-outputs"
@@ -296,10 +299,10 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
                 is-inline
                 is-input
                 is-minimal
-                :model-value="interrupt.interrupt.outputsPacked"
+                :model-value="interrupt.interruption.outputsPacked"
                 @update:model-value="
                   (value) => {
-                    runTree.tx.update(interrupt.interrupt, { outputsPacked: value }, { debounce: 'short' });
+                    runTree.tx.update(interrupt.interruption, { outputsPacked: value }, { debounce: 'short' });
                   }
                 "
               />
@@ -335,7 +338,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
               <!-- Actions -->
               <div class="ml-auto mt-1 flex flex-row justify-end gap-x-1 py-1">
                 <button
-                  v-for="action in getInterruptActions(interrupt.interrupt)"
+                  v-for="action in getInterruptActions(interrupt.interruption)"
                   :key="action.title"
                   v-tooltip="{ title: action.title, small: true, group: 'run' }"
                   class="rounded px-1 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"

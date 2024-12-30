@@ -25,7 +25,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.30.1"
+VERSION = "2024.12.30.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -152,8 +152,8 @@ class EnumType(IdEnum):
     BREAKPOINT_SITE = 23011
     BREAKPOINT_ACTION = 23012
     BREAKPOINT_TARGET = 23013
-    INTERRUPT_TYPE = 23014
-    INTERRUPT_STATUS = 23015
+    INTERRUPTION_TYPE = 23014
+    INTERRUPTION_STATUS = 23015
     CACHE_MODE = 23016
     CODE_TYPE = 23017
     MODEL_PROVIDER = 23018
@@ -265,7 +265,7 @@ class NodeType(IdEnum):
     # runtime
     SESSION = 3600  # (timed)
     RUN = 3601  # (based, timed)
-    INTERRUPT = 3602  # (timed)
+    INTERRUPTION = 3602  # (timed)
     LOG = 3603  # (timed)
 
     #

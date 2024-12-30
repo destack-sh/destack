@@ -22,13 +22,13 @@ from bench.language.code import Code
 from bench.language.const import NodeMode, ObjectKind, RunStatus
 from bench.language.field import TypeBase, TypeIn, TypeInfo
 from bench.language.flow import Pipe
-from bench.language.interrupt import (
+from bench.language.interruption import (
     Breakpoint,
     BreakpointScope,
     BreakpointSite,
-    Interrupt,
-    InterruptStatus,
-    InterruptType,
+    Interruption,
+    InterruptionStatus,
+    InterruptionType,
 )
 from bench.language.log import LogInfo
 from bench.language.node import Node, get_tracing_context
@@ -44,7 +44,11 @@ from bench.language.run import (
     RunType,
 )
 from bench.language.value import CustomObject
-from bench.runtime.core import BASE_RUN_OPTIONS_BY_KIND, InterruptCancelledError, RunImpossibleError
+from bench.runtime.core import (
+    BASE_RUN_OPTIONS_BY_KIND,
+    InterruptionCancelledError,
+    RunImpossibleError,
+)
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -58,10 +62,10 @@ tracer = trace.get_tracer(__name__)
 class Interrupted(Exception):  # noqa: N818
     """A Runner/Run is interrupted."""
 
-    def __init__(self, runner: "Runner", run: Run, interrupt: Interrupt):
+    def __init__(self, runner: "Runner", run: Run, interruption: Interruption):
         self.runner = runner
         self.run = run
-        self.interrupt = interrupt
+        self.interruption = interruption
 
 
 RunnerHook = Callable[["Runner", BaseException | None], None]
@@ -70,10 +74,10 @@ RunnerHook = Callable[["Runner", BaseException | None], None]
 class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     """
     A runner for a single Run (tracked Run or untracked RunSpan).
-    Runners work similar to asyncio Tasks, making progress until terminated or stopped by an Interrupt.
-    Once an Interrupt is handled, we try to run the Runner again - it may progress or raise another Interrupt.
-    Interruptible Runners may be nested, and it's the responsibility of the Runners
-     to ensure replay stability in all sub-Runners when resuming after an Interrupt.
+    Runners work similar to asyncio Tasks, making progress until terminated or stopped by an Interruption.
+    Once an Interruption is handled, we try to run the Runner again - it may progress or raise another Interruption.
+    Interruption-capable Runners may be nested, and it's the responsibility of the Runners
+     to ensure replay stability in all sub-Runners when resuming after an Interruption.
     """
 
     __slots__ = (
@@ -263,13 +267,13 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             parent = parent.parent
 
     #
-    # Interrupts
+    # Interruptions
     #
 
     @property
-    def interrupt(self) -> Interrupt | None:
+    def interruption(self) -> Interruption | None:
         assert self.tracked_run is not None, f"{self!r} is not tracked"
-        return self.tracked_run.interrupt
+        return self.tracked_run.interruption
 
     @property
     def breakpoints(self) -> Sequence[Breakpoint]:
@@ -289,45 +293,51 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                     return True
         return False
 
-    def _get_or_create_interrupt(
+    def _get_or_create_interruption(
         self,
-        kind: InterruptType,
+        kind: InterruptionType,
         *,
         attempt: int | None = None,
         breakpoint: BreakpointSite | None = None,
     ):
         """Gets an Interrupt in the current Runner of the given shape (or creates one)."""
         assert self.tracked_run is not None, f"{self!r} is not tracked"
-        for interrupt in self.tracked_run.interrupts:
+        for interruption in self.tracked_run.interruptions:
             if (
-                interrupt.type == kind
-                and interrupt.attempt_no == attempt
-                and interrupt.breakpoint_site == breakpoint
+                interruption.type == kind
+                and interruption.attempt_no == attempt
+                and interruption.breakpoint_site == breakpoint
             ):
-                return interrupt
-        interrupt = Interrupt.from_run(kind, self.tracked_run, breakpoint=breakpoint)
-        self.session._create(interrupt)
-        return interrupt
+                return interruption
+        interruption = Interruption.from_run(kind, self.tracked_run, breakpoint=breakpoint)
+        self.session._create(interruption)
+        return interruption
 
-    def _trap_interrupt(
+    def _trap_interruption(
         self,
-        kind: InterruptType,
+        kind: InterruptionType,
         *,
         attempt: int | None = None,
         breakpoint: BreakpointSite | None = None,
     ):
         """Yield/resume an Interrupt of the given kind if set in this Runner."""
         assert self.tracked_run is not None, f"{self!r} is not tracked"
-        interrupt = self._get_or_create_interrupt(kind, attempt=attempt, breakpoint=breakpoint)
-        if interrupt.status == InterruptStatus.COMPLETED:
-            logger.trace(f"runtime.{kind.name.lower()}.completed", runner=self, interrupt=interrupt)
-            return interrupt  # interrupt already handled
-        elif interrupt.status == InterruptStatus.CANCELLED:
-            logger.trace(f"runtime.{kind.name.lower()}.cancelled", runner=self, interrupt=interrupt)
-            raise InterruptCancelledError(f"{interrupt!r} is cancelled")
+        interruption = self._get_or_create_interruption(
+            kind, attempt=attempt, breakpoint=breakpoint
+        )
+        if interruption.status == InterruptionStatus.COMPLETED:
+            logger.trace(
+                f"runtime.{kind.name.lower()}.completed", runner=self, interrupt=interruption
+            )
+            return interruption  # interrupt already handled
+        elif interruption.status == InterruptionStatus.CANCELLED:
+            logger.trace(
+                f"runtime.{kind.name.lower()}.cancelled", runner=self, interrupt=interruption
+            )
+            raise InterruptionCancelledError(f"{interruption!r} is cancelled")
         else:
-            logger.trace(f"runtime.{kind.name.lower()}", runner=self, interrupt=interrupt)
-            raise Interrupted(self, self.tracked_run, interrupt)
+            logger.trace(f"runtime.{kind.name.lower()}", runner=self, interrupt=interruption)
+            raise Interrupted(self, self.tracked_run, interruption)
 
     @final
     def _trap_breakpoint(self, site: BreakpointSite, *alias_sites: BreakpointSite):
@@ -336,7 +346,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             return  # can't break into untracked Run
         # handle applicable breakpoint (if any)
         if self._has_breakpoint_set(site, *alias_sites):
-            self._trap_interrupt(InterruptType.YIELD, breakpoint=site)
+            self._trap_interruption(InterruptionType.YIELD, breakpoint=site)
 
     @final
     def _trap_pause(self):
@@ -344,7 +354,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if self.tracked_run is None:
             return  # can't break into untracked Run
         if self.should_pause:
-            self._trap_interrupt(InterruptType.PAUSE)
+            self._trap_interruption(InterruptionType.PAUSE)
 
     async def _wait_for(
         self, nodes: Sequence[Node], complete_when: Callable[[], bool], timeout: timedelta

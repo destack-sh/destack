@@ -21,7 +21,11 @@ from bench.language.const import (
 )
 from bench.language.field import Field, TypeIn, TypeInfo, to_type_scalar
 from bench.language.graph import NodeGraph
-from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_TYPE, BreakpointSite, Interrupt
+from bench.language.interruption import (
+    RUN_STATUS_BY_INTERRUPTION_TYPE,
+    BreakpointSite,
+    Interruption,
+)
 from bench.language.node import Node
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.language.run import Run, RunAttempt, RunError, RunnableNode
@@ -135,7 +139,7 @@ class Runtime:
     ):
         """
         Wait for the given nodes to reach a certain state.
-        NOTE :Architecture: use Interrupts instead of 'busy' (async) wait in Runtime?
+        NOTE :Architecture: use Interruptions instead of 'busy' (async) wait in Runtime?
         """
         if condition():
             return  # already good
@@ -338,10 +342,10 @@ class Runtime:
             raise
         except Interrupted as e:
             # interrupted
-            status = RUN_STATUS_BY_INTERRUPT_TYPE[e.interrupt.type]
+            status = RUN_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
             attempt._do_set("status", status, validate=False)
             attempt._do_set("interrupted_at", self.oracle.utc(), validate=False)
-            attempt._do_set("interrupt", e.interrupt, validate=False)
+            attempt._do_set("interruption", e.interruption, validate=False)
             log.debug("runtime.attempt.interrupted", attempt=attempt, span="current")
             raise
         except BaseException as e:
@@ -524,16 +528,16 @@ class Runtime:
             await self._do_run(runner)
         except Interrupted as e:
             if not runner.status.is_interrupted:
-                # interrupt not handled in attempt loop (probably from a breakpoint)
+                # interruption not handled in attempt loop (probably from a breakpoint)
                 last_attempt = runner.current_attempt
                 interrupted_at = (
                     last_attempt.interrupted_at if last_attempt is not None else self.oracle.utc()
                 )
-                runner.status = RUN_STATUS_BY_INTERRUPT_TYPE[e.interrupt.type]
+                runner.status = RUN_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
                 run._do_set("interrupted_at", interrupted_at, validate=False)
             else:
                 run._do_set("interrupted_at", self.oracle.utc(), validate=False)
-            run._do_set("interrupt", e.interrupt, validate=False)
+            run._do_set("interruption", e.interruption, validate=False)
             raise
         finally:
             run._do_set("attempts", runner.attempts, validate=False)
@@ -560,7 +564,7 @@ class Runtime:
                     run._do_set("terminated_epoch", self.session.epoch, validate=False)
                     run._do_set("duration", run.terminated_at - run.started_at)  # type: ignore
 
-                # close any remaining (directly) contained open Interrupts
+                # close any remaining (directly) contained open Interruptions
                 self.close(run)
 
             # commit intermediate session edits
@@ -653,17 +657,21 @@ class Runtime:
                     await self.session.commit()
         return runner
 
-    def get_interrupted_runs(self, graph: NodeGraph, *interrupts: Interrupt) -> list[Run]:
-        """Gets all Runs that were directly interrupted by the given Interrupts."""
+    def get_interrupted_runs(self, graph: NodeGraph, *interruptions: Interruption) -> list[Run]:
+        """Gets all Runs that were directly interrupted by the given Interruptions."""
         interrupted_runs: list[Run] = []
         for run in graph.nodes_of_type(Run):
-            interrupt = run.interrupt
-            if run.status.is_interrupted and interrupt is not None and interrupt in interrupts:
+            interruption = run.interruption
+            if (
+                run.status.is_interrupted
+                and interruption is not None
+                and interruption in interruptions
+            ):
                 interrupted_runs.append(run)
         return interrupted_runs
 
     def resume(self, *runs: Run):
-        """Resume interrupted Runs. Does *not* mark the Run or close open Interrupts."""
+        """Resume interrupted Runs. Does *not* mark the Run or close open Interruptions."""
         runs_by_parent_id: dict[UUID | None, list[Run]] = group_by(
             runs, key=lambda run: run.parent_id
         )
@@ -687,17 +695,17 @@ class Runtime:
                 logger.debug("runtime.run.stop", runner=runner)
 
     def close(self, run: Run, resume: bool = True):
-        """Close the Interrupts in a Run."""
-        closed_interrupts: list[Interrupt] | None = None
-        for interrupt in run._graph.iter_descendants(run, NodeType.INTERRUPT):
-            interrupt = cast(Interrupt, interrupt)
-            if interrupt.status.is_open:
-                interrupt.cancel(_trigger_runtime=False)
-                if closed_interrupts is None:
-                    closed_interrupts = []
-                closed_interrupts.append(interrupt)
+        """Close the Interruptions in a Run."""
+        closed_interruptions: list[Interruption] | None = None
+        for interruption in run._graph.iter_descendants(run, NodeType.INTERRUPTION):
+            interruption = cast(Interruption, interruption)
+            if interruption.status.is_open:
+                interruption.cancel(_trigger_runtime=False)
+                if closed_interruptions is None:
+                    closed_interruptions = []
+                closed_interruptions.append(interruption)
 
-        # trigger resume for Interrupts (if we can still run, i.e. not at root)
-        if resume and run.parent_ptr is not None and closed_interrupts:
-            runs_to_resume = self.get_interrupted_runs(run._graph, *closed_interrupts)
+        # trigger resume for Interruptions (if we can still run, i.e. not at root)
+        if resume and run.parent_ptr is not None and closed_interruptions:
+            runs_to_resume = self.get_interrupted_runs(run._graph, *closed_interruptions)
             self.resume(*runs_to_resume)

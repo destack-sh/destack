@@ -17,7 +17,7 @@ import {
   FileType,
   HubAspect,
   IconKind,
-  InterruptType,
+  InterruptionType,
   LogLevel,
   NodeReferenceData,
   NodeType,
@@ -556,11 +556,11 @@ export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
   [RunStatus.FAILED]: makeIcon({ faName: "fas fa-circle-exclamation" }),
 };
 
-export const ICON_BY_INTERRUPT_TYPE: Record<InterruptType, IconData> = {
-  [InterruptType.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
-  [InterruptType.YIELD]: makeIcon({ faName: "fas fa-hand" }),
-  [InterruptType.PAUSE]: makeIcon({ faName: "fas fa-pause" }),
-  [InterruptType.WAIT]: makeIcon({ faName: "fas fa-bolt-lightning" }),
+export const ICON_BY_INTERRUPTION_TYPE: Record<InterruptionType, IconData> = {
+  [InterruptionType.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
+  [InterruptionType.YIELD]: makeIcon({ faName: "fas fa-hand" }),
+  [InterruptionType.PAUSE]: makeIcon({ faName: "fas fa-pause" }),
+  [InterruptionType.WAIT]: makeIcon({ faName: "fas fa-bolt-lightning" }),
 };
 
 export const ICON_BY_EDIT_TYPE: Partial<Record<EditType, IconData>> = _makeIcons<EditType>({

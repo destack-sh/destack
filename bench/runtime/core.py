@@ -90,8 +90,8 @@ class ActionChangedError(ModelIncapableError):
     run_error_type = RunErrorType.ACTION_CHANGED
 
 
-class InterruptCancelledError(RetryableError):
-    run_error_type = RunErrorType.INTERRUPT_CANCELLED
+class InterruptionCancelledError(RetryableError):
+    run_error_type = RunErrorType.INTERRUPTION_CANCELLED
 
 
 class ModelFailedError(RetryableError):

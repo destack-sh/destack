@@ -75,7 +75,13 @@ from .field import (
 from .file import File, FileFormat, FileKind, FileRetentionMode, FileType
 from .flow import FieldMapping, ObjectMapping, Pipe, PipeType
 from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
-from .interrupt import Breakpoint, BreakpointAction, BreakpointSite, Interrupt, InterruptType
+from .interruption import (
+    Breakpoint,
+    BreakpointAction,
+    BreakpointSite,
+    Interruption,
+    InterruptionType,
+)
 from .list import LocalNodeList, NodeList, RemoteNodeList, ValueList
 from .log import Log, LogInfo, LogKind, LogLevel
 from .machine import Machine, MachineImage, MachineType
@@ -245,8 +251,8 @@ __all__ = [
     "Icon",
     "IconKind",
     "ImageOptions",
-    "Interrupt",
-    "InterruptType",
+    "Interruption",
+    "InterruptionType",
     "Line",
     "LocalNodeList",
     "Log",

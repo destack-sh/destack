@@ -79,8 +79,8 @@ enum EnumType {
   ENUM_TYPE_BREAKPOINT_SITE = 23011;
   ENUM_TYPE_BREAKPOINT_ACTION = 23012;
   ENUM_TYPE_BREAKPOINT_TARGET = 23013;
-  ENUM_TYPE_INTERRUPT_TYPE = 23014;
-  ENUM_TYPE_INTERRUPT_STATUS = 23015;
+  ENUM_TYPE_INTERRUPTION_TYPE = 23014;
+  ENUM_TYPE_INTERRUPTION_STATUS = 23015;
   ENUM_TYPE_CACHE_MODE = 23016;
   ENUM_TYPE_CODE_TYPE = 23017;
   ENUM_TYPE_MODEL_PROVIDER = 23018;
@@ -140,7 +140,7 @@ enum NodeType {
   NODE_TYPE_RECORD = 3501;
   NODE_TYPE_SESSION = 3600;
   NODE_TYPE_RUN = 3601;
-  NODE_TYPE_INTERRUPT = 3602;
+  NODE_TYPE_INTERRUPTION = 3602;
   NODE_TYPE_LOG = 3603;
   NODE_TYPE_SKIP = 9000;
 }
@@ -247,7 +247,7 @@ enum ObjectType {
   OBJECT_TYPE_RECORD = 3501;
   OBJECT_TYPE_SESSION = 3600;
   OBJECT_TYPE_RUN = 3601;
-  OBJECT_TYPE_INTERRUPT = 3602;
+  OBJECT_TYPE_INTERRUPTION = 3602;
   OBJECT_TYPE_LOG = 3603;
   OBJECT_TYPE_SKIP = 9000;
   OBJECT_TYPE_RUNTIME_CONTEXT = 10001;
@@ -436,7 +436,7 @@ enum BenchType {
   BENCH_TYPE_RECORD = 3501;
   BENCH_TYPE_SESSION = 3600;
   BENCH_TYPE_RUN = 3601;
-  BENCH_TYPE_INTERRUPT = 3602;
+  BENCH_TYPE_INTERRUPTION = 3602;
   BENCH_TYPE_LOG = 3603;
   BENCH_TYPE_SKIP = 9000;
   BENCH_TYPE_RUNTIME_CONTEXT = 10001;
@@ -575,8 +575,8 @@ enum BenchType {
   BENCH_TYPE_BREAKPOINT_SITE = 23011;
   BENCH_TYPE_BREAKPOINT_ACTION = 23012;
   BENCH_TYPE_BREAKPOINT_TARGET = 23013;
-  BENCH_TYPE_INTERRUPT_TYPE = 23014;
-  BENCH_TYPE_INTERRUPT_STATUS = 23015;
+  BENCH_TYPE_INTERRUPTION_TYPE = 23014;
+  BENCH_TYPE_INTERRUPTION_STATUS = 23015;
   BENCH_TYPE_CACHE_MODE = 23016;
   BENCH_TYPE_CODE_TYPE = 23017;
   BENCH_TYPE_MODEL_PROVIDER = 23018;
@@ -1219,7 +1219,7 @@ enum RunErrorType {
   RUN_ERROR_TYPE_ACTION_CHANGED = 501;
   RUN_ERROR_TYPE_INVALID_CONTINUATION = 502;
   RUN_ERROR_TYPE_INVALID_CALL = 503;
-  RUN_ERROR_TYPE_INTERRUPT_CANCELLED = 504;
+  RUN_ERROR_TYPE_INTERRUPTION_CANCELLED = 504;
   RUN_ERROR_TYPE_RETRYABLE = 999;
 }
 
@@ -1271,18 +1271,18 @@ enum BreakpointScope {
   BREAKPOINT_SCOPE_PIPE = 21;
 }
 
-enum InterruptType {
-  INTERRUPT_TYPE_UNSPECIFIED = 0;
-  INTERRUPT_TYPE_PAUSE = 1;
-  INTERRUPT_TYPE_YIELD = 2;
-  INTERRUPT_TYPE_WAIT = 3;
+enum InterruptionType {
+  INTERRUPTION_TYPE_UNSPECIFIED = 0;
+  INTERRUPTION_TYPE_PAUSE = 1;
+  INTERRUPTION_TYPE_YIELD = 2;
+  INTERRUPTION_TYPE_WAIT = 3;
 }
 
-enum InterruptStatus {
-  INTERRUPT_STATUS_UNSPECIFIED = 0;
-  INTERRUPT_STATUS_OPEN = 1;
-  INTERRUPT_STATUS_CANCELLED = 7;
-  INTERRUPT_STATUS_COMPLETED = 10;
+enum InterruptionStatus {
+  INTERRUPTION_STATUS_UNSPECIFIED = 0;
+  INTERRUPTION_STATUS_OPEN = 1;
+  INTERRUPTION_STATUS_CANCELLED = 7;
+  INTERRUPTION_STATUS_COMPLETED = 10;
 }
 
 // How to handle caching.
@@ -1944,7 +1944,7 @@ message RunAttemptData {
   optional google.protobuf.Timestamp terminated_at = 45;
   optional int32 terminated_epoch = 46;
   optional google.protobuf.Timestamp interrupted_at = 47;
-  optional NodeReferenceData interrupt_ptr = 50;
+  optional NodeReferenceData interruption_ptr = 50;
   optional RunErrorData error = 51;
   optional google.protobuf.Value intermediates_packed = 54;
 }
@@ -2475,7 +2475,7 @@ message RunData {
   optional int32 started_epoch = 49;
   optional google.protobuf.Timestamp stopped_at = 50;
   optional google.protobuf.Timestamp interrupted_at = 51;
-  optional NodeReferenceData interrupt_ptr = 52;
+  optional NodeReferenceData interruption_ptr = 52;
   optional google.protobuf.Timestamp paused_at = 53;
   optional google.protobuf.Timestamp resumed_at = 54;
   optional google.protobuf.Timestamp terminated_at = 55;
@@ -3024,7 +3024,7 @@ message TriggerData {
   NodeMode mode = 90;
 }
 
-message InterruptData {
+message InterruptionData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
@@ -3037,14 +3037,14 @@ message InterruptData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
-  InterruptType type = 30;
+  InterruptionType type = 30;
   optional NodeReferenceData root_ptr = 31;
   optional NodeReferenceData block_ptr = 32;
   optional NodeReferenceData action_ptr = 33;
   optional NodeReferenceData pipe_ptr = 34;
   optional int32 attempt_no = 37;
   optional BreakpointSite breakpoint_site = 38;
-  InterruptStatus status = 40;
+  InterruptionStatus status = 40;
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp closed_at = 42;
   optional NodeReferenceData trigger_ptr = 49;
@@ -3509,7 +3509,7 @@ message SomeNodeData {
     RecordData record = 26;
     SessionData session = 27;
     RunData run = 28;
-    InterruptData interrupt = 29;
+    InterruptionData interruption = 29;
     LogData log = 30;
     SkipData skip = 31;
   };

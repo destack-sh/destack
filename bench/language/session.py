@@ -76,7 +76,7 @@ if TYPE_CHECKING:
         Action,
         Bench,
         Block,
-        Interrupt,
+        Interruption,
         NodeReference,
         QueryBuilder,
         Run,
@@ -663,8 +663,8 @@ class Session(RuntimeNode[SessionData]):
             return self.id == node.id
         elif node.metatype == NodeType.RUN:
             return cast("Run", node).session_id == self.id
-        elif node.metatype == NodeType.INTERRUPT:
-            return cast("Interrupt", node).session_id == self.id
+        elif node.metatype == NodeType.INTERRUPTION:
+            return cast("Interruption", node).session_id == self.id
         else:
             return False
 
