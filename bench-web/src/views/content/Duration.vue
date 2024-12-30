@@ -170,8 +170,8 @@ defineExpose<ViewExposed>({
     </span>
   </div>
 
-  <!-- Inline Editor -->
   <div v-else class="flex flex-col gap-2" :style="{ width: width + 'px' }">
+    <!-- Inline Editor -->
     <div class="flex flex-col gap-2" :class="isPopover ? 'mx-2 mb-1 mt-2' : ''">
       <!-- Quick presets -->
       <div class="flex flex-wrap gap-1">

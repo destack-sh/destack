@@ -1,6 +1,7 @@
 import { isResourceNodeType } from "@/language/const";
 import { newChangeId, Transaction } from "@/language/transaction";
-import { AnyNodeData, BrowserData, MachineData, NodeType, Timestamp } from "@/proto/wire";
+import { AnyNodeData, BrowserData, MachineData, NodeType, ResourceStatus, Timestamp } from "@/proto/wire";
+import { isNode } from "@/proto/wiring";
 import { Action, ActionContext, getNodesForAction, provideActions } from "@/ui/action";
 
 export type ResourceData = MachineData | BrowserData; // | ...
@@ -39,18 +40,43 @@ export const RESOURCE_ACTIONS = provideActions<"resource">({
     icon: "fas fa-power-off",
     title: "Provision",
     text: "Provision this Resource",
+    isEnabled: (action, context) => {
+      const { nodes } = getNodesForAction(action, context);
+      return (
+        nodes.every((n) => isResourceNodeType(n.metatype as any)) &&
+        nodes.some(
+          (n) =>
+            (n as ResourceData).status != ResourceStatus.UP &&
+            (n as ResourceData).status != ResourceStatus.DECOMMISSIONED,
+        )
+      );
+    },
     action: (action, context) => applyResourceAction(action, context, activateResource),
   },
-	"resource.status.suspend": {
+  "resource.status.suspend": {
     icon: "fas fa-snooze",
     title: "Suspend",
     text: "Suspend this Resource",
+    isEnabled: (action, context) => {
+      const { nodes } = getNodesForAction(action, context);
+      return (
+        nodes.every((n) => isResourceNodeType(n.metatype as any)) &&
+        nodes.some((n) => (n as ResourceData).status == ResourceStatus.UP)
+      );
+    },
     action: (action, context) => applyResourceAction(action, context, suspendResource),
-	},
+  },
   "resource.status.decommission": {
     icon: "fas fa-skull",
     title: "Decommission",
     text: "Decommission this Resource",
+    isEnabled: (action, context) => {
+      const { nodes } = getNodesForAction(action, context);
+      return (
+        nodes.every((n) => isResourceNodeType(n.metatype as any)) &&
+        nodes.some((n) => (n as ResourceData).status == ResourceStatus.UP)
+      );
+    },
     action: (action, context) => applyResourceAction(action, context, decommissionResource),
   },
 });
