@@ -25,7 +25,7 @@ from bench.language.browser import Browser
 from bench.language.const import NodeType, ObjectKind, RunErrorKind
 from bench.language.field import TypeBase
 from bench.language.flow import Pipe, PipeType, PortSide
-from bench.language.interrupt import BreakpointScope, BreakpointSite, InterruptType
+from bench.language.interruption import BreakpointScope, BreakpointSite, InterruptionType
 from bench.language.node import HasNodeBase
 from bench.language.run import (
     Run,
@@ -305,8 +305,8 @@ class DeleteActionRunner(ActionRunnerBase[DeleteAction]):
 class YieldActionRunner(ActionRunnerBase):
     @override
     async def run(self) -> None:
-        interrupt = self._trap_interrupt(InterruptType.YIELD)
-        self.outputs = interrupt.outputs
+        interruption = self._trap_interruption(InterruptionType.YIELD)
+        self.outputs = interruption.outputs
         self._check_action_outputs()
 
 

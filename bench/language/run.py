@@ -53,7 +53,7 @@ if TYPE_CHECKING:
         Breakpoint,
         Code,
         CustomObject,
-        Interrupt,
+        Interruption,
         LogInfo,
         LogLevel,
         NodeReference,
@@ -225,8 +225,8 @@ class RunAttempt(Struct):
     terminated_at: Optional[datetime] = p_internal(45, default=None)
     terminated_epoch: Optional[int] = p_internal(46, default=None)
     interrupted_at: Optional[datetime] = p_internal(47, default=None)
-    interrupt: Optional["Interrupt"] = p_internal(
-        50, require=False, array=False, references=NodeType.INTERRUPT, same_bench=True
+    interruption: Optional["Interruption"] = p_internal(
+        50, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
     )
     error: Optional["RunError"] = p_internal(
         51, require=False, array=False, struct=StructType.RUN_ERROR
@@ -313,7 +313,7 @@ class RunErrorType(IdEnum):
     ACTION_CHANGED = 501
     INVALID_CONTINUATION = 502
     INVALID_CALL = 503
-    INTERRUPT_CANCELLED = 504
+    INTERRUPTION_CANCELLED = 504
     RETRYABLE = 999
 
     @property
@@ -449,8 +449,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     started_epoch: Optional[int] = p_internal(49, default=None)
     stopped_at: Optional[datetime] = p_internal(50, default=None)
     interrupted_at: Optional[datetime] = p_internal(51, default=None)
-    interrupt: Optional["Interrupt"] = p_internal(
-        52, require=False, array=False, references=NodeType.INTERRUPT, same_bench=True
+    interruption: Optional["Interruption"] = p_internal(
+        52, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
     )
     paused_at: Optional[datetime] = p_internal(53, default=None)
     resumed_at: Optional[datetime] = p_internal(54, default=None)
@@ -481,7 +481,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     # ...HasRuntimeContext[80-99]
 
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
-    interrupts: LocalNodeList["Interrupt"] = p_node_children(NodeType.INTERRUPT)
+    interruptions: LocalNodeList["Interruption"] = p_node_children(NodeType.INTERRUPTION)
 
     def __content_str__(self):
         node = self.runnable

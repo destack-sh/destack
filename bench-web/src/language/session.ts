@@ -2,7 +2,7 @@ import { ACTIVE_RUN_STATUSES, INTERRUPTED_RUN_STATUSES, TERMINAL_RUN_STATUSES } 
 import {
   BlockType,
   CodeData,
-  InterruptData,
+  InterruptionData,
   NodeReferenceData,
   NodeType,
   PipeData,
@@ -59,7 +59,7 @@ export function getRunBasePtr(run: RunData): NodeReferenceData | null {
   return run.pipePtr ?? run.actionPtr ?? run.blockPtr ?? null;
 }
 
-export function getInterruptBasePtr(interrupt: InterruptData): NodeReferenceData | null {
+export function getInterruptBasePtr(interrupt: InterruptionData): NodeReferenceData | null {
   return interrupt.pipePtr ?? interrupt.actionPtr ?? interrupt.blockPtr ?? null;
 }
 
@@ -102,14 +102,14 @@ export function getRunDurationString(run: RunData, options?: FormatDurationOptio
 }
 
 /** Gets the duration of an Interrupt */
-export function getInterruptDurationMs(interrupt: InterruptData, nowMs: number): number {
+export function getInterruptDurationMs(interrupt: InterruptionData, nowMs: number): number {
   const startedAtMs = timestampToMs(interrupt.createdAt!);
   const closedAtMs = interrupt.closedAt != null ? timestampToMs(interrupt.closedAt) : nowMs;
   return closedAtMs - startedAtMs;
 }
 
 /** Gets the duration of an Interrupt as a formatted string */
-export function getInterruptDurationString(interrupt: InterruptData, options?: FormatDurationOptions): string | null {
+export function getInterruptDurationString(interrupt: InterruptionData, options?: FormatDurationOptions): string | null {
   const now = getNow(TimeUpdateInterval.MILLISECOND).value;
   const nowMs = timestampToMs(now);
   const durationMs = getInterruptDurationMs(interrupt, nowMs);

@@ -20,8 +20,8 @@ import {
   ChangeCategory,
   ExpressionType,
   IconData,
-  InterruptData,
-  InterruptStatus,
+  InterruptionData,
+  InterruptionStatus,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -68,7 +68,7 @@ export class RunTree {
   basesPtrs: Ref<TypedNodeReferenceData<RunnableNodeType>[]>;
   basesRef: Ref<RunnableNode[]>;
   baseByCkRef: Ref<Record<string, RunnableNode>>;
-  interruptsRef: Ref<InterruptData[]>;
+  interruptionsRef: Ref<InterruptionData[]>;
 
   constructor(graph: ReadNodeGraph, runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>) {
     this.runPtr = runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
@@ -78,7 +78,7 @@ export class RunTree {
         scope: graph.scope,
         roots: [this.runPtr.value!],
         ancestorTypes: [NodeType.RUN],
-        descendantTypes: [NodeType.RUN, NodeType.INTERRUPT],
+        descendantTypes: [NodeType.RUN, NodeType.INTERRUPTION],
         isOptional: true,
         isEnabled: this.runPtr.value != null,
       })),
@@ -124,7 +124,7 @@ export class RunTree {
       }
       return basesByCk;
     });
-    this.interruptsRef = runGraph.getOfTypeRef(NodeType.INTERRUPT);
+    this.interruptionsRef = runGraph.getOfTypeRef(NodeType.INTERRUPTION);
   }
 
   /** A transaction for this RunTree. */
@@ -144,7 +144,7 @@ export class RunTree {
 
   /** The interrupts for the current active Run. */
   get interrupts() {
-    return this.interruptsRef.value;
+    return this.interruptionsRef.value;
   }
 
   /** The base node of the current active Run. */
@@ -271,19 +271,19 @@ export class Runtime {
   }
 
   /** Complete an Interrupt */
-  complete(interrupt: InterruptData) {
-    if (interrupt.status != InterruptStatus.OPEN) return;
+  complete(interrupt: InterruptionData) {
+    if (interrupt.status != InterruptionStatus.OPEN) return;
     log.trace("runtime.complete", interrupt);
     const tx = this.tx;
-    tx.update(interrupt, { status: InterruptStatus.COMPLETED, closedAt: Timestamp.now() }, { debounce: "tick" });
+    tx.update(interrupt, { status: InterruptionStatus.COMPLETED, closedAt: Timestamp.now() }, { debounce: "tick" });
   }
 
   /*+ Cancel an Interrupt */
-  cancel(interrupt: InterruptData) {
-    if (interrupt.status != InterruptStatus.OPEN) return;
+  cancel(interrupt: InterruptionData) {
+    if (interrupt.status != InterruptionStatus.OPEN) return;
     log.trace("runtime.cancel", interrupt);
     const tx = this.tx;
-    tx.update(interrupt, { status: InterruptStatus.CANCELLED, closedAt: Timestamp.now() }, { debounce: "tick" });
+    tx.update(interrupt, { status: InterruptionStatus.CANCELLED, closedAt: Timestamp.now() }, { debounce: "tick" });
   }
 }
 
@@ -397,9 +397,9 @@ export const CLEAR_RUN_ACTION: RuntimeAction = {
   },
 };
 
-export function getInterruptActions(interrupt: InterruptData): RuntimeAction[] {
+export function getInterruptActions(interrupt: InterruptionData): RuntimeAction[] {
   const actions: RuntimeAction[] = [];
-  if (interrupt.status == InterruptStatus.OPEN) {
+  if (interrupt.status == InterruptionStatus.OPEN) {
     actions.push({
       title: "Complete",
       icon: makeIcon("fas fa-check"),

@@ -16,7 +16,7 @@ from bench.language.property import (
 )
 from bench.language.trigger import Trigger
 from bench.language.value import CustomObject
-from bench.proto.wire.lang_pb2 import InterruptData
+from bench.proto.wire.lang_pb2 import InterruptionData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -95,25 +95,25 @@ class Breakpoint(Struct):
         return Breakpoint(site=BreakpointSite.RUN_AFTER_COMPLETED, scope=scope, action=action)
 
 
-@enum_(EnumType.INTERRUPT_TYPE)
-class InterruptType(IdEnum):
+@enum_(EnumType.INTERRUPTION_TYPE)
+class InterruptionType(IdEnum):
     PAUSE = 1  # external pause
     YIELD = 2  # voluntary yield
     WAIT = 3  # wait on trigger
 
 
-RUN_STATUS_BY_INTERRUPT_TYPE: dict[InterruptType, RunStatus] = {
-    InterruptType.PAUSE: RunStatus.PAUSED,
-    InterruptType.YIELD: RunStatus.YIELDED,
-    InterruptType.WAIT: RunStatus.WAITING,
+RUN_STATUS_BY_INTERRUPTION_TYPE: dict[InterruptionType, RunStatus] = {
+    InterruptionType.PAUSE: RunStatus.PAUSED,
+    InterruptionType.YIELD: RunStatus.YIELDED,
+    InterruptionType.WAIT: RunStatus.WAITING,
 }
-INTERRUPT_TYPE_BY_RUN_STATUS: dict[RunStatus, InterruptType] = {
-    v: k for k, v in RUN_STATUS_BY_INTERRUPT_TYPE.items()
+INTERRUPTION_TYPE_BY_RUN_STATUS: dict[RunStatus, InterruptionType] = {
+    v: k for k, v in RUN_STATUS_BY_INTERRUPTION_TYPE.items()
 }
 
 
-@enum_(EnumType.INTERRUPT_STATUS)
-class InterruptStatus(IdEnum):
+@enum_(EnumType.INTERRUPTION_STATUS)
+class InterruptionStatus(IdEnum):
     OPEN = 1
     CANCELLED = 7
     COMPLETED = 10
@@ -127,13 +127,13 @@ class InterruptStatus(IdEnum):
         return self >= 7
 
 
-@timed_node_(NodeType.INTERRUPT)
-class Interrupt(RuntimeNode[InterruptData]):
-    """An Interrupt in the execution of a Run."""
+@timed_node_(NodeType.INTERRUPTION)
+class Interruption(RuntimeNode[InterruptionData]):
+    """An Interruption in the execution of a Run."""
 
     # meta
     parent: "Run" = p_node_parent(4, NodeType.RUN)
-    type: InterruptType = p_regular(30, require=True)
+    type: InterruptionType = p_regular(30, require=True)
     root: "Run | None" = p_node_ancestor(
         31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
@@ -152,7 +152,7 @@ class Interrupt(RuntimeNode[InterruptData]):
     breakpoint_site: BreakpointSite | None = p_internal(38)
 
     # status
-    status: InterruptStatus = p_internal(40, default=InterruptStatus.OPEN)
+    status: InterruptionStatus = p_internal(40, default=InterruptionStatus.OPEN)
     duration: Optional[timedelta] = p_internal(41, require=False, default=None)
     closed_at: Optional[datetime] = p_internal(42, require=False, default=None)
     trigger: Optional["Trigger"] = p_regular(
@@ -164,7 +164,7 @@ class Interrupt(RuntimeNode[InterruptData]):
     inputs: Any = p_value_runtime(51, kind=ObjectKind.INPUT, typ=None)
     outputs_packed: Any = p_value_packed(52)
     outputs: Any = p_value_runtime(
-        52, kind=ObjectKind.OUTPUT, typ=lambda self: cast("Interrupt", self).output_type
+        52, kind=ObjectKind.OUTPUT, typ=lambda self: cast("Interruption", self).output_type
     )
 
     # context
@@ -199,17 +199,17 @@ class Interrupt(RuntimeNode[InterruptData]):
 
     @property
     def is_open(self) -> bool:
-        return self.status == InterruptStatus.OPEN
+        return self.status == InterruptionStatus.OPEN
 
     @property
     def is_closed(self) -> bool:
-        return self.status == InterruptStatus.COMPLETED
+        return self.status == InterruptionStatus.COMPLETED
 
     def complete(self, outputs: CustomObject | None = None, _trigger_runtime: bool = True) -> None:
         """Mark this Interrupt as closed."""
         assert not self.is_closed, f"{self!r} is already closed"
         assert self._session is not None, f"{self!r} has no session"
-        self.status = InterruptStatus.COMPLETED
+        self.status = InterruptionStatus.COMPLETED
         self.closed_at = self._session._oracle.utc()
         self.duration = self.closed_at - self.created_at
         self.outputs = outputs
@@ -222,7 +222,7 @@ class Interrupt(RuntimeNode[InterruptData]):
         """Mark this Interrupt as cancelled."""
         assert not self.is_closed, f"{self!r} is already closed"
         assert self._session is not None, f"{self!r} has no session"
-        self.status = InterruptStatus.CANCELLED
+        self.status = InterruptionStatus.CANCELLED
         self.closed_at = self._session._oracle.utc()
         self.duration = self.closed_at - self.created_at
         runtime = self._session.runtime
@@ -232,13 +232,13 @@ class Interrupt(RuntimeNode[InterruptData]):
 
     @staticmethod
     def from_run(
-        kind: InterruptType,
+        kind: InterruptionType,
         run: "Run",
         trigger: "Trigger | None" = None,
         attempt: Optional[int] = None,
         breakpoint: BreakpointSite | None = None,
-    ) -> "Interrupt":
-        return Interrupt(
+    ) -> "Interruption":
+        return Interruption(
             type=kind,
             parent=run,
             session=run.session,

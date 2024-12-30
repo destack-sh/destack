@@ -14,7 +14,7 @@ from bench.language.block import FlowBlock
 from bench.language.const import ObjectKind, RunStatus
 from bench.language.field import TypeBase
 from bench.language.flow import Pipe, PipeType, PortSide
-from bench.language.interrupt import BreakpointScope, BreakpointSite, Interrupt
+from bench.language.interruption import BreakpointScope, BreakpointSite, Interruption
 from bench.language.run import Run, RunError, RunnableNode, RunOptions, RunType
 from bench.language.value import CustomObject, OutputObject, coerce_custom_object_scalar
 from bench.runtime.action import ActionRunnerBase
@@ -67,7 +67,9 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         )
         self._interrupted_runners: list[Runner] = []
         self._active_runners_by_id: dict[UUID, PipeRunnerBase | ActionRunnerBase[Any]] = {}
-        self._stop_result: CustomObject | Literal["completed"] | RunError | Interrupt | None = None
+        self._stop_result: CustomObject | Literal["completed"] | RunError | Interruption | None = (
+            None
+        )
         self._stop_event = Event()
 
     @abstractmethod
@@ -122,9 +124,11 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         """Checks whether this Flow should stop (and stops it)."""
         if self._stop_result is None and len(self._active_runners_by_id) == 0:
             if self._interrupted_runners:
-                interrupt = self._interrupted_runners[-1].interrupt
-                assert interrupt is not None, f"no interrupt for {self._interrupted_runners[-1]!r}"
-                self._stop_result = interrupt
+                interruption = self._interrupted_runners[-1].interruption
+                assert (
+                    interruption is not None
+                ), f"no interruption for {self._interrupted_runners[-1]!r}"
+                self._stop_result = interruption
             else:
                 self._stop_result = "completed"
             self._stop_event.set()
@@ -282,7 +286,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             self.outputs = self._stop_result
         elif isinstance(self._stop_result, RunError):
             raise RetryableError(title=self._stop_result.title, error=self._stop_result)
-        elif isinstance(self._stop_result, Interrupt):
+        elif isinstance(self._stop_result, Interruption):
             raise Interrupted(self, self.tracked_run, self._stop_result)
         else:
             assert_never(self._stop_result)

@@ -8,7 +8,7 @@ from opentelemetry import trace
 
 from bench.language.connection import GetConnection, WatchGetUpdate
 from bench.language.const import NONCE, ClientType, NodeType
-from bench.language.interrupt import Interrupt, InterruptType
+from bench.language.interruption import Interruption, InterruptionType
 from bench.language.node import NodeReference
 from bench.language.run import Run
 from bench.proto import wiring
@@ -72,7 +72,7 @@ class RunHandle:
         """React to updates on Runs/Interrupts :SupergraphWatch."""
         runs_to_resume: set[Run] = set()
         for node in update.updated.values():
-            # react to Run/Interrupt updates in Runtime
+            # react to Run/Interruption updates in Runtime
             if isinstance(node, Run):
                 if node.status.is_terminal:
                     continue  # nothing to do anymore
@@ -81,17 +81,17 @@ class RunHandle:
                 elif node.paused_at and (not node.resumed_at or node.paused_at > node.resumed_at):
                     self.pause(node)
                 elif node.resumed_at and (not node.paused_at or node.resumed_at > node.paused_at):
-                    # close open Interrupt, resume affected Runs
-                    interrupt = node.interrupt
+                    # close open Interruption, resume affected Runs
+                    interruption = node.interruption
                     if (
-                        interrupt
-                        and interrupt.type == InterruptType.PAUSE
-                        and not interrupt.status.is_closed
+                        interruption
+                        and interruption.type == InterruptionType.PAUSE
+                        and not interruption.status.is_closed
                     ):
-                        interrupt.complete(_trigger_runtime=False)
+                        interruption.complete(_trigger_runtime=False)
                     runs_to_resume.add(node)
                     runs_to_resume.update(node.ancestors)
-            elif isinstance(node, Interrupt):
+            elif isinstance(node, Interruption):
                 if node.status.is_closed:
                     runs_to_resume.update(self.runtime.get_interrupted_runs(self.root._graph, node))
         if runs_to_resume:
@@ -232,9 +232,9 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                 self._set_baggage()
                 with tracer.start_as_current_span("thread.load"):
                     async with self._session.active(readonly=True):
-                        run = await Run.include_descendants(NodeType.RUN, NodeType.INTERRUPT).get(
-                            run_ptr, live=True
-                        )
+                        run = await Run.include_descendants(
+                            NodeType.RUN, NodeType.INTERRUPTION
+                        ).get(run_ptr, live=True)
                     assert run.bench_id == self._bench_id, f"{run!r} is not in {self!r}"
                     assert run.root_ptr is None, f"{run!r} is not a root Run"
                     assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
@@ -272,7 +272,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         handle.pause(run)
 
     def resume(self, run: Run):
-        """Resume an owned Run or Interrupt."""
+        """Resume an owned Run."""
         handle = self._owned_runs.get(run.root_id or run.id)
         assert handle is not None, f"no handle for {run!r} in {self!r}"
         handle.run()

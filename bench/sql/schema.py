@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.30.1"
+VERSION = "2024.12.30.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1236,7 +1236,7 @@ RUN_TABLE = Table(
         Column("started_epoch", PrimitiveType.INT32, is_nullable=True),
         Column("stopped_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("interrupted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("interrupt_id", PrimitiveType.UUID, is_nullable=True),
+        Column("interruption_id", PrimitiveType.UUID, is_nullable=True),
         Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("resumed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -1267,8 +1267,8 @@ RUN_TABLE = Table(
     ),
 )
 
-INTERRUPT_TABLE = Table(
-    "bench_interrupt",
+INTERRUPTION_TABLE = Table(
+    "bench_interruption",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),

@@ -8,7 +8,12 @@ from bench.language.const import NodeMode
 from bench.language.database import Record
 from bench.language.field import Field
 from bench.language.flow import PipeType
-from bench.language.interrupt import Breakpoint, BreakpointScope, Interrupt, InterruptStatus
+from bench.language.interruption import (
+    Breakpoint,
+    BreakpointScope,
+    Interruption,
+    InterruptionStatus,
+)
 from bench.language.run import RunErrorType, RunOptions
 from bench.language.text import Text
 from bench.runtime.runner import Interrupted, make_run_from_node, make_runner
@@ -521,22 +526,22 @@ async def test_run_flow_yield(local_runtime: RuntimeHandle):
     runner = await local_runtime.run(Flow)
     assert runner.status == RunStatus.YIELDED
     assert runner.tracked_run
-    assert runner.tracked_run.interrupted_at and runner.tracked_run.interrupt
+    assert runner.tracked_run.interrupted_at and runner.tracked_run.interruption
     assert not runner.tracked_run.terminated_at and not runner.tracked_run.terminated_epoch
     assert len(runner.attempts) == 1
 
-    # resume run (without handling Interrupt)
+    # resume run (without handling Interruption)
     runner = await local_runtime.run(runner.tracked_run)
     assert runner.status == RunStatus.YIELDED
     assert runner.tracked_run
-    assert runner.tracked_run.interrupted_at and runner.tracked_run.interrupt
+    assert runner.tracked_run.interrupted_at and runner.tracked_run.interruption
     assert not runner.tracked_run.terminated_at and not runner.tracked_run.terminated_epoch
     assert len(runner.attempts) == 1  # should be the same attempt
 
-    # handle interrupt
-    runner.tracked_run.interrupt.complete()
+    # handle interruption
+    runner.tracked_run.interruption.complete()
 
-    # resume run (after handling Interrupt)
+    # resume run (after handling Interruption)
     runner = await local_runtime.run(runner.tracked_run)
     assert runner.status == RunStatus.COMPLETED
     assert runner.tracked_run
@@ -571,16 +576,16 @@ async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
     assert runner.status == RunStatus.YIELDED
     assert runner.tracked_run
 
-    # resume run (without handling Interrupt)
+    # resume run (without handling Interruption)
     runner = await local_runtime.run(runner.tracked_run)
     assert runner.status == RunStatus.YIELDED
     assert runner.tracked_run
-    assert runner.tracked_run.interrupted_at and runner.tracked_run.interrupt
+    assert runner.tracked_run.interrupted_at and runner.tracked_run.interruption
 
-    # handle interrupt
-    runner.tracked_run.interrupt.complete()
+    # handle interruption
+    runner.tracked_run.interruption.complete()
 
-    # resume run (after handling Interrupt)
+    # resume run (after handling Interruption)
     runner = await local_runtime.run(runner.tracked_run)
     assert runner.status == RunStatus.COMPLETED
 
@@ -600,11 +605,11 @@ async def test_run_flow_yield_cancelled(local_runtime: RuntimeHandle):
     runner = await local_runtime.run(Flow)
     assert runner.status == RunStatus.YIELDED
     assert runner.tracked_run
-    assert runner.tracked_run.interrupt
-    runner.tracked_run.interrupt.cancel()
+    assert runner.tracked_run.interruption
+    runner.tracked_run.interruption.cancel()
     runner = await local_runtime.run(runner.tracked_run, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.INTERRUPT_CANCELLED
+    assert runner.error and runner.error.type == RunErrorType.INTERRUPTION_CANCELLED
 
 
 async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
@@ -659,19 +664,19 @@ async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
         # run up to yield
         runner = await local_runtime.run(run)
         assert runner.status == RunStatus.YIELDED
-        assert runner.interrupt and runner.interrupt.runnable == yield_point
+        assert runner.interruption and runner.interruption.runnable == yield_point
         assert runner.tracked_run
         run = runner.tracked_run
 
-        # run up to yield again (without handling Interrupt)
+        # run up to yield again (without handling Interruption)
         runner = await local_runtime.run(run)
         assert runner.status == RunStatus.YIELDED
-        assert runner.interrupt and runner.interrupt.runnable == yield_point
+        assert runner.interruption and runner.interruption.runnable == yield_point
         assert runner.tracked_run
         run = runner.tracked_run
 
-        # handle interrupt
-        runner.interrupt.complete()
+        # handle interruption
+        runner.interruption.complete()
 
     # run up to completion
     runner = await local_runtime.run(run)
@@ -707,8 +712,8 @@ async def test_run_flow_pause_resume(local_runtime: RuntimeHandle):
     assert runner.status == RunStatus.COMPLETED
 
 
-async def test_run_flow_autoclose_interrupts(local_runtime: RuntimeHandle):
-    """Run and complete a Flow with an Interrupt active, it should auto-cancel."""
+async def test_run_flow_autoclose_interruptions(local_runtime: RuntimeHandle):
+    """Run and complete a Flow with an Interruption active, it should auto-cancel."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
     Yield = Action.new(ActionType.YIELD, "Yield")
@@ -725,6 +730,6 @@ async def test_run_flow_autoclose_interrupts(local_runtime: RuntimeHandle):
     assert runner.status == RunStatus.COMPLETED
     assert runner.tracked_run is not None
 
-    interrupts = runner.tracked_run._graph.nodes_of_type(Interrupt)
-    assert len(interrupts) == 1
-    assert interrupts[0].status == InterruptStatus.CANCELLED
+    interruptions = runner.tracked_run._graph.nodes_of_type(Interruption)
+    assert len(interruptions) == 1
+    assert interruptions[0].status == InterruptionStatus.CANCELLED
