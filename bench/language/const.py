@@ -25,7 +25,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.30.2"
+VERSION = "2024.12.30.4"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -115,7 +115,6 @@ class EnumType(IdEnum):
     TYPE_FORMAT = 21504
     OBJECT_KIND = 21505
     BLOCK_TYPE = 21506
-    PARTIAL_OBJECT_SCOPE = 21508
 
     # basic (22000-22499)
     SCHEDULE_TYPE = 22001
@@ -972,15 +971,6 @@ class TypeKind(IdEnum):
     PARTIAL_OBJECT = 7
     LITERAL = 8
     UNION = 9
-
-
-@enum_(EnumType.PARTIAL_OBJECT_SCOPE)
-class PartialObjectScope(IdEnum):
-    """The scope of properties in a partial Node object."""
-
-    FULL = 1
-    BASE = 2
-    SUBTYPE = 3
 
 
 @enum_(EnumType.FIELD_ZONE)

@@ -22,6 +22,7 @@ from bench.language.const import (
     PRIMITIVE_TYPE_BY_PY_TYPE,
     UNSET,
     EnumType,
+    FieldType,
     NodeType,
     ObjectKind,
     ObjectType,
@@ -81,6 +82,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     default_factory: Callable[[], Any] | None = None
     default_sql: Any = UNSET
     constraint: "TypeConstraint | TypeConstraintIn | None" = None
+    field_type: FieldType | None = None
 
     # flags
     is_list: bool = UNSET
@@ -784,6 +786,7 @@ def p_property(
     sensitive: bool = False,
     custom_list: type["ValueList"] | None = None,
     constraint: "TypeConstraint | TypeConstraintIn | None" = None,
+    field_type: FieldType | None = None,
 ) -> Any:
     if isinstance(references, NodeType):
         references = (references,)
@@ -817,6 +820,7 @@ def p_property(
         default_factory=default_factory,
         primitive_type=primitive_type,
         constraint=constraint,
+        field_type=field_type,
         reference_kind=reference_kind,
         reference_nodes=references,
         reference_struct=struct,
@@ -979,7 +983,7 @@ def p_value_runtime(
     )
 
 
-def p_value_packed(id: int, *, secret: bool = False) -> Any:
+def p_value_packed(id: int, *, secret: bool = False, field_type: FieldType | None = None) -> Any:
     """Packed value property."""
     return Property(
         id=id,
@@ -994,6 +998,7 @@ def p_value_packed(id: int, *, secret: bool = False) -> Any:
         is_sensitive=secret,
         is_encrypted=secret,
         is_deferred=secret,
+        field_type=field_type,
     )
 
 

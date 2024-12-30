@@ -13,7 +13,6 @@ from bench.language.const import (
     FieldType,
     NodeType,
     ObjectKind,
-    PartialObjectScope,
     PrimitiveType,
     StructType,
 )
@@ -96,10 +95,7 @@ def test_partial_node_message(session: Session, package: Package) -> None:
         ),
     )
     typ = TypeInfo(
-        kind=TypeKind.PARTIAL_OBJECT,
-        bench_type=NodeType.MESSAGE,
-        base_type=message_type,
-        partial_scope=PartialObjectScope.FULL,
+        kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.MESSAGE, base_type=message_type
     )
     obj = CustomObject.new(ObjectKind.BUILTIN, {}, typ)
 

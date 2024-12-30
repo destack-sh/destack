@@ -9,7 +9,6 @@ from bench.language.const import (
     FieldType,
     NodeType,
     ObjectKind,
-    PartialObjectScope,
     RunType,
     StructType,
     TypeKind,
@@ -55,6 +54,7 @@ if TYPE_CHECKING:
         Code,
         Expression,
         Field,
+        File,
         Icon,
         NodeReference,
         ObjectMapping,
@@ -187,6 +187,7 @@ class Action(SourceNode[ActionData]):
         array=False,
         struct=StructType.CODE,
         description="Current implementation code for this action.",
+        field_type=FieldType.INPUT,
     )
     delegate: Union["Block", None] = p_regular(
         53,
@@ -195,6 +196,7 @@ class Action(SourceNode[ActionData]):
         references=(NodeType.BLOCK,),
         constraint=constraint(node_subtypes=[BlockType.FLOW]),
         description="Current implementation for this action.",
+        field_type=FieldType.INPUT,
     )
     if TYPE_CHECKING:
         delegate_ptr: "NodeReference | None" = None
@@ -283,18 +285,24 @@ class Action(SourceNode[ActionData]):
             base = self
             if self.type == ActionType.DELEGATE and self.delegate_ptr is not None:
                 base = self.delegate
-            # assert field_type is not None, f"missing field_type for object {self!r}"
 
+            # actions also have their subtype as input & output type
+            #  (to enable dynamically setting action properties as inputs)
             if field_type == FieldType.INPUT:
-                # actions also have their subtype as input type :ActionInputType
-                #  (to enable dynamically setting action properties as inputs)
-                # NOTE :Architecture: :ActionInputType handling feels weird
                 typ = TypeInfo(
                     kind=TypeKind.PARTIAL_OBJECT,
                     base_type=base,
                     bench_type=NodeType.ACTION,
                     base_field_type=field_type,
-                    partial_scope=PartialObjectScope.FULL,
+                    property_field_type=field_type,
+                    constraint=TypeConstraint(node_subtypes=[self.type]),
+                )
+            elif field_type == FieldType.OUTPUT:
+                typ = TypeInfo(
+                    kind=TypeKind.PARTIAL_OBJECT,
+                    base_type=base,
+                    base_field_type=field_type,
+                    property_field_type=field_type,
                     constraint=TypeConstraint(node_subtypes=[self.type]),
                 )
             else:
@@ -346,11 +354,18 @@ class Action(SourceNode[ActionData]):
 class GetAction(Action):
     """Get a single Node."""
 
-    node_type: NodeType | None = p_regular(100, default=None)
+    node_type: NodeType | None = p_regular(100, default=None, field_type=FieldType.INPUT)
     base_block: Optional["Block"] = p_regular(
-        101, array=False, require=False, default=None, references=NodeType.BLOCK
+        101,
+        array=False,
+        require=False,
+        default=None,
+        references=NodeType.BLOCK,
+        field_type=FieldType.INPUT,
     )
-    filter: Optional["Expression"] = p_regular(102, default=None, struct=StructType.EXPRESSION)
+    filter: Optional["Expression"] = p_regular(
+        102, default=None, struct=StructType.EXPRESSION, field_type=FieldType.INPUT
+    )
 
 
 @node_subtype_(ActionType.SEARCH)
@@ -374,7 +389,7 @@ class SearchAction(Action):
 
 @node_subtype_(ActionType.CREATE)
 class CreateAction(Action):
-    node_partial_packed = p_value_packed(100)
+    node_partial_packed = p_value_packed(100, field_type=FieldType.INPUT)
     node_partial: Any = p_value_runtime(
         100, kind=ObjectKind.BUILTIN, typ=lambda self: CreateAction._node_partial_type()
     )
@@ -387,14 +402,14 @@ class CreateAction(Action):
 
 @node_subtype_(ActionType.DUPLICATE)
 class DuplicateAction(Action):
-    node: Node | None = p_regular(100, require=False, references="any")
+    node: Node | None = p_regular(100, require=False, references="any", field_type=FieldType.INPUT)
     if TYPE_CHECKING:
         node_ptr: NodeReference | None = None
-    node_partial_packed = p_value_packed(101)
+    node_partial_packed = p_value_packed(101, field_type=FieldType.INPUT)
     node_partial = p_value_runtime(
         101, kind=ObjectKind.BUILTIN, typ=lambda self: DuplicateAction._node_partial_type()
     )
-    is_shallow: bool | None = p_regular(110, default=False)
+    is_shallow: bool | None = p_regular(110, default=False, field_type=FieldType.INPUT)
 
     @classmethod
     @cachetools.cached({})  # :CachedTypeInfo
@@ -420,7 +435,7 @@ class UpdateAction(Action):
 
 @node_subtype_(ActionType.DELETE)
 class DeleteAction(Action):
-    node: Node | None = p_regular(100, require=False, references="any")
+    node: Node | None = p_regular(100, require=False, references="any", field_type=FieldType.INPUT)
     if TYPE_CHECKING:
         node_ptr: NodeReference | None = None
 
@@ -432,9 +447,16 @@ class DeleteAction(Action):
 
 @node_subtype_(ActionType.FAIL)
 class FailAction(Action):
-    error_title: str | None = p_regular(100, default=None, require=False)
+    error_title: str | None = p_regular(
+        100, default=None, require=False, field_type=FieldType.INPUT
+    )
     error_text: Optional["Text"] = p_regular(
-        101, default=None, require=False, array=False, struct=StructType.TEXT
+        101,
+        default=None,
+        require=False,
+        array=False,
+        struct=StructType.TEXT,
+        field_type=FieldType.INPUT,
     )
 
 
@@ -455,7 +477,7 @@ class DelegateAction(Action):
 
 @node_subtype_(ActionType.WAIT)
 class WaitAction(Action):
-    delay: timedelta | None = p_regular(100, default=None)
+    delay: timedelta | None = p_regular(100, default=None, field_type=FieldType.INPUT)
 
 
 #
@@ -495,15 +517,20 @@ class RouteAction(Action, HasDynamicContext):
 
 @object_()
 class HasApplicationContext(BuiltinObject):
-    position: Optional["Vector2"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.VECTOR2
-    )
-    xpath: str | None = p_regular(101, default=None)
+    # position?
+    xpath: str | None = p_regular(101)
 
 
 @node_subtype_(ActionType.OBSERVE)
 class ObserveAction(Action):
-    exclude_image: bool | None = p_regular(100, default=False)
+    exclude_image: bool | None = p_regular(100, default=False, field_type=FieldType.INPUT)
+    image: Optional["File"] = p_regular(
+        101,
+        require=False,
+        array=False,
+        references=NodeType.FILE,
+        field_type=FieldType.OUTPUT,
+    )
 
 
 @node_subtype_(ActionType.CLICK)
@@ -513,20 +540,25 @@ class ClickAction(Action, HasApplicationContext):
 
 @node_subtype_(ActionType.PRESS)
 class PressAction(Action, HasApplicationContext):
-    keys: str | None = p_regular(110, default=None)
-    delay: float | None = p_regular(111, default=None)
+    keys: str | None = p_regular(110, default=None, field_type=FieldType.INPUT)
+    delay: float | None = p_regular(111, default=None, field_type=FieldType.INPUT)
 
 
 @node_subtype_(ActionType.TYPE)
 class TypeAction(Action, HasApplicationContext):
-    string: str | None = p_regular(110, default=None)
-    delay: float | None = p_regular(111, default=None)
+    string: str | None = p_regular(110, default=None, field_type=FieldType.INPUT)
+    delay: float | None = p_regular(111, default=None, field_type=FieldType.INPUT)
 
 
 @node_subtype_(ActionType.SCROLL)
 class ScrollAction(Action, HasApplicationContext):
     amount: Optional["Vector2"] = p_regular(
-        110, default=None, require=False, array=False, struct=StructType.VECTOR2
+        110,
+        default=None,
+        require=False,
+        array=False,
+        struct=StructType.VECTOR2,
+        field_type=FieldType.INPUT,
     )
 
 
@@ -552,12 +584,12 @@ class GoForwardAction(Action, HasApplicationContext):
 
 @node_subtype_(ActionType.GO_TO_URL)
 class GoToUrlAction(Action):
-    url: str | None = p_regular(100, default=None)
+    url: str | None = p_regular(100, default=None, field_type=FieldType.INPUT)
 
 
 @node_subtype_(ActionType.GO_TO_TAB)
 class GoToTabAction(Action):
-    tab_index: int | None = p_regular(100, default=None)
+    tab_index: int | None = p_regular(100, default=None, field_type=FieldType.INPUT)
 
 
 #
@@ -572,22 +604,29 @@ class LoopAction(Action):
         require=False,
         array=False,
         references=NodeType.FIELD,
+        field_type=FieldType.INPUT,
     )
+
+
+#
+# Other
+#
 
 
 @struct_(StructType.CALL)
 class Call(Struct):
-    """A Call to a Run (inside/from the current Run usually)."""
+    """A Call to something."""
 
-    node: Union["Block", "Action"] = p_regular(
-        30,
+    node: Union["Block", "Action", None] = p_regular(
+        31,
         require=True,
         references=(NodeType.BLOCK, NodeType.ACTION),
         constraint=constraint(node_subtypes=[BlockType.FLOW]),
     )
-    inputs_packed: Any = p_value_packed(31)
+    action_type: ActionType | None = p_regular(32, default=None)
+    inputs_packed: Any = p_value_packed(35)
     inputs: Any = p_value_runtime(
-        31, kind=ObjectKind.INPUT, typ=lambda self: cast(Call, self).input_type
+        35, kind=ObjectKind.INPUT, typ=lambda self: cast(Call, self).input_type
     )
     mapping: Optional["ObjectMapping"] = p_regular(
         50,
@@ -595,13 +634,6 @@ class Call(Struct):
         array=False,
         struct=StructType.OBJECT_MAPPING,
         description="Mapping for inputs from current node into called node.",
-    )
-    mapping_code: Optional["Code"] = p_regular(
-        51,
-        require=False,
-        array=False,
-        struct=StructType.CODE,
-        description="Mapping for outputs from called node into new node. Takes precedence over mapping.",
     )
 
     @property
