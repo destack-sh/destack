@@ -29,7 +29,7 @@ def get_browserbase_region(region: Region) -> BrowserbaseRegion:
 
 
 class BrowserConnection(NamedTuple):
-    connection_uri: str
+    connection_uri: str | None
     debugger_uri: str | None
     view_uri: str | None
     external_id: str
@@ -66,6 +66,17 @@ class BrowserbaseApi:
             external_id=session.id,
         )
         return connection
+
+    @tracer.start_as_current_span("browserbase.get_running_browsers")
+    async def get_running_browsers(self) -> list[BrowserConnection]:
+        """Get a browser."""
+        sessions = await self.bb.sessions.list(status="RUNNING")
+        return [
+            BrowserConnection(
+                connection_uri=None, debugger_uri=None, view_uri=None, external_id=session.id
+            )
+            for session in sessions
+        ]
 
     @tracer.start_as_current_span("browserbase.stop_browser")
     async def stop_browser(self, browser: Browser):

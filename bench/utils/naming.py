@@ -322,7 +322,17 @@ _default_rng = Random()
 
 
 def generate_random_name(rng: Random = _default_rng) -> str:
-    adjective = rng.choice(ADJECTIVES)
-    color = rng.choice(COLORS)
-    animal = rng.choice(ANIMALS)
-    return f"{adjective} {color} {animal}"
+    """
+    Generates a random name from a triplet of adjective-color-animal.
+    Ensures that the first letter of each part is unique.
+    """
+    while True:
+        adjective = rng.choice(ADJECTIVES)
+        color = rng.choice(COLORS)
+        animal = rng.choice(ANIMALS)
+        if (
+            adjective[0].lower() != color[0].lower()
+            and adjective[0].lower() != animal[0].lower()
+            and color[0].lower() != animal[0].lower()
+        ):
+            return f"{adjective} {color} {animal}"
