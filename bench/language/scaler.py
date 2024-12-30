@@ -11,7 +11,7 @@ from bench.utils.func import IdEnum
 class ScalerType(IdEnum):
     # NOTE: should match respective NodeType
     MACHINE = 2100
-    BROWSER = 2101
+    BROWSER = 2150
 
 
 @enum_(EnumType.SCALER_STRATEGY)

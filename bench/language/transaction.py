@@ -788,13 +788,14 @@ def edit_graph(
             node.updated_at = edit.edited_at.ToDatetime(tzinfo=pytz.utc)
             if "updated_epoch" in node.__properties__:
                 node._do_set("updated_epoch", edit.epoch, track=False, validate=False)
-            node._do_set(
-                "updated_by_ptr",
+            updated_by_ptr = (
                 wiring.unpack_builtin_object_prop(
                     Node.get_property("updated_by"), edit.subject_ptr, supergraph=supergraph
-                ),
-                track=False,
+                )
+                if edit.subject_ptr.metatype != 0
+                else None
             )
+            node._do_set("updated_by_ptr", updated_by_ptr, track=False)
             if edit_type == EditType.DELETE:
                 node._do_set("deleted_at", edit.edited_at, track=False, validate=False)
             elif edit_type == EditType.RESTORE:

@@ -27,7 +27,7 @@ import { computed, ref, Ref, shallowRef, toRef, watchEffect, onMounted } from "v
 const DEPTH_OFFSET = 12;
 const ROW_HEIGHT = 28;
 const BAR_PADDING = 4;
-const MIN_SPAN_WIDTH = 2;
+const MIN_SPAN_WIDTH = 4;
 const BASE_TYPES = [NodeType.BLOCK, NodeType.ACTION]; // NOTE :Incomplete: RunTimeline should be configurable
 
 const props = defineProps<{ graph: ReadNodeGraph; nodePtr: NodeReferenceData } & Pick<ViewData, "size">>();
@@ -111,7 +111,7 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
     // span
     let offsetRelative: number;
     let widthRelative: number;
-    if (rootDurationMs != 0) {  
+    if (rootDurationMs != 0) {
       offsetRelative = Math.max(0, Math.min(1, (startedAtMs - rootStartedAtMs) / rootDurationMs));
       if (durationMs != 0) {
         widthRelative = Math.max(0, Math.min(1 - offsetRelative, durationMs / rootDurationMs));
@@ -196,18 +196,21 @@ watchEffect(() => {
       >
         <!-- Timeline -->
         <div
-          class="absolute bottom-0 h-[2px] w-full transform bg-red-500"
+          class="absolute bottom-0 h-[3px] w-full transform rounded-sm bg-red-500"
           :class="{ 'transition-all duration-100': !isInitialRender }"
           :style="{
             width: Math.max(MIN_SPAN_WIDTH, span.widthRelative * spanContainerWidth) + 'px',
-            left: span.offsetRelative * spanContainerWidth + 'px',
+            left:
+              (span.widthRelative * spanContainerWidth < MIN_SPAN_WIDTH
+                ? Math.max(
+                    0,
+                    span.offsetRelative * spanContainerWidth -
+                      (MIN_SPAN_WIDTH - span.widthRelative * spanContainerWidth),
+                  )
+                : span.offsetRelative * spanContainerWidth) + 'px',
             backgroundColor: span.color,
           }"
-        >
-          <!-- Marker left/right -->
-          <div class="absolute left-0 top-[-2px] h-[6px] w-[2px]" :style="{ backgroundColor: span.color }" />
-          <div class="absolute right-0 top-[-2px] h-[6px] w-[2px]" :style="{ backgroundColor: span.color }" />
-        </div>
+        />
         <!-- Node -->
         <button
           class="group/node truncate hover:cursor-pointer"

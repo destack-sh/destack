@@ -582,7 +582,7 @@ function nodeItemFromNode(
   if (node == null) return null;
 
   // 'title'
-  let title = (node as any).slug ?? (node as any).title ?? (node as any).name ?? "";
+  let title = (node as any).slug ?? (node as any).title ?? (node as any).name ?? ""; // :DelegateNodes
   if (isNode(node, NodeType.VIEW) && node.nodePtr != null) {
     // take title from wrapped node for node views :ViewNodeTitles :DelegateNodes
     //  (NOTE :UX: maybe we should indicate the real name and index that too somehow?)

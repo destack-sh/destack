@@ -231,11 +231,12 @@ class NodeType(IdEnum):
 
     # resource (dynamic)
     MACHINE = 2100
-    BROWSER = 2101
-    FILE = 2110
-    STREAM = 2111
-    SECRET = 2112
-    # ACCOUNT, DOMAIN, EMAIL, PHONE, APPLICATION, ...
+    BROWSER = 2150
+    # APPLICATION, ...
+    FILE = 2200
+    STREAM = 2201
+    SECRET = 2202
+    # ACCOUNT, DOMAIN, EMAIL, PHONE, ...
 
     # synchronization
     # POOL, LOCK, BARRIER, CONDITION, ...?

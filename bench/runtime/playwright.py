@@ -32,6 +32,7 @@ class PlaywrightClient:
             logger.debug("playwright.start", playwright=self._playwright)
         return self._playwright
 
+    @tracer.start_as_current_span("playwright.get_client")
     async def get_client(self, browser: Browser) -> PlaywrightContext:
         """Gets a BrowserContext for a Browser."""
         assert browser.status == ResourceStatus.UP, f"browser {browser!r} is not up"
@@ -51,6 +52,7 @@ class PlaywrightClient:
             logger.debug("playwright.connect", browser=browser, pw_context=pw_context)
         return pw_context
 
+    @tracer.start_as_current_span("playwright.close_client")
     async def close_client(self, browser: Browser):
         """Closes a Browser's context and connection."""
         if browser.id in self._context_by_id:
@@ -66,6 +68,3 @@ class PlaywrightClient:
         if self._playwright is not None:
             await self._playwright.stop()
             self._playwright = None
-
-
-playwright_client = PlaywrightClient()

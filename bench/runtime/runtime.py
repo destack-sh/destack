@@ -45,6 +45,7 @@ from bench.runtime.core import (
     NonRetryableError,
     RetryableError,
 )
+from bench.runtime.playwright import PlaywrightClient
 from bench.runtime.runner import (
     Interrupted,
     Runner,
@@ -100,6 +101,7 @@ class Runtime:
         self.thread = thread
         self.dynamic_glbls = dynamic_glbls
         self.combined_glbls = {**static_glbls, **dynamic_glbls}
+        self.playwright = PlaywrightClient()
 
         assert session._runtime is None, f"{session!r} already in runtime {session._runtime!r}"
         self.session._runtime = self
