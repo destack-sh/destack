@@ -11,11 +11,12 @@ import {
   useIndexSearch,
   type ActionItem,
   type NodeItem,
-  type SearchIndex
+  type SearchIndex,
 } from "@/ui/search";
 import { Shortcut } from "@/ui/tooltip";
 import { nowOrNextTick } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
+import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
@@ -316,7 +317,9 @@ defineExpose({ isActive, open });
                       <span v-html="item.pathMarked ?? item.path" />
                     </span>
                   </span>
-                  <!-- Metadata (shortcut, last edited, etc.) -->
+                  <!-- Metadata -->
+                  <NodeMetadata v-if="item.metatype == 'node'" size="regular" :node="item.node!" class="ml-1.5" />
+                  <!-- Secondary (shortcut, last edited, etc.) -->
                   <span class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-2">
                     <Shortcut
                       v-if="item.metatype == 'action' && (item.shortcuts?.length ?? 0) > 0"

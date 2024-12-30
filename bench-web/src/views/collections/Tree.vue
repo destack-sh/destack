@@ -35,6 +35,7 @@ import { ScrollbarWidth } from "@/ui/layout";
 import { highlightMatches } from "@/ui/search";
 import { VIEW_DEFAULT_HEADER_HEIGHT, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
+import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -433,6 +434,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             class="max-w-full select-none truncate"
             v-html="nodeTitlesMarked[i] ?? (node as any).name ?? toCamelName(NodeType, node.metatype)"
           />
+          <!-- Metadata -->
+          <NodeMetadata class="ml-1.5" size="regular" :node="node" />
           <!-- Meta -->
           <div class="ml-auto flex flex-row gap-x-1 pl-3 pr-[3px]">
             <!-- Create inside -->

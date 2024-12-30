@@ -3,6 +3,7 @@ import { isNodeType, toCamelName } from "@/language/const";
 import { getConstrainedTypeName } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
 import {
+  AnyNodeData,
   IconData,
   NodeReferenceData,
   NodeType,
@@ -14,7 +15,7 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { isNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, isNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { autoloader } from "@/system/globals";
 import { canvas } from "@/system/space";
@@ -31,6 +32,8 @@ import type { PopoverInfoIn } from "@/ui/popover";
 import type { SearchItem } from "@/ui/search";
 import { useValueSearch } from "@/ui/search";
 import { computedValue, toValueRef } from "@/utils/ref";
+import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
@@ -124,11 +127,13 @@ const hasValue = computed(() => {
     return true;
   }
 });
-type ItemVignette = { title: string | undefined; icon: IconData | undefined; status: "found" | "pending" | "missing" };
+type ItemVignette = Partial<SearchItem> & {
+  status: "found" | "pending" | "missing";
+};
 function getItemVignette(value: any): ItemVignette {
   const item = getItemFromValue(value);
   if (item != null) {
-    return { title: item?.title, icon: (item as any)?.icon, status: "found" };
+    return { ...item, status: "found" };
   } else if (isNodeRef(value)) {
     return {
       title: undefined,
@@ -291,9 +296,12 @@ defineExpose<ViewExposed>({
         class="mr-2 flex flex-row items-center gap-x-1.5 rounded"
         :class="[valueType?.isList ? 'bg-gray-100 px-1' : '', v.status == 'pending' ? 'animate-pulse' : '']"
       >
-        <IconInline v-if="v.icon" v-bind="v.icon" class="w-5 text-center text-gray-700" />
-        <span v-if="v.status == 'pending'" class="truncate">...</span>
-        <span v-else class="truncate">{{ v.title ?? "???" }}</span>
+        <NodeReference v-if="v.metatype == 'node'" size="regular" is-light :node="v.node!" />
+        <template v-else>
+          <IconInline v-if="v.icon" v-bind="v.icon" class="w-5 text-center text-gray-700" />
+          <span v-if="v.status == 'pending'" class="truncate">...</span>
+          <span v-else class="truncate">{{ v.title ?? "???" }}</span>
+        </template>
       </button>
     </template>
     <!-- No value -->
@@ -375,8 +383,11 @@ defineExpose<ViewExposed>({
           :key="i"
           class="mr-2 flex flex-row items-center rounded bg-gray-100 px-1"
         >
-          <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
-          <span class="truncate">{{ v.title ?? "???" }}</span>
+          <NodeReference v-if="v.metatype == 'node'" size="regular" is-light :node="v.node!" />
+          <template v-else>
+            <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
+            <span class="truncate">{{ v.title ?? "???" }}</span>
+          </template>
           <!-- Deselect -->
           <button
             v-if="!isDisabled && isInput"
@@ -447,6 +458,8 @@ defineExpose<ViewExposed>({
               <i v-if="isSelected(item)" class="fas fa-check flex-shrink-0 pl-2 pr-1 text-gray-700" />
             </span>
             <!-- Metadata -->
+            <NodeMetadata v-if="item.metatype == 'node'" size="regular" :node="item.node!" class="ml-1.5" />
+            <!-- Secondary -->
             <span class="ml-auto truncate pl-2 text-right">
               <!-- Path -->
               <span v-if="valueType?.kind != TypeKind.BASED_NODE && 'path' in item" class="truncate pl-2 text-gray-500">

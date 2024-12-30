@@ -7,6 +7,7 @@ import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn } from "@/ui/popover";
 import { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
+import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { MaybeElement } from "@vueuse/core";
@@ -16,10 +17,11 @@ const props = defineProps<{
   size: "regular" | "large" | "title";
   node: AnyNodeData;
   tx?: () => Transaction;
-  underline?: boolean;
+  isUnderline?: boolean;
   isInput?: boolean;
-  light?: boolean;
-  iconLight?: boolean;
+  isLight?: boolean;
+  isIconLight?: boolean;
+  isMinimal?: boolean;
   maxWidth?: number;
 }>();
 const iconRef = ref<InstanceType<typeof Icon> | null>(null);
@@ -35,16 +37,22 @@ const identifierKind = computed(() => {
 });
 const identifier: Ref<string | undefined> = computed(() => (props.node as any)?.[identifierKind.value!]);
 
+// :NodeReferenceStyle
 const iconClass = computed(() => [
   props.size == "regular" ? "w-5" : "",
   props.size == "large" ? "w-5 text-base" : "",
   props.size == "title" ? "w-8 text-2xl" : "",
 ]);
 const identifierClass = computed(() => [
-  props.size == "regular" ? ["ml-1", props.light ? "" : "font-medium"] : "",
-  props.size == "large" ? ["ml-1.5 text-xl", props.light ? "font-medium" : "font-bold"] : "",
-  props.size == "title" ? ["ml-1.5 text-3xl", props.light ? "font-medium" : "font-bold"] : "",
-  props.underline ? "underline decoration-gray-300 underline-offset-3" : "",
+  props.size == "regular" ? ["ml-1", props.isLight ? "" : "font-medium"] : "",
+  props.size == "large" ? ["ml-1.5 text-xl", props.isLight ? "font-medium" : "font-bold"] : "",
+  props.size == "title" ? ["ml-1.5 text-3xl", props.isLight ? "font-medium" : "font-bold"] : "",
+  props.isUnderline ? "underline decoration-gray-300 underline-offset-3" : "",
+]);
+const metadataClass = computed(() => [
+  props.size == "regular" ? "ml-1" : "",
+  props.size == "large" ? "ml-1.5" : "",
+  props.size == "title" ? "ml-1.5" : "",
 ]);
 const identifierWidthMax = computed(() => {
   if (props.maxWidth != null) return props.maxWidth;
@@ -84,7 +92,11 @@ defineExpose({
       "
       v-bind="getNodeIcon(node)"
       class="rounded text-center data-[popover=true]:bg-gray-100"
-      :class="[...iconClass, isInput ? 'hover:cursor-pointer hover:bg-gray-100' : '', iconLight ? '' : 'text-gray-700']"
+      :class="[
+        ...iconClass,
+        isInput ? 'hover:cursor-pointer hover:bg-gray-100' : '',
+        isIconLight ? '' : 'text-gray-700',
+      ]"
     />
     <!-- Identifier -->
     <NativeInput
@@ -106,5 +118,7 @@ defineExpose({
     <span v-else :class="identifierClass" class="truncate" :style="{ maxWidth: `${identifierWidthMax}px` }">
       {{ identifier }}
     </span>
+    <!-- Metadata -->
+    <NodeMetadata v-if="!isMinimal" :size="size" :node="node" :is-light="isLight" :class="metadataClass" />
   </div>
 </template>

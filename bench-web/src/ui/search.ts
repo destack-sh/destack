@@ -5,7 +5,7 @@ import {
   isNodeType,
   isStructType,
   isUnloadedNodeType,
-  TYPE_BLOCK_TYPES
+  TYPE_BLOCK_TYPES,
 } from "@/language/const";
 import { EnumOption, getEnumOption, getEnumOptions } from "@/language/enum";
 import { makeExpression } from "@/language/expression";
@@ -36,7 +36,7 @@ import {
   acquireConnection,
   releaseConnection,
   RemoteSearchConnection,
-  SearchConnectionParams
+  SearchConnectionParams,
 } from "@/system/connection";
 import { supergraph } from "@/system/globals";
 import { benchGraph, pkgGraph } from "@/system/space";
@@ -51,16 +51,7 @@ import {
 } from "@/ui/icon";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount, useDebounce } from "@vueuse/core";
-import {
-  computed,
-  markRaw,
-  ref,
-  shallowRef,
-  toValue,
-  watch,
-  type MaybeRef,
-  type Ref
-} from "vue";
+import { computed, markRaw, ref, shallowRef, toValue, watch, type MaybeRef, type Ref } from "vue";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   metatype: "node";
@@ -78,6 +69,7 @@ export type ActionItem = Omit<Action, "title"> & {
   metatype: "action";
   itemId: string; // per index
   title: string;
+  icon?: IconData;
   path?: string;
   pathToIndex?: string;
 };
@@ -94,10 +86,11 @@ export type TypeItem = TypeIdentity & {
   path?: string;
   pathToIndex?: string;
 };
-export type IconItem = IconMetadata & { itemId: string; metatype: "icon"; alias?: string };
+export type IconItem = IconMetadata & { itemId: string; metatype: "icon"; icon?: IconData; alias?: string };
 export type SearchItem = (NodeItem | ActionItem | EnumOptionItem | TypeItem | IconItem) & {
   itemId: string; // per index
   title: string;
+  icon?: IconData;
   alias?: string;
   category?: string;
 };

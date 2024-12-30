@@ -9,6 +9,7 @@ import { useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { getNodeIcon, IconInline } from "@/ui/icon";
+import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { computed, Ref, ref, toRef } from "vue";
@@ -86,8 +87,11 @@ defineExpose<ViewExposed & { total: Ref<number | undefined>; roots: Ref<AnyNodeD
           v-bind="getNodeIcon(node)"
           class="mr-1.5 w-5 text-center text-gray-700 transition-colors duration-75"
         />
-        <!-- nocheckin: List item (extra node info, status, ... maybe for all NodeReferences everywhere?) -->
-        <span class="max-w-full select-none truncate">{{ node.title }}</span>
+        <span class="max-w-full select-none truncate">
+          {{ (node as any).slug ?? (node as any).title ?? (node as any).name ?? "???" }}
+        </span>
+        <!-- Metadata -->
+        <NodeMetadata class="ml-1.5" size="regular" :node="node" />
       </li>
       <!-- Empty -->
       <div

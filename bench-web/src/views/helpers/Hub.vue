@@ -262,7 +262,7 @@ defineExpose<ViewExposed>({ self });
         class="mx-2 flex cursor-pointer flex-row items-center gap-x-2.5 rounded py-1 pl-2 pr-2 hover:bg-gray-100"
         @click="runtime.focusedRun != null && canvas.goToNode(runtime.focusedRun)"
       >
-        <NodeReference v-if="runtime.focusedRunTree.base" light size="regular" :node="runtime.focusedRunTree.base" />
+        <NodeReference v-if="runtime.focusedRunTree.base" isLight size="regular" :node="runtime.focusedRunTree.base" />
         <span v-else class="text-gray-400">Run</span>
         <!-- Status -->
         <RunStatus :run="runtime.focusedRun" />

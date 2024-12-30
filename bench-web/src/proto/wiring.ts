@@ -164,12 +164,7 @@ export function isStruct<T extends StructType = StructType>(
 export function nodeReference<T extends NodeType>(
   nodeType: T,
   id: string,
-  meta?: {
-    ck?: string;
-    benchId?: string;
-    baseCk?: string;
-    baseBenchId?: string;
-  },
+  meta?: { ck?: string; benchId?: string; baseCk?: string; baseBenchId?: string },
 ): TypedNodeReferenceData<T> {
   const ptr = { metatype: ObjectType.NODE_REFERENCE, nodeType, ...meta, id, ck: meta?.ck ?? id };
   if (nodeType == NodeType.BENCH && ptr.benchId == null) ptr.benchId = id;
