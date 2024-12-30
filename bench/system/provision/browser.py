@@ -11,6 +11,8 @@ from bench.utils.func import bittuple
 class BrowserbaseBrowserProvisioner(Provisioner[Browser, Browser]):
     """Provision Browsers on localhost."""
 
+    # nocheckin: BrowserbaseBrowserProvisioner
+
     watch_types = bittuple(NodeType.BROWSER)
     provision_type = NodeType.BROWSER
 
@@ -20,11 +22,11 @@ class BrowserbaseBrowserProvisioner(Provisioner[Browser, Browser]):
 
     @override
     async def _do_provision(self, resource: Browser):
-        raise NotImplementedError(f"nocheckin: provision {resource!r}")
+        raise NotImplementedError
 
     @override
     async def _do_decommission(self, resource: Browser):
-        raise NotImplementedError(f"nocheckin: decommission {resource!r}")
+        raise NotImplementedError
 
 
 class LocalhostBrowserProvisioner(Provisioner[Browser, Browser]):

@@ -7,7 +7,7 @@ import { canvas } from "@/system/space";
 import { ICON_BY_PRIMITIVE_TYPE, IconInline } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { dtToTs, formatAbsoluteDate, tsToDt } from "@/utils/time";
-import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import { DateTime, WeekdayNumbers } from "luxon";
 import { computed, Ref, ref, toRef, watch } from "vue";
 
@@ -231,137 +231,135 @@ defineExpose<ViewExposed>({
 </script>
 
 <template>
-  <ViewContentWrapper :type="ViewType.DATETIME" v-bind="props">
-    <!-- Dropdown Button -->
-    <div
-      v-if="!isInline"
-      ref="buttonRef"
-      v-menu="
-        (): PopoverInfoIn => ({
-          kind: 'view',
-          component: ViewType.DATETIME,
-          placement: 'inside-top-left',
-          isEnabled: !isDisabled && isInput,
-          offset: isMinimal ? { x: -10, y: -5 } : undefined,
-          referenceMargin: 0,
-          dontAnimate: isMinimal,
-          props: {
-            ...props,
-            size: {
-              metatype: ObjectType.RECTANGLE,
-              width: Math.max(
-                MIN_WIDTH,
-                buttonRef?.getBoundingClientRect().width! + (isMinimal ? 10 : 0), // see above
-              ),
-            },
-            title: undefined,
-            isPopover: true,
-            isInline: true,
+  <div
+    v-if="!isInline"
+    ref="buttonRef"
+    v-menu="
+      (): PopoverInfoIn => ({
+        kind: 'view',
+        component: ViewType.DATETIME,
+        placement: 'inside-top-left',
+        isEnabled: !isDisabled && isInput,
+        offset: isMinimal ? { x: -10, y: -5 } : undefined,
+        referenceMargin: 0,
+        dontAnimate: isMinimal,
+        props: {
+          ...props,
+          size: {
+            metatype: ObjectType.RECTANGLE,
+            width: Math.max(
+              MIN_WIDTH,
+              buttonRef?.getBoundingClientRect().width! + (isMinimal ? 10 : 0), // see above
+            ),
           },
-          onApply: (value: any) => emit('update:modelValue', value),
-        })
-      "
-      role="button"
-      :disabled="isDisabled || !isInput"
-      class="group flex w-full flex-row items-center gap-x-1.5 rounded border-gray-200 hover:border-gray-200 data-[popover=true]:border-gray-200"
-      :class="[!isMinimal ? 'border px-2 py-1' : '']"
-    >
-      <!-- Current value display -->
-      <template v-if="modelValue">
-        <IconInline
-          v-if="icon || !isMinimal"
-          v-bind="icon ?? ICON_BY_PRIMITIVE_TYPE[valueType?.primitiveType ?? PrimitiveType.DATETIME]"
-          class="w-5 text-center group-hover:text-gray-700"
-          :class="dateString ? 'text-gray-700' : 'text-gray-400'"
-        />
-        <span class="truncate">{{ formatDisplayString(currentMonth) }}</span>
-        <!-- Clear button -->
-        <button
-          v-if="!isDisabled && isInput && !valueType?.isRequired"
-          class="ml-auto text-gray-400 opacity-0 transition-colors duration-150 hover:text-gray-700 group-hover:opacity-100"
-          @click.stop="clear"
-        >
-          <i class="fas fa-xmark" />
-        </button>
-      </template>
-      <!-- No value -->
-      <span
-        v-else
-        class="text-gray-400 transition-colors duration-150 group-hover:text-gray-700"
-        :class="isMinimal ? 'opacity-0 group-hover:opacity-100' : ''"
+          title: undefined,
+          isPopover: true,
+          isInline: true,
+        },
+        onApply: (value: any) => emit('update:modelValue', value),
+      })
+    "
+    role="button"
+    :disabled="isDisabled || !isInput"
+    class="group flex w-full flex-row items-center gap-x-1.5 rounded border-gray-200 hover:border-gray-200 data-[popover=true]:border-gray-200"
+    :class="[!isMinimal ? 'border px-2 py-1' : '']"
+  >
+    <!-- Dropdown Button -->
+    <!-- Current value display -->
+    <template v-if="modelValue">
+      <IconInline
+        v-if="icon || !isMinimal"
+        v-bind="icon ?? ICON_BY_PRIMITIVE_TYPE[valueType?.primitiveType ?? PrimitiveType.DATETIME]"
+        class="w-5 text-center group-hover:text-gray-700"
+        :class="dateString ? 'text-gray-700' : 'text-gray-400'"
+      />
+      <span class="truncate">{{ formatDisplayString(currentMonth) }}</span>
+      <!-- Clear button -->
+      <button
+        v-if="!isDisabled && isInput && !valueType?.isRequired"
+        class="ml-auto text-gray-400 opacity-0 transition-colors duration-150 hover:text-gray-700 group-hover:opacity-100"
+        @click.stop="clear"
       >
-        <IconInline
-          v-if="icon || !isMinimal"
-          v-bind="icon ?? ICON_BY_PRIMITIVE_TYPE[valueType?.primitiveType ?? PrimitiveType.DATETIME]"
-          class="mr-1.5 w-5"
-        />
-        <span>Select {{ unit }}</span>
-      </span>
-    </div>
+        <i class="fas fa-xmark" />
+      </button>
+    </template>
+    <!-- No value -->
+    <span
+      v-else
+      class="text-gray-400 transition-colors duration-150 group-hover:text-gray-700"
+      :class="isMinimal ? 'opacity-0 group-hover:opacity-100' : ''"
+    >
+      <IconInline
+        v-if="icon || !isMinimal"
+        v-bind="icon ?? ICON_BY_PRIMITIVE_TYPE[valueType?.primitiveType ?? PrimitiveType.DATETIME]"
+        class="mr-1.5 w-5"
+      />
+      <span>Select {{ unit }}</span>
+    </span>
+  </div>
 
+  <div v-else class="" :style="{ width: width + 'px' }">
     <!-- Inline Picker -->
-    <div v-else class="" :style="{ width: width + 'px' }">
-      <div class="flex flex-col gap-2" :class="isPopover ? 'mx-2 mb-1 mt-2' : ''">
-        <!-- Date/Time Input -->
-        <div class="flex flex-row items-center gap-2">
-          <!-- Date -->
-          <input
-            v-if="unit !== 'Time'"
-            ref="dateInputRef"
-            :value="dateString"
-            type="text"
-            class="min-w-0 flex-1 rounded border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-none ring-0 focus:border-gray-400 focus:ring-0"
-            :placeholder="'YYYY/MM/DD'"
-            @input="(e) => setDateString((e.target as HTMLInputElement).value)"
-          />
-          <!-- Time -->
-          <input
-            v-if="unit !== 'Date'"
-            ref="timeInputRef"
-            :value="timeString"
-            type="text"
-            class="min-w-0 flex-1 rounded border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-none ring-0 focus:border-gray-400 focus:ring-0"
-            placeholder="HH:MM"
-            @input="(e) => setTimeString((e.target as HTMLInputElement).value)"
-          />
+    <div class="flex flex-col gap-2" :class="isPopover ? 'mx-2 mb-1 mt-2' : ''">
+      <!-- Date/Time Input -->
+      <div class="flex flex-row items-center gap-2">
+        <!-- Date -->
+        <input
+          v-if="unit !== 'Time'"
+          ref="dateInputRef"
+          :value="dateString"
+          type="text"
+          class="min-w-0 flex-1 rounded border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-none ring-0 focus:border-gray-400 focus:ring-0"
+          :placeholder="'YYYY/MM/DD'"
+          @input="(e) => setDateString((e.target as HTMLInputElement).value)"
+        />
+        <!-- Time -->
+        <input
+          v-if="unit !== 'Date'"
+          ref="timeInputRef"
+          :value="timeString"
+          type="text"
+          class="min-w-0 flex-1 rounded border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-none ring-0 focus:border-gray-400 focus:ring-0"
+          placeholder="HH:MM"
+          @input="(e) => setTimeString((e.target as HTMLInputElement).value)"
+        />
+      </div>
+
+      <!-- Calendar -->
+      <div v-if="unit !== 'Time'" class="flex flex-col gap-2">
+        <!-- Month Navigation -->
+        <div class="mx-2 flex items-center justify-between">
+          <button class="text-gray-600 hover:text-gray-900" @click="goToPreviousPeriod">
+            <i class="fas fa-chevron-left" />
+          </button>
+          <button class="rounded px-1 font-medium hover:bg-gray-100" @click="currentMonth = DateTime.now()">
+            {{ currentMonth.toFormat("LLLL yyyy") }}
+          </button>
+          <button class="text-gray-600 hover:text-gray-900" @click="goToNextPeriod">
+            <i class="fas fa-chevron-right" />
+          </button>
         </div>
 
-        <!-- Calendar -->
-        <div v-if="unit !== 'Time'" class="flex flex-col gap-2">
-          <!-- Month Navigation -->
-          <div class="mx-2 flex items-center justify-between">
-            <button class="text-gray-600 hover:text-gray-900" @click="goToPreviousPeriod">
-              <i class="fas fa-chevron-left" />
-            </button>
-            <button class="rounded px-1 font-medium hover:bg-gray-100" @click="currentMonth = DateTime.now()">
-              {{ currentMonth.toFormat("LLLL yyyy") }}
-            </button>
-            <button class="text-gray-600 hover:text-gray-900" @click="goToNextPeriod">
-              <i class="fas fa-chevron-right" />
-            </button>
+        <!-- Weekday Headers -->
+        <div class="grid grid-cols-7 text-center text-sm text-gray-500">
+          <div v-for="day in weekdays" :key="day" class="h-8 leading-8">
+            {{ day }}
           </div>
-
-          <!-- Weekday Headers -->
-          <div class="grid grid-cols-7 text-center text-sm text-gray-500">
-            <div v-for="day in weekdays" :key="day" class="h-8 leading-8">
-              {{ day }}
-            </div>
-            <button
-              v-for="day in weeks.flat()"
-              :key="day.toISO()!"
-              class="h-8 w-full rounded text-sm transition-colors duration-75"
-              :class="[
-                isSamePeriod(day) ? 'text-gray-900' : 'text-gray-400',
-                isSelected(day) ? 'bg-gray-100 font-bold text-gray-900' : 'hover:bg-gray-100',
-                isToday(day) ? 'font-bold' : '',
-              ]"
-              @click="selectDay(day)"
-            >
-              {{ day.toFormat("d") }}
-            </button>
-          </div>
+          <button
+            v-for="day in weeks.flat()"
+            :key="day.toISO()!"
+            class="h-8 w-full rounded text-sm transition-colors duration-75"
+            :class="[
+              isSamePeriod(day) ? 'text-gray-900' : 'text-gray-400',
+              isSelected(day) ? 'bg-gray-100 font-bold text-gray-900' : 'hover:bg-gray-100',
+              isToday(day) ? 'font-bold' : '',
+            ]"
+            @click="selectDay(day)"
+          >
+            {{ day.toFormat("d") }}
+          </button>
         </div>
       </div>
     </div>
-  </ViewContentWrapper>
+  </div>
 </template>

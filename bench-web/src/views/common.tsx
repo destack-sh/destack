@@ -1,6 +1,14 @@
 // TODO :Architecture: figure out proper all-encompassing event system/bus
 
-import { FieldData, Orientation, TypeInfoData, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
+import {
+  FieldData,
+  Orientation,
+  TypeInfoData,
+  ViewData,
+  ViewType,
+  type NodeReferenceData,
+  type NodeType,
+} from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/ui/action";
 import { LISTABLE_VIEW_TYPES } from "@/ui/view";
@@ -64,36 +72,6 @@ export type ViewExposed = (
   /** Map the relevant node at the given element. */
   mapToNode?: (element: HTMLElement | SVGElement | ViewComponent) => NodeReferenceData | null;
 } & {};
-
-// TODO :Architecture :Performance: revisit content view wrapper for vapor mode
-export const ViewContentWrapper: FunctionalComponent<{
-  type?: ViewType;
-  title?: string;
-  orientation?: Orientation;
-  isMinimal?: boolean;
-  valueType?: TypeInfoData;
-}> = (props, { slots }) => {
-  const classBase =
-    props.title == null
-      ? ""
-      : props.orientation === Orientation.HORIZONTAL
-        ? "flex flex-row items-center justify-between gap-x-5"
-        : "flex flex-col";
-  const labelClass = !props.isMinimal ? "mb-0.5 block font-semibold text-gray-900" : "mb-0.5 block text-gray-700";
-  const isUnsupported = props.valueType?.isList && !LISTABLE_VIEW_TYPES.has(props.type!);
-
-  return (
-    <div class={classBase}>
-      {props.title && <label class={labelClass}>{props.title}</label>}
-      {isUnsupported ? (
-        <div class="text-red-600">{IS_DEV ? (props.type ?? "<no view type>") : "???"}</div>
-      ) : slots.default ? (
-        slots.default()
-      ) : null}
-    </div>
-  );
-};
-ViewContentWrapper.props = ["type", "title", "variant", "orientation", "valueType"];
 
 // inverse :ViewRegistry for lookups without needing to import the registry
 export function getViewTypeByComponentName(name: string): ViewType | null {

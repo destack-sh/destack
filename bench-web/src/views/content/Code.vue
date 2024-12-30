@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { mapCodeToCmDoc, mapPmDocToCode } from "@/language/code";
-import { CodeData, NodeType, ViewData, ViewType } from "@/proto/wire";
+import { CodeData, NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
@@ -8,7 +8,7 @@ import { useDropZone } from "@/ui/drag";
 import { copy, cyrb53a } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
-import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import { autocompletion } from "@codemirror/autocomplete";
 import * as commands from "@codemirror/commands";
 import { python } from "@codemirror/lang-python";
@@ -185,22 +185,20 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
-  <ViewContentWrapper :type="ViewType.CODE" :title="title" :is-minimal="isMinimal" :orientation="orientation">
-    <!-- NOTE: codeRef must be in a stable fragment to mount the editor view -->
-    <div
-      ref="codeRef"
-      data-contextmenu-items="code.*"
-      data-suppress-actions="space.move.left,space.move.right"
-      data-suppress-drag="both"
-      class="code rounded hover:cursor-text"
-      :class="[
-        !isMinimal
-          ? 'border border-gray-200 px-1 py-[4px] focus-within:border-gray-400 not-focus-within:hover:border-gray-200'
-          : 'stealth',
-        isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
-      ]"
-    />
-  </ViewContentWrapper>
+  <!-- NOTE: codeRef must be in a stable fragment to mount the editor view -->
+  <div
+    ref="codeRef"
+    data-contextmenu-items="code.*"
+    data-suppress-actions="space.move.left,space.move.right"
+    data-suppress-drag="both"
+    class="code rounded hover:cursor-text"
+    :class="[
+      !isMinimal
+        ? 'border border-gray-200 px-1 py-[4px] focus-within:border-gray-400 not-focus-within:hover:border-gray-200'
+        : 'stealth',
+      isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
+    ]"
+  />
 </template>
 <style>
 /* Code */

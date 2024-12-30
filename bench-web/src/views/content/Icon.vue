@@ -15,10 +15,10 @@ import { canvas } from "@/system/space";
 import { getIconMetadata, IconInline, makeIcon, metadataToIcon, type IconMetadata } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
-import { ICON_INDEX, iconIndex, useIndexSearch, type IconItem, type SearchIndex } from "@/ui/search";
+import { ICON_INDEX, useIndexSearch, type IconItem } from "@/ui/search";
 import { getColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
-import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
@@ -95,142 +95,140 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, focus });
 </script>
 <template>
-  <ViewContentWrapper :type="ViewType.ICON" v-bind="props">
+  <button
+    v-if="!isInline"
+    v-menu="
+      (): PopoverInfoIn => ({
+        kind: 'view',
+        component: ViewType.ICON,
+        placement: 'bottom-left',
+        offset: 'referenceWidth',
+        props: { ...props, isInline: true },
+        onApply: (value) => apply(value),
+      })
+    "
+    :disabled="isDisabled || !isInput"
+    class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 enabled:hover:border-gray-200 data-[popover=true]:border-gray-200 data-[popover=true]:text-primary-700"
+  >
     <!-- TODO :Incomplete: Icon.isInput/isDisabled/variants/... -->
     <!-- Dropdown -->
-    <button
-      v-if="!isInline"
-      v-menu="
-        (): PopoverInfoIn => ({
-          kind: 'view',
-          component: ViewType.ICON,
-          placement: 'bottom-left',
-          offset: 'referenceWidth',
-          props: { ...props, isInline: true },
-          onApply: (value) => apply(value),
-        })
-      "
-      :disabled="isDisabled || !isInput"
-      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 enabled:hover:border-gray-200 data-[popover=true]:border-gray-200 data-[popover=true]:text-primary-700"
-    >
-      <template v-if="modelValue != null">
-        <IconInline v-bind="modelValue" />
-        <span class="ml-1.5">{{ getIconMetadata(modelValue)?.title ?? "Custom Icon" }}</span>
-      </template>
-      <template v-else>
-        <i class="fas fa-icons text-gray-400 group-hover:text-gray-700" />
-        <span class="ml-1.5 text-gray-400 group-hover:text-gray-700">Select Icon</span>
-      </template>
-      <i v-if="!isDisabled && isInput" class="fas fa-caret-down ml-auto pl-1.5 text-gray-400" />
-    </button>
+    <template v-if="modelValue != null">
+      <IconInline v-bind="modelValue" />
+      <span class="ml-1.5">{{ getIconMetadata(modelValue)?.title ?? "Custom Icon" }}</span>
+    </template>
+    <template v-else>
+      <i class="fas fa-icons text-gray-400 group-hover:text-gray-700" />
+      <span class="ml-1.5 text-gray-400 group-hover:text-gray-700">Select Icon</span>
+    </template>
+    <i v-if="!isDisabled && isInput" class="fas fa-caret-down ml-auto pl-1.5 text-gray-400" />
+  </button>
 
+  <div v-else-if="isInline" :style="{ width: DEFAULT_WIDTH + 'px' }">
     <!-- Inline Combobox -->
-    <div v-else-if="isInline" :style="{ width: DEFAULT_WIDTH + 'px' }">
-      <!-- Header -->
-      <div ref="columnHeaderRef" class="flex w-full flex-row items-center border-b border-gray-200 px-4 py-1.5">
-        <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-magnifying-glass' })" class="mr-2 w-5" />
-        <!-- Query -->
-        <input
-          ref="queryRef"
-          v-model="query"
-          type="text"
-          class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
-          :placeholder="`Search Icons...`"
-          @keydown.enter.stop.prevent="activeResultId != null && fire(results.find((r) => r.id === activeResultId)!)"
-          @keydown.up.stop.prevent="focus('up')"
-          @keydown.down.stop.prevent="focus('down')"
-          @keydown.left.stop.prevent="focus('left')"
-          @keydown.right.stop.prevent="focus('right')"
-        />
-        <!-- Clear -->
-        <i
-          v-if="modelValue != null && !valueType?.isRequired"
-          role="button"
-          class="fas fa-xmark mr-2 text-gray-400 hover:text-gray-700"
-          @click.stop="apply(undefined)"
-        />
-        <!-- Color -->
-        <button
-          v-tooltip="{ title: 'Change color', small: true }"
-          v-menu="
-            (): PopoverInfoIn => ({
-              kind: 'view',
-              component: ViewType.COLOR,
-              placement: 'top',
-              reference: headerRef!,
-              props: { modelValue: color, isInput: true },
-              // NOTE :UX: not sure whether changing Color in Icon picker should instantly apply to current icon
-              onApply: (value) => (color = value),
-            })
-          "
-          :disabled="isDisabled || !isInput"
-          class="rounded px-0.5 enabled:hover:bg-gray-100"
-        >
-          <i class="fas fa-circle small" :style="{ color: effectiveColorHex }" />
-        </button>
-      </div>
-      <!-- Body -->
-      <Scroll
-        id="body"
-        size-is-dynamic
-        :size="{ width: DEFAULT_WIDTH, height: MAX_HEIGHT }"
-        :orientation="Orientation.VERTICAL"
-        :track-width="ScrollbarWidth.sm"
-        track-is-overlay
+    <!-- Header -->
+    <div ref="columnHeaderRef" class="flex w-full flex-row items-center border-b border-gray-200 px-4 py-1.5">
+      <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-magnifying-glass' })" class="mr-2 w-5" />
+      <!-- Query -->
+      <input
+        ref="queryRef"
+        v-model="query"
+        type="text"
+        class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
+        :placeholder="`Search Icons...`"
+        @keydown.enter.stop.prevent="activeResultId != null && fire(results.find((r) => r.id === activeResultId)!)"
+        @keydown.up.stop.prevent="focus('up')"
+        @keydown.down.stop.prevent="focus('down')"
+        @keydown.left.stop.prevent="focus('left')"
+        @keydown.right.stop.prevent="focus('right')"
+      />
+      <!-- Clear -->
+      <i
+        v-if="modelValue != null && !valueType?.isRequired"
+        role="button"
+        class="fas fa-xmark mr-2 text-gray-400 hover:text-gray-700"
+        @click.stop="apply(undefined)"
+      />
+      <!-- Color -->
+      <button
+        v-tooltip="{ title: 'Change color', small: true }"
+        v-menu="
+          (): PopoverInfoIn => ({
+            kind: 'view',
+            component: ViewType.COLOR,
+            placement: 'top',
+            reference: headerRef!,
+            props: { modelValue: color, isInput: true },
+            // NOTE :UX: not sure whether changing Color in Icon picker should instantly apply to current icon
+            onApply: (value) => (color = value),
+          })
+        "
+        :disabled="isDisabled || !isInput"
+        class="rounded px-0.5 enabled:hover:bg-gray-100"
       >
-        <!-- Results -->
-        <ul
-          v-if="results.length > 0"
-          class="grid grid-cols-10 gap-x-1 gap-y-1 px-2 py-2 text-center"
-          :style="{ color: effectiveColorHex }"
-        >
-          <template v-for="(item, i) in results" :key="i">
-            <span
-              :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
-              v-tooltip="
-                {
-                  group: 'icon',
-                  isEnabled: results[i] != null,
-                  title: () => results[i]?.title /* results[i] because 'item' is captured once and never updated */,
-                  showDelay: 200,
-                  hideDelay: 100,
-                  small: true,
-                } as TooltipInfo
-              "
-              class="select-none rounded border border-transparent py-1.5 hover:cursor-pointer hover:border-gray-200 hover:bg-gray-100 data-[active=true]:border-gray-200 data-[active=true]:bg-gray-100"
-              :class="item.faName"
-              role="menuitem"
-              :data-selected="item.faName == modelValue?.faName"
-              :data-active="item.id === activeResultId"
-              @click.stop.prevent="fire(item)"
-              @keydown.enter.stop.prevent="fire(item)"
-            />
-          </template>
-        </ul>
-        <!-- NOTE: Picker no results/overflow is very similar to Omnibar/Picker/etc :ResultInfo -->
-        <!-- Too many results (truncated) -->
-        <div v-if="results.length < resultsTotal" class="my-1 max-w-full px-3 pb-2 text-gray-500">
-          <i class="fas fas fa-ellipsis" />
-          <span class="ml-2">
-            <span class="font-semibold">{{ resultsTotal - results.length }}</span> more results
-            <template v-if="query.length > 0">for </template>
-            <span class="truncate font-semibold">{{ query }}</span>
+        <i class="fas fa-circle small" :style="{ color: effectiveColorHex }" />
+      </button>
+    </div>
+    <!-- Body -->
+    <Scroll
+      id="body"
+      size-is-dynamic
+      :size="{ width: DEFAULT_WIDTH, height: MAX_HEIGHT }"
+      :orientation="Orientation.VERTICAL"
+      :track-width="ScrollbarWidth.sm"
+      track-is-overlay
+    >
+      <!-- Results -->
+      <ul
+        v-if="results.length > 0"
+        class="grid grid-cols-10 gap-x-1 gap-y-1 px-2 py-2 text-center"
+        :style="{ color: effectiveColorHex }"
+      >
+        <template v-for="(item, i) in results" :key="i">
+          <span
+            :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
+            v-tooltip="
+              {
+                group: 'icon',
+                isEnabled: results[i] != null,
+                title: () => results[i]?.title /* results[i] because 'item' is captured once and never updated */,
+                showDelay: 200,
+                hideDelay: 100,
+                small: true,
+              } as TooltipInfo
+            "
+            class="select-none rounded border border-transparent py-1.5 hover:cursor-pointer hover:border-gray-200 hover:bg-gray-100 data-[active=true]:border-gray-200 data-[active=true]:bg-gray-100"
+            :class="item.faName"
+            role="menuitem"
+            :data-selected="item.faName == modelValue?.faName"
+            :data-active="item.id === activeResultId"
+            @click.stop.prevent="fire(item)"
+            @keydown.enter.stop.prevent="fire(item)"
+          />
+        </template>
+      </ul>
+      <!-- NOTE: Picker no results/overflow is very similar to Omnibar/Picker/etc :ResultInfo -->
+      <!-- Too many results (truncated) -->
+      <div v-if="results.length < resultsTotal" class="my-1 max-w-full px-3 pb-2 text-gray-500">
+        <i class="fas fas fa-ellipsis" />
+        <span class="ml-2">
+          <span class="font-semibold">{{ resultsTotal - results.length }}</span> more results
+          <template v-if="query.length > 0">for </template>
+          <span class="truncate font-semibold">{{ query }}</span>
+        </span>
+      </div>
+      <!-- Help -->
+      <div v-if="results.length == 0" class="max-w-full px-1 py-1">
+        <!-- Nothing found -->
+        <div v-if="results.length === 0" class="px-2 py-1 text-gray-500">
+          <i class="fas fa-empty-set text-gray-600" />
+          <span class="ml-1">
+            No results
+            <span v-if="query">
+              for <span class="truncate font-semibold">{{ query }}</span>
+            </span>
           </span>
         </div>
-        <!-- Help -->
-        <div v-if="results.length == 0" class="max-w-full px-1 py-1">
-          <!-- Nothing found -->
-          <div v-if="results.length === 0" class="px-2 py-1 text-gray-500">
-            <i class="fas fa-empty-set text-gray-600" />
-            <span class="ml-1">
-              No results
-              <span v-if="query">
-                for <span class="truncate font-semibold">{{ query }}</span>
-              </span>
-            </span>
-          </div>
-        </div>
-      </Scroll>
-    </div>
-  </ViewContentWrapper>
+      </div>
+    </Scroll>
+  </div>
 </template>

@@ -86,7 +86,7 @@ defineExpose<ViewExposed & { total: Ref<number | undefined>; roots: Ref<AnyNodeD
           v-bind="getNodeIcon(node)"
           class="mr-1.5 w-5 text-center text-gray-700 transition-colors duration-75"
         />
-        <!-- nocheckin: List item -->
+        <!-- nocheckin: List item (extra node info, status, ... maybe for all NodeReferences everywhere?) -->
         <span class="max-w-full select-none truncate">{{ node.title }}</span>
       </li>
       <!-- Empty -->

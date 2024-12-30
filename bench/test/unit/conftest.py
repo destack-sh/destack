@@ -393,7 +393,7 @@ async def host_service(global_store: Store, regional_store: Store, hosted_bench:
         await host.wait_closed()
 
         # decommission resources
-        # nocheckin: decommission host resources after test
+        # nocheckin: decommission Bench resources after test
 
         # manually decommission stores
         # (afterwards the others since since the Host session uses the store)
