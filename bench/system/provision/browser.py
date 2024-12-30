@@ -62,6 +62,7 @@ class LocalhostBrowserProvisioner(Provisioner[Browser, Browser]):
                 browser.connection_uri = connection.connection_uri
                 browser.debugger_uri = connection.debugger_uri
                 browser.view_uri = connection.view_uri
+                browser.external_id = connection.external_id
                 browser.status = ResourceStatus.UP
 
     @override
