@@ -3330,6 +3330,7 @@ message ScalerData {
   int32 max_count = 53;
   int32 min_ready_count = 54;
   bool is_active = 80;
+  bool is_primary = 81;
   NodeMode mode = 90;
 }
 
