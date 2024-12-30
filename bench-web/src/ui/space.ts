@@ -47,9 +47,10 @@ import { canvas, supergraph } from "@/system/globals";
 import { inspectionBasePtr, inspectionPtr, pkg, space } from "@/system/space";
 import { declareActions, getNodesForAction } from "@/ui/action";
 import type { SplitAnchor } from "@/ui/drag";
-import { toIconMaybe } from "@/ui/icon";
+import { getNodeIcon, toIconMaybe } from "@/ui/icon";
 import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
 import { PopoverInfoIn, PopoverInstance, pushPopover } from "@/ui/popover";
+import { toaster } from "@/ui/toast";
 import {
   collectViewComponentsUp,
   findViewComponentUp,
@@ -961,7 +962,10 @@ export class SpaceCanvas {
       // focus on source node, set as Space.run_ptr and open Run view in Help
       const basePtr = getRunBasePtr(node);
       const base = basePtr != null ? graph.get(basePtr) : null;
-      if (base == null) throw new Error(`cannot go to node: ${describeNode(node)}`);
+      if (base == null) {
+        toaster.error({ title: "Cannot Open Node", text: `Cannot find base node for Run` });
+        return;
+      }
       this.goToNode(base, options);
       this.tx().update(this.space.value!, { runPtr: toNodeRef(node) }, { debounce: "tick" });
       const helpView = this.findView({ type: ViewType.HELP });
@@ -976,7 +980,12 @@ export class SpaceCanvas {
         );
       }
     } else {
-      throw new Error(`cannot go to node: ${describeNode(node)}`);
+      // can't go there
+      toaster.error({
+        icon: getNodeIcon(node),
+        title: `Cannot Open ${toCamelName(NodeType, node.metatype)}`,
+        text: `There is no default view for this node`,
+      });
     }
   }
 

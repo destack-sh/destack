@@ -67,7 +67,7 @@ export function menuItemFromAction(
 
   // figure out whether the action is available in this context
   const contextViews = override?.contextViews ?? getMenuContextViews(override?.context);
-  const implementation = getImplementingAction(action, contextViews);
+  const implementation = getImplementingAction(action, contextViews, override?.context ?? {});
   let isChecked = undefined;
   if (action.type == "toggle") {
     if (typeof implementation?.isChecked == "object") {

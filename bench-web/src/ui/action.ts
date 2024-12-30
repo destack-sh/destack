@@ -1,4 +1,4 @@
-import { isResourceNodeType } from "@/language/const";
+import { isResourceNodeType, isRuntimeNodeType } from "@/language/const";
 import { ReadNodeGraph } from "@/language/graph";
 import { NodeType, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
@@ -187,7 +187,7 @@ export type Action = {
   title: MaybeRef<string>;
   text: string | TextData;
   shortcuts?: KeySignature[]; // NOTE :Incomplete: define shortcuts in per-Space/User keymap?
-  isEnabled?: Ref<boolean> | (() => boolean);
+  isEnabled?: Ref<boolean> | ((action: Action, ctx?: ActionContext) => boolean);
   category: string;
   subcategory?: string;
   path: string;
@@ -315,6 +315,18 @@ function getActionSuppressor(id: ActionBuiltinId, el: HTMLElement): HTMLElement 
   return null;
 }
 
+/** Whether the given action is enabled in the context. */
+export function isActionEnabled(action: Action, context?: ActionContext): boolean {
+  if (action.isEnabled == null) {
+    return true;
+  } else if (typeof action.isEnabled == "function") {
+    return action.isEnabled(action, context);
+  } else {
+    return toValue(action.isEnabled);
+  }
+}
+
+/** Triggers the bound action by id. */
 export function fireActionById(id: ActionBuiltinId, context?: ActionContext) {
   const action = getAction(id);
   fireAction(action, canvas.focusedViewComponents, context);
@@ -322,17 +334,6 @@ export function fireActionById(id: ActionBuiltinId, context?: ActionContext) {
 
 /** Triggers the bound action from a keyboard event. */
 export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
-  // bail if action is disabled or suppressed
-  if (action.isEnabled != null && !toValue(action.isEnabled)) {
-    log.trace("action.disabled", action.id);
-    return false;
-  }
-  const suppressor = getActionSuppressor(action.id, e.target as HTMLElement);
-  if (suppressor) {
-    log.trace("action.suppressed", action.id, suppressor);
-    return false;
-  }
-
   // assemble current context
   const context: ActionContext = { event: e };
   if (canvas.selection != null && supergraph.getManyMaybe(canvas.selection.nodesPtr).length > 0) {
@@ -340,6 +341,17 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
   } else if (space.value?.inspectionPtr != null) {
     const node = supergraph.get(space.value.inspectionPtr);
     if (node != null) context.nodes = [node];
+  }
+
+  // bail if action is disabled or suppressed
+  if (!isActionEnabled(action, context)) {
+    log.trace("action.disabled", action.id);
+    return false;
+  }
+  const suppressor = getActionSuppressor(action.id, e.target as HTMLElement);
+  if (suppressor) {
+    log.trace("action.suppressed", action.id, suppressor);
+    return false;
   }
 
   // fire action
@@ -352,17 +364,30 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
  * Checks whether the context implements the action.
  * NOTE: does not 'call' the action, so we can't know if the action is refused dynamically.
  */
-export function getImplementingAction(action: Action, context: ViewComponent[]): ActionImplementation | null {
+export function getImplementingAction(
+  action: Action,
+  viewsInContext: ViewComponent[],
+  context: ActionContext,
+): ActionImplementation | null {
   if (action.kind == "static") {
-    if (action.isEnabled == null || toValue(action.isEnabled)) return action;
-    else return null;
-  } else if (action.kind == "virtual") {
-    for (const view of context) {
-      const impl = view.exposed?.actions?.[action.id];
-      if (typeof impl == "function") return { action: impl };
-      if (impl != null && (impl.isEnabled == null || toValue(impl.isEnabled) == true)) return impl;
+    if (isActionEnabled(action, context)) {
+      return action;
+    } else {
+      return null;
     }
-    if (action.action != null) return { action: action.action };
+  } else if (action.kind == "virtual") {
+    for (const view of viewsInContext) {
+      const impl = view.exposed?.actions?.[action.id];
+      if (typeof impl == "function") {
+        return { action: impl };
+      }
+      if (impl != null && isActionEnabled(action, context)) {
+        return impl;
+      }
+    }
+    if (action.action != null) {
+      return { action: action.action };
+    }
     return null;
   } else {
     throw new Error(`unexpected action kind: ${action.kind}`);
@@ -375,7 +400,7 @@ export function fireAction(
   viewsInOrder: ViewComponent[] | null = canvas.focusedViewComponents,
   context: ActionContext = {},
 ) {
-  if (action.isEnabled != null && !toValue(action.isEnabled)) return false;
+  if (!isActionEnabled(action, context)) return false;
   if (action.kind == "static") {
     // static: just call callback directly
     log.trace("action.static", action.id);
@@ -386,7 +411,7 @@ export function fireAction(
     for (const view of viewsInOrder ?? []) {
       let impl = view.exposed?.actions?.[action.id];
       if (typeof impl == "function") impl = { action: impl };
-      if (impl?.action != null && (impl.isEnabled == null || toValue(impl.isEnabled) == true)) {
+      if (impl?.action != null && isActionEnabled(action, context)) {
         log.trace("action.virtual", action.id);
         const ret = impl.action(action, context);
         if (typeof ret != "boolean" || ret === true) return true;
@@ -539,8 +564,9 @@ export function getNodeActions(node: AnyNodeData): Action[] {
   const actions: ActionBuiltinId[] = [];
   const nodeType = node.metatype as unknown as NodeType;
   const isResource = isResourceNodeType(nodeType);
+  const isRuntime = isRuntimeNodeType(nodeType);
   // duplicate/delete
-  if (!isResource) {
+  if (!isResource && !isRuntime) {
     if (!NON_DUPLICATABLE_NODE_TYPES.includes(nodeType)) {
       actions.push("space.edit.duplicate");
     }
