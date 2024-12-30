@@ -30,7 +30,7 @@ const filter = useSubnodeProperty(NodeType.VIEW, ViewType.LIST, toRef(props, "su
 
 // search
 const DEFAULT_SORT = makeExpression({
-  type: ExpressionType.ASCENDING,
+  type: ExpressionType.DESCENDING,
   propertyPtr: propertyReference(NodeType.RECORD, RecordProperty.createdAt),
 });
 const { connection, graph, page, roots, isConnecting, isStale } = useSearchConnection(
@@ -38,6 +38,7 @@ const { connection, graph, page, roots, isConnecting, isStale } = useSearchConne
   computed(() => ({
     nodeType: nodeType.value!,
     scope: nodeType.value != null && isBenchNodeType(nodeType.value) ? BENCH_SCOPE.value : EMPTY_SCOPE,
+    sort: [DEFAULT_SORT],
     filter: filter.value,
     isEnabled: nodeType.value != null,
   })),
@@ -88,6 +89,7 @@ defineExpose<ViewExposed & { total: Ref<number | undefined>; roots: Ref<AnyNodeD
           class="mr-1.5 w-5 text-center text-gray-700 transition-colors duration-75"
         />
         <span class="max-w-full select-none truncate">
+          <!-- :DelegateNodes -->
           {{ (node as any).slug ?? (node as any).title ?? (node as any).name ?? "???" }}
         </span>
         <!-- Metadata -->

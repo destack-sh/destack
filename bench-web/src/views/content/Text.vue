@@ -247,7 +247,7 @@ class MentionView implements PmNodeView {
   updateNode(node: AnyNodeData) {
     // content
     const nodeType = isNodeRef(node) ? node.nodeType : node.metatype;
-    this.nameDom.textContent = (node as any).slug ?? (node as any).name ?? (node as any).title ?? "???";
+    this.nameDom.textContent = (node as any).slug ?? (node as any).name ?? (node as any).title ?? "???"; // :DelegateNodes
 
     // style
     const icon = getNodeIcon(node) ?? DEFAULT_MISSING_ICON;

@@ -30,6 +30,7 @@ import { describeNode, isNode, makeStruct, toNodeRef, type TypedNodeReferenceDat
 import { canvas, supergraph } from "@/system/globals";
 import { declareActions } from "@/ui/action";
 import { isDragAllowed } from "@/ui/drag";
+import { ICON_BY_NODE_TYPE } from "@/ui/icon";
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
 import { addVector2, lengthVector2, subVector2, type Vector2 } from "@/ui/view";
@@ -1419,7 +1420,7 @@ export function pathToSvg(path: PipePath): string {
 // flow
 declareActions<"flow">({
   "flow.edit.createAction": {
-    icon: "fas fa-action-forward",
+    icon: ICON_BY_NODE_TYPE[NodeType.ACTION],
     title: "Create Action",
     text: "Create a new action",
   },

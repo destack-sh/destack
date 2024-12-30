@@ -172,7 +172,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.STORE]: "fas fa-database",
   [NodeType.FILE]: "fas fa-file",
   [NodeType.SECRET]: "fas fa-key",
-  [NodeType.BROWSER]: "fas fa-browser",
+  [NodeType.BROWSER]: "fas fa-globe",
 
   // source
   [NodeType.PACKAGE]: "fas fa-box-open",

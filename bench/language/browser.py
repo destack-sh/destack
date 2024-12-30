@@ -38,6 +38,10 @@ class BrowserType(IdEnum):
     CHROMIUM = 1
 
 
+DEFAULT_BROWSER_WIDTH = 1920.0
+DEFAULT_BROWSER_HEIGHT = 1080.0
+
+
 @node_(NodeType.BROWSER)
 class Browser(DynamicResource[BrowserData]):
     """A Browser instance for web browsing."""
