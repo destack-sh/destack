@@ -54,10 +54,13 @@ defineExpose<ViewExposed>({ self, id });
           <!-- Count badge -->
           <span
             v-if="listRefs[resourceType]?.total != null"
-            class="rounded-2xl bg-green-100 text-sm font-medium text-green-900 px-1.5"
+            class="rounded-2xl bg-green-100 px-1.5 text-sm font-medium text-green-900"
           >
             {{ listRefs[resourceType]?.total }}
           </span>
+          <div class="ml-auto">
+            <!-- nocheckin: ... Scaler? -->
+          </div>
         </div>
         <!-- List -->
         <List

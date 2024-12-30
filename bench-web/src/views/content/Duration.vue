@@ -1,14 +1,14 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, ViewType, RectangleData, ObjectType } from "@/proto/wire";
-import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
-import { canvas } from "@/system/space";
-import { toRef, computed, ref, type Ref, watch } from "vue";
-import { TypedNodeReferenceData } from "@/proto/wiring";
+import { NodeType, ObjectType, RectangleData, ViewData, ViewType } from "@/proto/wire";
 import { Duration as ProtoDuration } from "@/proto/wire/google/protobuf/duration";
-import { Duration } from "luxon";
+import { TypedNodeReferenceData } from "@/proto/wiring";
+import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { formatDuration, parseDurationString } from "@/utils/time";
+import { viewEmits, type ViewExposed } from "@/views/common";
+import { Duration } from "luxon";
+import { computed, ref, toRef, watch } from "vue";
 
 const MIN_WIDTH = 280;
 const DEFAULT_WIDTH = 400;
@@ -110,97 +110,95 @@ defineExpose<ViewExposed>({
 });
 </script>
 <template>
-  <ViewContentWrapper :type="ViewType.DURATION" v-bind="props">
-    <!-- Dropdown -->
-    <div
-      v-if="!isInline"
-      ref="buttonRef"
-      v-menu="
-        (): PopoverInfoIn => ({
-          kind: 'view',
-          component: ViewType.DURATION,
-          placement: 'inside-top-left',
-          isEnabled: !isDisabled && isInput,
-          offset: isMinimal ? { x: -10, y: -45 } : { x: 0, y: -40 },
-          referenceMargin: 0,
-          dontAnimate: isMinimal,
-          props: {
-            ...props,
-            size: {
-              metatype: ObjectType.RECTANGLE,
-              width: Math.max(MIN_WIDTH, buttonRef?.getBoundingClientRect().width! + (isMinimal ? 10 : 0)),
-            },
-            title: undefined,
-            isPopover: true,
-            isInline: true,
+  <div
+    v-if="!isInline"
+    ref="buttonRef"
+    v-menu="
+      (): PopoverInfoIn => ({
+        kind: 'view',
+        component: ViewType.DURATION,
+        placement: 'inside-top-left',
+        isEnabled: !isDisabled && isInput,
+        offset: isMinimal ? { x: -10, y: -45 } : { x: 0, y: -40 },
+        referenceMargin: 0,
+        dontAnimate: isMinimal,
+        props: {
+          ...props,
+          size: {
+            metatype: ObjectType.RECTANGLE,
+            width: Math.max(MIN_WIDTH, buttonRef?.getBoundingClientRect().width! + (isMinimal ? 10 : 0)),
           },
-          onApply: (value: any) => emit('update:modelValue', value),
-        })
-      "
-      role="button"
-      :disabled="isDisabled || !isInput"
-      class="group flex w-full flex-row items-center gap-x-1.5 rounded border-gray-200 hover:border-gray-200 data-[popover=true]:border-gray-200"
-      :class="[!isMinimal ? 'border px-2 py-1' : '']"
-    >
-      <!-- Current value display -->
-      <template v-if="modelValue">
-        <IconInline
-          v-if="icon || !isMinimal"
-          v-bind="icon ?? { faName: 'fas fa-clock' }"
-          class="w-5 text-center group-hover:text-gray-700"
-          :class="durationString ? 'text-gray-700' : 'text-gray-400'"
-        />
-        <span v-if="duration" class="truncate">{{ formatDuration(duration, { format: "regular" }) }}</span>
-        <!-- Clear button -->
-        <button
-          v-if="!isDisabled && isInput"
-          class="ml-auto text-gray-400 opacity-0 transition-colors duration-150 hover:text-gray-700 group-hover:opacity-100"
-          @click.stop="clear"
-        >
-          <i class="fas fa-xmark" />
-        </button>
-      </template>
-      <!-- No value -->
-      <span
-        v-else
-        class="text-gray-400 transition-colors duration-150 group-hover:text-gray-700"
-        :class="isMinimal ? 'opacity-0 group-hover:opacity-100' : ''"
+          title: undefined,
+          isPopover: true,
+          isInline: true,
+        },
+        onApply: (value: any) => emit('update:modelValue', value),
+      })
+    "
+    role="button"
+    :disabled="isDisabled || !isInput"
+    class="group flex w-full flex-row items-center gap-x-1.5 rounded border-gray-200 hover:border-gray-200 data-[popover=true]:border-gray-200"
+    :class="[!isMinimal ? 'border px-2 py-1' : '']"
+  >
+    <!-- Dropdown -->
+    <!-- Current value display -->
+    <template v-if="modelValue">
+      <IconInline
+        v-if="icon || !isMinimal"
+        v-bind="icon ?? { faName: 'fas fa-clock' }"
+        class="w-5 text-center group-hover:text-gray-700"
+        :class="durationString ? 'text-gray-700' : 'text-gray-400'"
+      />
+      <span v-if="duration" class="truncate">{{ formatDuration(duration, { format: "regular" }) }}</span>
+      <!-- Clear button -->
+      <button
+        v-if="!isDisabled && isInput"
+        class="ml-auto text-gray-400 opacity-0 transition-colors duration-150 hover:text-gray-700 group-hover:opacity-100"
+        @click.stop="clear"
       >
-        <IconInline v-if="icon || !isMinimal" v-bind="icon ?? { faName: 'fas fa-clock' }" class="mr-1.5 w-5" />
-        <span>Select Duration</span>
-      </span>
-    </div>
+        <i class="fas fa-xmark" />
+      </button>
+    </template>
+    <!-- No value -->
+    <span
+      v-else
+      class="text-gray-400 transition-colors duration-150 group-hover:text-gray-700"
+      :class="isMinimal ? 'opacity-0 group-hover:opacity-100' : ''"
+    >
+      <IconInline v-if="icon || !isMinimal" v-bind="icon ?? { faName: 'fas fa-clock' }" class="mr-1.5 w-5" />
+      <span>Select Duration</span>
+    </span>
+  </div>
 
-    <!-- Inline Editor -->
-    <div v-else class="flex flex-col gap-2" :style="{ width: width + 'px' }">
-      <div class="flex flex-col gap-2" :class="isPopover ? 'mx-2 mb-1 mt-2' : ''">
-        <!-- Quick presets -->
-        <div class="flex flex-wrap gap-1">
-          <button
-            v-for="preset in presets"
-            :key="preset.label"
-            class="rounded bg-gray-100 px-2 py-0.5 text-sm text-gray-600 hover:bg-gray-200"
-            @click="selectPreset(preset)"
-          >
-            {{ preset.label }}
-          </button>
-        </div>
+  <!-- Inline Editor -->
+  <div v-else class="flex flex-col gap-2" :style="{ width: width + 'px' }">
+    <div class="flex flex-col gap-2" :class="isPopover ? 'mx-2 mb-1 mt-2' : ''">
+      <!-- Quick presets -->
+      <div class="flex flex-wrap gap-1">
+        <button
+          v-for="preset in presets"
+          :key="preset.label"
+          class="rounded bg-gray-100 px-2 py-0.5 text-sm text-gray-600 hover:bg-gray-200"
+          @click="selectPreset(preset)"
+        >
+          {{ preset.label }}
+        </button>
+      </div>
 
-        <!-- Duration input -->
-        <input
-          ref="queryRef"
-          :value="durationString"
-          type="text"
-          class="w-full rounded border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-none ring-0 focus:border-gray-400 focus:ring-0"
-          placeholder="e.g. 1h 30m, 2d, 1y"
-          @input="(e) => setDurationString((e.target as HTMLInputElement).value)"
-        />
+      <!-- Duration input -->
+      <input
+        ref="queryRef"
+        :value="durationString"
+        type="text"
+        class="w-full rounded border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-none ring-0 focus:border-gray-400 focus:ring-0"
+        placeholder="e.g. 1h 30m, 2d, 1y"
+        @input="(e) => setDurationString((e.target as HTMLInputElement).value)"
+      />
 
-        <!-- Preview -->
-        <div v-if="duration" class="text-center text-sm italic text-gray-400">
-          "{{ formatDuration(duration, { format: "long" }) }}"
-        </div>
+      <!-- Preview -->
+      <div v-if="duration" class="text-center text-sm italic text-gray-400">
+        "{{ formatDuration(duration, { format: "long" }) }}"
       </div>
     </div>
-  </ViewContentWrapper>
+  </div>
 </template>

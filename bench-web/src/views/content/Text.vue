@@ -26,7 +26,7 @@ import { copy, cyrb53a } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { PM_INPUT_RULES, PM_KEYMAP_EXTRA, PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
-import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import { whenever } from "@vueuse/core";
 import * as commands from "prosemirror-commands";
 import { dropCursor } from "prosemirror-dropcursor";
@@ -387,31 +387,29 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
-  <ViewContentWrapper :type="ViewType.TEXT" v-bind="props">
+  <div
+    ref="textRef"
+    class="text relative rounded hover:cursor-text"
+    :class="[
+      !isMinimal
+        ? 'border border-gray-200 px-2 py-0.5 focus-within:border-gray-400 not-focus-within:hover:border-gray-200'
+        : 'stealth',
+      isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
+    ]"
+    data-suppress-actions="space.move.left,space.move.right"
+    data-suppress-drag="both"
+  >
     <!-- NOTE :UX :Incomplete: Text menus (insert, morph, bubble, etc.) -->
     <!-- NOTE: textRef must be in a stable fragment to mount the editor view -->
+    <!-- Placeholder -->
     <div
-      ref="textRef"
-      class="text relative rounded hover:cursor-text"
-      :class="[
-        !isMinimal
-          ? 'border border-gray-200 px-2 py-0.5 focus-within:border-gray-400 not-focus-within:hover:border-gray-200'
-          : 'stealth',
-        isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
-      ]"
-      data-suppress-actions="space.move.left,space.move.right"
-      data-suppress-drag="both"
+      v-if="placeholder && isTextEmpty(modelValue)"
+      class="pointer-events-none absolute"
+      :class="!isMinimal ? 'left-2 top-1' : 'left-0.5 top-0.5'"
     >
-      <!-- Placeholder -->
-      <div
-        v-if="placeholder && isTextEmpty(modelValue)"
-        class="pointer-events-none absolute"
-        :class="!isMinimal ? 'left-2 top-1' : 'left-0.5 top-0.5'"
-      >
-        <div class="text-sm text-gray-400">{{ placeholder }}</div>
-      </div>
+      <div class="text-sm text-gray-400">{{ placeholder }}</div>
     </div>
-  </ViewContentWrapper>
+  </div>
 </template>
 <style>
 /* Prose */

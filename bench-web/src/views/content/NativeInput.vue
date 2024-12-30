@@ -6,7 +6,7 @@ import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import { getNativeConstraintProps, TEXT_DIRECTION_BY_ALIGNMENT } from "@/ui/view";
-import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import { useElementSize } from "@vueuse/core";
 import { computed, Ref, ref, toRef, watch } from "vue";
 
@@ -120,114 +120,112 @@ defineExpose<ViewExposed & { select: () => void }>({
 });
 </script>
 <template>
-  <ViewContentWrapper v-bind="props">
+  <div
+    v-if="isInput"
+    class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded transition-colors duration-75 hover:border-gray-200"
+    :class="[
+      isDisabled ? 'bg-gray-100 text-gray-700' : !isMinimal ? 'bg-white text-gray-900' : 'text-gray-900',
+      !isMinimal ? 'select-text border border-gray-200 px-2 py-0.5 outline-1 focus-within:outline' : '',
+      validationError != null ? 'outline-danger-600' : 'outline-gray-400',
+    ]"
+  >
     <!-- Input -->
-    <div
-      v-if="isInput"
-      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded transition-colors duration-75 hover:border-gray-200"
-      :class="[
-        isDisabled ? 'bg-gray-100 text-gray-700' : !isMinimal ? 'bg-white text-gray-900' : 'text-gray-900',
-        !isMinimal ? 'select-text border border-gray-200 px-2 py-0.5 outline-1 focus-within:outline' : '',
-        validationError != null ? 'outline-danger-600' : 'outline-gray-400',
-      ]"
-    >
-      <IconInline v-if="icon" v-bind="icon" :shade="ColorShade.S600" class="mr-0.5 w-5" />
-      <!-- Current value -->
-      <template v-if="!valueType?.isList">
-        <!-- Scalar -->
-        <input
-          ref="inputRef"
-          :value="currentValue"
-          :placeholder="placeholder"
-          spellcheck="false"
-          :type="inputType"
-          class="max-w-full flex-1 truncate border-0 bg-transparent p-0 outline-none ring-0 transition-colors duration-75 placeholder:text-gray-400 focus:ring-0"
-          :class="[
-            TEXT_DIRECTION_BY_ALIGNMENT[alignment ?? Alignment.START] ?? '',
-            validationError != null ? 'text-danger-600' : '',
-          ]"
-          :style="{
-            width: measureSize.width.value != null ? measureSize.width.value + 'px' : 'auto',
-          }"
-          v-bind="getNativeConstraintProps(valueType?.constraint)"
-          :disabled="isDisabled"
-          @keydown.enter.stop.prevent="emit('apply')"
-          @input="currentValue = ($event.target as HTMLInputElement).value"
-        />
-        <!-- Invisible input to measure width -->
-        <span ref="measureRef" class="pointer-events-none invisible absolute whitespace-pre">
-          {{ (currentValue?.length ?? 0) > 0 ? currentValue : placeholder }}
-        </span>
-        <!-- Clear -->
+    <IconInline v-if="icon" v-bind="icon" :shade="ColorShade.S600" class="mr-0.5 w-5" />
+    <!-- Current value -->
+    <template v-if="!valueType?.isList">
+      <!-- Scalar -->
+      <input
+        ref="inputRef"
+        :value="currentValue"
+        :placeholder="placeholder"
+        spellcheck="false"
+        :type="inputType"
+        class="max-w-full flex-1 truncate border-0 bg-transparent p-0 outline-none ring-0 transition-colors duration-75 placeholder:text-gray-400 focus:ring-0"
+        :class="[
+          TEXT_DIRECTION_BY_ALIGNMENT[alignment ?? Alignment.START] ?? '',
+          validationError != null ? 'text-danger-600' : '',
+        ]"
+        :style="{
+          width: measureSize.width.value != null ? measureSize.width.value + 'px' : 'auto',
+        }"
+        v-bind="getNativeConstraintProps(valueType?.constraint)"
+        :disabled="isDisabled"
+        @keydown.enter.stop.prevent="emit('apply')"
+        @input="currentValue = ($event.target as HTMLInputElement).value"
+      />
+      <!-- Invisible input to measure width -->
+      <span ref="measureRef" class="pointer-events-none invisible absolute whitespace-pre">
+        {{ (currentValue?.length ?? 0) > 0 ? currentValue : placeholder }}
+      </span>
+      <!-- Clear -->
+      <button
+        v-if="!isMinimal && !isDisabled && !valueType?.isRequired && hasValue"
+        class="ml-auto pl-1 text-gray-400 opacity-0 outline-none transition-colors duration-75 hover:text-gray-700 focus:ring-0 group-hover:opacity-100"
+        tabindex="-1"
+        @click.stop="clear"
+      >
+        <i class="fas fa-xmark" />
+      </button>
+    </template>
+    <template v-else>
+      <!-- List -->
+      <div v-for="(v, i) in values" :key="i" class="rounded bg-gray-100 px-1 hover:text-gray-700">
+        <span class="truncate">{{ v }}</span>
+        <!-- Remove -->
         <button
-          v-if="!isMinimal && !isDisabled && !valueType?.isRequired && hasValue"
-          class="ml-auto pl-1 text-gray-400 opacity-0 outline-none transition-colors duration-75 hover:text-gray-700 focus:ring-0 group-hover:opacity-100"
-          tabindex="-1"
-          @click.stop="clear"
+          v-if="!isDisabled"
+          class="ml-1.5 text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover:opacity-100"
+          @click.stop="remove(i)"
         >
           <i class="fas fa-xmark" />
         </button>
-      </template>
-      <template v-else>
-        <!-- List -->
-        <div v-for="(v, i) in values" :key="i" class="rounded bg-gray-100 px-1 hover:text-gray-700">
-          <span class="truncate">{{ v }}</span>
-          <!-- Remove -->
-          <button
-            v-if="!isDisabled"
-            class="ml-1.5 text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover:opacity-100"
-            @click.stop="remove(i)"
-          >
-            <i class="fas fa-xmark" />
-          </button>
-        </div>
-        <!-- New value -->
-        <input
-          v-if="currentValue != null"
-          ref="inputRef"
-          :value="currentValue"
-          spellcheck="false"
-          :type="inputType"
-          class="rounded border-0 bg-gray-100 p-0 px-1 outline-none ring-0 hover:text-gray-700 focus:ring-0"
-          v-bind="getNativeConstraintProps(valueType?.constraint)"
-          :size="isMinimal ? size : undefined"
-          :disabled="isDisabled"
-          @keydown.enter.stop.prevent="addCurrentValue(), $nextTick(() => inputRef?.focus())"
-          @input="currentValue = ($event.target as HTMLInputElement).value"
-        />
-        <!-- Add to list-->
-        <button
-          v-else-if="!isDisabled"
-          class="hover:text-pgrayrimary-700 mr-2 self-center text-gray-400 opacity-0 group-hover:opacity-100"
-          @click.stop="addNewValue(), $nextTick(() => inputRef?.focus())"
-        >
-          <i class="fas fa-plus" />
-        </button>
-      </template>
-    </div>
+      </div>
+      <!-- New value -->
+      <input
+        v-if="currentValue != null"
+        ref="inputRef"
+        :value="currentValue"
+        spellcheck="false"
+        :type="inputType"
+        class="rounded border-0 bg-gray-100 p-0 px-1 outline-none ring-0 hover:text-gray-700 focus:ring-0"
+        v-bind="getNativeConstraintProps(valueType?.constraint)"
+        :size="isMinimal ? size : undefined"
+        :disabled="isDisabled"
+        @keydown.enter.stop.prevent="addCurrentValue(), $nextTick(() => inputRef?.focus())"
+        @input="currentValue = ($event.target as HTMLInputElement).value"
+      />
+      <!-- Add to list-->
+      <button
+        v-else-if="!isDisabled"
+        class="hover:text-pgrayrimary-700 mr-2 self-center text-gray-400 opacity-0 group-hover:opacity-100"
+        @click.stop="addNewValue(), $nextTick(() => inputRef?.focus())"
+      >
+        <i class="fas fa-plus" />
+      </button>
+    </template>
+  </div>
+  <div
+    v-else
+    class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded text-gray-700 outline-1 outline-gray-400 focus-within:outline hover:border-gray-200"
+    :class="[!isMinimal ? 'select-text border border-gray-200 px-2 py-1' : '']"
+  >
     <!-- Read-only -->
-    <div
-      v-else
-      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded text-gray-700 outline-1 outline-gray-400 focus-within:outline hover:border-gray-200"
-      :class="[!isMinimal ? 'select-text border border-gray-200 px-2 py-1' : '']"
-    >
-      <template v-if="!valueType?.isList">
-        <!-- Scalar -->
-        <span
-          :class="[
-            TEXT_DIRECTION_BY_ALIGNMENT[alignment ?? Alignment.START] ?? '',
-            modelValue != '' ? '' : 'text-gray-400',
-          ]"
-        >
-          {{ modelValue || placeholder }}
-        </span>
-      </template>
-      <template v-else>
-        <!-- List -->
-        <div v-for="(v, i) in values" :key="i" class="truncate rounded bg-gray-100 px-1">{{ v }}</div>
-      </template>
-    </div>
-  </ViewContentWrapper>
+    <template v-if="!valueType?.isList">
+      <!-- Scalar -->
+      <span
+        :class="[
+          TEXT_DIRECTION_BY_ALIGNMENT[alignment ?? Alignment.START] ?? '',
+          modelValue != '' ? '' : 'text-gray-400',
+        ]"
+      >
+        {{ modelValue || placeholder }}
+      </span>
+    </template>
+    <template v-else>
+      <!-- List -->
+      <div v-for="(v, i) in values" :key="i" class="truncate rounded bg-gray-100 px-1">{{ v }}</div>
+    </template>
+  </div>
 </template>
 <style scoped>
 /* hide up/down buttons for number input */

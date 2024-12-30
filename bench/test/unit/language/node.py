@@ -293,7 +293,6 @@ async def test_move_subtree(hosted_runtime: RuntimeHandle):
 
 def test_create_circular_node_ancestry(session: Session, package: Package):
     """Create a circular node ancestry. Should fail."""
-    # nocheckin
     Page: Block = Block.new(BlockType.PAGE, "Page")
     with pytest.raises(ValueError):
         Page.blocks.append(Page)

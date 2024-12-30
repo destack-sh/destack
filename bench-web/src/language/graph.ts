@@ -1547,7 +1547,8 @@ export class NodeSuperGraph {
       }
 
       // notify
-      this.subs.forEach((sub) => sub(found ? "hit" : "miss", key, callback));
+      const e = found ? "hit" : "miss";
+      this.subs.forEach((sub) => sub(e, key, callback));
 
       // subscribe to all graphs and graphs list
       if (!found) {

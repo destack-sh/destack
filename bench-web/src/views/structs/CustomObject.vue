@@ -8,7 +8,13 @@ import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { getFieldViews } from "@/ui/view";
-import { ModelValueOptions, ViewContentWrapper, viewEmits, type ViewComponent, type ViewExposed, type ViewProps } from "@/views/common";
+import {
+  ModelValueOptions,
+  viewEmits,
+  type ViewComponent,
+  type ViewExposed,
+  type ViewProps
+} from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, ref, toRef, type Ref } from "vue";
 
@@ -96,202 +102,197 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fields });
 </script>
 <template>
-  <ViewContentWrapper :type="ViewType.OBJECT" v-bind="props">
-    <!-- Preview -->
-    <div
-      v-if="!isInline"
-      ref="buttonRef"
-      v-menu="
-        (): PopoverInfoIn => ({
-          kind: 'view',
-          component: ViewType.OBJECT,
-          placement: 'inside-top-left',
-          referenceMargin: 0,
-          props: {
-            ...(props as ViewProps),
-            size: {
-              metatype: ObjectType.RECTANGLE,
-              width: Math.max(MIN_WIDTH, buttonRef?.getBoundingClientRect().width!),
-            },
-            isInline: true,
+  <div
+    v-if="!isInline"
+    ref="buttonRef"
+    v-menu="
+      (): PopoverInfoIn => ({
+        kind: 'view',
+        component: ViewType.OBJECT,
+        placement: 'inside-top-left',
+        referenceMargin: 0,
+        props: {
+          ...(props as ViewProps),
+          size: {
+            metatype: ObjectType.RECTANGLE,
+            width: Math.max(MIN_WIDTH, buttonRef?.getBoundingClientRect().width!),
           },
-          onUpdate: (value: any) => emit('update:modelValue', value),
-          onApply: (value: any) => apply(value),
-        })
-      "
-      role="button"
-      :disabled="isDisabled"
-      class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded border border-gray-200 bg-white px-2.5 py-1 hover:border-gray-200 disabled:bg-gray-100 data-[popover=true]:border-gray-200"
+          isInline: true,
+        },
+        onUpdate: (value: any) => emit('update:modelValue', value),
+        onApply: (value: any) => apply(value),
+      })
+    "
+    role="button"
+    :disabled="isDisabled"
+    class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded border border-gray-200 bg-white px-2.5 py-1 hover:border-gray-200 disabled:bg-gray-100 data-[popover=true]:border-gray-200"
+  >
+    <!-- Preview -->
+    <!-- Current value -->
+    <template v-if="hasValue">
+      <button
+        v-for="(v, i) in values"
+        :key="i"
+        class="mr-2 flex flex-row items-center rounded"
+        :class="valueType?.isList ? 'bg-gray-100 px-1' : ''"
+      >
+        <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-700" />
+        <span class="max-w-28 truncate text-gray-900">{{ v.title ?? facetName ?? "???" }}</span>
+      </button>
+    </template>
+    <div v-else class="mr-2">
+      <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-400" />
+      <span class="text-gray-400">{{ facetName ?? "???" }}</span>
+    </div>
+    <!-- Add -->
+    <button
+      v-if="!isDisabled && isInput && valueType?.isList"
+      class="mr-2 text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
+      @click.stop="add"
     >
+      <i class="fas fa-plus" />
+    </button>
+    <!-- Controls -->
+    <div v-if="!isDisabled && isInput" class="ml-auto flex-shrink-0 pl-2">
+      <!-- Clear -->
+      <button
+        v-if="hasValue && !valueType?.isRequired"
+        class="text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
+        @click.stop="clear"
+      >
+        <i class="fas fa-xmark" />
+      </button>
+    </div>
+  </div>
+
+  <div v-else class="w-full">
+    <!-- Inline Object -->
+    <!-- Header -->
+    <div v-if="!isMinimal" class="flex w-full flex-row flex-wrap items-center gap-y-1 border-b px-2.5 py-1">
       <!-- Current value -->
       <template v-if="hasValue">
         <button
           v-for="(v, i) in values"
           :key="i"
-          class="mr-2 flex flex-row items-center rounded"
-          :class="valueType?.isList ? 'bg-gray-100 px-1' : ''"
+          class="mr-2 flex flex-row items-center rounded bg-gray-100 px-1"
+          @click.stop="activeValueIdx = i"
         >
-          <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-700" />
-          <span class="max-w-28 truncate text-gray-900">{{ v.title ?? facetName ?? "???" }}</span>
+          <IconInline
+            v-bind="facetIcon"
+            class="mr-1.5 w-5 text-center"
+            :class="activeValueIdx == i ? 'text-primary-700' : 'text-gray-700'"
+          />
+          <span class="max-w-28 truncate" :class="activeValueIdx == i ? 'font-medium text-gray-900' : 'text-gray-900'">
+            {{ v.title ?? facetName ?? "???" }}
+          </span>
+          <!-- Remove -->
+          <button
+            v-if="!isDisabled && isInput && valueType?.isList"
+            class="ml-1.5 text-gray-400 hover:text-gray-700"
+            @click.stop="remove(i)"
+          >
+            <i class="fas fa-xmark" />
+          </button>
         </button>
       </template>
-      <div v-else class="mr-2">
+      <template v-else>
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-400" />
-        <span class="text-gray-400">{{ facetName ?? "???" }}</span>
-      </div>
+        <span class="max-w-28 truncate text-gray-400">{{ facetName ?? "???" }}</span>
+      </template>
       <!-- Add -->
       <button
         v-if="!isDisabled && isInput && valueType?.isList"
-        class="mr-2 text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
+        class="mr-2 text-gray-400 hover:text-gray-700"
         @click.stop="add"
       >
         <i class="fas fa-plus" />
       </button>
       <!-- Controls -->
-      <div v-if="!isDisabled && isInput" class="ml-auto flex-shrink-0 pl-2">
+      <div v-if="!isDisabled && isInput" class="ml-auto flex-shrink-0 pl-2 pr-2">
         <!-- Clear -->
-        <button
-          v-if="hasValue && !valueType?.isRequired"
-          class="text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
-          @click.stop="clear"
-        >
+        <button class="mr-2 text-gray-400 hover:text-gray-700" @click.stop="clear">
           <i class="fas fa-xmark" />
         </button>
       </div>
     </div>
-
-    <!-- Inline Object -->
-    <div v-else class="w-full">
-      <!-- Header -->
-      <div v-if="!isMinimal" class="flex w-full flex-row flex-wrap items-center gap-y-1 border-b px-2.5 py-1">
-        <!-- Current value -->
-        <template v-if="hasValue">
-          <button
-            v-for="(v, i) in values"
-            :key="i"
-            class="mr-2 flex flex-row items-center rounded bg-gray-100 px-1"
-            @click.stop="activeValueIdx = i"
-          >
-            <IconInline
-              v-bind="facetIcon"
-              class="mr-1.5 w-5 text-center"
-              :class="activeValueIdx == i ? 'text-primary-700' : 'text-gray-700'"
-            />
-            <span
-              class="max-w-28 truncate"
-              :class="activeValueIdx == i ? 'font-medium text-gray-900' : 'text-gray-900'"
-            >
-              {{ v.title ?? facetName ?? "???" }}
-            </span>
-            <!-- Remove -->
-            <button
-              v-if="!isDisabled && isInput && valueType?.isList"
-              class="ml-1.5 text-gray-400 hover:text-gray-700"
-              @click.stop="remove(i)"
-            >
-              <i class="fas fa-xmark" />
-            </button>
-          </button>
-        </template>
-        <template v-else>
-          <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-400" />
-          <span class="max-w-28 truncate text-gray-400">{{ facetName ?? "???" }}</span>
-        </template>
-        <!-- Add -->
-        <button
-          v-if="!isDisabled && isInput && valueType?.isList"
-          class="mr-2 text-gray-400 hover:text-gray-700"
-          @click.stop="add"
-        >
-          <i class="fas fa-plus" />
-        </button>
-        <!-- Controls -->
-        <div v-if="!isDisabled && isInput" class="ml-auto flex-shrink-0 pl-2 pr-2">
-          <!-- Clear -->
-          <button class="mr-2 text-gray-400 hover:text-gray-700" @click.stop="clear">
-            <i class="fas fa-xmark" />
-          </button>
-        </div>
-      </div>
-      <!-- Fields (for current value) -->
-      <ul
-        class="flex flex-col gap-y-1.5"
-        :class="!isMinimal ? 'py-3' : ''"
-        :style="{ width: width != null ? width + 'px' : '100%' }"
+    <!-- Fields (for current value) -->
+    <ul
+      class="flex flex-col gap-y-1.5"
+      :class="!isMinimal ? 'py-3' : ''"
+      :style="{ width: width != null ? width + 'px' : '100%' }"
+    >
+      <!-- NOTE :Incomplete: builtin custom object properties :CustomObjectProperties -->
+      <li
+        v-for="fieldView of fieldViews"
+        :key="fieldView.field.id"
+        class="mx-auto w-full"
+        :class="[
+          fieldView.isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[5%]',
+          !isMinimal ? 'px-4' : '',
+        ]"
+        :style="{ minWidth: MIN_WIDTH + 'px', minHeight: ROW_HEIGHT_MIN + 'px' }"
       >
-        <!-- NOTE :Incomplete: builtin custom object properties :CustomObjectProperties -->
-        <li
-          v-for="fieldView of fieldViews"
-          :key="fieldView.field.id"
-          class="mx-auto w-full"
-          :class="[
-            fieldView.isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[5%]',
-            !isMinimal ? 'px-4' : '',
-          ]"
-          :style="{ minWidth: MIN_WIDTH + 'px', minHeight: ROW_HEIGHT_MIN + 'px' }"
-        >
-          <!-- Field -->
-          <span class="w-[100px]">
-            <span class="max-w-full truncate py-1 text-gray-900">{{ fieldView.field.name }}</span>
-          </span>
-          <!-- Value -->
-          <component
-            :is="getViewComponent(fieldView.viewType)"
-            v-if="
-              (focusedValue?.[fieldView.storageKey] != null || (isInput && !isDisabled)) &&
-              fieldView.viewType != null &&
-              hasViewComponent(fieldView.viewType)
-            "
-            :id="fieldView.field.id + '.value'"
-            :ref="
-              (ref: any) =>
-                ref != null ? (componentRefs[fieldView.field.id] = ref) : delete componentRefs[fieldView.field.id]
-            "
-            :class="['ml-auto flex-shrink-0', fieldView.isFullWidth ? '' : 'text-right']"
-            :style="{ width: fieldView.isFullWidth ? '100%' : 'calc(90% - 100px)' }"
-            v-bind="fieldView.viewProps"
-            :model-value="
-              fieldView.field.kind == TypeKind.CUSTOM_OBJECT || fieldView.field.kind == TypeKind.PARTIAL_OBJECT
-                ? focusedValue?.[fieldView.storageKey]
-                : unpackValue(focusedValue?.[fieldView.storageKey], fieldView.field, {
-                    graph: graph,
-                    wrapScalar: false,
-                    recurseCustomObject: false,
-                  })
-            "
-            @update:model-value="
-              (value: any) => {
-                const valuePacked =
-                  fieldView.field.kind == TypeKind.CUSTOM_OBJECT || fieldView.field.kind == TypeKind.PARTIAL_OBJECT
-                    ? value
-                    : packValue(value, fieldView.field, {
-                        graph: graph,
-                        wrapScalar: false,
-                        recurseCustomObject: false,
-                      });
-                const newObject = { ...focusedValue, [fieldView.storageKey]: valuePacked };
-                const options: ModelValueOptions = { field: fieldView.field, path: [fieldView.storageKey] };
-                if (!valueType?.isList) {
-                  emit('update:modelValue', newObject, options);
-                } else {
-                  const newValues = (props.modelValue as any[]).map((v, i) => (i == focusedValueIdx ? newObject : v));
-                  emit('update:modelValue', newValues, options);
-                }
+        <!-- Field -->
+        <span class="w-[100px]">
+          <span class="max-w-full truncate py-1 text-gray-900">{{ fieldView.field.name }}</span>
+        </span>
+        <!-- Value -->
+        <component
+          :is="getViewComponent(fieldView.viewType)"
+          v-if="
+            (focusedValue?.[fieldView.storageKey] != null || (isInput && !isDisabled)) &&
+            fieldView.viewType != null &&
+            hasViewComponent(fieldView.viewType)
+          "
+          :id="fieldView.field.id + '.value'"
+          :ref="
+            (ref: any) =>
+              ref != null ? (componentRefs[fieldView.field.id] = ref) : delete componentRefs[fieldView.field.id]
+          "
+          :class="['ml-auto flex-shrink-0', fieldView.isFullWidth ? '' : 'text-right']"
+          :style="{ width: fieldView.isFullWidth ? '100%' : 'calc(90% - 100px)' }"
+          v-bind="fieldView.viewProps"
+          :model-value="
+            fieldView.field.kind == TypeKind.CUSTOM_OBJECT || fieldView.field.kind == TypeKind.PARTIAL_OBJECT
+              ? focusedValue?.[fieldView.storageKey]
+              : unpackValue(focusedValue?.[fieldView.storageKey], fieldView.field, {
+                  graph: graph,
+                  wrapScalar: false,
+                  recurseCustomObject: false,
+                })
+          "
+          @update:model-value="
+            (value: any) => {
+              const valuePacked =
+                fieldView.field.kind == TypeKind.CUSTOM_OBJECT || fieldView.field.kind == TypeKind.PARTIAL_OBJECT
+                  ? value
+                  : packValue(value, fieldView.field, {
+                      graph: graph,
+                      wrapScalar: false,
+                      recurseCustomObject: false,
+                    });
+              const newObject = { ...focusedValue, [fieldView.storageKey]: valuePacked };
+              const options: ModelValueOptions = { field: fieldView.field, path: [fieldView.storageKey] };
+              if (!valueType?.isList) {
+                emit('update:modelValue', newObject, options);
+              } else {
+                const newValues = (props.modelValue as any[]).map((v, i) => (i == focusedValueIdx ? newObject : v));
+                emit('update:modelValue', newValues, options);
               }
-            "
-          />
-          <div
-            v-else-if="fieldView.viewType != null"
-            class="ml-auto flex-shrink-0 text-gray-400"
-            :class="fieldView.isFullWidth ? '' : 'text-right'"
-          >
-            <span class="">Unset</span>
-          </div>
-          <div v-else class="ml-auto flex-shrink-0 text-danger-600" :class="fieldView.isFullWidth ? '' : 'text-right'">
-            {{ fieldView.viewType != null ? ViewType[fieldView.viewType] : "No View" }}
-          </div>
-        </li>
-      </ul>
-    </div>
-  </ViewContentWrapper>
+            }
+          "
+        />
+        <div
+          v-else-if="fieldView.viewType != null"
+          class="ml-auto flex-shrink-0 text-gray-400"
+          :class="fieldView.isFullWidth ? '' : 'text-right'"
+        >
+          <span class="">Unset</span>
+        </div>
+        <div v-else class="ml-auto flex-shrink-0 text-danger-600" :class="fieldView.isFullWidth ? '' : 'text-right'">
+          {{ fieldView.viewType != null ? ViewType[fieldView.viewType] : "No View" }}
+        </div>
+      </li>
+    </ul>
+  </div>
 </template>
