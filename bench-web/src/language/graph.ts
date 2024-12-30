@@ -1539,7 +1539,14 @@ export class NodeSuperGraph {
           const graph = connection.result.value.graphComposite as ReadNodeGraph;
           const node = graph.get(key);
           if (node != null) {
-            subs.push(graph.subscribe(key, callback));
+            subs.push(
+              graph.subscribe(key, () => {
+                callback();
+                if (graph.get(key) == null) {
+                  update(); // only update subscription if node is no longer in graph
+                }
+              }),
+            );
             found = true;
             break;
           }
@@ -1628,8 +1635,9 @@ export class NodeSuperGraph {
         : [];
     const update = () => {
       unsub();
-      if (keysRef.value)
+      if (keysRef.value) {
         keysRef.value.filter((k) => k != null).forEach((key) => subs.push(this.subscribe(key, trigger)));
+      }
     };
 
     const { ref, trigger } = manualSubRef(get, unsub);
