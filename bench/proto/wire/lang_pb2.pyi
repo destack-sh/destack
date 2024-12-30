@@ -5787,10 +5787,12 @@ class DetailViewData(_message.Message):
     def __init__(self, expanded_sections: _Optional[_Iterable[str]] = ..., collapsed_sections: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RunViewData(_message.Message):
-    __slots__ = ("inputs_packed",)
+    __slots__ = ("variables_packed", "inputs_packed")
+    VARIABLES_PACKED_FIELD_NUMBER: _ClassVar[int]
     INPUTS_PACKED_FIELD_NUMBER: _ClassVar[int]
+    variables_packed: _struct_pb2.Value
     inputs_packed: _struct_pb2.Value
-    def __init__(self, inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    def __init__(self, variables_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class HubViewData(_message.Message):
     __slots__ = ("aspect",)

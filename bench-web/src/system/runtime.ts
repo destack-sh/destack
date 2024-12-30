@@ -236,6 +236,7 @@ export class Runtime {
     options?: {
       focus?: boolean;
       options?: RunOptionsData;
+      variablesPacked?: Record<string, any>;
       inputsPacked?: Record<string, any>;
       benchPtr?: NodeReferenceData;
     },
@@ -299,6 +300,7 @@ export function makeRun(
   graph: ReadNodeGraph,
   runnable: RunnableObject,
   options?: {
+    variablesPacked?: Record<string, any>;
     inputsPacked?: Record<string, any>;
     benchPtr?: NodeReferenceData;
     options?: RunOptionsData;
@@ -335,6 +337,7 @@ export function makeRun(
     blockPtr: block != null ? toNodeRef(block) : undefined,
     actionPtr: isNode(runnable, NodeType.ACTION) ? toNodeRef(runnable) : undefined,
     pipePtr: isNode(runnable, NodeType.PIPE) ? toNodeRef(runnable) : undefined,
+    variablesPacked: options?.variablesPacked ?? undefined,
     inputsPacked: options?.inputsPacked ?? undefined,
     options: makeRunOptions(options?.options),
   });

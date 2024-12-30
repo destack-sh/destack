@@ -3219,7 +3219,8 @@ message DetailViewData {
 
 // A view of a user interface in a Bench.
 message RunViewData {
-  optional google.protobuf.Value inputs_packed = 100;
+  optional google.protobuf.Value variables_packed = 100;
+  optional google.protobuf.Value inputs_packed = 101;
 }
 
 // A view of a user interface in a Bench.

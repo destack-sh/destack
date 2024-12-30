@@ -587,7 +587,8 @@ class DetailView(View):
 
 @node_subtype_(ViewType.RUN)
 class RunView(View):
-    inputs_packed: Any = p_value_packed(100)
+    variables_packed: Any = p_value_packed(100)
+    inputs_packed: Any = p_value_packed(101)
 
 
 @enum_(EnumType.HUB_ASPECT)
