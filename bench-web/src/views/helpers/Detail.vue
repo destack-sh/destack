@@ -62,11 +62,7 @@ function toggleSection(section: DetailSection) {
       newExpandedSections = [...(expandedSections.value ?? []), section.title];
     }
     state.update(
-      {
-        metatype: NodeType.VIEW,
-        type: ViewType.DETAIL,
-        subnode: { expandedSections: newExpandedSections },
-      },
+      { metatype: NodeType.VIEW, type: ViewType.DETAIL, subnode: { expandedSections: newExpandedSections } },
       { debounce: "long" },
     );
   } else {
@@ -77,11 +73,7 @@ function toggleSection(section: DetailSection) {
       newCollapsedSections = collapsedSections.value.filter((title) => title != section.title);
     }
     state.update(
-      {
-        metatype: NodeType.VIEW,
-        type: ViewType.DETAIL,
-        subnode: { collapsedSections: newCollapsedSections },
-      },
+      { metatype: NodeType.VIEW, type: ViewType.DETAIL, subnode: { collapsedSections: newCollapsedSections } },
       { debounce: "long" },
     );
   }

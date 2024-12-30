@@ -70,8 +70,9 @@ defineExpose<ViewExposed>({ self, id, actions });
       :node="field"
       :tx="() => connection.tx"
       size="regular"
-      light
+      is-light
       is-input
+      is-minimal
     />
   </div>
   <Inaccessible v-else class="bg-white" :node="nodePtr" :connection="connection" />

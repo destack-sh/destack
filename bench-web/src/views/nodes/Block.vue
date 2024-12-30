@@ -136,7 +136,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <NodeReference
         ref="NodeReferenceRef"
         :size="hasCanvas ? 'large' : 'regular'"
-        :underline="block.type == BlockType.PAGE"
+        :isUnderline="block.type == BlockType.PAGE"
         :node="block"
         :is-input="block.type != BlockType.PAGE"
         :tx="() => connection.tx"
