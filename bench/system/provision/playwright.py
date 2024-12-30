@@ -19,6 +19,7 @@ class BrowserConnection(NamedTuple):
     connection_uri: str
     debugger_uri: str | None
     view_uri: str | None
+    external_id: str
 
 
 class PlaywrightServer:
@@ -48,7 +49,7 @@ class PlaywrightServer:
         self._next_port += 1
         connection_uri = f"http://localhost:{port}"
         connection = BrowserConnection(
-            connection_uri=connection_uri, debugger_uri=None, view_uri=None
+            connection_uri=connection_uri, debugger_uri=None, view_uri=None, external_id=str(port)
         )
 
         # build args

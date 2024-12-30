@@ -74,7 +74,12 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="flex flex-row items-center">
+  <div
+    class="flex flex-row items-center"
+    :data-node-id="node.id"
+    :data-node-ck="(node as any).ck"
+    :data-node-type="node.metatype"
+  >
     <!-- NOTE :Incomplete: support :DelegateNodes (also with base nodes, like Records with icon from their Block) -->
     <IconInline
       ref="iconRef"

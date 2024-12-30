@@ -1,5 +1,6 @@
-import { ROOT_VIEW_TYPES } from "@/language/const";
-import { NodeReferenceData, ObjectType, type AnyNodeData, type IconData, type ViewType } from "@/proto/wire";
+import { HELPER_VIEW_TYPES, ROOT_VIEW_TYPES } from "@/language/const";
+import { NodeReferenceData, NodeType, ObjectType, type AnyNodeData, type IconData, type ViewType } from "@/proto/wire";
+import { isNode } from "@/proto/wiring";
 import { supergraph } from "@/system/globals";
 import { canvas } from "@/system/space";
 import {
@@ -15,12 +16,12 @@ import {
   type ActionContext,
   type ActionFilter,
 } from "@/ui/action";
-import { collectViewComponentsUp, findViewComponentUp, isViewComponentIn } from "@/ui/view";
+import { collectViewComponentsUp, findViewComponentUp, getVueComponentType, isViewComponentIn } from "@/ui/view";
 import { getElement } from "@/utils/element";
 import { type FloatingOptions } from "@/utils/floating";
 import { log } from "@/utils/log";
 import { pretendReadonly } from "@/utils/ref";
-import type { ViewComponent } from "@/views/common";
+import { getViewTypeByComponentName, type ViewComponent } from "@/views/common";
 import type { MaybeElement } from "@vueuse/core";
 import { computed, shallowRef, toValue, triggerRef, type Directive, type Ref } from "vue";
 
@@ -520,6 +521,7 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
   while (element != null) {
     // find new node at element
     let nextNodePtr: NodeReferenceData | null = null;
+    let isNodeContainer = false; // whether the referenced node is a container
     if (element.dataset?.["nodeId"] != null) {
       nextNodePtr = {
         metatype: ObjectType.NODE_REFERENCE,
@@ -532,12 +534,30 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
       if (component.props.nodePtr != null) {
         nextNodePtr = component.props.nodePtr;
       }
+      // check if the node is a container
+      const componentType = getVueComponentType(component);
+      const viewType = componentType != null ? getViewTypeByComponentName(componentType) : null;
+      if (HELPER_VIEW_TYPES.has(viewType!)) {
+        isNodeContainer = true;
+      } else if (component.exposed.self.value != null) {
+        const selfView = supergraph.get(component.exposed.self.value);
+        if (HELPER_VIEW_TYPES.has(selfView?.type!)) {
+          isNodeContainer = true;
+        } else if (selfView?.parentPtr != null) {
+          const parentView = supergraph.get(selfView.parentPtr);
+          if (isNode(parentView, NodeType.VIEW) && ROOT_VIEW_TYPES.has(parentView.type)) {
+            isNodeContainer = true;
+          }
+        }
+      }
     }
+
+    // add node
+    let nextNode: AnyNodeData | null = null;
     if (nextNodePtr != null) {
-      const nextNode = supergraph.get(nextNodePtr);
+      nextNode = supergraph.get(nextNodePtr);
       if (nextNode != null) {
-        // make new node
-        if (!nodes.some((node) => node.id == nextNode.id)) {
+        if (!nodes.some((node) => node.id == nextNode!.id)) {
           nodes.push(nextNode);
         }
         currentNode = nextNode;
@@ -545,11 +565,13 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
     }
 
     // gather actions
-    const contextMenuItems = element.dataset["contextmenuItems"]?.split(",") ?? [];
-    const contextMenuActions = getActionsLike(contextMenuItems);
-    contextMenuActions.forEach((action) => addAction(element, action));
-    if (currentNode != null) {
-      const nodeActions = getNodeActions(currentNode);
+    const contextMenuItems = element.dataset["contextmenuItems"]?.split(",");
+    if (contextMenuItems != null) {
+      const contextMenuActions = getActionsLike(contextMenuItems);
+      contextMenuActions.forEach((action) => addAction(element, action));
+    }
+    if (nextNode != null && !isNodeContainer) {
+      const nodeActions = getNodeActions(nextNode);
       nodeActions.forEach((action) => addAction(element, action));
     }
 
