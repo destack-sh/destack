@@ -71,7 +71,12 @@ const run = computed(() => {
 const runBasePtr = computed(() => (run.value != null ? getRunBasePtr(run.value) : nodePtr.value));
 const runTree = computed(() => runtime.focusedRunTree);
 const inputsPacked = useSubnodeProperty(NodeType.VIEW, ViewType.RUN, toRef(props, "subnodePacked"), "inputsPacked");
-
+const variablesPacked = useSubnodeProperty(
+  NodeType.VIEW,
+  ViewType.RUN,
+  toRef(props, "subnodePacked"),
+  "variablesPacked",
+);
 // schema
 const fields = pkgGraph.getChildrenRef(runBasePtr, NodeType.FIELD);
 const hasVariables = computed(() => fields.value.some((f) => f.type == FieldType.VARIABLE));
@@ -155,7 +160,11 @@ function setContinuations(interrupt: InterruptionInfo, value: ContinueData[]) {
 
 function start() {
   if (node.value == null || !isRunnable(node.value)) return;
-  const run = runtime.start(node.value, { inputsPacked: inputsPacked.value as any, focus: true });
+  const run = runtime.start(node.value, {
+    variablesPacked: variablesPacked.value as any,
+    inputsPacked: inputsPacked.value as any,
+    focus: true,
+  });
 }
 
 defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ self, id, start, run });
@@ -186,7 +195,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
           is-inline
           is-input
           is-minimal
-          :model-value="inputsPacked"
+          :model-value="fieldType == FieldType.INPUT ? inputsPacked : variablesPacked"
           @update:model-value="
             (value, options?: ModelValueOptions) => {
               const subnode = { [fieldType == FieldType.INPUT ? 'inputsPacked' : 'variablesPacked']: value };

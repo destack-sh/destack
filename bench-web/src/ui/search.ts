@@ -3,6 +3,7 @@ import {
   isBenchNodeType,
   isEnumType,
   isNodeType,
+  isResourceNodeType,
   isStructType,
   isUnloadedNodeType,
   TYPE_BLOCK_TYPES,
@@ -23,6 +24,7 @@ import {
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeType,
   PrimitiveType,
+  ResourceStatus,
   TypeFormat,
   TypeKind,
   ViewType,
@@ -364,6 +366,7 @@ export function makeRemoteSearchParams(options: {
     throw new Error(`unsupported remote search type: ${nodeType}`);
   }
   const nodeProperties = NODE_PROPERTY_ENUM_BY_TYPE[nodeType];
+  // filter
   const filterClauses: ExpressionData[] = [];
   if (queryString.length > 0) {
     // query string filtering
@@ -375,15 +378,26 @@ export function makeRemoteSearchParams(options: {
       }
     }
   }
-  const scope = isBenchNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
+  if (isResourceNodeType(nodeType)) {
+    // exclude decommissioned resources
+    const clause = makeExpression({
+      type: ExpressionType.NOT_EQUALS,
+      propertyPtr: propertyReference(nodeType, nodeProperties["status"]),
+      value: ResourceStatus.DECOMMISSIONED,
+    });
+    filterClauses.push(clause);
+  }
+  const filter =
+    filterClauses.length > 0 ? makeExpression({ type: ExpressionType.OR, clauses: filterClauses }) : undefined;
+  // sort
   const sort: ExpressionData[] = [
     makeExpression({
       type: ExpressionType.DESCENDING,
       propertyPtr: propertyReference(nodeType, nodeProperties["createdAt"]),
     }),
   ];
-  const filter =
-    filterClauses.length > 0 ? makeExpression({ type: ExpressionType.OR, clauses: filterClauses }) : undefined;
+  // params
+  const scope = isBenchNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
   const params: SearchConnectionParams<any> = {
     nodeType,
     scope,
@@ -401,6 +415,7 @@ const VALUE_SEARCH_DEBOUNCE = 100;
 
 /**
  * Search dynamically built indices that match a value type and query string.
+ * NOTE :Incomplete: it would be nice to support custom search clauses for remote searches
  */
 export function useValueSearch(options: {
   query: Ref<string>;

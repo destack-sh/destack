@@ -5219,7 +5219,11 @@ export interface DetailViewData {
  */
 export interface RunViewData {
     /**
-     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 100;
+     * @generated from protobuf field: optional google.protobuf.Value variables_packed = 100;
+     */
+    variablesPacked?: JsonValue;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 101;
      */
     inputsPacked?: JsonValue;
 }
@@ -25408,7 +25412,8 @@ export const DetailViewData = new DetailViewData$Type();
 class RunViewData$Type extends MessageType$<RunViewData> {
     constructor() {
         super("symbolx.bench.RunViewData", [
-            { no: 100, name: "inputs_packed", kind: "message", T: () => Value }
+            { no: 100, name: "variables_packed", kind: "message", T: () => Value },
+            { no: 101, name: "inputs_packed", kind: "message", T: () => Value }
         ]);
     }
     create(value?: PartialMessage<RunViewData>): RunViewData {
@@ -25422,7 +25427,10 @@ class RunViewData$Type extends MessageType$<RunViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional google.protobuf.Value inputs_packed */ 100:
+                case /* optional google.protobuf.Value variables_packed */ 100:
+                    message.variablesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* optional google.protobuf.Value inputs_packed */ 101:
                     message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 default:
@@ -25437,9 +25445,12 @@ class RunViewData$Type extends MessageType$<RunViewData> {
         return message;
     }
     internalBinaryWrite(message: RunViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional google.protobuf.Value inputs_packed = 100; */
+        /* optional google.protobuf.Value variables_packed = 100; */
+        if (message.variablesPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value inputs_packed = 101; */
         if (message.inputsPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(101, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29560,7 +29571,8 @@ export enum DetailViewProperty {
 }
 
 export enum RunViewProperty {
-  inputsPacked = 100,
+  variablesPacked = 100,
+  inputsPacked = 101,
 }
 
 export enum HubViewProperty {
@@ -31583,7 +31595,8 @@ export const DetailViewDataInfo: Record<DetailViewProperty, PropertyInfo> = {
   [DetailViewProperty.collapsedSections]: { id: 101, name: 'collapsed_sections', component: ObjectType.VIEW, componentSubtype: 403, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const RunViewDataInfo: Record<RunViewProperty, PropertyInfo> = {
-  [RunViewProperty.inputsPacked]: { id: 100, name: 'inputs_packed', component: ObjectType.VIEW, componentSubtype: 406, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunViewProperty.variablesPacked]: { id: 100, name: 'variables_packed', component: ObjectType.VIEW, componentSubtype: 406, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunViewProperty.inputsPacked]: { id: 101, name: 'inputs_packed', component: ObjectType.VIEW, componentSubtype: 406, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
   [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 409, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
