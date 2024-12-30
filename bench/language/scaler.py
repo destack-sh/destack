@@ -37,8 +37,8 @@ class Scaler(StaticResource[ScalerData]):
 
     # flags
     is_active: bool = p_regular(80, default=True)
-    is_primary: bool = p_regular(
-        81, default=False, description="Whether this is the primary Scaler for the target Resource."
+    is_main: bool = p_regular(
+        81, default=False, description="Whether this is the main Scaler for the target Resource."
     )
 
 

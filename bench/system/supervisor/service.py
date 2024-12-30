@@ -486,7 +486,7 @@ async def create_default_bench(
         min_count=1,
         target_count=1,
         max_count=4,
-        is_primary=True,
+        is_main=True,
     )
 
     # main Package

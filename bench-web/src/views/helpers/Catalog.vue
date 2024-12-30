@@ -59,7 +59,7 @@ defineExpose<ViewExposed>({ self, id });
             {{ listRefs[resourceType]?.total }}
           </span>
           <div class="ml-auto">
-            <!-- nocheckin: ... Scaler? -->
+            <!-- TODO :Incomplete: Scaler for this resource type -->
           </div>
         </div>
         <!-- List -->

@@ -5577,9 +5577,9 @@ export interface ScalerData {
      */
     isActive: boolean;
     /**
-     * @generated from protobuf field: bool is_primary = 81;
+     * @generated from protobuf field: bool is_main = 81;
      */
-    isPrimary: boolean;
+    isMain: boolean;
     /**
      * @generated from protobuf field: symbolx.bench.NodeMode mode = 90;
      */
@@ -26158,7 +26158,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
             { no: 53, name: "max_count", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 54, name: "min_ready_count", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 80, name: "is_active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 81, name: "is_primary", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 81, name: "is_main", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 90, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] }
         ]);
     }
@@ -26178,7 +26178,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         message.maxCount = 0;
         message.minReadyCount = 0;
         message.isActive = false;
-        message.isPrimary = false;
+        message.isMain = false;
         message.mode = 0;
         if (value !== undefined)
             reflectionMergePartial<ScalerData>(this, message, value);
@@ -26276,8 +26276,8 @@ class ScalerData$Type extends MessageType$<ScalerData> {
                 case /* bool is_active */ 80:
                     message.isActive = reader.bool();
                     break;
-                case /* bool is_primary */ 81:
-                    message.isPrimary = reader.bool();
+                case /* bool is_main */ 81:
+                    message.isMain = reader.bool();
                     break;
                 case /* symbolx.bench.NodeMode mode */ 90:
                     message.mode = reader.int32();
@@ -26381,9 +26381,9 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         /* bool is_active = 80; */
         if (message.isActive !== false)
             writer.tag(80, WireType.Varint).bool(message.isActive);
-        /* bool is_primary = 81; */
-        if (message.isPrimary !== false)
-            writer.tag(81, WireType.Varint).bool(message.isPrimary);
+        /* bool is_main = 81; */
+        if (message.isMain !== false)
+            writer.tag(81, WireType.Varint).bool(message.isMain);
         /* symbolx.bench.NodeMode mode = 90; */
         if (message.mode !== 0)
             writer.tag(90, WireType.Varint).int32(message.mode);
@@ -28768,7 +28768,7 @@ export enum ScalerProperty {
   maxCount = 53,
   minReadyCount = 54,
   isActive = 80,
-  isPrimary = 81,
+  isMain = 81,
   mode = 90,
 }
 
@@ -30825,7 +30825,7 @@ export const ScalerDataInfo: Record<ScalerProperty, PropertyInfo> = {
   [ScalerProperty.maxCount]: { id: 53, name: 'max_count', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 16, constraint: { minValue: 0, maxValue: 64, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.minReadyCount]: { id: 54, name: 'min_ready_count', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.isActive]: { id: 80, name: 'is_active', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ScalerProperty.isPrimary]: { id: 81, name: 'is_primary', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.isMain]: { id: 81, name: 'is_main', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.mode]: { id: 90, name: 'mode', component: ObjectType.SCALER, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
