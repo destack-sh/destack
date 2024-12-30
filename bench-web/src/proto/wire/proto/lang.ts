@@ -5577,6 +5577,10 @@ export interface ScalerData {
      */
     isActive: boolean;
     /**
+     * @generated from protobuf field: bool is_primary = 81;
+     */
+    isPrimary: boolean;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeMode mode = 90;
      */
     mode: NodeMode;
@@ -26154,6 +26158,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
             { no: 53, name: "max_count", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 54, name: "min_ready_count", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 80, name: "is_active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 81, name: "is_primary", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 90, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] }
         ]);
     }
@@ -26173,6 +26178,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         message.maxCount = 0;
         message.minReadyCount = 0;
         message.isActive = false;
+        message.isPrimary = false;
         message.mode = 0;
         if (value !== undefined)
             reflectionMergePartial<ScalerData>(this, message, value);
@@ -26269,6 +26275,9 @@ class ScalerData$Type extends MessageType$<ScalerData> {
                     break;
                 case /* bool is_active */ 80:
                     message.isActive = reader.bool();
+                    break;
+                case /* bool is_primary */ 81:
+                    message.isPrimary = reader.bool();
                     break;
                 case /* symbolx.bench.NodeMode mode */ 90:
                     message.mode = reader.int32();
@@ -26372,6 +26381,9 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         /* bool is_active = 80; */
         if (message.isActive !== false)
             writer.tag(80, WireType.Varint).bool(message.isActive);
+        /* bool is_primary = 81; */
+        if (message.isPrimary !== false)
+            writer.tag(81, WireType.Varint).bool(message.isPrimary);
         /* symbolx.bench.NodeMode mode = 90; */
         if (message.mode !== 0)
             writer.tag(90, WireType.Varint).int32(message.mode);
@@ -28756,6 +28768,7 @@ export enum ScalerProperty {
   maxCount = 53,
   minReadyCount = 54,
   isActive = 80,
+  isPrimary = 81,
   mode = 90,
 }
 
@@ -30812,6 +30825,7 @@ export const ScalerDataInfo: Record<ScalerProperty, PropertyInfo> = {
   [ScalerProperty.maxCount]: { id: 53, name: 'max_count', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 16, constraint: { minValue: 0, maxValue: 64, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.minReadyCount]: { id: 54, name: 'min_ready_count', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.isActive]: { id: 80, name: 'is_active', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.isPrimary]: { id: 81, name: 'is_primary', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.mode]: { id: 90, name: 'mode', component: ObjectType.SCALER, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
@@ -30838,8 +30852,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.28.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.28.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.30.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.30.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30872,8 +30886,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.28.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.28.3", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.30.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.30.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30913,9 +30927,9 @@ export const BrowserDataInfo: Record<BrowserProperty, PropertyInfo> = {
   [BrowserProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [BrowserProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [BrowserProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [BrowserProperty.debuggerUri]: { id: 55, name: 'debugger_uri', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [BrowserProperty.viewUri]: { id: 56, name: 'view_uri', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [BrowserProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [BrowserProperty.debuggerUri]: { id: 55, name: 'debugger_uri', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [BrowserProperty.viewUri]: { id: 56, name: 'view_uri', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
   [BrowserProperty.clientPtr]: { id: 57, name: 'client_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [BrowserProperty.size]: { id: 60, name: 'size', component: ObjectType.BROWSER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [BrowserProperty.isHeadless]: { id: 70, name: 'is_headless', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },

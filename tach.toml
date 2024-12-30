@@ -1,0 +1,81 @@
+exclude = [
+    ".*__pycache__",
+    ".*egg-info",
+    "docs",
+    "tests",
+    "venv",
+]
+source_roots = [
+    ".",
+]
+
+[[modules]]
+path = "bench"
+depends_on = [
+    { path = "bench.utils" },
+]
+
+[[modules]]
+path = "bench.cli"
+depends_on = [
+    { path = "bench.language" },
+    { path = "bench.proto" },
+    { path = "bench.runtime" },
+    { path = "bench.sql" },
+    { path = "bench.system" },
+    { path = "bench.utils" },
+]
+
+[[modules]]
+path = "bench.language"
+depends_on = [
+    { path = "bench.proto" },
+    { path = "bench.utils" },
+]
+
+[[modules]]
+path = "bench.proto"
+depends_on = [
+    { path = "bench.language" },
+    { path = "bench.utils" },
+]
+
+[[modules]]
+path = "bench.runtime"
+depends_on = [
+    { path = "bench.language" },
+    { path = "bench.proto" },
+    { path = "bench.utils" },
+]
+
+[[modules]]
+path = "bench.sql"
+depends_on = [
+    { path = "bench.language" },
+    { path = "bench.proto" },
+    { path = "bench.utils" },
+]
+
+[[modules]]
+path = "bench.system"
+depends_on = [
+    { path = "bench.language" },
+    { path = "bench.proto" },
+    { path = "bench.sql" },
+    { path = "bench.utils" },
+]
+
+[[modules]]
+path = "bench.test"
+depends_on = [
+    { path = "bench.language" },
+    { path = "bench.proto" },
+    { path = "bench.runtime" },
+    { path = "bench.sql" },
+    { path = "bench.system" },
+    { path = "bench.utils" },
+]
+
+[[modules]]
+path = "bench.utils"
+depends_on = []

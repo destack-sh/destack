@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.28.3"
+VERSION = "2024.12.30.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -319,6 +319,7 @@ SCALER_TABLE = Table(
         Column("max_count", PrimitiveType.INT32, default="16"),
         Column("min_ready_count", PrimitiveType.INT32, default="0"),
         Column("is_active", PrimitiveType.BOOLEAN, default="true"),
+        Column("is_primary", PrimitiveType.BOOLEAN, default="false"),
         Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
