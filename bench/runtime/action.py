@@ -18,6 +18,7 @@ from bench.language.action import (
     FailAction,
     GoToTabAction,
     GoToUrlAction,
+    ObserveAction,
     UpdateAction,
     WaitAction,
 )
@@ -374,6 +375,12 @@ class DynamicActionRunner(ActionRunnerBase):
 
 class ApplicationActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
     pass
+
+
+class ObserveActionRunner(ActionRunnerBase[ObserveAction]):
+    @override
+    async def run(self) -> None:
+        raise NotImplementedError("nocheckin")
 
 
 class ClickActionRunner(ApplicationActionRunnerBase[ClickAction]):

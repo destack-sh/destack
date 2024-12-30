@@ -48,7 +48,6 @@ enum EnumType {
   ENUM_TYPE_TYPE_FORMAT = 21504;
   ENUM_TYPE_OBJECT_KIND = 21505;
   ENUM_TYPE_BLOCK_TYPE = 21506;
-  ENUM_TYPE_PARTIAL_OBJECT_SCOPE = 21508;
   ENUM_TYPE_SCHEDULE_TYPE = 22001;
   ENUM_TYPE_TIME_INTERVAL = 22002;
   ENUM_TYPE_DAY = 22003;
@@ -544,7 +543,6 @@ enum BenchType {
   BENCH_TYPE_TYPE_FORMAT = 21504;
   BENCH_TYPE_OBJECT_KIND = 21505;
   BENCH_TYPE_BLOCK_TYPE = 21506;
-  BENCH_TYPE_PARTIAL_OBJECT_SCOPE = 21508;
   BENCH_TYPE_SCHEDULE_TYPE = 22001;
   BENCH_TYPE_TIME_INTERVAL = 22002;
   BENCH_TYPE_DAY = 22003;
@@ -927,14 +925,6 @@ enum BlockType {
   BLOCK_TYPE_VIEW = 40;
   BLOCK_TYPE_ROLE = 50;
   BLOCK_TYPE_IDENTITY = 51;
-}
-
-// The scope of properties in a partial Node object.
-enum PartialObjectScope {
-  PARTIAL_OBJECT_SCOPE_UNSPECIFIED = 0;
-  PARTIAL_OBJECT_SCOPE_FULL = 1;
-  PARTIAL_OBJECT_SCOPE_BASE = 2;
-  PARTIAL_OBJECT_SCOPE_SUBTYPE = 3;
 }
 
 enum ScheduleType {
@@ -1882,8 +1872,8 @@ message TypeInfoData {
   optional BenchType bench_type = 42;
   optional NodeReferenceData base_type_ptr = 43;
   optional FieldType base_field_type = 44;
-  optional NodeReferenceData oneof_ptr = 45;
-  optional PartialObjectScope partial_scope = 46;
+  optional FieldType property_field_type = 45;
+  optional NodeReferenceData oneof_ptr = 49;
   optional google.protobuf.Value default_packed = 50;
   optional TypeFormat format = 53;
   optional ExpressionData condition = 54;
@@ -1997,10 +1987,10 @@ message ContextData {
 
 message CallData {
   ObjectType metatype = 1;
-  NodeReferenceData node_ptr = 30;
-  optional google.protobuf.Value inputs_packed = 31;
+  NodeReferenceData node_ptr = 31;
+  optional ActionType action_type = 32;
+  optional google.protobuf.Value inputs_packed = 35;
   optional ObjectMappingData mapping = 50;
-  optional CodeData mapping_code = 51;
 }
 
 message ContinueData {
@@ -2431,8 +2421,8 @@ message FieldData {
   optional BenchType bench_type = 42;
   optional NodeReferenceData base_type_ptr = 43;
   optional FieldType base_field_type = 44;
-  optional NodeReferenceData oneof_ptr = 45;
-  optional PartialObjectScope partial_scope = 46;
+  optional FieldType property_field_type = 45;
+  optional NodeReferenceData oneof_ptr = 49;
   optional google.protobuf.Value default_packed = 50;
   optional TypeFormat format = 53;
   optional ExpressionData condition = 54;
@@ -2604,6 +2594,7 @@ message RouteActionData {
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ObserveActionData {
   optional bool exclude_image = 100;
+  optional NodeReferenceData image_ptr = 101;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.

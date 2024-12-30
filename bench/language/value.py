@@ -35,10 +35,10 @@ from bench.language.const import (
     PY_TYPE_BY_PRIMITIVE_TYPE,
     UNSET,
     EnumType,
+    FieldType,
     NodeType,
     ObjectKind,
     ObjectType,
-    PartialObjectScope,
     PrimitiveType,
     PrimitiveValue,
     StructType,
@@ -112,11 +112,11 @@ ValueParentKey = Union["Property", "Field"]
 class CustomObject(Mapping[str, Any]):
     """
     A custom Object; generally the user defined equivalent of our built-in Objects (Structs/Nodes).
-    Basic Objects  include values for a specific subset of Fields and the common builtin Object ones
+    Basic Objects include values for a specific subset of Fields and the common builtin Object ones
       (e.g., Block variable, Run inputs, Class instance).
     Partial Nodes are a CustomObject + a partial Node, they include the Node, its subtype (if any),
       and values for a specific subset of its value Fields (if any).
-      (e.g., CreateStep input, Step inputs generally)
+      (e.g., CreateAction input, Action inputs/outputs in general, partial Record, ...)
     """
 
     OWN_PROPERTIES: ClassVar[set[str]] = {
@@ -530,12 +530,10 @@ def _get_custom_object_properties(
                     subtype_properties = subtype_cls.__subtype_extra_original_properties__.values()
 
         # assemble properties
-        if typ.partial_scope == PartialObjectScope.BASE:
-            return chain(node_properties, custom_properties)
-        elif typ.partial_scope == PartialObjectScope.SUBTYPE:
-            return chain(subtype_properties, custom_properties)
-        else:
-            return chain(subtype_properties, node_properties, custom_properties)
+        properties = chain(subtype_properties, node_properties, custom_properties)
+        if typ.property_field_type is not None:
+            properties = tuple(p for p in properties if p.field_type == typ.property_field_type)
+        return properties
     else:
         # just the base properties
         return custom_properties
@@ -548,6 +546,7 @@ def _get_custom_object_property(
     name: str,
 ) -> "Property | None":
     """Gets the property with the given name from the custom object."""
+    prop = None
     if typ.kind == TypeKind.PARTIAL_OBJECT:
         # figure out actual node type
         if typ.bench_type is not None:
@@ -561,20 +560,24 @@ def _get_custom_object_property(
 
         # check node
         prop = node_cls.__original_properties__.get(name)
-        if prop is not None:
-            return prop
-        elif node_cls.__subtype_base_property__ is not None:
+        if prop is None and node_cls.__subtype_base_property__ is not None:
             if typ.constraint is not None and typ.constraint.node_subtypes:
                 subtype = typ.constraint.node_subtypes[0]
             else:
                 subtype = value_packed.get(node_cls.__subtype_base_property__.key)
             if subtype is not None:
                 subtype_cls = node_cls.__subclass_by_subtype__[cast(IdEnum, subtype)]
-                return subtype_cls.__subtype_extra_original_properties__.get(name)
+                prop = subtype_cls.__subtype_extra_original_properties__.get(name)
 
-    custom_object_cls = CUSTOM_OBJECT_CLASS_BY_KIND.get(kind)
-    if custom_object_cls is not None:
-        return custom_object_cls.__original_properties__.get(name)
+    if prop is None:
+        custom_object_cls = CUSTOM_OBJECT_CLASS_BY_KIND.get(kind)
+        if custom_object_cls is not None:
+            prop = custom_object_cls.__original_properties__.get(name)
+
+    if prop is not None and (
+        typ.property_field_type is None or prop.field_type == typ.property_field_type
+    ):
+        return prop
     else:
         return None
 
@@ -1881,7 +1884,12 @@ class InputObject(Struct, CustomObjectBase):
     """An input object."""
 
     text: Optional["Text"] = p_regular(
-        900, default=None, require=False, array=False, struct=StructType.TEXT
+        900,
+        default=None,
+        require=False,
+        array=False,
+        struct=StructType.TEXT,
+        field_type=FieldType.INPUT,
     )
 
 
@@ -1890,11 +1898,18 @@ class OutputObject(Struct, CustomObjectBase):
     """An output object."""
 
     text: Optional["Text"] = p_regular(
-        900, default=None, require=False, array=False, struct=StructType.TEXT
+        900,
+        default=None,
+        require=False,
+        array=False,
+        struct=StructType.TEXT,
+        field_type=FieldType.OUTPUT,
     )
-    call: "Call | None" = p_regular(910, require=False, struct=StructType.CALL)
+    call: "Call | None" = p_regular(
+        910, require=False, struct=StructType.CALL, field_type=FieldType.OUTPUT
+    )
     continuations: list["Continue"] = p_regular(
-        911, default=[], array=True, struct=StructType.CONTINUE
+        911, default=[], array=True, struct=StructType.CONTINUE, field_type=FieldType.OUTPUT
     )
 
 

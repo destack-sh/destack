@@ -30,6 +30,15 @@
     },
     // general configs
     {
+      "name": "bench.build",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/bench.py",
+      "args": ["build"],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    },
+    {
       "name": "bench.system",
       "type": "debugpy",
       "request": "launch",

@@ -23,7 +23,6 @@ from bench.language.const import (
     FieldType,
     NodeType,
     ObjectKind,
-    PartialObjectScope,
     PrimitiveType,
     PrimitiveValue,
     StructType,
@@ -256,15 +255,15 @@ class TypeBase(BuiltinObject):
         base_type_id: Optional[UUID] = None
         base_type_ptr: Optional["NodeReference"] = None
     base_field_type: Optional["FieldType"] = p_internal(44, require=False, default=None)
+    property_field_type: Optional["FieldType"] = p_internal(45, require=False, default=None)
     oneof: Union["Field", "Block", None] = p_regular(
-        45,
+        49,
         require=False,
         array=False,
         default=None,
         references=(NodeType.FIELD, NodeType.BLOCK),
         same_bench=True,
     )
-    partial_scope: Optional[PartialObjectScope] = p_regular(46, default=None)
 
     # metadata
     default_packed: Optional[Any] = p_value_packed(50)
@@ -304,7 +303,8 @@ class TypeBase(BuiltinObject):
         if self.kind == TypeKind.PARTIAL_OBJECT:
             if not info_str.startswith("Partial"):
                 info_str = f"Partial{info_str}"
-            clauses.append(self.partial_scope.bench_name if self.partial_scope else "Full")
+            if self.property_field_type is not None:
+                clauses.append(f"property={self.property_field_type.bench_name}")
         if self.condition is not None:
             clauses.append(repr(self.condition))
         if self.is_list:
