@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.31.2"
+VERSION = "2024.12.31.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -970,7 +970,7 @@ VIEW_TABLE = Table(
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("type", PrimitiveType.INT16),
+        Column("type", PrimitiveType.INT32),
         Column("name", PrimitiveType.STRING),
         Column("title", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),

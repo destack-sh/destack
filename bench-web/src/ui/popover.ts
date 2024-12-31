@@ -534,7 +534,7 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
       if (component.props.nodePtr != null) {
         nextNodePtr = component.props.nodePtr;
       }
-      // check if the node is a container
+      // check if the node is the container
       const componentType = getVueComponentType(component);
       const viewType = componentType != null ? getViewTypeByComponentName(componentType) : null;
       if (HELPER_VIEW_TYPES.has(viewType!)) {

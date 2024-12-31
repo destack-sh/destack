@@ -25,7 +25,7 @@ from bench.language.action import (
 from bench.language.browser import Browser
 from bench.language.const import NodeType, ObjectKind, RunErrorKind
 from bench.language.field import TypeBase
-from bench.language.file import FileFormat, FileType, upload
+from bench.language.file import FileFormat, FileType, upload_file
 from bench.language.flow import Pipe, PipeType, PortSide
 from bench.language.interruption import BreakpointScope, BreakpointSite, InterruptionType
 from bench.language.node import HasNodeBase
@@ -394,7 +394,7 @@ class ObserveActionRunner(ActionRunnerBase[ObserveAction]):
         dom_tree = parse_dom_node(dom_tree_js)
         screenshot_bytes = await pw_page.screenshot(full_page=False, animations="disabled")
         now = self.session._oracle.utc()
-        screenshot = await upload(
+        screenshot = await upload_file(
             screenshot_bytes,
             type=FileType.IMAGE,
             format=FileFormat.PNG,

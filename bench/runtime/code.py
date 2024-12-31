@@ -9,7 +9,7 @@ from bench.language import render
 from bench.language.code import Code, CodeType
 from bench.language.const import ObjectKind
 from bench.language.field import Field, TypeBase
-from bench.language.file import upload
+from bench.language.file import upload_file
 from bench.language.path import get_node, get_node_or_error, get_path
 from bench.language.render import RenderOptions
 from bench.language.run import Run, RunnableNode, RunOptions, RunType
@@ -116,7 +116,7 @@ class CodeRunnerBase(Runner):
         _get_node = functools.partial(get_node, self.node)
         _get_path = functools.partial(get_path, self.node)
         _render = functools.partial(render, options=RenderOptions(scope=self.node))
-        _upload = functools.partial(upload)
+        _upload = functools.partial(upload_file)
         glbls = {  # :CodeGlobals
             # static
             **self.runtime.static_glbls,

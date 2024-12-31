@@ -10,7 +10,7 @@ from PIL.Image import Image
 from bench import language
 from bench.language import render
 from bench.language.const import BenchError
-from bench.language.file import upload
+from bench.language.file import upload_file
 from bench.language.node import Node
 from bench.language.path import get_node
 from bench.language.registry import BENCH_CLASS_BY_NAME, NODE_CLASS_STUBS_BY_NAME
@@ -131,7 +131,7 @@ DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
     "self": Node,
     "get_node": get_node,
     "render": render,
-    "upload": upload,
+    "upload": upload_file,
     "log": LogSink.log,
     "trace": LogSink.trace,
     "debug": LogSink.debug,

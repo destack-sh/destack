@@ -335,7 +335,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.DATABASE]: "fas fa-database",
   [ViewType.VIEW]: "fas fa-window-maximize",
   [ViewType.FLOW]: "fas fa-project-diagram",
-  [ViewType.STEP]: "fas fa-shoe-prints",
+  [ViewType.ACTION]: "fas fa-shoe-prints",
   [ViewType.TYPE]: "fas fa-objects-column",
   [ViewType.OBJECT]: "fas fa-cubes",
   [ViewType.PIPE]: "fas fa-tachometer-alt",
