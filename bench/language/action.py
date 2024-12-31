@@ -52,6 +52,7 @@ if TYPE_CHECKING:
         Action,
         Block,
         Code,
+        DomNode,
         Expression,
         Field,
         File,
@@ -541,10 +542,17 @@ class HasApplicationContext(BuiltinObject):
 class ObserveAction(Action):
     exclude_image: bool | None = p_regular(100, default=False, field_type=FieldType.INPUT)
     image: Optional["File"] = p_regular(
-        101,
+        150,
         require=False,
         array=False,
         references=NodeType.FILE,
+        field_type=FieldType.OUTPUT,
+    )
+    dom: Optional["DomNode"] = p_regular(
+        151,
+        require=False,
+        array=False,
+        struct=StructType.DOM_NODE,
         field_type=FieldType.OUTPUT,
     )
 

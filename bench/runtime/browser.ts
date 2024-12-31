@@ -88,7 +88,7 @@ function getHighlightContainer(): HTMLDivElement {
 		container.style.left = "0";
 		container.style.width = "100%";
 		container.style.height = "100%";
-		container.style.zIndex = "2147483647";
+		container.style.zIndex = "2147483640";
 		document.documentElement.appendChild(container);
 	}
 	return container;
@@ -101,8 +101,7 @@ function getHighlightContainer(): HTMLDivElement {
 function getHighlightColor(index: number): { base: string; background: string } {
 	const colors = [
 		"#FF0000",
-		"#00FF00",
-		"#0000FF",
+		"#0000FF", 
 		"#FFA500",
 		"#800080",
 		"#008080",
@@ -135,10 +134,10 @@ function highlightElement(element: Element, index: number, iframe: HTMLIFrameEle
 		left += iframeRect.left;
 	}
 	
-	// overlay creation
+	// overlay
 	const overlay = document.createElement("div");
 	overlay.style.position = "absolute";
-	overlay.style.border = `2px solid ${base}`;
+	overlay.style.outline = `2px solid ${base}`;
 	overlay.style.backgroundColor = background;
 	overlay.style.pointerEvents = "none";
 	overlay.style.boxSizing = "border-box";
@@ -146,9 +145,10 @@ function highlightElement(element: Element, index: number, iframe: HTMLIFrameEle
 	overlay.style.left = `${left}px`;
 	overlay.style.width = `${rect.width}px`;
 	overlay.style.height = `${rect.height}px`;
+	overlay.style.zIndex = "2147483641";
 	container.appendChild(overlay);
 	
-	// label creation
+	// label
 	const label = document.createElement("div");
 	label.className = "bench-highlight-label";
 	label.style.position = "absolute";
@@ -156,30 +156,77 @@ function highlightElement(element: Element, index: number, iframe: HTMLIFrameEle
 	label.style.color = "white";
 	label.style.padding = "1px 4px";
 	label.style.borderRadius = "4px";
-	label.style.fontSize = `${Math.min(12, Math.max(8, rect.height / 2))}px`;
+	label.style.fontWeight = "medium";
+	label.style.fontSize = "14px";
+	label.style.fontFamily = "monospace";
 	label.dataset.index = index.toString();
+	label.style.zIndex = "2147483642";
 	label.textContent = index.toString();
 	
 	const labelWidth = 20;
 	const labelHeight = 16;
-	let labelTop = top + 2;
-	let labelLeft = left + rect.width - labelWidth - 2;
+	const labelPadding = 0;
+	const viewportMargin = 4; // minimum pixels from viewport edge
 	
-	// if element is too small, adjust label placement
-	if (rect.width < labelWidth + 4 || rect.height < labelHeight + 4) {
-		labelTop = top - labelHeight - 2;
-		labelLeft = left + rect.width - labelWidth;
+	// determine if label should be placed outside based on container size
+	const shouldPlaceOutside = rect.width < labelWidth * 3 || 
+		rect.height < labelHeight * 2;
+	
+	// calculate viewport bounds with margin
+	const bounds = {
+		top: viewportMargin,
+		right: window.innerWidth - viewportMargin,
+		bottom: window.innerHeight - viewportMargin,
+		left: viewportMargin
+	};
+	
+	// try positions in clockwise order
+	let labelPosition;
+	if (!shouldPlaceOutside) {
+		// 1. try inside top-right
+		const insideTopRight = {
+			top: top + labelPadding,
+			left: left + rect.width - labelWidth - labelPadding
+		};
+		if (insideTopRight.top >= bounds.top && 
+			insideTopRight.left + labelWidth <= bounds.right) {
+			labelPosition = insideTopRight;
+		}
+	}
+	if (!labelPosition) {
+		// 2. try outside top-right
+		const outsideTopRight = {
+			top: top - labelHeight - labelPadding,
+			left: left + rect.width - labelPadding - labelWidth
+		};
+		if (outsideTopRight.top >= bounds.top &&
+			outsideTopRight.left + labelWidth <= bounds.right) {
+			labelPosition = outsideTopRight;
+		}
+	}
+	if (!labelPosition) {
+		// 3. try outside bottom-right
+		const outsideBottomRight = {
+			top: top + rect.height + labelPadding,
+			left: left + rect.width - labelPadding - labelWidth
+		};
+		if (outsideBottomRight.top + labelHeight <= bounds.bottom &&
+			outsideBottomRight.left + labelWidth <= bounds.right) {
+			labelPosition = outsideBottomRight;
+		}
+	}
+	if (!labelPosition) {
+		// fallback: place where it fits best while respecting viewport bounds
+		labelPosition = {
+			top: Math.min(bounds.bottom - labelHeight,
+				Math.max(bounds.top, top + labelPadding)),
+			left: Math.min(bounds.right - labelWidth,
+				Math.max(bounds.left, left + labelPadding))
+		};
 	}
 	
-	// ensure label stays within viewport
-	if (labelTop < 0) labelTop = top + 2;
-	if (labelLeft < 0) labelLeft = left + 2;
-	if (labelLeft + labelWidth > window.innerWidth) {
-		labelLeft = left + rect.width - labelWidth - 2;
-	}
-	
-	label.style.top = `${labelTop}px`;
-	label.style.left = `${labelLeft}px`;
+	label.style.top = `${labelPosition.top}px`;
+	label.style.left = `${labelPosition.left}px`;
 	container.appendChild(label);
 	
 	element.setAttribute("bench-highlight-id", `bench-highlight-${index}`);
@@ -242,19 +289,21 @@ function isInteractiveElement(element: Element): boolean {
 	const tabIndex = element.getAttribute("tabindex");
 	
 	const hasInteractiveRole =
-	INTERACTIVE_TAGS.has(tagName) ||
-	(role && INTERACTIVE_ROLES.has(role)) ||
-	(ariaRole && INTERACTIVE_ROLES.has(ariaRole)) ||
-	(tabIndex !== null && tabIndex !== "-1") ||
-	element.getAttribute("data-action") === "a-dropdown-select" ||
-	element.getAttribute("data-action") === "a-dropdown-button";
+		INTERACTIVE_TAGS.has(tagName) ||
+		(role && INTERACTIVE_ROLES.has(role)) ||
+		(ariaRole && INTERACTIVE_ROLES.has(ariaRole)) ||
+		(tabIndex !== null && tabIndex !== "-1") ||
+		element.getAttribute("data-action") === "a-dropdown-select" ||
+		element.getAttribute("data-action") === "a-dropdown-button";
 	
 	if (hasInteractiveRole) return true;
 	
 	// check simple event-related attributes
-	if ((element as HTMLElement).onclick !== null || element.getAttribute("onclick") !== null) return true;
-	if (element.hasAttribute("ng-click") || element.hasAttribute("@click") || element.hasAttribute("v-on:click"))
+	if ((element as HTMLElement).onclick !== null || element.getAttribute("onclick") !== null) {
 		return true;
+	} else if (element.hasAttribute("ng-click") || element.hasAttribute("@click") || element.hasAttribute("v-on:click")) {
+		return true;
+	}
 	
 	// check aria states
 	if (
@@ -432,7 +481,23 @@ function buildDomTree(
 /**
 * Extract the DOM tree from the current document's body.
 */
-export function extractDocumentDomTree(highlight = true): DomNode | null {
+function extractDocumentDomTree(highlight = true): DomNode | null {
 	const [tree] = buildDomTree(document.body, highlight, null, 0);
 	return tree;
+}
+
+/**
+ * Clean up any highlights from the DOM.
+ */
+function cleanupHighlights(): void {
+	 // remove the highlight container and all its contents
+	 const container = document.getElementById(HIGHLIGHT_CONTAINER_ID);
+	 if (container) {
+		 container.remove();
+	 }
+	 // remove highlight attributes from elements
+	 const highlightedElements = document.querySelectorAll('[bench-highlight-id^="bench-highlight-"]');
+	 highlightedElements.forEach(el => {
+		 el.removeAttribute('bench-highlight-id');
+	 });
 }

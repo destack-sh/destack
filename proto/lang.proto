@@ -2594,7 +2594,8 @@ message RouteActionData {
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ObserveActionData {
   optional bool exclude_image = 100;
-  optional NodeReferenceData image_ptr = 101;
+  optional NodeReferenceData image_ptr = 150;
+  optional DomNodeData dom = 151;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.

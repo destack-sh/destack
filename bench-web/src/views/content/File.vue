@@ -80,7 +80,7 @@ const HOVER_MENU: HoverMenuOptions = {
     optimisticValue.value != null &&
     [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO].includes(optimisticValue.value.type),
   popover: (context: PopoverContext) => ({
-    kind: 'view',
+    kind: "view",
     component: ViewType.FILE,
     props: {
       ...(props as ViewProps),
@@ -213,7 +213,7 @@ defineExpose<ViewExposed>({
       <span
         v-else
         class="select-none transition-colors duration-75"
-        :class="[isInDropZone ? 'text-gray-700' : 'text-gray-400']"
+        :class="[isInDropZone ? 'text-gray-700' : 'text-gray-400 group-hover:text-gray-700']"
       >
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" />
         <span>Upload {{ facetName }}</span>
@@ -290,8 +290,7 @@ defineExpose<ViewExposed>({
         class="flex h-full w-full items-center justify-center text-center"
         :class="[
           loadFailed ? 'text-danger-600' : '',
-          (upload != null && upload.isActive.value) ||
-          (download != null && download.isActive.value && !isMinimal)
+          (upload != null && upload.isActive.value) || (download != null && download.isActive.value && !isMinimal)
             ? 'animate-pulse'
             : '',
         ]"

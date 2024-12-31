@@ -42,7 +42,7 @@ import {
 } from "@/system/connection";
 import { supergraph } from "@/system/globals";
 import { benchGraph, pkgGraph } from "@/system/space";
-import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
+import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, isActionEnabled, type Action } from "@/ui/action";
 import {
   AVAILABLE_FA_ICONS,
   DEFAULT_ENUM_ICON,
@@ -758,11 +758,12 @@ export function actionIndex(idx: { id: string } = { id: "action" }): SearchIndex
     id: idx.id,
     getItemFromValue: getItemFromValue,
     getValueFromItem: (candidate: ActionItem) => candidate.id,
-    candidates: () =>
-      IMPLEMENTED_ACTIONS.value
-        .filter((a) => a.isEnabled == null || toValue(a.isEnabled))
+    candidates: () => {
+      return IMPLEMENTED_ACTIONS.value
+        .filter((a) => isActionEnabled(a, undefined))
         .sort((a, b) => ACTION_BUILTIN_IDS_INDEX[a.id] - ACTION_BUILTIN_IDS_INDEX[b.id])
-        .map(getItemFromValue),
+        .map(getItemFromValue);
+    },
   };
   return markRaw(index);
 }

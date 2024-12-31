@@ -102,6 +102,7 @@ defineExpose({
         isInput ? 'hover:cursor-pointer hover:bg-gray-100' : '',
         isIconLight ? '' : 'text-gray-700',
       ]"
+      role="button"
     />
     <!-- Identifier -->
     <NativeInput

@@ -81,6 +81,7 @@ defineExpose<ViewExposed & { total: Ref<number | undefined>; roots: Ref<AnyNodeD
           height: ITEM_HEIGHT + 'px',
         }"
         data-suppress-drag="select"
+        role="button"
         @click="canvas.goToNode(node)"
       >
         <!-- Icon -->
