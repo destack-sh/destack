@@ -403,6 +403,7 @@ class Runtime:
                         ),
                         timeout=DEFAULT_RESOURCE_TIMEOUT,
                     )
+                    # nocheckin: deccomission resourcers on Run termination?
 
         # check inputs
         if runner.input_type is not None:

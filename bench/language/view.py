@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from bench.language.const import NODE_TYPES, EnumType, NodeType, StructType, enum_
+from bench.language.const import NODE_TYPES, EnumType, NodeType, PrimitiveType, StructType, enum_
 from bench.language.expression import Selection
 from bench.language.list import LocalNodeList
 from bench.language.node import (
@@ -44,135 +44,136 @@ if TYPE_CHECKING:
 @enum_(EnumType.VIEW_TYPE)
 class ViewType(IdEnum):
     #
-    # Intrinsics
+    # Intrinsics (0-30000)
     #
 
-    # 'kernel'
-    # auth
-    USER_WIZARD = 1
-    BENCH_WIZARD = 2
-    # internal
-    EMPTY = 100
+    # nodes (0-10000)
+    MACHINE = 2100
+    BROWSER = 2150
+    BLOCK = 3010
+    FIELD = 3012
+    VIEW = 3020
+    PIPE = 3031
+    ACTION = 3030
 
-    # 'system'
-    # nodes
-    PAGE = 201
-    BLOCK = 202
-    FIELD = 203
-    DATABASE = 204
-    VIEW = 205
-    FLOW = 206
-    STEP = 207
-    PIPE = 208
-    # structs
-    TYPE = 300
-    OBJECT = 301
-    FIELD_LIST = 302
-    # helpers
-    DETAIL = 403
-    CREATE = 404
-    CHAT = 405
-    RUN = 406
-    TIMELINE = 408
-    HUB = 409
-    HELP = 411
-    ACTIVITY = 412
-    CATALOG = 413
+    # subnodes (10000-20000)
+    PAGE = 10010
+    DATABASE = 10011
+    FLOW = 10012
+
+    # structs (20000-30000)
+    TYPE = 20001
+    OBJECT = 20002
+    FIELD_LIST = 20003
+
+    # helpers (30000-40000)
+    USER_WIZARD = 30001
+    BENCH_WIZARD = 30002
+    EMPTY = 30100
+    DETAIL = 30200
+    CREATE = 30201
+    CHAT = 30202
+    RUN = 30203
+    TIMELINE = 30204
+    HUB = 30205
+    HELP = 30206
+    ACTIVITY = 30207
+    CATALOG = 30208
 
     #
-    # Organization
+    # Organization (40000-41000)
     #
 
     # layout
-    WINDOW = 1000
-    TAB = 1002
-    HISTORY = 1003
-    SPLIT = 1005
-    SPLIT_DRAWER = 1006
-    STACK = 1010
-    DRAWER = 1011
-    SCROLL = 1012
-    GRID = 1013
+    WINDOW = 40001
+    TAB = 40002
+    HISTORY = 40003
+    SPLIT = 40004
+    SPLIT_DRAWER = 40005
+    STACK = 40006
+    DRAWER = 40007
+    SCROLL = 40008
+    GRID = 40009
 
     # groups
-    GROUP = 1030
-    SECTION = 1031
-    FORM = 1032
+    GROUP = 40100
+    SECTION = 40101
+    FORM = 40102
 
     # presentation
-    SPACER = 1040
-    DIVIDER = 1041
+    SPACER = 40200
+    DIVIDER = 40201
 
     # collections
-    LIST = 1050
-    TABLE = 1051
-    TREE = 1052
-    FEED = 1053
-    GALLERY = 1054
-    BOARD = 1055
+    LIST = 40300
+    TABLE = 40301
+    TREE = 40302
+    FEED = 40303
+    GALLERY = 40304
+    BOARD = 40305
     # ROW, COLUMN, ...?
     # CALENDAR, MAP, ...?
 
     #
-    # Style
+    # Style (41000-42000)
     #
 
     # navigation
-    BREADCRUMB = 1100
-    PROGRESS = 1101
-    AVATAR = 1102
-    BADGE = 1103
+    BREADCRUMB = 41001
+    PROGRESS = 41002
+    AVATAR = 41003
+    BADGE = 41004
     # illustration
-    SHAPE = 1110
+    SHAPE = 41100
 
     # graphing
-    CHART = 1200
+    CHART = 41200
 
     #
-    # Action
+    # Action (42000-43000)
     #
 
     # controls
-    BUTTON = 1300
-    MULTI_BUTTON = 1301
-    LINK = 1302
+    BUTTON = 42001
+    MULTI_BUTTON = 42002
+    LINK = 42003
 
     #
-    # Content
+    # Content (44000-50000)
     #
 
-    VALUE = 1400  # (generic content routed according to value type)
+    VALUE = 44001  # (generic content routed according to value type)
 
     # numeric
-    NUMBER = 1500
-    SLIDER = 1501
+    NUMBER = 45001
+    SLIDER = 45002
 
     # stringy
-    STRING = 1600
-    TEXT = 1601
-    CODE = 1602
-    JSON = 1603
+    STRING = 46001
+    TEXT = 46002
+    CODE = 46003
+    JSON = 46004
 
     # selection
-    TOGGLE = 1700
-    PICKER = 1701
-    COLOR = 1702
-    ICON = 1703
-    DATETIME = 1704
-    DURATION = 1705
+    TOGGLE = 47001
+    PICKER = 47002
+    COLOR = 47003
+    ICON = 47004
+    DATETIME = 47005
+    DURATION = 47006
 
     # file
-    FILE = 1900  # (generic file content according to file type)
-    IMAGE = 1901
-    AUDIO = 1902
-    VIDEO = 1903
-    DOCUMENT = 1904
+    FILE = 48001  # (generic file content according to file type)
+    IMAGE = 48002
+    AUDIO = 48003
+    VIDEO = 48004
+    DOCUMENT = 48005
     ...
 
     # expression
-    CONDITIONAL = 2000
-    SORT = 2001
-    AGGREGATION = 2002
+    CONDITIONAL = 49001
+    SORT = 49002
+    AGGREGATION = 49003
 
 
 @enum_(EnumType.COLOR_TYPE)
@@ -478,7 +479,7 @@ class View(SourceNode[ViewData]):
     )
 
     # common
-    type: ViewType = p_regular(30, require=True)
+    type: ViewType = p_regular(30, require=True, primitive_type=PrimitiveType.INT32)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
     title: Optional[str] = p_regular(32, default=None, constraint=TITLE_CONSTRAINT)
     order_key: str = p_internal(34, default=INTEGER_ZERO)

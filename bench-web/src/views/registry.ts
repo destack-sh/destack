@@ -26,7 +26,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.FIELD]: () => import("@/views/nodes/Field.vue"),
   [ViewType.DATABASE]: () => import("@/views/nodes/Database.vue"),
   [ViewType.FLOW]: () => import("@/views/nodes/Flow.vue"),
-  [ViewType.STEP]: () => import("@/views/nodes/Action.vue"),
+  [ViewType.ACTION]: () => import("@/views/nodes/Action.vue"),
   [ViewType.PIPE]: () => import("@/views/nodes/Pipe.vue"),
   // structs
   [ViewType.OBJECT]: () => import("@/views/structs/CustomObject.vue"),

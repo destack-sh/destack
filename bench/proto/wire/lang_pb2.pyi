@@ -1379,20 +1379,22 @@ class SpaceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     VIEW_TYPE_UNSPECIFIED: _ClassVar[ViewType]
-    VIEW_TYPE_USER_WIZARD: _ClassVar[ViewType]
-    VIEW_TYPE_BENCH_WIZARD: _ClassVar[ViewType]
-    VIEW_TYPE_EMPTY: _ClassVar[ViewType]
-    VIEW_TYPE_PAGE: _ClassVar[ViewType]
+    VIEW_TYPE_MACHINE: _ClassVar[ViewType]
+    VIEW_TYPE_BROWSER: _ClassVar[ViewType]
     VIEW_TYPE_BLOCK: _ClassVar[ViewType]
     VIEW_TYPE_FIELD: _ClassVar[ViewType]
-    VIEW_TYPE_DATABASE: _ClassVar[ViewType]
     VIEW_TYPE_VIEW: _ClassVar[ViewType]
-    VIEW_TYPE_FLOW: _ClassVar[ViewType]
-    VIEW_TYPE_STEP: _ClassVar[ViewType]
     VIEW_TYPE_PIPE: _ClassVar[ViewType]
+    VIEW_TYPE_ACTION: _ClassVar[ViewType]
+    VIEW_TYPE_PAGE: _ClassVar[ViewType]
+    VIEW_TYPE_DATABASE: _ClassVar[ViewType]
+    VIEW_TYPE_FLOW: _ClassVar[ViewType]
     VIEW_TYPE_TYPE: _ClassVar[ViewType]
     VIEW_TYPE_OBJECT: _ClassVar[ViewType]
     VIEW_TYPE_FIELD_LIST: _ClassVar[ViewType]
+    VIEW_TYPE_USER_WIZARD: _ClassVar[ViewType]
+    VIEW_TYPE_BENCH_WIZARD: _ClassVar[ViewType]
+    VIEW_TYPE_EMPTY: _ClassVar[ViewType]
     VIEW_TYPE_DETAIL: _ClassVar[ViewType]
     VIEW_TYPE_CREATE: _ClassVar[ViewType]
     VIEW_TYPE_CHAT: _ClassVar[ViewType]
@@ -2792,20 +2794,22 @@ SPACE_TYPE_DESKTOP: SpaceType
 SPACE_TYPE_BROWSER: SpaceType
 SPACE_TYPE_MOBILE: SpaceType
 VIEW_TYPE_UNSPECIFIED: ViewType
-VIEW_TYPE_USER_WIZARD: ViewType
-VIEW_TYPE_BENCH_WIZARD: ViewType
-VIEW_TYPE_EMPTY: ViewType
-VIEW_TYPE_PAGE: ViewType
+VIEW_TYPE_MACHINE: ViewType
+VIEW_TYPE_BROWSER: ViewType
 VIEW_TYPE_BLOCK: ViewType
 VIEW_TYPE_FIELD: ViewType
-VIEW_TYPE_DATABASE: ViewType
 VIEW_TYPE_VIEW: ViewType
-VIEW_TYPE_FLOW: ViewType
-VIEW_TYPE_STEP: ViewType
 VIEW_TYPE_PIPE: ViewType
+VIEW_TYPE_ACTION: ViewType
+VIEW_TYPE_PAGE: ViewType
+VIEW_TYPE_DATABASE: ViewType
+VIEW_TYPE_FLOW: ViewType
 VIEW_TYPE_TYPE: ViewType
 VIEW_TYPE_OBJECT: ViewType
 VIEW_TYPE_FIELD_LIST: ViewType
+VIEW_TYPE_USER_WIZARD: ViewType
+VIEW_TYPE_BENCH_WIZARD: ViewType
+VIEW_TYPE_EMPTY: ViewType
 VIEW_TYPE_DETAIL: ViewType
 VIEW_TYPE_CREATE: ViewType
 VIEW_TYPE_CHAT: ViewType

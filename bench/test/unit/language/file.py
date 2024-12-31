@@ -3,7 +3,7 @@ import io
 import pytest
 from PIL import Image
 
-from bench.language.file import FileFormat, FileIn, FileType, extract_file_info, upload
+from bench.language.file import FileFormat, FileIn, FileType, extract_file_info, upload_file
 from bench.test.unit.conftest import RuntimeHandle
 
 # some random image
@@ -29,7 +29,7 @@ async def test_upload_and_download_file(
     expected_file_format: FileFormat | None,
 ):
     # upload
-    file = await upload(file_content, name=file_title)
+    file = await upload_file(file_content, name=file_title)
     await hosted_runtime.session.commit()
     assert file.type == expected_file_type
     assert file.format == expected_file_format

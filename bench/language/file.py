@@ -568,7 +568,9 @@ class FileBase(BuiltinObject):
                 return self._cached_content
         elif self._cached_get_url is not None:
             return self._cached_get_url
-        await download_batch([self], include_content=include_content, session=self.active_session)
+        await download_file_batch(
+            [self], include_content=include_content, session=self.active_session
+        )
         if include_content:
             assert self._cached_content is not None, f"content not ready for {self!r}"
             return self._cached_content
@@ -799,7 +801,7 @@ class File(DynamicResource[FileData], FileBase):
 
 
 @tracer.start_as_current_span("file.upload_batch")
-async def upload_batch(
+async def upload_file_batch(
     files: list[File], file_contents: list[bytes], session: "Session | None" = None
 ):
     """Uploads the given Files to their Host."""
@@ -852,7 +854,7 @@ async def upload_batch(
 
 
 @tracer.start_as_current_span("file.download_batch")
-async def download_batch(
+async def download_file_batch(
     file_refs: Sequence[NodeReference | File],
     *,
     include_content: bool | Collection[NodeReference | File],
@@ -990,7 +992,7 @@ async def extract_file_info(  # noqa: RUF029
     return file, content
 
 
-async def upload(
+async def upload_file(
     file_in: FileIn,
     name: str,
     *,
@@ -1017,7 +1019,7 @@ async def upload(
     file.parent = bench
 
     # upload file, then create in session
-    await upload_batch(files=[file], file_contents=[content], session=session)
+    await upload_file_batch(files=[file], file_contents=[content], session=session)
     session._create(file)
 
     return file
