@@ -29,6 +29,7 @@ from bench.language.const import (
     StructType,
     active_session,
     enum_,
+    run_span,
 )
 from bench.language.node import (
     BuiltinObject,
@@ -45,6 +46,7 @@ from bench.language.property import (
     p_runtime,
     p_system,
 )
+from bench.language.run import RunSpanType
 from bench.language.validation import TITLE_CONSTRAINT, constraint
 from bench.proto.networking import MACHINE_ENVIRONMENT
 from bench.proto.wire import (
@@ -60,7 +62,7 @@ from bench.utils.utils import get_from_env
 if TYPE_CHECKING:
     from magika import Magika
 
-    from bench.language import Bench, Session
+    from bench.language import Bench, File, Node, Session
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -853,7 +855,7 @@ async def upload_file_batch(
     logger.debug("file.upload_batch", files=files, span="current")
 
 
-@tracer.start_as_current_span("file.download_batch")
+@run_span(tracer, "file.download_batch", RunSpanType.FILE_DOWNLOAD)
 async def download_file_batch(
     file_refs: Sequence[NodeReference | File],
     *,
@@ -869,7 +871,7 @@ async def download_file_batch(
     from bench.proto.wiring import unpack_builtin_object
 
     # get download URLs
-    with tracer.start_as_current_span("file.prepare_download"):
+    with run_span(tracer, "file.prepare_download", RunSpanType.FILE_DOWNLOAD_PREPARE) as span:
         download_req = DownloadFilesRequest(
             scope=session._get_scope_for_node(session),
             files=[(f.to_ref() if isinstance(f, File) else f)._to_data() for f in file_refs],
@@ -880,7 +882,8 @@ async def download_file_batch(
         )
         handles_by_id = {h.file.id: h for h in download_rep.handles}
         del download_rep
-
+        if span is not None:
+            span.nodes = cast(list["Node"], [h.file for h in handles_by_id.values()])
         file_refs_by_id = {f.id: f for f in file_refs}
         files_by_id: dict[UUID, File] = {}
         for file_ref in file_refs:
@@ -923,6 +926,7 @@ async def download_file_batch(
 FileIn = Union[str, bytes, Image.Image]
 
 
+@run_span(tracer, "file.extract_info", RunSpanType.FILE_EXTRACT)
 async def extract_file_info(  # noqa: RUF029
     file_in: FileIn,
     name: str,
@@ -992,6 +996,7 @@ async def extract_file_info(  # noqa: RUF029
     return file, content
 
 
+@run_span(tracer, "file.upload", RunSpanType.FILE_UPLOAD)
 async def upload_file(
     file_in: FileIn,
     name: str,

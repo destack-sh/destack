@@ -16,6 +16,7 @@ from bench.language.const import (
     enum_,
 )
 from bench.language.list import LocalNodeList
+from bench.language.log import LogLevel
 from bench.language.node import (
     HasNodeBase,
     Node,
@@ -35,11 +36,7 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.text import Text, TextLine
-from bench.language.validation import (
-    TITLE_CONSTRAINT,
-    TypeConstraintIn,
-    ValidationError,
-)
+from bench.language.validation import TITLE_CONSTRAINT, TypeConstraintIn, ValidationError
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
@@ -55,7 +52,6 @@ if TYPE_CHECKING:
         CustomObject,
         Interruption,
         LogInfo,
-        LogLevel,
         NodeReference,
         Pipe,
         TypeBase,
@@ -258,18 +254,23 @@ class RunFrame(Struct):
 
 @enum_(EnumType.RUN_SPAN_TYPE)
 class RunSpanType(IdEnum):
-    CUSTOM = 1000
+    WAIT_FOR = 1
+    FILE_UPLOAD = 2
+    FILE_EXTRACT = 3
+    FILE_DOWNLOAD = 4
+    FILE_DOWNLOAD_PREPARE = 5
 
 
 @struct_(StructType.RUN_SPAN)
-class RunSpan(Struct):  # nocheckin: nice RunSpans/RunEvents (with shared tracer?)
+class RunSpan(Struct):
     """A span in a Run (a sort of mini-Run inside a tracked Run)."""
 
-    type: RunSpanType = p_regular(30, default=RunSpanType.CUSTOM)
-    name: str = p_regular(32, default=None)
-    title: Optional[str] = p_regular(33, default=None, constraint=TITLE_CONSTRAINT)
+    type: RunSpanType = p_regular(30)
+    level: "LogLevel" = p_regular(31, default=LogLevel.INFO)
+    name: str | None = p_regular(32, default=None)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     text_plain: Optional[str] = p_regular(35, default=None)
+    nodes: list["Node"] = p_regular(36, array=True, require=False, references="any")
     started_at: Optional[datetime] = p_regular(40, default=None)
     terminated_at: Optional[datetime] = p_regular(41, default=None)
     duration: Optional[timedelta] = p_regular(42, default=None)
@@ -288,12 +289,13 @@ class RunEvent(Struct):
     """An event in a Run of something that happened."""
 
     type: RunEventType = p_regular(30, default=RunEventType.CUSTOM)
+    level: LogLevel = p_regular(31, default=LogLevel.INFO)
     name: str = p_regular(32, default=None)
     title: Optional[str] = p_regular(33, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     text_plain: Optional[str] = p_regular(35, default=None)
+    nodes: list["Node"] = p_regular(36, array=True, require=False, references="any")
     created_at: Optional[datetime] = p_regular(40, default=None)
-    level: Optional["LogLevel"] = p_regular(41, default=None)
 
 
 @enum_(EnumType.RUN_ERROR_TYPE)

@@ -385,7 +385,7 @@ class ObserveActionRunner(ActionRunnerBase[ObserveAction]):
     async def run(self) -> None:
         # NOTE :Performance: obviously ObserveAction could be a lot more efficient
         #  (defer uploads, ensure extension script is preloaded, ...)
-        browser = self._get_resource_or_error(Browser)
+        browser = self._get_ready_resource_or_error(Browser)
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         dom_tree_js = await pw_page.evaluate(
@@ -411,7 +411,7 @@ class ClickActionRunner(ApplicationActionRunnerBase[ClickAction]):
     async def run(self) -> None:
         element_id = self.action_inputs.element_id
         assert element_id is not None, "no element id to click"
-        browser = self._get_resource_or_error(Browser)
+        browser = self._get_ready_resource_or_error(Browser)
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await pw_page.click(f"[data-bench-highlight-id='{element_id}']")
@@ -427,7 +427,7 @@ class GoToUrlActionRunner(ApplicationActionRunnerBase[GoToUrlAction]):
     async def run(self) -> None:
         url = self.action_inputs.url
         assert url is not None, "no url to go to"
-        browser = self._get_resource_or_error(Browser)
+        browser = self._get_ready_resource_or_error(Browser)
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await pw_page.goto(url, wait_until="domcontentloaded")
@@ -439,7 +439,7 @@ class GoToTabActionRunner(ApplicationActionRunnerBase[GoToTabAction]):
     async def run(self) -> None:
         tab_index = self.action_inputs.tab_index
         assert tab_index is not None, "no tab index to go to"
-        browser = self._get_resource_or_error(Browser)
+        browser = self._get_ready_resource_or_error(Browser)
         pw_browser = await self.runtime.playwright.get_client(browser)
         await pw_browser.pages[tab_index].bring_to_front()
 

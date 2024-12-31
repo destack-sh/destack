@@ -18,6 +18,7 @@ from bench.language.const import (
     RunErrorKind,
     RunStatus,
     is_node_type,
+    run_span,
 )
 from bench.language.field import Field, TypeIn, TypeInfo, to_type_scalar
 from bench.language.graph import NodeGraph
@@ -28,7 +29,7 @@ from bench.language.interruption import (
 )
 from bench.language.node import Node
 from bench.language.registry import NODE_CLASS_BY_TYPE
-from bench.language.run import Run, RunAttempt, RunError, RunnableNode
+from bench.language.run import Run, RunAttempt, RunError, RunnableNode, RunSpanType
 from bench.language.session import Session
 from bench.language.validation import ValidationError, on_invalid_raise
 from bench.language.value import (
@@ -390,10 +391,12 @@ class Runtime:
 
             # acquire missing resource variables
             if missing_resource_slots:
-                with tracer.start_as_current_span("runtime.acquire_resources"):
+                with run_span(tracer, "runtime.acquire_resources", RunSpanType.WAIT_FOR) as span:
                     resources = await self._get_or_create_resources(
                         runner=runner, resources=missing_resource_slots
                     )
+                    if span is not None:
+                        span.nodes = cast(list["Node"], resources)
                     for field, resource in zip(missing_resource_slots, resources):
                         variables._do_set(field, resource, validate=False)
                     await self._wait_for(
@@ -540,6 +543,8 @@ class Runtime:
         finally:
             run._do_set("attempts", runner.attempts, validate=False)
             run._do_set("logs", runner.logs, validate=False)
+            run._do_set("spans", runner.spans, validate=False)
+            run._do_set("events", runner.events, validate=False)
             run._do_set("inputs", runner.inputs, validate=False)
             run._do_set("outputs", runner.outputs, validate=False)
             run._do_set("error", runner.error, validate=False)
