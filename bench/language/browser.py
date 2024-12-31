@@ -22,7 +22,8 @@ class DomNodeType(IdEnum):
 class DomNode(Struct):
     """A DOM node."""
 
-    type: str = p_regular(30)
+    # :DomNode
+    type: DomNodeType = p_regular(30)
     tag: str | None = p_regular(31, default=None)
     index: int | None = p_regular(32, default=None)
     xpath: str | None = p_regular(33, default=None)

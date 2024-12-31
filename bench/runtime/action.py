@@ -25,7 +25,7 @@ from bench.language.action import (
 from bench.language.browser import Browser
 from bench.language.const import NodeType, ObjectKind, RunErrorKind
 from bench.language.field import TypeBase
-from bench.language.file import upload
+from bench.language.file import FileFormat, FileType, upload
 from bench.language.flow import Pipe, PipeType, PortSide
 from bench.language.interruption import BreakpointScope, BreakpointSite, InterruptionType
 from bench.language.node import HasNodeBase
@@ -46,7 +46,7 @@ from bench.language.value import (
     make_node_from_partial,
     patch_node_from_partial,
 )
-from bench.runtime.browser.playwright import get_extension_script_js
+from bench.runtime.browser.playwright import parse_dom_node
 from bench.runtime.code import CodeFunctionRunner
 from bench.runtime.core import ATTEMPT_ONCE, RetryableError, RunImpossibleError
 from bench.runtime.runner import Context, Runner, make_runner, restore_runner
@@ -386,19 +386,21 @@ class ObserveActionRunner(ActionRunnerBase[ObserveAction]):
         browser = self._get_resource_or_error(Browser)
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
-        dom_js = await pw_page.evaluate(
-            get_extension_script_js() + "\n extractDocumentDomTree(true)"
+        dom_tree_js = await pw_page.evaluate(
+            self.runtime.playwright.get_extension_script_js() + "\n extractDocumentDomTree(true)"
         )
+        dom_tree = parse_dom_node(dom_tree_js)
         screenshot_bytes = await pw_page.screenshot(full_page=False, animations="disabled")
         now = self.session._oracle.utc()
         screenshot = await upload(
             screenshot_bytes,
-            f"{browser.title} Screenshot {now.strftime('%Y-%m-%d %H:%M:%S.%f')}",
+            type=FileType.IMAGE,
+            format=FileFormat.PNG,
+            title=f"{browser.title} Screenshot {now.strftime('%Y-%m-%d %H:%M:%S.%f')}",
         )
-        # await pw_page.evaluate("cleanupHighlights('container')") # nocheckin
         assert self.output_type is not None, f"no output type for {self!r}"
         self.outputs = coerce_custom_object_scalar(
-            ObjectKind.OUTPUT, {"dom": None, "screenshot": screenshot}, self.output_type
+            ObjectKind.OUTPUT, {"dom": dom_tree, "screenshot": screenshot}, self.output_type
         )
 
 
@@ -426,8 +428,8 @@ class GoToUrlActionRunner(ApplicationActionRunnerBase[GoToUrlAction]):
         browser = self._get_resource_or_error(Browser)
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
-        await pw_page.goto(url)
-        await pw_page.wait_for_load_state("networkidle")
+        await pw_page.goto(url, wait_until="domcontentloaded")
+        await self.runtime.playwright.wait_for_idle(pw_page)
 
 
 class GoToTabActionRunner(ApplicationActionRunnerBase[GoToTabAction]):

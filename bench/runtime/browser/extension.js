@@ -109,16 +109,16 @@ function getHighlightContainer() {
 function getHighlightColor(index) {
     var colors = [
         "#FF0000",
-        "#0000FF",
-        "#FFA500",
-        "#800080",
-        "#008080",
-        "#FF69B4",
-        "#4B0082",
-        "#FF4500",
-        "#2E8B57",
-        "#DC143C",
-        "#4682B4",
+        "#0066FF",
+        "#FF8000",
+        "#9900FF",
+        "#00CCCC",
+        "#FF1493",
+        "#6600CC",
+        "#FF6600",
+        "#00CC66",
+        "#FF0033",
+        "#0099FF",
     ];
     var base = colors[index % colors.length];
     return { base: base, background: base + "1A" };
@@ -137,7 +137,8 @@ function highlightElement(element, context, iframe) {
     }
     var overlay = document.createElement("div");
     overlay.style.position = "absolute";
-    overlay.style.outline = "2px solid " + base;
+    var outlineWidth = Math.max(2, Math.min(5, 2 + Math.round(Math.sqrt(rect.width + rect.height) / 10)));
+    overlay.style.outline = outlineWidth + "px solid " + base;
     overlay.style.backgroundColor = background;
     overlay.style.pointerEvents = "none";
     overlay.style.boxSizing = "border-box";

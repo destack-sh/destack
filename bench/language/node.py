@@ -1563,6 +1563,11 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
                         prop_value_str = "|".join(p.bench_name for p in prop_value)
                     else:
                         prop_value_str = prop_value.bench_name  # type: ignore
+                elif prop.reference_struct:
+                    if prop.is_list:
+                        prop_value_str = f"{prop.reference_struct.bench_name}[{len(prop_value)}]"
+                    else:
+                        prop_value_str = f"<{prop.reference_struct.bench_name} ...>"
                 else:
                     prop_value_str = repr(prop_value)
                 value_strs.append(f"{prop.name}={prop_value_str}")

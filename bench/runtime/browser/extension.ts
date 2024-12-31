@@ -9,7 +9,7 @@ enum DomNodeType {
 }
 
 /**
-* A DOM node.
+* A DOM node. :DomNode
 */
 type DomNode = {
 	type: DomNodeType;
@@ -159,18 +159,18 @@ function getHighlightContainer(): HTMLDivElement {
 */
 function getHighlightColor(index: number): { base: string; background: string } {
 	const colors = [
-		"#FF0000",
-		"#0000FF", 
-		"#FFA500",
-		"#800080",
-		"#008080",
-		"#FF69B4",
-		"#4B0082",
-		"#FF4500",
-		"#2E8B57",
-		"#DC143C",
-		"#4682B4",
-	];
+        "#FF0000", // Pure red
+        "#0066FF", // Brighter blue
+        "#FF8000", // Vivid orange 
+        "#9900FF", // Bright purple
+        "#00CCCC", // Bright teal
+        "#FF1493", // Deep pink
+        "#6600CC", // Bright indigo
+        "#FF6600", // Bright orange-red
+        "#00CC66", // Bright green
+        "#FF0033", // Bright crimson
+        "#0099FF", // Bright sky blue
+    ];
 	const base = colors[index % colors.length];
 	return { base, background: `${base}1A` };
 }
@@ -197,7 +197,8 @@ function highlightElement(element: Element, context: HighlightContext, iframe: H
 	// overlay
 	const overlay = document.createElement("div");
 	overlay.style.position = "absolute";
-	overlay.style.outline = `2px solid ${base}`;
+    const outlineWidth = Math.max(2, Math.min(5, 2 + Math.round(Math.sqrt(rect.width + rect.height) / 10)));
+	overlay.style.outline = `${outlineWidth}px solid ${base}`;
 	overlay.style.backgroundColor = background;
 	overlay.style.pointerEvents = "none";
 	overlay.style.boxSizing = "border-box";
@@ -494,9 +495,9 @@ function buildDomTree(
 		const isInteractive = isInteractiveElement(element);
 		const isVisible = isElementVisible(element);
 		const isTop = isTopElement(element);
-		nodeData.isInteractive = isInteractive;
-		nodeData.isVisible = isVisible;
-		nodeData.isTop = isTop;
+		if (isInteractive) nodeData.isInteractive = true;
+		if (isVisible) nodeData.isVisible = true;
+		if (isTop) nodeData.isTop = true;
 		
 		// highlight
 		if (highlight && isInteractive && isVisible && isTop) {
