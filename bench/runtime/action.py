@@ -25,6 +25,7 @@ from bench.language.action import (
 from bench.language.browser import Browser
 from bench.language.const import NodeType, ObjectKind, RunErrorKind
 from bench.language.field import TypeBase
+from bench.language.file import upload
 from bench.language.flow import Pipe, PipeType, PortSide
 from bench.language.interruption import BreakpointScope, BreakpointSite, InterruptionType
 from bench.language.node import HasNodeBase
@@ -41,9 +42,11 @@ from bench.language.value import (
     CustomObject,
     OutputObject,
     ProxyReadObject,
+    coerce_custom_object_scalar,
     make_node_from_partial,
     patch_node_from_partial,
 )
+from bench.runtime.browser.playwright import get_extension_script_js
 from bench.runtime.code import CodeFunctionRunner
 from bench.runtime.core import ATTEMPT_ONCE, RetryableError, RunImpossibleError
 from bench.runtime.runner import Context, Runner, make_runner, restore_runner
@@ -383,18 +386,31 @@ class ObserveActionRunner(ActionRunnerBase[ObserveAction]):
         browser = self._get_resource_or_error(Browser)
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
-        await pw_page.screenshot(full_page=False, animations="disabled")
+        dom_js = await pw_page.evaluate(
+            get_extension_script_js() + "\n extractDocumentDomTree(true)"
+        )
+        screenshot_bytes = await pw_page.screenshot(full_page=False, animations="disabled")
+        now = self.session._oracle.utc()
+        screenshot = await upload(
+            screenshot_bytes,
+            f"{browser.title} Screenshot {now.strftime('%Y-%m-%d %H:%M:%S.%f')}",
+        )
+        # await pw_page.evaluate("cleanupHighlights('container')") # nocheckin
+        assert self.output_type is not None, f"no output type for {self!r}"
+        self.outputs = coerce_custom_object_scalar(
+            ObjectKind.OUTPUT, {"dom": None, "screenshot": screenshot}, self.output_type
+        )
 
 
 class ClickActionRunner(ApplicationActionRunnerBase[ClickAction]):
     @override
     async def run(self) -> None:
-        xpath = self.action_inputs.xpath
-        assert xpath is not None, "no xpath to click"
+        element_id = self.action_inputs.element_id
+        assert element_id is not None, "no element id to click"
         browser = self._get_resource_or_error(Browser)
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
-        await pw_page.click(xpath)
+        await pw_page.click(f"[data-bench-highlight-id='{element_id}']")
 
 
 #
@@ -411,6 +427,7 @@ class GoToUrlActionRunner(ApplicationActionRunnerBase[GoToUrlAction]):
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await pw_page.goto(url)
+        await pw_page.wait_for_load_state("networkidle")
 
 
 class GoToTabActionRunner(ApplicationActionRunnerBase[GoToTabAction]):

@@ -50,6 +50,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_CLIENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_MACHINE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_BROWSER_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_DOM_NODE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_STORE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SCALER_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SCALER_STRATEGY: _ClassVar[EnumType]
@@ -540,6 +541,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_CLIENT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_MACHINE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_BROWSER_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_DOM_NODE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_STORE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_SCALER_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_SCALER_STRATEGY: _ClassVar[BenchType]
@@ -826,6 +828,12 @@ class BrowserType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     BROWSER_TYPE_UNSPECIFIED: _ClassVar[BrowserType]
     BROWSER_TYPE_CHROMIUM: _ClassVar[BrowserType]
+
+class DomNodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    DOM_NODE_TYPE_UNSPECIFIED: _ClassVar[DomNodeType]
+    DOM_NODE_TYPE_TEXT: _ClassVar[DomNodeType]
+    DOM_NODE_TYPE_ELEMENT: _ClassVar[DomNodeType]
 
 class StoreType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1692,6 +1700,7 @@ ENUM_TYPE_FILE_FORMAT: EnumType
 ENUM_TYPE_CLIENT_TYPE: EnumType
 ENUM_TYPE_MACHINE_TYPE: EnumType
 ENUM_TYPE_BROWSER_TYPE: EnumType
+ENUM_TYPE_DOM_NODE_TYPE: EnumType
 ENUM_TYPE_STORE_TYPE: EnumType
 ENUM_TYPE_SCALER_TYPE: EnumType
 ENUM_TYPE_SCALER_STRATEGY: EnumType
@@ -2143,6 +2152,7 @@ BENCH_TYPE_FILE_FORMAT: BenchType
 BENCH_TYPE_CLIENT_TYPE: BenchType
 BENCH_TYPE_MACHINE_TYPE: BenchType
 BENCH_TYPE_BROWSER_TYPE: BenchType
+BENCH_TYPE_DOM_NODE_TYPE: BenchType
 BENCH_TYPE_STORE_TYPE: BenchType
 BENCH_TYPE_SCALER_TYPE: BenchType
 BENCH_TYPE_SCALER_STRATEGY: BenchType
@@ -2387,6 +2397,9 @@ MACHINE_TYPE_UNSPECIFIED: MachineType
 MACHINE_TYPE_RUNTIME: MachineType
 BROWSER_TYPE_UNSPECIFIED: BrowserType
 BROWSER_TYPE_CHROMIUM: BrowserType
+DOM_NODE_TYPE_UNSPECIFIED: DomNodeType
+DOM_NODE_TYPE_TEXT: DomNodeType
+DOM_NODE_TYPE_ELEMENT: DomNodeType
 STORE_TYPE_UNSPECIFIED: StoreType
 STORE_TYPE_POSTGRES: StoreType
 SCALER_TYPE_UNSPECIFIED: ScalerType
@@ -3626,32 +3639,28 @@ class SelectOptionsData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., select_all_properties: bool = ..., include_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., exclude_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., select_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., select_fields_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
 class DomNodeData(_message.Message):
-    __slots__ = ("metatype", "type", "tag_name", "index", "xpath", "text", "attributes", "is_interactive", "is_visible", "is_top", "is_shadow_root", "children")
+    __slots__ = ("metatype", "type", "tag", "index", "xpath", "text", "is_interactive", "is_visible", "is_top", "children")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
-    TAG_NAME_FIELD_NUMBER: _ClassVar[int]
+    TAG_FIELD_NUMBER: _ClassVar[int]
     INDEX_FIELD_NUMBER: _ClassVar[int]
     XPATH_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
-    ATTRIBUTES_FIELD_NUMBER: _ClassVar[int]
     IS_INTERACTIVE_FIELD_NUMBER: _ClassVar[int]
     IS_VISIBLE_FIELD_NUMBER: _ClassVar[int]
     IS_TOP_FIELD_NUMBER: _ClassVar[int]
-    IS_SHADOW_ROOT_FIELD_NUMBER: _ClassVar[int]
     CHILDREN_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     type: str
-    tag_name: str
+    tag: str
     index: int
     xpath: str
     text: str
-    attributes: _struct_pb2.Value
     is_interactive: bool
     is_visible: bool
     is_top: bool
-    is_shadow_root: bool
     children: _containers.RepeatedCompositeFieldContainer[DomNodeData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[str] = ..., tag_name: _Optional[str] = ..., index: _Optional[int] = ..., xpath: _Optional[str] = ..., text: _Optional[str] = ..., attributes: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., is_interactive: bool = ..., is_visible: bool = ..., is_top: bool = ..., is_shadow_root: bool = ..., children: _Optional[_Iterable[_Union[DomNodeData, _Mapping]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[str] = ..., tag: _Optional[str] = ..., index: _Optional[int] = ..., xpath: _Optional[str] = ..., text: _Optional[str] = ..., is_interactive: bool = ..., is_visible: bool = ..., is_top: bool = ..., children: _Optional[_Iterable[_Union[DomNodeData, _Mapping]]] = ...) -> None: ...
 
 class CodeLineData(_message.Message):
     __slots__ = ("metatype", "content")
@@ -4664,56 +4673,84 @@ class ObserveActionData(_message.Message):
     def __init__(self, exclude_image: bool = ..., image_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., dom: _Optional[_Union[DomNodeData, _Mapping]] = ...) -> None: ...
 
 class ClickActionData(_message.Message):
-    __slots__ = ("xpath",)
+    __slots__ = ("element_id", "xpath", "relative_position")
+    ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     XPATH_FIELD_NUMBER: _ClassVar[int]
+    RELATIVE_POSITION_FIELD_NUMBER: _ClassVar[int]
+    element_id: str
     xpath: str
-    def __init__(self, xpath: _Optional[str] = ...) -> None: ...
+    relative_position: Vector2Data
+    def __init__(self, element_id: _Optional[str] = ..., xpath: _Optional[str] = ..., relative_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
 
 class PressActionData(_message.Message):
-    __slots__ = ("xpath", "keys", "delay")
+    __slots__ = ("element_id", "xpath", "relative_position", "keys", "delay")
+    ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     XPATH_FIELD_NUMBER: _ClassVar[int]
+    RELATIVE_POSITION_FIELD_NUMBER: _ClassVar[int]
     KEYS_FIELD_NUMBER: _ClassVar[int]
     DELAY_FIELD_NUMBER: _ClassVar[int]
+    element_id: str
     xpath: str
+    relative_position: Vector2Data
     keys: str
     delay: float
-    def __init__(self, xpath: _Optional[str] = ..., keys: _Optional[str] = ..., delay: _Optional[float] = ...) -> None: ...
+    def __init__(self, element_id: _Optional[str] = ..., xpath: _Optional[str] = ..., relative_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., keys: _Optional[str] = ..., delay: _Optional[float] = ...) -> None: ...
 
 class TypeActionData(_message.Message):
-    __slots__ = ("xpath", "string", "delay")
+    __slots__ = ("element_id", "xpath", "relative_position", "string", "delay")
+    ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     XPATH_FIELD_NUMBER: _ClassVar[int]
+    RELATIVE_POSITION_FIELD_NUMBER: _ClassVar[int]
     STRING_FIELD_NUMBER: _ClassVar[int]
     DELAY_FIELD_NUMBER: _ClassVar[int]
+    element_id: str
     xpath: str
+    relative_position: Vector2Data
     string: str
     delay: float
-    def __init__(self, xpath: _Optional[str] = ..., string: _Optional[str] = ..., delay: _Optional[float] = ...) -> None: ...
+    def __init__(self, element_id: _Optional[str] = ..., xpath: _Optional[str] = ..., relative_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., string: _Optional[str] = ..., delay: _Optional[float] = ...) -> None: ...
 
 class ScrollActionData(_message.Message):
-    __slots__ = ("xpath", "amount")
+    __slots__ = ("element_id", "xpath", "relative_position", "amount")
+    ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     XPATH_FIELD_NUMBER: _ClassVar[int]
+    RELATIVE_POSITION_FIELD_NUMBER: _ClassVar[int]
     AMOUNT_FIELD_NUMBER: _ClassVar[int]
+    element_id: str
     xpath: str
+    relative_position: Vector2Data
     amount: Vector2Data
-    def __init__(self, xpath: _Optional[str] = ..., amount: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
+    def __init__(self, element_id: _Optional[str] = ..., xpath: _Optional[str] = ..., relative_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., amount: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
 
 class SelectActionData(_message.Message):
-    __slots__ = ("xpath",)
+    __slots__ = ("element_id", "xpath", "relative_position")
+    ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     XPATH_FIELD_NUMBER: _ClassVar[int]
+    RELATIVE_POSITION_FIELD_NUMBER: _ClassVar[int]
+    element_id: str
     xpath: str
-    def __init__(self, xpath: _Optional[str] = ...) -> None: ...
+    relative_position: Vector2Data
+    def __init__(self, element_id: _Optional[str] = ..., xpath: _Optional[str] = ..., relative_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
 
 class GoBackwardActionData(_message.Message):
-    __slots__ = ("xpath",)
+    __slots__ = ("element_id", "xpath", "relative_position")
+    ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     XPATH_FIELD_NUMBER: _ClassVar[int]
+    RELATIVE_POSITION_FIELD_NUMBER: _ClassVar[int]
+    element_id: str
     xpath: str
-    def __init__(self, xpath: _Optional[str] = ...) -> None: ...
+    relative_position: Vector2Data
+    def __init__(self, element_id: _Optional[str] = ..., xpath: _Optional[str] = ..., relative_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
 
 class GoForwardActionData(_message.Message):
-    __slots__ = ("xpath",)
+    __slots__ = ("element_id", "xpath", "relative_position")
+    ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     XPATH_FIELD_NUMBER: _ClassVar[int]
+    RELATIVE_POSITION_FIELD_NUMBER: _ClassVar[int]
+    element_id: str
     xpath: str
-    def __init__(self, xpath: _Optional[str] = ...) -> None: ...
+    relative_position: Vector2Data
+    def __init__(self, element_id: _Optional[str] = ..., xpath: _Optional[str] = ..., relative_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
 
 class GoToUrlActionData(_message.Message):
     __slots__ = ("url",)

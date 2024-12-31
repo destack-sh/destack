@@ -39,6 +39,7 @@ enum EnumType {
   ENUM_TYPE_CLIENT_TYPE = 21050;
   ENUM_TYPE_MACHINE_TYPE = 21060;
   ENUM_TYPE_BROWSER_TYPE = 21070;
+  ENUM_TYPE_DOM_NODE_TYPE = 21071;
   ENUM_TYPE_STORE_TYPE = 21080;
   ENUM_TYPE_SCALER_TYPE = 21090;
   ENUM_TYPE_SCALER_STRATEGY = 21091;
@@ -534,6 +535,7 @@ enum BenchType {
   BENCH_TYPE_CLIENT_TYPE = 21050;
   BENCH_TYPE_MACHINE_TYPE = 21060;
   BENCH_TYPE_BROWSER_TYPE = 21070;
+  BENCH_TYPE_DOM_NODE_TYPE = 21071;
   BENCH_TYPE_STORE_TYPE = 21080;
   BENCH_TYPE_SCALER_TYPE = 21090;
   BENCH_TYPE_SCALER_STRATEGY = 21091;
@@ -827,6 +829,12 @@ enum MachineType {
 enum BrowserType {
   BROWSER_TYPE_UNSPECIFIED = 0;
   BROWSER_TYPE_CHROMIUM = 1;
+}
+
+enum DomNodeType {
+  DOM_NODE_TYPE_UNSPECIFIED = 0;
+  DOM_NODE_TYPE_TEXT = 1;
+  DOM_NODE_TYPE_ELEMENT = 2;
 }
 
 enum StoreType {
@@ -2012,15 +2020,13 @@ message SelectOptionsData {
 message DomNodeData {
   ObjectType metatype = 1;
   string type = 30;
-  optional string tag_name = 31;
+  optional string tag = 31;
   optional int32 index = 32;
   optional string xpath = 33;
   optional string text = 34;
-  optional google.protobuf.Value attributes = 35;
   optional bool is_interactive = 40;
   optional bool is_visible = 41;
   optional bool is_top = 42;
-  optional bool is_shadow_root = 43;
   repeated DomNodeData children = 50;
 }
 
@@ -2600,42 +2606,56 @@ message ObserveActionData {
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ClickActionData {
+  optional string element_id = 100;
   optional string xpath = 101;
+  optional Vector2Data relative_position = 102;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message PressActionData {
+  optional string element_id = 100;
   optional string xpath = 101;
+  optional Vector2Data relative_position = 102;
   optional string keys = 110;
   optional float delay = 111;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message TypeActionData {
+  optional string element_id = 100;
   optional string xpath = 101;
+  optional Vector2Data relative_position = 102;
   optional string string = 110;
   optional float delay = 111;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ScrollActionData {
+  optional string element_id = 100;
   optional string xpath = 101;
+  optional Vector2Data relative_position = 102;
   optional Vector2Data amount = 110;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message SelectActionData {
+  optional string element_id = 100;
   optional string xpath = 101;
+  optional Vector2Data relative_position = 102;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message GoBackwardActionData {
+  optional string element_id = 100;
   optional string xpath = 101;
+  optional Vector2Data relative_position = 102;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message GoForwardActionData {
+  optional string element_id = 100;
   optional string xpath = 101;
+  optional Vector2Data relative_position = 102;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.

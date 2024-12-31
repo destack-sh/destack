@@ -2,6 +2,7 @@
 Playwright browser on steroids.
 """
 
+import pathlib
 from uuid import UUID
 
 import structlog
@@ -15,6 +16,17 @@ from bench.language.browser import Browser
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+_extension_script_js: str | None = None
+
+
+def get_extension_script_js():
+    global _extension_script_js
+    if _extension_script_js is None:
+        parent = pathlib.Path(__file__).parent
+        assert parent is not None, f"no parent for {__file__}"
+        _extension_script_js = (parent / "extension.js").read_text()
+    return _extension_script_js
 
 
 class PlaywrightClient:
