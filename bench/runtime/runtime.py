@@ -257,13 +257,12 @@ class Runtime:
         self.bench.append(resource)
         return resource
 
-    @tracer.start_as_current_span("runtime.acquire_resources")
-    async def _acquire_resources(
+    async def _get_or_create_resources(
         self,
         runner: Runner,
         resources: Sequence[Resource | TypeInfo | TypeIn],
     ) -> list[Resource]:
-        """Acquires the relevant Resources for the given Runner."""
+        """Get or create the available Resources for the given Runner."""
         # TODO :Incomplete: reuse resources across (unrelated) Runs?
         resource_types = [to_type_scalar(t) for t in resources if not isinstance(t, Resource)]
         resources_to_acquire: list[Resource] = [r for r in resources if isinstance(r, Resource)]
@@ -282,18 +281,6 @@ class Runtime:
                 resource = self._create_resource(resource_type)
                 resources_to_acquire.append(resource)
                 logger.debug("runtime.acquire_resources.new", resource=resource)
-
-        # commit and wait for resources to become ready
-        await self._wait_for(
-            nodes=resources_to_acquire,
-            condition=lambda: all(
-                resource.status == ResourceStatus.UP for resource in resources_to_acquire
-            ),
-            timeout=DEFAULT_RESOURCE_TIMEOUT,
-        )
-
-        # nocheckin: deccomission resourcers on error/complete?
-
         return resources_to_acquire
 
     @tracer.start_as_current_span("runtime.run_runner.attempt")
@@ -403,9 +390,19 @@ class Runtime:
 
             # acquire missing resource variables
             if missing_resource_slots:
-                resources = await self._acquire_resources(runner, missing_resource_slots)
-                for field, resource in zip(missing_resource_slots, resources):
-                    variables._do_set(field, resource, validate=False)
+                with tracer.start_as_current_span("runtime.acquire_resources"):
+                    resources = await self._get_or_create_resources(
+                        runner=runner, resources=missing_resource_slots
+                    )
+                    for field, resource in zip(missing_resource_slots, resources):
+                        variables._do_set(field, resource, validate=False)
+                    await self._wait_for(
+                        nodes=resources,
+                        condition=lambda: all(
+                            resource.status == ResourceStatus.UP for resource in resources
+                        ),
+                        timeout=DEFAULT_RESOURCE_TIMEOUT,
+                    )
 
         # check inputs
         if runner.input_type is not None:
