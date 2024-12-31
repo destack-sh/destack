@@ -270,9 +270,9 @@ class DuplicateActionRunner(ActionRunnerBase[DuplicateAction]):
 class UpdateActionRunner(ActionRunnerBase[UpdateAction]):
     @override
     async def run(self) -> None:
-        node_partial = self.action_inputs.node_partial
         node = self.action_inputs.node
         assert node is not None, "no node to update"
+        node_partial = self.action_inputs.node_partial
         assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r}"
 
         # update with partial patch

@@ -461,7 +461,8 @@ export type PropertyInfo = {
     enumType?: EnumType;
     default?: any;
     constraint?: TypeConstraintIn;
-    
+    fieldType?: FieldType;
+
     // flags
     isList?: boolean;
     isRequired?: boolean;
@@ -522,6 +523,8 @@ export type PropertyInfo = {
                 prop_info_parts["default"] = _render_js_value(prop.default)
             if prop.constraint:
                 prop_info_parts["constraint"] = _render_js_constraint(prop.constraint)
+            if prop.field_type is not None:
+                prop_info_parts["fieldType"] = f"FieldType.{prop.field_type.name}"
 
             for flag in (
                 "isList",

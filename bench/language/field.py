@@ -213,6 +213,7 @@ class TypeConstraint(Struct):
     node_types: list["NodeType"] = p_regular(70, array=True)
     node_scope: list["Node"] = p_regular(71, require=False, array=True, references="any")
     node_max_depth: Optional[int] = p_regular(72, require=False, default=None)
+    # NOTE :Architecture: TypeConstraint.node_subtypes feels wrong, need Node-specific constraints?
     node_subtypes: list[int] = p_regular(73, array=True)
     # specific node-ish
     # ...?
@@ -304,7 +305,7 @@ class TypeBase(BuiltinObject):
             if not info_str.startswith("Partial"):
                 info_str = f"Partial{info_str}"
             if self.property_field_type is not None:
-                clauses.append(f"property={self.property_field_type.bench_name}")
+                clauses.append(f"Property={self.property_field_type.bench_name}")
         if self.condition is not None:
             clauses.append(repr(self.condition))
         if self.is_list:
@@ -314,7 +315,7 @@ class TypeBase(BuiltinObject):
         if self.is_secret:
             clauses.append("is_secret")
         if self.base_field_type:
-            clauses.append(self.base_field_type.bench_name)
+            clauses.append(f"Field={self.base_field_type.bench_name}")
         if self.constraint is not None:
             constraint_str = self.constraint.__content_str__()
             if constraint_str:
