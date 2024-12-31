@@ -186,7 +186,7 @@ def test_render_variable(session: Session, package: Package):
 @_render_as_stmt
 def test_render_variable_with_file(session: Session, package: Package):
     File1 = File(
-        title="myfile.txt",
+        name="myfile.txt",
         kind=FileKind.DRIVE,
         type=FileType.TEXT,
         mime_type="text/plain",

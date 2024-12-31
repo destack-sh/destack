@@ -15,7 +15,7 @@ from bench.test.unit.conftest import RuntimeHandle
 @pytest.mark.browser
 async def test_acquire_browser_resource_directly(hosted_runtime: RuntimeHandle):
     """Acquire a Browser directly and wait for it to be ready."""
-    browser = Browser.new(title="My Lil' Browser")
+    browser = Browser.new(name="My Lil' Browser")
     hosted_runtime.bench.append(browser)
     await browser.wait_until_ready()
     assert browser.status == ResourceStatus.UP

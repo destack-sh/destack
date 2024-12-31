@@ -29,7 +29,7 @@ async def test_upload_and_download_file(
     expected_file_format: FileFormat | None,
 ):
     # upload
-    file = await upload(file_content, title=file_title)
+    file = await upload(file_content, name=file_title)
     await hosted_runtime.session.commit()
     assert file.type == expected_file_type
     assert file.format == expected_file_format
@@ -41,7 +41,7 @@ async def test_upload_and_download_file(
 
 
 async def test_extract_file_info_image(hosted_runtime: RuntimeHandle):
-    file_info, _ = await extract_file_info(IMAGE_BYTES, title="image")
+    file_info, _ = await extract_file_info(IMAGE_BYTES, name="image")
     assert file_info.mime_type == "image/png"
     assert file_info.size == len(IMAGE_BYTES)
     assert file_info.type == FileType.IMAGE

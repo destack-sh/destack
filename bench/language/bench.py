@@ -343,7 +343,7 @@ class DynamicResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
     A 'dynamic' Resource in a Bench.
     """
 
-    title: str = p_regular(32, constraint=TITLE_CONSTRAINT)
+    name: str = p_regular(32, constraint=TITLE_CONSTRAINT)
 
     occupancy: ResourceOccupancy = p_system(
         36, default=ResourceOccupancy.RESERVED, default_sql=None
@@ -357,7 +357,7 @@ class DynamicResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
         scaler_ptr: Optional[NodeReference] = None
 
     @classmethod
-    def new(cls, *, title: str | None = None, **kwargs: Any) -> Self:
+    def new(cls, *, name: str | None = None, **kwargs: Any) -> Self:
         """Creates a new Resource of this type. Defaults to current Bench"""
         session = active_session()
 
@@ -370,12 +370,12 @@ class DynamicResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
             kwargs["parent"] = bench
 
         # title
-        if title is None:
+        if name is None:
             # fabricate title
             now = session._oracle.utc()
-            title = cls.metatype.bench_name + now.strftime("%Y-%m-%d %H:%M:%S")
+            name = cls.metatype.bench_name + now.strftime("%Y-%m-%d %H:%M:%S")
 
-        resource = cls(title=title, **kwargs)
+        resource = cls(name=name, **kwargs)
         return resource
 
 
@@ -385,7 +385,7 @@ class Client(BenchNode[ClientData]):
 
     parent: Union["User", "Bench", None] = p_node_parent(4, NodeType.USER, NodeType.BENCH)
     type: ClientType = p_regular(30)
-    title: str = p_regular(32, constraint=TITLE_CONSTRAINT)
+    name: str = p_regular(32, constraint=TITLE_CONSTRAINT)
 
     device_type: Optional[str] = p_regular(40, default=None)
     device_name: Optional[str] = p_regular(41, default=None)

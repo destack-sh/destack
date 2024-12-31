@@ -136,7 +136,7 @@ async def make_local_machine(
             client = Client(
                 parent=bench,
                 type=ClientType.BENCH_MACHINE,
-                title=title,
+                name=title,
                 access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
                 machine=machine,
                 seen_at=REAL_ORACLE.utc(),

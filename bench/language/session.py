@@ -66,7 +66,7 @@ from bench.proto.wire import (
     lang_pb2,
 )
 from bench.proto.wire.lang_pb2 import EditOperationData
-from bench.utils.func import async_shield, uuid_to_str
+from bench.utils.func import async_shield, bittuple, uuid_to_str
 from bench.utils.oracle import Oracle
 from bench.utils.sync import CriticalLock
 from bench.utils.uuidt import UUIDT
@@ -715,7 +715,7 @@ class Session(RuntimeNode[SessionData]):
         node_types = {node.metatype for node in self._pending_nodes_by_id.values()}
         graph = NodeGraph(
             scope=self._default_scope,
-            node_types=node_types,
+            node_types=bittuple(*node_types, enum_cls=NodeType),
             nodes=self._pending_nodes_by_id.values(),
             supergraph=self._supergraph,
         )
@@ -725,7 +725,9 @@ class Session(RuntimeNode[SessionData]):
     def _make_pending_data_graph(self) -> NodeDataGraph:
         """Get graphs with all the pending nodes."""
         node_types = {node.metatype for node in self._pending_nodes_by_id.values()}
-        data_graph = NodeDataGraph(scope=self._default_scope, node_types=node_types)
+        data_graph = NodeDataGraph(
+            scope=self._default_scope, node_types=bittuple(*node_types, enum_cls=NodeType)
+        )
         for node in self._pending_nodes_by_id.values():
             data_graph.add(node._to_data())
         return data_graph

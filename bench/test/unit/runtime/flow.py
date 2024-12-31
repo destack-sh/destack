@@ -357,7 +357,7 @@ async def test_run_flow_update_action(hosted_runtime: RuntimeHandle):
     assert runner.status == RunStatus.COMPLETED
     record = await Database1.records.get(Rating=3)
     assert record is not None
-    assert record.title == "Record1.1"
+    assert record.name == "Record1.1"
 
 
 async def test_run_flow_delete_action(hosted_runtime: RuntimeHandle):

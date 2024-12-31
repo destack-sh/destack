@@ -262,7 +262,7 @@ class RunSpanType(IdEnum):
 
 
 @struct_(StructType.RUN_SPAN)
-class RunSpan(Struct):
+class RunSpan(Struct):  # nocheckin: nice RunSpans/RunEvents (with shared tracer?)
     """A span in a Run (a sort of mini-Run inside a tracked Run)."""
 
     type: RunSpanType = p_regular(30, default=RunSpanType.CUSTOM)

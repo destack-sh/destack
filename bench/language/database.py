@@ -35,7 +35,7 @@ class Record(StateNode[RecordData], HasNodeBase):
     """
 
     # type: RecordType?
-    title: Optional[str] = p_regular(32, default=None)
+    name: Optional[str] = p_regular(32, default=None)
     order_key: str | None = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(34, default=None, struct=StructType.ICON)
     text: Optional["Text"] = p_regular(

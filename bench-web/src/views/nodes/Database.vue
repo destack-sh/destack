@@ -298,7 +298,7 @@ type ColumnView = {
   isInspected: boolean;
   isHighlighted: boolean;
   isSelected: boolean;
-  isTitle: boolean;
+  isName: boolean;
   paddingTop: number;
   paddingBottom: number;
 } & ColumnContent;
@@ -309,7 +309,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
   function column(
     columnIn: Pick<
       ColumnView,
-      "id" | "icon" | "title" | "type" | "isInput" | "isHighlighted" | "isInspected" | "isTitle"
+      "id" | "icon" | "title" | "type" | "isInput" | "isHighlighted" | "isInspected" | "isName"
     > &
       ColumnContent,
   ) {
@@ -330,7 +330,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
     columns.push(column);
   }
 
-  for (const propertyId of [RecordProperty.title] as RecordProperty[]) {
+  for (const propertyId of [RecordProperty.name] as RecordProperty[]) {
     // :RichColumns
     const property = propertyInfo(NodeType.RECORD, propertyId);
     const propertyType = getPropertyType(property);
@@ -345,7 +345,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       isInput: true,
       isInspected: false,
       isHighlighted: false,
-      isTitle: propertyId == RecordProperty.title,
+      isName: propertyId == RecordProperty.name,
     });
   }
   for (const field of fields.value) {
@@ -360,7 +360,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       isInput: true,
       isHighlighted: canvas.isHighlighted(field),
       isInspected: canvas.isInspected(field),
-      isTitle: false,
+      isName: false,
     });
   }
 
@@ -971,7 +971,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             :class="[
               x > 0 ? 'border-l' : '',
               isSelectedCell(record, column) ? 'bg-orange-400/20' : canvas.isInspected(record) ? 'bg-gray-100' : '',
-              column.isTitle && record.icon != null ? 'flex flex-row items-center gap-x-1.5 px-2' : 'px-2',
+              column.isName && record.icon != null ? 'flex flex-row items-center gap-x-1.5 px-2' : 'px-2',
             ]"
             :style="{
               width: `${column.width}px`,
@@ -996,7 +996,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           >
             <!-- Inline title icon -->
             <IconInline
-              v-if="column.isTitle && record.icon != null"
+              v-if="column.isName && record.icon != null"
               ref="iconRef"
               v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
               v-menu="

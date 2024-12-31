@@ -481,7 +481,7 @@ class FileBase(BuiltinObject):
     """
 
     # title overlaps with DynamicResource.title
-    title: str = p_regular(32, constraint=TITLE_CONSTRAINT)
+    name: str = p_regular(32, constraint=TITLE_CONSTRAINT)
 
     # content
     kind: FileKind = p_internal(50)
@@ -518,7 +518,7 @@ class FileBase(BuiltinObject):
     _cached_image: Optional[Image.Image] = p_runtime(default=None)
 
     def __content_str__(self) -> str:
-        content_parts = [f"'{self.title}'", humanize_bytes(self.size)]
+        content_parts = [f"'{self.name}'", humanize_bytes(self.size)]
         if self.format:
             content_parts.append(f"{self.type.bench_name}/{self.format.bench_name}")
         else:
@@ -626,7 +626,7 @@ class FileBase(BuiltinObject):
             text = buffer.getvalue()
             return FileInfo(
                 kind=FileKind.INLINE,
-                title=self.title,
+                name=self.name,
                 mime_type=target_format.mime_type,
                 type=target_format.type,
                 format=target_format,
@@ -654,7 +654,7 @@ class FileBase(BuiltinObject):
                 content = text.encode()
                 return FileInfo(
                     kind=FileKind.INLINE,
-                    title=self.title,
+                    name=self.name,
                     mime_type="text/markdown",
                     type=target_format.type,
                     format=target_format,
@@ -675,7 +675,7 @@ class FileBase(BuiltinObject):
                 content = text.encode()
                 return FileInfo(
                     kind=FileKind.INLINE,
-                    title=self.title,
+                    name=self.name,
                     mime_type="text/markdown",
                     type=target_format.type,
                     format=target_format,
@@ -756,7 +756,7 @@ class FileBase(BuiltinObject):
 
         return FileInfo(
             kind=FileKind.INLINE,
-            title=self.title,
+            name=self.name,
             inline_content=content,
             type=self.type,
             format=FileFormat.JPEG,
@@ -841,7 +841,7 @@ async def upload_batch(
                 for key, value in handle.fields.items():
                     form_data.add_field(key, value)
                 form_data.add_field(
-                    "file", file_content, filename=file.title, content_type=file.mime_type
+                    "file", file_content, filename=file.name, content_type=file.mime_type
                 )
                 async with http_session.post(handle.post_url, data=form_data) as resp:
                     resp.raise_for_status()
@@ -923,7 +923,7 @@ FileIn = Union[str, bytes, Image.Image]
 
 async def extract_file_info(  # noqa: RUF029
     file_in: FileIn,
-    title: str,
+    name: str,
     *,
     mime_type: str | None = None,
     type: FileType | None = None,
@@ -948,8 +948,8 @@ async def extract_file_info(  # noqa: RUF029
         format = format.lower()
         assert format in FILE_FORMAT_BY_EXTENSION, f"unknown format: {format}"
         format = FILE_FORMAT_BY_EXTENSION.get(format)
-    if format is None and title is not None and "." in title:
-        format = FILE_FORMAT_BY_EXTENSION.get(title.split(".")[-1])
+    if format is None and name is not None and "." in name:
+        format = FILE_FORMAT_BY_EXTENSION.get(name.split(".")[-1])
     if format is not None:
         type = format.type
     elif type is None:
@@ -964,14 +964,14 @@ async def extract_file_info(  # noqa: RUF029
             type = format.type
 
     # add extension if needed
-    if format is not None and "." not in title and format.extension is not None:
-        title = f"{title}.{format.extension}"
+    if format is not None and "." not in name and format.extension is not None:
+        name = f"{name}.{format.extension}"
 
     size = len(content)
     sha256 = hashlib.sha256(content).hexdigest()
     file = File(
         kind=FileKind.DRIVE,
-        title=title,
+        name=name,
         type=type,
         mime_type=mime_type,
         format=format,
@@ -992,7 +992,7 @@ async def extract_file_info(  # noqa: RUF029
 
 async def upload(
     file_in: FileIn,
-    title: str,
+    name: str,
     *,
     mime_type: str | None = None,
     type: FileType | None = None,
@@ -1004,7 +1004,7 @@ async def upload(
 
     # extract file info
     file, content = await extract_file_info(
-        file_in, title, mime_type=mime_type, type=type, format=format
+        file_in, name, mime_type=mime_type, type=type, format=format
     )
 
     # bench
@@ -1013,7 +1013,7 @@ async def upload(
     if bench is None:
         bench = session.bench
         if bench is None:
-            raise ValueError(f"no Bench to upload file {title!r} to in {session!r}")
+            raise ValueError(f"no Bench to upload file {name!r} to in {session!r}")
     file.parent = bench
 
     # upload file, then create in session

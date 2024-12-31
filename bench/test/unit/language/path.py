@@ -299,7 +299,7 @@ def test_unnamed_node(session: Session, mock_package: Package):
     file = File(
         parent=package.bench,
         kind=FileKind.DRIVE,
-        title="myfile.txt",
+        name="myfile.txt",
         type=FileType.TEXT,
         mime_type="text/plain",
         size=1024,

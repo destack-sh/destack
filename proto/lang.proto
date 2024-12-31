@@ -2019,7 +2019,7 @@ message SelectOptionsData {
 
 message DomNodeData {
   ObjectType metatype = 1;
-  string type = 30;
+  DomNodeType type = 30;
   optional string tag = 31;
   optional int32 index = 32;
   optional string xpath = 33;
@@ -2042,7 +2042,7 @@ message CodeData {
 
 message FileInfoData {
   ObjectType metatype = 1;
-  string title = 32;
+  string name = 32;
   FileKind kind = 50;
   optional string external_url = 53;
   optional bytes inline_content = 54;
@@ -2600,7 +2600,7 @@ message RouteActionData {
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ObserveActionData {
   optional bool exclude_image = 100;
-  optional NodeReferenceData image_ptr = 150;
+  optional NodeReferenceData screenshot_ptr = 150;
   optional DomNodeData dom = 151;
 }
 
@@ -2757,7 +2757,7 @@ message ClientData {
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
   ClientType type = 30;
-  string title = 32;
+  string name = 32;
   optional string device_type = 40;
   optional string device_name = 41;
   optional string operating_system = 42;
@@ -2875,7 +2875,7 @@ message BrowserData {
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
   BrowserType type = 30;
-  string title = 32;
+  string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
   Region region = 35;
@@ -2915,7 +2915,7 @@ message RecordData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
-  optional string title = 32;
+  optional string name = 32;
   optional string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
@@ -2936,7 +2936,7 @@ message FileData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
-  string title = 32;
+  string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
   Region region = 35;
@@ -3119,7 +3119,7 @@ message MachineData {
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
   MachineType type = 30;
-  string title = 32;
+  string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
   Region region = 35;
@@ -3368,7 +3368,7 @@ message SecretData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
-  string title = 32;
+  string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
   Region region = 35;
@@ -3458,7 +3458,7 @@ message StreamData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
-  string title = 32;
+  string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
   Region region = 35;

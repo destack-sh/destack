@@ -683,7 +683,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
                 file_data.parent_ptr.CopyFrom(self.bench._to_ref_data())
 
             # presign post URL
-            file_key = get_file_key(self.bench, file_data.sha256, file_data.title)
+            file_key = get_file_key(self.bench, file_data.sha256, file_data.name)
             file_metadata: dict[str, str] = {"2": file_data.id}
             for prop in FileBase.__declared_properties__.values():
                 if prop.id is None or prop.id < 50:
@@ -743,7 +743,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             if file.kind not in (FileKind.DRIVE, FileKind.DRIVE_INLINE) or not file.sha256:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"unexpected file: {file.kind}")
             bucket = get_drive_bucket(self.bench)
-            file_key = get_file_key(self.bench, file.sha256, file.title)
+            file_key = get_file_key(self.bench, file.sha256, file.name)
             get_url = s3_client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": bucket, "Key": file_key},
@@ -783,7 +783,7 @@ def get_drive_bucket(bench: Bench) -> str:
     return bucket_name
 
 
-def get_file_key(bench: Bench, sha256: str, title: str) -> str:
+def get_file_key(bench: Bench, sha256: str, name: str) -> str:
     """Gets the key for a file in the given bucket."""
-    file_key = f"{bench.id}/{sha256}/{title}"
+    file_key = f"{bench.id}/{sha256}/{name}"
     return file_key

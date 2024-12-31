@@ -368,7 +368,7 @@ class WaitActionRunner(ActionRunnerBase[WaitAction]):
 class DynamicActionRunner(ActionRunnerBase):
     @override
     async def run(self) -> None:
-        raise NotImplementedError(f"nocheckin: {self!r}")
+        raise NotImplementedError(f"nocheckin: DynamicActionRunner {self!r}")
 
 
 #
@@ -383,6 +383,8 @@ class ApplicationActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
 class ObserveActionRunner(ActionRunnerBase[ObserveAction]):
     @override
     async def run(self) -> None:
+        # NOTE :Performance: obviously ObserveAction could be a lot more efficient
+        #  (defer uploads, ensure extension script is preloaded, ...)
         browser = self._get_resource_or_error(Browser)
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
@@ -396,7 +398,7 @@ class ObserveActionRunner(ActionRunnerBase[ObserveAction]):
             screenshot_bytes,
             type=FileType.IMAGE,
             format=FileFormat.PNG,
-            title=f"{browser.title} Screenshot {now.strftime('%Y-%m-%d %H:%M:%S.%f')}",
+            name=f"{browser.name} Screenshot {now.strftime('%Y-%m-%d %H:%M:%S.%f')}",
         )
         assert self.output_type is not None, f"no output type for {self!r}"
         self.outputs = coerce_custom_object_scalar(
