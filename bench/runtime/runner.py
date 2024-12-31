@@ -17,7 +17,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import Action, Block
-from bench.language.bench import Resource
+from bench.language.bench import Resource, ResourceStatus
 from bench.language.code import Code
 from bench.language.const import NodeMode, ObjectKind, RunStatus
 from bench.language.field import TypeBase, TypeIn, TypeInfo
@@ -146,10 +146,16 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         assert self.input_type is None or self.inputs is not None, f"{self!r} has no inputs"
 
         self.parent = parent or runtime.active_runner
-        self.attempts: list[RunAttempt] = list(run.attempts) if run is not None else []
-        self.logs: list[LogInfo] = []
-        self.spans: list[RunSpan] = []
-        self.events: list[RunEvent] = []
+        if run is not None:
+            self.attempts = list(run.attempts)
+            self.logs = list(run.logs)
+            self.spans = list(run.spans)
+            self.events = list(run.events)
+        else:
+            self.attempts: list[RunAttempt] = []
+            self.logs: list[LogInfo] = []
+            self.spans: list[RunSpan] = []
+            self.events: list[RunEvent] = []
         self.runners: list[Runner] = []
         self.tracked_run = run
         self.task: asyncio.Task | None = None
@@ -368,13 +374,15 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         """Finds a Resource in the current context of a Runner."""
         return self.runtime._get_resource(self, resource_type)
 
-    def _get_resource_or_error[R: Resource = Resource](
+    def _get_ready_resource_or_error[R: Resource = Resource](
         self, resource_type: TypeInfo | TypeIn | type[R]
     ) -> R:
         """Finds a Resource in the current context of a Runner."""
         resource = self._get_resource(resource_type)
         if resource is None:
             raise LookupError(f"no resource like {resource_type} found in {self!r}")
+        if resource.status != ResourceStatus.UP:
+            raise RuntimeError(f"resource {resource!r} is not ready in {self!r}")
         return resource
 
     #

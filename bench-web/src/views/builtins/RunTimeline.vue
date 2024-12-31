@@ -57,15 +57,15 @@ const runTree = new RunTree(props.graph, nodePtr);
 
 type Timeline = {
   root: RunData | null;
-  spans: TimelineSpan[];
+  spans: TimelineNode[];
   events: TimelineEvent[];
   hasActive: boolean; // whether there are any still active spans in the timeline
 };
 const EMPTY_TIMELINE: Timeline = { root: null, spans: [], events: [], hasActive: false };
 
-type TimelineSpan = {
+type TimelineNode = {
   id: string;
-  parent: TimelineSpan | null | undefined;
+  parent: TimelineNode | null | undefined;
   depth: number;
   icon: IconData | null | undefined;
   color: string;
@@ -75,7 +75,7 @@ type TimelineSpan = {
   baseNode: AnyNodeData | null | undefined;
   content: RunData | RunAttemptData | RunSpanData;
   offsetRelative: number;
-  widthRelative: number;
+  durationRelative: number;
   isActive: boolean;
 };
 
@@ -91,14 +91,14 @@ function getStartedAtMs(run: RunData): number {
 }
 
 function makeTimeline(now: DateTime, root: RunData): Timeline {
-  const spans: TimelineSpan[] = [];
+  const spans: TimelineNode[] = [];
   const events: TimelineEvent[] = [];
 
   const nowMs = timestampToMs(now);
   const rootStartedAtMs = getStartedAtMs(root);
   const rootDurationMs = getRunDurationMs(root, nowMs);
 
-  function walkRun(run: RunData, parent: TimelineSpan | null, depth: number) {
+  function walkRun(run: RunData, parent: TimelineNode | null, depth: number) {
     // timing
     const startedAtMs = getStartedAtMs(run);
     const durationMs = getRunDurationMs(run, nowMs);
@@ -110,19 +110,19 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
 
     // span
     let offsetRelative: number;
-    let widthRelative: number;
+    let durationRelative: number;
     if (rootDurationMs != 0) {
       offsetRelative = Math.max(0, Math.min(1, (startedAtMs - rootStartedAtMs) / rootDurationMs));
       if (durationMs != 0) {
-        widthRelative = Math.max(0, Math.min(1 - offsetRelative, durationMs / rootDurationMs));
+        durationRelative = Math.max(0, Math.min(1 - offsetRelative, durationMs / rootDurationMs));
       } else {
-        widthRelative = 0;
+        durationRelative = 0;
       }
     } else {
       offsetRelative = 0;
-      widthRelative = 1;
+      durationRelative = 1;
     }
-    const span: TimelineSpan = {
+    const span: TimelineNode = {
       id: run.id,
       parent: parent,
       depth: depth,
@@ -134,7 +134,7 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
       baseNode: baseNode,
       content: run,
       offsetRelative,
-      widthRelative,
+      durationRelative: durationRelative,
       isActive: !isRunTerminal(run),
     };
     spans.push(span);
@@ -172,7 +172,7 @@ watchEffect(() => {
 </script>
 <template>
   <!-- Spans -->
-  <!-- NOTE :Incomplete: RunTimeline 'axis' markers above spans (regularly spaced) -->
+  <!-- TODO :Incomplete: RunTimeline linear view -->
   <div ref="containerRef" class="flex w-full flex-1 flex-col gap-y-0.5">
     <!-- Span -->
     <div
@@ -199,13 +199,13 @@ watchEffect(() => {
           class="absolute bottom-0 h-[3px] w-full transform rounded-sm bg-red-500"
           :class="{ 'transition-all duration-100': !isInitialRender }"
           :style="{
-            width: Math.max(MIN_SPAN_WIDTH, span.widthRelative * spanContainerWidth) + 'px',
+            width: Math.max(MIN_SPAN_WIDTH, span.durationRelative * spanContainerWidth) + 'px',
             left:
-              (span.widthRelative * spanContainerWidth < MIN_SPAN_WIDTH
+              (span.durationRelative * spanContainerWidth < MIN_SPAN_WIDTH
                 ? Math.max(
                     0,
                     span.offsetRelative * spanContainerWidth -
-                      (MIN_SPAN_WIDTH - span.widthRelative * spanContainerWidth),
+                      (MIN_SPAN_WIDTH - span.durationRelative * spanContainerWidth),
                   )
                 : span.offsetRelative * spanContainerWidth) + 'px',
             backgroundColor: span.color,

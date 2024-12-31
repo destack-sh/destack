@@ -3,14 +3,18 @@ import enum
 import secrets
 import typing
 from datetime import date, datetime, time, timedelta
-from typing import Any, Mapping, Optional, TypeGuard, cast
+from typing import Any, Generator, Mapping, Optional, TypeGuard, cast
 from uuid import UUID, uuid4, uuid5
+
+from opentelemetry.trace import Tracer
+from opentelemetry.util._decorator import _agnosticcontextmanager
 
 from bench.utils.func import IdEnum, bittuple
 from bench.utils.utils import frozendict, get_from_env
 
 if typing.TYPE_CHECKING:
-    from bench.language import Session, Transaction
+    from bench.language import LogLevel, Node, Session, Text, Transaction
+    from bench.language.run import RunSpan, RunSpanType
 
 
 class _Unset:
@@ -1324,3 +1328,47 @@ def get_active_tx() -> Optional["Transaction"]:
     if session is None:
         return None
     return session._tx
+
+
+@_agnosticcontextmanager
+def run_span(
+    tracer: Tracer,
+    key: str,
+    type: "RunSpanType",
+    *,
+    level: "LogLevel | None" = None,
+    name: str | None = None,
+    nodes: list["Node"] | None = None,
+    text: "Text | None" = None,
+    text_plain: str | None = None,
+) -> Generator["RunSpan | None", None, None]:
+    """Decorate or annotate a RunSpan (either inline or on a function)."""
+    from bench.language import LogLevel, RunSpan
+
+    session = _active_session.get()
+    runtime = session._runtime if session is not None else None
+    runner = runtime.active_runner if runtime is not None else None
+
+    if runner is None or runtime is None:
+        # not inside a Run
+        with tracer.start_as_current_span(key):
+            yield
+    else:
+        span = RunSpan(
+            type=type,
+            name=name,
+            level=level or LogLevel.INFO,
+            nodes=nodes or [],
+            text=text,
+            text_plain=text_plain,
+            started_at=runtime.oracle.utc(),
+        )
+        runner.spans.append(span)
+
+        # nocheckin: RunSpan/RunEvents
+        try:
+            with tracer.start_as_current_span(key):
+                yield span
+        finally:
+            span._do_set("terminated_at", runtime.oracle.utc())
+            span._do_set("duration", span.terminated_at - span.started_at)  # type: ignore

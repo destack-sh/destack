@@ -42,6 +42,9 @@ class PromptPart:
     source: "PromptPart | None" = dataclasses.field(init=False, default=None)
 
 
+#
+# Basic Prompt elements
+#
 @dataclass
 class PromptElement(PromptPart, ABC):
     """A basic Prompt element that can be rendered directly."""
@@ -70,11 +73,15 @@ class PromptFile(PromptElement):
     file: FileBase
 
 
+#
+# Compound Prompt elements
+#
+
+
 @dataclass
 class PromptCompound(PromptPart, ABC):
     """A compound Prompt part that is expanded into other parts."""
 
-    """Expanded children of the Prompt part."""
     weight: int  # proportional
     children: list["PromptPart"] = dataclasses.field(init=False, default_factory=list)
 
@@ -269,7 +276,7 @@ class CompilationContext:  # == ContextOptions?
     render_options: RenderOptions
 
 
-class PromptCompiler[I, R](ABC):
+class Model[I, R](ABC):
     """Compile Prompts into some model backend format."""
 
     @abstractmethod
@@ -295,7 +302,7 @@ class PromptCompiler[I, R](ABC):
         ...
 
 
-class ChatPromptCompiler[R](PromptCompiler[PromptElement, R]):
+class ChatModel[R](Model[PromptElement, R]):
     """Compile a Prompt into chat messages."""
 
     @override
@@ -566,7 +573,7 @@ OPENAI_MODEL_BY_TYPE: Mapping[ModelType, str] = {
 OPENAI_DEFAULT_MODEL = ModelType.OPENAI_GPT4_0
 
 
-class OpenaiChatCompiler(ChatPromptCompiler[openai_chat_types.ChatCompletionMessageParam]):
+class OpenaiChatModel(ChatModel[openai_chat_types.ChatCompletionMessageParam]):
     """Compile a Prompt into OpenAI chat messages."""
 
     SEPARATOR = "#" * 32  # = exactly 1 token
@@ -636,7 +643,7 @@ ANTHROPIC_MODEL_BY_TYPE: Mapping[ModelType, str] = {
 ANTHROPIC_DEFAULT_MODEL = ModelType.ANTHROPIC_CLAUDE_3_5_SONNET
 
 
-class AnthropicChatCompiler(ChatPromptCompiler[anthropic_types.MessageParam]):
+class AnthropicChatModel(ChatModel[anthropic_types.MessageParam]):
     """Compile a Prompt into Anthropic chat messages."""
 
     @override
