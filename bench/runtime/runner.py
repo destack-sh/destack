@@ -377,13 +377,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             raise LookupError(f"no resource like {resource_type} found in {self!r}")
         return resource
 
-    async def _acquire_resources(
-        self,
-        resources: Sequence[Resource | TypeInfo | TypeIn],
-    ) -> list[Resource]:
-        """Acquires the relevant Resources for the given Runner."""
-        return await self.runtime._acquire_resources(self, resources)
-
     #
     # Run
     #
