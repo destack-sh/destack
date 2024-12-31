@@ -1,3 +1,4 @@
+import { makeNode } from "@/language/node";
 import { supervisor, type OperationOptions } from "@/proto/services";
 import {
   BenchData,
@@ -20,17 +21,16 @@ import {
   wrapProtoOneOf,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { ACTION_COMING_SOON, provideActions } from "@/ui/action";
 import local, { persistentInfo } from "@/system/client";
 import { clearConnections, useGetConnection } from "@/system/connection";
-import { makeNode } from "@/language/node";
 import { bench, canvas, goToBench } from "@/system/space";
+import { provideActions } from "@/ui/action";
+import { makeIcon } from "@/ui/icon";
+import type { ViewIn } from "@/ui/space";
 import { toaster } from "@/ui/toast";
 import { log } from "@/utils/log";
-import type { ViewIn } from "@/ui/space";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
-import { computed, ref } from "vue";
-import { makeIcon } from "@/ui/icon";
+import { computed } from "vue";
 
 export const isAuthenticated = computed(() => local.clientInfo.value?.accessToken != null);
 export const isUnauthenticated = computed(() => !isAuthenticated.value);
@@ -69,7 +69,7 @@ function makeCurrentClient(): ClientData {
       placeId: persistentInfo.value!.placeId,
       benchPtr: undefined,
       ...local.clientMeta.value,
-      title: local.clientMeta.value.deviceType,
+      name: local.clientMeta.value.deviceType,
     },
     { omit: ["id"] },
   );

@@ -289,8 +289,8 @@ describe("layered node graph", () => {
     expect(clientARef.value).toEqual(clientA);
     clientA = {
       ...clientA,
-      title: "clientAOverlay",
-      setPaths: [[ClientProperty.title.toString()]],
+      name: "clientAOverlay",
+      setPaths: [[ClientProperty.name.toString()]],
     } as ClientData;
     // NOTE: deviceName in overlay should be ignored because it's not in setPaths.
     //  This shouldn't really happen, but it's good to have this invariant.

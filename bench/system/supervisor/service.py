@@ -152,11 +152,11 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
     async def _make_client(self, user: User, client_data: ClientDataIn) -> Client:
         """Maps the given client info to a Client instance, trying to preserve a stable identity."""
         client_id = self._get_client_id(user, client_data)
-        title = client_data.title
+        name = client_data.name
         client = Client(
             id=client_id or uuid4(),
             parent=user,
-            title=title,
+            name=name,
             type=cast(ClientType, client_data.type),
             seen_at=self.oracle.utc(),
             _is_new=True,  # force create

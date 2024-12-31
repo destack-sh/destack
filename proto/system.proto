@@ -203,7 +203,7 @@ service GraphIO {
 message ClientDataIn {
   optional string id = 2;
   ClientType type = 30;
-  string title = 32;
+  string name = 32;
   optional string device_type = 40;
   optional string device_name = 41;
   optional string operating_system = 42;

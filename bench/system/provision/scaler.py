@@ -89,9 +89,7 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
         elif len(resource_group) < scaler.target_count:
             # provision missing resources
             for _ in range(scaler.target_count - len(resource_group)):
-                resource_kwargs: dict[str, Any] = {"scaler": scaler}
-                if "title" in self._resource_cls.__properties__:  # title it
-                    resource_kwargs["title"] = generate_random_name()
+                resource_kwargs: dict[str, Any] = {"scaler": scaler, "name": generate_random_name()}
                 resource = cast(WT, self._resource_cls(**resource_kwargs))
                 self.bench.append(resource)
                 added.append(resource)

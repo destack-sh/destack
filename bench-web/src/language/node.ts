@@ -437,7 +437,7 @@ export function cloneNode<T extends AnyNodeData>(
       const seq = (clone as any).name.match(/\d+$/);
       if (seq != null) {
         const num = parseInt(seq[0]);
-        clone.name = clone.name.replace(/\d+$/, (num + 1).toString());
+        clone.name = clone.name!.replace(/\d+$/, (num + 1).toString());
       } else {
         clone.name += "2";
       }

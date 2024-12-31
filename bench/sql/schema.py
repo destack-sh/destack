@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.31.1"
+VERSION = "2024.12.31.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -163,7 +163,7 @@ CLIENT_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
-        Column("title", PrimitiveType.STRING),
+        Column("name", PrimitiveType.STRING),
         Column("device_type", PrimitiveType.STRING, is_nullable=True),
         Column("device_name", PrimitiveType.STRING, is_nullable=True),
         Column("operating_system", PrimitiveType.STRING, is_nullable=True),
@@ -381,7 +381,7 @@ MACHINE_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
-        Column("title", PrimitiveType.STRING),
+        Column("name", PrimitiveType.STRING),
         Column("status", PrimitiveType.INT16),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
@@ -431,7 +431,7 @@ BROWSER_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
-        Column("title", PrimitiveType.STRING),
+        Column("name", PrimitiveType.STRING),
         Column("status", PrimitiveType.INT16),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
@@ -483,7 +483,7 @@ FILE_TABLE = Table(
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("title", PrimitiveType.STRING),
+        Column("name", PrimitiveType.STRING),
         Column("status", PrimitiveType.INT16),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
@@ -542,7 +542,7 @@ STREAM_TABLE = Table(
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("title", PrimitiveType.STRING),
+        Column("name", PrimitiveType.STRING),
         Column("status", PrimitiveType.INT16),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
@@ -583,7 +583,7 @@ SECRET_TABLE = Table(
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("title", PrimitiveType.STRING),
+        Column("name", PrimitiveType.STRING),
         Column("status", PrimitiveType.INT16),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),

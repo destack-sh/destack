@@ -140,40 +140,40 @@ ACTIVITY_CONTENT_TYPES = {
     "application/json",
 }
 ACTIVITY_IGNORED_URL_PATTERNS = {
-    # Analytics and tracking
+    # analytics and tracking
     "analytics",
     "tracking",
     "telemetry",
     "beacon",
     "metrics",
-    # Ad-related
+    # ad-related
     "doubleclick",
     "adsystem",
     "adserver",
     "advertising",
-    # Social media widgets
+    # social media widgets
     "facebook.com/plugins",
     "platform.twitter",
     "linkedin.com/embed",
-    # Live chat and support
+    # live chat and support
     "livechat",
     "zendesk",
     "intercom",
     "crisp.chat",
     "hotjar",
-    # Push notifications
+    # notifications
     "push-notifications",
     "onesignal",
     "pushwoosh",
-    # Background sync/heartbeat
+    # background sync/heartbeat
     "heartbeat",
     "ping",
     "alive",
-    # WebRTC and streaming
+    # webRTC and streaming
     "webrtc",
     "rtmp://",
     "wss://",
-    # Common CDNs for dynamic content
+    # common CDNs for dynamic content
     "cloudfront.net",
     "fastly.net",
 }

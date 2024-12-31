@@ -251,9 +251,7 @@ class Runtime:
         resource_cls = NODE_CLASS_BY_TYPE[node_type]
         assert issubclass(resource_cls, Resource), f"{resource_cls} in {resource_type!r}"
         # create resource
-        resource_kwargs: dict[str, Any] = {}
-        if "title" in resource_cls.__properties__ and title is None:  # title it
-            resource_kwargs["title"] = generate_random_name()
+        resource_kwargs: dict[str, Any] = {"name": generate_random_name()}
         resource_kwargs.update(kwargs)
         resource = resource_cls(**resource_kwargs)
         self.bench.append(resource)

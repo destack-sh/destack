@@ -120,13 +120,13 @@ def test_node_pointers_consistency(session: "Session"):
     assert package_a.parent_ptr.id == bench_a.id
 
     # sub bench nested pointers
-    machine_a = Machine(parent=bench_a, title="Main")
+    machine_a = Machine(parent=bench_a, name="Main")
     assert machine_a.bench_id == bench_a.id
     client_a = Client(
         parent=bench_a,
         seen_at=session._oracle.utc(),
         type=ClientType.BENCH_MOBILE,
-        title="Testificate's iPhone",
+        name="Testificate's iPhone",
     )
     assert client_a.bench_id == bench_a.id
     assert client_a.to_ref().equals(

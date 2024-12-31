@@ -1130,9 +1130,9 @@ export interface DomNodeData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: string type = 30;
+     * @generated from protobuf field: symbolx.bench.DomNodeType type = 30;
      */
-    type: string;
+    type: DomNodeType;
     /**
      * @generated from protobuf field: optional string tag = 31;
      */
@@ -1201,9 +1201,9 @@ export interface FileInfoData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: string title = 32;
+     * @generated from protobuf field: string name = 32;
      */
-    title: string;
+    name: string;
     /**
      * @generated from protobuf field: symbolx.bench.FileKind kind = 50;
      */
@@ -3046,9 +3046,9 @@ export interface ObserveActionData {
      */
     excludeImage?: boolean;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData image_ptr = 150;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData screenshot_ptr = 150;
      */
-    imagePtr?: NodeReferenceData;
+    screenshotPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.DomNodeData dom = 151;
      */
@@ -3556,9 +3556,9 @@ export interface ClientData {
      */
     type: ClientType;
     /**
-     * @generated from protobuf field: string title = 32;
+     * @generated from protobuf field: string name = 32;
      */
-    title: string;
+    name: string;
     /**
      * @generated from protobuf field: optional string device_type = 40;
      */
@@ -3962,9 +3962,9 @@ export interface BrowserData {
      */
     type: BrowserType;
     /**
-     * @generated from protobuf field: string title = 32;
+     * @generated from protobuf field: string name = 32;
      */
-    title: string;
+    name: string;
     /**
      * @generated from protobuf field: symbolx.bench.ResourceStatus status = 33;
      */
@@ -4115,9 +4115,9 @@ export interface RecordData {
      */
     subnodePacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional string title = 32;
+     * @generated from protobuf field: optional string name = 32;
      */
-    title?: string;
+    name?: string;
     /**
      * @generated from protobuf field: optional string order_key = 33;
      */
@@ -4192,9 +4192,9 @@ export interface FileData {
      */
     subnodePacked?: JsonValue;
     /**
-     * @generated from protobuf field: string title = 32;
+     * @generated from protobuf field: string name = 32;
      */
-    title: string;
+    name: string;
     /**
      * @generated from protobuf field: symbolx.bench.ResourceStatus status = 33;
      */
@@ -4877,9 +4877,9 @@ export interface MachineData {
      */
     type: MachineType;
     /**
-     * @generated from protobuf field: string title = 32;
+     * @generated from protobuf field: string name = 32;
      */
-    title: string;
+    name: string;
     /**
      * @generated from protobuf field: symbolx.bench.ResourceStatus status = 33;
      */
@@ -5712,9 +5712,9 @@ export interface SecretData {
      */
     subnodePacked?: JsonValue;
     /**
-     * @generated from protobuf field: string title = 32;
+     * @generated from protobuf field: string name = 32;
      */
-    title: string;
+    name: string;
     /**
      * @generated from protobuf field: symbolx.bench.ResourceStatus status = 33;
      */
@@ -6051,9 +6051,9 @@ export interface StreamData {
      */
     subnodePacked?: JsonValue;
     /**
-     * @generated from protobuf field: string title = 32;
+     * @generated from protobuf field: string name = 32;
      */
-    title: string;
+    name: string;
     /**
      * @generated from protobuf field: symbolx.bench.ResourceStatus status = 33;
      */
@@ -15517,7 +15517,7 @@ class DomNodeData$Type extends MessageType$<DomNodeData> {
     constructor() {
         super("symbolx.bench.DomNodeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.DomNodeType", DomNodeType, "DOM_NODE_TYPE_"] },
             { no: 31, name: "tag", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "index", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 33, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -15531,7 +15531,7 @@ class DomNodeData$Type extends MessageType$<DomNodeData> {
     create(value?: PartialMessage<DomNodeData>): DomNodeData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.type = "";
+        message.type = 0;
         message.children = [];
         if (value !== undefined)
             reflectionMergePartial<DomNodeData>(this, message, value);
@@ -15545,8 +15545,8 @@ class DomNodeData$Type extends MessageType$<DomNodeData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* string type */ 30:
-                    message.type = reader.string();
+                case /* symbolx.bench.DomNodeType type */ 30:
+                    message.type = reader.int32();
                     break;
                 case /* optional string tag */ 31:
                     message.tag = reader.string();
@@ -15587,9 +15587,9 @@ class DomNodeData$Type extends MessageType$<DomNodeData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string type = 30; */
-        if (message.type !== "")
-            writer.tag(30, WireType.LengthDelimited).string(message.type);
+        /* symbolx.bench.DomNodeType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
         /* optional string tag = 31; */
         if (message.tag !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.tag);
@@ -15738,7 +15738,7 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
     constructor() {
         super("symbolx.bench.FileInfoData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 32, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
             { no: 53, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 54, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
@@ -15760,7 +15760,7 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
     create(value?: PartialMessage<FileInfoData>): FileInfoData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.title = "";
+        message.name = "";
         message.kind = 0;
         message.type = 0;
         message.size = 0n;
@@ -15776,8 +15776,8 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* string title */ 32:
-                    message.title = reader.string();
+                case /* string name */ 32:
+                    message.name = reader.string();
                     break;
                 case /* symbolx.bench.FileKind kind */ 50:
                     message.kind = reader.int32();
@@ -15842,9 +15842,9 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string title = 32; */
-        if (message.title !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.title);
+        /* string name = 32; */
+        if (message.name !== "")
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* symbolx.bench.FileKind kind = 50; */
         if (message.kind !== 0)
             writer.tag(50, WireType.Varint).int32(message.kind);
@@ -20504,7 +20504,7 @@ class ObserveActionData$Type extends MessageType$<ObserveActionData> {
     constructor() {
         super("symbolx.bench.ObserveActionData", [
             { no: 100, name: "exclude_image", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 150, name: "image_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 150, name: "screenshot_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 151, name: "dom", kind: "message", T: () => DomNodeData }
         ]);
     }
@@ -20522,8 +20522,8 @@ class ObserveActionData$Type extends MessageType$<ObserveActionData> {
                 case /* optional bool exclude_image */ 100:
                     message.excludeImage = reader.bool();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData image_ptr */ 150:
-                    message.imagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.imagePtr);
+                case /* optional symbolx.bench.NodeReferenceData screenshot_ptr */ 150:
+                    message.screenshotPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.screenshotPtr);
                     break;
                 case /* optional symbolx.bench.DomNodeData dom */ 151:
                     message.dom = DomNodeData.internalBinaryRead(reader, reader.uint32(), options, message.dom);
@@ -20543,9 +20543,9 @@ class ObserveActionData$Type extends MessageType$<ObserveActionData> {
         /* optional bool exclude_image = 100; */
         if (message.excludeImage !== undefined)
             writer.tag(100, WireType.Varint).bool(message.excludeImage);
-        /* optional symbolx.bench.NodeReferenceData image_ptr = 150; */
-        if (message.imagePtr)
-            NodeReferenceData.internalBinaryWrite(message.imagePtr, writer.tag(150, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData screenshot_ptr = 150; */
+        if (message.screenshotPtr)
+            NodeReferenceData.internalBinaryWrite(message.screenshotPtr, writer.tag(150, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.DomNodeData dom = 151; */
         if (message.dom)
             DomNodeData.internalBinaryWrite(message.dom, writer.tag(151, WireType.LengthDelimited).fork(), options).join();
@@ -21735,7 +21735,7 @@ class ClientData$Type extends MessageType$<ClientData> {
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ClientType", ClientType, "CLIENT_TYPE_"] },
-            { no: 32, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "device_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "device_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "operating_system", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -21756,7 +21756,7 @@ class ClientData$Type extends MessageType$<ClientData> {
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
         message.type = 0;
-        message.title = "";
+        message.name = "";
         if (value !== undefined)
             reflectionMergePartial<ClientData>(this, message, value);
         return message;
@@ -21805,8 +21805,8 @@ class ClientData$Type extends MessageType$<ClientData> {
                 case /* symbolx.bench.ClientType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* string title */ 32:
-                    message.title = reader.string();
+                case /* string name */ 32:
+                    message.name = reader.string();
                     break;
                 case /* optional string device_type */ 40:
                     message.deviceType = reader.string();
@@ -21892,9 +21892,9 @@ class ClientData$Type extends MessageType$<ClientData> {
         /* symbolx.bench.ClientType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* string title = 32; */
-        if (message.title !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.title);
+        /* string name = 32; */
+        if (message.name !== "")
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* optional string device_type = 40; */
         if (message.deviceType !== undefined)
             writer.tag(40, WireType.LengthDelimited).string(message.deviceType);
@@ -22691,7 +22691,7 @@ class BrowserData$Type extends MessageType$<BrowserData> {
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.BrowserType", BrowserType, "BROWSER_TYPE_"] },
-            { no: 32, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -22725,7 +22725,7 @@ class BrowserData$Type extends MessageType$<BrowserData> {
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
         message.type = 0;
-        message.title = "";
+        message.name = "";
         message.status = 0;
         message.region = 0;
         message.occupancy = 0;
@@ -22780,8 +22780,8 @@ class BrowserData$Type extends MessageType$<BrowserData> {
                 case /* symbolx.bench.BrowserType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* string title */ 32:
-                    message.title = reader.string();
+                case /* string name */ 32:
+                    message.name = reader.string();
                     break;
                 case /* symbolx.bench.ResourceStatus status */ 33:
                     message.status = reader.int32();
@@ -22906,9 +22906,9 @@ class BrowserData$Type extends MessageType$<BrowserData> {
         /* symbolx.bench.BrowserType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* string title = 32; */
-        if (message.title !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.title);
+        /* string name = 32; */
+        if (message.name !== "")
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* symbolx.bench.ResourceStatus status = 33; */
         if (message.status !== 0)
             writer.tag(33, WireType.Varint).int32(message.status);
@@ -23007,7 +23007,7 @@ class RecordData$Type extends MessageType$<RecordData> {
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "text", kind: "message", T: () => TextData },
@@ -23066,8 +23066,8 @@ class RecordData$Type extends MessageType$<RecordData> {
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional string title */ 32:
-                    message.title = reader.string();
+                case /* optional string name */ 32:
+                    message.name = reader.string();
                     break;
                 case /* optional string order_key */ 33:
                     message.orderKey = reader.string();
@@ -23132,9 +23132,9 @@ class RecordData$Type extends MessageType$<RecordData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* optional string title = 32; */
-        if (message.title !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.title);
+        /* optional string name = 32; */
+        if (message.name !== undefined)
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* optional string order_key = 33; */
         if (message.orderKey !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
@@ -23176,7 +23176,7 @@ class FileData$Type extends MessageType$<FileData> {
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 32, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -23216,7 +23216,7 @@ class FileData$Type extends MessageType$<FileData> {
         message.id = "";
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
-        message.title = "";
+        message.name = "";
         message.status = 0;
         message.region = 0;
         message.occupancy = 0;
@@ -23270,8 +23270,8 @@ class FileData$Type extends MessageType$<FileData> {
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* string title */ 32:
-                    message.title = reader.string();
+                case /* string name */ 32:
+                    message.name = reader.string();
                     break;
                 case /* symbolx.bench.ResourceStatus status */ 33:
                     message.status = reader.int32();
@@ -23414,9 +23414,9 @@ class FileData$Type extends MessageType$<FileData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* string title = 32; */
-        if (message.title !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.title);
+        /* string name = 32; */
+        if (message.name !== "")
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* symbolx.bench.ResourceStatus status = 33; */
         if (message.status !== 0)
             writer.tag(33, WireType.Varint).int32(message.status);
@@ -24579,7 +24579,7 @@ class MachineData$Type extends MessageType$<MachineData> {
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.MachineType", MachineType, "MACHINE_TYPE_"] },
-            { no: 32, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -24610,7 +24610,7 @@ class MachineData$Type extends MessageType$<MachineData> {
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
         message.type = 0;
-        message.title = "";
+        message.name = "";
         message.status = 0;
         message.region = 0;
         message.occupancy = 0;
@@ -24667,8 +24667,8 @@ class MachineData$Type extends MessageType$<MachineData> {
                 case /* symbolx.bench.MachineType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* string title */ 32:
-                    message.title = reader.string();
+                case /* string name */ 32:
+                    message.name = reader.string();
                     break;
                 case /* symbolx.bench.ResourceStatus status */ 33:
                     message.status = reader.int32();
@@ -24784,9 +24784,9 @@ class MachineData$Type extends MessageType$<MachineData> {
         /* symbolx.bench.MachineType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* string title = 32; */
-        if (message.title !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.title);
+        /* string name = 32; */
+        if (message.name !== "")
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* symbolx.bench.ResourceStatus status = 33; */
         if (message.status !== 0)
             writer.tag(33, WireType.Varint).int32(message.status);
@@ -26622,7 +26622,7 @@ class SecretData$Type extends MessageType$<SecretData> {
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 32, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -26646,7 +26646,7 @@ class SecretData$Type extends MessageType$<SecretData> {
         message.id = "";
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
-        message.title = "";
+        message.name = "";
         message.status = 0;
         message.region = 0;
         message.occupancy = 0;
@@ -26696,8 +26696,8 @@ class SecretData$Type extends MessageType$<SecretData> {
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* string title */ 32:
-                    message.title = reader.string();
+                case /* string name */ 32:
+                    message.name = reader.string();
                     break;
                 case /* symbolx.bench.ResourceStatus status */ 33:
                     message.status = reader.int32();
@@ -26792,9 +26792,9 @@ class SecretData$Type extends MessageType$<SecretData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* string title = 32; */
-        if (message.title !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.title);
+        /* string name = 32; */
+        if (message.name !== "")
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* symbolx.bench.ResourceStatus status = 33; */
         if (message.status !== 0)
             writer.tag(33, WireType.Varint).int32(message.status);
@@ -27332,7 +27332,7 @@ class StreamData$Type extends MessageType$<StreamData> {
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 32, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -27354,7 +27354,7 @@ class StreamData$Type extends MessageType$<StreamData> {
         message.id = "";
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
-        message.title = "";
+        message.name = "";
         message.status = 0;
         message.region = 0;
         message.occupancy = 0;
@@ -27404,8 +27404,8 @@ class StreamData$Type extends MessageType$<StreamData> {
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* string title */ 32:
-                    message.title = reader.string();
+                case /* string name */ 32:
+                    message.name = reader.string();
                     break;
                 case /* symbolx.bench.ResourceStatus status */ 33:
                     message.status = reader.int32();
@@ -27494,9 +27494,9 @@ class StreamData$Type extends MessageType$<StreamData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* string title = 32; */
-        if (message.title !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.title);
+        /* string name = 32; */
+        if (message.name !== "")
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* symbolx.bench.ResourceStatus status = 33; */
         if (message.status !== 0)
             writer.tag(33, WireType.Varint).int32(message.status);
@@ -28827,7 +28827,7 @@ export enum ClientProperty {
   deletedAt = 16,
   subnodePacked = 29,
   type = 30,
-  title = 32,
+  name = 32,
   deviceType = 40,
   deviceName = 41,
   operatingSystem = 42,
@@ -28977,7 +28977,7 @@ export enum MachineProperty {
   deletedAt = 16,
   subnodePacked = 29,
   type = 30,
-  title = 32,
+  name = 32,
   status = 33,
   text = 34,
   region = 35,
@@ -29015,7 +29015,7 @@ export enum BrowserProperty {
   deletedAt = 16,
   subnodePacked = 29,
   type = 30,
-  title = 32,
+  name = 32,
   status = 33,
   text = 34,
   region = 35,
@@ -29055,7 +29055,7 @@ export enum FileProperty {
   updatedEpoch = 15,
   deletedAt = 16,
   subnodePacked = 29,
-  title = 32,
+  name = 32,
   status = 33,
   text = 34,
   region = 35,
@@ -29102,7 +29102,7 @@ export enum StreamProperty {
   updatedEpoch = 15,
   deletedAt = 16,
   subnodePacked = 29,
-  title = 32,
+  name = 32,
   status = 33,
   text = 34,
   region = 35,
@@ -29131,7 +29131,7 @@ export enum SecretProperty {
   updatedEpoch = 15,
   deletedAt = 16,
   subnodePacked = 29,
-  title = 32,
+  name = 32,
   status = 33,
   text = 34,
   region = 35,
@@ -29504,7 +29504,7 @@ export enum RecordProperty {
   updatedEpoch = 15,
   deletedAt = 16,
   subnodePacked = 29,
-  title = 32,
+  name = 32,
   orderKey = 33,
   icon = 34,
   text = 35,
@@ -29829,7 +29829,7 @@ export enum RouteActionProperty {
 
 export enum ObserveActionProperty {
   excludeImage = 100,
-  imagePtr = 150,
+  screenshotPtr = 150,
   dom = 151,
 }
 
@@ -30141,7 +30141,7 @@ export enum ScheduleProperty {
 
 export enum FileInfoProperty {
   metatype = 1,
-  title = 32,
+  name = 32,
   kind = 50,
   externalUrl = 53,
   inlineContent = 54,
@@ -30904,7 +30904,7 @@ export const ClientDataInfo: Record<ClientProperty, PropertyInfo> = {
   [ClientProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ClientProperty.type]: { id: 30, name: 'type', component: ObjectType.CLIENT, enumType: EnumType.CLIENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.title]: { id: 32, name: 'title', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.name]: { id: 32, name: 'name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.deviceType]: { id: 40, name: 'device_type', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.deviceName]: { id: 41, name: 'device_name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.operatingSystem]: { id: 42, name: 'operating_system', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
@@ -31027,8 +31027,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.31.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.31.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.31.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.31.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31048,7 +31048,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [MachineProperty.type]: { id: 30, name: 'type', component: ObjectType.MACHINE, enumType: EnumType.MACHINE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.title]: { id: 32, name: 'title', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.name]: { id: 32, name: 'name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 33, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.text]: { id: 34, name: 'text', component: ObjectType.MACHINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -31061,8 +31061,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.31.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.31.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.31.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.31.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31085,7 +31085,7 @@ export const BrowserDataInfo: Record<BrowserProperty, PropertyInfo> = {
   [BrowserProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [BrowserProperty.type]: { id: 30, name: 'type', component: ObjectType.BROWSER, enumType: EnumType.BROWSER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BrowserProperty.title]: { id: 32, name: 'title', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BrowserProperty.name]: { id: 32, name: 'name', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.status]: { id: 33, name: 'status', component: ObjectType.BROWSER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.text]: { id: 34, name: 'text', component: ObjectType.BROWSER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BrowserProperty.region]: { id: 35, name: 'region', component: ObjectType.BROWSER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -31124,7 +31124,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [FileProperty.title]: { id: 32, name: 'title', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.name]: { id: 32, name: 'name', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.status]: { id: 33, name: 'status', component: ObjectType.FILE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.text]: { id: 34, name: 'text', component: ObjectType.FILE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [FileProperty.region]: { id: 35, name: 'region', component: ObjectType.FILE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -31170,7 +31170,7 @@ export const StreamDataInfo: Record<StreamProperty, PropertyInfo> = {
   [StreamProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [StreamProperty.title]: { id: 32, name: 'title', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.name]: { id: 32, name: 'name', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.status]: { id: 33, name: 'status', component: ObjectType.STREAM, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.text]: { id: 34, name: 'text', component: ObjectType.STREAM, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [StreamProperty.region]: { id: 35, name: 'region', component: ObjectType.STREAM, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -31198,7 +31198,7 @@ export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [SecretProperty.title]: { id: 32, name: 'title', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SecretProperty.name]: { id: 32, name: 'name', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.status]: { id: 33, name: 'status', component: ObjectType.SECRET, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.text]: { id: 34, name: 'text', component: ObjectType.SECRET, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [SecretProperty.region]: { id: 35, name: 'region', component: ObjectType.SECRET, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -31559,7 +31559,7 @@ export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RecordProperty.title]: { id: 32, name: 'title', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [RecordProperty.name]: { id: 32, name: 'name', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.icon]: { id: 34, name: 'icon', component: ObjectType.RECORD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [RecordProperty.text]: { id: 35, name: 'text', component: ObjectType.RECORD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -31845,7 +31845,7 @@ export const RouteActionDataInfo: Record<RouteActionProperty, PropertyInfo> = {
 }
 export const ObserveActionDataInfo: Record<ObserveActionProperty, PropertyInfo> = {
   [ObserveActionProperty.excludeImage]: { id: 100, name: 'exclude_image', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [ObserveActionProperty.imagePtr]: { id: 150, name: 'image_ptr', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
+  [ObserveActionProperty.screenshotPtr]: { id: 150, name: 'screenshot_ptr', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
   [ObserveActionProperty.dom]: { id: 151, name: 'dom', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DOM_NODE },
 }
 export const ClickActionDataInfo: Record<ClickActionProperty, PropertyInfo> = {
@@ -32120,7 +32120,7 @@ export const ScheduleDataInfo: Record<ScheduleProperty, PropertyInfo> = {
 }
 export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [FileInfoProperty.title]: { id: 32, name: 'title', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.name]: { id: 32, name: 'name', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.kind]: { id: 50, name: 'kind', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.externalUrl]: { id: 53, name: 'external_url', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.inlineContent]: { id: 54, name: 'inline_content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
@@ -32425,7 +32425,7 @@ export const RectangleConstraintDataInfo: Record<RectangleConstraintProperty, Pr
 }
 export const DomNodeDataInfo: Record<DomNodeProperty, PropertyInfo> = {
   [DomNodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DOM_NODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [DomNodeProperty.type]: { id: 30, name: 'type', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DomNodeProperty.type]: { id: 30, name: 'type', component: ObjectType.DOM_NODE, enumType: EnumType.DOM_NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [DomNodeProperty.tag]: { id: 31, name: 'tag', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [DomNodeProperty.index]: { id: 32, name: 'index', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [DomNodeProperty.xpath]: { id: 33, name: 'xpath', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },

@@ -78,13 +78,13 @@ export async function extractFile(
   identity: NodeReferenceData,
   bench: BenchData,
 ): Promise<FileData> {
-  const title = content.name;
+  const name = content.name;
 
   // guess file type using extension & mime type
   let format: FileFormat | undefined = undefined;
   const mimeType: string | undefined = content.type == "" ? undefined : content.type;
-  if (title.includes(".")) {
-    const extension = title.split(".").pop();
+  if (name.includes(".")) {
+    const extension = name.split(".").pop();
     if (extension && FILE_FORMAT_BY_EXTENSION[extension.toLowerCase()]) {
       format = FILE_FORMAT_BY_EXTENSION[extension.toLowerCase()];
     }
@@ -107,7 +107,7 @@ export async function extractFile(
     region: bench.region,
     status: ResourceStatus.UP,
     kind: FileKind.DRIVE,
-    title,
+    name,
     type,
     mimeType,
     format,
@@ -458,7 +458,7 @@ async function doDownloadFile(getUrl: string, file: FileData): Promise<File> {
     throw new Error(`failed to download file from ${getUrl}: ${response.status} ${response.statusText}`);
   }
   const content = await response.blob();
-  return new File([content], file.title, { type: file.mimeType });
+  return new File([content], file.name, { type: file.mimeType });
 }
 
 type SomeFile = FileData | NodeReferenceData;

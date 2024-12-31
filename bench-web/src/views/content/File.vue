@@ -199,7 +199,7 @@ defineExpose<ViewExposed>({
           :href="download?.getUrl.value ?? undefined"
           target="_blank"
         >
-          {{ optimisticValue.title ?? "???" }}
+          {{ optimisticValue.name ?? "???" }}
         </a>
         <span class="ml-1.5 flex-shrink-0 text-xs text-gray-400">
           {{ humanizeBytes(Number(optimisticValue.size)) }}
@@ -275,7 +275,7 @@ defineExpose<ViewExposed>({
         <img
           :key="download.getUrl.value"
           :src="download.getUrl.value"
-          :alt="optimisticValue?.title ?? '???'"
+          :alt="optimisticValue?.name ?? '???'"
           class="h-full w-full rounded object-contain object-center"
           :style="{
             maxWidth: size?.width != null ? `${size.width}px` : undefined,
@@ -313,7 +313,7 @@ defineExpose<ViewExposed>({
             :href="download?.getUrl.value ?? undefined"
             target="_blank"
           >
-            {{ optimisticValue?.title ?? "???" }}
+            {{ optimisticValue?.name ?? "???" }}
           </a>
           <span v-if="optimisticValue.size != null" class="ml-1.5 text-xs text-gray-400">
             {{ humanizeBytes(Number(optimisticValue?.size)) }}
@@ -334,7 +334,7 @@ defineExpose<ViewExposed>({
             class="fas fa-circle-exclamation text-danger-600"
           />
           <template v-if="download?.file.value">
-            <span class="ml-1.5">{{ download.file.value.title ?? "???" }}</span>
+            <span class="ml-1.5">{{ download.file.value.name ?? "???" }}</span>
             <span v-if="download.file.value.size != null" class="ml-1.5 text-xs text-gray-400">
               {{ humanizeBytes(Number(download.file.value.size)) }}
             </span>

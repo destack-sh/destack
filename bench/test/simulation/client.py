@@ -54,7 +54,7 @@ class UserHandle:
         """Creates the User"""
         client_in = ClientDataIn(
             type=wire.ClientType.CLIENT_TYPE_BENCH_MACHINE,
-            title=f"{self.name}-signup",
+            name=f"{self.name}-signup",
             device_name="test",
         )
         signup_req = SignupUserRequest(
@@ -118,7 +118,7 @@ class ClientHandle:
     async def prepare(self, supervisor_client: SupervisorClient):
         """Logs in this Client as the User"""
         client_in = ClientDataIn(
-            type=pack_enum(ClientType, self.spec.type), title=self.spec.name, device_name="test"
+            type=pack_enum(ClientType, self.spec.type), name=self.spec.name, device_name="test"
         )
         login_req = LoginUserRequest(
             slug=self.spec.username,
