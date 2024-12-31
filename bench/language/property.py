@@ -964,6 +964,7 @@ def p_value_runtime(
     *,
     kind: ObjectKind,
     typ: Callable[["BuiltinObject"], "TypeBase | None"] | None,
+    field_type: FieldType | None = None,
 ) -> Any:
     """Runtime-only property for a Value."""
     return Property(
@@ -980,6 +981,7 @@ def p_value_runtime(
         value_packed_ptr=packed,
         value_type_info_getter=typ,
         value_object_kind=kind,
+        field_type=field_type,
     )
 
 

@@ -30613,7 +30613,8 @@ export type PropertyInfo = {
     enumType?: EnumType;
     default?: any;
     constraint?: TypeConstraintIn;
-    
+    fieldType?: FieldType;
+
     // flags
     isList?: boolean;
     isRequired?: boolean;
@@ -30843,8 +30844,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.30.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.30.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.30.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.30.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30877,8 +30878,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.30.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.30.3", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.30.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.30.4", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31299,7 +31300,7 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.runOptions]: { id: 41, name: 'run_options', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [ActionProperty.rolesPtr]: { id: 42, name: 'roles_ptr', component: ObjectType.ACTION, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [50] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.identityPtr]: { id: 43, name: 'identity_ptr', component: ObjectType.ACTION, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [51] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ActionProperty.code]: { id: 52, name: 'code', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+  [ActionProperty.code]: { id: 52, name: 'code', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ActionProperty.delegatePtr]: { id: 53, name: 'delegate_ptr', component: ObjectType.ACTION, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [22] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.position]: { id: 80, name: 'position', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [ActionProperty.mode]: { id: 90, name: 'mode', component: ObjectType.ACTION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -31609,23 +31610,23 @@ export const DatetimeViewDataInfo: Record<DatetimeViewProperty, PropertyInfo> = 
   [DatetimeViewProperty.isRelative]: { id: 100, name: 'is_relative', component: ObjectType.VIEW, componentSubtype: 1704, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
 }
 export const GetActionDataInfo: Record<GetActionProperty, PropertyInfo> = {
-  [GetActionProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.ACTION, componentSubtype: 40, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [GetActionProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.ACTION, componentSubtype: 40, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
   [GetActionProperty.baseBlockPtr]: { id: 101, name: 'base_block_ptr', component: ObjectType.ACTION, componentSubtype: 40, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [GetActionProperty.filter]: { id: 102, name: 'filter', component: ObjectType.ACTION, componentSubtype: 40, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [GetActionProperty.filter]: { id: 102, name: 'filter', component: ObjectType.ACTION, componentSubtype: 40, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
 export const SearchActionDataInfo: Record<SearchActionProperty, PropertyInfo> = {
-  [SearchActionProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.ACTION, componentSubtype: 41, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [SearchActionProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.ACTION, componentSubtype: 41, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
   [SearchActionProperty.baseBlockPtr]: { id: 101, name: 'base_block_ptr', component: ObjectType.ACTION, componentSubtype: 41, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [SearchActionProperty.filter]: { id: 102, name: 'filter', component: ObjectType.ACTION, componentSubtype: 41, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [SearchActionProperty.sort]: { id: 103, name: 'sort', component: ObjectType.ACTION, componentSubtype: 41, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [SearchActionProperty.filter]: { id: 102, name: 'filter', component: ObjectType.ACTION, componentSubtype: 41, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [SearchActionProperty.sort]: { id: 103, name: 'sort', component: ObjectType.ACTION, componentSubtype: 41, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
 export const CreateActionDataInfo: Record<CreateActionProperty, PropertyInfo> = {
-  [CreateActionProperty.nodePartialPacked]: { id: 100, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 60, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [CreateActionProperty.nodePartialPacked]: { id: 100, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 60, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const DuplicateActionDataInfo: Record<DuplicateActionProperty, PropertyInfo> = {
   [DuplicateActionProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 61, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [DuplicateActionProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 61, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [DuplicateActionProperty.isShallow]: { id: 110, name: 'is_shallow', component: ObjectType.ACTION, componentSubtype: 61, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
+  [DuplicateActionProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 61, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [DuplicateActionProperty.isShallow]: { id: 110, name: 'is_shallow', component: ObjectType.ACTION, componentSubtype: 61, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const UpdateActionDataInfo: Record<UpdateActionProperty, PropertyInfo> = {
   [UpdateActionProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 62, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
@@ -31635,8 +31636,8 @@ export const DeleteActionDataInfo: Record<DeleteActionProperty, PropertyInfo> = 
   [DeleteActionProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 63, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
 export const FailActionDataInfo: Record<FailActionProperty, PropertyInfo> = {
-  [FailActionProperty.errorTitle]: { id: 100, name: 'error_title', component: ObjectType.ACTION, componentSubtype: 11, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [FailActionProperty.errorText]: { id: 101, name: 'error_text', component: ObjectType.ACTION, componentSubtype: 11, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [FailActionProperty.errorTitle]: { id: 100, name: 'error_title', component: ObjectType.ACTION, componentSubtype: 11, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [FailActionProperty.errorText]: { id: 101, name: 'error_text', component: ObjectType.ACTION, componentSubtype: 11, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
 }
 export const CodeActionDataInfo: Record<CodeActionProperty, PropertyInfo> = {
 
@@ -31645,7 +31646,7 @@ export const DelegateActionDataInfo: Record<DelegateActionProperty, PropertyInfo
 
 }
 export const WaitActionDataInfo: Record<WaitActionProperty, PropertyInfo> = {
-  [WaitActionProperty.delay]: { id: 100, name: 'delay', component: ObjectType.ACTION, componentSubtype: 102, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
+  [WaitActionProperty.delay]: { id: 100, name: 'delay', component: ObjectType.ACTION, componentSubtype: 102, kind: 'primitive', primitiveType: PrimitiveType.DURATION, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const GenerateActionDataInfo: Record<GenerateActionProperty, PropertyInfo> = {
 
@@ -31660,7 +31661,7 @@ export const RouteActionDataInfo: Record<RouteActionProperty, PropertyInfo> = {
 
 }
 export const ObserveActionDataInfo: Record<ObserveActionProperty, PropertyInfo> = {
-  [ObserveActionProperty.excludeImage]: { id: 100, name: 'exclude_image', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
+  [ObserveActionProperty.excludeImage]: { id: 100, name: 'exclude_image', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
   [ObserveActionProperty.imagePtr]: { id: 101, name: 'image_ptr', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ClickActionDataInfo: Record<ClickActionProperty, PropertyInfo> = {
@@ -31668,17 +31669,17 @@ export const ClickActionDataInfo: Record<ClickActionProperty, PropertyInfo> = {
 }
 export const PressActionDataInfo: Record<PressActionProperty, PropertyInfo> = {
   [PressActionProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.keys]: { id: 110, name: 'keys', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.delay]: { id: 111, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.keys]: { id: 110, name: 'keys', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.delay]: { id: 111, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const TypeActionDataInfo: Record<TypeActionProperty, PropertyInfo> = {
   [TypeActionProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.string]: { id: 110, name: 'string', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.delay]: { id: 111, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeActionProperty.string]: { id: 110, name: 'string', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [TypeActionProperty.delay]: { id: 111, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const ScrollActionDataInfo: Record<ScrollActionProperty, PropertyInfo> = {
   [ScrollActionProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ScrollActionProperty.amount]: { id: 110, name: 'amount', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [ScrollActionProperty.amount]: { id: 110, name: 'amount', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
 }
 export const SelectActionDataInfo: Record<SelectActionProperty, PropertyInfo> = {
   [SelectActionProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
@@ -31690,10 +31691,10 @@ export const GoForwardActionDataInfo: Record<GoForwardActionProperty, PropertyIn
   [GoForwardActionProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const GoToUrlActionDataInfo: Record<GoToUrlActionProperty, PropertyInfo> = {
-  [GoToUrlActionProperty.url]: { id: 100, name: 'url', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [GoToUrlActionProperty.url]: { id: 100, name: 'url', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const GoToTabActionDataInfo: Record<GoToTabActionProperty, PropertyInfo> = {
-  [GoToTabActionProperty.tabIndex]: { id: 100, name: 'tab_index', component: ObjectType.ACTION, componentSubtype: 1101, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [GoToTabActionProperty.tabIndex]: { id: 100, name: 'tab_index', component: ObjectType.ACTION, componentSubtype: 1101, kind: 'primitive', primitiveType: PrimitiveType.INT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const LoopActionDataInfo: Record<LoopActionProperty, PropertyInfo> = {
   [LoopActionProperty.forFieldPtr]: { id: 100, name: 'for_field_ptr', component: ObjectType.ACTION, componentSubtype: 5001, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
@@ -31902,13 +31903,13 @@ export const MemberObjectDataInfo: Record<MemberObjectProperty, PropertyInfo> = 
 }
 export const InputObjectDataInfo: Record<InputObjectProperty, PropertyInfo> = {
   [InputObjectProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.INPUT_OBJECT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [InputObjectProperty.text]: { id: 900, name: 'text', component: ObjectType.INPUT_OBJECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [InputObjectProperty.text]: { id: 900, name: 'text', component: ObjectType.INPUT_OBJECT, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
 }
 export const OutputObjectDataInfo: Record<OutputObjectProperty, PropertyInfo> = {
   [OutputObjectProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.OUTPUT_OBJECT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [OutputObjectProperty.text]: { id: 900, name: 'text', component: ObjectType.OUTPUT_OBJECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [OutputObjectProperty.call]: { id: 910, name: 'call', component: ObjectType.OUTPUT_OBJECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CALL },
-  [OutputObjectProperty.continuations]: { id: 911, name: 'continuations', component: ObjectType.OUTPUT_OBJECT, kind: 'reference', primitiveType: PrimitiveType.JSON, default: [], isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CONTINUE },
+  [OutputObjectProperty.text]: { id: 900, name: 'text', component: ObjectType.OUTPUT_OBJECT, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [OutputObjectProperty.call]: { id: 910, name: 'call', component: ObjectType.OUTPUT_OBJECT, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CALL },
+  [OutputObjectProperty.continuations]: { id: 911, name: 'continuations', component: ObjectType.OUTPUT_OBJECT, kind: 'reference', primitiveType: PrimitiveType.JSON, default: [], fieldType: FieldType.OUTPUT, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CONTINUE },
 }
 export const ScheduleDataInfo: Record<ScheduleProperty, PropertyInfo> = {
   [ScheduleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SCHEDULE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
