@@ -534,14 +534,17 @@ class RouteAction(Action, HasDynamicContext):
 
 @object_()
 class HasApplicationContext(BuiltinObject):
-    # position?
+    element_id: str | None = p_regular(100)
     xpath: str | None = p_regular(101)
+    relative_position: Optional["Vector2"] = p_regular(
+        102, default=None, array=False, struct=StructType.VECTOR2, field_type=FieldType.INPUT
+    )
 
 
 @node_subtype_(ActionType.OBSERVE)
 class ObserveAction(Action):
     exclude_image: bool | None = p_regular(100, default=False, field_type=FieldType.INPUT)
-    image: Optional["File"] = p_regular(
+    screenshot: Optional["File"] = p_regular(
         150,
         require=False,
         array=False,

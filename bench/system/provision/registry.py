@@ -23,7 +23,6 @@ def get_provisioners(host: Host, bench: Bench) -> list[Provisioner]:
             LocalhostStoreProvisioner,
             LocalhostMachineProvisioner,
             LocalhostBrowserProvisioner,
-            BrowserbaseBrowserProvisioner,
         ]
     elif ENV == Env.STAGE or ENV == Env.PROD:
         provisioners = [

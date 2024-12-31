@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.bench import DynamicResource
-from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
+from bench.language.const import EnumType, NodeType, StructType, enum_
 from bench.language.node import Struct, node_, struct_
 from bench.language.property import p_kernel, p_regular, p_system
 from bench.proto.wire.lang_pb2 import BrowserData
@@ -12,23 +12,25 @@ if TYPE_CHECKING:
     from bench.language.view import Vector2
 
 
+@enum_(EnumType.DOM_NODE_TYPE)
+class DomNodeType(IdEnum):
+    TEXT = 1
+    ELEMENT = 2
+
+
 @struct_(StructType.DOM_NODE)
 class DomNode(Struct):
     """A DOM node."""
 
     type: str = p_regular(30)
-    tag_name: str | None = p_regular(31, default=None)
+    tag: str | None = p_regular(31, default=None)
     index: int | None = p_regular(32, default=None)
     xpath: str | None = p_regular(33, default=None)
     text: str | None = p_regular(34, default=None)
-    attributes: dict[str, str] | None = p_regular(
-        35, default=None, primitive_type=PrimitiveType.JSON
-    )
     # flags
     is_interactive: bool | None = p_regular(40, default=None)
     is_visible: bool | None = p_regular(41, default=None)
     is_top: bool | None = p_regular(42, default=None)
-    is_shadow_root: bool | None = p_regular(43, default=None)
     # children
     children: list["DomNode"] = p_regular(50, array=True, struct=StructType.DOM_NODE)
 

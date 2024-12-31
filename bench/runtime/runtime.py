@@ -38,6 +38,7 @@ from bench.language.value import (
     check_value,
     is_value,
 )
+from bench.runtime.browser.playwright import PlaywrightClient
 from bench.runtime.cache import Cache
 from bench.runtime.core import (
     DYNAMIC_CODE_GLOBALS,
@@ -45,7 +46,6 @@ from bench.runtime.core import (
     NonRetryableError,
     RetryableError,
 )
-from bench.runtime.playwright import PlaywrightClient
 from bench.runtime.runner import (
     Interrupted,
     Runner,

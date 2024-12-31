@@ -1,15 +1,20 @@
 /**
  * Our in-Browser runtime.
- * Build with `tsc browser.ts --module none --removeComments`.
+ * Build with `tsc extension.ts --module none --removeComments`.
  */
+
+enum DomNodeType {
+	TEXT = 1,
+	ELEMENT = 2,
+}
 
 /**
 * A DOM node.
 */
 type DomNode = {
-	type: "TEXT_NODE" | "ELEMENT_NODE";
-	tagName?: string;
-	index?: number;
+	type: DomNodeType;
+	tag?: string;
+	id?: number;
 	text?: string;
 	attributes?: Record<string, string>;
 	xpath?: string;
@@ -19,6 +24,60 @@ type DomNode = {
 	isShadowRoot?: boolean;
 	children: DomNode[];
 };
+
+const LABEL_WIDTH = 20;
+const LABEL_HEIGHT = 16;
+const LABEL_PADDING = 0;
+const VIEWPORT_MARGIN = 4; // minimum pixels from viewport edge
+const HIGHLIGHT_ID_KEY = "benchHighlightId"; // prefix for highlight dataset attribute
+
+class HighlightContext {
+	root: Element;
+	/* Current highlight index. */
+	highlightId: number;
+	/** Labels */
+	labels: Element[];
+	/** Bounding rects by element. */
+	boundingRectByElement: Map<Element, DOMRect>;
+
+	constructor(root: Element) {
+		this.root = root;
+		this.highlightId = 0;
+		this.labels = [];
+		this.boundingRectByElement = new Map();
+	}
+
+	/** Adds a label to the context (after positioning!). */
+	addLabel(label: Element): void {
+		this.labels.push(label);
+		this.boundingRectByElement.set(label, label.getBoundingClientRect());
+	}
+
+	/** Checks if a label is already at the given position. */
+	isLabelAt(left: number, top: number): boolean {
+		return this.labels.some(label => {
+			const rect = this.boundingRectByElement.get(label)!;
+			return (
+				// top left
+				(left >= rect.left && left <= rect.right &&
+				 top >= rect.top && top <= rect.bottom) ||
+				// top right  
+				(left + LABEL_WIDTH >= rect.left && left + LABEL_WIDTH <= rect.right &&
+				 top >= rect.top && top <= rect.bottom) ||
+				// bottom left
+				(left >= rect.left && left <= rect.right &&
+				 top + LABEL_HEIGHT >= rect.top && top + LABEL_HEIGHT <= rect.bottom) ||
+				// bottom right
+				(left + LABEL_WIDTH >= rect.left && left + LABEL_WIDTH <= rect.right &&
+				 top + LABEL_HEIGHT >= rect.top && top + LABEL_HEIGHT <= rect.bottom)
+			);
+		});
+	}
+}
+
+function makeHighlightContext(element: Element): HighlightContext {
+	return new HighlightContext(element);
+}
 
 const LEAF_DENY_LIST = new Set(["svg", "script", "style", "link", "meta"]);
 const INTERACTIVE_TAGS = new Set([
@@ -118,9 +177,10 @@ function getHighlightColor(index: number): { base: string; background: string } 
 
 /**
 * Highlights the given element by drawing an overlay and a label at the element's position.
-* It uses the passed highlight index to distinguish multiple highlighted elements.
+* It uses the passed highlight context to distinguish multiple highlighted elements.
 */
-function highlightElement(element: Element, index: number, iframe: HTMLIFrameElement | null): void {
+function highlightElement(element: Element, context: HighlightContext, iframe: HTMLIFrameElement | null): void {
+	const index = context.highlightId;
 	const container = getHighlightContainer();
 	const { base, background } = getHighlightColor(index);
 	
@@ -146,8 +206,7 @@ function highlightElement(element: Element, index: number, iframe: HTMLIFrameEle
 	overlay.style.width = `${rect.width}px`;
 	overlay.style.height = `${rect.height}px`;
 	overlay.style.zIndex = "2147483641";
-	container.appendChild(overlay);
-	
+
 	// label
 	const label = document.createElement("div");
 	label.className = "bench-highlight-label";
@@ -163,73 +222,91 @@ function highlightElement(element: Element, index: number, iframe: HTMLIFrameEle
 	label.style.zIndex = "2147483642";
 	label.textContent = index.toString();
 	
-	const labelWidth = 20;
-	const labelHeight = 16;
-	const labelPadding = 0;
-	const viewportMargin = 4; // minimum pixels from viewport edge
-	
 	// determine if label should be placed outside based on container size
-	const shouldPlaceOutside = rect.width < labelWidth * 3 || 
-		rect.height < labelHeight * 2;
+	const shouldPlaceOutside = rect.width < LABEL_WIDTH * 3 || 
+		rect.height < LABEL_HEIGHT * 2;
 	
 	// calculate viewport bounds with margin
 	const bounds = {
-		top: viewportMargin,
-		right: window.innerWidth - viewportMargin,
-		bottom: window.innerHeight - viewportMargin,
-		left: viewportMargin
+		top: VIEWPORT_MARGIN,
+		right: window.innerWidth - VIEWPORT_MARGIN,
+		bottom: window.innerHeight - VIEWPORT_MARGIN,
+		left: VIEWPORT_MARGIN
 	};
 	
 	// try positions in clockwise order
 	let labelPosition;
 	if (!shouldPlaceOutside) {
-		// 1. try inside top-right
+		// inside top-right
 		const insideTopRight = {
-			top: top + labelPadding,
-			left: left + rect.width - labelWidth - labelPadding
+			top: top - LABEL_PADDING - LABEL_HEIGHT,
+			left: left + rect.width - LABEL_WIDTH - LABEL_PADDING
 		};
 		if (insideTopRight.top >= bounds.top && 
-			insideTopRight.left + labelWidth <= bounds.right) {
+			insideTopRight.left + LABEL_WIDTH <= bounds.right && !context.isLabelAt(insideTopRight.left, insideTopRight.top)) {
 			labelPosition = insideTopRight;
 		}
 	}
+	if (!shouldPlaceOutside && !labelPosition) {
+		// inside bottom-left
+		const insideBottomLeft = {
+			top: top + rect.height - LABEL_HEIGHT - LABEL_PADDING,
+			left: left - LABEL_WIDTH - LABEL_PADDING
+		};
+		if (insideBottomLeft.top >= bounds.top &&
+			insideBottomLeft.left + LABEL_WIDTH <= bounds.right && !context.isLabelAt(insideBottomLeft.left, insideBottomLeft.top)) {
+			labelPosition = insideBottomLeft;
+		}
+	}
 	if (!labelPosition) {
-		// 2. try outside top-right
+		// outside top-right
 		const outsideTopRight = {
-			top: top - labelHeight - labelPadding,
-			left: left + rect.width - labelPadding - labelWidth
+			top: top - LABEL_HEIGHT - LABEL_PADDING,
+			left: left + rect.width - LABEL_PADDING - LABEL_WIDTH
 		};
 		if (outsideTopRight.top >= bounds.top &&
-			outsideTopRight.left + labelWidth <= bounds.right) {
+			outsideTopRight.left + LABEL_WIDTH <= bounds.right && !context.isLabelAt(outsideTopRight.left, outsideTopRight.top)) {
 			labelPosition = outsideTopRight;
 		}
 	}
 	if (!labelPosition) {
-		// 3. try outside bottom-right
+		// outside bottom-right
 		const outsideBottomRight = {
-			top: top + rect.height + labelPadding,
-			left: left + rect.width - labelPadding - labelWidth
+			top: top + rect.height + LABEL_PADDING,
+			left: left + rect.width - LABEL_PADDING - LABEL_WIDTH
 		};
-		if (outsideBottomRight.top + labelHeight <= bounds.bottom &&
-			outsideBottomRight.left + labelWidth <= bounds.right) {
+		if (outsideBottomRight.top + LABEL_HEIGHT <= bounds.bottom &&
+			outsideBottomRight.left + LABEL_WIDTH <= bounds.right && !context.isLabelAt(outsideBottomRight.left, outsideBottomRight.top)) {
 			labelPosition = outsideBottomRight;
+		}
+	}
+	if (!labelPosition) {
+		// outside bottom-left
+		const outsideBottomLeft = {
+			top: top + rect.height + LABEL_PADDING,
+			left: left - LABEL_WIDTH - LABEL_PADDING
+		};
+		if (outsideBottomLeft.top + LABEL_HEIGHT <= bounds.bottom &&
+			outsideBottomLeft.left >= bounds.left && !context.isLabelAt(outsideBottomLeft.left, outsideBottomLeft.top)) {
+			labelPosition = outsideBottomLeft;
 		}
 	}
 	if (!labelPosition) {
 		// fallback: place where it fits best while respecting viewport bounds
 		labelPosition = {
-			top: Math.min(bounds.bottom - labelHeight,
-				Math.max(bounds.top, top + labelPadding)),
-			left: Math.min(bounds.right - labelWidth,
-				Math.max(bounds.left, left + labelPadding))
+			top: Math.min(bounds.bottom - LABEL_HEIGHT,
+				Math.max(bounds.top, top + LABEL_PADDING)),
+			left: Math.min(bounds.right - LABEL_WIDTH,
+				Math.max(bounds.left, left + LABEL_PADDING))
 		};
 	}
-	
 	label.style.top = `${labelPosition.top}px`;
 	label.style.left = `${labelPosition.left}px`;
-	container.appendChild(label);
 	
-	element.setAttribute("bench-highlight-id", `bench-highlight-${index}`);
+	container.appendChild(overlay);
+	container.appendChild(label);
+	context.addLabel(label);
+	(element as HTMLElement).dataset[HIGHLIGHT_ID_KEY] = index.toString();
 }
 
 /**
@@ -375,28 +452,28 @@ function buildDomTree(
 	node: Node,
 	highlight: boolean,
 	iframe: HTMLIFrameElement | null,
-	highlightIndex: number,
-): [DomNode | null, number] {
+	context: HighlightContext,
+): DomNode | null {
 	if (node.nodeType === Node.TEXT_NODE) {
 		const textContent = node.textContent?.trim();
 		if (textContent && isTextNodeVisible(node as Text)) {
-			return [{
-				type: "TEXT_NODE",
+			return {
+				type: DomNodeType.TEXT,
 				text: textContent,
 				children: [],
 				attributes: {},
-			}, highlightIndex];
+			};
 		}
-		return [null, highlightIndex];
+		return null;
 	}
 	
 	if (node.nodeType === Node.ELEMENT_NODE) {
 		const element = node as Element;
-		if (!isElementIncluded(element)) return [null, highlightIndex];
+		if (!isElementIncluded(element)) return null;
 		
 		const nodeData: DomNode = {
-			type: "ELEMENT_NODE",
-			tagName: element.tagName.toLowerCase(),
+			type: DomNodeType.ELEMENT,
+			tag: element.tagName.toLowerCase(),
 			xpath: getXPath(element),
 			children: [],
 		};
@@ -423,23 +500,20 @@ function buildDomTree(
 		
 		// highlight
 		if (highlight && isInteractive && isVisible && isTop) {
-			nodeData.index = highlightIndex;
-			highlightElement(element, highlightIndex, iframe);
-			highlightIndex++;
+			context.highlightId++;
+			nodeData.id = context.highlightId;
+			highlightElement(element, context, iframe);
 		}
 		
 		// handle shadow roots
 		if (element.shadowRoot) {
 			nodeData.isShadowRoot = true;
-			let currentIndex = highlightIndex;
 			const shadowChildren: DomNode[] = [];
 			Array.from(element.shadowRoot.childNodes).forEach(child => {
-				const [childNode, newIndex] = buildDomTree(child, highlight, iframe, currentIndex);
+				const childNode = buildDomTree(child, highlight, iframe, context);
 				if (childNode) shadowChildren.push(childNode);
-				currentIndex = newIndex;
 			});
 			nodeData.children.push(...shadowChildren);
-			highlightIndex = currentIndex;
 		}
 		
 		// iframes
@@ -447,57 +521,54 @@ function buildDomTree(
 			try {
 				const iframeDoc = (element as HTMLIFrameElement).contentDocument;
 				if (iframeDoc && iframeDoc.body) {
-					let currentIndex = highlightIndex;
 					const iframeChildren: DomNode[] = [];
 					Array.from(iframeDoc.body.childNodes).forEach(child => {
-						const [childNode, newIndex] = buildDomTree(child, highlight, element as HTMLIFrameElement, currentIndex);
+						const childNode = buildDomTree(child, highlight, element as HTMLIFrameElement, context);
 						if (childNode) iframeChildren.push(childNode);
-						currentIndex = newIndex;
 					});
 					nodeData.children.push(...iframeChildren);
-					highlightIndex = currentIndex;
 				}
 			} catch {
 				// ignore iframe access errors
 			}
 		} else {
-			let currentIndex = highlightIndex;
 			const children: DomNode[] = [];
 			Array.from(node.childNodes).forEach(child => {
-				const [childNode, newIndex] = buildDomTree(child, highlight, iframe, currentIndex);
+				const childNode = buildDomTree(child, highlight, iframe, context);
 				if (childNode) children.push(childNode);
-				currentIndex = newIndex;
 			});
 			nodeData.children.push(...children);
-			highlightIndex = currentIndex;
 		}
 		
-		return [nodeData, highlightIndex];
+		return nodeData;
 	}
 	
-	return [null, highlightIndex];
+	return null;
 }
 
 /**
 * Extract the DOM tree from the current document's body.
 */
 function extractDocumentDomTree(highlight = true): DomNode | null {
-	const [tree] = buildDomTree(document.body, highlight, null, 0);
-	return tree;
+	return buildDomTree(document.body, highlight, null, makeHighlightContext(document.body));
 }
 
 /**
  * Clean up any highlights from the DOM.
  */
-function cleanupHighlights(): void {
+function cleanupHighlights(scope: 'container' | 'attribute' | 'all' = 'all'): void {
 	 // remove the highlight container and all its contents
-	 const container = document.getElementById(HIGHLIGHT_CONTAINER_ID);
-	 if (container) {
-		 container.remove();
+	 if (scope === 'container' || scope === 'all') {
+		 const container = document.getElementById(HIGHLIGHT_CONTAINER_ID);
+		 if (container) {
+			 container.remove();
+		 }
 	 }
-	 // remove highlight attributes from elements
-	 const highlightedElements = document.querySelectorAll('[bench-highlight-id^="bench-highlight-"]');
-	 highlightedElements.forEach(el => {
-		 el.removeAttribute('bench-highlight-id');
-	 });
+	 if (scope === 'attribute' || scope === 'all') {
+		// remove highlight attributes from elements
+		const highlightedElements = document.querySelectorAll(`[data-${HIGHLIGHT_ID_KEY}]`);
+		highlightedElements.forEach(el => {
+			delete (el as HTMLElement).dataset[HIGHLIGHT_ID_KEY];
+		});
+	}
 }

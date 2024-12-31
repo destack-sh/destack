@@ -1,3 +1,43 @@
+var DomNodeType;
+(function (DomNodeType) {
+    DomNodeType[DomNodeType["TEXT"] = 1] = "TEXT";
+    DomNodeType[DomNodeType["ELEMENT"] = 2] = "ELEMENT";
+})(DomNodeType || (DomNodeType = {}));
+var LABEL_WIDTH = 20;
+var LABEL_HEIGHT = 16;
+var LABEL_PADDING = 0;
+var VIEWPORT_MARGIN = 4;
+var HIGHLIGHT_ID_KEY = "benchHighlightId";
+var HighlightContext = (function () {
+    function HighlightContext(root) {
+        this.root = root;
+        this.highlightId = 0;
+        this.labels = [];
+        this.boundingRectByElement = new Map();
+    }
+    HighlightContext.prototype.addLabel = function (label) {
+        this.labels.push(label);
+        this.boundingRectByElement.set(label, label.getBoundingClientRect());
+    };
+    HighlightContext.prototype.isLabelAt = function (left, top) {
+        var _this = this;
+        return this.labels.some(function (label) {
+            var rect = _this.boundingRectByElement.get(label);
+            return ((left >= rect.left && left <= rect.right &&
+                top >= rect.top && top <= rect.bottom) ||
+                (left + LABEL_WIDTH >= rect.left && left + LABEL_WIDTH <= rect.right &&
+                    top >= rect.top && top <= rect.bottom) ||
+                (left >= rect.left && left <= rect.right &&
+                    top + LABEL_HEIGHT >= rect.top && top + LABEL_HEIGHT <= rect.bottom) ||
+                (left + LABEL_WIDTH >= rect.left && left + LABEL_WIDTH <= rect.right &&
+                    top + LABEL_HEIGHT >= rect.top && top + LABEL_HEIGHT <= rect.bottom));
+        });
+    };
+    return HighlightContext;
+}());
+function makeHighlightContext(element) {
+    return new HighlightContext(element);
+}
 var LEAF_DENY_LIST = new Set(["svg", "script", "style", "link", "meta"]);
 var INTERACTIVE_TAGS = new Set([
     "a",
@@ -83,7 +123,8 @@ function getHighlightColor(index) {
     var base = colors[index % colors.length];
     return { base: base, background: base + "1A" };
 }
-function highlightElement(element, index, iframe) {
+function highlightElement(element, context, iframe) {
+    var index = context.highlightId;
     var container = getHighlightContainer();
     var _a = getHighlightColor(index), base = _a.base, background = _a.background;
     var rect = element.getBoundingClientRect();
@@ -105,7 +146,6 @@ function highlightElement(element, index, iframe) {
     overlay.style.width = rect.width + "px";
     overlay.style.height = rect.height + "px";
     overlay.style.zIndex = "2147483641";
-    container.appendChild(overlay);
     var label = document.createElement("div");
     label.className = "bench-highlight-label";
     label.style.position = "absolute";
@@ -119,59 +159,77 @@ function highlightElement(element, index, iframe) {
     label.dataset.index = index.toString();
     label.style.zIndex = "2147483642";
     label.textContent = index.toString();
-    var labelWidth = 20;
-    var labelHeight = 16;
-    var labelPadding = 0;
-    var viewportMargin = 4;
-    var shouldPlaceOutside = rect.width < labelWidth * 3 ||
-        rect.height < labelHeight * 2;
+    var shouldPlaceOutside = rect.width < LABEL_WIDTH * 3 ||
+        rect.height < LABEL_HEIGHT * 2;
     var bounds = {
-        top: viewportMargin,
-        right: window.innerWidth - viewportMargin,
-        bottom: window.innerHeight - viewportMargin,
-        left: viewportMargin
+        top: VIEWPORT_MARGIN,
+        right: window.innerWidth - VIEWPORT_MARGIN,
+        bottom: window.innerHeight - VIEWPORT_MARGIN,
+        left: VIEWPORT_MARGIN
     };
     var labelPosition;
     if (!shouldPlaceOutside) {
         var insideTopRight = {
-            top: top + labelPadding,
-            left: left + rect.width - labelWidth - labelPadding
+            top: top - LABEL_PADDING - LABEL_HEIGHT,
+            left: left + rect.width - LABEL_WIDTH - LABEL_PADDING
         };
         if (insideTopRight.top >= bounds.top &&
-            insideTopRight.left + labelWidth <= bounds.right) {
+            insideTopRight.left + LABEL_WIDTH <= bounds.right && !context.isLabelAt(insideTopRight.left, insideTopRight.top)) {
             labelPosition = insideTopRight;
+        }
+    }
+    if (!shouldPlaceOutside && !labelPosition) {
+        var insideBottomLeft = {
+            top: top + rect.height - LABEL_HEIGHT - LABEL_PADDING,
+            left: left - LABEL_WIDTH - LABEL_PADDING
+        };
+        if (insideBottomLeft.top >= bounds.top &&
+            insideBottomLeft.left + LABEL_WIDTH <= bounds.right && !context.isLabelAt(insideBottomLeft.left, insideBottomLeft.top)) {
+            labelPosition = insideBottomLeft;
         }
     }
     if (!labelPosition) {
         var outsideTopRight = {
-            top: top - labelHeight - labelPadding,
-            left: left + rect.width - labelPadding - labelWidth
+            top: top - LABEL_HEIGHT - LABEL_PADDING,
+            left: left + rect.width - LABEL_PADDING - LABEL_WIDTH
         };
         if (outsideTopRight.top >= bounds.top &&
-            outsideTopRight.left + labelWidth <= bounds.right) {
+            outsideTopRight.left + LABEL_WIDTH <= bounds.right && !context.isLabelAt(outsideTopRight.left, outsideTopRight.top)) {
             labelPosition = outsideTopRight;
         }
     }
     if (!labelPosition) {
         var outsideBottomRight = {
-            top: top + rect.height + labelPadding,
-            left: left + rect.width - labelPadding - labelWidth
+            top: top + rect.height + LABEL_PADDING,
+            left: left + rect.width - LABEL_PADDING - LABEL_WIDTH
         };
-        if (outsideBottomRight.top + labelHeight <= bounds.bottom &&
-            outsideBottomRight.left + labelWidth <= bounds.right) {
+        if (outsideBottomRight.top + LABEL_HEIGHT <= bounds.bottom &&
+            outsideBottomRight.left + LABEL_WIDTH <= bounds.right && !context.isLabelAt(outsideBottomRight.left, outsideBottomRight.top)) {
             labelPosition = outsideBottomRight;
         }
     }
     if (!labelPosition) {
+        var outsideBottomLeft = {
+            top: top + rect.height + LABEL_PADDING,
+            left: left - LABEL_WIDTH - LABEL_PADDING
+        };
+        if (outsideBottomLeft.top + LABEL_HEIGHT <= bounds.bottom &&
+            outsideBottomLeft.left >= bounds.left && !context.isLabelAt(outsideBottomLeft.left, outsideBottomLeft.top)) {
+            labelPosition = outsideBottomLeft;
+        }
+    }
+    if (!labelPosition) {
         labelPosition = {
-            top: Math.min(bounds.bottom - labelHeight, Math.max(bounds.top, top + labelPadding)),
-            left: Math.min(bounds.right - labelWidth, Math.max(bounds.left, left + labelPadding))
+            top: Math.min(bounds.bottom - LABEL_HEIGHT, Math.max(bounds.top, top + LABEL_PADDING)),
+            left: Math.min(bounds.right - LABEL_WIDTH, Math.max(bounds.left, left + LABEL_PADDING))
         };
     }
     label.style.top = labelPosition.top + "px";
     label.style.left = labelPosition.left + "px";
+    container.appendChild(overlay);
     container.appendChild(label);
-    element.setAttribute("bench-highlight-id", "bench-highlight-" + index);
+    context.addLabel(label);
+    element.dataset[HIGHLIGHT_ID_KEY] = index.toString();
 }
 function getXPath(element, stopAtBoundary) {
     if (stopAtBoundary === void 0) { stopAtBoundary = true; }
@@ -261,28 +319,28 @@ function isTextNodeVisible(textNode) {
     var rect = range.getBoundingClientRect();
     return rect.width !== 0 && rect.height !== 0;
 }
-function buildDomTree(node, highlight, iframe, highlightIndex) {
+function buildDomTree(node, highlight, iframe, context) {
     var _a, _b, _c;
     var _d, _e;
     if (node.nodeType === Node.TEXT_NODE) {
         var textContent = (_d = node.textContent) === null || _d === void 0 ? void 0 : _d.trim();
         if (textContent && isTextNodeVisible(node)) {
-            return [{
-                    type: "TEXT_NODE",
-                    text: textContent,
-                    children: [],
-                    attributes: {}
-                }, highlightIndex];
+            return {
+                type: DomNodeType.TEXT,
+                text: textContent,
+                children: [],
+                attributes: {}
+            };
         }
-        return [null, highlightIndex];
+        return null;
     }
     if (node.nodeType === Node.ELEMENT_NODE) {
         var element_1 = node;
         if (!isElementIncluded(element_1))
-            return [null, highlightIndex];
+            return null;
         var nodeData = {
-            type: "ELEMENT_NODE",
-            tagName: element_1.tagName.toLowerCase(),
+            type: DomNodeType.ELEMENT,
+            tag: element_1.tagName.toLowerCase(),
             xpath: getXPath(element_1),
             children: []
         };
@@ -304,70 +362,65 @@ function buildDomTree(node, highlight, iframe, highlightIndex) {
         nodeData.isVisible = isVisible;
         nodeData.isTop = isTop;
         if (highlight && isInteractive && isVisible && isTop) {
-            nodeData.index = highlightIndex;
-            highlightElement(element_1, highlightIndex, iframe);
-            highlightIndex++;
+            context.highlightId++;
+            nodeData.id = context.highlightId;
+            highlightElement(element_1, context, iframe);
         }
         if (element_1.shadowRoot) {
             nodeData.isShadowRoot = true;
-            var currentIndex_1 = highlightIndex;
             var shadowChildren_1 = [];
             Array.from(element_1.shadowRoot.childNodes).forEach(function (child) {
-                var _a = buildDomTree(child, highlight, iframe, currentIndex_1), childNode = _a[0], newIndex = _a[1];
+                var childNode = buildDomTree(child, highlight, iframe, context);
                 if (childNode)
                     shadowChildren_1.push(childNode);
-                currentIndex_1 = newIndex;
             });
             (_a = nodeData.children).push.apply(_a, shadowChildren_1);
-            highlightIndex = currentIndex_1;
         }
         if (element_1.tagName === "IFRAME") {
             try {
                 var iframeDoc = element_1.contentDocument;
                 if (iframeDoc && iframeDoc.body) {
-                    var currentIndex_2 = highlightIndex;
                     var iframeChildren_1 = [];
                     Array.from(iframeDoc.body.childNodes).forEach(function (child) {
-                        var _a = buildDomTree(child, highlight, element_1, currentIndex_2), childNode = _a[0], newIndex = _a[1];
+                        var childNode = buildDomTree(child, highlight, element_1, context);
                         if (childNode)
                             iframeChildren_1.push(childNode);
-                        currentIndex_2 = newIndex;
                     });
                     (_b = nodeData.children).push.apply(_b, iframeChildren_1);
-                    highlightIndex = currentIndex_2;
                 }
             }
             catch (_f) {
             }
         }
         else {
-            var currentIndex_3 = highlightIndex;
             var children_1 = [];
             Array.from(node.childNodes).forEach(function (child) {
-                var _a = buildDomTree(child, highlight, iframe, currentIndex_3), childNode = _a[0], newIndex = _a[1];
+                var childNode = buildDomTree(child, highlight, iframe, context);
                 if (childNode)
                     children_1.push(childNode);
-                currentIndex_3 = newIndex;
             });
             (_c = nodeData.children).push.apply(_c, children_1);
-            highlightIndex = currentIndex_3;
         }
-        return [nodeData, highlightIndex];
+        return nodeData;
     }
-    return [null, highlightIndex];
+    return null;
 }
 function extractDocumentDomTree(highlight) {
     if (highlight === void 0) { highlight = true; }
-    var tree = buildDomTree(document.body, highlight, null, 0)[0];
-    return tree;
+    return buildDomTree(document.body, highlight, null, makeHighlightContext(document.body));
 }
-function cleanupHighlights() {
-    var container = document.getElementById(HIGHLIGHT_CONTAINER_ID);
-    if (container) {
-        container.remove();
+function cleanupHighlights(scope) {
+    if (scope === void 0) { scope = 'all'; }
+    if (scope === 'container' || scope === 'all') {
+        var container = document.getElementById(HIGHLIGHT_CONTAINER_ID);
+        if (container) {
+            container.remove();
+        }
     }
-    var highlightedElements = document.querySelectorAll('[bench-highlight-id^="bench-highlight-"]');
-    highlightedElements.forEach(function (el) {
-        el.removeAttribute('bench-highlight-id');
-    });
+    if (scope === 'attribute' || scope === 'all') {
+        var highlightedElements = document.querySelectorAll("[data-" + HIGHLIGHT_ID_KEY + "]");
+        highlightedElements.forEach(function (el) {
+            delete el.dataset[HIGHLIGHT_ID_KEY];
+        });
+    }
 }

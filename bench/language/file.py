@@ -824,6 +824,7 @@ async def upload_batch(
         ), f"unexpected handles: {len(upload_rep.handles)} != {len(files)}"
         handles_by_id = {h.file.id: h for h in upload_rep.handles}
         del upload_rep
+        logger.trace("file.upload_batch.prepare", files=files, span="current")
 
     # upload files
     async with aiohttp.ClientSession() as http_session:
@@ -846,6 +847,8 @@ async def upload_batch(
                     resp.raise_for_status()
                 file._cached_content = file_content
                 file._cached_get_url = handle.get_url
+                logger.debug("file.upload", file=file, url=file._cached_get_url, span="current")
+    logger.debug("file.upload_batch", files=files, span="current")
 
 
 @tracer.start_as_current_span("file.download_batch")
