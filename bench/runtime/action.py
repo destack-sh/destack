@@ -380,7 +380,10 @@ class ApplicationActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
 class ObserveActionRunner(ActionRunnerBase[ObserveAction]):
     @override
     async def run(self) -> None:
-        raise NotImplementedError("nocheckin")
+        browser = self._get_resource_or_error(Browser)
+        pw_browser = await self.runtime.playwright.get_client(browser)
+        pw_page = pw_browser.pages[0]
+        await pw_page.screenshot(full_page=False, animations="disabled")
 
 
 class ClickActionRunner(ApplicationActionRunnerBase[ClickAction]):
@@ -445,7 +448,9 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunnerBase[Any]]] = {
     ActionType.EXTRACT: DynamicActionRunner,
     ActionType.ROUTE: DynamicActionRunner,
     # application
+    ActionType.OBSERVE: ObserveActionRunner,
+    ActionType.CLICK: ClickActionRunner,
+    # web
     ActionType.GO_TO_URL: GoToUrlActionRunner,
     ActionType.GO_TO_TAB: GoToTabActionRunner,
-    ActionType.CLICK: ClickActionRunner,
 }

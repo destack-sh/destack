@@ -4654,12 +4654,14 @@ class RouteActionData(_message.Message):
     def __init__(self) -> None: ...
 
 class ObserveActionData(_message.Message):
-    __slots__ = ("exclude_image", "image_ptr")
+    __slots__ = ("exclude_image", "image_ptr", "dom")
     EXCLUDE_IMAGE_FIELD_NUMBER: _ClassVar[int]
     IMAGE_PTR_FIELD_NUMBER: _ClassVar[int]
+    DOM_FIELD_NUMBER: _ClassVar[int]
     exclude_image: bool
     image_ptr: NodeReferenceData
-    def __init__(self, exclude_image: bool = ..., image_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    dom: DomNodeData
+    def __init__(self, exclude_image: bool = ..., image_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., dom: _Optional[_Union[DomNodeData, _Mapping]] = ...) -> None: ...
 
 class ClickActionData(_message.Message):
     __slots__ = ("xpath",)

@@ -27,30 +27,32 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value, interact: () => toggle() });
 </script>
 <template>
-  <button
-    v-if="!isMinimal"
-    role="switch"
-    :disabled="isDisabled || !isInput"
-    class="relative inline-flex h-5 w-12 flex-shrink-0 cursor-pointer rounded border border-gray-200 transition-colors duration-75 ease-in-out focus:outline-none"
-    :class="modelValue ? 'bg-gray-700' : 'bg-gray-100'"
-    @click.stop="toggle"
-  >
+  <div class="flex flex-row items-center justify-end">
     <!-- Toggle -->
-    <span
-      class="inline-block h-[18px] w-5 transform rounded-sm border border-gray-200 bg-white transition duration-75 ease-in-out"
-      :class="modelValue ? 'translate-x-[26px]' : 'translate-x-0'"
-    />
-  </button>
-  <button
-    v-else
-    class="h-5 w-5 rounded border border-gray-200 bg-white p-[1px] transition-colors duration-75"
-    :disabled="isDisabled || !isInput"
-    @click.stop="toggle"
-  >
+    <button
+      v-if="!isMinimal"
+      role="switch"
+      :disabled="isDisabled || !isInput"
+      class="relative inline-flex h-5 w-12 flex-shrink-0 cursor-pointer rounded border border-gray-200 transition-colors duration-75 ease-in-out focus:outline-none"
+      :class="modelValue ? 'bg-gray-700' : 'bg-gray-100'"
+      @click.stop="toggle"
+    >
+      <span
+        class="inline-block h-[18px] w-5 transform rounded-sm border border-gray-200 bg-white transition duration-75 ease-in-out"
+        :class="modelValue ? 'translate-x-[26px]' : 'translate-x-0'"
+      />
+    </button>
     <!-- Checkbox -->
-    <span
-      class="inline-block h-full w-full rounded transition-colors duration-75"
-      :class="modelValue ? 'bg-gray-700' : ''"
-    />
-  </button>
+    <button
+      v-else
+      class="h-5 w-5 rounded border border-gray-200 bg-white p-[1px] transition-colors duration-75"
+      :disabled="isDisabled || !isInput"
+      @click.stop="toggle"
+    >
+      <span
+        class="inline-block h-full w-full rounded transition-colors duration-75"
+        :class="modelValue ? 'bg-gray-700' : ''"
+      />
+    </button>
+  </div>
 </template>

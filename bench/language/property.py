@@ -385,6 +385,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 default=None,
                 reference_source=self,
                 constraint=self.constraint,
+                field_type=self.field_type,
             )
             self.reference_stored_props = (property_ptr,)
             self.reference_wired_ptr = property_ptr
@@ -459,6 +460,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 default=None,
                 primitive_type=None,
                 constraint=self.constraint,
+                field_type=self.field_type,
             )
             if (
                 self.reference_kind == ReferenceKind.NODE_ANCESTOR

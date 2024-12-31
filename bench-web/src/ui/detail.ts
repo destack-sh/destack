@@ -503,7 +503,10 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
         Object.values(subpropertyEnum)
           .filter((v) => typeof v == "number")
           .forEach((subproperty) => {
-            commonRows.push(rowProperty(subproperty as any));
+            const { prop } = property(subproperty as any);
+            if (prop != null && prop.fieldType != FieldType.OUTPUT) {
+              commonRows.push(rowProperty(subproperty));
+            }
           });
       }
     }

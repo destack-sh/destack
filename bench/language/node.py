@@ -7,6 +7,7 @@ from collections import defaultdict
 from dataclasses import InitVar
 from datetime import datetime
 from enum import IntEnum
+from itertools import chain
 from sys import intern
 from typing import (
     TYPE_CHECKING,
@@ -1857,15 +1858,15 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                         raise ValueError(f"missing required property: {prop!r}")
                 self._do_set(prop.name, prop_value, track=False, validate=False)
 
-    def __content_str__(self) -> str:
-        # default __content_str__ for Nodes with all set properties (incl. subtypes)
+    def __default_content_str__(self) -> str:
+        """Default __content_str__ for Nodes with all set properties (incl. subtypes)."""
         value_strs = []
         properties = self.__declared_properties__.values()
         if self.__has_subtypes__:
             subtype = self.__dict__["type"]
             subtype_cls = self.__subclass_by_subtype__.get(subtype)
             if subtype_cls is not None:
-                properties = subtype_cls.__subtype_extra_properties__.values()
+                properties = chain(properties, subtype_cls.__subtype_extra_properties__.values())
         for prop in properties:
             if (
                 prop.id is UNSET
@@ -1880,10 +1881,14 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             if (
                 prop_value is None
                 or (isinstance(prop_value, Sequence) and not prop_value)
-                or prop_value == prop.default
+                or (
+                    not isinstance(prop.default, BuiltinObject)
+                    and type(prop_value) is type(prop.default)
+                    and prop_value == prop.default
+                )
             ):
                 continue
-            if prop.is_enum:
+            elif prop.is_enum:
                 if prop.is_list:
                     prop_value_str = "|".join(p.bench_name for p in prop_value)
                 else:

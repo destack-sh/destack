@@ -1,7 +1,5 @@
 import abc
 from datetime import datetime
-from enum import Enum
-from itertools import chain
 from typing import TYPE_CHECKING, Any, Optional, Self, TypeVar, Union
 from uuid import UUID
 
@@ -10,7 +8,6 @@ from bench.language.const import (
     ClientType,
     EnumType,
     NodeType,
-    ReferenceKind,
     Region,
     StructType,
     active_session,
@@ -22,6 +19,7 @@ from bench.language.node import (
     BenchNode,
     ClientOrigin,
     HasTracingContext,
+    Node,
     Owner,
     SourceNode,
     node_,
@@ -263,24 +261,7 @@ class Resource[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContext, 
     active_at: Optional[datetime] = p_system(45, default=None)
 
     def __content_str__(self):
-        value_strs: list[str] = []
-        for prop in chain(
-            Resource.__declared_properties__.values(),
-            self.__declared_properties__.values(),
-        ):
-            if (
-                prop.name == "name"
-                or prop.name == "parent"
-                or prop.reference_kind == ReferenceKind.NODE_CHILDREN
-                or prop.is_sensitive
-            ):
-                continue
-            value = getattr(self, prop.name)
-            if value:
-                if isinstance(value, Enum):
-                    value = value.name
-                value_strs.append(f"{prop.name}={value}")
-        return ", ".join(value_strs)
+        return Node.__default_content_str__(self)
 
     def _get_target_diff(self, *keys: str) -> dict[str, Any]:
         """

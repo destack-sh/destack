@@ -17,7 +17,7 @@ from .bench import (
     StaticResource,
 )
 from .block import Block
-from .browser import Browser, BrowserType
+from .browser import Browser, BrowserType, DomNode
 from .code import Code, CodeLine, CodeType, code
 from .connection import (
     AggregateConnection,
@@ -224,6 +224,7 @@ __all__ = [
     "Continue",
     "CustomObject",
     "Dependency",
+    "DomNode",
     "DynamicResource",
     "Edit",
     "EditContext",
