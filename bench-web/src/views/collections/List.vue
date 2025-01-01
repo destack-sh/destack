@@ -7,6 +7,7 @@ import { EMPTY_SCOPE, propertyReference, TypedNodeReferenceData } from "@/proto/
 import { BENCH_SCOPE } from "@/system/client";
 import { useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
+import { CONTEXT_ACTIONS_BY_TYPE, getAction, isActionEnabled } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
@@ -27,6 +28,9 @@ const state = canvas.registerView(self, id);
 // filter
 const nodeType = useSubnodeProperty(NodeType.VIEW, ViewType.LIST, toRef(props, "subnodePacked"), "queryNodeType");
 const filter = useSubnodeProperty(NodeType.VIEW, ViewType.LIST, toRef(props, "subnodePacked"), "filter");
+const nodeActions = computed(() =>
+  nodeType.value != null ? CONTEXT_ACTIONS_BY_TYPE[nodeType.value]?.map(getAction) : [],
+);
 
 // search
 const DEFAULT_SORT = makeExpression({
@@ -82,7 +86,7 @@ defineExpose<ViewExposed & { total: Ref<number | undefined>; roots: Ref<AnyNodeD
         }"
         data-suppress-drag="select"
         role="button"
-        @click="canvas.goToNode(node)"
+        @click.stop="canvas.goToNode(node)"
       >
         <!-- Icon -->
         <IconInline
@@ -92,6 +96,18 @@ defineExpose<ViewExposed & { total: Ref<number | undefined>; roots: Ref<AnyNodeD
         <span class="max-w-full select-none truncate">{{ getNodeName(node) ?? "???" }}</span>
         <!-- Metadata -->
         <NodeMetadata class="ml-1.5" size="regular" :node="node" />
+        <!-- Actions -->
+        <div class="ml-auto flex flex-row gap-x-1">
+          <button
+            v-for="action of nodeActions?.filter((a) => isActionEnabled(a, { nodes: [node] }))"
+            :key="action.id"
+            v-tooltip="{ small: true, text: action.title, group: 'list.item' }"
+            class="rounded-sm px-1 py-0.5 text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/node:opacity-100"
+            @click.stop="(e) => action.action?.(action, { event: e, nodes: [node] })"
+          >
+            <IconInline v-bind="action.icon" />
+          </button>
+        </div>
       </li>
       <!-- Empty -->
       <div

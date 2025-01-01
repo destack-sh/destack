@@ -62,24 +62,28 @@ export const DEBUG_ACTIONS = provideActions<"debug">({
   },
   // toast
   "debug.toast.info": {
+    isEnabled: isDeveloperMode,
     icon: "fas fa-info-circle",
     title: "Info",
     text: "Show an info toast",
     action: () => testToast(ToastLevel.INFO),
   },
   "debug.toast.debug": {
+    isEnabled: isDeveloperMode,
     icon: "fas fa-bug",
     title: "Debug",
     text: "Show a debug toast",
     action: () => testToast(ToastLevel.DEBUG),
   },
   "debug.toast.error": {
+    isEnabled: isDeveloperMode,
     icon: "fas fa-exclamation-triangle",
     title: "Error",
     text: "Show an error toast",
     action: () => testToast(ToastLevel.ERROR),
   },
   "debug.toast.success": {
+    isEnabled: isDeveloperMode,
     icon: "fas fa-check-circle",
     title: "Success",
     text: "Show a success toast",

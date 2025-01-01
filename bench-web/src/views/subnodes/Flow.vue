@@ -158,7 +158,7 @@ function pushPopover(popover: PopoverInfoIn, e?: MouseEvent | KeyboardEvent) {
     ...popover,
   });
 }
-const implementedActions: Partial<ActionMapImplementation<"flow" | "space" | "session">> = {
+const implementedActions: Partial<ActionMapImplementation<"flow" | "space" | "runtime">> = {
   // edit
   "space.edit.rename": () => {
     nameRef.value?.focusIdentifier();
