@@ -13,7 +13,7 @@ import {
   RunnableNodeType,
   type RunnableObject,
 } from "@/language/session";
-import { type Transaction } from "@/language/transaction";
+import { newChangeId, type Transaction } from "@/language/transaction";
 import {
   BlockData,
   ChangeCategory,
@@ -238,10 +238,12 @@ export class Runtime {
       variablesPacked?: Record<string, any>;
       inputsPacked?: Record<string, any>;
       benchPtr?: NodeReferenceData;
+      tx?: Transaction;
     },
   ): RunData {
+    const tx = options?.tx ?? this.tx;
     const run = makeRun(this.graph, runnable, options);
-    this.tx.create(run);
+    tx.create(run);
     if (options?.focus) {
       spaceConnection.tx.update(space.value!, { runPtr: toNodeRef(run) });
     }
@@ -250,39 +252,42 @@ export class Runtime {
   }
 
   /** Pause a Run. */
-  pause(run: RunData) {
+  pause(run: RunData, options?: { tx?: Transaction }) {
     if (!isRunActive(run)) return;
     log.trace("runtime.pause", run);
-    this.tx.update(run, { pausedAt: Timestamp.now() });
+    const tx = options?.tx ?? this.tx;
+    tx.update(run, { pausedAt: Timestamp.now() });
   }
 
   /** Resume a Run. */
-  resume(run: RunData) {
+  resume(run: RunData, options?: { tx?: Transaction }) {
     if (run.status != RunStatus.PAUSED) return;
     log.trace("runtime.resume", run);
-    this.tx.update(run, { resumedAt: Timestamp.now() });
+    const tx = options?.tx ?? this.tx;
+    tx.update(run, { resumedAt: Timestamp.now() });
   }
 
   /** Stop a Run. */
-  stop(run: RunData) {
+  stop(run: RunData, options?: { tx?: Transaction }) {
     if (!isRunActive(run)) return;
     log.trace("runtime.stop", run);
-    this.tx.update(run, { stoppedAt: Timestamp.now() });
+    const tx = options?.tx ?? this.tx;
+    tx.update(run, { stoppedAt: Timestamp.now() });
   }
 
   /** Complete an Interrupt */
-  complete(interrupt: InterruptionData) {
+  complete(interrupt: InterruptionData, options?: { tx?: Transaction }) {
     if (interrupt.status != InterruptionStatus.OPEN) return;
     log.trace("runtime.complete", interrupt);
-    const tx = this.tx;
+    const tx = options?.tx ?? this.tx;
     tx.update(interrupt, { status: InterruptionStatus.COMPLETED, closedAt: Timestamp.now() }, { debounce: "tick" });
   }
 
   /*+ Cancel an Interrupt */
-  cancel(interrupt: InterruptionData) {
+  cancel(interrupt: InterruptionData, options?: { tx?: Transaction }) {
     if (interrupt.status != InterruptionStatus.OPEN) return;
     log.trace("runtime.cancel", interrupt);
-    const tx = this.tx;
+    const tx = options?.tx ?? this.tx;
     tx.update(interrupt, { status: InterruptionStatus.CANCELLED, closedAt: Timestamp.now() }, { debounce: "tick" });
   }
 }
@@ -421,28 +426,72 @@ export function getInterruptActions(interrupt: InterruptionData): RuntimeAction[
   return actions;
 }
 
-// session
-declareActions<"session">({
-  // session
-  "session.run.start": {
+// runtime
+declareActions<"runtime">({
+  // run
+  "runtime.run.start": {
     icon: "fas fa-play",
     title: "Run",
-    text: "Run this node",
+    text: "Start this Run",
     shortcuts: ["ctrl+r", "meta+enter"],
   },
-  "session.run.pause": {
+  "runtime.run.pause": {
     icon: "fas fa-pause",
     title: "Pause",
-    text: "Pause this node",
+    text: "Pause this Run",
+    isEnabled: (action, context) =>
+      context?.nodes?.every((n) => isNode(n, NodeType.RUN)) && context?.nodes?.some((n) => isRunActive(n as RunData)),
+    action: (action, context) => {
+      const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Pause" } });
+      context?.nodes?.filter((n) => isRunActive(n as RunData)).forEach((n) => runtime.pause(n as RunData, { tx }));
+    },
   },
-  "session.run.resume": {
+  "runtime.run.resume": {
     icon: "fas fa-play",
     title: "Resume",
-    text: "Resume this node",
+    text: "Resume this Run",
+    isEnabled: (action, context) =>
+      context?.nodes?.every((n) => isNode(n, NodeType.RUN)) && context?.nodes?.some((n) => isRunPaused(n as RunData)),
+    action: (action, context) => {
+      const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Resume" } });
+      context?.nodes?.filter((n) => isRunPaused(n as RunData)).forEach((n) => runtime.resume(n as RunData, { tx }));
+    },
   },
-  "session.run.kill": {
+  "runtime.run.kill": {
     icon: "fas fa-stop",
     title: "Kill",
-    text: "Kill this node",
+    text: "Kill this Run",
+    isEnabled: (action, context) =>
+      context?.nodes?.every((n) => isNode(n, NodeType.RUN)) && context?.nodes?.some((n) => isRunActive(n as RunData)),
+    action: (action, context) => {
+      const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Kill" } });
+      context?.nodes?.filter((n) => isRunActive(n as RunData)).forEach((n) => runtime.stop(n as RunData, { tx }));
+    },
+  },
+  // interrupt
+  "runtime.interrupt.resume": {
+    icon: "fas fa-check",
+    title: "Resume",
+    text: "Resume this Interruption",
+    isEnabled: (action, context) =>
+      context?.nodes?.every((n) => isNode(n, NodeType.INTERRUPTION)) &&
+      context?.nodes?.some((n) => n.status == InterruptionStatus.OPEN),
+    action: (action, context) => {
+      const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Resume" } });
+      context?.nodes
+        ?.filter((n) => (n as InterruptionData).status == InterruptionStatus.OPEN)
+        .forEach((n) => runtime.resume(n as RunData, { tx }));
+    },
+  },
+  "runtime.interrupt.cancel": {
+    icon: "fas fa-xmark",
+    title: "Cancel",
+    text: "Cancel this Interruption",
+    action: (action, context) => {
+      const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Cancel" } });
+      context?.nodes
+        ?.filter((n) => (n as InterruptionData).status == InterruptionStatus.OPEN)
+        .forEach((n) => runtime.cancel(n as InterruptionData, { tx }));
+    },
   },
 });

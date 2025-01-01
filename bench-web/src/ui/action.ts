@@ -1,4 +1,4 @@
-import { isResourceNodeType, isRuntimeNodeType } from "@/language/const";
+import { isResourceNodeType, isRuntimeNodeType, RESOURCE_NODE_TYPES } from "@/language/const";
 import { ReadNodeGraph } from "@/language/graph";
 import { NodeType, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
@@ -78,11 +78,13 @@ export const ACTION_BUILTIN_IDS = [
   "space.search.replaceInView",
   "space.search.findInSpace",
   "space.search.replaceInSpace",
-  // session
-  "session.run.start",
-  "session.run.pause",
-  "session.run.resume",
-  "session.run.kill",
+  // runtime
+  "runtime.run.start",
+  "runtime.run.pause",
+  "runtime.run.resume",
+  "runtime.run.kill",
+  "runtime.interrupt.resume",
+  "runtime.interrupt.cancel",
   // list
   "list.create.above",
   "list.create.below",
@@ -185,7 +187,7 @@ export type Action = {
   title: MaybeRef<string>;
   text: string | TextData;
   shortcuts?: KeySignature[]; // NOTE :Incomplete: define shortcuts in per-Space/User keymap?
-  isEnabled?: Ref<boolean> | ((action: Action, ctx?: ActionContext) => boolean);
+  isEnabled?: Ref<boolean> | ((action: Action, ctx?: ActionContext) => boolean | undefined);
   category: string;
   subcategory?: string;
   path: string;
@@ -318,7 +320,7 @@ export function isActionEnabled(action: Action, context?: ActionContext): boolea
   if (action.isEnabled == null) {
     return true;
   } else if (typeof action.isEnabled == "function") {
-    return action.isEnabled(action, context);
+    return action.isEnabled(action, context) ?? false;
   } else {
     return toValue(action.isEnabled);
   }
@@ -543,11 +545,13 @@ export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const RECORD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const ACTION_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
+export const RUN_CONTEXT_ACTIONS: ActionBuiltinId[] = ["runtime.run.pause", "runtime.run.resume", "runtime.run.kill"];
+export const INTERRUPTION_CONTEXT_ACTIONS: ActionBuiltinId[] = ["runtime.interrupt.resume", "runtime.interrupt.cancel"];
 export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["flow.edit.splitPipe"];
 export const RESOURCE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "resource.status.activate",
-  "resource.status.decommission",
   "resource.status.suspend",
+  "resource.status.decommission",
 ];
 
 export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]>> = {
@@ -555,7 +559,12 @@ export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]
   [NodeType.RECORD]: RECORD_CONTEXT_ACTIONS,
   [NodeType.ACTION]: ACTION_CONTEXT_ACTIONS,
   [NodeType.PIPE]: PIPE_CONTEXT_ACTIONS,
+  [NodeType.RUN]: RUN_CONTEXT_ACTIONS,
+  [NodeType.INTERRUPTION]: INTERRUPTION_CONTEXT_ACTIONS,
 };
+for (const nodeType of RESOURCE_NODE_TYPES) {
+  CONTEXT_ACTIONS_BY_TYPE[nodeType] = [...(CONTEXT_ACTIONS_BY_TYPE[nodeType] ?? []), ...RESOURCE_CONTEXT_ACTIONS];
+}
 
 /** Gets the base Actions for a Node. */
 export function getNodeActions(node: AnyNodeData): Action[] {
@@ -577,10 +586,6 @@ export function getNodeActions(node: AnyNodeData): Action[] {
   // general context actions
   if (CONTEXT_ACTIONS_BY_TYPE[nodeType] != null) {
     actions.push(...CONTEXT_ACTIONS_BY_TYPE[nodeType]!);
-  }
-  // resource actions
-  if (isResource) {
-    actions.push(...RESOURCE_CONTEXT_ACTIONS);
   }
   return actions.map(getAction);
 }

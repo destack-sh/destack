@@ -66,7 +66,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: "fas fa-play",
       title: "Run",
-      action: { items: menuActionsLike(["session.run*"], { context: undefined }) },
+      action: { items: menuActionsLike(["runtime.run*"], { context: undefined }) },
     },
     // extra
     menuItemFromAction("space.launch.discord"),
@@ -87,9 +87,7 @@ const BENCH_MENU_ITEMS = computed(() => {
 });
 
 const USER_MENU_ITEMS = computed(() => {
-  const items = [
-    menuItemFromAction("user.navigate.goToHome", { category: "primary" }),
-  ];
+  const items = [menuItemFromAction("user.navigate.goToHome", { category: "primary" })];
   if (isAuthenticated.value && !hasLocalBench.value) {
     items.push(menuItemFromAction("user.navigate.activate", { category: "primary" }));
   }
@@ -265,7 +263,7 @@ defineExpose<ViewExposed>({ self });
       <div
         v-if="runtime.focusedRun != null"
         role="button"
-        class="mx-2 flex cursor-pointer flex-row items-center gap-x-2.5 rounded py-1 pl-2 pr-2 hover:bg-gray-100"
+        class="group/run mx-2 flex cursor-pointer flex-row items-center gap-x-2.5 rounded py-1 pl-2 pr-2 hover:bg-gray-100"
         @click="runtime.focusedRun != null && canvas.goToNode(runtime.focusedRun)"
       >
         <NodeReference v-if="runtime.focusedRunTree.base" isLight size="regular" :node="runtime.focusedRunTree.base" />
@@ -278,7 +276,7 @@ defineExpose<ViewExposed>({ self });
             v-for="action in [...getRunActions(runtime.focusedRun), CLEAR_RUN_ACTION]"
             :key="action.title"
             v-tooltip="{ title: action.title, small: true, group: 'run' }"
-            class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            class="rounded px-1 text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/run:opacity-100"
             @click="action.action()"
           >
             <IconInline v-bind="action.icon" />
