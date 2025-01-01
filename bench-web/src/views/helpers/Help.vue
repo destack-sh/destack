@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
+import { getBaseFromNode, toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
-import { getRunBasePtr, isRunnable } from "@/language/session";
+import { isRunnable } from "@/language/session";
 import { HelpAspect, NodeType, Orientation, RunData, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
@@ -53,7 +53,7 @@ const selfRun: Ref<RunData | null> = computed(() => {
     return null;
   }
 });
-const runBasePtr = computed(() => (containingRun.value != null ? getRunBasePtr(containingRun.value) : nodePtr.value));
+const runBasePtr = computed(() => (containingRun.value != null ? getBaseFromNode(containingRun.value) : nodePtr.value));
 function start() {
   if (startRef.value != null) {
     startRef.value.start();

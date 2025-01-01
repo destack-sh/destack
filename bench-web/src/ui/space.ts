@@ -1,8 +1,7 @@
-import { HELPER_VIEW_TYPES, ROOT_VIEW_TYPES, toCamelName } from "@/language/const";
+import { getBaseFromNode, HELPER_VIEW_TYPES, ROOT_VIEW_TYPES, toCamelName } from "@/language/const";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
 import { cloneNode, cloneNodes, generateNodeName, makeNode, NodeIn, packSubnode, unpackSubnode } from "@/language/node";
 import { getOrderKey, updateOrder } from "@/language/order";
-import { getRunBasePtr } from "@/language/session";
 import {
   makeEdit,
   makeEditFromSubnode,
@@ -949,25 +948,21 @@ export class SpaceCanvas {
         .find((n) => n.type == BlockType.PAGE);
       if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
       const view = this.addView(
-        {
-          type: ViewType.PAGE,
-          nodePtr: toNodeRef(containingPage),
-          focus: makeSelection(nodePtr),
-          ...options?.props,
-        },
+        { type: ViewType.PAGE, nodePtr: toNodeRef(containingPage), focus: makeSelection(nodePtr), ...options?.props },
         { ifPresent: "upsertAndFocus", ...options },
       );
       this.inspect({ node: nodePtr, view });
-    } else if (isNode(node, NodeType.RUN)) {
-      // focus on source node, set as Space.run_ptr and open Run view in Help
-      const basePtr = getRunBasePtr(node);
+    } else if (isNode(node, NodeType.RUN) || isNode(node, NodeType.INTERRUPTION)) {
+      // focus on source node, set as Space.run_ptr and open containing Run view in Help
+      const basePtr = getBaseFromNode(node);
       const base = basePtr != null ? graph.get(basePtr) : null;
       if (base == null) {
         toaster.error({ title: "Cannot Open Node", text: `Cannot find base node for Run` });
         return;
       }
       this.goToNode(base, options);
-      this.tx().update(this.space.value!, { runPtr: toNodeRef(node) }, { debounce: "tick" });
+      const runPtr = isNode(node, NodeType.RUN) ? (node.rootPtr ?? toNodeRef(node)) : node.rootPtr;
+      this.tx().update(this.space.value!, { runPtr }, { debounce: "tick" });
       const helpView = this.findView({ type: ViewType.HELP });
       if (helpView != null) {
         this.tx().update(

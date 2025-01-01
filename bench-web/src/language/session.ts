@@ -67,14 +67,6 @@ export function isRunTerminal(run: RunData | RunSpanData | RunAttemptData): bool
   }
 }
 
-export function getRunBasePtr(run: RunData): NodeReferenceData | null {
-  return run.pipePtr ?? run.actionPtr ?? run.blockPtr ?? null;
-}
-
-export function getInterruptBasePtr(interrupt: InterruptionData): NodeReferenceData | null {
-  return interrupt.pipePtr ?? interrupt.actionPtr ?? interrupt.blockPtr ?? null;
-}
-
 /** Determine the type of run for some runnable object */
 export function getRunType(runnable: RunnableObject): RunType {
   if (isNode(runnable, NodeType.BLOCK)) {

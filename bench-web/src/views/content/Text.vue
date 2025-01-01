@@ -19,7 +19,7 @@ import { supergraph } from "@/system/globals";
 import { bench, canvas, pkgConnection, pkgGraph } from "@/system/space";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
-import { DEFAULT_MISSING_ICON, ICON_BY_NODE_TYPE, getNodeIcon } from "@/ui/icon";
+import { DEFAULT_MISSING_ICON, ICON_BY_NODE_TYPE, getNodeIcon, getNodeName } from "@/ui/icon";
 import { popPopover, pushPopover, trackHoverElementOnce, type PopoverInstance } from "@/ui/popover";
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
@@ -77,13 +77,6 @@ const mentionPtrs: Ref<NodeReferenceData[]> = computed(() => {
 const basePtrs = computed(() => mentionPtrs.value.map((ptr) => getBaseFromNodeReference(ptr)).filter((b) => b != null));
 const bases = supergraph.getManyRef(basePtrs);
 const mentions = supergraph.getManyRef(mentionPtrs);
-function resolveMention(mention: { id: string; ck: string; nodeType: NodeType }): AnyNodeData | null {
-  const node = supergraph.get(mention);
-  if (node != null) return node;
-  // find rich reference
-  const ref = mentionPtrs.value.find((r) => r.id == mention.id || r.ck == mention.ck) ?? null;
-  return ref as AnyNodeData | null;
-}
 
 function makeEditorState(text?: TextData, options?: { restoreSelection?: boolean }): EditorState {
   const doc = text != null ? mapTextToPmNode(text, undefined) : undefined;
@@ -165,6 +158,7 @@ function makeEditorView(): EditorView {
 /** Mini-component for PM mentions */
 class MentionView implements PmNodeView {
   dom: HTMLElement;
+  nodePtr: NodeReferenceData;
   iconDom: HTMLElement;
   nameDom: HTMLElement;
 
@@ -175,6 +169,11 @@ class MentionView implements PmNodeView {
     this.dom.dataset.nodeType = pmNode.attrs.nodePtr.nodeType;
     this.dom.dataset.nodeId = pmNode.attrs.nodePtr.id;
     this.dom.dataset.nodeCk = pmNode.attrs.nodePtr.ck;
+    this.nodePtr = {
+      ...pmNode.attrs.nodePtr,
+      nodeType: Number(pmNode.attrs.nodePtr.nodeType),
+      metatype: ObjectType.NODE_REFERENCE,
+    };
     this.iconDom = this.dom.appendChild(document.createElement("span"));
     this.iconDom.classList.add(
       "icon",
@@ -188,10 +187,10 @@ class MentionView implements PmNodeView {
     this.dom.addEventListener("click", async () => {
       // go to mention on alt-click
       if (IS_IN_ALT_MODE.value) {
-        canvas.goToNode(pmNode.attrs.nodePtr);
-      } else if (pmNode.attrs.nodePtr.nodeType == NodeType.FILE) {
+        canvas.goToNode(this.nodePtr);
+      } else if (this.nodePtr.nodeType == NodeType.FILE) {
         // open file on click
-        const download = downloadFile(pmNode.attrs.nodePtr);
+        const download = downloadFile(this.nodePtr);
         try {
           await download.completion.wait();
           if (download.getUrl.value == null) throw new Error(`missing GET url`);
@@ -199,7 +198,7 @@ class MentionView implements PmNodeView {
           log.error("text.file.download.error", download, e);
           toaster.error({
             title: "Download Failed",
-            text: `'${pmNode.attrs.nodePtr.title}': ${(e as any).message ?? "unknown error"}`,
+            text: `'${download.file.value?.name ?? "Unknown File"}': ${(e as any).message ?? "unknown error"}`,
           });
         }
         window.open(download.getUrl.value!, "_blank");
@@ -244,19 +243,18 @@ class MentionView implements PmNodeView {
       });
     }
 
-    const node = resolveMention(pmNode.attrs.nodePtr);
-    if (node != null) this.updateNode(node);
+    this.updateMention();
   }
 
-  updateNode(node: AnyNodeData) {
-    // nocheckin :DelegateNodes
-    const nodeType = isNodeRef(node) ? node.nodeType : node.metatype;
-    this.nameDom.textContent = (node as any).slug ?? (node as any).name ?? (node as any).title ?? "???";
-    const icon = getNodeIcon(node) ?? DEFAULT_MISSING_ICON;
+  updateMention() {
+    const nodePtr = this.nodePtr;
+    const node = supergraph.get(nodePtr);
+    this.nameDom.textContent = (node != null ? getNodeName(node) : null) ?? "???";
+    const icon = (node != null ? getNodeIcon(node) : null) ?? DEFAULT_MISSING_ICON;
     this.iconDom.className = icon?.faName != null ? `icon ${icon.faName}` : "icon fa fa-question";
     if (icon.color != null) this.iconDom.style.color = getColorHex(icon.color, ColorShade.S600)!;
     else this.iconDom.style.removeProperty("color");
-    this.dom.dataset.nodeType = NodeType[nodeType].toLowerCase();
+    this.dom.dataset.nodeType = nodePtr.nodeType.toString();
   }
 }
 
@@ -267,14 +265,9 @@ watch(
     if (view == null) return;
     view.dom.querySelectorAll(".mention").forEach((mentionDom) => {
       if (!(mentionDom instanceof HTMLElement)) return;
-      const node = resolveMention({
-        nodeType: Number.parseInt(mentionDom.dataset.nodeType!),
-        id: mentionDom.dataset.nodeId!,
-        ck: mentionDom.dataset.nodeCk!,
-      });
       const pmView = (mentionDom as any).__pmView as MentionView;
-      if (node == null || pmView == null) return;
-      pmView.updateNode(node);
+      if (pmView == null) return;
+      pmView.updateMention();
     });
   },
   { immediate: true },
