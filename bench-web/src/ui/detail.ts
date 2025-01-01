@@ -9,6 +9,7 @@ import {
 import {
   createField,
   getPropertyType,
+  getTypeName,
   makeTypeInfo,
   TypeIdentity,
   typeIsNumeric,
@@ -19,6 +20,7 @@ import { unpackSubnode } from "@/language/node";
 import {
   getTransactionOptionsForType,
   makeEditFromSubnode,
+  newChangeId,
   Transaction,
   TransactionOptions,
 } from "@/language/transaction";
@@ -56,8 +58,8 @@ import {
   ActionData,
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
-import { canvas } from "@/system/globals";
-import { ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
+import { canvas, supergraph } from "@/system/globals";
+import { getNodeName, ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
 import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
@@ -167,6 +169,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
       isDisabled?: boolean;
       default?: any;
       props?: Partial<ViewProps>;
+      extendWrite?: (tx: Transaction, newValue: any, options: TransactionOptions) => void;
     },
   ): DetailRow {
     if (typeof path == "number") path = [path];
@@ -222,17 +225,22 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
         return val ?? options?.default ?? prop.default;
       },
       write: (newValue) => {
-        const tx = txFactory();
-        const options: TransactionOptions = getTransactionOptionsForType(propType);
+        let tx = txFactory();
+        const txOptions: TransactionOptions = getTransactionOptionsForType(propType);
+        if (options?.extendWrite != null) {
+          if (tx.change?.key == null) {
+            tx = tx.with({ change: { key: newChangeId() } });
+          }
+        }
         if (path.length == 1) {
           if (!isSubnode) {
-            tx.update(node, { [rootPropKey]: newValue }, options);
+            tx.update(node, { [rootPropKey]: newValue }, txOptions);
           } else {
             tx.update(
               node,
               // @ts-expect-error this is fine, metatype/subtype can't be typed properly here
               makeEditFromSubnode(node, { metatype, type: subtype, subnode: { [rootPropKey]: newValue } }),
-              options,
+              txOptions,
             );
           }
         } else if (path.length == 2) {
@@ -242,12 +250,15 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
               ...(node as any)[rootPropKey],
               [propKeys[1]]: newValue,
             });
-            tx.update(node, { [rootPropKey]: newRootValue }, options);
+            tx.update(node, { [rootPropKey]: newRootValue }, txOptions);
           } else {
             throw new Error(`nested subnode property edit not yet implemented`);
           }
         } else {
           assertNever(path);
+        }
+        if (options?.extendWrite != null) {
+          options.extendWrite(tx, newValue, txOptions);
         }
       },
     };
@@ -255,16 +266,28 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
   }
 
   /** Type row */
-  function rowType(): DetailViewRow {
+  function rowType(options?: {
+    title?: string;
+    extendWrite?: (tx: Transaction, newValue: any) => void;
+  }): DetailViewRow {
     const row: DetailViewRow = {
       type: "view",
-      title: "Type",
+      title: options?.title ?? "Type",
       viewType: ViewType.PICKER,
       isFullWidth: false,
       viewProps: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO, isRequired: true }), isInput: true },
       read: () => node,
       write: (newType) => {
-        updateFieldType(txFactory(), graph, node as FieldData, newType);
+        let tx = txFactory();
+        if (options?.extendWrite != null) {
+          if (tx.change?.key == null) {
+            tx = tx.with({ change: { key: newChangeId() } });
+          }
+        }
+        updateFieldType(tx, graph, node as FieldData, newType);
+        if (options?.extendWrite != null) {
+          options.extendWrite(tx, newType);
+        }
       },
     };
     return row;
@@ -371,7 +394,17 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     if (node.type == FieldType.OPTION) {
       // color?
     } else {
-      commonRows.push(rowType());
+      commonRows.push(
+        rowType({
+          extendWrite: (tx, newType) => {
+            // also update field name if type changes
+            const name = getTypeName(newType);
+            if (name != null) {
+              tx.update(node, { name });
+            }
+          },
+        }),
+      );
       if (node.type != FieldType.VARIABLE) {
         const base = node.baseTypePtr != null ? graph.get(node.baseTypePtr) : null;
         commonRows.push(rowProperty(FieldProperty.isRequired, { title: "Required" }));
@@ -483,7 +516,19 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     if (node.type == ActionType.CODE) {
       commonRows.push(rowProperty(ActionProperty.code, { isFullWidth: true }));
     } else if (node.type == ActionType.DELEGATE) {
-      commonRows.push(rowProperty(ActionProperty.delegatePtr, { isFullWidth: false }));
+      commonRows.push(
+        rowProperty(ActionProperty.delegatePtr, {
+          isFullWidth: false,
+          extendWrite: (tx, newValue, options) => {
+            // also update node name if delegate changes
+            const delegate = newValue != null ? supergraph.get(newValue) : null;
+            const name = delegate != null ? getNodeName(delegate) : null;
+            if (name != null) {
+              tx.update(node, { name }, options);
+            }
+          },
+        }),
+      );
       const action = subnode as ActionData | undefined;
       // schema from delegate
       const delegatePtr = action?.delegatePtr;

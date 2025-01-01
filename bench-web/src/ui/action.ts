@@ -31,9 +31,7 @@ export const ACTION_BUILTIN_IDS = [
   "space.omnibar.space",
   "space.omnibar.views",
   "space.omnibar.view",
-  "space.launch.documentation",
   "space.launch.discord",
-  "space.launch.notifications",
   "space.launch.fullscreen",
   // history
   "space.history.undo",

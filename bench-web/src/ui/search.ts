@@ -48,6 +48,7 @@ import {
   DEFAULT_ENUM_ICON,
   DEFAULT_MISSING_ICON,
   getNodeIcon,
+  getNodeName,
   ICON_BY_TYPE_KIND,
   type IconMetadata,
 } from "@/ui/icon";
@@ -582,14 +583,7 @@ function nodeItemFromNode(
   if (node == null) return null;
 
   // 'title'
-  let title = (node as any).slug ?? (node as any).title ?? (node as any).name ?? ""; // :DelegateNodes
-  if (isNode(node, NodeType.VIEW) && node.nodePtr != null) {
-    // take title from wrapped node for node views :DelegateNodes
-    const referencedNode = graph.get(node.nodePtr);
-    if (referencedNode != null) {
-      title = (referencedNode as any).title ?? (referencedNode as any).name ?? "";
-    }
-  }
+  const title = getNodeName(node) ?? "";
 
   // compose path
   const pathParts = [];

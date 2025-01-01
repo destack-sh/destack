@@ -1237,6 +1237,7 @@ RUN_TABLE = Table(
         Column("stopped_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("interrupted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("interruption_id", PrimitiveType.UUID, is_nullable=True),
+        Column("interruption_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("resumed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),

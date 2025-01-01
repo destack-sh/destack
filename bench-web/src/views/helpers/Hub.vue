@@ -69,7 +69,6 @@ const BENCH_MENU_ITEMS = computed(() => {
       action: { items: menuActionsLike(["session.run*"], { context: undefined }) },
     },
     // extra
-    menuItemFromAction("space.launch.documentation"),
     menuItemFromAction("space.launch.discord"),
   ];
 
@@ -90,7 +89,6 @@ const BENCH_MENU_ITEMS = computed(() => {
 const USER_MENU_ITEMS = computed(() => {
   const items = [
     menuItemFromAction("user.navigate.goToHome", { category: "primary" }),
-    menuItemFromAction("space.launch.notifications", { category: "primary" }),
   ];
   if (isAuthenticated.value && !hasLocalBench.value) {
     items.push(menuItemFromAction("user.navigate.activate", { category: "primary" }));

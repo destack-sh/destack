@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { getBaseFromNodeReference } from "@/language/const";
 import { makeTypeInfo } from "@/language/field";
 import { downloadFile, prefetchFile, uploadFile } from "@/language/file";
 import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/language/text";
@@ -14,6 +15,7 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import { isNodeRef, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { supergraph } from "@/system/globals";
 import { bench, canvas, pkgConnection, pkgGraph } from "@/system/space";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
@@ -72,9 +74,11 @@ const mentionPtrs: Ref<NodeReferenceData[]> = computed(() => {
 });
 // TODO :Incomplete: some mentioned nodes may not be in package graph for Text
 //  (use supergraph? but when to load missing nodes?)
-const mentions = pkgGraph.getManyRef(mentionPtrs);
+const basePtrs = computed(() => mentionPtrs.value.map((ptr) => getBaseFromNodeReference(ptr)).filter((b) => b != null));
+const bases = supergraph.getManyRef(basePtrs);
+const mentions = supergraph.getManyRef(mentionPtrs);
 function resolveMention(mention: { id: string; ck: string; nodeType: NodeType }): AnyNodeData | null {
-  const node = pkgGraph.get(mention);
+  const node = supergraph.get(mention);
   if (node != null) return node;
   // find rich reference
   const ref = mentionPtrs.value.find((r) => r.id == mention.id || r.ck == mention.ck) ?? null;
@@ -245,11 +249,9 @@ class MentionView implements PmNodeView {
   }
 
   updateNode(node: AnyNodeData) {
-    // content
+    // nocheckin :DelegateNodes
     const nodeType = isNodeRef(node) ? node.nodeType : node.metatype;
-    this.nameDom.textContent = (node as any).slug ?? (node as any).name ?? (node as any).title ?? "???"; // :DelegateNodes
-
-    // style
+    this.nameDom.textContent = (node as any).slug ?? (node as any).name ?? (node as any).title ?? "???";
     const icon = getNodeIcon(node) ?? DEFAULT_MISSING_ICON;
     this.iconDom.className = icon?.faName != null ? `icon ${icon.faName}` : "icon fa fa-question";
     if (icon.color != null) this.iconDom.style.color = getColorHex(icon.color, ColorShade.S600)!;

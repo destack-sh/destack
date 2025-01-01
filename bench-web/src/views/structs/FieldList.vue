@@ -3,7 +3,7 @@ import { blockToType } from "@/language/block";
 import { toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField } from "@/language/field";
 import { useNodeListActions } from "@/ui/list";
-import { moveNode, onNodeMorphed } from "@/language/node";
+import { moveNode } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
 import { BlockType, FieldType, NodeType, Orientation, ViewData, type FieldData } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
@@ -89,7 +89,6 @@ function onDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | nu
       }
       if (node.type != props.fieldType) {
         tx.update(node, { type: props.fieldType ?? undefined }, { debounce: "tick" });
-        onNodeMorphed(tx, graph, node);
       }
     } else if (isNode(node, NodeType.BLOCK)) {
       // add field with block type

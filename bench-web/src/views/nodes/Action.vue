@@ -2,9 +2,24 @@
 import { SINK_ACTION_TYPES, toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { isRunActive } from "@/language/session";
-import { ColorShade, FailActionData, FieldType, NodeType, Orientation, PortSide, ActionType, ViewData } from "@/proto/wire";
+import {
+  ColorShade,
+  FailActionData,
+  FieldType,
+  NodeType,
+  Orientation,
+  PortSide,
+  ActionType,
+  ViewData,
+} from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { DEFAULT_TEXT_BY_ACTION_TYPE, FLOW_PORT_SIZE, getActionSides, ACTION_SIZE, useFlowContext } from "@/system/flow";
+import {
+  DEFAULT_TEXT_BY_ACTION_TYPE,
+  FLOW_PORT_SIZE,
+  getActionSides,
+  ACTION_SIZE,
+  useFlowContext,
+} from "@/system/flow";
 import { runtime } from "@/system/runtime";
 import { canvas } from "@/system/space";
 import { type ActionMapImplementation } from "@/ui/action";
@@ -12,6 +27,7 @@ import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn, pushDefaultMenu } from "@/ui/popover";
 import { getNodeColorHex, getRunColorHex } from "@/ui/style";
 import { focusInElement } from "@/ui/view";
+import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
@@ -113,7 +129,6 @@ defineExpose<ViewExposed>({ self, id, actions });
         height: ACTION_SIZE.height + 'px',
       }"
     >
-      <!-- NOTE :Incomplete: support :DelegateNodes -->
       <!-- Icon -->
       <div
         v-menu="
@@ -133,7 +148,11 @@ defineExpose<ViewExposed>({ self, id, actions });
           backgroundColor: getNodeColorHex(action, ColorShade.S300),
         }"
       >
-        <IconInline ref="iconRef" v-bind="getNodeIcon(action)" class="rounded text-center text-lg text-gray-700" />
+        <IconInline
+          ref="iconRef"
+          v-bind="getNodeIcon(action, { base: delegate })"
+          class="rounded text-center text-lg text-gray-700"
+        />
       </div>
       <!-- Main -->
       <div
@@ -166,6 +185,8 @@ defineExpose<ViewExposed>({ self, id, actions });
           >
             <i class="fas fa-arrow-up-right" />
           </button>
+          <!-- Metadata -->
+          <NodeMetadata :node="action" size="regular" />
           <!-- Controls/Meta -->
           <div class="ml-auto flex flex-row pl-2 pr-1.5">
             <!-- Run status -->

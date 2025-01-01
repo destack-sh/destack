@@ -158,6 +158,14 @@ export const HELPER_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 400 && 
 export const NAME_CONSTRAINT = BlockDataInfo[BlockProperty.name].constraint!;
 export const TITLE_CONSTRAINT = ViewDataInfo[ViewProperty.title].constraint!;
 
+/** Default base type for based Nodes */
+export const BASE_TYPE_BY_NODE_TYPE: Partial<Record<NodeType, NodeType>> = {
+  [NodeType.FIELD]: NodeType.BLOCK,
+  [NodeType.RECORD]: NodeType.BLOCK,
+  [NodeType.RUN]: NodeType.BLOCK,
+  [NodeType.MESSAGE]: NodeType.BLOCK,
+};
+
 /**
  * Gets the 'base' node defining a certain node. See :HasBase.
  */
@@ -166,10 +174,31 @@ export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
     return (node as RecordData).blockPtr ?? null;
   } else if (node.metatype == ObjectType.FIELD) {
     return (node as FieldData).parentPtr ?? null;
-  } else if (node.metatype == ObjectType.RUN) {
+  } else if (node.metatype == ObjectType.RUN || node.metatype == ObjectType.INTERRUPTION) {
     return (node as RunData).pipePtr ?? (node as RunData).actionPtr ?? (node as RunData).blockPtr ?? null;
   } else if (node.metatype == ObjectType.MESSAGE) {
     return (node as MessageData).blockPtr ?? null;
+  } else {
+    return null;
+  }
+}
+
+/**
+ * Gets the base reference from a node reference.
+ */
+export function getBaseFromNodeReference(nodeRef: NodeReferenceData): NodeReferenceData | null {
+  if (nodeRef.baseCk != null) {
+    // NOTE :Broken :Architecture: technically there could be multiple different base types for the references
+    //  (but right now we only use the node type to get the appropriate supergraph, and since all bases are source nodes,
+    //   it doesn't matter which base type we use - for now)
+    const baseType = BASE_TYPE_BY_NODE_TYPE[nodeRef.nodeType];
+    if (baseType == null) throw new Error(`no base type found for ${describeNode(nodeRef)}`);
+    return {
+      metatype: ObjectType.NODE_REFERENCE,
+      nodeType: baseType,
+      ck: nodeRef.baseCk,
+      benchId: nodeRef.baseBenchId ?? nodeRef.benchId,
+    };
   } else {
     return null;
   }
