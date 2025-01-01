@@ -18,30 +18,30 @@ const iconClass = computed(() => [
   props.size == "large" ? "w-5 text-base" : "",
   props.size == "title" ? "w-8 text-2xl" : "",
 ]);
-const identifierClass = computed(() => [
+const textClass = computed(() => [
   props.size == "regular" ? ["", props.isLight ? "" : ""] : "",
   props.size == "large" ? ["text-xl", props.isLight ? "font-medium" : "font-bold"] : "",
   props.size == "title" ? ["text-3xl", props.isLight ? "font-medium" : "font-bold"] : "",
 ]);
 </script>
 <template>
-  <span v-if="isResourceNodeType(node.metatype as any)">
-    <!-- Resource metadata -->
-    <span
-      class="fas fa-circle-small w-5 text-center"
-      :class="iconClass"
-      :style="{ color: getColorHex(COLOR_BY_RESOURCE_STATUS[(node as ResourceData).status]) }"
-    />
-  </span>
-  <span v-else-if="isNode(node, NodeType.RUN)">
-    <!-- Run metadata -->
-    <span
-      class="fas fa-circle-small w-5 text-center"
-      :class="iconClass"
-      :style="{ color: getColorHex(COLOR_BY_RUN_STATUS[node.status]) }"
-    />
-  </span>
-  <span v-else>
-    <!-- No metadata -->
-  </span>
+  <div>
+    <span v-if="isResourceNodeType(node.metatype as any)">
+      <!-- Resource metadata -->
+      <span
+        class="fas fa-circle-small w-5 text-center"
+        :class="iconClass"
+        :style="{ color: getColorHex(COLOR_BY_RESOURCE_STATUS[(node as ResourceData).status]) }"
+      />
+    </span>
+    <span v-else-if="isNode(node, NodeType.RUN)">
+      <!-- Run metadata -->
+      <span
+        class="fas fa-circle-small w-5 text-center"
+        :class="iconClass"
+        :style="{ color: getColorHex(COLOR_BY_RUN_STATUS[node.status]) }"
+      />
+    </span>
+    <!-- Node mode, ... -->
+  </div>
 </template>

@@ -7,7 +7,7 @@ import { supergraph } from "@/system/globals";
 import { canvas, spaceGraph } from "@/system/space";
 import { type Action, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";
-import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/ui/icon";
+import { getNodeName, ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 import Empty from "@/views/builtins/Empty.vue";
@@ -33,18 +33,12 @@ const id = toRef(props, "id");
 const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 const tabsNodes = supergraph.getManyRef(computed(() => tabs.value.map((t) => t.nodePtr).filter((n) => n != null)));
 const tabsNames = computed(() => {
-  // views with a nodePtr are named by the node name :DelegateNodes
   const tabsNames: string[] = [];
   for (let tabIdx = 0; tabIdx < tabs.value.length; tabIdx++) {
     const tab = tabs.value[tabIdx];
-    const tabNode = tabsNodes.value.find((n) => n.id == tab.nodePtr?.id);
-    if (tab.title) {
-      tabsNames.push(tab.title);
-    } else if (tab.nodePtr != null && (tabNode as any)?.name != null) {
-      tabsNames.push((tabNode as any)?.name ?? "???");
-    } else {
-      tabsNames.push(tab.name);
-    }
+    const base = tabsNodes.value.find((n) => n.id == tab.nodePtr?.id);
+    const name = getNodeName(tab, { base }) ?? "???";
+    tabsNames.push(name);
   }
   return tabsNames;
 });

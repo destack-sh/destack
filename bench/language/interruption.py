@@ -5,7 +5,14 @@ from git import TYPE_CHECKING
 
 from bench.language.const import EnumType, NodeType, ObjectKind, RunStatus, StructType, enum_
 from bench.language.field import TypeBase
-from bench.language.node import NodeReference, RuntimeNode, Struct, struct_, timed_node_
+from bench.language.node import (
+    HasNodeBase,
+    NodeReference,
+    RuntimeNode,
+    Struct,
+    struct_,
+    timed_node_,
+)
 from bench.language.property import (
     p_internal,
     p_node_ancestor,
@@ -16,11 +23,13 @@ from bench.language.property import (
 )
 from bench.language.trigger import Trigger
 from bench.language.value import CustomObject
-from bench.proto.wire.lang_pb2 import InterruptionData
+from bench.proto.wire import AnyNodeData
+from bench.proto.wire.lang_pb2 import InterruptionData, NodeReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import Action, Block, Pipe, Run
+    from bench.language.run import RunnableNode
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -128,7 +137,7 @@ class InterruptionStatus(IdEnum):
 
 
 @timed_node_(NodeType.INTERRUPTION)
-class Interruption(RuntimeNode[InterruptionData]):
+class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
     """An Interruption in the execution of a Run."""
 
     # meta
@@ -196,6 +205,34 @@ class Interruption(RuntimeNode[InterruptionData]):
         if runnable is None:
             return None
         return runnable.output_type
+
+    @property
+    def base_ptr(self) -> Optional["NodeReference"]:
+        if self.pipe_ptr is not None:
+            return self.pipe_ptr
+        elif self.action_ptr is not None:
+            return self.action_ptr
+        else:
+            return self.block_ptr
+
+    @property
+    def base(self) -> Optional["RunnableNode"]:
+        if self.pipe_ptr is not None:
+            return self.pipe
+        elif self.action_ptr is not None:
+            return self.action
+        else:
+            return self.block
+
+    @staticmethod
+    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
+        run_data = cast(InterruptionData, data)
+        if run_data.pipe_ptr.metatype != 0:
+            return cast(InterruptionData, data).pipe_ptr
+        elif run_data.action_ptr.metatype != 0:
+            return cast(InterruptionData, data).action_ptr
+        else:
+            return cast(InterruptionData, data).block_ptr
 
     @property
     def is_open(self) -> bool:

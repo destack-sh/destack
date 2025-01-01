@@ -20,6 +20,7 @@ import { supergraph } from "@/system/connection";
 import { autoloader } from "@/system/globals";
 import { canvas } from "@/system/space";
 import {
+  getNodeIcon,
   ICON_BY_BENCH_TYPE,
   ICON_BY_BLOCK_TYPE,
   ICON_BY_NODE_TYPE,
@@ -79,7 +80,7 @@ const baseType = supergraph.getRef(
 );
 const facetIcon = computed(() => {
   if (props.valueType?.kind == TypeKind.BASED_NODE && baseType.value != null) {
-    return ICON_BY_BLOCK_TYPE[baseType.value.type];
+    return getNodeIcon(baseType.value);
   } else if (props.valueType?.benchType != null) {
     return ICON_BY_BENCH_TYPE[props.valueType.benchType];
   } else if (props.valueType?.kind != null) {

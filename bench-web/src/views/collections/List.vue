@@ -8,7 +8,7 @@ import { BENCH_SCOPE } from "@/system/client";
 import { useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
-import { getNodeIcon, IconInline } from "@/ui/icon";
+import { getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -89,10 +89,7 @@ defineExpose<ViewExposed & { total: Ref<number | undefined>; roots: Ref<AnyNodeD
           v-bind="getNodeIcon(node)"
           class="mr-1.5 w-5 text-center text-gray-700 transition-colors duration-75"
         />
-        <span class="max-w-full select-none truncate">
-          <!-- nocheckin support :DelegateNodes (everywhere?) -->
-          {{ (node as any).slug ?? (node as any).title ?? (node as any).name ?? "???" }}
-        </span>
+        <span class="max-w-full select-none truncate">{{ getNodeName(node) ?? "???" }}</span>
         <!-- Metadata -->
         <NodeMetadata class="ml-1.5" size="regular" :node="node" />
       </li>

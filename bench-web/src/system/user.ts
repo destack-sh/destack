@@ -21,7 +21,7 @@ import {
   wrapProtoOneOf,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import local, { persistentInfo } from "@/system/client";
+import local, { benchPtr, persistentInfo } from "@/system/client";
 import { clearConnections, useGetConnection } from "@/system/connection";
 import { bench, canvas, goToBench } from "@/system/space";
 import { provideActions } from "@/ui/action";
@@ -238,9 +238,13 @@ provideActions<"user">({
   },
   "user.navigate.goToHome": {
     icon: "fas fa-home",
-    isEnabled: isActivated,
     title: "Go Home",
     text: "Go back to your Bench.",
+    isEnabled: () => {
+      if (!isActivated.value) return false;
+      if (benchPtr.value?.id == user.value!.mainBenchPtr?.id) return false;
+      return true;
+    },
     action: async () => {
       if (bench.value?.id == user.value!.mainBenchPtr?.id) {
         toaster.success({

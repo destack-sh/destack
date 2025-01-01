@@ -353,7 +353,7 @@ SOURCE_NODE_TYPES = _get_node_types(3000, 3100)
 STATE_NODE_TYPES = _get_node_types(3500, 3600)
 RUNTIME_NODE_TYPES = _get_node_types(3600, 3700)
 BASED_NODE_TYPES = bittuple(  # :HasBase
-    NodeType.FIELD, NodeType.RUN, NodeType.MESSAGE, NodeType.RECORD
+    NodeType.FIELD, NodeType.RUN, NodeType.INTERRUPTION, NodeType.MESSAGE, NodeType.RECORD
 )
 PACKAGE_NODE_TYPES = _get_node_types(3001, 3500, NodeType.SKIP)
 BENCH_NODE_TYPES = _get_node_types(

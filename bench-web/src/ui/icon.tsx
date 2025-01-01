@@ -51,6 +51,8 @@ import type { TypeIdentity } from "@/language/field";
 import { isNode } from "@/proto/wiring";
 import { getColorHex, makeColor } from "@/ui/style";
 import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
+import { BASED_NODE_TYPES, getBaseFromNode } from "@/language/const";
+import { supergraph } from "@/system/globals";
 
 export type IconMetadata = {
   id: string;
@@ -693,8 +695,15 @@ export function getTypeIcon(node: Partial<FieldData> | TypeIdentity): IconData |
     }
     const icon = ICON_BY_PRIMITIVE_TYPE[node.primitiveType];
     if (icon != null) return icon;
-  } else if (node.kind == TypeKind.BASED_NODE && node.benchType == BenchType.FIELD) {
-    return ICON_BY_BLOCK_TYPE[BlockType.CHOICE];
+  } else if (node.kind == TypeKind.BASED_NODE && node.baseTypePtr != null) {
+    const base = supergraph.get(node.baseTypePtr);
+    if (base != null) {
+      const icon = getNodeIcon(base);
+      if (icon != null) return icon;
+    }
+    if (node.benchType == BenchType.FIELD) {
+      return ICON_BY_BLOCK_TYPE[BlockType.CHOICE];
+    }
   } else if (node.benchType != null) {
     const icon = ICON_BY_BENCH_TYPE[node.benchType];
     if (icon != null) return icon;
@@ -717,10 +726,10 @@ function getNodeSubtypeIcon(nodeType: NodeType, subtype: any): IconData | undefi
   return undefined;
 }
 
-/** Gets the icon for a node or node reference. */
+/** Gets the icon for a Node (or reference). */
 export function getNodeIcon(
-  node: ({ metatype: NodeType | ObjectType } & Partial<AnyNodeData | NodeReferenceData>) | ChangeVignetteData,
-  options?: { nodeType?: NodeType; defaultToUndefined?: boolean },
+  node: { metatype: NodeType | ObjectType } & Partial<AnyNodeData | NodeReferenceData>,
+  options?: { base?: AnyNodeData | undefined | null; defaultToUndefined?: boolean },
 ): IconData | undefined {
   if ((node as any).icon != null) {
     // already has specific icon
@@ -729,12 +738,25 @@ export function getNodeIcon(
     // more specific icons for fields
     const icon = getTypeIcon(node);
     if (icon != null) return icon;
+  } else if (BASED_NODE_TYPES.includes(node.metatype as any)) {
+    // base node
+    const basePtr = getBaseFromNode(node as AnyNodeData);
+    const base = options?.base ?? (basePtr != null ? supergraph.get(basePtr) : undefined);
+    if (base != null) {
+      const icon = getNodeIcon(base, options);
+      if (icon != null) return icon;
+    }
+  } else if (isNode(node, NodeType.ACTION) && node.delegatePtr != null && node.type == ActionType.DELEGATE) {
+    const delegate = supergraph.get(node.delegatePtr);
+    if (delegate != null) {
+      const icon = getNodeIcon(delegate, options);
+      if (icon != null) return icon;
+    }
   }
 
   // get icon for subtype
-  const nodeType =
-    options?.nodeType ?? (isNode(node) ? (node.metatype as unknown as NodeType) : (node as NodeReferenceData).nodeType);
-  const nodeSubtype = (node as ChangeVignetteData).subtype ?? (node as any).type;
+  const nodeType = (node as any).metatype as NodeType;
+  const nodeSubtype = (node as any).type as number;
   if (nodeSubtype != null) {
     const nodeSubtypeIcon = getNodeSubtypeIcon(nodeType, nodeSubtype);
     if (nodeSubtypeIcon != null) {
@@ -753,4 +775,28 @@ export function getNodeIcon(
   } else {
     return DEFAULT_MISSING_ICON;
   }
+}
+
+/** Gets the name of a Node. */
+export function getNodeName(
+  node: AnyNodeData,
+  options?: { base?: AnyNodeData | undefined | null },
+): string | undefined {
+  if (node.metatype == ObjectType.RUN || node.metatype == ObjectType.INTERRUPTION) {
+    // base node without own name
+    const basePtr = getBaseFromNode(node);
+    const base = options?.base ?? (basePtr != null ? supergraph.get(basePtr) : undefined);
+    if (base != null) {
+      return (base as any).title ?? (base as any).name;
+    }
+  } else if (isNode(node, NodeType.VIEW) && node.nodePtr != null) {
+    // 'quasi' base from view
+    const base = options?.base ?? supergraph.get(node.nodePtr);
+    if (base != null) {
+      return (base as any).title ?? (base as any).name;
+    }
+  }
+
+  // default to name / title
+  return (node as any).title ?? (node as any).name;
 }

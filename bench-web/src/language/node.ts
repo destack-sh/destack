@@ -3,7 +3,6 @@
  */
 
 import { TIMED_NODE_TYPES, toCamelName } from "@/language/const";
-import { FLOW_GRID_STEP } from "@/system/flow";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/graph";
 import { updateOrder } from "@/language/order";
 import { newChangeId, type Transaction } from "@/language/transaction";
@@ -35,11 +34,11 @@ import {
   nodeReference,
   toNodeRef,
 } from "@/proto/wiring";
+import { FLOW_GRID_STEP } from "@/system/flow";
 import { addVector2 } from "@/ui/view";
 import { groupByList } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
 import { uuidt } from "@/utils/uuidt";
-import { AnyNode } from "postcss";
 import { computed, Ref } from "vue";
 
 /** Extracts the last (potentially multi-digit) characters as an integer */
@@ -91,26 +90,6 @@ export function makeNodeName(graph: ReadNodeGraph, node: { metatype: ObjectType 
   if (node.parentPtr == null) throw new Error("parentPtr is required");
   const siblings = graph.getChildren(node.parentPtr, node.metatype as unknown as NodeType);
   return generateNodeName(node, siblings);
-}
-
-/**
- * Auto-update any discriminator derived properties like generated name or additional flags.
- *  (e.g. from Choice1 to Variable2, or Input3 to Output2)
- **/
-export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData) {
-  node = graph.getOrError({ id: node.id, ck: (node as any).ck }); // 'refresh' from graph with any optimistic changes
-
-  // auto update node name
-  if ("name" in node && node.name != null && isGeneratedNodeName(node.metatype as unknown as NodeType, node.name)) {
-    const siblings = graph
-      .getChildren(node.parentPtr!, node.metatype as unknown as NodeType)
-      .filter((n) => n.id != node.id);
-    const name = generateNodeName(node, siblings);
-    if (name != node.name) tx.update(node, { name }, { debounce: "tick" });
-  }
-
-  // auto update block flags
-  // ...
 }
 
 /** A Node 'in' type for mapping subnode correctly given a metatype & optional type. */

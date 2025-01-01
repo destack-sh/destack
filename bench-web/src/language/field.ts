@@ -47,6 +47,7 @@ import {
   toNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
+import { supergraph } from "@/system/globals";
 import { getNodeIcon, getTypeIcon, makeIcon } from "@/ui/icon";
 import { getRandomColorType } from "@/ui/style";
 import { assertNever, decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
@@ -363,7 +364,7 @@ export function getConstrainedTypeName(type: TypeIdentity): string | null {
 }
 
 /** Gets the default Field name from a type  */
-function getTypeName(graph: ReadNodeGraph, field: Partial<TypeInfoData>): string {
+export function getTypeName(field: Partial<TypeInfoData>): string {
   if (field == null) throw new Error(`missing type for field in ${describeNode(field)}`);
   if (field.kind == TypeKind.PRIMITIVE) {
     if (field.format != null) {
@@ -385,7 +386,7 @@ function getTypeName(graph: ReadNodeGraph, field: Partial<TypeInfoData>): string
     }
   } else if (field.kind == TypeKind.BASED_NODE || field.kind == TypeKind.CUSTOM_OBJECT) {
     if (field?.baseTypePtr == null) throw new Error(`missing base type for field in ${describeNode(field)}`);
-    const baseType = graph.getOrError(field.baseTypePtr);
+    const baseType = supergraph.get(field.baseTypePtr);
     if ((baseType as any).name != null) {
       return (baseType as any).name;
     } else {
@@ -477,7 +478,7 @@ export function createField(
     name = fieldIn.name;
   } else if (type != FieldType.OPTION) {
     // make name unique (bumping number if needed)
-    name = getTypeName(graph, fieldIn!);
+    name = getTypeName(fieldIn!);
     const siblings = graph.getChildren(parentPtr, NodeType.FIELD);
     let i = 2;
     while (siblings.some((s) => s.name == name)) {
@@ -536,21 +537,15 @@ export function updateFieldType(tx: Transaction, graph: ReadNodeGraph, field: Fi
 
   if (type != null) {
     // update name if it was generated
-    const oldName = getTypeName(graph, field);
+    const oldName = getTypeName(field);
     if (field.name.startsWith(oldName)) {
       // make it unique (bumping number if needed)
-      update.name = getTypeName(graph, type);
+      update.name = getTypeName(type);
       const siblings = graph.getChildren(field.parentPtr!, NodeType.FIELD);
       let i = 2;
       while (siblings.some((s) => s.name == update.name)) {
         update.name = `${update.name}${i++}`;
       }
-    }
-
-    // update icon if it was the default one
-    const oldIcon = getNodeIcon(field);
-    if (field.icon == null || (oldIcon != null && contentEquals(field.icon, oldIcon))) {
-      update.icon = getTypeIcon(type);
     }
   }
 

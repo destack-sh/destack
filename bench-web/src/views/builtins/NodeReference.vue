@@ -80,7 +80,6 @@ defineExpose({
     :data-node-ck="(node as any).ck"
     :data-node-type="node.metatype"
   >
-    <!-- NOTE :Incomplete: support :DelegateNodes (also with base nodes, like Records with icon from their Block) -->
     <IconInline
       ref="iconRef"
       v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
