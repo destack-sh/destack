@@ -12,7 +12,7 @@ const props = defineProps<{
 </script>
 <template>
   <div
-    class="flex items-center gap-x-2"
+    class="flex items-center gap-x-1.5"
     :class="[orientation == Orientation.HORIZONTAL_REVERSED ? 'flex-row-reverse' : 'flex-row']"
   >
     <!-- Dot -->

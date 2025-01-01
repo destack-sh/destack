@@ -31,6 +31,7 @@ from bench.language.const import (
     enum_,
     run_span,
 )
+from bench.language.log import LogLevel
 from bench.language.node import (
     BuiltinObject,
     NodeReference,
@@ -816,7 +817,9 @@ async def upload_file_batch(
         session = active_session()
 
     # get upload URLs
-    with tracer.start_as_current_span("file.prepare_upload"):
+    with run_span(
+        tracer, "file.prepare_upload", RunSpanType.FILE_PREPARE_UPLOAD, level=LogLevel.DEBUG
+    ):
         upload_req = UploadFilesRequest(
             scope=session._get_scope_for_node(files[0]),
             files=[f._to_data() for f in files],
@@ -871,7 +874,7 @@ async def download_file_batch(
     from bench.proto.wiring import unpack_builtin_object
 
     # get download URLs
-    with run_span(tracer, "file.prepare_download", RunSpanType.FILE_DOWNLOAD_PREPARE) as span:
+    with run_span(tracer, "file.prepare_download", RunSpanType.FILE_PREPARE_DOWNLOAD) as span:
         download_req = DownloadFilesRequest(
             scope=session._get_scope_for_node(session),
             files=[(f.to_ref() if isinstance(f, File) else f)._to_data() for f in file_refs],
@@ -926,7 +929,7 @@ async def download_file_batch(
 FileIn = Union[str, bytes, Image.Image]
 
 
-@run_span(tracer, "file.extract_info", RunSpanType.FILE_EXTRACT)
+@tracer.start_as_current_span("file.extract_info")
 async def extract_file_info(  # noqa: RUF029
     file_in: FileIn,
     name: str,

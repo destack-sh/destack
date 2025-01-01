@@ -252,6 +252,7 @@ def set_builtin_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Propert
         else:  # primitive field
             setattr(obj_data, prop.name, value)
     elif len(value) > 0:  # list
+        obj_data.ClearField(prop.name)
         getattr(obj_data, prop.name).extend(value)
 
 

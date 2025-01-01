@@ -11,8 +11,12 @@ import {
   type BlockData,
   type RunData,
   type ActionData,
+  RunSpanData,
+  RunAttemptData,
+  StructType,
 } from "@/proto/wire";
-import { describeNode, isNode } from "@/proto/wiring";
+import { describeNode, isNode, isStruct } from "@/proto/wiring";
+import { assertNever } from "@/utils/functools";
 import {
   compareTimestamps,
   durationToMs,
@@ -51,8 +55,16 @@ export function isRunPaused(run: RunData): boolean {
   return run.pausedAt != null && (run.resumedAt == null || compareTimestamps(run.pausedAt, run.resumedAt) > 0);
 }
 
-export function isRunTerminal(run: RunData): boolean {
-  return TERMINAL_RUN_STATUSES.includes(run.status);
+export function isRunTerminal(run: RunData | RunSpanData | RunAttemptData): boolean {
+  if (isNode(run, NodeType.RUN)) {
+    return TERMINAL_RUN_STATUSES.includes(run.status);
+  } else if (isStruct(run, StructType.RUN_SPAN)) {
+    return run.terminatedAt != null;
+  } else if (isStruct(run, StructType.RUN_ATTEMPT)) {
+    return TERMINAL_RUN_STATUSES.includes(run.status);
+  } else {
+    assertNever(run);
+  }
 }
 
 export function getRunBasePtr(run: RunData): NodeReferenceData | null {
@@ -76,12 +88,25 @@ export function getRunType(runnable: RunnableObject): RunType {
   throw new Error(`unexpected runnable type: ${describeNode(runnable)}`);
 }
 
+/** Gets the startedAt timestamp of a Run */
+export function getRunStartedAtMs(run: RunData | RunSpanData | RunAttemptData): number {
+  if (isNode(run, NodeType.RUN)) {
+    return timestampToMs(run.startedAt ?? run.createdAt!);
+  } else if (isStruct(run, StructType.RUN_SPAN)) {
+    return timestampToMs(run.startedAt!);
+  } else if (isStruct(run, StructType.RUN_ATTEMPT)) {
+    return timestampToMs(run.startedAt!);
+  } else {
+    assertNever(run);
+  }
+}
+
 /** Gets the duration of a Run */
-export function getRunDurationMs(run: RunData, nowMs: number): number {
-  if (TERMINAL_RUN_STATUSES.includes(run.status) && run.startedAt == null) {
+export function getRunDurationMs(run: RunData | RunSpanData | RunAttemptData, nowMs: number): number {
+  if (isRunTerminal(run) && run.startedAt == null) {
     return 0; // never really started
   }
-  const startedAtMs = timestampToMs(run.startedAt ?? run.createdAt!);
+  const startedAtMs = getRunStartedAtMs(run);
   let durationMs: number;
   if (run.duration != null) {
     durationMs = durationToMs(run.duration);
@@ -109,7 +134,10 @@ export function getInterruptDurationMs(interrupt: InterruptionData, nowMs: numbe
 }
 
 /** Gets the duration of an Interrupt as a formatted string */
-export function getInterruptDurationString(interrupt: InterruptionData, options?: FormatDurationOptions): string | null {
+export function getInterruptDurationString(
+  interrupt: InterruptionData,
+  options?: FormatDurationOptions,
+): string | null {
   const now = getNow(TimeUpdateInterval.MILLISECOND).value;
   const nowMs = timestampToMs(now);
   const durationMs = getInterruptDurationMs(interrupt, nowMs);

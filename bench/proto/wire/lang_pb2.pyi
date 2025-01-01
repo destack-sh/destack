@@ -1218,17 +1218,15 @@ class RunSpanType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_SPAN_TYPE_UNSPECIFIED: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_WAIT_FOR: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_FILE_UPLOAD: _ClassVar[RunSpanType]
-    RUN_SPAN_TYPE_FILE_EXTRACT: _ClassVar[RunSpanType]
+    RUN_SPAN_TYPE_FILE_PREPARE_UPLOAD: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_FILE_DOWNLOAD: _ClassVar[RunSpanType]
-    RUN_SPAN_TYPE_FILE_DOWNLOAD_PREPARE: _ClassVar[RunSpanType]
+    RUN_SPAN_TYPE_FILE_PREPARE_DOWNLOAD: _ClassVar[RunSpanType]
 
 class RunEventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     RUN_EVENT_TYPE_UNSPECIFIED: _ClassVar[RunEventType]
-    RUN_EVENT_TYPE_PAUSED: _ClassVar[RunEventType]
-    RUN_EVENT_TYPE_RESUMED: _ClassVar[RunEventType]
-    RUN_EVENT_TYPE_HALTED: _ClassVar[RunEventType]
-    RUN_EVENT_TYPE_CUSTOM: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_CONNECTION_ESTABLISHED: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_CONNECTION_LOST: _ClassVar[RunEventType]
 
 class SessionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2691,14 +2689,12 @@ RUN_ERROR_TYPE_RETRYABLE: RunErrorType
 RUN_SPAN_TYPE_UNSPECIFIED: RunSpanType
 RUN_SPAN_TYPE_WAIT_FOR: RunSpanType
 RUN_SPAN_TYPE_FILE_UPLOAD: RunSpanType
-RUN_SPAN_TYPE_FILE_EXTRACT: RunSpanType
+RUN_SPAN_TYPE_FILE_PREPARE_UPLOAD: RunSpanType
 RUN_SPAN_TYPE_FILE_DOWNLOAD: RunSpanType
-RUN_SPAN_TYPE_FILE_DOWNLOAD_PREPARE: RunSpanType
+RUN_SPAN_TYPE_FILE_PREPARE_DOWNLOAD: RunSpanType
 RUN_EVENT_TYPE_UNSPECIFIED: RunEventType
-RUN_EVENT_TYPE_PAUSED: RunEventType
-RUN_EVENT_TYPE_RESUMED: RunEventType
-RUN_EVENT_TYPE_HALTED: RunEventType
-RUN_EVENT_TYPE_CUSTOM: RunEventType
+RUN_EVENT_TYPE_CONNECTION_ESTABLISHED: RunEventType
+RUN_EVENT_TYPE_CONNECTION_LOST: RunEventType
 SESSION_STATUS_UNSPECIFIED: SessionStatus
 SESSION_STATUS_PENDING: SessionStatus
 SESSION_STATUS_OPEN: SessionStatus
@@ -3559,11 +3555,12 @@ class RunFrameData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
 
 class RunSpanData(_message.Message):
-    __slots__ = ("metatype", "type", "level", "name", "text", "text_plain", "nodes_ptr", "started_at", "terminated_at", "duration")
+    __slots__ = ("metatype", "type", "level", "name", "icon", "text", "text_plain", "nodes_ptr", "started_at", "terminated_at", "duration")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     LEVEL_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
+    ICON_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     TEXT_PLAIN_FIELD_NUMBER: _ClassVar[int]
     NODES_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -3574,20 +3571,22 @@ class RunSpanData(_message.Message):
     type: RunSpanType
     level: LogLevel
     name: str
+    icon: IconData
     text: TextData
     text_plain: str
     nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     started_at: _timestamp_pb2.Timestamp
     terminated_at: _timestamp_pb2.Timestamp
     duration: _duration_pb2.Duration
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[RunSpanType, str]] = ..., level: _Optional[_Union[LogLevel, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., text_plain: _Optional[str] = ..., nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[RunSpanType, str]] = ..., level: _Optional[_Union[LogLevel, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., text_plain: _Optional[str] = ..., nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...) -> None: ...
 
 class RunEventData(_message.Message):
-    __slots__ = ("metatype", "type", "level", "name", "title", "text", "text_plain", "nodes_ptr", "created_at")
+    __slots__ = ("metatype", "type", "level", "name", "icon", "title", "text", "text_plain", "nodes_ptr", "created_at")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     LEVEL_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
+    ICON_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     TEXT_PLAIN_FIELD_NUMBER: _ClassVar[int]
@@ -3597,12 +3596,13 @@ class RunEventData(_message.Message):
     type: RunEventType
     level: LogLevel
     name: str
+    icon: IconData
     title: str
     text: TextData
     text_plain: str
     nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     created_at: _timestamp_pb2.Timestamp
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[RunEventType, str]] = ..., level: _Optional[_Union[LogLevel, str]] = ..., name: _Optional[str] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., text_plain: _Optional[str] = ..., nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[RunEventType, str]] = ..., level: _Optional[_Union[LogLevel, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., text_plain: _Optional[str] = ..., nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class RunErrorData(_message.Message):
     __slots__ = ("metatype", "kind", "type", "title", "text", "node_ptr", "trace")

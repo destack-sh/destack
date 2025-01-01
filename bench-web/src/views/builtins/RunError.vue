@@ -20,7 +20,7 @@ const props = defineProps<{ run?: RunData; error: RunErrorData }>();
       </div>
     </div>
     <!-- Text -->
-    <div v-if="error.text" class="mt-1">
+    <div v-if="error.text" class="mt-1 max-h-[190px] overflow-y-auto truncate">
       <Text id="text" :model-value="error.text" is-minimal />
     </div>
     <div v-else class="mt-1">

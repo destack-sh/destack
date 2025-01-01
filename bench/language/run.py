@@ -50,6 +50,7 @@ if TYPE_CHECKING:
         Breakpoint,
         Code,
         CustomObject,
+        Icon,
         Interruption,
         LogInfo,
         NodeReference,
@@ -254,11 +255,11 @@ class RunFrame(Struct):
 
 @enum_(EnumType.RUN_SPAN_TYPE)
 class RunSpanType(IdEnum):
-    WAIT_FOR = 1
-    FILE_UPLOAD = 2
-    FILE_EXTRACT = 3
-    FILE_DOWNLOAD = 4
-    FILE_DOWNLOAD_PREPARE = 5
+    WAIT_FOR = 10
+    FILE_UPLOAD = 20
+    FILE_PREPARE_UPLOAD = 21
+    FILE_DOWNLOAD = 22
+    FILE_PREPARE_DOWNLOAD = 23
 
 
 @struct_(StructType.RUN_SPAN)
@@ -268,6 +269,7 @@ class RunSpan(Struct):
     type: RunSpanType = p_regular(30)
     level: "LogLevel" = p_regular(31, default=LogLevel.INFO)
     name: str | None = p_regular(32, default=None)
+    icon: "Icon | None" = p_regular(33, default=None, struct=StructType.ICON)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     text_plain: Optional[str] = p_regular(35, default=None)
     nodes: list["Node"] = p_regular(36, array=True, require=False, references="any")
@@ -278,23 +280,22 @@ class RunSpan(Struct):
 
 @enum_(EnumType.RUN_EVENT_TYPE)
 class RunEventType(IdEnum):
-    PAUSED = 1
-    RESUMED = 2
-    HALTED = 3
-    CUSTOM = 1000
+    CONNECTION_ESTABLISHED = 10
+    CONNECTION_LOST = 11
 
 
 @struct_(StructType.RUN_EVENT)
 class RunEvent(Struct):
     """An event in a Run of something that happened."""
 
-    type: RunEventType = p_regular(30, default=RunEventType.CUSTOM)
+    type: RunEventType = p_regular(30)
     level: LogLevel = p_regular(31, default=LogLevel.INFO)
-    name: str = p_regular(32, default=None)
-    title: Optional[str] = p_regular(33, default=None, constraint=TITLE_CONSTRAINT)
-    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
-    text_plain: Optional[str] = p_regular(35, default=None)
-    nodes: list["Node"] = p_regular(36, array=True, require=False, references="any")
+    name: str | None = p_regular(32, default=None)
+    icon: "Icon | None" = p_regular(33, default=None, struct=StructType.ICON)
+    title: Optional[str] = p_regular(34, default=None, constraint=TITLE_CONSTRAINT)
+    text: Optional["Text"] = p_regular(35, default=None, struct=StructType.TEXT)
+    text_plain: Optional[str] = p_regular(36, default=None)
+    nodes: list["Node"] = p_regular(37, array=True, require=False, references="any")
     created_at: Optional[datetime] = p_regular(40, default=None)
 
 
