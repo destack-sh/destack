@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
+import { getBaseFromNode, toCamelName } from "@/language/const";
 import { ReadNodeGraph } from "@/language/graph";
-import { getRunBasePtr, getRunDurationMs, getRunStartedAtMs, isRunTerminal } from "@/language/session";
+import { getRunDurationMs, getRunStartedAtMs, isRunTerminal } from "@/language/session";
 import {
   AnyNodeData,
   ColorShade,
@@ -13,7 +13,6 @@ import {
   Orientation,
   RunAttemptData,
   RunData,
-  RunEventType,
   RunSpanData,
   RunSpanType,
   StructType,
@@ -22,14 +21,14 @@ import {
 import { describeNode, isNode, isStruct, TypedNodeReferenceData } from "@/proto/wiring";
 import { RunTree } from "@/system/runtime";
 import { canvas } from "@/system/space";
-import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_EVENT_TYPE, ICON_BY_RUN_SPAN_TYPE, IconInline } from "@/ui/icon";
+import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_SPAN_TYPE, IconInline } from "@/ui/icon";
 import { COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
 import { assertNever } from "@/utils/functools";
 import { formatDuration, getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
 import RunStatus from "@/views/builtins/RunStatus.vue";
 import { useElementSize } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, ref, Ref, shallowRef, toRef, watchEffect, onMounted } from "vue";
+import { computed, onMounted, ref, Ref, shallowRef, toRef, watchEffect } from "vue";
 
 const DEPTH_OFFSET = 12;
 const ROW_HEIGHT = 28;
@@ -104,7 +103,7 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
     const durationMs = getRunDurationMs(run, nowMs);
 
     // context
-    const basePtr = isNode(run, NodeType.RUN) ? getRunBasePtr(run) : null;
+    const basePtr = isNode(run, NodeType.RUN) ? getBaseFromNode(run) : null;
     const baseNode = basePtr != null ? props.graph.get(basePtr) : null;
     const color = !isStruct(run, StructType.RUN_SPAN)
       ? getColorHex(COLOR_BY_RUN_STATUS[run.status], ColorShade.S500)!
@@ -160,7 +159,7 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
       }
       for (const child of runTree.runGraph.getChildren(run)) {
         if (!isNode(child, NodeType.RUN)) continue;
-        const basePtr = getRunBasePtr(child);
+        const basePtr = getBaseFromNode(child);
         if (basePtr != null && !BASE_TYPES.includes(basePtr.nodeType)) continue;
         walkRun(child, span, depth + 1);
       }

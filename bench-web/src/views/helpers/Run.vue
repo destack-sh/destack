@@ -1,14 +1,8 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
+import { getBaseFromNode, toCamelName } from "@/language/const";
 import { makeTypeConstraint, makeTypeInfo } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
-import {
-  getInterruptBasePtr,
-  getInterruptDurationString,
-  getRunBasePtr,
-  isRunnable,
-  RunnableNode,
-} from "@/language/session";
+import { getInterruptDurationString, isRunnable, RunnableNode } from "@/language/session";
 import { getTransactionOptionsForType } from "@/language/transaction";
 import { packCustomObjectProperty, unpackCustomObjectProperty } from "@/language/value";
 import {
@@ -68,7 +62,7 @@ const run = computed(() => {
     return null;
   }
 });
-const runBasePtr = computed(() => (run.value != null ? getRunBasePtr(run.value) : nodePtr.value));
+const runBasePtr = computed(() => (run.value != null ? getBaseFromNode(run.value) : nodePtr.value));
 const runTree = computed(() => runtime.focusedRunTree);
 const inputsPacked = useSubnodeProperty(NodeType.VIEW, ViewType.RUN, toRef(props, "subnodePacked"), "inputsPacked");
 const variablesPacked = useSubnodeProperty(
@@ -128,15 +122,15 @@ const interruptions = computed(() => {
   const interruptions: InterruptionInfo[] = [];
   for (const interrupt of runTree.value.interruptions) {
     if (!INTERRUPT_TYPES.includes(interrupt.type)) continue;
-    const base = runTree.value.getBase(getInterruptBasePtr(interrupt)!)!;
+    const base = runTree.value.getBase(getBaseFromNode(interrupt)!)!;
     const inputType = makeTypeInfo({
       kind: TypeKind.CUSTOM_OBJECT,
-      baseTypePtr: getInterruptBasePtr(interrupt)!,
+      baseTypePtr: getBaseFromNode(interrupt)!,
       baseFieldType: FieldType.INPUT,
     });
     const outputType = makeTypeInfo({
       kind: TypeKind.CUSTOM_OBJECT,
-      baseTypePtr: getInterruptBasePtr(interrupt)!,
+      baseTypePtr: getBaseFromNode(interrupt)!,
       baseFieldType: FieldType.OUTPUT,
     });
 

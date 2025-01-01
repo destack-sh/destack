@@ -1,10 +1,9 @@
-import { ACTIVE_RUN_STATUSES } from "@/language/const";
+import { ACTIVE_RUN_STATUSES, getBaseFromNode } from "@/language/const";
 import { makeExpression } from "@/language/expression";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNode } from "@/language/node";
 import { timesortNode } from "@/language/order";
 import {
-  getRunBasePtr,
   getRunType,
   isRunActive,
   isRunnable,
@@ -94,7 +93,7 @@ export class RunTree {
     this.runsByBaseCk = computed(() => {
       const runByBaseCk: Record<string, RunData[]> = {};
       for (const run of this.runsRef.value) {
-        const base = getRunBasePtr(run);
+        const base = getBaseFromNode(run);
         if (base?.ck != null) {
           if (runByBaseCk[base.ck] == null) {
             runByBaseCk[base.ck] = [];
@@ -111,7 +110,7 @@ export class RunTree {
     this.basesPtrs = computed(() => {
       const basePtrs: TypedNodeReferenceData<RunnableNodeType>[] = [];
       for (const run of this.runsRef.value) {
-        const base = getRunBasePtr(run);
+        const base = getBaseFromNode(run);
         if (base != null) basePtrs.push(base as TypedNodeReferenceData<RunnableNodeType>);
       }
       return basePtrs;
@@ -380,7 +379,7 @@ export function getRunActions(run: RunData): RuntimeAction[] {
       isPrimary: true,
       icon: makeIcon("fas fa-redo"),
       action: () => {
-        const basePtr = getRunBasePtr(run);
+        const basePtr = getBaseFromNode(run);
         if (basePtr == null) throw new Error(`no base for ${describeNode(run)}`);
         const node = supergraph.get(basePtr);
         if (!isRunnable(node)) throw new Error(`no node for base ${describeNode(basePtr)} of ${describeNode(run)}`);
