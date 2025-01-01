@@ -3206,13 +3206,13 @@ export interface ClickActionData {
      */
     elementId?: string;
     /**
-     * @generated from protobuf field: optional string xpath = 101;
+     * @generated from protobuf field: optional string element_path = 101;
      */
-    xpath?: string;
+    elementPath?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data relative_position = 102;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 102;
      */
-    relativePosition?: Vector2Data;
+    elementPosition?: Vector2Data;
 }
 /**
  * A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -3225,13 +3225,13 @@ export interface PressActionData {
      */
     elementId?: string;
     /**
-     * @generated from protobuf field: optional string xpath = 101;
+     * @generated from protobuf field: optional string element_path = 101;
      */
-    xpath?: string;
+    elementPath?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data relative_position = 102;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 102;
      */
-    relativePosition?: Vector2Data;
+    elementPosition?: Vector2Data;
     /**
      * @generated from protobuf field: optional string keys = 110;
      */
@@ -3252,13 +3252,13 @@ export interface TypeActionData {
      */
     elementId?: string;
     /**
-     * @generated from protobuf field: optional string xpath = 101;
+     * @generated from protobuf field: optional string element_path = 101;
      */
-    xpath?: string;
+    elementPath?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data relative_position = 102;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 102;
      */
-    relativePosition?: Vector2Data;
+    elementPosition?: Vector2Data;
     /**
      * @generated from protobuf field: optional string string = 110;
      */
@@ -3279,13 +3279,13 @@ export interface ScrollActionData {
      */
     elementId?: string;
     /**
-     * @generated from protobuf field: optional string xpath = 101;
+     * @generated from protobuf field: optional string element_path = 101;
      */
-    xpath?: string;
+    elementPath?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data relative_position = 102;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 102;
      */
-    relativePosition?: Vector2Data;
+    elementPosition?: Vector2Data;
     /**
      * @generated from protobuf field: optional symbolx.bench.Vector2Data amount = 110;
      */
@@ -3302,13 +3302,13 @@ export interface SelectActionData {
      */
     elementId?: string;
     /**
-     * @generated from protobuf field: optional string xpath = 101;
+     * @generated from protobuf field: optional string element_path = 101;
      */
-    xpath?: string;
+    elementPath?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data relative_position = 102;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 102;
      */
-    relativePosition?: Vector2Data;
+    elementPosition?: Vector2Data;
 }
 /**
  * A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -3321,13 +3321,13 @@ export interface GoBackwardActionData {
      */
     elementId?: string;
     /**
-     * @generated from protobuf field: optional string xpath = 101;
+     * @generated from protobuf field: optional string element_path = 101;
      */
-    xpath?: string;
+    elementPath?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data relative_position = 102;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 102;
      */
-    relativePosition?: Vector2Data;
+    elementPosition?: Vector2Data;
 }
 /**
  * A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -3340,13 +3340,13 @@ export interface GoForwardActionData {
      */
     elementId?: string;
     /**
-     * @generated from protobuf field: optional string xpath = 101;
+     * @generated from protobuf field: optional string element_path = 101;
      */
-    xpath?: string;
+    elementPath?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data relative_position = 102;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 102;
      */
-    relativePosition?: Vector2Data;
+    elementPosition?: Vector2Data;
 }
 /**
  * A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -5324,6 +5324,10 @@ export interface ListViewData {
      * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 101;
      */
     filter?: ExpressionData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 102;
+     */
+    sort: ExpressionData[];
 }
 /**
  * A view of a user interface in a Bench.
@@ -20883,8 +20887,8 @@ class ClickActionData$Type extends MessageType$<ClickActionData> {
     constructor() {
         super("symbolx.bench.ClickActionData", [
             { no: 100, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "relative_position", kind: "message", T: () => Vector2Data }
+            { no: 101, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "element_position", kind: "message", T: () => Vector2Data }
         ]);
     }
     create(value?: PartialMessage<ClickActionData>): ClickActionData {
@@ -20901,11 +20905,11 @@ class ClickActionData$Type extends MessageType$<ClickActionData> {
                 case /* optional string element_id */ 100:
                     message.elementId = reader.string();
                     break;
-                case /* optional string xpath */ 101:
-                    message.xpath = reader.string();
+                case /* optional string element_path */ 101:
+                    message.elementPath = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data relative_position */ 102:
-                    message.relativePosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.relativePosition);
+                case /* optional symbolx.bench.Vector2Data element_position */ 102:
+                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -20922,12 +20926,12 @@ class ClickActionData$Type extends MessageType$<ClickActionData> {
         /* optional string element_id = 100; */
         if (message.elementId !== undefined)
             writer.tag(100, WireType.LengthDelimited).string(message.elementId);
-        /* optional string xpath = 101; */
-        if (message.xpath !== undefined)
-            writer.tag(101, WireType.LengthDelimited).string(message.xpath);
-        /* optional symbolx.bench.Vector2Data relative_position = 102; */
-        if (message.relativePosition)
-            Vector2Data.internalBinaryWrite(message.relativePosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_path = 101; */
+        if (message.elementPath !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 102; */
+        if (message.elementPosition)
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -20943,8 +20947,8 @@ class PressActionData$Type extends MessageType$<PressActionData> {
     constructor() {
         super("symbolx.bench.PressActionData", [
             { no: 100, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "relative_position", kind: "message", T: () => Vector2Data },
+            { no: 101, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "element_position", kind: "message", T: () => Vector2Data },
             { no: 110, name: "keys", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 111, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
@@ -20963,11 +20967,11 @@ class PressActionData$Type extends MessageType$<PressActionData> {
                 case /* optional string element_id */ 100:
                     message.elementId = reader.string();
                     break;
-                case /* optional string xpath */ 101:
-                    message.xpath = reader.string();
+                case /* optional string element_path */ 101:
+                    message.elementPath = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data relative_position */ 102:
-                    message.relativePosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.relativePosition);
+                case /* optional symbolx.bench.Vector2Data element_position */ 102:
+                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
                 case /* optional string keys */ 110:
                     message.keys = reader.string();
@@ -20990,12 +20994,12 @@ class PressActionData$Type extends MessageType$<PressActionData> {
         /* optional string element_id = 100; */
         if (message.elementId !== undefined)
             writer.tag(100, WireType.LengthDelimited).string(message.elementId);
-        /* optional string xpath = 101; */
-        if (message.xpath !== undefined)
-            writer.tag(101, WireType.LengthDelimited).string(message.xpath);
-        /* optional symbolx.bench.Vector2Data relative_position = 102; */
-        if (message.relativePosition)
-            Vector2Data.internalBinaryWrite(message.relativePosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_path = 101; */
+        if (message.elementPath !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 102; */
+        if (message.elementPosition)
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         /* optional string keys = 110; */
         if (message.keys !== undefined)
             writer.tag(110, WireType.LengthDelimited).string(message.keys);
@@ -21017,8 +21021,8 @@ class TypeActionData$Type extends MessageType$<TypeActionData> {
     constructor() {
         super("symbolx.bench.TypeActionData", [
             { no: 100, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "relative_position", kind: "message", T: () => Vector2Data },
+            { no: 101, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "element_position", kind: "message", T: () => Vector2Data },
             { no: 110, name: "string", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 111, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
@@ -21037,11 +21041,11 @@ class TypeActionData$Type extends MessageType$<TypeActionData> {
                 case /* optional string element_id */ 100:
                     message.elementId = reader.string();
                     break;
-                case /* optional string xpath */ 101:
-                    message.xpath = reader.string();
+                case /* optional string element_path */ 101:
+                    message.elementPath = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data relative_position */ 102:
-                    message.relativePosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.relativePosition);
+                case /* optional symbolx.bench.Vector2Data element_position */ 102:
+                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
                 case /* optional string string */ 110:
                     message.string = reader.string();
@@ -21064,12 +21068,12 @@ class TypeActionData$Type extends MessageType$<TypeActionData> {
         /* optional string element_id = 100; */
         if (message.elementId !== undefined)
             writer.tag(100, WireType.LengthDelimited).string(message.elementId);
-        /* optional string xpath = 101; */
-        if (message.xpath !== undefined)
-            writer.tag(101, WireType.LengthDelimited).string(message.xpath);
-        /* optional symbolx.bench.Vector2Data relative_position = 102; */
-        if (message.relativePosition)
-            Vector2Data.internalBinaryWrite(message.relativePosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_path = 101; */
+        if (message.elementPath !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 102; */
+        if (message.elementPosition)
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         /* optional string string = 110; */
         if (message.string !== undefined)
             writer.tag(110, WireType.LengthDelimited).string(message.string);
@@ -21091,8 +21095,8 @@ class ScrollActionData$Type extends MessageType$<ScrollActionData> {
     constructor() {
         super("symbolx.bench.ScrollActionData", [
             { no: 100, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "relative_position", kind: "message", T: () => Vector2Data },
+            { no: 101, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "element_position", kind: "message", T: () => Vector2Data },
             { no: 110, name: "amount", kind: "message", T: () => Vector2Data }
         ]);
     }
@@ -21110,11 +21114,11 @@ class ScrollActionData$Type extends MessageType$<ScrollActionData> {
                 case /* optional string element_id */ 100:
                     message.elementId = reader.string();
                     break;
-                case /* optional string xpath */ 101:
-                    message.xpath = reader.string();
+                case /* optional string element_path */ 101:
+                    message.elementPath = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data relative_position */ 102:
-                    message.relativePosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.relativePosition);
+                case /* optional symbolx.bench.Vector2Data element_position */ 102:
+                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
                 case /* optional symbolx.bench.Vector2Data amount */ 110:
                     message.amount = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.amount);
@@ -21134,12 +21138,12 @@ class ScrollActionData$Type extends MessageType$<ScrollActionData> {
         /* optional string element_id = 100; */
         if (message.elementId !== undefined)
             writer.tag(100, WireType.LengthDelimited).string(message.elementId);
-        /* optional string xpath = 101; */
-        if (message.xpath !== undefined)
-            writer.tag(101, WireType.LengthDelimited).string(message.xpath);
-        /* optional symbolx.bench.Vector2Data relative_position = 102; */
-        if (message.relativePosition)
-            Vector2Data.internalBinaryWrite(message.relativePosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_path = 101; */
+        if (message.elementPath !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 102; */
+        if (message.elementPosition)
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.Vector2Data amount = 110; */
         if (message.amount)
             Vector2Data.internalBinaryWrite(message.amount, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
@@ -21158,8 +21162,8 @@ class SelectActionData$Type extends MessageType$<SelectActionData> {
     constructor() {
         super("symbolx.bench.SelectActionData", [
             { no: 100, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "relative_position", kind: "message", T: () => Vector2Data }
+            { no: 101, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "element_position", kind: "message", T: () => Vector2Data }
         ]);
     }
     create(value?: PartialMessage<SelectActionData>): SelectActionData {
@@ -21176,11 +21180,11 @@ class SelectActionData$Type extends MessageType$<SelectActionData> {
                 case /* optional string element_id */ 100:
                     message.elementId = reader.string();
                     break;
-                case /* optional string xpath */ 101:
-                    message.xpath = reader.string();
+                case /* optional string element_path */ 101:
+                    message.elementPath = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data relative_position */ 102:
-                    message.relativePosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.relativePosition);
+                case /* optional symbolx.bench.Vector2Data element_position */ 102:
+                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -21197,12 +21201,12 @@ class SelectActionData$Type extends MessageType$<SelectActionData> {
         /* optional string element_id = 100; */
         if (message.elementId !== undefined)
             writer.tag(100, WireType.LengthDelimited).string(message.elementId);
-        /* optional string xpath = 101; */
-        if (message.xpath !== undefined)
-            writer.tag(101, WireType.LengthDelimited).string(message.xpath);
-        /* optional symbolx.bench.Vector2Data relative_position = 102; */
-        if (message.relativePosition)
-            Vector2Data.internalBinaryWrite(message.relativePosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_path = 101; */
+        if (message.elementPath !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 102; */
+        if (message.elementPosition)
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21218,8 +21222,8 @@ class GoBackwardActionData$Type extends MessageType$<GoBackwardActionData> {
     constructor() {
         super("symbolx.bench.GoBackwardActionData", [
             { no: 100, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "relative_position", kind: "message", T: () => Vector2Data }
+            { no: 101, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "element_position", kind: "message", T: () => Vector2Data }
         ]);
     }
     create(value?: PartialMessage<GoBackwardActionData>): GoBackwardActionData {
@@ -21236,11 +21240,11 @@ class GoBackwardActionData$Type extends MessageType$<GoBackwardActionData> {
                 case /* optional string element_id */ 100:
                     message.elementId = reader.string();
                     break;
-                case /* optional string xpath */ 101:
-                    message.xpath = reader.string();
+                case /* optional string element_path */ 101:
+                    message.elementPath = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data relative_position */ 102:
-                    message.relativePosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.relativePosition);
+                case /* optional symbolx.bench.Vector2Data element_position */ 102:
+                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -21257,12 +21261,12 @@ class GoBackwardActionData$Type extends MessageType$<GoBackwardActionData> {
         /* optional string element_id = 100; */
         if (message.elementId !== undefined)
             writer.tag(100, WireType.LengthDelimited).string(message.elementId);
-        /* optional string xpath = 101; */
-        if (message.xpath !== undefined)
-            writer.tag(101, WireType.LengthDelimited).string(message.xpath);
-        /* optional symbolx.bench.Vector2Data relative_position = 102; */
-        if (message.relativePosition)
-            Vector2Data.internalBinaryWrite(message.relativePosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_path = 101; */
+        if (message.elementPath !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 102; */
+        if (message.elementPosition)
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21278,8 +21282,8 @@ class GoForwardActionData$Type extends MessageType$<GoForwardActionData> {
     constructor() {
         super("symbolx.bench.GoForwardActionData", [
             { no: 100, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "relative_position", kind: "message", T: () => Vector2Data }
+            { no: 101, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "element_position", kind: "message", T: () => Vector2Data }
         ]);
     }
     create(value?: PartialMessage<GoForwardActionData>): GoForwardActionData {
@@ -21296,11 +21300,11 @@ class GoForwardActionData$Type extends MessageType$<GoForwardActionData> {
                 case /* optional string element_id */ 100:
                     message.elementId = reader.string();
                     break;
-                case /* optional string xpath */ 101:
-                    message.xpath = reader.string();
+                case /* optional string element_path */ 101:
+                    message.elementPath = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data relative_position */ 102:
-                    message.relativePosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.relativePosition);
+                case /* optional symbolx.bench.Vector2Data element_position */ 102:
+                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -21317,12 +21321,12 @@ class GoForwardActionData$Type extends MessageType$<GoForwardActionData> {
         /* optional string element_id = 100; */
         if (message.elementId !== undefined)
             writer.tag(100, WireType.LengthDelimited).string(message.elementId);
-        /* optional string xpath = 101; */
-        if (message.xpath !== undefined)
-            writer.tag(101, WireType.LengthDelimited).string(message.xpath);
-        /* optional symbolx.bench.Vector2Data relative_position = 102; */
-        if (message.relativePosition)
-            Vector2Data.internalBinaryWrite(message.relativePosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_path = 101; */
+        if (message.elementPath !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 102; */
+        if (message.elementPosition)
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25723,11 +25727,13 @@ class ListViewData$Type extends MessageType$<ListViewData> {
     constructor() {
         super("symbolx.bench.ListViewData", [
             { no: 100, name: "query_node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 101, name: "filter", kind: "message", T: () => ExpressionData }
+            { no: 101, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 102, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData }
         ]);
     }
     create(value?: PartialMessage<ListViewData>): ListViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.sort = [];
         if (value !== undefined)
             reflectionMergePartial<ListViewData>(this, message, value);
         return message;
@@ -25742,6 +25748,9 @@ class ListViewData$Type extends MessageType$<ListViewData> {
                     break;
                 case /* optional symbolx.bench.ExpressionData filter */ 101:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
+                    break;
+                case /* repeated symbolx.bench.ExpressionData sort */ 102:
+                    message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -25761,6 +25770,9 @@ class ListViewData$Type extends MessageType$<ListViewData> {
         /* optional symbolx.bench.ExpressionData filter = 101; */
         if (message.filter)
             ExpressionData.internalBinaryWrite(message.filter, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.ExpressionData sort = 102; */
+        for (let i = 0; i < message.sort.length; i++)
+            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29792,6 +29804,7 @@ export enum HubViewProperty {
 export enum ListViewProperty {
   queryNodeType = 100,
   filter = 101,
+  sort = 102,
 }
 
 export enum TreeViewProperty {
@@ -29897,49 +29910,49 @@ export enum ObserveActionProperty {
 
 export enum ClickActionProperty {
   elementId = 100,
-  xpath = 101,
-  relativePosition = 102,
+  elementPath = 101,
+  elementPosition = 102,
 }
 
 export enum PressActionProperty {
   elementId = 100,
-  xpath = 101,
-  relativePosition = 102,
+  elementPath = 101,
+  elementPosition = 102,
   keys = 110,
   delay = 111,
 }
 
 export enum TypeActionProperty {
   elementId = 100,
-  xpath = 101,
-  relativePosition = 102,
+  elementPath = 101,
+  elementPosition = 102,
   string = 110,
   delay = 111,
 }
 
 export enum ScrollActionProperty {
   elementId = 100,
-  xpath = 101,
-  relativePosition = 102,
+  elementPath = 101,
+  elementPosition = 102,
   amount = 110,
 }
 
 export enum SelectActionProperty {
   elementId = 100,
-  xpath = 101,
-  relativePosition = 102,
+  elementPath = 101,
+  elementPosition = 102,
 }
 
 export enum GoBackwardActionProperty {
   elementId = 100,
-  xpath = 101,
-  relativePosition = 102,
+  elementPath = 101,
+  elementPosition = 102,
 }
 
 export enum GoForwardActionProperty {
   elementId = 100,
-  xpath = 101,
-  relativePosition = 102,
+  elementPath = 101,
+  elementPosition = 102,
 }
 
 export enum GoToUrlActionProperty {
@@ -31833,6 +31846,7 @@ export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
 export const ListViewDataInfo: Record<ListViewProperty, PropertyInfo> = {
   [ListViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, componentSubtype: 40300, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ListViewProperty.filter]: { id: 101, name: 'filter', component: ObjectType.VIEW, componentSubtype: 40300, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [ListViewProperty.sort]: { id: 102, name: 'sort', component: ObjectType.VIEW, componentSubtype: 40300, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
 export const TreeViewDataInfo: Record<TreeViewProperty, PropertyInfo> = {
   [TreeViewProperty.nodeTypes]: { id: 100, name: 'node_types', component: ObjectType.VIEW, componentSubtype: 40302, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -31916,43 +31930,43 @@ export const ObserveActionDataInfo: Record<ObserveActionProperty, PropertyInfo> 
 }
 export const ClickActionDataInfo: Record<ClickActionProperty, PropertyInfo> = {
   [ClickActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ClickActionProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ClickActionProperty.relativePosition]: { id: 102, name: 'relative_position', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [ClickActionProperty.elementPath]: { id: 101, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ClickActionProperty.elementPosition]: { id: 102, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
 }
 export const PressActionDataInfo: Record<PressActionProperty, PropertyInfo> = {
   [PressActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.relativePosition]: { id: 102, name: 'relative_position', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [PressActionProperty.elementPath]: { id: 101, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.elementPosition]: { id: 102, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [PressActionProperty.keys]: { id: 110, name: 'keys', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
   [PressActionProperty.delay]: { id: 111, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const TypeActionDataInfo: Record<TypeActionProperty, PropertyInfo> = {
   [TypeActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.relativePosition]: { id: 102, name: 'relative_position', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [TypeActionProperty.elementPath]: { id: 101, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [TypeActionProperty.elementPosition]: { id: 102, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [TypeActionProperty.string]: { id: 110, name: 'string', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
   [TypeActionProperty.delay]: { id: 111, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const ScrollActionDataInfo: Record<ScrollActionProperty, PropertyInfo> = {
   [ScrollActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ScrollActionProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ScrollActionProperty.relativePosition]: { id: 102, name: 'relative_position', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [ScrollActionProperty.elementPath]: { id: 101, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ScrollActionProperty.elementPosition]: { id: 102, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [ScrollActionProperty.amount]: { id: 110, name: 'amount', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
 }
 export const SelectActionDataInfo: Record<SelectActionProperty, PropertyInfo> = {
   [SelectActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [SelectActionProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [SelectActionProperty.relativePosition]: { id: 102, name: 'relative_position', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [SelectActionProperty.elementPath]: { id: 101, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [SelectActionProperty.elementPosition]: { id: 102, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
 }
 export const GoBackwardActionDataInfo: Record<GoBackwardActionProperty, PropertyInfo> = {
   [GoBackwardActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [GoBackwardActionProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [GoBackwardActionProperty.relativePosition]: { id: 102, name: 'relative_position', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [GoBackwardActionProperty.elementPath]: { id: 101, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [GoBackwardActionProperty.elementPosition]: { id: 102, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
 }
 export const GoForwardActionDataInfo: Record<GoForwardActionProperty, PropertyInfo> = {
   [GoForwardActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [GoForwardActionProperty.xpath]: { id: 101, name: 'xpath', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [GoForwardActionProperty.relativePosition]: { id: 102, name: 'relative_position', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [GoForwardActionProperty.elementPath]: { id: 101, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [GoForwardActionProperty.elementPosition]: { id: 102, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
 }
 export const GoToUrlActionDataInfo: Record<GoToUrlActionProperty, PropertyInfo> = {
   [GoToUrlActionProperty.url]: { id: 100, name: 'url', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },

@@ -14,29 +14,29 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // Intrinsics
   //
 
-  // kernel
-  [ViewType.USER_WIZARD]: () => import("@/views/kernel/UserWizard.vue"),
-  [ViewType.BENCH_WIZARD]: () => import("@/views/kernel/BenchWizard.vue"),
-  [ViewType.EMPTY]: () => import("@/views/helpers/Empty.vue"),
-
   // system
   // nodes
-  [ViewType.PAGE]: () => import("@/views/nodes/Page.vue"),
   [ViewType.BLOCK]: () => import("@/views/nodes/Block.vue"),
   [ViewType.FIELD]: () => import("@/views/nodes/Field.vue"),
-  [ViewType.DATABASE]: () => import("@/views/nodes/Database.vue"),
-  [ViewType.FLOW]: () => import("@/views/nodes/Flow.vue"),
   [ViewType.ACTION]: () => import("@/views/nodes/Action.vue"),
   [ViewType.PIPE]: () => import("@/views/nodes/Pipe.vue"),
+  // subnodes
+  [ViewType.PAGE]: () => import("@/views/subnodes/Page.vue"),
+  [ViewType.DATABASE]: () => import("@/views/subnodes/Database.vue"),
+  [ViewType.FLOW]: () => import("@/views/subnodes/Flow.vue"),
   // structs
   [ViewType.OBJECT]: () => import("@/views/structs/CustomObject.vue"),
   [ViewType.FIELD_LIST]: () => import("@/views/structs/FieldList.vue"),
   // helpers
-  [ViewType.TREE]: () => import("@/views/collections/Tree.vue"),
+  [ViewType.USER_WIZARD]: () => import("@/views/helpers/UserWizard.vue"),
+  [ViewType.BENCH_WIZARD]: () => import("@/views/helpers/BenchWizard.vue"),
+  [ViewType.EMPTY]: () => import("@/views/helpers/Empty.vue"),
   [ViewType.DETAIL]: () => import("@/views/helpers/Detail.vue"),
   [ViewType.RUN]: () => import("@/views/helpers/Run.vue"),
   [ViewType.HUB]: () => import("@/views/helpers/Hub.vue"),
   [ViewType.HELP]: () => import("@/views/helpers/Help.vue"),
+  [ViewType.CATALOG]: () => import("@/views/helpers/Catalog.vue"),
+  [ViewType.ACTIVITY]: () => import("@/views/helpers/Activity.vue"),
 
   //
   // Organization
@@ -54,6 +54,8 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // presentation
 
   // collections
+  [ViewType.TREE]: () => import("@/views/collections/Tree.vue"),
+  [ViewType.LIST]: () => import("@/views/collections/List.vue"),
 
   //
   // Style

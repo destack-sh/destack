@@ -142,8 +142,8 @@ export class RunTree {
     return this.runsRef.value;
   }
 
-  /** The interrupts for the current active Run. */
-  get interrupts() {
+  /** The interruptions for the current active Run. */
+  get interruptions() {
     return this.interruptionsRef.value;
   }
 
