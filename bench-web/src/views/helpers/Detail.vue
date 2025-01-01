@@ -6,7 +6,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
 import { IconInline } from "@/ui/icon";
-import { DetailSection, makeInspectLayout } from "@/ui/detail";
+import { DetailSection, makeDetailLayout } from "@/ui/detail";
 import { computedValue } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
@@ -31,7 +31,7 @@ const nodePtr = computedValue(() => props.nodePtr);
 const { node, graph, connection } = supergraph.getLinkRef(nodePtr);
 const layout = computed(() => {
   if (node.value == null) return null;
-  const layout = makeInspectLayout(node.value, graph.value!, () => (connection.value ?? pkgConnection).tx);
+  const layout = makeDetailLayout(node.value, graph.value!, () => (connection.value ?? pkgConnection).tx);
   return layout;
 });
 

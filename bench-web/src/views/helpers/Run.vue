@@ -116,7 +116,7 @@ function getRunObjectValue(fieldType: FieldType) {
   else return undefined;
 }
 
-// interrupts
+// interruptions
 type InterruptionInfo = {
   base: RunnableNode | null;
   interruption: InterruptionData;
@@ -124,9 +124,9 @@ type InterruptionInfo = {
   inputType: TypeInfoData;
   outputType: TypeInfoData;
 };
-const interrupts = computed(() => {
-  const interrupts: InterruptionInfo[] = [];
-  for (const interrupt of runTree.value.interrupts) {
+const interruptions = computed(() => {
+  const interruptions: InterruptionInfo[] = [];
+  for (const interrupt of runTree.value.interruptions) {
     if (!INTERRUPT_TYPES.includes(interrupt.type)) continue;
     const base = runTree.value.getBase(getInterruptBasePtr(interrupt)!)!;
     const inputType = makeTypeInfo({
@@ -145,9 +145,9 @@ const interrupts = computed(() => {
       interrupt.outputsPacked!,
       "continuations",
     );
-    interrupts.push({ base, interruption: interrupt, inputType, outputType, continuations: continuations ?? [] });
+    interruptions.push({ base, interruption: interrupt, inputType, outputType, continuations: continuations ?? [] });
   }
-  return interrupts;
+  return interruptions;
 });
 function setContinuations(interrupt: InterruptionInfo, value: ContinueData[]) {
   const continuationsPacked = packCustomObjectProperty(ObjectType.OUTPUT_OBJECT, value, "continuations");
@@ -259,8 +259,8 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         </div>
         <RunTimeline :graph="pkgGraph" :node-ptr="toNodeRef(run)" class="" />
       </div>
-      <!-- Interrupts -->
-      <div v-if="interrupts.length > 0" class="px-5">
+      <!-- Interruptions -->
+      <div v-if="interruptions.length > 0" class="px-5">
         <div
           class="flex flex-row items-center"
           :style="{
@@ -269,15 +269,15 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         >
           <span class="font-semibold">Interruptions</span>
           <span
-            v-if="interrupts.some((i) => i.interruption.status == InterruptionStatus.OPEN)"
+            v-if="interruptions.some((i) => i.interruption.status == InterruptionStatus.OPEN)"
             class="ml-1.5 text-gray-400"
           >
-            ({{ interrupts.filter((i) => i.interruption.status == InterruptionStatus.OPEN).length }} open)
+            ({{ interruptions.filter((i) => i.interruption.status == InterruptionStatus.OPEN).length }} open)
           </span>
         </div>
         <div class="flex flex-col gap-y-1.5">
           <!-- Interrupt -->
-          <div v-for="interrupt of interrupts" :key="interrupt.interruption.id" class="">
+          <div v-for="interrupt of interruptions" :key="interrupt.interruption.id" class="">
             <!-- Interrupt Header -->
             <div class="flex flex-row items-center gap-x-1.5">
               <!-- Highlight -->

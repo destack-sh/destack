@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { isBenchNodeType } from "@/language/const";
+import { isBenchNodeType, toCamelName } from "@/language/const";
 import { makeExpression } from "@/language/expression";
 import { useSubnodeProperty } from "@/language/node";
 import { AnyNodeData, ExpressionType, NodeType, RecordProperty, ViewData, ViewType } from "@/proto/wire";
@@ -90,7 +90,7 @@ defineExpose<ViewExposed & { total: Ref<number | undefined>; roots: Ref<AnyNodeD
           class="mr-1.5 w-5 text-center text-gray-700 transition-colors duration-75"
         />
         <span class="max-w-full select-none truncate">
-          <!-- :DelegateNodes -->
+          <!-- nocheckin support :DelegateNodes (everywhere?) -->
           {{ (node as any).slug ?? (node as any).title ?? (node as any).name ?? "???" }}
         </span>
         <!-- Metadata -->
@@ -109,7 +109,7 @@ defineExpose<ViewExposed & { total: Ref<number | undefined>; roots: Ref<AnyNodeD
           <i class="fas fa-spinner-third animate-spin text-gray-400" />
         </span>
         <!-- Empty -->
-        <span v-else class="text-gray-400">No results</span>
+        <span v-else class="text-gray-400">No {{ toCamelName(NodeType, nodeType) }}s</span>
       </div>
 
       <!-- Selection overlay -->

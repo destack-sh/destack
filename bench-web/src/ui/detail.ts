@@ -108,7 +108,7 @@ export type DetailTextRow = DetailRowBase & {
 };
 export type DetailRow = DetailFieldsRow | DetailViewRow | DetailIconRow | DetailTextRow;
 
-export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFactory: () => Transaction): DetailLayout {
+export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFactory: () => Transaction): DetailLayout {
   const sections: DetailSection[] = [];
 
   const metatype = node.metatype as unknown as NodeType;

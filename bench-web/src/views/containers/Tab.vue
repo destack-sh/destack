@@ -3,6 +3,7 @@ import { cloneNode } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
 import { NodeType, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { supergraph } from "@/system/globals";
 import { canvas, spaceGraph } from "@/system/space";
 import { type Action, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";
@@ -30,21 +31,22 @@ const id = toRef(props, "id");
 
 // focus
 const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
-const tabsNodes = spaceGraph.getManyMaybeRef(computed(() => tabs.value.map((t) => t.nodePtr ?? null)));
-const tabsTitles = computed(() => {
-  // views with a nodePtr are titled by the node name :ViewNodeTitles
-  const tabsTitles: string[] = [];
+const tabsNodes = supergraph.getManyRef(computed(() => tabs.value.map((t) => t.nodePtr).filter((n) => n != null)));
+const tabsNames = computed(() => {
+  // views with a nodePtr are named by the node name :DelegateNodes
+  const tabsNames: string[] = [];
   for (let tabIdx = 0; tabIdx < tabs.value.length; tabIdx++) {
     const tab = tabs.value[tabIdx];
+    const tabNode = tabsNodes.value.find((n) => n.id == tab.nodePtr?.id);
     if (tab.title) {
-      tabsTitles.push(tab.title);
-    } else if (tab.nodePtr != null && (tabsNodes.value[tabIdx] as any)?.name != null) {
-      tabsTitles.push((tabsNodes.value[tabIdx] as any)?.name ?? "???");
+      tabsNames.push(tab.title);
+    } else if (tab.nodePtr != null && (tabNode as any)?.name != null) {
+      tabsNames.push((tabNode as any)?.name ?? "???");
     } else {
-      tabsTitles.push(tab.name);
+      tabsNames.push(tab.name);
     }
   }
-  return tabsTitles;
+  return tabsNames;
 });
 const focusedTabIdx: Ref<number | null> = computed(() => {
   if (tabs.value.length == 0) {
@@ -227,7 +229,7 @@ defineExpose<ViewExposed>({ self, actions });
           v-bind="tab.icon ?? ICON_BY_VIEW_TYPE[tab.type] ?? ICON_BY_NODE_TYPE[NodeType.VIEW]"
           class="mr-1.5 w-5"
         />
-        <span class="truncate" :class="[tabsTitles[i] == tab.name ? 'italic' : '']">{{ tabsTitles[i] }}</span>
+        <span class="truncate" :class="[tabsNames[i] == tab.name ? 'italic' : '']">{{ tabsNames[i] }}</span>
         <!-- Close tab -->
         <button
           class="ml-1.5 group-hover:text-gray-400"

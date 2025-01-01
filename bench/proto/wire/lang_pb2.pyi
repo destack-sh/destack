@@ -4753,84 +4753,84 @@ class ObserveActionData(_message.Message):
     def __init__(self, exclude_image: bool = ..., screenshot_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., dom: _Optional[_Union[DomNodeData, _Mapping]] = ...) -> None: ...
 
 class ClickActionData(_message.Message):
-    __slots__ = ("element_id", "xpath", "relative_position")
+    __slots__ = ("element_id", "element_path", "element_position")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
-    XPATH_FIELD_NUMBER: _ClassVar[int]
-    RELATIVE_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
     element_id: str
-    xpath: str
-    relative_position: Vector2Data
-    def __init__(self, element_id: _Optional[str] = ..., xpath: _Optional[str] = ..., relative_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
+    element_path: str
+    element_position: Vector2Data
+    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
 
 class PressActionData(_message.Message):
-    __slots__ = ("element_id", "xpath", "relative_position", "keys", "delay")
+    __slots__ = ("element_id", "element_path", "element_position", "keys", "delay")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
-    XPATH_FIELD_NUMBER: _ClassVar[int]
-    RELATIVE_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
     KEYS_FIELD_NUMBER: _ClassVar[int]
     DELAY_FIELD_NUMBER: _ClassVar[int]
     element_id: str
-    xpath: str
-    relative_position: Vector2Data
+    element_path: str
+    element_position: Vector2Data
     keys: str
     delay: float
-    def __init__(self, element_id: _Optional[str] = ..., xpath: _Optional[str] = ..., relative_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., keys: _Optional[str] = ..., delay: _Optional[float] = ...) -> None: ...
+    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., keys: _Optional[str] = ..., delay: _Optional[float] = ...) -> None: ...
 
 class TypeActionData(_message.Message):
-    __slots__ = ("element_id", "xpath", "relative_position", "string", "delay")
+    __slots__ = ("element_id", "element_path", "element_position", "string", "delay")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
-    XPATH_FIELD_NUMBER: _ClassVar[int]
-    RELATIVE_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
     STRING_FIELD_NUMBER: _ClassVar[int]
     DELAY_FIELD_NUMBER: _ClassVar[int]
     element_id: str
-    xpath: str
-    relative_position: Vector2Data
+    element_path: str
+    element_position: Vector2Data
     string: str
     delay: float
-    def __init__(self, element_id: _Optional[str] = ..., xpath: _Optional[str] = ..., relative_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., string: _Optional[str] = ..., delay: _Optional[float] = ...) -> None: ...
+    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., string: _Optional[str] = ..., delay: _Optional[float] = ...) -> None: ...
 
 class ScrollActionData(_message.Message):
-    __slots__ = ("element_id", "xpath", "relative_position", "amount")
+    __slots__ = ("element_id", "element_path", "element_position", "amount")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
-    XPATH_FIELD_NUMBER: _ClassVar[int]
-    RELATIVE_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
     AMOUNT_FIELD_NUMBER: _ClassVar[int]
     element_id: str
-    xpath: str
-    relative_position: Vector2Data
+    element_path: str
+    element_position: Vector2Data
     amount: Vector2Data
-    def __init__(self, element_id: _Optional[str] = ..., xpath: _Optional[str] = ..., relative_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., amount: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
+    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., amount: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
 
 class SelectActionData(_message.Message):
-    __slots__ = ("element_id", "xpath", "relative_position")
+    __slots__ = ("element_id", "element_path", "element_position")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
-    XPATH_FIELD_NUMBER: _ClassVar[int]
-    RELATIVE_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
     element_id: str
-    xpath: str
-    relative_position: Vector2Data
-    def __init__(self, element_id: _Optional[str] = ..., xpath: _Optional[str] = ..., relative_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
+    element_path: str
+    element_position: Vector2Data
+    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
 
 class GoBackwardActionData(_message.Message):
-    __slots__ = ("element_id", "xpath", "relative_position")
+    __slots__ = ("element_id", "element_path", "element_position")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
-    XPATH_FIELD_NUMBER: _ClassVar[int]
-    RELATIVE_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
     element_id: str
-    xpath: str
-    relative_position: Vector2Data
-    def __init__(self, element_id: _Optional[str] = ..., xpath: _Optional[str] = ..., relative_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
+    element_path: str
+    element_position: Vector2Data
+    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
 
 class GoForwardActionData(_message.Message):
-    __slots__ = ("element_id", "xpath", "relative_position")
+    __slots__ = ("element_id", "element_path", "element_position")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
-    XPATH_FIELD_NUMBER: _ClassVar[int]
-    RELATIVE_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
     element_id: str
-    xpath: str
-    relative_position: Vector2Data
-    def __init__(self, element_id: _Optional[str] = ..., xpath: _Optional[str] = ..., relative_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
+    element_path: str
+    element_position: Vector2Data
+    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
 
 class GoToUrlActionData(_message.Message):
     __slots__ = ("url",)
@@ -5843,12 +5843,14 @@ class HubViewData(_message.Message):
     def __init__(self, aspect: _Optional[_Union[HubAspect, str]] = ...) -> None: ...
 
 class ListViewData(_message.Message):
-    __slots__ = ("query_node_type", "filter")
+    __slots__ = ("query_node_type", "filter", "sort")
     QUERY_NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
     FILTER_FIELD_NUMBER: _ClassVar[int]
+    SORT_FIELD_NUMBER: _ClassVar[int]
     query_node_type: NodeType
     filter: ExpressionData
-    def __init__(self, query_node_type: _Optional[_Union[NodeType, str]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ...) -> None: ...
+    sort: _containers.RepeatedCompositeFieldContainer[ExpressionData]
+    def __init__(self, query_node_type: _Optional[_Union[NodeType, str]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ...) -> None: ...
 
 class TreeViewData(_message.Message):
     __slots__ = ("node_types", "filter_is_page", "is_default_expanded", "expanded_nodes_ptr", "collapsed_nodes_ptr", "preset")

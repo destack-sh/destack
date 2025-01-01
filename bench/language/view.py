@@ -616,6 +616,9 @@ class ListView(View):
     filter: "Expression | None" = p_regular(
         101, default=None, require=False, struct=StructType.EXPRESSION
     )
+    sort: list["Expression"] = p_regular(
+        102, require=False, struct=StructType.EXPRESSION, array=True
+    )
 
 
 @enum_(EnumType.TREE_VIEW_PRESET)

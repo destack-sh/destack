@@ -21,6 +21,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import Tree from "@/views/collections/Tree.vue";
 import { computed, Ref, ref, toRef } from "vue";
 import Catalog from "@/views/helpers/Catalog.vue";
+import Activity from "@/views/helpers/Activity.vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -242,6 +243,13 @@ defineExpose<ViewExposed>({ self });
         </div>
       </Scroll>
     </div>
+    <!-- Activity -->
+    <Activity
+      v-else-if="aspect == HubAspect.ACTIVITY"
+      id="activity"
+      :size="{ width: size?.width, height: bodyHeight }"
+    />
+    <!-- Catalog -->
     <Catalog v-else-if="aspect == HubAspect.CATALOG" id="catalog" :size="{ width: size?.width, height: bodyHeight }" />
     <div v-else class="mx-5">
       <span class="text-red-600">{{ toCamelName(HubAspect, aspect) }}</span>

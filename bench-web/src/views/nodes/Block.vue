@@ -14,8 +14,8 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Text from "@/views/content/Text.vue";
 import Value from "@/views/content/Value.vue";
-import Database from "@/views/nodes/Database.vue";
-import Flow from "@/views/nodes/Flow.vue";
+import Database from "@/views/subnodes/Database.vue";
+import Flow from "@/views/subnodes/Flow.vue";
 import FieldList from "@/views/structs/FieldList.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 

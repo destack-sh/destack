@@ -197,6 +197,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.SESSION]: "fas fa-circle-play",
   [NodeType.RUN]: "fas fa-play",
   [NodeType.LOG]: "fas fa-file-alt",
+  [NodeType.INTERRUPTION]: "fas fa-hand",
 });
 
 export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeIcons<StructType>({

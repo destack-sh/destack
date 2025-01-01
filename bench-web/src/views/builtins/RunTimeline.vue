@@ -108,7 +108,7 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
     const baseNode = basePtr != null ? props.graph.get(basePtr) : null;
     const color = !isStruct(run, StructType.RUN_SPAN)
       ? getColorHex(COLOR_BY_RUN_STATUS[run.status], ColorShade.S500)!
-      : getColorHex(ColorType.GRAY, ColorShade.S500)!;
+      : getColorHex(ColorType.SUCCESS, ColorShade.S500)!;
     let icon: IconData | null | undefined = null;
     let name: string = "???";
     if (isNode(run, NodeType.RUN)) {

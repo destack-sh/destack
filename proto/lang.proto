@@ -2648,15 +2648,15 @@ message ObserveActionData {
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ClickActionData {
   optional string element_id = 100;
-  optional string xpath = 101;
-  optional Vector2Data relative_position = 102;
+  optional string element_path = 101;
+  optional Vector2Data element_position = 102;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message PressActionData {
   optional string element_id = 100;
-  optional string xpath = 101;
-  optional Vector2Data relative_position = 102;
+  optional string element_path = 101;
+  optional Vector2Data element_position = 102;
   optional string keys = 110;
   optional float delay = 111;
 }
@@ -2664,8 +2664,8 @@ message PressActionData {
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message TypeActionData {
   optional string element_id = 100;
-  optional string xpath = 101;
-  optional Vector2Data relative_position = 102;
+  optional string element_path = 101;
+  optional Vector2Data element_position = 102;
   optional string string = 110;
   optional float delay = 111;
 }
@@ -2673,30 +2673,30 @@ message TypeActionData {
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ScrollActionData {
   optional string element_id = 100;
-  optional string xpath = 101;
-  optional Vector2Data relative_position = 102;
+  optional string element_path = 101;
+  optional Vector2Data element_position = 102;
   optional Vector2Data amount = 110;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message SelectActionData {
   optional string element_id = 100;
-  optional string xpath = 101;
-  optional Vector2Data relative_position = 102;
+  optional string element_path = 101;
+  optional Vector2Data element_position = 102;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message GoBackwardActionData {
   optional string element_id = 100;
-  optional string xpath = 101;
-  optional Vector2Data relative_position = 102;
+  optional string element_path = 101;
+  optional Vector2Data element_position = 102;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message GoForwardActionData {
   optional string element_id = 100;
-  optional string xpath = 101;
-  optional Vector2Data relative_position = 102;
+  optional string element_path = 101;
+  optional Vector2Data element_position = 102;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -3252,6 +3252,7 @@ message HubViewData {
 message ListViewData {
   optional NodeType query_node_type = 100;
   optional ExpressionData filter = 101;
+  repeated ExpressionData sort = 102;
 }
 
 // A view of a user interface in a Bench.
