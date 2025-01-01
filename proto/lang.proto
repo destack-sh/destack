@@ -1223,19 +1223,17 @@ enum RunErrorType {
 
 enum RunSpanType {
   RUN_SPAN_TYPE_UNSPECIFIED = 0;
-  RUN_SPAN_TYPE_WAIT_FOR = 1;
-  RUN_SPAN_TYPE_FILE_UPLOAD = 2;
-  RUN_SPAN_TYPE_FILE_EXTRACT = 3;
-  RUN_SPAN_TYPE_FILE_DOWNLOAD = 4;
-  RUN_SPAN_TYPE_FILE_DOWNLOAD_PREPARE = 5;
+  RUN_SPAN_TYPE_WAIT_FOR = 10;
+  RUN_SPAN_TYPE_FILE_UPLOAD = 20;
+  RUN_SPAN_TYPE_FILE_PREPARE_UPLOAD = 21;
+  RUN_SPAN_TYPE_FILE_DOWNLOAD = 22;
+  RUN_SPAN_TYPE_FILE_PREPARE_DOWNLOAD = 23;
 }
 
 enum RunEventType {
   RUN_EVENT_TYPE_UNSPECIFIED = 0;
-  RUN_EVENT_TYPE_PAUSED = 1;
-  RUN_EVENT_TYPE_RESUMED = 2;
-  RUN_EVENT_TYPE_HALTED = 3;
-  RUN_EVENT_TYPE_CUSTOM = 1000;
+  RUN_EVENT_TYPE_CONNECTION_ESTABLISHED = 10;
+  RUN_EVENT_TYPE_CONNECTION_LOST = 11;
 }
 
 enum SessionStatus {
@@ -1976,6 +1974,7 @@ message RunSpanData {
   RunSpanType type = 30;
   LogLevel level = 31;
   optional string name = 32;
+  optional IconData icon = 33;
   optional TextData text = 34;
   optional string text_plain = 35;
   repeated NodeReferenceData nodes_ptr = 36;
@@ -1988,11 +1987,12 @@ message RunEventData {
   ObjectType metatype = 1;
   RunEventType type = 30;
   LogLevel level = 31;
-  string name = 32;
-  optional string title = 33;
-  optional TextData text = 34;
-  optional string text_plain = 35;
-  repeated NodeReferenceData nodes_ptr = 36;
+  optional string name = 32;
+  optional IconData icon = 33;
+  optional string title = 34;
+  optional TextData text = 35;
+  optional string text_plain = 36;
+  repeated NodeReferenceData nodes_ptr = 37;
   optional google.protobuf.Timestamp created_at = 40;
 }
 

@@ -14,7 +14,8 @@ from bench.utils.utils import frozendict, get_from_env
 
 if typing.TYPE_CHECKING:
     from bench.language import LogLevel, Node, Session, Text, Transaction
-    from bench.language.run import RunSpan, RunSpanType
+    from bench.language.run import RunEvent, RunEventType, RunSpan, RunSpanType
+    from bench.runtime.runner import Runner
 
 
 class _Unset:
@@ -29,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.31.3"
+VERSION = "2025.01.01.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -1330,6 +1331,45 @@ def get_active_tx() -> Optional["Transaction"]:
     return session._tx
 
 
+def run_event(
+    type: "RunEventType",
+    *,
+    level: "LogLevel | None" = None,
+    name: str | None = None,
+    text: "Text | None" = None,
+    text_plain: str | None = None,
+    nodes: list["Node"] | None = None,
+    runner: "Runner | None" = None,
+) -> "RunEvent | None":
+    """Emit a RunEvent in the current Run (noop if not inside a Run)."""
+
+    if runner is None:
+        session = _active_session.get()
+        runtime = session._runtime if session is not None else None
+        runner = runtime.active_runner if runtime is not None else None
+    else:
+        runtime = runner.runtime
+        session = runner.session
+
+    if runner is None or runtime is None:
+        return None
+
+    event = RunEvent(
+        type=type,
+        level=level or LogLevel.INFO,
+        name=name,
+        text=text,
+        text_plain=text_plain,
+        nodes=nodes or [],
+        created_at=runtime.oracle.utc(),
+    )
+    runner.events.append(event)
+    run = runner.tracked_run
+    if run is not None:
+        run._do_set("events", runner.events, validate=False)
+    return event
+
+
 @_agnosticcontextmanager
 def run_span(
     tracer: Tracer,
@@ -1341,13 +1381,18 @@ def run_span(
     nodes: list["Node"] | None = None,
     text: "Text | None" = None,
     text_plain: str | None = None,
+    runner: "Runner | None" = None,
 ) -> Generator["RunSpan | None", None, None]:
-    """Decorate or annotate a RunSpan (either inline or on a function)."""
+    """Decorate or annotate a RunSpan in the current Run (noop if not inside a Run)."""
     from bench.language import LogLevel, RunSpan
 
-    session = _active_session.get()
-    runtime = session._runtime if session is not None else None
-    runner = runtime.active_runner if runtime is not None else None
+    if runner is None:
+        session = _active_session.get()
+        runtime = session._runtime if session is not None else None
+        runner = runtime.active_runner if runtime is not None else None
+    else:
+        runtime = runner.runtime
+        session = runner.session
 
     if runner is None or runtime is None:
         # not inside a Run
@@ -1364,11 +1409,15 @@ def run_span(
             started_at=runtime.oracle.utc(),
         )
         runner.spans.append(span)
+        run = runner.tracked_run
+        if run is not None:
+            run._do_set("spans", runner.spans, validate=False)
 
-        # nocheckin: RunSpan/RunEvents
         try:
             with tracer.start_as_current_span(key):
                 yield span
         finally:
             span._do_set("terminated_at", runtime.oracle.utc())
             span._do_set("duration", span.terminated_at - span.started_at)  # type: ignore
+            if run is not None:
+                run._do_set("spans", runner.spans, validate=False)

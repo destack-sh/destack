@@ -38,6 +38,8 @@ import {
   ViewType,
   type AnyNodeData,
   type IconData,
+  RunSpanType,
+  RunEventType,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // fa-icons is generated with:
@@ -554,6 +556,21 @@ export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
   [RunStatus.CANCELLED]: makeIcon({ faName: "fas fa-circle-xmark" }),
   [RunStatus.ABORTED]: makeIcon({ faName: "fas fa-skull" }),
   [RunStatus.FAILED]: makeIcon({ faName: "fas fa-circle-exclamation" }),
+};
+
+export const ICON_BY_RUN_SPAN_TYPE: Record<RunSpanType, IconData> = {
+  [RunSpanType.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
+  [RunSpanType.WAIT_FOR]: makeIcon({ faName: "fas fa-hourglass-end" }),
+  [RunSpanType.FILE_DOWNLOAD]: makeIcon({ faName: "fas fa-download" }),
+  [RunSpanType.FILE_PREPARE_DOWNLOAD]: makeIcon({ faName: "fas fa-download" }),
+  [RunSpanType.FILE_UPLOAD]: makeIcon({ faName: "fas fa-upload" }),
+  [RunSpanType.FILE_PREPARE_UPLOAD]: makeIcon({ faName: "fas fa-upload" }),
+};
+
+export const ICON_BY_RUN_EVENT_TYPE: Record<RunEventType, IconData> = {
+  [RunEventType.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
+  [RunEventType.CONNECTION_ESTABLISHED]: makeIcon({ faName: "fas fa-wifi" }),
+  [RunEventType.CONNECTION_LOST]: makeIcon({ faName: "fas fa-wifi-slash" }),
 };
 
 export const ICON_BY_INTERRUPTION_TYPE: Record<InterruptionType, IconData> = {

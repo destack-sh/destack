@@ -976,6 +976,10 @@ export interface RunSpanData {
      */
     name?: string;
     /**
+     * @generated from protobuf field: optional symbolx.bench.IconData icon = 33;
+     */
+    icon?: IconData;
+    /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
      */
     text?: TextData;
@@ -1017,23 +1021,27 @@ export interface RunEventData {
      */
     level: LogLevel;
     /**
-     * @generated from protobuf field: string name = 32;
+     * @generated from protobuf field: optional string name = 32;
      */
-    name: string;
+    name?: string;
     /**
-     * @generated from protobuf field: optional string title = 33;
+     * @generated from protobuf field: optional symbolx.bench.IconData icon = 33;
+     */
+    icon?: IconData;
+    /**
+     * @generated from protobuf field: optional string title = 34;
      */
     title?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: optional string text_plain = 35;
+     * @generated from protobuf field: optional string text_plain = 36;
      */
     textPlain?: string;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData nodes_ptr = 36;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData nodes_ptr = 37;
      */
     nodesPtr: NodeReferenceData[];
     /**
@@ -10705,25 +10713,25 @@ export enum RunSpanType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: RUN_SPAN_TYPE_WAIT_FOR = 1;
+     * @generated from protobuf enum value: RUN_SPAN_TYPE_WAIT_FOR = 10;
      */
-    WAIT_FOR = 1,
+    WAIT_FOR = 10,
     /**
-     * @generated from protobuf enum value: RUN_SPAN_TYPE_FILE_UPLOAD = 2;
+     * @generated from protobuf enum value: RUN_SPAN_TYPE_FILE_UPLOAD = 20;
      */
-    FILE_UPLOAD = 2,
+    FILE_UPLOAD = 20,
     /**
-     * @generated from protobuf enum value: RUN_SPAN_TYPE_FILE_EXTRACT = 3;
+     * @generated from protobuf enum value: RUN_SPAN_TYPE_FILE_PREPARE_UPLOAD = 21;
      */
-    FILE_EXTRACT = 3,
+    FILE_PREPARE_UPLOAD = 21,
     /**
-     * @generated from protobuf enum value: RUN_SPAN_TYPE_FILE_DOWNLOAD = 4;
+     * @generated from protobuf enum value: RUN_SPAN_TYPE_FILE_DOWNLOAD = 22;
      */
-    FILE_DOWNLOAD = 4,
+    FILE_DOWNLOAD = 22,
     /**
-     * @generated from protobuf enum value: RUN_SPAN_TYPE_FILE_DOWNLOAD_PREPARE = 5;
+     * @generated from protobuf enum value: RUN_SPAN_TYPE_FILE_PREPARE_DOWNLOAD = 23;
      */
-    FILE_DOWNLOAD_PREPARE = 5
+    FILE_PREPARE_DOWNLOAD = 23
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunEventType
@@ -10734,21 +10742,13 @@ export enum RunEventType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: RUN_EVENT_TYPE_PAUSED = 1;
+     * @generated from protobuf enum value: RUN_EVENT_TYPE_CONNECTION_ESTABLISHED = 10;
      */
-    PAUSED = 1,
+    CONNECTION_ESTABLISHED = 10,
     /**
-     * @generated from protobuf enum value: RUN_EVENT_TYPE_RESUMED = 2;
+     * @generated from protobuf enum value: RUN_EVENT_TYPE_CONNECTION_LOST = 11;
      */
-    RESUMED = 2,
-    /**
-     * @generated from protobuf enum value: RUN_EVENT_TYPE_HALTED = 3;
-     */
-    HALTED = 3,
-    /**
-     * @generated from protobuf enum value: RUN_EVENT_TYPE_CUSTOM = 1000;
-     */
-    CUSTOM = 1000
+    CONNECTION_LOST = 11
 }
 /**
  * @generated from protobuf enum symbolx.bench.SessionStatus
@@ -15064,6 +15064,7 @@ class RunSpanData$Type extends MessageType$<RunSpanData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.RunSpanType", RunSpanType, "RUN_SPAN_TYPE_"] },
             { no: 31, name: "level", kind: "enum", T: () => ["symbolx.bench.LogLevel", LogLevel, "LOG_LEVEL_"] },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "icon", kind: "message", T: () => IconData },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "text_plain", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 36, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
@@ -15098,6 +15099,9 @@ class RunSpanData$Type extends MessageType$<RunSpanData> {
                     break;
                 case /* optional string name */ 32:
                     message.name = reader.string();
+                    break;
+                case /* optional symbolx.bench.IconData icon */ 33:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
                 case /* optional symbolx.bench.TextData text */ 34:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
@@ -15141,6 +15145,9 @@ class RunSpanData$Type extends MessageType$<RunSpanData> {
         /* optional string name = 32; */
         if (message.name !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.name);
+        /* optional symbolx.bench.IconData icon = 33; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 34; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
@@ -15176,11 +15183,12 @@ class RunEventData$Type extends MessageType$<RunEventData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.RunEventType", RunEventType, "RUN_EVENT_TYPE_"] },
             { no: 31, name: "level", kind: "enum", T: () => ["symbolx.bench.LogLevel", LogLevel, "LOG_LEVEL_"] },
-            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "text", kind: "message", T: () => TextData },
-            { no: 35, name: "text_plain", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 36, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "icon", kind: "message", T: () => IconData },
+            { no: 34, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "text", kind: "message", T: () => TextData },
+            { no: 36, name: "text_plain", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 37, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "created_at", kind: "message", T: () => Timestamp }
         ]);
     }
@@ -15189,7 +15197,6 @@ class RunEventData$Type extends MessageType$<RunEventData> {
         message.metatype = 0;
         message.type = 0;
         message.level = 0;
-        message.name = "";
         message.nodesPtr = [];
         if (value !== undefined)
             reflectionMergePartial<RunEventData>(this, message, value);
@@ -15209,19 +15216,22 @@ class RunEventData$Type extends MessageType$<RunEventData> {
                 case /* symbolx.bench.LogLevel level */ 31:
                     message.level = reader.int32();
                     break;
-                case /* string name */ 32:
+                case /* optional string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* optional string title */ 33:
+                case /* optional symbolx.bench.IconData icon */ 33:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string title */ 34:
                     message.title = reader.string();
                     break;
-                case /* optional symbolx.bench.TextData text */ 34:
+                case /* optional symbolx.bench.TextData text */ 35:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional string text_plain */ 35:
+                case /* optional string text_plain */ 36:
                     message.textPlain = reader.string();
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 36:
+                case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 37:
                     message.nodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional google.protobuf.Timestamp created_at */ 40:
@@ -15248,21 +15258,24 @@ class RunEventData$Type extends MessageType$<RunEventData> {
         /* symbolx.bench.LogLevel level = 31; */
         if (message.level !== 0)
             writer.tag(31, WireType.Varint).int32(message.level);
-        /* string name = 32; */
-        if (message.name !== "")
+        /* optional string name = 32; */
+        if (message.name !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional string title = 33; */
+        /* optional symbolx.bench.IconData icon = 33; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional string title = 34; */
         if (message.title !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.title);
-        /* optional symbolx.bench.TextData text = 34; */
+            writer.tag(34, WireType.LengthDelimited).string(message.title);
+        /* optional symbolx.bench.TextData text = 35; */
         if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional string text_plain = 35; */
+            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional string text_plain = 36; */
         if (message.textPlain !== undefined)
-            writer.tag(35, WireType.LengthDelimited).string(message.textPlain);
-        /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 36; */
+            writer.tag(36, WireType.LengthDelimited).string(message.textPlain);
+        /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 37; */
         for (let i = 0; i < message.nodesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp created_at = 40; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -30386,6 +30399,7 @@ export enum RunSpanProperty {
   type = 30,
   level = 31,
   name = 32,
+  icon = 33,
   text = 34,
   textPlain = 35,
   nodesPtr = 36,
@@ -30399,10 +30413,11 @@ export enum RunEventProperty {
   type = 30,
   level = 31,
   name = 32,
-  title = 33,
-  text = 34,
-  textPlain = 35,
-  nodesPtr = 36,
+  icon = 33,
+  title = 34,
+  text = 35,
+  textPlain = 36,
+  nodesPtr = 37,
   createdAt = 40,
 }
 
@@ -31078,8 +31093,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.31.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.31.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.01.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.01.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31112,8 +31127,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.31.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.31.3", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.01.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.01.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -32346,6 +32361,7 @@ export const RunSpanDataInfo: Record<RunSpanProperty, PropertyInfo> = {
   [RunSpanProperty.type]: { id: 30, name: 'type', component: ObjectType.RUN_SPAN, enumType: EnumType.RUN_SPAN_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [RunSpanProperty.level]: { id: 31, name: 'level', component: ObjectType.RUN_SPAN, enumType: EnumType.LOG_LEVEL, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 3, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [RunSpanProperty.name]: { id: 32, name: 'name', component: ObjectType.RUN_SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [RunSpanProperty.icon]: { id: 33, name: 'icon', component: ObjectType.RUN_SPAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [RunSpanProperty.text]: { id: 34, name: 'text', component: ObjectType.RUN_SPAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [RunSpanProperty.textPlain]: { id: 35, name: 'text_plain', component: ObjectType.RUN_SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [RunSpanProperty.nodesPtr]: { id: 36, name: 'nodes_ptr', component: ObjectType.RUN_SPAN, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
@@ -32355,13 +32371,14 @@ export const RunSpanDataInfo: Record<RunSpanProperty, PropertyInfo> = {
 }
 export const RunEventDataInfo: Record<RunEventProperty, PropertyInfo> = {
   [RunEventProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_EVENT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [RunEventProperty.type]: { id: 30, name: 'type', component: ObjectType.RUN_EVENT, enumType: EnumType.RUN_EVENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [RunEventProperty.type]: { id: 30, name: 'type', component: ObjectType.RUN_EVENT, enumType: EnumType.RUN_EVENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [RunEventProperty.level]: { id: 31, name: 'level', component: ObjectType.RUN_EVENT, enumType: EnumType.LOG_LEVEL, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 3, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RunEventProperty.name]: { id: 32, name: 'name', component: ObjectType.RUN_EVENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RunEventProperty.title]: { id: 33, name: 'title', component: ObjectType.RUN_EVENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [RunEventProperty.text]: { id: 34, name: 'text', component: ObjectType.RUN_EVENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [RunEventProperty.textPlain]: { id: 35, name: 'text_plain', component: ObjectType.RUN_EVENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [RunEventProperty.nodesPtr]: { id: 36, name: 'nodes_ptr', component: ObjectType.RUN_EVENT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [RunEventProperty.name]: { id: 32, name: 'name', component: ObjectType.RUN_EVENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [RunEventProperty.icon]: { id: 33, name: 'icon', component: ObjectType.RUN_EVENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [RunEventProperty.title]: { id: 34, name: 'title', component: ObjectType.RUN_EVENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [RunEventProperty.text]: { id: 35, name: 'text', component: ObjectType.RUN_EVENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [RunEventProperty.textPlain]: { id: 36, name: 'text_plain', component: ObjectType.RUN_EVENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [RunEventProperty.nodesPtr]: { id: 37, name: 'nodes_ptr', component: ObjectType.RUN_EVENT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [RunEventProperty.createdAt]: { id: 40, name: 'created_at', component: ObjectType.RUN_EVENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
 }
 export const TextOptionsDataInfo: Record<TextOptionsProperty, PropertyInfo> = {

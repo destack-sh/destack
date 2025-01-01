@@ -1,24 +1,31 @@
 <script lang="ts" setup>
+import { toCamelName } from "@/language/const";
 import { ReadNodeGraph } from "@/language/graph";
-import { getRunBasePtr, getRunDurationMs, isRunTerminal } from "@/language/session";
+import { getRunBasePtr, getRunDurationMs, getRunStartedAtMs, isRunTerminal } from "@/language/session";
 import {
   AnyNodeData,
   ColorShade,
+  ColorType,
   IconData,
+  LogLevel,
   NodeReferenceData,
   NodeType,
   Orientation,
   RunAttemptData,
   RunData,
+  RunEventType,
   RunSpanData,
+  RunSpanType,
+  StructType,
   ViewData,
 } from "@/proto/wire";
-import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, isStruct, TypedNodeReferenceData } from "@/proto/wiring";
 import { RunTree } from "@/system/runtime";
 import { canvas } from "@/system/space";
-import { getNodeIcon, ICON_BY_NODE_TYPE, IconInline } from "@/ui/icon";
+import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_EVENT_TYPE, ICON_BY_RUN_SPAN_TYPE, IconInline } from "@/ui/icon";
 import { COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
-import { getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
+import { assertNever } from "@/utils/functools";
+import { formatDuration, getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
 import RunStatus from "@/views/builtins/RunStatus.vue";
 import { useElementSize } from "@vueuse/core";
 import { DateTime } from "luxon";
@@ -50,10 +57,7 @@ onMounted(() => {
 //
 
 const runTree = new RunTree(props.graph, nodePtr);
-
-//
-// Spans / Events
-//
+const minLevel: Ref<LogLevel> = ref(LogLevel.INFO);
 
 type Timeline = {
   root: RunData | null;
@@ -69,7 +73,7 @@ type TimelineNode = {
   depth: number;
   icon: IconData | null | undefined;
   color: string;
-  title: string;
+  name: string;
   startedAtMs: number;
   durationMs: number;
   baseNode: AnyNodeData | null | undefined;
@@ -86,27 +90,36 @@ type TimelineEvent = {
   atMs: number;
 };
 
-function getStartedAtMs(run: RunData): number {
-  return timestampToMs(run.startedAt ?? run.createdAt!);
-}
-
 function makeTimeline(now: DateTime, root: RunData): Timeline {
   const spans: TimelineNode[] = [];
   const events: TimelineEvent[] = [];
 
   const nowMs = timestampToMs(now);
-  const rootStartedAtMs = getStartedAtMs(root);
+  const rootStartedAtMs = getRunStartedAtMs(root);
   const rootDurationMs = getRunDurationMs(root, nowMs);
 
-  function walkRun(run: RunData, parent: TimelineNode | null, depth: number) {
+  function walkRun(run: RunData | RunSpanData, parent: TimelineNode | null, depth: number) {
     // timing
-    const startedAtMs = getStartedAtMs(run);
+    const startedAtMs = getRunStartedAtMs(run);
     const durationMs = getRunDurationMs(run, nowMs);
 
     // context
-    const basePtr = getRunBasePtr(run);
+    const basePtr = isNode(run, NodeType.RUN) ? getRunBasePtr(run) : null;
     const baseNode = basePtr != null ? props.graph.get(basePtr) : null;
-    const color = getColorHex(COLOR_BY_RUN_STATUS[run.status], ColorShade.S500)!;
+    const color = !isStruct(run, StructType.RUN_SPAN)
+      ? getColorHex(COLOR_BY_RUN_STATUS[run.status], ColorShade.S500)!
+      : getColorHex(ColorType.GRAY, ColorShade.S500)!;
+    let icon: IconData | null | undefined = null;
+    let name: string = "???";
+    if (isNode(run, NodeType.RUN)) {
+      icon = baseNode != null ? getNodeIcon(baseNode) : ICON_BY_NODE_TYPE[NodeType.RUN];
+      name = (baseNode as any)?.name ?? "Run";
+    } else if (isStruct(run, StructType.RUN_SPAN)) {
+      icon = ICON_BY_RUN_SPAN_TYPE[run.type];
+      name = toCamelName(RunSpanType, run.type);
+    } else {
+      assertNever(run);
+    }
 
     // span
     let offsetRelative: number;
@@ -123,12 +136,12 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
       durationRelative = 1;
     }
     const span: TimelineNode = {
-      id: run.id,
+      id: isNode(run, NodeType.RUN) ? run.id : spans.length.toString(),
       parent: parent,
       depth: depth,
-      icon: baseNode != null ? getNodeIcon(baseNode) : null,
+      icon,
       color,
-      title: (baseNode as any)?.name ?? "Run",
+      name,
       startedAtMs: startedAtMs,
       durationMs: durationMs,
       baseNode: baseNode,
@@ -140,11 +153,17 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
     spans.push(span);
 
     // descend
-    for (const child of runTree.runGraph.getChildren(run)) {
-      if (!isNode(child, NodeType.RUN)) continue;
-      const basePtr = getRunBasePtr(child);
-      if (basePtr != null && !BASE_TYPES.includes(basePtr.nodeType)) continue;
-      walkRun(child, span, depth + 1);
+    if (isNode(run, NodeType.RUN)) {
+      for (const child of run.spans) {
+        if (child.level < minLevel.value) continue;
+        walkRun(child, span, depth + 1);
+      }
+      for (const child of runTree.runGraph.getChildren(run)) {
+        if (!isNode(child, NodeType.RUN)) continue;
+        const basePtr = getRunBasePtr(child);
+        if (basePtr != null && !BASE_TYPES.includes(basePtr.nodeType)) continue;
+        walkRun(child, span, depth + 1);
+      }
     }
   }
 
@@ -220,7 +239,7 @@ watchEffect(() => {
             v-bind="span.icon ?? ICON_BY_NODE_TYPE[NodeType.RUN]"
             class="mr-1.5 w-5 text-center text-gray-700 transition-colors duration-75"
           />
-          <span class="truncate underline-offset-3 group-hover/node:underline">{{ span.title }}</span>
+          <span class="truncate underline-offset-3 group-hover/node:underline">{{ span.name }}</span>
         </button>
         <!-- Meta -->
         <div class="ml-auto flex-shrink-0 pl-1.5">
@@ -229,6 +248,15 @@ watchEffect(() => {
             :run="span.content"
             :orientation="Orientation.HORIZONTAL_REVERSED"
           />
+          <div v-else class="flex flex-row items-center gap-x-1.5">
+            <!-- Poor man's RunStatus for non-Run items -->
+            <!-- Duration -->
+            <span class="text-gray-400">{{ formatDuration(span.durationMs, { minUnit: "s" }) }}</span>
+            <span
+              class="h-[8px] w-[8px] rounded-full transition-colors duration-150"
+              :style="{ backgroundColor: span.color }"
+            />
+          </div>
         </div>
       </div>
     </div>

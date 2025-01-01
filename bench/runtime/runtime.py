@@ -391,7 +391,9 @@ class Runtime:
 
             # acquire missing resource variables
             if missing_resource_slots:
-                with run_span(tracer, "runtime.acquire_resources", RunSpanType.WAIT_FOR) as span:
+                with run_span(
+                    tracer, "runtime.acquire_resources", RunSpanType.WAIT_FOR, runner=runner
+                ) as span:
                     resources = await self._get_or_create_resources(
                         runner=runner, resources=missing_resource_slots
                     )
@@ -590,7 +592,7 @@ class Runtime:
                 raise
             finally:
                 self._active_runners_by_id.pop(runner.id, None)
-                if not runner.is_tracked and runner.parent is not None:
+                if runner.tracked_run is None and runner.parent is not None:
                     # add inner spans/logs/events to parent
                     runner.parent.logs.extend(runner.logs)
                     runner.parent.events.extend(runner.events)

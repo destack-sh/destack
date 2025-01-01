@@ -535,8 +535,8 @@ class RouteAction(Action, HasDynamicContext):
 @object_()
 class HasApplicationContext(BuiltinObject):
     element_id: str | None = p_regular(100)
-    xpath: str | None = p_regular(101)
-    relative_position: Optional["Vector2"] = p_regular(
+    element_path: str | None = p_regular(101)
+    element_position: Optional["Vector2"] = p_regular(
         102, default=None, array=False, struct=StructType.VECTOR2, field_type=FieldType.INPUT
     )
 
