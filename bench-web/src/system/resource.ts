@@ -1,7 +1,6 @@
 import { isResourceNodeType } from "@/language/const";
 import { newChangeId, Transaction } from "@/language/transaction";
-import { AnyNodeData, BrowserData, MachineData, NodeType, ResourceStatus, Timestamp } from "@/proto/wire";
-import { isNode } from "@/proto/wiring";
+import { BrowserData, MachineData, NodeType, ResourceStatus, Timestamp } from "@/proto/wire";
 import { Action, ActionContext, getNodesForAction, provideActions } from "@/ui/action";
 
 export type ResourceData = MachineData | BrowserData; // | ...
@@ -34,12 +33,12 @@ function applyResourceAction(
     .forEach((node) => method(tx, node as ResourceData));
 }
 
-function checkResourceStatus(
+function isResourceActionEnabled(
   action: Action,
   context: ActionContext | undefined,
   statusPredicate: (status: ResourceStatus) => boolean,
 ): boolean {
-  const { nodes } = getNodesForAction(action, context);
+  const nodes = getNodesForAction(action, context).nodes;
   return (
     nodes.every((n) => isResourceNodeType(n.metatype as any)) &&
     nodes.some((n) => statusPredicate((n as ResourceData).status))
@@ -53,7 +52,7 @@ export const RESOURCE_ACTIONS = provideActions<"resource">({
     title: "Provision",
     text: "Provision this Resource",
     isEnabled: (action, context) =>
-      checkResourceStatus(
+      isResourceActionEnabled(
         action,
         context,
         (status) => status != ResourceStatus.UP && status != ResourceStatus.DECOMMISSIONED,
@@ -64,14 +63,14 @@ export const RESOURCE_ACTIONS = provideActions<"resource">({
     icon: "fas fa-snooze",
     title: "Suspend",
     text: "Suspend this Resource",
-    isEnabled: (action, context) => checkResourceStatus(action, context, (status) => status == ResourceStatus.UP),
+    isEnabled: (action, context) => isResourceActionEnabled(action, context, (status) => status == ResourceStatus.UP),
     action: (action, context) => applyResourceAction(action, context, suspendResource),
   },
   "resource.status.decommission": {
     icon: "fas fa-skull",
     title: "Decommission",
     text: "Decommission this Resource",
-    isEnabled: (action, context) => checkResourceStatus(action, context, (status) => status == ResourceStatus.UP),
+    isEnabled: (action, context) => isResourceActionEnabled(action, context, (status) => status == ResourceStatus.UP),
     action: (action, context) => applyResourceAction(action, context, decommissionResource),
   },
 });

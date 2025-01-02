@@ -1,6 +1,5 @@
 <script lang="ts" setup>
-import { HELPER_VIEW_TYPES, NODE_VIEW_TYPES } from "@/language/const";
-import { NodeReferenceData, NodeType, Orientation, UserStatus, ViewType } from "@/proto/wire";
+import { NodeType, Orientation, UserStatus, ViewType } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
 import { supergraph } from "@/system/globals";
@@ -22,7 +21,7 @@ import TooltipOverlay from "@/views/builtins/TooltipOverlay.vue";
 import Split from "@/views/containers/Split.vue";
 import Button from "@/views/controls/Button.vue";
 import { useTitle, useWindowSize } from "@vueuse/core";
-import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 
 const spaceRef = ref<HTMLElement | null>(null);
 const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space must be root element
