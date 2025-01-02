@@ -2813,25 +2813,25 @@ export interface RunData {
      */
     interruptedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 52;
-     */
-    interruptionPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 53;
+     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 52;
      */
     pausedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp resumed_at = 54;
+     * @generated from protobuf field: optional google.protobuf.Timestamp resumed_at = 53;
      */
     resumedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 55;
+     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 54;
      */
     terminatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional int32 terminated_epoch = 56;
+     * @generated from protobuf field: optional int32 terminated_epoch = 55;
      */
     terminatedEpoch?: number;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 56;
+     */
+    interruptionPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional google.protobuf.Value variables_packed = 60;
      */
@@ -10561,41 +10561,41 @@ export enum RunStatus {
      */
     QUEUED = 2,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_PREPARING = 3;
+     * @generated from protobuf enum value: RUN_STATUS_RUNNING = 10;
      */
-    PREPARING = 3,
+    RUNNING = 10,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_RUNNING = 4;
+     * @generated from protobuf enum value: RUN_STATUS_PREPARING = 11;
      */
-    RUNNING = 4,
+    PREPARING = 11,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_PAUSED = 5;
+     * @generated from protobuf enum value: RUN_STATUS_PAUSED = 20;
      */
-    PAUSED = 5,
+    PAUSED = 20,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_YIELDED = 6;
+     * @generated from protobuf enum value: RUN_STATUS_YIELDED = 21;
      */
-    YIELDED = 6,
+    YIELDED = 21,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_WAITING = 7;
+     * @generated from protobuf enum value: RUN_STATUS_WAITING = 22;
      */
-    WAITING = 7,
+    WAITING = 22,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_CANCELLED = 8;
+     * @generated from protobuf enum value: RUN_STATUS_CANCELLED = 30;
      */
-    CANCELLED = 8,
+    CANCELLED = 30,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_ABORTED = 9;
+     * @generated from protobuf enum value: RUN_STATUS_ABORTED = 31;
      */
-    ABORTED = 9,
+    ABORTED = 31,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_FAILED = 10;
+     * @generated from protobuf enum value: RUN_STATUS_FAILED = 32;
      */
-    FAILED = 10,
+    FAILED = 32,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_COMPLETED = 11;
+     * @generated from protobuf enum value: RUN_STATUS_COMPLETED = 33;
      */
-    COMPLETED = 11
+    COMPLETED = 33
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunType
@@ -19621,11 +19621,11 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 49, name: "started_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 50, name: "stopped_at", kind: "message", T: () => Timestamp },
             { no: 51, name: "interrupted_at", kind: "message", T: () => Timestamp },
-            { no: 52, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 53, name: "paused_at", kind: "message", T: () => Timestamp },
-            { no: 54, name: "resumed_at", kind: "message", T: () => Timestamp },
-            { no: 55, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 56, name: "terminated_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 52, name: "paused_at", kind: "message", T: () => Timestamp },
+            { no: 53, name: "resumed_at", kind: "message", T: () => Timestamp },
+            { no: 54, name: "terminated_at", kind: "message", T: () => Timestamp },
+            { no: 55, name: "terminated_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 56, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 60, name: "variables_packed", kind: "message", T: () => Value },
             { no: 61, name: "inputs_packed", kind: "message", T: () => Value },
             { no: 62, name: "intermediates_packed", kind: "message", T: () => Value },
@@ -19760,20 +19760,20 @@ class RunData$Type extends MessageType$<RunData> {
                 case /* optional google.protobuf.Timestamp interrupted_at */ 51:
                     message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 52:
-                    message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
-                    break;
-                case /* optional google.protobuf.Timestamp paused_at */ 53:
+                case /* optional google.protobuf.Timestamp paused_at */ 52:
                     message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
                     break;
-                case /* optional google.protobuf.Timestamp resumed_at */ 54:
+                case /* optional google.protobuf.Timestamp resumed_at */ 53:
                     message.resumedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resumedAt);
                     break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 55:
+                case /* optional google.protobuf.Timestamp terminated_at */ 54:
                     message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
                     break;
-                case /* optional int32 terminated_epoch */ 56:
+                case /* optional int32 terminated_epoch */ 55:
                     message.terminatedEpoch = reader.int32();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 56:
+                    message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
                     break;
                 case /* optional google.protobuf.Value variables_packed */ 60:
                     message.variablesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
@@ -19925,21 +19925,21 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional google.protobuf.Timestamp interrupted_at = 51; */
         if (message.interruptedAt)
             Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 52; */
-        if (message.interruptionPtr)
-            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp paused_at = 53; */
+        /* optional google.protobuf.Timestamp paused_at = 52; */
         if (message.pausedAt)
-            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp resumed_at = 54; */
+            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp resumed_at = 53; */
         if (message.resumedAt)
-            Timestamp.internalBinaryWrite(message.resumedAt, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 55; */
+            Timestamp.internalBinaryWrite(message.resumedAt, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp terminated_at = 54; */
         if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 terminated_epoch = 56; */
+            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 terminated_epoch = 55; */
         if (message.terminatedEpoch !== undefined)
-            writer.tag(56, WireType.Varint).int32(message.terminatedEpoch);
+            writer.tag(55, WireType.Varint).int32(message.terminatedEpoch);
+        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 56; */
+        if (message.interruptionPtr)
+            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value variables_packed = 60; */
         if (message.variablesPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -29645,11 +29645,11 @@ export enum RunProperty {
   startedEpoch = 49,
   stoppedAt = 50,
   interruptedAt = 51,
-  interruptionPtr = 52,
-  pausedAt = 53,
-  resumedAt = 54,
-  terminatedAt = 55,
-  terminatedEpoch = 56,
+  pausedAt = 52,
+  resumedAt = 53,
+  terminatedAt = 54,
+  terminatedEpoch = 55,
+  interruptionPtr = 56,
   variablesPacked = 60,
   inputsPacked = 61,
   intermediatesPacked = 62,
@@ -31703,11 +31703,11 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.startedEpoch]: { id: 49, name: 'started_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.stoppedAt]: { id: 50, name: 'stopped_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.interruptedAt]: { id: 51, name: 'interrupted_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.interruptionPtr]: { id: 52, name: 'interruption_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.pausedAt]: { id: 53, name: 'paused_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.resumedAt]: { id: 54, name: 'resumed_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.terminatedAt]: { id: 55, name: 'terminated_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.terminatedEpoch]: { id: 56, name: 'terminated_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.pausedAt]: { id: 52, name: 'paused_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.resumedAt]: { id: 53, name: 'resumed_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.terminatedAt]: { id: 54, name: 'terminated_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.terminatedEpoch]: { id: 55, name: 'terminated_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.interruptionPtr]: { id: 56, name: 'interruption_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.variablesPacked]: { id: 60, name: 'variables_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.inputsPacked]: { id: 61, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.intermediatesPacked]: { id: 62, name: 'intermediates_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
