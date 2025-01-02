@@ -417,33 +417,33 @@ async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
     assert runner.tracked_run and len(runner.tracked_run.runs) <= 10  # should complete quickly
 
 
-async def test_run_flow_select_continuations_manually(local_runtime: RuntimeHandle):
-    """Runs a Flow with manually selected Continuations."""
+async def test_run_flow_continue_with_calls(local_runtime: RuntimeHandle):
+    """Runs a Flow with manually selected Calls."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
-    Router = Action.new(ActionType.CODE, "Router", code=code("pass"))
+    Route = Action.new(ActionType.CODE, "Router", code=code("pass"))
     Code2 = Action.new(ActionType.CODE, "Code2", code=code("pass"))
     Code3 = Action.new(ActionType.CODE, "Code3", code=code("pass"))
     Code4 = Action.new(ActionType.CODE, "Code4", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow.actions.extend(Start, Router, Code2, Code3, Code4, Complete)
-    Start.connect(PipeType.FORWARD, Router)
-    Router.connect(PipeType.SELECT, Complete)
-    Router.connect(PipeType.SELECT, Code2)
-    Router.connect(PipeType.OPTION, Code3)
-    Router.connect(PipeType.OPTION, Code4)
+    Flow.actions.extend(Start, Route, Code2, Code3, Code4, Complete)
+    Start.connect(PipeType.FORWARD, Route)
+    Route.connect(PipeType.SELECT, Complete)
+    Route.connect(PipeType.SELECT, Code2)
+    Route.connect(PipeType.SELECT, Code3)
+    Route.connect(PipeType.SELECT, Code4)
     await local_runtime.commit()
 
     # Route: none
-    Router.code = code("pass")
+    Route.code = code("pass")
     runner = await local_runtime.run(Flow)
     assert runner.tracked_run
     assert not runner.tracked_run.has(Code2, Code3, Code4, Complete)
 
-    # Route: Code2 (Select) + Code3 (Option)
-    Router.code = code("""\
+    # Route: Code2 + Code3
+    Route.code = code("""\
 return {
-    'continuations': [Continue.new(Code2), Continue.new(Code3)],
+    'calls': [Call.new(Code2), Call.new(Code3)],
 }
 """)
     runner = await local_runtime.run(Flow)
@@ -451,10 +451,10 @@ return {
     assert runner.tracked_run.has(Code2, Code3)
     assert not runner.tracked_run.has(Complete, Code4)
 
-    # Route: Code4 (Option)
-    Router.code = code("""\
+    # Route: Code4
+    Route.code = code("""\
 return {
-    'continuations': [Continue.new(Code4)],
+    'calls': [Call.new(Code4)],
 }
 """)
     runner = await local_runtime.run(Flow)
@@ -462,26 +462,16 @@ return {
     assert runner.tracked_run.has(Code4)
     assert not runner.tracked_run.has(Complete, Code2, Code3)
 
-    # Route: Complete (Select) + Code2 (Select)
-    Router.code = code("""\
+    # Route: Complete + Code2
+    Route.code = code("""\
 return {
-    'continuations': [Continue.new(Complete), Continue.new(Code2)],
+    'calls': [Call.new(Complete), Call.new(Code2)],
 }
 """)
     runner = await local_runtime.run(Flow)
     assert runner.tracked_run
     assert runner.tracked_run.has(Complete, Code2)
     assert not runner.tracked_run.has(Code3, Code4)
-
-    # Route: Code3 (Option) + Code4 (Option) -> invalid (two mutually exclusive options)
-    Router.code = code("""\
-return {
-    'continuations': [Continue.new(Code3), Continue.new(Code4)],
-}
-""")
-    runner = await local_runtime.run(Flow, return_error=True)
-    assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.INVALID_CONTINUATION
 
 
 async def test_run_flow_abort(local_runtime: RuntimeHandle):

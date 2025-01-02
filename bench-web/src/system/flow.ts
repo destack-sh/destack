@@ -74,7 +74,7 @@ export const DEFAULT_TEXT_BY_ACTION_TYPE: Partial<Record<ActionType, string>> = 
   [ActionType.DUPLICATE]: "Duplicate the clipboard.",
   [ActionType.PASTE]: "Paste from clipboard.",
   // run
-  [ActionType.YIELD]: "Pause and wait for someone.",
+  [ActionType.YIELD]: "Pause and wait for something.",
   // application
   [ActionType.OBSERVE]: "Look at the screen.",
   [ActionType.CLICK]: "Click somewhere on the screen.",

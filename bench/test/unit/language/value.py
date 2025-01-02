@@ -356,7 +356,6 @@ UNGENERATABLE_STRUCT_TYPES = [
     # contain required references
     StructType.OBJECT_MAPPING,
     StructType.FIELD_MAPPING,
-    StructType.CONTINUE,
     StructType.CALL,
 ]
 

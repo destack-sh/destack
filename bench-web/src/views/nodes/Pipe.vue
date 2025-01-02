@@ -88,27 +88,27 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- Main Arrowhead Marker -->
         <marker
           :id="'arrowhead-main-' + pipe.id"
-          markerWidth="10"
-          markerHeight="7"
-          refX="9"
-          refY="3.5"
+          markerWidth="12"
+          markerHeight="8"
+          refX="11"
+          refY="4"
           orient="auto"
           markerUnits="userSpaceOnUse"
         >
-          <path d="M0,0 L10,3.5 L0,7 L2,3.5 Z" fill="currentColor" />
+          <path d="M0,0 L12,4 L0,8 L2,4 Z" fill="currentColor" />
         </marker>
 
         <!-- Background Arrowhead Marker (Larger) -->
         <marker
           :id="'arrowhead-background-' + pipe.id"
-          markerWidth="14"
-          markerHeight="10"
-          refX="12"
-          refY="5"
+          markerWidth="16"
+          markerHeight="12"
+          refX="14"
+          refY="6"
           orient="auto"
           markerUnits="userSpaceOnUse"
         >
-          <path d="M0,0 L14,5 L0,10 L3,5 Z" fill="currentColor" />
+          <path d="M0,0 L16,6 L0,12 L3,6 Z" fill="currentColor" />
         </marker>
 
         <!-- Inverted Start Marker -->
@@ -121,20 +121,20 @@ defineExpose<ViewExposed>({ self, id, actions });
           orient="auto"
           markerUnits="userSpaceOnUse"
         >
-          <path d="M10,0 L0,3.5 L10,7 L8,3.5 Z" fill="currentColor" />
+          <path d="M10,0 L0,3.5 L10,7 L7.5,3.5 Z" fill="currentColor" />
         </marker>
 
         <!-- Inverted Start Background Marker -->
         <marker
           :id="'arrowhead-start-background-' + pipe.id"
           markerWidth="14"
-          markerHeight="10"
+          markerHeight="9"
           refX="2"
-          refY="5"
+          refY="4.5"
           orient="auto"
           markerUnits="userSpaceOnUse"
         >
-          <path d="M14,0 L0,5 L14,10 L11,5 Z" fill="currentColor" />
+          <path d="M14,0 L0,4.5 L14,9 L10.5,4.5 Z" fill="currentColor" />
         </marker>
       </defs>
 

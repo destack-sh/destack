@@ -359,7 +359,7 @@ defineExpose<ViewExposed>({
       class="group flex-1 flex-shrink-0 truncate rounded px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-200 hover:text-gray-800 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
       @click.prevent="!isSelected(item) || valueType?.isRequired ? select(item) : clear()"
     >
-      <IconInline v-if="isMinimal && (item as any).icon" v-bind="(item as any).icon" class="w-5" />
+      <IconInline v-if="(item as any).icon" v-bind="(item as any).icon" class="w-5" />
       <span v-else class="truncate">{{ item.title }}</span>
     </button>
     <div v-if="results.length == 0" class="mx-auto">
