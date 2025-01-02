@@ -37,7 +37,7 @@ from bench.language.log import Log
 from bench.language.machine import Machine
 from bench.language.node import GraphScope, patch_graph, sync_node
 from bench.language.property import Property
-from bench.language.query import QueryBuilder
+from bench.language.query import Query
 from bench.language.session import RuntimeContext, Session
 from bench.language.transaction import edit_data_graph, edit_graph
 from bench.language.user import User
@@ -465,7 +465,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         return scope
 
     @override
-    def _adapt_read_query(self, subject: Subject, query: QueryBuilder) -> QueryBuilder:
+    def _adapt_read_query(self, subject: Subject, query: Query) -> Query:
         query = super()._adapt_read_query(subject, query)
 
         # restrict to this bench if it's a in-bench query

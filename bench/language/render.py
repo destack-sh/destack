@@ -49,7 +49,7 @@ class RenderOptions:
     as_page: bool = False
     node_types: Collection[NodeType] = NODE_TYPES_SET
     # types to 'fold in' directly as children of nodes (even if not referenced) :FoldedNodes
-    folded_child_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER, NodeType.QUERY)
+    folded_child_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER)
     node_filter: Collection[UUID] | None = None
     statement_separator: str = "\n"
     simplify_paths: bool = True

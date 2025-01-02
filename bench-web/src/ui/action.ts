@@ -183,7 +183,7 @@ export type Action = {
   id: ActionBuiltinId;
   icon?: IconData;
   title: MaybeRef<string>;
-  text: string | TextData;
+  text: string;
   shortcuts?: KeySignature[]; // NOTE :Incomplete: define shortcuts in per-Space/User keymap?
   isEnabled?: Ref<boolean> | ((action: Action, ctx?: ActionContext) => boolean | undefined);
   category: string;

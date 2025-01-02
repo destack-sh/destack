@@ -143,6 +143,8 @@ class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
             )
             return runner
 
+    # nocheckin: generate missing/unset outputs & Calls (in Flow? or always?)
+
 
 #
 # Boundary
@@ -528,8 +530,8 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunnerBase[Any]]] = {
     # dynamic
     ActionType.GENERATE: DynamicActionRunner,
     ActionType.TRANSFORM: DynamicActionRunner,
-    ActionType.EXTRACT: DynamicActionRunner,
     ActionType.ROUTE: DynamicActionRunner,
+    ActionType.CHANGE: DynamicActionRunner,
     # application
     ActionType.OBSERVE: ObserveActionRunner,
     ActionType.CLICK: ClickActionRunner,

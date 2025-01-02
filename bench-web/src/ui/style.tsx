@@ -10,6 +10,7 @@ import {
   ResourceStatus,
   RunStatus,
   ActionType,
+  EnumType,
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -156,16 +157,17 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   [ActionType.DELETE]: ColorType.SKY,
   [ActionType.PASTE]: ColorType.SKY,
   // session
-  [ActionType.YIELD]: ColorType.PINK,
+  // ...
   // static
   [ActionType.CODE]: ColorType.ORANGE,
   [ActionType.DELEGATE]: ColorType.ORANGE,
   [ActionType.WAIT]: ColorType.ORANGE,
+  [ActionType.YIELD]: ColorType.ORANGE,
   // dynamic
   [ActionType.GENERATE]: ColorType.PINK,
   [ActionType.TRANSFORM]: ColorType.PINK,
-  [ActionType.EXTRACT]: ColorType.PINK,
   [ActionType.ROUTE]: ColorType.PINK,
+  [ActionType.CHANGE]: ColorType.PINK,
   // application
   [ActionType.OBSERVE]: ColorType.EMERALD,
   [ActionType.CLICK]: ColorType.ORANGE,
@@ -218,6 +220,15 @@ export const COLOR_BY_RESOURCE_STATUS: Record<ResourceStatus, ColorType> = {
   [ResourceStatus.SLEEPING]: ColorType.YELLOW,
   [ResourceStatus.DEGRADED]: ColorType.ORANGE,
   [ResourceStatus.DECOMMISSIONED]: ColorType.GRAY,
+};
+
+export const COLORS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, ColorType>>> = {
+  [EnumType.NODE_TYPE]: COLOR_BY_NODE_TYPE,
+  [EnumType.BLOCK_TYPE]: COLOR_BY_BLOCK_TYPE,
+  [EnumType.ACTION_TYPE]: COLOR_BY_ACTION_TYPE,
+  [EnumType.LOG_LEVEL]: COLOR_BY_LOG_LEVEL,
+  [EnumType.RUN_STATUS]: COLOR_BY_RUN_STATUS,
+  [EnumType.RESOURCE_STATUS]: COLOR_BY_RESOURCE_STATUS,
 };
 
 export function getLogColorHex(level: LogLevel, shade?: ColorShade): string | undefined {

@@ -31,7 +31,7 @@ if TYPE_CHECKING:
         NodeReference,
         PackageNode,
         Property,
-        QueryBuilder,
+        Query,
         Struct,
     )
     from bench.proto.wire import AnyNodeData
@@ -345,12 +345,12 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     # Querying
     #
 
-    def _query(self) -> "QueryBuilder[V, VD]":
-        from bench.language import Block, Expression, QueryBuilder, SelectOptions
+    def _query(self) -> "Query[V, VD]":
+        from bench.language import Block, Expression, Query, SelectOptions
 
         assert isinstance(self._node, Block), f"can only query from a block: {self._node!r}"
         created_at = self._child_node_cls.get_property("created_at")
-        query = QueryBuilder(
+        query = Query(
             type=QueryType.SEARCH,
             node_type=self._child_node_type,
             base_block=self._node,
@@ -361,30 +361,30 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
         )
         return query
 
-    def where(self, filter: Optional["Expression"] = None, **kwargs) -> "QueryBuilder[V, VD]":
+    def where(self, filter: Optional["Expression"] = None, **kwargs) -> "Query[V, VD]":
         return self._query().where(filter, **kwargs)
 
     def order_by(
         self, sort: "Optional[Expression] | str | Field | Property" = None, *args: str
-    ) -> "QueryBuilder[V, VD]":
+    ) -> "Query[V, VD]":
         return self._query().order_by(sort, *args)
 
-    def include(self, *properties: "Property") -> "QueryBuilder[V, VD]":
+    def include(self, *properties: "Property") -> "Query[V, VD]":
         return self._query().include(*properties)
 
-    def select(self, *keys: FieldOrProperty) -> "QueryBuilder[V, VD]":
+    def select(self, *keys: FieldOrProperty) -> "Query[V, VD]":
         return self._query().select(*keys)
 
-    def select_all(self) -> "QueryBuilder[V, VD]":
+    def select_all(self) -> "Query[V, VD]":
         return self._query().select_all()
 
-    def deselect(self, *properties: "Property") -> "QueryBuilder[V, VD]":
+    def deselect(self, *properties: "Property") -> "Query[V, VD]":
         return self._query().deselect(*properties)
 
-    def include_ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[V, VD]":
+    def include_ancestors(self, *node_types: NodeTypeOrClass) -> "Query[V, VD]":
         return self._query().include_ancestors(*node_types)
 
-    def include_descendants(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[V, VD]":
+    def include_descendants(self, *node_types: NodeTypeOrClass) -> "Query[V, VD]":
         return self._query().include_descendants(*node_types)
 
     @overload
@@ -409,7 +409,7 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     async def search(self, filter: Optional["Expression"] = None, **kwargs) -> list[V]:
         return await self._query().search(filter, **kwargs)
 
-    def first(self, count: int) -> "QueryBuilder[V, VD]":
+    def first(self, count: int) -> "Query[V, VD]":
         return self._query().first(count)
 
     async def count(self, filter: Optional["Expression"] = None, **kwargs) -> int:

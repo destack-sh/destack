@@ -11,7 +11,15 @@ import regex
 import structlog
 import typer
 
-from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET, VERSION, TypeFormat
+from bench.language.const import (
+    ENUM_TYPES,
+    NODE_TYPES,
+    STRUCT_TYPES,
+    UNSET,
+    VERSION,
+    EnumType,
+    TypeFormat,
+)
 from bench.language.field import TypeConstraint
 from bench.language.file import FILE_FORMAT_BY_EXTENSION, FILE_FORMAT_BY_MIME_TYPE
 from bench.language.node import Node
@@ -614,6 +622,44 @@ export type PropertyInfo = {
         "".join(object_type_info_map_parts) + "\n" + "".join(subnode_type_info_maps)
     )
 
+    # enum options
+    enum_option_info_type_str = """
+export type EnumOptionInfo = {
+    id: number;
+    name: string;
+    text: string;
+}
+"""
+    enum_option_info_parts: list[str] = []
+    enum_option_info_map_parts: list[str] = []
+    for enum_type in EnumType:
+        enum_cls = ENUM_CLASS_BY_TYPE[enum_type]
+        # only include if one of the options has text
+        if not any(option.text for option in enum_cls):
+            continue
+        option_info_parts: list[str] = []
+        for option in enum_cls:
+            if option.text:
+                option_info_parts.append(
+                    f"  [{enum_cls.__name__}.{option.name}]: {{ id: {option.value}, name: {option.name!r}, text: {option.text!r} }},"
+                )
+        enum_option_info_parts.extend(
+            (
+                f"export const {enum_cls.__name__}OptionInfo: Partial<Record<{enum_cls.__name__}, EnumOptionInfo>> = {{",
+                "\n".join(option_info_parts),
+                "}\n",
+            )
+        )
+        enum_option_info_map_parts.append(
+            f"  [EnumType.{enum_type.name}]: {enum_cls.__name__}OptionInfo,"
+        )
+    enum_option_info_str = "\n".join(enum_option_info_parts)
+    enum_option_info_map_str = f"""
+export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, EnumOptionInfo>>> = {{
+{'\n'.join(enum_option_info_map_parts)}
+}}
+"""
+
     # file mapping enums
     file_format_by_extension_str_inner = "\n".join(
         f'  "{extension}": FileFormat.{file_format.name.upper()},'
@@ -697,6 +743,11 @@ export type AnyPropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' 
 {object_info_type_str}
 {object_info_definitions_str}
 {object_info_map_str}
+
+// Enum options
+{enum_option_info_type_str}
+{enum_option_info_str}
+{enum_option_info_map_str}
 
 // Misc
 {file_mapping_enums_str}

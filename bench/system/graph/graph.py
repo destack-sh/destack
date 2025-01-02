@@ -32,7 +32,7 @@ from bench.language.const import (
 )
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.node import EDIT_SUBJECT_TYPES, EMPTY_SCOPE_DATA, Node
-from bench.language.query import NodeNotFoundError, QueryBuilder
+from bench.language.query import NodeNotFoundError, Query
 from bench.language.registry import ANCESTOR_NODE_TYPES, NODE_CLASS_BY_TYPE
 from bench.language.session import RuntimeContext
 from bench.language.transaction import edit_data_graph
@@ -107,8 +107,8 @@ class GraphLock:
         self._locks: dict[NodeType, RWLock] = {node_type: RWLock() for node_type in NODE_TYPES}
 
     @asynccontextmanager
-    async def read(self, ctx: QueryBuilder | Literal["all"]):
-        if isinstance(ctx, QueryBuilder):  # noqa: SIM108
+    async def read(self, ctx: Query | Literal["all"]):
+        if isinstance(ctx, Query):  # noqa: SIM108
             node_types = ctx.all_node_types
         else:
             node_types = NODE_TYPES
@@ -185,7 +185,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 GRPCStatus.INVALID_ARGUMENT, f"scope mismatch: {scope.bench_id} != {self.bench_id}"
             )
 
-    def _adapt_read_query(self, subject: Subject, query: "QueryBuilder") -> "QueryBuilder":
+    def _adapt_read_query(self, subject: Subject, query: "Query") -> "Query":
         """
         Adapt read options based on the access to pre-filter as feasible while enabling the complete post-read check.
         Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
@@ -358,7 +358,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                         if block is not None
                         else None
                     )
-                    query = QueryBuilder(
+                    query = Query(
                         type=QueryType.GET,
                         node_type=node_type,
                         base_block=block,
@@ -511,7 +511,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 if len(roots_by_type) > 1:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "roots must be of the same type")
                 node_type = next(iter(roots_by_type.keys()))
-                query = QueryBuilder(
+                query = Query(
                     type=QueryType.GET,
                     node_type=wiring.unpack_enum(NodeType, node_type),
                     roots=roots,
@@ -647,7 +647,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     )
                     or SelectOptions.default()
                 )
-                query = QueryBuilder(
+                query = Query(
                     type=QueryType.SEARCH,
                     node_type=node_type,
                     base_block=block,
@@ -759,7 +759,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 aggregation = wiring.unpack_builtin_object_validate(
                     request.aggregation, supergraph=session._supergraph, expect=Expression
                 )
-                query = QueryBuilder(
+                query = Query(
                     type=QueryType.AGGREGATE,
                     node_type=node_type,
                     filter=filter,

@@ -1,37 +1,31 @@
 <script lang="ts" setup>
 import { getBaseFromNode, toCamelName } from "@/language/const";
-import { makeTypeConstraint, makeTypeInfo } from "@/language/field";
+import { makeTypeInfo } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
 import { getInterruptDurationString, isRunnable, RunnableNode } from "@/language/session";
 import { getTransactionOptionsForType } from "@/language/transaction";
-import { packCustomObjectProperty, unpackCustomObjectProperty } from "@/language/value";
 import {
-  BenchType,
-  ContinueData,
   FieldType,
   InterruptionData,
   InterruptionStatus,
   InterruptionType,
   NodeType,
-  ObjectType,
   RunData,
-  StructType,
   TypeInfoData,
   TypeKind,
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { isNode, makeStruct, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getInterruptActions, runtime } from "@/system/runtime";
-import { canvas, pkg, pkgGraph } from "@/system/space";
+import { canvas, pkgGraph } from "@/system/space";
 import { ICON_BY_INTERRUPTION_TYPE, IconInline } from "@/ui/icon";
 import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
 import { ModelValueOptions, viewEmits, type ViewExposed } from "@/views/common";
-import Picker from "@/views/content/Picker.vue";
 import CustomObject from "@/views/structs/CustomObject.vue";
-import { computed, ref, toRef, type Ref } from "vue";
+import { computed, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = 32;
 const SECTION_HEADER_HEIGHT = 32;
@@ -114,7 +108,6 @@ function getRunObjectValue(fieldType: FieldType) {
 type InterruptionInfo = {
   base: RunnableNode | null;
   interruption: InterruptionData;
-  continuations: ContinueData[];
   inputType: TypeInfoData;
   outputType: TypeInfoData;
 };
@@ -134,23 +127,10 @@ const interruptions = computed(() => {
       baseFieldType: FieldType.OUTPUT,
     });
 
-    const continuations = unpackCustomObjectProperty(
-      ObjectType.OUTPUT_OBJECT,
-      interrupt.outputsPacked!,
-      "continuations",
-    );
-    interruptions.push({ base, interruption: interrupt, inputType, outputType, continuations: continuations ?? [] });
+    interruptions.push({ base, interruption: interrupt, inputType, outputType });
   }
   return interruptions;
 });
-function setContinuations(interrupt: InterruptionInfo, value: ContinueData[]) {
-  const continuationsPacked = packCustomObjectProperty(ObjectType.OUTPUT_OBJECT, value, "continuations");
-  runTree.value.tx.update(
-    interrupt.interruption,
-    { outputsPacked: { ...(interrupt.interruption.outputsPacked as any), ...((continuationsPacked as any) ?? {}) } },
-    { debounce: "tick" },
-  );
-}
 
 function start() {
   if (node.value == null || !isRunnable(node.value)) return;
@@ -309,35 +289,6 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
                   }
                 "
               />
-              <!-- Interrupt Continuations -->
-              <div v-if="isNode(interrupt.base, NodeType.ACTION)" class="flex flex-row items-center gap-x-[10%]">
-                <span class="w-[100px]">
-                  <span class="max-w-full truncate py-1 text-gray-900">Continue</span>
-                </span>
-                <!-- Select continuation (from :CustomObjectProperties) -->
-                <Picker
-                  id="interrupt-continuations"
-                  is-input
-                  class="mt-1.5"
-                  :style="{ width: 'calc(90% - 100px)' }"
-                  :value-type="
-                    makeTypeInfo({
-                      kind: TypeKind.NODE,
-                      benchType: BenchType.ACTION,
-                      isList: true,
-                      constraint: makeTypeConstraint({ nodeScopePtr: [interrupt.base.parentPtr!], nodeMaxDepth: 1 }),
-                    })
-                  "
-                  :model-value="interrupt.continuations.map((c) => c.nodePtr)"
-                  @update:model-value="
-                    (value) =>
-                      setContinuations(
-                        interrupt,
-                        value?.map((v: any) => makeStruct({ metatype: StructType.CONTINUE, nodePtr: v })),
-                      )
-                  "
-                />
-              </div>
               <!-- Actions -->
               <div class="ml-auto mt-1 flex flex-row justify-end gap-x-1 py-1">
                 <button

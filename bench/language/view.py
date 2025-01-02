@@ -694,8 +694,9 @@ class IconView(View):
 
 @enum_(EnumType.PICKER_VARIANT)
 class PickerVariant(IdEnum):
-    DROPDOWN = 1
-    MULTI_TOGGLE = 2
+    MULTI_TOGGLE = 1
+    DROPDOWN = 2
+    DROPDOWN_LARGE = 3
 
 
 @node_subtype_(ViewType.PICKER)

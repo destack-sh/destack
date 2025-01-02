@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2025.01.02.3"
+VERSION = "2025.01.02.4"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -887,58 +887,6 @@ FIELD_TABLE = Table(
         Column("is_required", PrimitiveType.BOOLEAN, default="false"),
         Column("is_list", PrimitiveType.BOOLEAN, default="false"),
         Column("is_secret", PrimitiveType.BOOLEAN, default="false"),
-        Column("mode", PrimitiveType.INT16, default="2"),
-    ),
-)
-
-QUERY_TABLE = Table(
-    "bench_query",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("package_ck", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("template_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("templated_epoch", PrimitiveType.INT64, is_nullable=True),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("type", PrimitiveType.INT16),
-        Column("name", PrimitiveType.STRING),
-        Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
-        Column("node_type", PrimitiveType.INT16),
-        Column("base_block_id", PrimitiveType.UUID, is_nullable=True),
-        Column("base_block_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("base_block_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("roots_id", PrimitiveType.UUID, is_array=True),
-        Column("roots_ck", PrimitiveType.UUID, is_array=True),
-        Column("roots_type", PrimitiveType.INT16, is_array=True),
-        Column("roots_bench_id", PrimitiveType.UUID, is_array=True),
-        Column("roots_base_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("roots_base_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("filter", PrimitiveType.JSON, is_nullable=True),
-        Column("sort", PrimitiveType.JSON, is_array=True, is_nullable=True),
-        Column("aggregation", PrimitiveType.JSON, is_nullable=True),
-        Column("ancestor_types", PrimitiveType.INT16, is_array=True),
-        Column("descendant_types", PrimitiveType.INT16, is_array=True),
-        Column("select", PrimitiveType.JSON, is_nullable=True),
-        Column("include_deleted", PrimitiveType.BOOLEAN, default="false"),
-        Column("first", PrimitiveType.INT32, is_nullable=True),
-        Column("skip", PrimitiveType.INT32, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )

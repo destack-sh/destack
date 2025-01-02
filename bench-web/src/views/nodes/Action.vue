@@ -11,15 +11,10 @@ import {
   PortSide,
   ActionType,
   ViewData,
+  ActionTypeOptionInfo,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import {
-  DEFAULT_TEXT_BY_ACTION_TYPE,
-  FLOW_PORT_SIZE,
-  getActionSides,
-  ACTION_SIZE,
-  useFlowContext,
-} from "@/system/flow";
+import { FLOW_PORT_SIZE, getActionSides, ACTION_SIZE, useFlowContext } from "@/system/flow";
 import { runtime } from "@/system/runtime";
 import { canvas } from "@/system/space";
 import { type ActionMapImplementation } from "@/ui/action";
@@ -222,7 +217,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <template v-if="action.type == ActionType.FAIL && (subnode as FailActionData).errorTitle != null">
               {{ (subnode as FailActionData).errorTitle }}
             </template>
-            <template v-else>{{ DEFAULT_TEXT_BY_ACTION_TYPE[action.type] ?? "No fields" }}</template>
+            <template v-else>{{ ActionTypeOptionInfo[action.type]?.text ?? "No fields" }}</template>
           </span>
         </div>
       </div>

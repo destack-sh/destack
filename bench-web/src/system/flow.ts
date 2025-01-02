@@ -55,44 +55,6 @@ export const PIPE_CONNECTION_DISTANCE = FLOW_GRID_STEP * 2; // minimum distance 
 export const ACTION_SIZE = { width: FLOW_GRID_STEP * 17, height: FLOW_GRID_STEP * 3 };
 export const ACTION_SIZE_HALF = { width: ACTION_SIZE.width / 2, height: ACTION_SIZE.height / 2 };
 
-// TODO :Cleanup :Architecture: enum/object descriptions should be in language (and exported from there during build)
-export const DEFAULT_TEXT_BY_ACTION_TYPE: Partial<Record<ActionType, string>> = {
-  // start
-  [ActionType.START]: "Begin the flow.",
-  [ActionType.TRIGGER]: "Trigger the flow.",
-  // end
-  [ActionType.COMPLETE]: "End the entire flow.",
-  [ActionType.FAIL]: "Fail the entire flow.",
-  // read
-  [ActionType.GET]: "Get a specific Node.",
-  [ActionType.SEARCH]: "Search for Nodes.",
-  [ActionType.COPY]: "Copy to clipboard.",
-  // write
-  [ActionType.CREATE]: "Create a new Node.",
-  [ActionType.UPDATE]: "Update a Node.",
-  [ActionType.DELETE]: "Delete a Node.",
-  [ActionType.DUPLICATE]: "Duplicate the clipboard.",
-  [ActionType.PASTE]: "Paste from clipboard.",
-  // run
-  [ActionType.YIELD]: "Pause and wait for something.",
-  // application
-  [ActionType.OBSERVE]: "Look at the screen.",
-  [ActionType.CLICK]: "Click somewhere on the screen.",
-  [ActionType.PRESS]: "Press some keys.",
-  [ActionType.TYPE]: "Enter text.",
-  [ActionType.SCROLL]: "Scroll the screen.",
-  [ActionType.SELECT]: "Select something.",
-  [ActionType.GO_BACKWARD]: "Go back in history.",
-  [ActionType.GO_FORWARD]: "Go forward in history.",
-  // web
-  [ActionType.GO_TO_URL]: "Navigate to a URL.",
-  [ActionType.GO_TO_TAB]: "Switch to a tab.",
-  [ActionType.OPEN_TAB]: "Open a new tab.",
-  [ActionType.CLOSE_TAB]: "Close a tab.",
-  // containers
-  [ActionType.LOOP]: "Loop over a list.",
-};
-
 /** Rounds the given vector to the nearest grid position (in world coordinates). */
 export function snapVec(vec: { x: number; y: number }): { x: number; y: number } {
   return {

@@ -32,7 +32,7 @@ from bench.language.const import (
     is_node_type,
     is_struct_type,
 )
-from bench.language.expression import _TypeQueryBuilder
+from bench.language.expression import _TypeQuery
 from bench.language.node import (
     BuiltinObject,
     HasNodeBase,
@@ -583,7 +583,7 @@ def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
 
 # pyright: reportIncompatibleMethodOverride=false
 @node_(NodeType.FIELD)
-class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _TypeQueryBuilder):
+class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _TypeQuery):
     """
     A custom attribute of some value, the user-defined counterpart to Properties in builtin objects.
     """
@@ -613,7 +613,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _TypeQueryBuilder):
             return TypeBase.__content_str__(self)
 
     def __eq__(self, other):  # type: ignore
-        return _TypeQueryBuilder.__eq__(self, other)  # override to avoid recursion
+        return _TypeQuery.__eq__(self, other)  # override to avoid recursion
 
     __hash__ = SourceNode.__hash__  # type: ignore
     # (not entirely sure why we need to override Field.__hash__ but not for any other node, maybe

@@ -9,7 +9,6 @@ from typing import (
     Iterable,
     Optional,
     Sequence,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -35,16 +34,12 @@ from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     Node,
     NodeReference,
-    SourceNode,
     Struct,
-    node_,
     struct_,
 )
-from bench.language.property import Property, p_node_parent, p_regular
+from bench.language.property import Property, p_regular
 from bench.language.registry import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_completing_setup
-from bench.language.validation import NAME_CONSTRAINT
-from bench.proto.wire import AnyNodeData, QueryData
-from bench.utils.fractional import INTEGER_ZERO
+from bench.proto.wire import AnyNodeData
 from bench.utils.func import stable_hash
 
 if TYPE_CHECKING:
@@ -197,7 +192,7 @@ class SelectOptions(Struct):
 class QueryError(BenchError, ValueError):
     def __init__(
         self,
-        query: "QueryBuilder | NodeReference",
+        query: "Query | NodeReference",
         result: Any | None = None,
         cause: Exception | None = None,
     ):
@@ -218,7 +213,7 @@ class MultipleNodesFoundError(QueryError):
     pass
 
 
-class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
+class Query[NodeT: Node, NodeDataT: AnyNodeData]:
     """Build a Query."""
 
     __slots__ = (
@@ -258,7 +253,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         first: int | None = None,
         skip: int | None = None,
     ):
-        from bench.language.node import NODE_CLASS_BY_TYPE, Node
+        from bench.language.node import Node
 
         # root
         self._type = type
@@ -345,7 +340,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
     def clone(self):
         """Clones the query (the properties are immutable)."""
-        return QueryBuilder(
+        return Query(
             # root
             type=self._type,
             node_type=self._node_type,
@@ -370,7 +365,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         else:
             return self._select.clone()
 
-    def trim_to(self, node_types: Collection[NodeType]) -> "QueryBuilder[NodeT, NodeDataT]":
+    def trim_to(self, node_types: Collection[NodeType]) -> "Query[NodeT, NodeDataT]":
         assert self._node_type in node_types
         clone = self.clone()
         clone._ancestor_types = [a for a in self._ancestor_types if a in node_types]
@@ -379,7 +374,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
     def where(
         self, filter: Optional["Expression"] = None, **kwargs
-    ) -> "QueryBuilder[NodeT, NodeDataT]":
+    ) -> "Query[NodeT, NodeDataT]":
         """Adds a filter clause to the query."""
         from bench.language.expression import coerce_conditional
 
@@ -398,7 +393,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             list[Union["Expression", str]], str, "Expression", "Field", "Property", None
         ] = None,
         *args: str,
-    ) -> "QueryBuilder[NodeT, NodeDataT]":
+    ) -> "Query[NodeT, NodeDataT]":
         """Sorts the query results by the given sort criteria."""
         from bench.language.expression import coerce_sort
 
@@ -408,7 +403,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         )
         return clone
 
-    def first(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
+    def first(self, count: int) -> "Query[NodeT, NodeDataT]":
         """Returns the first N results."""
         clone = self.clone()
         clone._first = count
@@ -416,27 +411,27 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
     limit = first
 
-    def skip(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
+    def skip(self, count: int) -> "Query[NodeT, NodeDataT]":
         """Skips the first N results."""
         clone = self.clone()
         clone._skip = count
         return clone
 
-    def aggregate(self, aggregation: "Expression") -> "QueryBuilder[NodeT, NodeDataT]":
+    def aggregate(self, aggregation: "Expression") -> "Query[NodeT, NodeDataT]":
         """Aggregates the query results."""
         assert aggregation.kind == ExpressionKind.AGGREGATION, f"not an aggregation: {aggregation}"
         clone = self.clone()
         clone._aggregation = aggregation
         return clone
 
-    def include(self, *properties: Property) -> "QueryBuilder[NodeT, NodeDataT]":
+    def include(self, *properties: Property) -> "Query[NodeT, NodeDataT]":
         """Includes given default-excluded properties in the results."""
         clone = self.clone()
         clone._select = self._clone_select()
         clone._select.include_properties += self._to_properties(properties)
         return clone
 
-    def select(self, *keys: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
+    def select(self, *keys: FieldOrProperty) -> "Query[NodeT, NodeDataT]":
         """Selects only the given properties/fields in the results."""
         clone = self.clone()
         clone._select = self._clone_select()
@@ -448,7 +443,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
                 clone._select.select_fields_ptr.append(key.to_ref())
         return clone
 
-    def select_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
+    def select_all(self) -> "Query[NodeT, NodeDataT]":
         """Includes all properties/fields in the results."""
         clone = self.clone()
         clone._select = self._clone_select()
@@ -459,14 +454,14 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             clone._select.select_fields = []
         return clone
 
-    def deselect(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
+    def deselect(self, *properties: FieldOrProperty) -> "Query[NodeT, NodeDataT]":
         """Excludes given default-included properties from the results."""
         clone = self.clone()
         clone._select = self._clone_select()
         clone._select.exclude_properties += self._to_properties(properties)
         return clone
 
-    def include_ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
+    def include_ancestors(self, *node_types: NodeTypeOrClass) -> "Query[NodeT, NodeDataT]":
         """Includes all ancestors in the results."""
         # not quite happy with this API for getting a 'full' node yet, see :LoadOrphanNode
         clone = self.clone()
@@ -477,7 +472,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
                 clone._ancestor_types.append(node_type)
         return clone
 
-    def include_descendants(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
+    def include_descendants(self, *node_types: NodeTypeOrClass) -> "Query[NodeT, NodeDataT]":
         """Joins the given descendants in the results."""
         clone = self.clone()
         for node_type in node_types:
@@ -491,7 +486,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     # Read
     #
 
-    def __getitem__(self, item: slice) -> Union["QueryBuilder[NodeT, NodeDataT]", NodeT]:  # type: ignore
+    def __getitem__(self, item: slice) -> Union["Query[NodeT, NodeDataT]", NodeT]:  # type: ignore
         if isinstance(item, slice):
             if item.stop is None:
                 return self.skip(item.start or 0)
@@ -717,59 +712,3 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         if not all(isinstance(p, Property) for p in properties):
             raise NotImplementedError(f"fields not yet supported in {self!r}, got {properties}")
         return cast(tuple["Property"], properties)
-
-
-@node_(NodeType.QUERY)
-class Query(SourceNode[QueryData]):
-    """A Query."""
-
-    parent: "Block | None" = p_node_parent(4, NodeType.BLOCK)
-    type: QueryType = p_regular(30)
-    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
-    order_key: str = p_regular(32, default=INTEGER_ZERO)
-
-    node_type: NodeType = p_regular(41)
-    base_block: Optional["Block"] = p_regular(
-        42, array=False, require=False, default=None, references=NodeType.BLOCK
-    )
-    roots: list[Node] = p_regular(43, require=True, array=True, references="any")
-    filter: Optional["Expression"] = p_regular(44, default=None, struct=StructType.EXPRESSION)
-    sort: Optional[list["Expression"]] = p_regular(
-        45, default=None, array=True, struct=StructType.EXPRESSION
-    )
-    aggregation: Optional["Expression"] = p_regular(46, default=None, struct=StructType.EXPRESSION)
-
-    # joins
-    ancestor_types: list[NodeType] = p_regular(50, require=True, array=True)
-    descendant_types: list[NodeType] = p_regular(51, require=True, array=True)
-    # joins, ...?
-
-    # options
-    select: Optional["SelectOptions"] = p_regular(
-        60, default=None, struct=StructType.SELECT_OPTIONS
-    )
-    include_deleted: bool = p_regular(61, default=False)
-    first: int | None = p_regular(62, default=None)
-    skip: int | None = p_regular(63, default=None)
-
-    def __content_str__(self):
-        return f"{self.node_type}[{self.filter}, {self.sort or '<default sort>'}]"
-
-    @property
-    def node_cls(self) -> Type[Node]:
-        return NODE_CLASS_BY_TYPE[self.node_type]
-
-    def build(self) -> "QueryBuilder":
-        return QueryBuilder(
-            # root
-            type=self.type,
-            node_type=self.node_type,
-            base_block=self.base_block,
-            filter=self.filter,
-            sort=self.sort,
-            first=None,
-            skip=None,
-            aggregation=None,
-        )
-
-    # ... ReadQueryBase methods

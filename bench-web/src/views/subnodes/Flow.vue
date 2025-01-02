@@ -10,6 +10,7 @@ import {
   FieldType,
   NodeReferenceData,
   NodeType,
+  PickerVariant,
   PipeData,
   PipeType,
   PortSide,
@@ -47,6 +48,7 @@ import FieldList from "@/views/structs/FieldList.vue";
 import Pipe from "@/views/nodes/Pipe.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, provide, ref, toRef, type Ref } from "vue";
+import { packSubnode } from "@/language/node";
 
 const BACKGROUND_STYLE: "checker" | "dots" = "dots";
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -170,7 +172,10 @@ const implementedActions: Partial<ActionMapImplementation<"flow" | "space" | "ru
         component: ViewType.PICKER,
         placement: "inside-top",
         title: "Add Action",
-        props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }) },
+        props: {
+          valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
+          subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
+        },
         onApply: (value) => {
           flowCtx.createAction({ parent: flow.value!, action: { type: value } });
         },
@@ -189,7 +194,10 @@ const implementedActions: Partial<ActionMapImplementation<"flow" | "space" | "ru
         component: ViewType.PICKER,
         placement: "bottom-right",
         title: "Add Action",
-        props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }) },
+        props: {
+          valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
+          subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
+        },
         onApply: (value) => {
           const tx = flowCtx.tx.with({ change: { key: newChangeId(), title: "Split Pipe" } });
           // find position
@@ -203,7 +211,7 @@ const implementedActions: Partial<ActionMapImplementation<"flow" | "space" | "ru
             parent: flow.value!,
             source: { parent: newAction, side: PortSide.OUTGOING },
             target: { parent: oldTarget, side: PortSide.INCOMING },
-            pipe: { type: PipeType.PASS },
+            pipe: { type: PipeType.SELECT },
             tx,
           });
           // reconnect old pipe to new action
@@ -355,7 +363,10 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
                 title: 'Add Action',
                 placement: 'bottom-left',
                 offset: 'referenceWidth',
-                props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }) },
+                props: {
+                  valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
+                  subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
+                },
                 onApply: (value) => {
                   flowCtx.createAction({ parent: flow!, action: { type: value } });
                 },
@@ -550,7 +561,10 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
                   title: 'Add Action',
                   component: ViewType.PICKER,
                   placement: 'top',
-                  props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }) },
+                  props: {
+                    valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
+                    subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
+                  },
                   onApply: (value) => {
                     flowCtx.createAction({ parent: flow!, action: { type: value } });
                   },

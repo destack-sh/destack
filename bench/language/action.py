@@ -71,67 +71,65 @@ if TYPE_CHECKING:
 @enum_(EnumType.ACTION_TYPE)
 class ActionType(IdEnum):
     # start
-    START = 1  # source with inputs
-    TRIGGER = 2  # source with trigger
+    START = 1, "Begin the Flow"
+    TRIGGER = 2, "Begin on a trigger"
     # end
-    COMPLETE = 10  # terminate with outputs
-    FAIL = 11  # terminate with error
+    COMPLETE = 10, "Complete the entire Flow"
+    FAIL = 11, "Fail the entire Flow"
     # ABORT?
 
     # read
-    GET = 40
-    SEARCH = 41
+    GET = 40, "Get a Node"
+    SEARCH = 41, "Search for Nodes"
     # AGGREGATE?
-    COPY = 50
+    COPY = 50, "Copy some Nodes"
 
     # write
-    CREATE = 60
-    DUPLICATE = 61
-    UPDATE = 62
-    DELETE = 63
-    PASTE = 70
+    CREATE = 60, "Create a Node"
+    DUPLICATE = 61, "Duplicate some Nodes"
+    UPDATE = 62, "Update a Node"
+    DELETE = 63, "Delete a Node"
+    PASTE = 70, "Paste a Node"
 
     # runtime
     # PAUSE, RESUME, STOP, ...
 
     # static
-    CODE = 100
-    DELEGATE = 101
-    WAIT = 110
-    YIELD = 111  # to something
+    CODE = 100, "Run arbitrary Python code"
+    DELEGATE = 101, "Delegate to another Block"
+    WAIT = 110, "Wait for a Trigger"
+    YIELD = 111, "Defer to the User"
     # dynamic
-    GENERATE = 200
-    TRANSFORM = 201
-    TRANSLATE = 202
-    EXTRACT = 203
-    ROUTE = 210
-    CHANGE = 211
+    GENERATE = 200, "Generate something"
+    TRANSFORM = 201, "Transform something"
+    ROUTE = 210, "Route to other Actions"
+    CHANGE = 211, "Edit relevant Nodes"
 
     # state
     # ...
 
     # application
-    OBSERVE = 1000
-    CLICK = 1050
-    PRESS = 1051
-    TYPE = 1052
-    SCROLL = 1053
-    SELECT = 1054
-    GO_BACKWARD = 1060
-    GO_FORWARD = 1061
+    OBSERVE = 1000, "Look at the application"
+    CLICK = 1050, "Click an element"
+    PRESS = 1051, "Press a key"
+    TYPE = 1052, "Type text"
+    SCROLL = 1053, "Scroll the mouse wheel"
+    SELECT = 1054, "Select an element"
+    GO_BACKWARD = 1060, "Go back in history"
+    GO_FORWARD = 1061, "Go forward in history"
 
     # web
-    GO_TO_URL = 1100
-    GO_TO_TAB = 1101
-    OPEN_TAB = 1102
-    CLOSE_TAB = 1103
+    GO_TO_URL = 1100, "Navigate to a URL"
+    GO_TO_TAB = 1101, "Switch to a tab"
+    OPEN_TAB = 1102, "Open a new tab"
+    CLOSE_TAB = 1103, "Close a tab"
 
     # containers
     # GROUP = 500  # subflow region
-    LOOP = 5001  # repeat
+    LOOP = 5001, "Repeat some Actions"
 
     # misc
-    TEXT = 9000  # no-op, just for documentation
+    TEXT = 9000, "Just some documentation"
 
     @property
     def is_boundary(self) -> bool:
@@ -522,13 +520,13 @@ class TransformAction(Action, HasDynamicContext):
     pass
 
 
-@node_subtype_(ActionType.EXTRACT)
-class ExtractAction(Action, HasDynamicContext):
+@node_subtype_(ActionType.ROUTE)
+class RouteAction(Action, HasDynamicContext):
     pass
 
 
-@node_subtype_(ActionType.ROUTE)
-class RouteAction(Action, HasDynamicContext):
+@node_subtype_(ActionType.CHANGE)
+class ChangeAction(Action, HasDynamicContext):
     pass
 
 

@@ -467,13 +467,15 @@ def generate_salt(length: int) -> bytes:
 class IdEnum(enum.IntEnum):
     id: int
     ord: int
+    text: str | None
 
-    def __new__(cls, id: int, doc: str | None = None):
+    def __new__(cls, id: int, text: str | None = None):
         obj = int.__new__(cls, id)
         obj._value_ = id
         obj.ord = len(cls)
         obj.id = id
-        obj.__doc__ = doc
+        obj.text = text
+        obj.__doc__ = text
 
         # check id
         assert id > 0, f"invalid id {id}"

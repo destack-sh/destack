@@ -106,7 +106,6 @@ from .query import (
     MultipleNodesFoundError,
     NodeNotFoundError,
     Query,
-    QueryBuilder,
     SelectOptions,
 )
 from .registry import _complete_bench_setup
@@ -296,7 +295,6 @@ __all__ = [
     "Property",
     "PropertyReference",
     "Query",
-    "QueryBuilder",
     "Record",
     "Rectangle",
     "Region",

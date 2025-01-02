@@ -78,7 +78,7 @@ if TYPE_CHECKING:
         Block,
         Interruption,
         NodeReference,
-        QueryBuilder,
+        Query,
         Run,
     )
     from bench.runtime.runtime import Runtime
@@ -273,7 +273,7 @@ class Session(RuntimeNode[SessionData]):
             scope.bench_id = uuid_to_str(ptr.bench_id) or ""
         return scope
 
-    def _get_scope_for_query(self, query: "QueryBuilder") -> GraphScopeData:
+    def _get_scope_for_query(self, query: "Query") -> GraphScopeData:
         """Get the scope for a query in this session."""
         if query._base_block is not None:
             return self._get_scope_for_node(query._base_block)

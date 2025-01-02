@@ -5,7 +5,7 @@ import { makeTypeInfo } from "@/language/field";
 import { uploadFile } from "@/language/file";
 import { isDescendantOf } from "@/language/graph";
 import { useNodeListActions } from "@/ui/list";
-import { moveNode, NodeIn } from "@/language/node";
+import { moveNode, NodeIn, packSubnode } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
 import { packValue } from "@/language/value";
 import {
@@ -15,6 +15,7 @@ import {
   NodeReferenceData,
   NodeType,
   Orientation,
+  PickerVariant,
   RectangleData,
   TypeKind,
   ViewData,
@@ -307,7 +308,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   component: ViewType.PICKER,
                   title: 'Add Block Below',
                   placement: 'bottom',
-                  props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },
+                  // TODO :Incomplete :UX: into-Node (partial?) Picker (for Action, Block, Resource, ...)
+                  props: {
+                    valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }),
+                    subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
+                  },
                   onApply: (blockType: BlockType) => createAndFocusBlock({ type: blockType }, 'after', block),
                 })
               "

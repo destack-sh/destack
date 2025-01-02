@@ -25,7 +25,7 @@ from bench.language.connection import (
 from bench.language.const import AggregationType, NodeType, QueryType
 from bench.language.graph import NodeDataGraph
 from bench.language.node import Node, NodeReference, repr_scope
-from bench.language.query import QueryBuilder
+from bench.language.query import Query
 from bench.language.session import Session
 from bench.proto.wire import (
     AggregationResultData,
@@ -124,7 +124,7 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
 
     @override
     def _get_connection_cls(
-        self, query: "QueryBuilder", scope: GraphScopeData, options: ConnectionOptions
+        self, query: "Query", scope: GraphScopeData, options: ConnectionOptions
     ) -> type[Connection]:
         if query._type == QueryType.GET:
             return PostgresGetConnection
@@ -171,7 +171,7 @@ class PostgresGetConnection[T: Node](GetConnection[PostgresChannel, T]):
     """Get from a Postgres channel."""
 
     @override
-    async def _do_read(self, query: "QueryBuilder") -> GetResultData:
+    async def _do_read(self, query: "Query") -> GetResultData:
         assert query._roots, f"{query!r} has no roots"
         graph = NodeDataGraph(scope=self.scope, node_types=self.node_types)
         roots_ptr = [r._to_data() for r in query._roots]
@@ -190,7 +190,7 @@ class PostgresSearchConnection[T: Node](SearchConnection[PostgresChannel, T]):
 
     @override
     @_pg_method
-    async def _do_read(self, query: "QueryBuilder") -> SearchResultData:
+    async def _do_read(self, query: "Query") -> SearchResultData:
         async with self.channel.connection.lock:
             roots, graph, total = await pg_graph_search(
                 cur=self.channel.cur,
@@ -214,7 +214,7 @@ class PostgresAggregateConnection(AggregateConnection):
 
     @override
     @_pg_method
-    async def _do_read(self, query: "QueryBuilder") -> AggregateResultData:
+    async def _do_read(self, query: "Query") -> AggregateResultData:
         assert query._aggregation is not None
         if query._aggregation.type == AggregationType.EXISTENCE:
             async with self.channel.connection.lock:
