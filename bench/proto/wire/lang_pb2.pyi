@@ -1214,6 +1214,9 @@ class RunSpanType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     RUN_SPAN_TYPE_UNSPECIFIED: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_WAIT_FOR: _ClassVar[RunSpanType]
+    RUN_SPAN_TYPE_FLOW_GENERATE_CALLS: _ClassVar[RunSpanType]
+    RUN_SPAN_TYPE_APPLICATION_FIND_ELEMENT: _ClassVar[RunSpanType]
+    RUN_SPAN_TYPE_MODEL_GENERATE: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_FILE_UPLOAD: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_FILE_PREPARE_UPLOAD: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_FILE_DOWNLOAD: _ClassVar[RunSpanType]
@@ -1321,14 +1324,16 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_UPDATE: _ClassVar[ActionType]
     ACTION_TYPE_DELETE: _ClassVar[ActionType]
     ACTION_TYPE_PASTE: _ClassVar[ActionType]
-    ACTION_TYPE_YIELD: _ClassVar[ActionType]
     ACTION_TYPE_CODE: _ClassVar[ActionType]
     ACTION_TYPE_DELEGATE: _ClassVar[ActionType]
     ACTION_TYPE_WAIT: _ClassVar[ActionType]
+    ACTION_TYPE_YIELD: _ClassVar[ActionType]
     ACTION_TYPE_GENERATE: _ClassVar[ActionType]
     ACTION_TYPE_TRANSFORM: _ClassVar[ActionType]
+    ACTION_TYPE_TRANSLATE: _ClassVar[ActionType]
     ACTION_TYPE_EXTRACT: _ClassVar[ActionType]
     ACTION_TYPE_ROUTE: _ClassVar[ActionType]
+    ACTION_TYPE_CHANGE: _ClassVar[ActionType]
     ACTION_TYPE_OBSERVE: _ClassVar[ActionType]
     ACTION_TYPE_CLICK: _ClassVar[ActionType]
     ACTION_TYPE_PRESS: _ClassVar[ActionType]
@@ -2682,6 +2687,9 @@ RUN_ERROR_TYPE_INTERRUPTION_CANCELLED: RunErrorType
 RUN_ERROR_TYPE_RETRYABLE: RunErrorType
 RUN_SPAN_TYPE_UNSPECIFIED: RunSpanType
 RUN_SPAN_TYPE_WAIT_FOR: RunSpanType
+RUN_SPAN_TYPE_FLOW_GENERATE_CALLS: RunSpanType
+RUN_SPAN_TYPE_APPLICATION_FIND_ELEMENT: RunSpanType
+RUN_SPAN_TYPE_MODEL_GENERATE: RunSpanType
 RUN_SPAN_TYPE_FILE_UPLOAD: RunSpanType
 RUN_SPAN_TYPE_FILE_PREPARE_UPLOAD: RunSpanType
 RUN_SPAN_TYPE_FILE_DOWNLOAD: RunSpanType
@@ -2750,14 +2758,16 @@ ACTION_TYPE_DUPLICATE: ActionType
 ACTION_TYPE_UPDATE: ActionType
 ACTION_TYPE_DELETE: ActionType
 ACTION_TYPE_PASTE: ActionType
-ACTION_TYPE_YIELD: ActionType
 ACTION_TYPE_CODE: ActionType
 ACTION_TYPE_DELEGATE: ActionType
 ACTION_TYPE_WAIT: ActionType
+ACTION_TYPE_YIELD: ActionType
 ACTION_TYPE_GENERATE: ActionType
 ACTION_TYPE_TRANSFORM: ActionType
+ACTION_TYPE_TRANSLATE: ActionType
 ACTION_TYPE_EXTRACT: ActionType
 ACTION_TYPE_ROUTE: ActionType
+ACTION_TYPE_CHANGE: ActionType
 ACTION_TYPE_OBSERVE: ActionType
 ACTION_TYPE_CLICK: ActionType
 ACTION_TYPE_PRESS: ActionType
@@ -4733,84 +4743,98 @@ class ObserveActionData(_message.Message):
     def __init__(self, exclude_image: bool = ..., screenshot_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., dom: _Optional[_Union[DomNodeData, _Mapping]] = ...) -> None: ...
 
 class ClickActionData(_message.Message):
-    __slots__ = ("element_id", "element_path", "element_position")
+    __slots__ = ("element_id", "element_path", "element_position", "element_text")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_TEXT_FIELD_NUMBER: _ClassVar[int]
     element_id: str
     element_path: str
     element_position: Vector2Data
-    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
+    element_text: str
+    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., element_text: _Optional[str] = ...) -> None: ...
 
 class PressActionData(_message.Message):
-    __slots__ = ("element_id", "element_path", "element_position", "keys", "delay")
+    __slots__ = ("element_id", "element_path", "element_position", "element_text", "keys", "delay")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_TEXT_FIELD_NUMBER: _ClassVar[int]
     KEYS_FIELD_NUMBER: _ClassVar[int]
     DELAY_FIELD_NUMBER: _ClassVar[int]
     element_id: str
     element_path: str
     element_position: Vector2Data
+    element_text: str
     keys: str
     delay: float
-    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., keys: _Optional[str] = ..., delay: _Optional[float] = ...) -> None: ...
+    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., element_text: _Optional[str] = ..., keys: _Optional[str] = ..., delay: _Optional[float] = ...) -> None: ...
 
 class TypeActionData(_message.Message):
-    __slots__ = ("element_id", "element_path", "element_position", "string", "delay")
+    __slots__ = ("element_id", "element_path", "element_position", "element_text", "string", "delay")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_TEXT_FIELD_NUMBER: _ClassVar[int]
     STRING_FIELD_NUMBER: _ClassVar[int]
     DELAY_FIELD_NUMBER: _ClassVar[int]
     element_id: str
     element_path: str
     element_position: Vector2Data
+    element_text: str
     string: str
     delay: float
-    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., string: _Optional[str] = ..., delay: _Optional[float] = ...) -> None: ...
+    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., element_text: _Optional[str] = ..., string: _Optional[str] = ..., delay: _Optional[float] = ...) -> None: ...
 
 class ScrollActionData(_message.Message):
-    __slots__ = ("element_id", "element_path", "element_position", "amount")
+    __slots__ = ("element_id", "element_path", "element_position", "element_text", "amount")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_TEXT_FIELD_NUMBER: _ClassVar[int]
     AMOUNT_FIELD_NUMBER: _ClassVar[int]
     element_id: str
     element_path: str
     element_position: Vector2Data
+    element_text: str
     amount: Vector2Data
-    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., amount: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
+    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., element_text: _Optional[str] = ..., amount: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
 
 class SelectActionData(_message.Message):
-    __slots__ = ("element_id", "element_path", "element_position")
+    __slots__ = ("element_id", "element_path", "element_position", "element_text")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_TEXT_FIELD_NUMBER: _ClassVar[int]
     element_id: str
     element_path: str
     element_position: Vector2Data
-    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
+    element_text: str
+    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., element_text: _Optional[str] = ...) -> None: ...
 
 class GoBackwardActionData(_message.Message):
-    __slots__ = ("element_id", "element_path", "element_position")
+    __slots__ = ("element_id", "element_path", "element_position", "element_text")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_TEXT_FIELD_NUMBER: _ClassVar[int]
     element_id: str
     element_path: str
     element_position: Vector2Data
-    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
+    element_text: str
+    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., element_text: _Optional[str] = ...) -> None: ...
 
 class GoForwardActionData(_message.Message):
-    __slots__ = ("element_id", "element_path", "element_position")
+    __slots__ = ("element_id", "element_path", "element_position", "element_text")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_TEXT_FIELD_NUMBER: _ClassVar[int]
     element_id: str
     element_path: str
     element_position: Vector2Data
-    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
+    element_text: str
+    def __init__(self, element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., element_text: _Optional[str] = ...) -> None: ...
 
 class GoToUrlActionData(_message.Message):
     __slots__ = ("url",)

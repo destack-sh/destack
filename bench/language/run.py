@@ -255,11 +255,21 @@ class RunFrame(Struct):
 
 @enum_(EnumType.RUN_SPAN_TYPE)
 class RunSpanType(IdEnum):
+    # general
     WAIT_FOR = 10
-    FILE_UPLOAD = 20
-    FILE_PREPARE_UPLOAD = 21
-    FILE_DOWNLOAD = 22
-    FILE_PREPARE_DOWNLOAD = 23
+    # flow
+    FLOW_GENERATE_CALLS = 100
+    # action
+    # ...
+    # application (action)
+    APPLICATION_FIND_ELEMENT = 210
+    # action
+    MODEL_GENERATE = 200
+    # file
+    FILE_UPLOAD = 500
+    FILE_PREPARE_UPLOAD = 501
+    FILE_DOWNLOAD = 502
+    FILE_PREPARE_DOWNLOAD = 503
 
 
 @struct_(StructType.RUN_SPAN)

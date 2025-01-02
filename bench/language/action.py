@@ -91,19 +91,21 @@ class ActionType(IdEnum):
     DELETE = 63
     PASTE = 70
 
-    # session
-    YIELD = 80  # to something
+    # runtime
     # PAUSE, RESUME, STOP, ...
 
     # static
     CODE = 100
     DELEGATE = 101
-    WAIT = 102
+    WAIT = 110
+    YIELD = 111  # to something
     # dynamic
-    GENERATE = 110
-    TRANSFORM = 111
-    EXTRACT = 112
-    ROUTE = 120
+    GENERATE = 200
+    TRANSFORM = 201
+    TRANSLATE = 202
+    EXTRACT = 203
+    ROUTE = 210
+    CHANGE = 211
 
     # state
     # ...
@@ -542,6 +544,7 @@ class HasApplicationContext(BuiltinObject):
     element_position: Optional["Vector2"] = p_regular(
         102, default=None, array=False, struct=StructType.VECTOR2, field_type=FieldType.INPUT
     )
+    element_text: str | None = p_regular(103, default=None, field_type=FieldType.INPUT)
 
 
 @node_subtype_(ActionType.OBSERVE)

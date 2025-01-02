@@ -461,13 +461,13 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
       if (errorCode != lastErrorCode) {
         const op = `${this.kind}:${this.meta.name}`;
         toaster.error({
-          title: `'${op}' connection ${retry ? "lost" : "failed"}`,
-          text: `'${op}' failed: ${IS_DEV ? error.message : (error as RpcError).code}`,
+          title: `Connection ${retry ? "lost" : "failed"}`,
+          text: `Connection failed: ${IS_DEV ? error.message : (error as RpcError).code}`,
           override: `connection:${this.meta.id}`,
           summarize: {
             key: "connection.error",
             info: [{ op, error: error as RpcError }],
-            title: (infos) => `${infos.length} connections ${retry ? "lost" : "failed"}`,
+            title: (infos) => `Connection ${retry ? "lost" : "failed"}`,
             text: (infos) => {
               // distinct errors
               const errors = new Set(
@@ -475,8 +475,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
                   .map((info) => HUMANIZED_OPERATION_STATUS[info.error.code])
                   .filter((e) => e != null && e.length > 0),
               );
-              const errorStr = [...errors].join(", ") ?? "Unknown error";
-              return `${errorStr}: ${infos.map((info) => `'${info.op}'`).join(", ")}`;
+              return [...errors].join(", ") ?? "Unknown error";
             },
           },
         });
@@ -554,7 +553,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
               summarize: {
                 key: "connection.reconnect",
                 info: [{ name: this.meta.name }],
-                title: (infos) => `${infos.length} connections restored`,
+                title: (infos) => `Connection restored`,
                 text: (infos) => {
                   return infos.map((info) => `'${info.name}'`).join(", ");
                 },

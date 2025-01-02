@@ -1221,10 +1221,13 @@ enum RunErrorType {
 enum RunSpanType {
   RUN_SPAN_TYPE_UNSPECIFIED = 0;
   RUN_SPAN_TYPE_WAIT_FOR = 10;
-  RUN_SPAN_TYPE_FILE_UPLOAD = 20;
-  RUN_SPAN_TYPE_FILE_PREPARE_UPLOAD = 21;
-  RUN_SPAN_TYPE_FILE_DOWNLOAD = 22;
-  RUN_SPAN_TYPE_FILE_PREPARE_DOWNLOAD = 23;
+  RUN_SPAN_TYPE_FLOW_GENERATE_CALLS = 100;
+  RUN_SPAN_TYPE_APPLICATION_FIND_ELEMENT = 210;
+  RUN_SPAN_TYPE_MODEL_GENERATE = 200;
+  RUN_SPAN_TYPE_FILE_UPLOAD = 500;
+  RUN_SPAN_TYPE_FILE_PREPARE_UPLOAD = 501;
+  RUN_SPAN_TYPE_FILE_DOWNLOAD = 502;
+  RUN_SPAN_TYPE_FILE_PREPARE_DOWNLOAD = 503;
 }
 
 enum RunEventType {
@@ -1332,14 +1335,16 @@ enum ActionType {
   ACTION_TYPE_UPDATE = 62;
   ACTION_TYPE_DELETE = 63;
   ACTION_TYPE_PASTE = 70;
-  ACTION_TYPE_YIELD = 80;
   ACTION_TYPE_CODE = 100;
   ACTION_TYPE_DELEGATE = 101;
-  ACTION_TYPE_WAIT = 102;
-  ACTION_TYPE_GENERATE = 110;
-  ACTION_TYPE_TRANSFORM = 111;
-  ACTION_TYPE_EXTRACT = 112;
-  ACTION_TYPE_ROUTE = 120;
+  ACTION_TYPE_WAIT = 110;
+  ACTION_TYPE_YIELD = 111;
+  ACTION_TYPE_GENERATE = 200;
+  ACTION_TYPE_TRANSFORM = 201;
+  ACTION_TYPE_TRANSLATE = 202;
+  ACTION_TYPE_EXTRACT = 203;
+  ACTION_TYPE_ROUTE = 210;
+  ACTION_TYPE_CHANGE = 211;
   ACTION_TYPE_OBSERVE = 1000;
   ACTION_TYPE_CLICK = 1050;
   ACTION_TYPE_PRESS = 1051;
@@ -2639,6 +2644,7 @@ message ClickActionData {
   optional string element_id = 100;
   optional string element_path = 101;
   optional Vector2Data element_position = 102;
+  optional string element_text = 103;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -2646,6 +2652,7 @@ message PressActionData {
   optional string element_id = 100;
   optional string element_path = 101;
   optional Vector2Data element_position = 102;
+  optional string element_text = 103;
   optional string keys = 110;
   optional float delay = 111;
 }
@@ -2655,6 +2662,7 @@ message TypeActionData {
   optional string element_id = 100;
   optional string element_path = 101;
   optional Vector2Data element_position = 102;
+  optional string element_text = 103;
   optional string string = 110;
   optional float delay = 111;
 }
@@ -2664,6 +2672,7 @@ message ScrollActionData {
   optional string element_id = 100;
   optional string element_path = 101;
   optional Vector2Data element_position = 102;
+  optional string element_text = 103;
   optional Vector2Data amount = 110;
 }
 
@@ -2672,6 +2681,7 @@ message SelectActionData {
   optional string element_id = 100;
   optional string element_path = 101;
   optional Vector2Data element_position = 102;
+  optional string element_text = 103;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -2679,6 +2689,7 @@ message GoBackwardActionData {
   optional string element_id = 100;
   optional string element_path = 101;
   optional Vector2Data element_position = 102;
+  optional string element_text = 103;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -2686,6 +2697,7 @@ message GoForwardActionData {
   optional string element_id = 100;
   optional string element_path = 101;
   optional Vector2Data element_position = 102;
+  optional string element_text = 103;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
