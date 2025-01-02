@@ -3,7 +3,7 @@ from typing import cast
 import pytest
 from hypothesis import HealthCheck, given, settings
 
-from bench.language.action import Action, ActionType, Call, Continue, CreateAction, DuplicateAction
+from bench.language.action import Action, ActionType, Call, CreateAction, DuplicateAction
 from bench.language.bench import Package
 from bench.language.block import Block, VariableBlock
 from bench.language.code import Code
@@ -62,17 +62,16 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
         {
             "Output1": 42,
             "Output 2 with a Space": Text.plain("hello bench!"),
-            "call": Call(node=Flow1),
+            "calls": [Call(node=Flow1)],
         },
         Flow1Output,
     )
-    assert obj.call == Call(node=Flow1)
+    assert obj.calls
+    assert obj.calls == [Call(node=Flow1)]
 
     # get/set
-    obj.call = None
-    assert obj.call is None
-    obj.continuations = [Continue(node=Flow1)]
-    assert obj.continuations[0].node is Flow1
+    obj.calls = []
+    assert obj.calls == []
 
     # pack/unpack
     obj_packed = pack_custom_object(obj, Flow1Output)

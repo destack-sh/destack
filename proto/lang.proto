@@ -199,7 +199,6 @@ enum StructType {
   STRUCT_TYPE_AUDIO_OPTIONS = 12708;
   STRUCT_TYPE_IMAGE_OPTIONS = 12709;
   STRUCT_TYPE_VIDEO_OPTIONS = 12710;
-  STRUCT_TYPE_CONTINUE = 12711;
   STRUCT_TYPE_CALL = 12712;
   STRUCT_TYPE_CONTEXT = 12713;
   STRUCT_TYPE_BREAKPOINT = 12714;
@@ -302,7 +301,6 @@ enum ObjectType {
   OBJECT_TYPE_AUDIO_OPTIONS = 12708;
   OBJECT_TYPE_IMAGE_OPTIONS = 12709;
   OBJECT_TYPE_VIDEO_OPTIONS = 12710;
-  OBJECT_TYPE_CONTINUE = 12711;
   OBJECT_TYPE_CALL = 12712;
   OBJECT_TYPE_CONTEXT = 12713;
   OBJECT_TYPE_BREAKPOINT = 12714;
@@ -491,7 +489,6 @@ enum BenchType {
   BENCH_TYPE_AUDIO_OPTIONS = 12708;
   BENCH_TYPE_IMAGE_OPTIONS = 12709;
   BENCH_TYPE_VIDEO_OPTIONS = 12710;
-  BENCH_TYPE_CONTINUE = 12711;
   BENCH_TYPE_CALL = 12712;
   BENCH_TYPE_CONTEXT = 12713;
   BENCH_TYPE_BREAKPOINT = 12714;
@@ -1367,10 +1364,10 @@ enum PortSide {
 
 enum PipeType {
   PIPE_TYPE_UNSPECIFIED = 0;
-  PIPE_TYPE_PASS = 1;
-  PIPE_TYPE_SELECT = 2;
-  PIPE_TYPE_OPTION = 3;
-  PIPE_TYPE_STREAM = 50;
+  PIPE_TYPE_FORWARD = 1;
+  PIPE_TYPE_FORWARD_AND_BACK = 2;
+  PIPE_TYPE_SELECT = 10;
+  PIPE_TYPE_SELECT_AND_BACK = 11;
 }
 
 enum NodeMode {
@@ -1725,8 +1722,6 @@ message InputObjectData {
 message OutputObjectData {
   ObjectType metatype = 1;
   optional TextData text = 900;
-  optional CallData call = 910;
-  repeated ContinueData continuations = 911;
 }
 
 message ValueData {
@@ -2002,7 +1997,7 @@ message RunErrorData {
   RunErrorType type = 31;
   optional string title = 32;
   optional TextData text = 33;
-  optional NodeReferenceData node_ptr = 34;
+  repeated NodeReferenceData nodes_ptr = 34;
   optional RunTraceData trace = 35;
 }
 
@@ -2015,13 +2010,6 @@ message CallData {
   NodeReferenceData node_ptr = 31;
   optional ActionType action_type = 32;
   optional google.protobuf.Value inputs_packed = 35;
-  optional ObjectMappingData mapping = 50;
-}
-
-message ContinueData {
-  ObjectType metatype = 1;
-  NodeReferenceData node_ptr = 30;
-  optional google.protobuf.Value inputs_packed = 31;
   optional ObjectMappingData mapping = 50;
 }
 
@@ -2561,6 +2549,7 @@ message ActionData {
   optional NodeReferenceData identity_ptr = 43;
   optional CodeData code = 52;
   optional NodeReferenceData delegate_ptr = 53;
+  repeated CallData calls = 55;
   optional Vector2Data position = 80;
   NodeMode mode = 90;
 }
@@ -3166,6 +3155,7 @@ message MessageData {
   optional google.protobuf.Value subnode_packed = 29;
   MessageType type = 30;
   MessageStatus status = 31;
+  optional string name = 32;
   optional NodeReferenceData origin_ptr = 35;
   optional NodeReferenceData block_ptr = 36;
   optional NodeReferenceData reply_to_ptr = 37;

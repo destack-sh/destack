@@ -30,9 +30,9 @@ async def test_run_flow_browser_go_to_url(hosted_runtime: RuntimeHandle):
     Wait = Action.new(ActionType.WAIT, name="Wait", delay=timedelta(seconds=3))
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
     Flow.actions.extend(Start, GoToUrl, Wait, Complete)
-    Start.connect(PipeType.PASS, target=GoToUrl)
-    GoToUrl.connect(PipeType.PASS, target=Wait)
-    Wait.connect(PipeType.PASS, target=Complete)
+    Start.connect(PipeType.FORWARD, target=GoToUrl)
+    GoToUrl.connect(PipeType.FORWARD, target=Wait)
+    Wait.connect(PipeType.FORWARD, target=Complete)
     await hosted_runtime.commit()
 
     runner = await hosted_runtime.run(Flow)

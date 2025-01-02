@@ -1038,7 +1038,7 @@ export class FlowContext {
               ) {
                 this.createPipe({
                   parent: this.flow.value!,
-                  pipe: { type: PipeType.PASS },
+                  pipe: { type: PipeType.FORWARD },
                   source: sourcePort,
                   target: { parent: action, side: PortSide.INCOMING },
                   tx,
@@ -1055,7 +1055,7 @@ export class FlowContext {
           log.debug("flow.drag.connect", { from: sourcePort, to: targetPort });
           const pipe = this.createPipe({
             parent: this.flow.value,
-            pipe: { type: PipeType.PASS },
+            pipe: { type: PipeType.FORWARD },
             source: sourcePort,
             target: targetPort,
           });

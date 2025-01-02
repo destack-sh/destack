@@ -25,12 +25,12 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import TITLE_CONSTRAINT
+from bench.language.validation import NAME_CONSTRAINT, TITLE_CONSTRAINT
 from bench.proto.wire import AnyNodeData, MessageData, NodeReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, CustomObject, NodeReference, Text
+    from bench.language import Block, NodeReference, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -67,6 +67,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
 
     type: MessageType = p_regular(30, require=True, default=MessageType.INTERNAL)
     status: MessageStatus = p_internal(31, default=MessageStatus.SENT)
+    name: str | None = p_regular(32, require=False, constraint=NAME_CONSTRAINT)
     origin: BenchNode | None = p_regular(35, require=False, references="any")
     block: "Block | None" = p_internal(
         36,
@@ -86,7 +87,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     title: Optional[str] = p_regular(40, require=False, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(41, require=False, default=None, struct=StructType.TEXT)
     value_packed: Any = p_value_packed(42)
-    value: "CustomObject | None" = p_value_runtime(
+    value: Any = p_value_runtime(
         42, kind=ObjectKind.MEMBER, typ=lambda self: cast("Message", self).value_type
     )
     expires_at: Optional[datetime] = p_internal(44, default=None)

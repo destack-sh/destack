@@ -16,7 +16,7 @@ from bench.language.field import TypeBase
 from bench.language.flow import Pipe, PipeType, PortSide
 from bench.language.interruption import BreakpointScope, BreakpointSite, Interruption
 from bench.language.run import Run, RunError, RunnableNode, RunOptions, RunType
-from bench.language.value import CustomObject, OutputObject, coerce_custom_object_scalar
+from bench.language.value import CustomObject, coerce_custom_object_scalar
 from bench.runtime.action import ActionRunnerBase
 from bench.runtime.core import RetryableError
 from bench.runtime.runner import (
@@ -184,25 +184,15 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             outgoing: list[Run] = []
             if isinstance(runner.node, Action):
                 if runner.outputs is not None and runner.outputs._kind == ObjectKind.OUTPUT:
-                    continuations = cast(OutputObject, runner.outputs).continuations
+                    calls = cast(Action, runner.outputs).calls
                 else:
-                    continuations = ()
-                continued_option: Pipe | None = None
+                    calls = ()
                 for pipe in self.get_pipes_at(runner.node, PortSide.OUTGOING):
                     # check if Pipe should be continued
-                    if pipe.type == PipeType.PASS or (
-                        pipe.type in (PipeType.SELECT, PipeType.OPTION)
-                        and any(c.node == pipe or c.node == pipe.target for c in continuations)
+                    if pipe.type == PipeType.FORWARD or (
+                        pipe.type in (PipeType.SELECT, PipeType.SELECT_AND_BACK)
+                        and any(c.node == pipe or c.node == pipe.target for c in calls)
                     ):
-                        if pipe.type == PipeType.OPTION:
-                            if continued_option is not None:
-                                # already continued another option, ignore this one
-                                #  (shouldn't happen usually because we validate in Action runner,
-                                #   but Flow architecture may change between there and here)
-                                logger.debug("flow.tick.continue.ignore", flow=self.node, pipe=pipe)
-                                continue
-                            continued_option = pipe
-
                         # assemble Pipe inputs :PipeMapping
                         input_type = pipe.input_type
                         assert input_type is not None, f"no input type for {pipe!r}"
@@ -224,7 +214,6 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                         )
                         outgoing.append(next_run)
             elif isinstance(runner.node, Pipe):
-                # NOTE :Incomplete: allow Actions to wait for multiple incoming Pipes
                 # assemble Action inputs :PipeMapping
                 next_run = self._start(
                     runner.node.target,
@@ -392,7 +381,11 @@ class PipeRunnerBase(Runner[Pipe], ABC):
                         self.outputs[field] = self.inputs._do_get(key)
 
 
-class PassPipeRunner(PipeRunnerBase):
+class ForwardPipeRunner(PipeRunnerBase):
+    pass
+
+
+class ForwardAndBackPipeRunner(PipeRunnerBase):
     pass
 
 
@@ -400,17 +393,13 @@ class SelectPipeRunner(PipeRunnerBase):
     pass
 
 
-class OptionPipeRunner(PipeRunnerBase):
-    pass
-
-
-class StreamPipeRunner(PipeRunnerBase):
+class SelectAndBackPipeRunner(PipeRunnerBase):
     pass
 
 
 PIPE_RUNNER_BY_PIPE_TYPE: dict[PipeType, type[PipeRunnerBase]] = {
-    PipeType.PASS: PassPipeRunner,
+    PipeType.FORWARD: ForwardPipeRunner,
+    PipeType.FORWARD_AND_BACK: ForwardAndBackPipeRunner,
     PipeType.SELECT: SelectPipeRunner,
-    PipeType.OPTION: OptionPipeRunner,
-    PipeType.STREAM: StreamPipeRunner,
+    PipeType.SELECT_AND_BACK: SelectAndBackPipeRunner,
 }

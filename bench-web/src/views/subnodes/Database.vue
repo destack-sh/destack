@@ -95,7 +95,7 @@ const props = defineProps<
     paddingX?: number;
     paddingY?: number;
     containerGutterWidth?: number;
-  } & Partial<Pick<ViewData, "icon" | "nodePtr" | "isInput" | "isMinimal">>
+  } & Partial<Pick<ViewData, "focus" | "icon" | "nodePtr" | "isInput" | "isMinimal">>
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -582,7 +582,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <!-- History -->
       <HistoryNavigator ref="historyRef" :self="self" />
       <!-- Breadcrumb -->
-      <NodePath :container="nodePtr" :self="nodePtr" :graph="graph" />
+      <NodePath :container="nodePtr" :self="nodePtr" :focus="props.focus?.nodesPtr[0]" :graph="graph" />
       <!-- Meta & Controls -->
       <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
         <!-- ... -->

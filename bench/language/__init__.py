@@ -5,7 +5,7 @@ from .access import (
     PolicyRule,
     Subject,
 )
-from .action import Action, ActionType, Call, Continue
+from .action import Action, ActionType, Call
 from .bench import (
     Bench,
     Client,
@@ -221,7 +221,6 @@ __all__ = [
     "ConditionalType",
     "Connection",
     "Context",
-    "Continue",
     "CustomObject",
     "Dependency",
     "DomNode",

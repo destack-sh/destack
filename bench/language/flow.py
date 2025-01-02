@@ -55,17 +55,17 @@ FIELD_ZONES_BY_SIDE: dict[PortSide, tuple[FieldType, ...]] = {
 
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
-    PASS = 1
-    SELECT = 2
-    OPTION = 3
-    STREAM = 50
+    FORWARD = 1
+    FORWARD_AND_BACK = 2
+    SELECT = 10
+    SELECT_AND_BACK = 11
 
 
 SIGN_BY_PIPE_TYPE: dict[PipeType, str] = {
-    PipeType.PASS: "->",
+    PipeType.FORWARD: "->",
+    PipeType.FORWARD_AND_BACK: "<->",
     PipeType.SELECT: "-?>",
-    PipeType.OPTION: "-o>",
-    PipeType.STREAM: "-=-",
+    PipeType.SELECT_AND_BACK: "<-?>",
 }
 PIPE_TYPES_BY_SIGN: dict[str, PipeType] = {v: k for k, v in SIGN_BY_PIPE_TYPE.items()}
 
