@@ -1177,15 +1177,15 @@ enum RunStatus {
   RUN_STATUS_UNSPECIFIED = 0;
   RUN_STATUS_SCHEDULED = 1;
   RUN_STATUS_QUEUED = 2;
-  RUN_STATUS_PREPARING = 3;
-  RUN_STATUS_RUNNING = 4;
-  RUN_STATUS_PAUSED = 5;
-  RUN_STATUS_YIELDED = 6;
-  RUN_STATUS_WAITING = 7;
-  RUN_STATUS_CANCELLED = 8;
-  RUN_STATUS_ABORTED = 9;
-  RUN_STATUS_FAILED = 10;
-  RUN_STATUS_COMPLETED = 11;
+  RUN_STATUS_RUNNING = 10;
+  RUN_STATUS_PREPARING = 11;
+  RUN_STATUS_PAUSED = 20;
+  RUN_STATUS_YIELDED = 21;
+  RUN_STATUS_WAITING = 22;
+  RUN_STATUS_CANCELLED = 30;
+  RUN_STATUS_ABORTED = 31;
+  RUN_STATUS_FAILED = 32;
+  RUN_STATUS_COMPLETED = 33;
 }
 
 enum RunType {
@@ -2512,11 +2512,11 @@ message RunData {
   optional int32 started_epoch = 49;
   optional google.protobuf.Timestamp stopped_at = 50;
   optional google.protobuf.Timestamp interrupted_at = 51;
-  optional NodeReferenceData interruption_ptr = 52;
-  optional google.protobuf.Timestamp paused_at = 53;
-  optional google.protobuf.Timestamp resumed_at = 54;
-  optional google.protobuf.Timestamp terminated_at = 55;
-  optional int32 terminated_epoch = 56;
+  optional google.protobuf.Timestamp paused_at = 52;
+  optional google.protobuf.Timestamp resumed_at = 53;
+  optional google.protobuf.Timestamp terminated_at = 54;
+  optional int32 terminated_epoch = 55;
+  optional NodeReferenceData interruption_ptr = 56;
   optional google.protobuf.Value variables_packed = 60;
   optional google.protobuf.Value inputs_packed = 61;
   optional google.protobuf.Value intermediates_packed = 62;

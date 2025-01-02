@@ -452,13 +452,13 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     started_epoch: Optional[int] = p_internal(49, default=None)
     stopped_at: Optional[datetime] = p_internal(50, default=None)
     interrupted_at: Optional[datetime] = p_internal(51, default=None)
+    paused_at: Optional[datetime] = p_internal(52, default=None)
+    resumed_at: Optional[datetime] = p_internal(53, default=None)
+    terminated_at: Optional[datetime] = p_internal(54, default=None)
+    terminated_epoch: Optional[int] = p_internal(55, default=None)
     interruption: Optional["Interruption"] = p_internal(
-        52, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
+        56, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
     )
-    paused_at: Optional[datetime] = p_internal(53, default=None)
-    resumed_at: Optional[datetime] = p_internal(54, default=None)
-    terminated_at: Optional[datetime] = p_internal(55, default=None)
-    terminated_epoch: Optional[int] = p_internal(56, default=None)
 
     # content
     variables_packed: Any = p_value_packed(60)

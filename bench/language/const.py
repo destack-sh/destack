@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.01.1"
+VERSION = "2025.01.02.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -1082,17 +1082,17 @@ class RunStatus(IdEnum):
     SCHEDULED = 1
     QUEUED = 2
     # active
-    PREPARING = 3
-    RUNNING = 4
+    RUNNING = 10
+    PREPARING = 11
     # interrupted
-    PAUSED = 5
-    YIELDED = 6
-    WAITING = 7
+    PAUSED = 20
+    YIELDED = 21
+    WAITING = 22
     # terminal
-    CANCELLED = 8
-    ABORTED = 9
-    FAILED = 10
-    COMPLETED = 11
+    CANCELLED = 30
+    ABORTED = 31
+    FAILED = 32
+    COMPLETED = 33
 
     @property
     def is_active(self) -> bool:
