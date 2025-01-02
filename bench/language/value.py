@@ -66,8 +66,6 @@ from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 if TYPE_CHECKING:
     from bench.language import (
         BuiltinObject,
-        Call,
-        Continue,
         Field,
         Node,
         Session,
@@ -1904,12 +1902,6 @@ class OutputObject(Struct, CustomObjectBase):
         array=False,
         struct=StructType.TEXT,
         field_type=FieldType.OUTPUT,
-    )
-    call: "Call | None" = p_regular(
-        910, require=False, struct=StructType.CALL, field_type=FieldType.OUTPUT
-    )
-    continuations: list["Continue"] = p_regular(
-        911, default=[], array=True, struct=StructType.CONTINUE, field_type=FieldType.OUTPUT
     )
 
 

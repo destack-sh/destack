@@ -203,7 +203,7 @@ def test_render_flow(session: Session, package: Package):
     Flow1.actions.append(Start)
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.append(Complete)
-    Pipe1 = Pipe.new(PipeType.PASS, "Pipe1", source=Start, target=Complete)
+    Pipe1 = Pipe.new(PipeType.FORWARD, "Pipe1", source=Start, target=Complete)
     Flow1.pipes.append(Pipe1)
     return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Pipe1": Pipe1}
 

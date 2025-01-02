@@ -2,7 +2,7 @@ import dataclasses
 import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Mapping, Sequence, assert_never, cast, override
+from typing import TYPE_CHECKING, Mapping, Sequence, cast, override
 
 import anthropic
 import openai
@@ -19,16 +19,10 @@ from bench.language.run import ModelType, Run, RunOptions
 from bench.language.text import Text
 from bench.language.value import CustomObject, sample_value
 from bench.runtime.runner import Context, Runner
-from bench.utils.func import IdEnum
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
     pass
-
-
-class TaskType(IdEnum):
-    ADAPT = 1
-    RUN = 2
 
 
 #
@@ -360,199 +354,13 @@ def get_system_prompt(node: Node) -> str:
 You are a programming assistant on an agent development platform called Bench.
 You must always respond directly with valid inline Python code (escaping as needed).
 
-You will be given context and a specific task in the Bench Python ORM.
+You will be given context and a specific task expressed in the Bench Python ORM.
 You may interpret and extrapolate a task when it's vague, but guess less if it's specific.
 You must adhere to the types exactly (no missing required & no extraneous values).
-You must consider whether an action requires any form of AI at runtime (you are the AI)
- - if it seems like any sort of intelligence analysis or extraction is required, it's is_dynamic=True
-    - if unsure and the task might require a bit of AI, assume it does!
- - if it's really good old scripting or basic static logic, it's is_dynamic=False
-If you're in an action in the improper mode/is_dynamic, you must change it.
-
-You may think out loud in comments before and within your answer code.
-There is no 'external' AI system or model;
- for dynamic GENERATE actions you generate the right outputs for some inputs.
 
 Today: {today.strftime('%d %B, %Y')}.
 """
     return base_text
-
-
-def get_task_prompt(task: TaskType):
-    if task == TaskType.ADAPT:
-        return """\
-Action (mode=ActionMode.GENERATE, is_dynamic=False)
-
-Adapt the implementation around the current node to the desired behaviour given the context.
-Usually that just means looking at the current node, but sometimes other nodes too.
-If the implementation already looks good, just respond with `pass`.
-Manipulate nodes via the ORM by updating their properties directly or even adding/removing nodes.
-
-If the implementation should be dynamic per input (i.e., requires any hint of AI) instead,
- you must set the node's is_dynamic=True and raise ActionChangedError instead.
-        """
-    elif task == TaskType.RUN:
-        return """\
-Action (mode=ActionMode.GENERATE, is_dynamic=True)
-
-Generate the output for the specific given inputs (do not attempt to generalize).
-You may perform any intermediate computations as needed in Python, but you shouldn't try
- to imitate AI logic in code. You are the AI, and you have to generate any AI outputs/intermediates.
-
-If the implementation should *not* be dynamic per input (i.e., good old code) instead,
- you must set the node's is_dynamic=False and raise ActionChangedError instead. 
-"""
-    else:
-        assert_never(task)
-
-
-GENERAL_EXAMPLES = (
-    PromptText(
-        "Example: Multi-line Code",
-        text="""\
-# Code should be escaped and start at the root indent level (then 4 spaces per indent level)
-code(\"\"\"\\
-if len(Text) > 10:
-    return {'IsLong': True}
-else:
-    return {'IsLong': False, 'Length': len(Text)}
-\"\"\")
-""",
-    ),
-    PromptText(
-        "Example: Create node (Field)",
-        text="""\
-# add option field
-Sentiment.fields.add(Field.option("Neutral"))
-# add database column
-Database.fields.add(Field.member("Name", str))
-# access field
-Database.fields.Name or Sentiment.fields.Neutral
-""",
-    ),
-    PromptText(
-        "Example: Wait",
-        text="""\
-# wait for a bit
-await sleep(2)
-""",
-    ),
-    PromptText(
-        "Example: Types and values",
-        text="""\
-# types are defined in Blocks
-Choice1 = Block.new(BlockType.CHOICE, "Choice1", fields=[Field.option("A"), Field.option("B")])
-Class1 = Block.new(BlockType.CLASS; "Class1", fields=[Field.member("Name", str), Field.member("Choice", Choice1)])
-# values are nodes or custom objects (instances of class-like types)
-A = Choice1.fields.A
-Object = Class1(Name="Alice", Choice=Choice.fields.B)
-""",
-    ),
-    PromptText(
-        title="Example: Add implementation",
-        text="""\
-# context
-Action1 = Block.new(
-    BlockType.ACTION, 
-    "Do Math", 
-    mode=ActionMode.GENERATE,
-    is_dynamic=False,
-    text=md("Add 1"), 
-    fields=(Field.input("x", int), Field.output("y", int)),
-)
-# output: update implementation
-Action1.code = code("return {'y': x + 1}")
-""",
-    ),
-    PromptText(
-        title="Example: Keep implementation",
-        text="""\
-# context
-Action1 = Block.new(
-    BlockType.ACTION,
-    "Concatene",
-    mode=ActionMode.GENERATE,
-    is_dynamic=False,
-    code=code("return {'Result': A + B}"),
-    fields=(Field.input("A", str), Field.input("B", str), Field.output("Result", str)),
-)
-# output: accept current implementation
-pass
-""",
-    ),
-    PromptText(
-        title="Example: Unclear requirements",
-        text="""\
-# context
-Action1 = Block.new(
-    BlockType.ACTION,
-    "Action1",
-    mode=ActionMode.GENERATE,
-    is_dynamic=False,
-    text=md("Raise the Shakra"),
-    fields=(Field.output("Number", int),),
-)
-# output: raise (no/unclear instructions)
-raise ModelIncapableError("Unclear requirements")
-""",
-    ),
-    PromptText(
-        title="Example: Change to dynamic implementation",
-        text="""\
-# context
-Action1 = Block.new(
-    BlockType.ACTION,
-    "Action1",
-    mode=ActionMode.GENERATE,
-    is_dynamic=False,
-    text=md("Summarize the text"),
-    fields=(Field.input("Text", str), Field.output("Summary", str)),
-    code=code("return {'Summary': Text[:10] + '...'}"),
-)
-# output: change to dynamic (requires a bit of AI)
-Action1.is_dynamic = True
-raise ActionChangedError()
-""",
-    ),
-    PromptText(
-        title="Example: GENERATE implementation",
-        text="""\
-# context
-CountPeople = Block.new(
-    BlockType.ACTION,
-    "CountPeople",
-    mode=ActionMode.GENERATE,
-    is_dynamic=True,
-    text=md("Count the number of people"),
-    fields=(Field.input("Text", str), Field.output("Count", int)),
-)
-# inputs
-{'Text': "Alice and Bob are here and went to Freddy's to buy some donuts."}
-# output: generate implementation (requires some AI)
-people = ["Alice", "Bob"]
-return {"Count": len(people)}
-""",
-    ),
-    PromptText(
-        title="Example: Change to static implementation",
-        text="""\
-# context
-CountWords = Block.new(
-    BlockType.ACTION,
-    "CountWords",
-    mode=ActionMode.GENERATE,
-    is_dynamic=True,
-    text=md("Count the number of words"),
-    fields=(Field.input("Text", str), Field.output("Count", int)),
-)
-# inputs
-{'Text': "Alice and Bob are here and went to Freddy's to buy some donuts.")}
-# output: change to static (doesn't need AI)
-CountWords.is_dynamic = False
-raise ActionChangedError()
-""",
-    ),
-)
 
 
 #

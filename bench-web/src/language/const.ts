@@ -302,7 +302,6 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.VARIABLE,
   BlockType.DATABASE,
 ];
-export const EXPOSED_PIPE_TYPES = [PipeType.PASS, PipeType.OPTION, PipeType.SELECT];
 export const EXPOSED_STRUCT_TYPES = [
   // core
   StructType.PATH,
@@ -367,7 +366,6 @@ export const EXPOSED_REGIONS = [Region.FRANKFURT, Region.OHIO];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
-  [EnumType.PIPE_TYPE]: EXPOSED_PIPE_TYPES,
   [EnumType.STRUCT_TYPE]: EXPOSED_STRUCT_TYPES,
   [EnumType.OBJECT_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES],
   [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],

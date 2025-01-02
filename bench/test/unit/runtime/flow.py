@@ -41,7 +41,7 @@ async def test_run_flow_pipe_directly(local_runtime: RuntimeHandle):
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
-    Pipe = Start.connect(PipeType.PASS, Complete)
+    Pipe = Start.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow1)
 
     _ = await local_runtime.run(Pipe)
@@ -78,7 +78,7 @@ async def test_run_flow_trivial(local_runtime: RuntimeHandle):
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
-    Start.connect(PipeType.PASS, Complete)
+    Start.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -106,8 +106,8 @@ return {'Block': block}
     )
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Create, Complete)
-    Start.connect(PipeType.PASS, Create)
-    Create.connect(PipeType.PASS, Complete)
+    Start.connect(PipeType.FORWARD, Create)
+    Create.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -125,8 +125,8 @@ async def test_run_flow_pipe_from_nowhere(local_runtime: RuntimeHandle):
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
     Nowhere = Action.new(ActionType.START, "Nowhere")  # not added to flow/graph
-    Nowhere.connect(PipeType.PASS, Complete, parent=Flow1)
-    Start.connect(PipeType.PASS, Complete)
+    Nowhere.connect(PipeType.FORWARD, Complete, parent=Flow1)
+    Start.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -141,8 +141,8 @@ async def test_run_flow_pipe_to_nowhere(local_runtime: RuntimeHandle):
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Nowhere = Action.new(ActionType.START, "Nowhere")  # not added to flow/graph
     Flow1.actions.extend(Start, Complete)
-    Start.connect(PipeType.PASS, Nowhere, parent=Flow1)
-    Start.connect(PipeType.PASS, Complete)
+    Start.connect(PipeType.FORWARD, Nowhere, parent=Flow1)
+    Start.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -158,7 +158,7 @@ async def test_run_flow_force_invalid_output(local_runtime: RuntimeHandle):
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
-    Start.connect(PipeType.PASS, Complete)
+    Start.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -181,8 +181,8 @@ async def test_run_flow_force_invalid_input(local_runtime: RuntimeHandle):
     )
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Code1, Complete)
-    Start.connect(PipeType.PASS, Code1)
-    Code1.connect(PipeType.PASS, Complete)
+    Start.connect(PipeType.FORWARD, Code1)
+    Code1.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -213,8 +213,8 @@ async def test_run_flow_code_action(local_runtime: RuntimeHandle):
     )
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Code1, Complete)
-    Start.connect(PipeType.PASS, Code1)
-    Code1.connect(PipeType.PASS, Complete)
+    Start.connect(PipeType.FORWARD, Code1)
+    Code1.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -229,7 +229,7 @@ async def test_run_flow_error(local_runtime: RuntimeHandle):
     Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("raise ValueError"))
     Flow1.actions.extend(Start, Code1)
-    Start.connect(PipeType.PASS, Code1)
+    Start.connect(PipeType.FORWARD, Code1)
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
 
@@ -250,8 +250,8 @@ async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle
     )
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Code1, Complete)
-    Start.connect(PipeType.PASS, Code1)
-    Code1.connect(PipeType.PASS, Complete)
+    Start.connect(PipeType.FORWARD, Code1)
+    Code1.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
 
@@ -268,7 +268,7 @@ async def test_run_flow_fail_action(local_runtime: RuntimeHandle):
         ActionType.FAIL, "Fail", error_title="Fail title", error_text=Text.plain("Fail text")
     )
     Flow1.actions.extend(Start, Fail)
-    Start.connect(PipeType.PASS, Fail)
+    Start.connect(PipeType.FORWARD, Fail)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -384,12 +384,12 @@ async def test_run_flow_race(local_runtime: RuntimeHandle):
     Race2 = Action.new(ActionType.CODE, "Race2", code=code("await asyncio.sleep(2)"))
     Race3 = Action.new(ActionType.CODE, "Race3", code=code("await asyncio.sleep(3)"))
     Flow1.actions.extend(Start, Race1, Race2, Race3, Complete)
-    Start.connect(PipeType.PASS, Race1)
-    Start.connect(PipeType.PASS, Race2)
-    Start.connect(PipeType.PASS, Race3)
-    Race1.connect(PipeType.PASS, Complete)
-    Race2.connect(PipeType.PASS, Complete)
-    Race3.connect(PipeType.PASS, Complete)
+    Start.connect(PipeType.FORWARD, Race1)
+    Start.connect(PipeType.FORWARD, Race2)
+    Start.connect(PipeType.FORWARD, Race3)
+    Race1.connect(PipeType.FORWARD, Complete)
+    Race2.connect(PipeType.FORWARD, Complete)
+    Race3.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -407,9 +407,9 @@ async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
     Loop = Action.new(ActionType.CODE, "Loop", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Loop, Complete)
-    Start.connect(PipeType.PASS, Loop)
-    Loop.connect(PipeType.PASS, Loop)  # infinite!
-    Loop.connect(PipeType.PASS, Complete)
+    Start.connect(PipeType.FORWARD, Loop)
+    Loop.connect(PipeType.FORWARD, Loop)  # infinite!
+    Loop.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -427,7 +427,7 @@ async def test_run_flow_select_continuations_manually(local_runtime: RuntimeHand
     Code4 = Action.new(ActionType.CODE, "Code4", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Router, Code2, Code3, Code4, Complete)
-    Start.connect(PipeType.PASS, Router)
+    Start.connect(PipeType.FORWARD, Router)
     Router.connect(PipeType.SELECT, Complete)
     Router.connect(PipeType.SELECT, Code2)
     Router.connect(PipeType.OPTION, Code3)
@@ -491,8 +491,8 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("await asyncio.sleep(5)"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Code1, Complete)
-    Start.connect(PipeType.PASS, Code1)
-    Code1.connect(PipeType.PASS, Complete)
+    Start.connect(PipeType.FORWARD, Code1)
+    Code1.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 
@@ -517,8 +517,8 @@ async def test_run_flow_yield(local_runtime: RuntimeHandle):
     Yield = Action.new(ActionType.YIELD, "Yield")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Yield, Complete)
-    Start.connect(PipeType.PASS, Yield)
-    Yield.connect(PipeType.PASS, Complete)
+    Start.connect(PipeType.FORWARD, Yield)
+    Yield.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 
@@ -556,8 +556,8 @@ async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
     YieldInner = Action.new(ActionType.YIELD, "YieldInner")
     CompleteInner = Action.new(ActionType.COMPLETE, "CompleteInner")
     FlowInner.actions.extend(StartInner, YieldInner, CompleteInner)
-    StartInner.connect(PipeType.PASS, YieldInner)
-    YieldInner.connect(PipeType.PASS, CompleteInner)
+    StartInner.connect(PipeType.FORWARD, YieldInner)
+    YieldInner.connect(PipeType.FORWARD, CompleteInner)
 
     # outer flow
     FlowOuter = Block.new(BlockType.FLOW, "FlowOuter")
@@ -565,8 +565,8 @@ async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
     ActionOuter = Action.new(ActionType.DELEGATE, "Action", delegate=FlowInner)
     CompleteOuter = Action.new(ActionType.COMPLETE, "Complete")
     FlowOuter.actions.extend(StartOuter, ActionOuter, CompleteOuter)
-    StartOuter.connect(PipeType.PASS, ActionOuter)
-    ActionOuter.connect(PipeType.PASS, CompleteOuter)
+    StartOuter.connect(PipeType.FORWARD, ActionOuter)
+    ActionOuter.connect(PipeType.FORWARD, CompleteOuter)
 
     local_runtime.page().blocks.extend(FlowInner, FlowOuter)
     await local_runtime.commit()
@@ -597,8 +597,8 @@ async def test_run_flow_yield_cancelled(local_runtime: RuntimeHandle):
     Yield = Action.new(ActionType.YIELD, "Yield")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Yield, Complete)
-    Start.connect(PipeType.PASS, Yield)
-    Yield.connect(PipeType.PASS, Complete)
+    Start.connect(PipeType.FORWARD, Yield)
+    Yield.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 
@@ -634,13 +634,13 @@ async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Yield, Action1, Complete)
     StartToYield = Start.connect(
-        PipeType.PASS,
+        PipeType.FORWARD,
         Yield,
         run_options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_failed()]),
     )
-    Yield.connect(PipeType.PASS, Action1)
+    Yield.connect(PipeType.FORWARD, Action1)
     Action1ToComplete = Action1.connect(
-        PipeType.PASS,
+        PipeType.FORWARD,
         Complete,
         run_options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_completed()]),
     )
@@ -691,9 +691,9 @@ async def test_run_flow_pause_resume(local_runtime: RuntimeHandle):
     Action2 = Action.new(ActionType.CODE, "Action2", code=code("await sleep(0.2)"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Action1, Action2, Complete)
-    Start.connect(PipeType.PASS, Action1)
-    Action1.connect(PipeType.PASS, Action2)
-    Action2.connect(PipeType.PASS, Complete)
+    Start.connect(PipeType.FORWARD, Action1)
+    Action1.connect(PipeType.FORWARD, Action2)
+    Action2.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 
@@ -720,9 +720,9 @@ async def test_run_flow_autoclose_interruptions(local_runtime: RuntimeHandle):
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Pass = Action.new(ActionType.CODE, "Pass", code=code("pass"))
     Flow.actions.extend(Start, Yield, Pass, Complete)
-    Start.connect(PipeType.PASS, Yield)
-    Start.connect(PipeType.PASS, Pass)
-    Pass.connect(PipeType.PASS, Complete)
+    Start.connect(PipeType.FORWARD, Yield)
+    Start.connect(PipeType.FORWARD, Pass)
+    Pass.connect(PipeType.FORWARD, Complete)
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 

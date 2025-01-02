@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { NAME_TYPE } from "@/language/field";
 import { isRunActive } from "@/language/session";
-import { ColorShade, ColorType, NodeType, PipeType,  ViewData } from "@/proto/wire";
+import { ColorShade, ColorType, NodeType, PipeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/system/flow";
 import { runtime } from "@/system/runtime";
@@ -46,16 +46,13 @@ const isInspected = computed(() => canvas.isInspected(pipePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
 const isSelected = computed(() => state.isSelected(pipePtr.value));
 const isHidden = computed(() => pipe.value?.isHidden && !isInspected.value && !isHighlighted.value);
+const hasStartMarker = computed(
+  () => pipe.value?.type == PipeType.FORWARD_AND_BACK || pipe.value?.type == PipeType.SELECT_AND_BACK,
+);
 const strokeDashArray = computed(() => {
-  if (pipe.value?.type === PipeType.SELECT) {
+  if (pipe.value?.type === PipeType.SELECT || pipe.value?.type === PipeType.SELECT_AND_BACK) {
     // dashed
     return `${PIPE_WIDTH * 3},${PIPE_WIDTH * 2}`;
-  } else if (pipe.value?.type === PipeType.OPTION) {
-    // dotted
-    return `${PIPE_WIDTH * 1},${PIPE_WIDTH * 2}`;
-  } else if (pipe.value?.type === PipeType.STREAM) {
-    // long dashed (animated)
-    return `${PIPE_WIDTH * 3},${PIPE_WIDTH * 4}`;
   } else {
     return undefined;
   }
@@ -113,6 +110,32 @@ defineExpose<ViewExposed>({ self, id, actions });
         >
           <path d="M0,0 L14,5 L0,10 L3,5 Z" fill="currentColor" />
         </marker>
+
+        <!-- Inverted Start Marker -->
+        <marker
+          :id="'arrowhead-start-' + pipe.id"
+          markerWidth="10"
+          markerHeight="7"
+          refX="1"
+          refY="3.5"
+          orient="auto"
+          markerUnits="userSpaceOnUse"
+        >
+          <path d="M10,0 L0,3.5 L10,7 L8,3.5 Z" fill="currentColor" />
+        </marker>
+
+        <!-- Inverted Start Background Marker -->
+        <marker
+          :id="'arrowhead-start-background-' + pipe.id"
+          markerWidth="14"
+          markerHeight="10"
+          refX="2"
+          refY="5"
+          orient="auto"
+          markerUnits="userSpaceOnUse"
+        >
+          <path d="M14,0 L0,5 L14,10 L11,5 Z" fill="currentColor" />
+        </marker>
       </defs>
 
       <!-- Background Path for Hover and Hit Target -->
@@ -121,6 +144,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         stroke-linecap="round"
         stroke-linejoin="bevel"
         fill="none"
+        :marker-start="hasStartMarker ? 'url(#arrowhead-start-background-' + pipe.id + ')' : undefined"
         :marker-end="'url(#arrowhead-background-' + pipe.id + ')'"
         class="pointer-events-auto cursor-pointer transition-colors duration-150"
         :class="
@@ -143,20 +167,12 @@ defineExpose<ViewExposed>({ self, id, actions });
         stroke-linejoin="bevel"
         stroke="currentColor"
         fill="none"
+        :marker-start="hasStartMarker ? 'url(#arrowhead-start-' + pipe.id + ')' : undefined"
         :marker-end="'url(#arrowhead-main-' + pipe.id + ')'"
         class="transition-colors duration-150"
         :stroke-dasharray="strokeDashArray"
         :d="pathToSvg(path)"
-      >
-        <animate
-          v-if="pipe.type === PipeType.STREAM && !(isInspected || isHighlighted || isSelected)"
-          attributeName="stroke-dashoffset"
-          from="42"
-          to="0"
-          dur="2s"
-          repeatCount="indefinite"
-        />
-      </path>
+      />
     </svg>
 
     <!-- Midpoint meta -->
@@ -175,13 +191,8 @@ defineExpose<ViewExposed>({ self, id, actions });
     >
       <!-- Type -->
       <IconInline
-        v-if="pipe.type != PipeType.PASS"
         v-bind="ICON_BY_PIPE_TYPE[pipe.type]"
-        class="flex h-4 w-4 flex-col justify-center rounded-2xl text-center"
-        :class="pipe.type == PipeType.OPTION ? ' ' : 'text-gray-700'"
-        :style="{
-          color: pipe.type == PipeType.OPTION ? pathColorHex : undefined,
-        }"
+        class="flex h-4 w-4 flex-col justify-center rounded-2xl text-center text-gray-700"
       />
       <!-- Name -->
       <NativeInput

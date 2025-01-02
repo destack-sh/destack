@@ -91,7 +91,7 @@ def format_code(code: str, suppress_error: bool = False, line_length: int = 100)
     """
     Formats the code string with our standard black settings.
     TODO :Performance!: replace black with ruff in format_code
-     (unfortunately ruff doesn't have a nice API for this yet, so we would need to a subprocess?)
+     (unfortunately ruff doesn't have a nice API for this yet, so we would need to use a subprocess?)
     """
     try:
         return black.format_str(code, mode=black.FileMode(line_length=line_length))

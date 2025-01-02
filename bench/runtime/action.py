@@ -23,16 +23,13 @@ from bench.language.action import (
     WaitAction,
 )
 from bench.language.browser import Browser
-from bench.language.const import NodeType, ObjectKind, RunErrorKind
+from bench.language.const import NodeType, ObjectKind
 from bench.language.field import TypeBase
 from bench.language.file import FileFormat, FileType, upload_file
-from bench.language.flow import Pipe, PipeType, PortSide
 from bench.language.interruption import BreakpointScope, BreakpointSite, InterruptionType
 from bench.language.node import HasNodeBase
 from bench.language.run import (
     Run,
-    RunError,
-    RunErrorType,
     RunnableNode,
     RunOptions,
     RunType,
@@ -40,7 +37,6 @@ from bench.language.run import (
 from bench.language.text import Text
 from bench.language.value import (
     CustomObject,
-    OutputObject,
     ProxyReadObject,
     coerce_custom_object_scalar,
     make_node_from_partial,
@@ -107,30 +103,6 @@ class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
                 if bp.scope == BreakpointScope.ACTION and bp.site in sites:
                     return True
         return False
-
-    def _check_action_outputs(self):
-        """Checks the outputs for this Action for Action-specific errors."""
-        # check continuations
-        if (
-            self.flow is not None
-            and self.outputs is not None
-            and self.outputs._kind == ObjectKind.OUTPUT
-            and cast(OutputObject, self.outputs).continuations
-        ):
-            continuations = cast(OutputObject, self.outputs).continuations
-            continued_options: list[Pipe] = []
-            for pipe in self.flow.get_pipes_at(self.node, PortSide.OUTGOING):
-                if pipe.type == PipeType.OPTION and any(
-                    c.node == pipe or c.node == pipe.target for c in continuations
-                ):
-                    continued_options.append(pipe)
-            if len(continued_options) > 1:
-                error = RunError(
-                    kind=RunErrorKind.RUNTIME,
-                    type=RunErrorType.INVALID_CONTINUATION,
-                    title=f"multiple mutually exclusive option pipes: f{continued_options!r}",
-                )
-                raise RetryableError(title=None, error=error)
 
     def _get_resumable_subrunner(
         self,
@@ -310,7 +282,6 @@ class YieldActionRunner(ActionRunnerBase):
     async def run(self) -> None:
         interruption = self._trap_interruption(InterruptionType.YIELD)
         self.outputs = interruption.outputs
-        self._check_action_outputs()
 
 
 #
@@ -334,7 +305,6 @@ class CodeActionRunner(ActionRunnerBase[CodeAction]):
         )
         await self.runtime.run_runner(code_runner)
         self.outputs = code_runner.outputs
-        self._check_action_outputs()
 
 
 class DelegateActionRunner(ActionRunnerBase[DelegateAction]):

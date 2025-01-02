@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.02.0"
+VERSION = "2025.01.02.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -444,7 +444,6 @@ class StructType(IdEnum):
     AUDIO_OPTIONS = 12708
     IMAGE_OPTIONS = 12709
     VIDEO_OPTIONS = 12710
-    CONTINUE = 12711
     CALL = 12712
     CONTEXT = 12713
     BREAKPOINT = 12714
@@ -1362,6 +1361,7 @@ def run_event(
         text_plain=text_plain,
         nodes=nodes or [],
         created_at=runtime.oracle.utc(),
+        _skip_validate_self=True,
     )
     runner.events.append(event)
     run = runner.tracked_run
@@ -1407,6 +1407,7 @@ def run_span(
             text=text,
             text_plain=text_plain,
             started_at=runtime.oracle.utc(),
+            _skip_validate_self=True,
         )
         runner.spans.append(span)
         run = runner.tracked_run

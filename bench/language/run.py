@@ -333,7 +333,7 @@ class RunError(Struct, BenchError):
     type: RunErrorType = p_internal(31, default=None)
     title: Optional[str] = p_internal(32, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_internal(33, default=None, struct=StructType.TEXT)
-    node: Optional["Node"] = p_internal(34, require=False, array=False, references=NodeType.BLOCK)
+    nodes: list["Node"] = p_internal(34, array=True, require=False, references="any")
     trace: Optional[RunTrace] = p_internal(
         35, require=False, array=False, struct=StructType.RUN_TRACE
     )

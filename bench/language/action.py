@@ -201,6 +201,9 @@ class Action(SourceNode[ActionData]):
     )
     if TYPE_CHECKING:
         delegate_ptr: "NodeReference | None" = None
+    calls: list["Call"] = p_regular(
+        55, array=True, struct=StructType.CALL, field_type=FieldType.OUTPUT
+    )
 
     # flow
     position: Optional["Vector2"] = p_regular(
@@ -620,7 +623,7 @@ class GoToTabAction(Action):
 
 
 #
-# Container
+# Control flow
 #
 
 
@@ -633,11 +636,6 @@ class LoopAction(Action):
         references=NodeType.FIELD,
         field_type=FieldType.INPUT,
     )
-
-
-#
-# Other
-#
 
 
 @struct_(StructType.CALL)
@@ -677,43 +675,3 @@ class Call(Struct):
             inputs=coerce_custom_object_scalar(ObjectKind.INPUT, inputs or {}, input_type),
             **kwargs,
         )
-
-
-@struct_(StructType.CONTINUE)
-class Continue(Struct):
-    """A "Continuation" of a Run somewhere (like in a Flow)."""
-
-    node: Union["Block", "Action", "Pipe", None] = p_regular(
-        30,
-        require=True,
-        references=(NodeType.BLOCK, NodeType.ACTION),
-        constraint=constraint(node_subtypes=[BlockType.FLOW]),
-    )
-    inputs_packed: Any = p_value_packed(31)
-    inputs: Any = p_value_runtime(
-        31, kind=ObjectKind.INPUT, typ=lambda self: cast(Continue, self).input_type
-    )
-    mapping: Optional["ObjectMapping"] = p_regular(
-        50,
-        require=False,
-        array=False,
-        struct=StructType.OBJECT_MAPPING,
-        description="Mapping for inputs from current node into next node.",
-    )
-
-    @property
-    def input_type(self) -> Optional["TypeBase"]:
-        node = self.node
-        return node.input_type if node is not None else None
-
-    @staticmethod
-    def new(node: "Block | Action | Pipe", inputs: Any | None = None, **kwargs) -> "Continue":
-        input_type = node.input_type
-        assert input_type is not None, f"no input type for {node!r}"
-        return Continue(
-            node=node,
-            inputs=coerce_custom_object_scalar(ObjectKind.INPUT, inputs or {}, input_type),
-            **kwargs,
-        )
-
-    at = new
