@@ -1467,7 +1467,7 @@ export class NodeSuperGraph {
   /** Gets a node from the supergraph or throws an error if it's not found. */
   getOrError<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] {
     const node = this.get(key);
-    if (node == null) throw new Error(`node not found: ${key}`);
+    if (node == null) throw new Error(`node not found: ${describeNode(key)}`);
     return node;
   }
 

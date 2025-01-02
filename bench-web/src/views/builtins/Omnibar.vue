@@ -1,5 +1,5 @@
 <script lang="tsx" setup>
-import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { NodeType, ObjectType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { packagePtr } from "@/system/client";
 import { bench, canvas, hasLocalPkg, pkgGraph, space, spaceGraph } from "@/system/space";
 import { OMNIBAR_MODES, addAction, fireAction, type ActionBuiltinId, type OmnibarMode } from "@/ui/action";
@@ -44,33 +44,20 @@ const indices = computed(() => {
     indices["Actions"] = ACTION_INDEX;
   }
 
-  // views
-  if (space.value != null && ["everywhere", "space", "views"].includes(mode.value)) {
-    indices["Views"] = graphIndex({
-      id: "views",
-      graph: spaceGraph,
-      metatypes: [NodeType.VIEW],
-      roots: [space.value],
-      skipDepth: 1,
-      // only tabs for now
-      filter: (node, ancestors) => (ancestors[0]?.node as ViewData)?.type == ViewType.TAB,
-    });
-  }
-
   // package
-  // NOTE: we only search package deeply if we have a query for performance & clarity
-  if (
-    packagePtr.value != null &&
-    hasLocalPkg.value &&
-    ["everywhere", "space", "bench", "package"].includes(mode.value)
-  ) {
+  if (packagePtr.value != null && hasLocalPkg.value && ["everywhere", "bench"].includes(mode.value)) {
     indices["Bench"] = graphIndex({
       id: "bench",
       graph: pkgGraph,
       metatypes: [NodeType.BLOCK, NodeType.VIEW, NodeType.BLOCK, NodeType.ACTION],
       roots: [pkgGraph.getOrError(packagePtr.value)],
       skipDepth: 1,
-      maxDepth: isQueryEmpty.value ? 1 : undefined,
+      // only search deeply if in bench search specifically
+      maxDepth: isQueryEmpty.value && mode.value != "bench" ? 1 : undefined,
+      filter: (node, ancestors) => {
+        // exclude views that are in the active Space
+        return node.metatype != ObjectType.VIEW || !ancestors.some((a) => a.node.metatype == ObjectType.SPACE);
+      },
     });
   }
 
@@ -173,18 +160,14 @@ watch(
 const SHORTCUTS_BY_MODE: Partial<Record<OmnibarMode, string[]>> = {
   everywhere: ["mod+k"],
   actions: ["mod+shift+a"],
-  space: ["mod+shift+f"],
-  views: ["mod+shift+v"],
-  view: ["mod+f"],
+  bench: ["mod+shift+f"],
 };
 const TEXT_BY_MODE: Record<OmnibarMode, string> = {
   everywhere: "Search (almost) anything",
   actions: "Find an action to run",
-  space: "Search across this Space",
-  views: "Search active Views in this Space",
-  view: "Search the focused View in the Space",
+  bench: "Search across this Bench",
 };
-const IN_BENCH_MODES: OmnibarMode[] = ["module", "package", "bench"];
+
 for (const inMode of OMNIBAR_MODES) {
   addAction("static", {
     id: ("space.omnibar." + inMode) as ActionBuiltinId,
@@ -193,12 +176,7 @@ for (const inMode of OMNIBAR_MODES) {
     icon: inMode == "actions" ? "fas fa-command" : "fas fa-magnifying-glass",
     text: TEXT_BY_MODE[inMode],
     action: () => open(inMode),
-    isEnabled: computed(
-      () =>
-        props.box.width >= PANEL_WIDTH &&
-        (!isActive.value || inMode != mode.value) &&
-        (!IN_BENCH_MODES.includes(inMode) || bench.value != null),
-    ),
+    isEnabled: computed(() => props.box.width >= PANEL_WIDTH && (!isActive.value || inMode != mode.value)),
   });
 }
 

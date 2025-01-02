@@ -20,17 +20,15 @@ import { computed, getCurrentInstance, shallowRef, toValue, triggerRef, watch, t
 export const IS_IN_ALT_MODE = useKeyModifier("Alt");
 
 // :OmnibarModes
-export const OMNIBAR_MODES = ["everywhere", "actions", "space", "views", "view"];
-export type OmnibarMode = (typeof OMNIBAR_MODES)[number];
+export type OmnibarMode = "everywhere" | "actions" | "bench";
+export const OMNIBAR_MODES: OmnibarMode[] = ["everywhere", "actions", "bench"];
 
 export const ACTION_BUILTIN_IDS = [
   // space
   // (:OmnibarModes)
   "space.omnibar.everywhere",
   "space.omnibar.actions",
-  "space.omnibar.space",
-  "space.omnibar.views",
-  "space.omnibar.view",
+  "space.omnibar.bench",
   "space.launch.discord",
   "space.launch.fullscreen",
   // history
@@ -83,8 +81,8 @@ export const ACTION_BUILTIN_IDS = [
   "runtime.run.pause",
   "runtime.run.resume",
   "runtime.run.kill",
-  "runtime.interrupt.resume",
-  "runtime.interrupt.cancel",
+  "runtime.interruption.resume",
+  "runtime.interruption.cancel",
   // list
   "list.create.above",
   "list.create.below",
@@ -550,7 +548,7 @@ export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const RECORD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const ACTION_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const RUN_CONTEXT_ACTIONS: ActionBuiltinId[] = ["runtime.run.pause", "runtime.run.resume", "runtime.run.kill"];
-export const INTERRUPTION_CONTEXT_ACTIONS: ActionBuiltinId[] = ["runtime.interrupt.resume", "runtime.interrupt.cancel"];
+export const INTERRUPTION_CONTEXT_ACTIONS: ActionBuiltinId[] = ["runtime.interruption.resume", "runtime.interruption.cancel"];
 export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["flow.edit.splitPipe"];
 export const RESOURCE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "resource.status.activate",
