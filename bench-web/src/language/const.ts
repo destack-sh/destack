@@ -72,7 +72,7 @@ export function isRuntimeNodeType(nodeType: NodeType): boolean {
 }
 
 export function isResourceNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 2000 && nodeType < 2200;
+  return nodeType >= 2000 && nodeType < 3000;
 }
 
 export function isStaticResourceNodeType(nodeType: NodeType): boolean {
@@ -152,8 +152,7 @@ export const ACTIVE_RUN_STATUSES = [
 // view
 export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "number" && v > 0) as ViewType[];
 export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.HISTORY, ViewType.SPLIT]);
-export const NODE_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 200 && vt < 400));
-export const HELPER_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 400 && vt < 600));
+export const HELPER_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 30000 && vt < 40000));
 
 export const NAME_CONSTRAINT = BlockDataInfo[BlockProperty.name].constraint!;
 export const TITLE_CONSTRAINT = ViewDataInfo[ViewProperty.title].constraint!;

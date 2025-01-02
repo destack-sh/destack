@@ -374,6 +374,7 @@ export class SpaceCanvas {
   }): void {
     log.trace("canvas.inspect", inspect);
 
+    // get node ptr
     const nodePtr = toNodeRef(inspect.node as AnyNodeData);
     let view: SomeView | null;
     if (isNodeRef(inspect.view) || isNode(inspect.view)) {
@@ -430,7 +431,7 @@ export class SpaceCanvas {
         } else if (!focus.ignoreInspection) {
           // auto-inspect what was previously focused inside this view
           const node = viewData!.focus!.nodesPtr[0];
-          this.inspect({ node, view: viewData! });
+            this.inspect({ node, view: viewData! });
           break;
         }
       }

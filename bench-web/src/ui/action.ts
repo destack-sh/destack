@@ -491,7 +491,7 @@ export function watchActions() {
 /** Gets the nodes in the context of an Action. Only returns the nodes if they are part of tbe same connection. */
 export function getNodesForAction(
   action: Action,
-  ctx: ActionContext | undefined,
+  context: ActionContext | undefined,
 ): {
   connection: ConnectionBase<any, any> | null;
   graph: ReadNodeGraph | null;
@@ -499,12 +499,18 @@ export function getNodesForAction(
 } {
   // gather 'context' nodes
   let nodesPtr = [];
-  if (canvas.selection != null && supergraph.getManyMaybe(canvas.selection.nodesPtr).length > 0) {
+  if (
+    canvas.selection != null &&
+    supergraph.getManyMaybe(canvas.selection.nodesPtr).length > 0 &&
+    (context?.nodes == null ||
+      // expand context nodes to selection if there is overlap
+      canvas.selection.nodesPtr.some((nodePtr) => context.nodes!.some((n) => n.id == nodePtr.id)))
+  ) {
     nodesPtr = canvas.selection.nodesPtr;
+  } else if (context?.nodes != null) {
+    nodesPtr = context.nodes.map(toNodeRef);
   } else if (canvas.inspection != null) {
     nodesPtr = [canvas.inspection];
-  } else if (ctx?.nodes != null) {
-    nodesPtr = ctx.nodes.map(toNodeRef);
   } else {
     return { connection: null, graph: null, nodes: [] };
   }
@@ -538,9 +544,7 @@ export function getNodesForAction(
 export const NON_DUPLICATABLE_NODE_TYPES = [NodeType.PIPE];
 
 export const SCALAR_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.rename"];
-
 export const NODE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.duplicate", "space.edit.delete"];
-
 export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const RECORD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
