@@ -469,7 +469,7 @@ declareActions<"runtime">({
     },
   },
   // interrupt
-  "runtime.interrupt.resume": {
+  "runtime.interruption.resume": {
     icon: "fas fa-check",
     title: "Resume",
     text: "Resume this Interruption",
@@ -483,7 +483,7 @@ declareActions<"runtime">({
         .forEach((n) => runtime.resume(n as RunData, { tx }));
     },
   },
-  "runtime.interrupt.cancel": {
+  "runtime.interruption.cancel": {
     icon: "fas fa-xmark",
     title: "Cancel",
     text: "Cancel this Interruption",

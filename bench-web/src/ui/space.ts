@@ -415,7 +415,11 @@ export class SpaceCanvas {
     ) & { anchor?: FocusAnchor | NodeReferenceData; ignoreInspection?: boolean },
   ) {
     log.trace("canvas.focus", focus);
-    focus.node = supergraph.getOrError({ id: focus.node.id, nodeType: focus.node.metatype as unknown as NodeType }); // 'refresh' node in graph since it may have moved
+    focus.node = supergraph.getOrError({
+      id: focus.node.id,
+      ck: focus.node.id,
+      nodeType: isNode(focus.node) ? (focus.node.metatype as unknown as NodeType) : focus.node.nodeType,
+    }); // 'refresh' node in graph since it may have moved
     const nodeType = isNodeRef(focus.node) ? (focus.node as NodeReferenceData).nodeType : focus.node.metatype;
 
     if (nodeType == NodeType.VIEW && this.isInSpace(focus.node)) {
@@ -431,7 +435,7 @@ export class SpaceCanvas {
         } else if (!focus.ignoreInspection) {
           // auto-inspect what was previously focused inside this view
           const node = viewData!.focus!.nodesPtr[0];
-            this.inspect({ node, view: viewData! });
+          this.inspect({ node, view: viewData! });
           break;
         }
       }
