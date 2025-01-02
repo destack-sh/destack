@@ -260,11 +260,11 @@ class RunSpanType(IdEnum):
     # flow
     FLOW_GENERATE_CALLS = 100
     # action
-    # ...
+    ACTION_GENERATE_OUTPUT = 200
     # application (action)
     APPLICATION_FIND_ELEMENT = 210
-    # action
-    MODEL_GENERATE = 200
+    # model
+    MODEL_INFERENCE = 300
     # file
     FILE_UPLOAD = 500
     FILE_PREPARE_UPLOAD = 501

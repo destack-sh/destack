@@ -16,7 +16,7 @@ import {
   updateFieldType,
 } from "@/language/field";
 import { ReadNodeGraph } from "@/language/graph";
-import { unpackSubnode } from "@/language/node";
+import { packSubnode, unpackSubnode } from "@/language/node";
 import {
   getTransactionOptionsForType,
   makeEditFromSubnode,
@@ -56,6 +56,7 @@ import {
   TypeKind,
   ViewType,
   ActionData,
+  PickerVariant,
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
 import { canvas, supergraph } from "@/system/globals";
@@ -644,7 +645,10 @@ export function onAddFieldAction(
       component: ViewType.PICKER,
       placement: "bottom-left",
       offset: "referenceWidth",
-      props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
+      props: {
+        valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }),
+        subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
+      },
       onApply: (typeInfo: TypeIdentity) => {
         if (fieldType == FieldType.VARIABLE) {
           typeInfo = { ...typeInfo, isRequired: true }; // variables are required by default

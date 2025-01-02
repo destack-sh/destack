@@ -33,7 +33,6 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.query import Query
 from bench.language.validation import NAME_CONSTRAINT, constraint
 from bench.proto.wire import BlockData
 from bench.proto.wire.lang_pb2 import RecordData
@@ -236,9 +235,4 @@ class FlowBlock(Block):
 
 @node_subtype_(BlockType.DATABASE)
 class DatabaseBlock(Block):
-    query: Optional["Query"] = p_regular(100, require=False, array=False, references=NodeType.QUERY)
-
-
-@node_subtype_(BlockType.QUERY)
-class QueryBlock(Block):
-    query: Optional["Query"] = p_regular(100, require=False, array=False, references=NodeType.QUERY)
+    pass

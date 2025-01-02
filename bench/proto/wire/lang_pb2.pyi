@@ -143,7 +143,6 @@ class NodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_BLOCK: _ClassVar[NodeType]
     NODE_TYPE_TRIGGER: _ClassVar[NodeType]
     NODE_TYPE_FIELD: _ClassVar[NodeType]
-    NODE_TYPE_QUERY: _ClassVar[NodeType]
     NODE_TYPE_VIEW: _ClassVar[NodeType]
     NODE_TYPE_ACTION: _ClassVar[NodeType]
     NODE_TYPE_PIPE: _ClassVar[NodeType]
@@ -249,7 +248,6 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_BLOCK: _ClassVar[ObjectType]
     OBJECT_TYPE_TRIGGER: _ClassVar[ObjectType]
     OBJECT_TYPE_FIELD: _ClassVar[ObjectType]
-    OBJECT_TYPE_QUERY: _ClassVar[ObjectType]
     OBJECT_TYPE_VIEW: _ClassVar[ObjectType]
     OBJECT_TYPE_ACTION: _ClassVar[ObjectType]
     OBJECT_TYPE_PIPE: _ClassVar[ObjectType]
@@ -432,7 +430,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_BLOCK: _ClassVar[BenchType]
     BENCH_TYPE_TRIGGER: _ClassVar[BenchType]
     BENCH_TYPE_FIELD: _ClassVar[BenchType]
-    BENCH_TYPE_QUERY: _ClassVar[BenchType]
     BENCH_TYPE_VIEW: _ClassVar[BenchType]
     BENCH_TYPE_ACTION: _ClassVar[BenchType]
     BENCH_TYPE_PIPE: _ClassVar[BenchType]
@@ -668,7 +665,6 @@ class RegionArea(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     REGION_AREA_ASIA: _ClassVar[RegionArea]
     REGION_AREA_AUSTRALIA: _ClassVar[RegionArea]
     REGION_AREA_PRIVATE: _ClassVar[RegionArea]
-    REGION_AREA_GLOBAL: _ClassVar[RegionArea]
 
 class ResourceStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -919,7 +915,6 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BLOCK_TYPE_FLOW: _ClassVar[BlockType]
     BLOCK_TYPE_VARIABLE: _ClassVar[BlockType]
     BLOCK_TYPE_DATABASE: _ClassVar[BlockType]
-    BLOCK_TYPE_QUERY: _ClassVar[BlockType]
     BLOCK_TYPE_VIEW: _ClassVar[BlockType]
     BLOCK_TYPE_ROLE: _ClassVar[BlockType]
     BLOCK_TYPE_IDENTITY: _ClassVar[BlockType]
@@ -1215,8 +1210,9 @@ class RunSpanType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_SPAN_TYPE_UNSPECIFIED: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_WAIT_FOR: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_FLOW_GENERATE_CALLS: _ClassVar[RunSpanType]
+    RUN_SPAN_TYPE_ACTION_GENERATE_OUTPUT: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_APPLICATION_FIND_ELEMENT: _ClassVar[RunSpanType]
-    RUN_SPAN_TYPE_MODEL_GENERATE: _ClassVar[RunSpanType]
+    RUN_SPAN_TYPE_MODEL_INFERENCE: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_FILE_UPLOAD: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_FILE_PREPARE_UPLOAD: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_FILE_DOWNLOAD: _ClassVar[RunSpanType]
@@ -1330,8 +1326,6 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_YIELD: _ClassVar[ActionType]
     ACTION_TYPE_GENERATE: _ClassVar[ActionType]
     ACTION_TYPE_TRANSFORM: _ClassVar[ActionType]
-    ACTION_TYPE_TRANSLATE: _ClassVar[ActionType]
-    ACTION_TYPE_EXTRACT: _ClassVar[ActionType]
     ACTION_TYPE_ROUTE: _ClassVar[ActionType]
     ACTION_TYPE_CHANGE: _ClassVar[ActionType]
     ACTION_TYPE_OBSERVE: _ClassVar[ActionType]
@@ -1643,8 +1637,9 @@ class ButtonVariant(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class PickerVariant(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PICKER_VARIANT_UNSPECIFIED: _ClassVar[PickerVariant]
-    PICKER_VARIANT_DROPDOWN: _ClassVar[PickerVariant]
     PICKER_VARIANT_MULTI_TOGGLE: _ClassVar[PickerVariant]
+    PICKER_VARIANT_DROPDOWN: _ClassVar[PickerVariant]
+    PICKER_VARIANT_DROPDOWN_LARGE: _ClassVar[PickerVariant]
 
 class UserStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1796,7 +1791,6 @@ NODE_TYPE_SPACE: NodeType
 NODE_TYPE_BLOCK: NodeType
 NODE_TYPE_TRIGGER: NodeType
 NODE_TYPE_FIELD: NodeType
-NODE_TYPE_QUERY: NodeType
 NODE_TYPE_VIEW: NodeType
 NODE_TYPE_ACTION: NodeType
 NODE_TYPE_PIPE: NodeType
@@ -1896,7 +1890,6 @@ OBJECT_TYPE_SPACE: ObjectType
 OBJECT_TYPE_BLOCK: ObjectType
 OBJECT_TYPE_TRIGGER: ObjectType
 OBJECT_TYPE_FIELD: ObjectType
-OBJECT_TYPE_QUERY: ObjectType
 OBJECT_TYPE_VIEW: ObjectType
 OBJECT_TYPE_ACTION: ObjectType
 OBJECT_TYPE_PIPE: ObjectType
@@ -2049,7 +2042,6 @@ BENCH_TYPE_SPACE: BenchType
 BENCH_TYPE_BLOCK: BenchType
 BENCH_TYPE_TRIGGER: BenchType
 BENCH_TYPE_FIELD: BenchType
-BENCH_TYPE_QUERY: BenchType
 BENCH_TYPE_VIEW: BenchType
 BENCH_TYPE_ACTION: BenchType
 BENCH_TYPE_PIPE: BenchType
@@ -2270,7 +2262,6 @@ REGION_AREA_AFRICA: RegionArea
 REGION_AREA_ASIA: RegionArea
 REGION_AREA_AUSTRALIA: RegionArea
 REGION_AREA_PRIVATE: RegionArea
-REGION_AREA_GLOBAL: RegionArea
 RESOURCE_STATUS_UNSPECIFIED: ResourceStatus
 RESOURCE_STATUS_DECLARED: ResourceStatus
 RESOURCE_STATUS_UP: ResourceStatus
@@ -2464,7 +2455,6 @@ BLOCK_TYPE_MESSAGE: BlockType
 BLOCK_TYPE_FLOW: BlockType
 BLOCK_TYPE_VARIABLE: BlockType
 BLOCK_TYPE_DATABASE: BlockType
-BLOCK_TYPE_QUERY: BlockType
 BLOCK_TYPE_VIEW: BlockType
 BLOCK_TYPE_ROLE: BlockType
 BLOCK_TYPE_IDENTITY: BlockType
@@ -2688,8 +2678,9 @@ RUN_ERROR_TYPE_RETRYABLE: RunErrorType
 RUN_SPAN_TYPE_UNSPECIFIED: RunSpanType
 RUN_SPAN_TYPE_WAIT_FOR: RunSpanType
 RUN_SPAN_TYPE_FLOW_GENERATE_CALLS: RunSpanType
+RUN_SPAN_TYPE_ACTION_GENERATE_OUTPUT: RunSpanType
 RUN_SPAN_TYPE_APPLICATION_FIND_ELEMENT: RunSpanType
-RUN_SPAN_TYPE_MODEL_GENERATE: RunSpanType
+RUN_SPAN_TYPE_MODEL_INFERENCE: RunSpanType
 RUN_SPAN_TYPE_FILE_UPLOAD: RunSpanType
 RUN_SPAN_TYPE_FILE_PREPARE_UPLOAD: RunSpanType
 RUN_SPAN_TYPE_FILE_DOWNLOAD: RunSpanType
@@ -2764,8 +2755,6 @@ ACTION_TYPE_WAIT: ActionType
 ACTION_TYPE_YIELD: ActionType
 ACTION_TYPE_GENERATE: ActionType
 ACTION_TYPE_TRANSFORM: ActionType
-ACTION_TYPE_TRANSLATE: ActionType
-ACTION_TYPE_EXTRACT: ActionType
 ACTION_TYPE_ROUTE: ActionType
 ACTION_TYPE_CHANGE: ActionType
 ACTION_TYPE_OBSERVE: ActionType
@@ -3017,8 +3006,9 @@ BUTTON_VARIANT_PRIMARY: ButtonVariant
 BUTTON_VARIANT_SECONDARY: ButtonVariant
 BUTTON_VARIANT_LINK: ButtonVariant
 PICKER_VARIANT_UNSPECIFIED: PickerVariant
-PICKER_VARIANT_DROPDOWN: PickerVariant
 PICKER_VARIANT_MULTI_TOGGLE: PickerVariant
+PICKER_VARIANT_DROPDOWN: PickerVariant
+PICKER_VARIANT_DROPDOWN_LARGE: PickerVariant
 USER_STATUS_UNSPECIFIED: UserStatus
 USER_STATUS_INVITED: UserStatus
 USER_STATUS_RESERVED: UserStatus
@@ -3642,22 +3632,6 @@ class CallData(_message.Message):
     mapping: ObjectMappingData
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., action_type: _Optional[_Union[ActionType, str]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., mapping: _Optional[_Union[ObjectMappingData, _Mapping]] = ...) -> None: ...
 
-class SelectOptionsData(_message.Message):
-    __slots__ = ("metatype", "select_all_properties", "include_properties_ptr", "exclude_properties_ptr", "select_properties_ptr", "select_fields_ptr")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    SELECT_ALL_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
-    INCLUDE_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
-    EXCLUDE_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
-    SELECT_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
-    SELECT_FIELDS_PTR_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    select_all_properties: bool
-    include_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
-    exclude_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
-    select_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
-    select_fields_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., select_all_properties: bool = ..., include_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., exclude_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., select_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., select_fields_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
-
 class DomNodeData(_message.Message):
     __slots__ = ("metatype", "type", "tag", "index", "xpath", "text", "is_interactive", "is_visible", "is_top", "children")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -3809,6 +3783,22 @@ class PathData(_message.Message):
     metatype: ObjectType
     tokens: _containers.RepeatedCompositeFieldContainer[PathTokenData]
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., tokens: _Optional[_Iterable[_Union[PathTokenData, _Mapping]]] = ...) -> None: ...
+
+class SelectOptionsData(_message.Message):
+    __slots__ = ("metatype", "select_all_properties", "include_properties_ptr", "exclude_properties_ptr", "select_properties_ptr", "select_fields_ptr")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    SELECT_ALL_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDE_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
+    SELECT_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
+    SELECT_FIELDS_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    select_all_properties: bool
+    include_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
+    exclude_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
+    select_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
+    select_fields_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., select_all_properties: bool = ..., include_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., exclude_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., select_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., select_fields_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
 class ColorData(_message.Message):
     __slots__ = ("metatype", "type", "shade", "hex")
@@ -4724,11 +4714,11 @@ class TransformActionData(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
-class ExtractActionData(_message.Message):
+class RouteActionData(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
-class RouteActionData(_message.Message):
+class ChangeActionData(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
@@ -5042,74 +5032,6 @@ class ClientData(_message.Message):
     machine_ptr: NodeReferenceData
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ClientType, str]] = ..., name: _Optional[str] = ..., device_type: _Optional[str] = ..., device_name: _Optional[str] = ..., operating_system: _Optional[str] = ..., browser_name: _Optional[str] = ..., browser_version: _Optional[str] = ..., place_id: _Optional[str] = ..., access_token: _Optional[str] = ..., seen_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., logged_in_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
-class QueryData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "order_key", "node_type", "base_block_ptr", "roots_ptr", "filter", "sort", "aggregation", "ancestor_types", "descendant_types", "select", "include_deleted", "first", "skip", "mode")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    CK_FIELD_NUMBER: _ClassVar[int]
-    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
-    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
-    TEMPLATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
-    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    BASE_BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
-    ROOTS_PTR_FIELD_NUMBER: _ClassVar[int]
-    FILTER_FIELD_NUMBER: _ClassVar[int]
-    SORT_FIELD_NUMBER: _ClassVar[int]
-    AGGREGATION_FIELD_NUMBER: _ClassVar[int]
-    ANCESTOR_TYPES_FIELD_NUMBER: _ClassVar[int]
-    DESCENDANT_TYPES_FIELD_NUMBER: _ClassVar[int]
-    SELECT_FIELD_NUMBER: _ClassVar[int]
-    INCLUDE_DELETED_FIELD_NUMBER: _ClassVar[int]
-    FIRST_FIELD_NUMBER: _ClassVar[int]
-    SKIP_FIELD_NUMBER: _ClassVar[int]
-    MODE_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    id: str
-    ck: str
-    parent_ptr: NodeReferenceData
-    package_ptr: NodeReferenceData
-    bench_ptr: NodeReferenceData
-    template_ptr: NodeReferenceData
-    templated_epoch: int
-    created_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    created_epoch: int
-    updated_at: _timestamp_pb2.Timestamp
-    updated_by_ptr: NodeReferenceData
-    updated_epoch: int
-    deleted_at: _timestamp_pb2.Timestamp
-    subnode_packed: _struct_pb2.Value
-    type: QueryType
-    name: str
-    order_key: str
-    node_type: NodeType
-    base_block_ptr: NodeReferenceData
-    roots_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    filter: ExpressionData
-    sort: _containers.RepeatedCompositeFieldContainer[ExpressionData]
-    aggregation: ExpressionData
-    ancestor_types: _containers.RepeatedScalarFieldContainer[NodeType]
-    descendant_types: _containers.RepeatedScalarFieldContainer[NodeType]
-    select: SelectOptionsData
-    include_deleted: bool
-    first: int
-    skip: int
-    mode: NodeMode
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[QueryType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., base_block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., roots_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ..., aggregation: _Optional[_Union[ExpressionData, _Mapping]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., select: _Optional[_Union[SelectOptionsData, _Mapping]] = ..., include_deleted: bool = ..., first: _Optional[int] = ..., skip: _Optional[int] = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
-
 class BlockData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "order_key", "icon", "text", "variables_packed", "run_options", "policies", "delegated_policies", "roles_ptr", "identity_ptr", "mode")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -5187,16 +5109,8 @@ class FlowBlockData(_message.Message):
     def __init__(self) -> None: ...
 
 class DatabaseBlockData(_message.Message):
-    __slots__ = ("query_ptr",)
-    QUERY_PTR_FIELD_NUMBER: _ClassVar[int]
-    query_ptr: NodeReferenceData
-    def __init__(self, query_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
-
-class QueryBlockData(_message.Message):
-    __slots__ = ("query_ptr",)
-    QUERY_PTR_FIELD_NUMBER: _ClassVar[int]
-    query_ptr: NodeReferenceData
-    def __init__(self, query_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    __slots__ = ()
+    def __init__(self) -> None: ...
 
 class BrowserData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "status", "text", "region", "occupancy", "owned_by_ptr", "scaler_ptr", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "version", "target_version", "external_name", "external_id", "connection_uri", "debugger_uri", "view_uri", "client_ptr", "size", "is_headless", "is_insecure", "mode")
@@ -6271,7 +6185,7 @@ class StreamData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., name: _Optional[str] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., occupancy: _Optional[_Union[ResourceOccupancy, str]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
 
 class SomeNodeData(_message.Message):
-    __slots__ = ("bench", "user", "handle", "client", "organization", "membership", "invite", "scaler", "store", "machine", "browser", "file", "stream", "secret", "package", "dependency", "space", "block", "trigger", "field", "query", "view", "action", "pipe", "message", "record", "session", "run", "interruption", "log", "skip")
+    __slots__ = ("bench", "user", "handle", "client", "organization", "membership", "invite", "scaler", "store", "machine", "browser", "file", "stream", "secret", "package", "dependency", "space", "block", "trigger", "field", "view", "action", "pipe", "message", "record", "session", "run", "interruption", "log", "skip")
     BENCH_FIELD_NUMBER: _ClassVar[int]
     USER_FIELD_NUMBER: _ClassVar[int]
     HANDLE_FIELD_NUMBER: _ClassVar[int]
@@ -6292,7 +6206,6 @@ class SomeNodeData(_message.Message):
     BLOCK_FIELD_NUMBER: _ClassVar[int]
     TRIGGER_FIELD_NUMBER: _ClassVar[int]
     FIELD_FIELD_NUMBER: _ClassVar[int]
-    QUERY_FIELD_NUMBER: _ClassVar[int]
     VIEW_FIELD_NUMBER: _ClassVar[int]
     ACTION_FIELD_NUMBER: _ClassVar[int]
     PIPE_FIELD_NUMBER: _ClassVar[int]
@@ -6323,7 +6236,6 @@ class SomeNodeData(_message.Message):
     block: BlockData
     trigger: TriggerData
     field: FieldData
-    query: QueryData
     view: ViewData
     action: ActionData
     pipe: PipeData
@@ -6334,4 +6246,4 @@ class SomeNodeData(_message.Message):
     interruption: InterruptionData
     log: LogData
     skip: SkipData
-    def __init__(self, bench: _Optional[_Union[BenchData, _Mapping]] = ..., user: _Optional[_Union[UserData, _Mapping]] = ..., handle: _Optional[_Union[HandleData, _Mapping]] = ..., client: _Optional[_Union[ClientData, _Mapping]] = ..., organization: _Optional[_Union[OrganizationData, _Mapping]] = ..., membership: _Optional[_Union[MembershipData, _Mapping]] = ..., invite: _Optional[_Union[InviteData, _Mapping]] = ..., scaler: _Optional[_Union[ScalerData, _Mapping]] = ..., store: _Optional[_Union[StoreData, _Mapping]] = ..., machine: _Optional[_Union[MachineData, _Mapping]] = ..., browser: _Optional[_Union[BrowserData, _Mapping]] = ..., file: _Optional[_Union[FileData, _Mapping]] = ..., stream: _Optional[_Union[StreamData, _Mapping]] = ..., secret: _Optional[_Union[SecretData, _Mapping]] = ..., package: _Optional[_Union[PackageData, _Mapping]] = ..., dependency: _Optional[_Union[DependencyData, _Mapping]] = ..., space: _Optional[_Union[SpaceData, _Mapping]] = ..., block: _Optional[_Union[BlockData, _Mapping]] = ..., trigger: _Optional[_Union[TriggerData, _Mapping]] = ..., field: _Optional[_Union[FieldData, _Mapping]] = ..., query: _Optional[_Union[QueryData, _Mapping]] = ..., view: _Optional[_Union[ViewData, _Mapping]] = ..., action: _Optional[_Union[ActionData, _Mapping]] = ..., pipe: _Optional[_Union[PipeData, _Mapping]] = ..., message: _Optional[_Union[MessageData, _Mapping]] = ..., record: _Optional[_Union[RecordData, _Mapping]] = ..., session: _Optional[_Union[SessionData, _Mapping]] = ..., run: _Optional[_Union[RunData, _Mapping]] = ..., interruption: _Optional[_Union[InterruptionData, _Mapping]] = ..., log: _Optional[_Union[LogData, _Mapping]] = ..., skip: _Optional[_Union[SkipData, _Mapping]] = ...) -> None: ...
+    def __init__(self, bench: _Optional[_Union[BenchData, _Mapping]] = ..., user: _Optional[_Union[UserData, _Mapping]] = ..., handle: _Optional[_Union[HandleData, _Mapping]] = ..., client: _Optional[_Union[ClientData, _Mapping]] = ..., organization: _Optional[_Union[OrganizationData, _Mapping]] = ..., membership: _Optional[_Union[MembershipData, _Mapping]] = ..., invite: _Optional[_Union[InviteData, _Mapping]] = ..., scaler: _Optional[_Union[ScalerData, _Mapping]] = ..., store: _Optional[_Union[StoreData, _Mapping]] = ..., machine: _Optional[_Union[MachineData, _Mapping]] = ..., browser: _Optional[_Union[BrowserData, _Mapping]] = ..., file: _Optional[_Union[FileData, _Mapping]] = ..., stream: _Optional[_Union[StreamData, _Mapping]] = ..., secret: _Optional[_Union[SecretData, _Mapping]] = ..., package: _Optional[_Union[PackageData, _Mapping]] = ..., dependency: _Optional[_Union[DependencyData, _Mapping]] = ..., space: _Optional[_Union[SpaceData, _Mapping]] = ..., block: _Optional[_Union[BlockData, _Mapping]] = ..., trigger: _Optional[_Union[TriggerData, _Mapping]] = ..., field: _Optional[_Union[FieldData, _Mapping]] = ..., view: _Optional[_Union[ViewData, _Mapping]] = ..., action: _Optional[_Union[ActionData, _Mapping]] = ..., pipe: _Optional[_Union[PipeData, _Mapping]] = ..., message: _Optional[_Union[MessageData, _Mapping]] = ..., record: _Optional[_Union[RecordData, _Mapping]] = ..., session: _Optional[_Union[SessionData, _Mapping]] = ..., run: _Optional[_Union[RunData, _Mapping]] = ..., interruption: _Optional[_Union[InterruptionData, _Mapping]] = ..., log: _Optional[_Union[LogData, _Mapping]] = ..., skip: _Optional[_Union[SkipData, _Mapping]] = ...) -> None: ...

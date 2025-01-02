@@ -4,6 +4,7 @@ import { getConstrainedTypeName } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
 import {
   AnyNodeData,
+  ColorShade,
   IconData,
   NodeReferenceData,
   NodeType,
@@ -32,6 +33,7 @@ import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
 import type { SearchItem } from "@/ui/search";
 import { useValueSearch } from "@/ui/search";
+import { getColorHex } from "@/ui/style";
 import { computedValue, toValueRef } from "@/utils/ref";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
@@ -440,7 +442,7 @@ defineExpose<ViewExposed>({
           <li
             :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
             role="menuitem"
-            class="mx-0.5 mb-[1px] mr-1.5 mt-[1px] flex h-[28px] max-w-full cursor-pointer flex-row items-center truncate rounded border border-transparent px-1.5 hover:bg-gray-100"
+            class="mb-[1px] mr-0.5 mt-[1px] flex h-[28px] max-w-full cursor-pointer flex-row items-center truncate rounded border border-transparent px-1.5 hover:bg-gray-100"
             :class="[isActive(item) ? 'bg-gray-100' : '']"
             :data-selected="isSelected(item)"
             :data-active="isActive(item)"
@@ -450,7 +452,10 @@ defineExpose<ViewExposed>({
             <IconInline
               v-if="(item as any).icon"
               v-bind="(item as any).icon"
-              class="mr-1.5 w-5 flex-shrink-0 text-gray-700"
+              class="mr-1.5 w-6 flex-shrink-0 rounded-md py-1 text-gray-700"
+              :style="{
+                backgroundColor: item.color != null ? getColorHex(item.color, ColorShade.S300) : undefined,
+              }"
             />
             <span v-else class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
             <span class="max-w-full select-none truncate">
@@ -463,14 +468,17 @@ defineExpose<ViewExposed>({
             <!-- Secondary -->
             <span class="ml-auto truncate pl-2 text-right">
               <!-- Path -->
-              <span v-if="valueType?.kind != TypeKind.BASED_NODE && 'path' in item" class="truncate pl-2 text-gray-500">
+              <span v-if="valueType?.kind != TypeKind.BASED_NODE && 'path' in item" class="truncate pl-2 text-gray-400">
                 <span v-html="item.pathMarked ?? item.path" />
               </span>
               <span
                 v-else-if="item.alias"
-                class="ml-auto truncate pl-2 text-right text-gray-500"
+                class="ml-auto truncate pl-2 text-right text-gray-400"
                 v-html="item.aliasMarked ?? item.alias"
               />
+              <span v-else-if="item.text" class="truncate pl-2 text-right text-gray-400">
+                {{ item.text }}
+              </span>
             </span>
           </li>
         </template>

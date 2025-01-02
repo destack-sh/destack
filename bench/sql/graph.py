@@ -51,7 +51,7 @@ from bench.language.expression import C, Expression, ExpressionTypes
 from bench.language.field import Field
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node
-from bench.language.query import QueryBuilder, get_default_query_filter
+from bench.language.query import Query, get_default_query_filter
 from bench.language.registry import (
     DESCENDANT_NODE_TYPES_IN_STORE,
     HAS_CHILD_NODE_TYPES,
@@ -903,7 +903,7 @@ def _combine_filter(*, include_deleted: bool, filter: Expression | None) -> Expr
 
 @_trace_pg_span
 async def pg_graph_select(
-    *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: QueryBuilder
+    *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Query
 ) -> list[AnyNodeData]:
     """
     Selects the nodes from the graph matching the given query.
@@ -971,7 +971,7 @@ async def pg_graph_select(
 
 
 @_trace_pg_span
-async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: QueryBuilder) -> int:
+async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Query) -> int:
     """Counts the nodes from the graph matching the given query. Ignores pagination parameters."""
     # compile
     node_type = query._node_type
@@ -995,7 +995,7 @@ async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Qu
 
 @_trace_pg_span
 async def pg_graph_exists(
-    *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: QueryBuilder
+    *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Query
 ) -> bool:
     """Checks if nodes from the graph matching the given query exist."""
     # compile
@@ -1121,11 +1121,11 @@ async def pg_graph_get(
     *,
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
-    query: QueryBuilder,
+    query: Query,
     visited_graph: NodeDataGraph,
 ) -> None:
     """
-    Gets the 'root' nodes from a Query (QueryBuilder.roots) and recursively reads up/down the graph.
+    Gets the 'root' nodes from a Query (Query.roots) and recursively reads up/down the graph.
     Also performs any additional joins needed for the query.
     """
     # NOTE :Performance: we could read all package contents with package_id=x if we know it's a package query.
@@ -1138,7 +1138,7 @@ async def pg_graph_get(
         # select roots
         roots_ids = [node.id for node in roots]
         root_filter = C(ConditionalType.IN, property=Node.id, value=roots_ids)
-        root_query = QueryBuilder(
+        root_query = Query(
             QueryType.GET,
             node_type=query._node_type,
             base_block=query._base_block,
@@ -1175,7 +1175,7 @@ async def pg_graph_get(
             next_parents = []
             for node_type, node_ids in to_select_by_type.items():
                 parents_filter = C(ConditionalType.IN, property=Node.id, value=node_ids)
-                parents_query = QueryBuilder(
+                parents_query = Query(
                     QueryType.SEARCH,
                     node_type,
                     filter=parents_filter,
@@ -1204,7 +1204,7 @@ async def pg_graph_get(
             children_filter = C(
                 ConditionalType.IN, property=Node.id, value=[ptr.id for ptr in node_ptrs]
             )
-            children_query = QueryBuilder(
+            children_query = Query(
                 QueryType.SEARCH,
                 node_type,
                 filter=children_filter,
@@ -1221,7 +1221,7 @@ async def pg_graph_search(
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
     scope: GraphScopeData,
-    query: QueryBuilder,
+    query: Query,
     count: bool,
 ) -> tuple[list[AnyNodeData], NodeDataGraph, int | None]:
     """
@@ -1244,7 +1244,7 @@ async def pg_graph_search(
             )
             for r in roots
         ]
-        get_query = QueryBuilder(
+        get_query = Query(
             QueryType.GET,
             query._node_type,
             base_block=query._base_block,
@@ -1432,7 +1432,7 @@ async def _pg_edit_cascade(
             updated_properties=(),
         )
         nodes_ids = [edit.node_ptr.id for edit in cascaded_edits]
-        descendant_query = QueryBuilder(
+        descendant_query = Query(
             QueryType.GET,
             node_type=NodeType(descendant_node_type),
             filter=C(ConditionalType.IN, property=Node.id, value=nodes_ids),

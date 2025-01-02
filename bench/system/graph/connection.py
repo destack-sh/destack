@@ -21,7 +21,7 @@ from bench.language.connection import (
 from bench.language.const import ROOT_NODE_TYPES, EditType, NodeType, QueryType
 from bench.language.expression import apply_sort, evaluate_conditional
 from bench.language.graph import NodeDataGraph
-from bench.language.query import QueryBuilder
+from bench.language.query import Query
 from bench.proto.wire import (
     AnyNodeData,
     EditData,
@@ -62,7 +62,7 @@ class Connection[
 
     read_type: ClassVar[QueryType]
 
-    def __init__(self, scope: GraphScopeData, query: QueryBuilder, oracle: Oracle):
+    def __init__(self, scope: GraphScopeData, query: Query, oracle: Oracle):
         self.scope = scope
         self.hash = query._stable_hash()
         self.token: str = generate_access_token(length=8)
@@ -217,7 +217,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
 
     read_type: ClassVar[QueryType] = QueryType.GET
 
-    def __init__(self, scope: GraphScopeData, query: "QueryBuilder", oracle: Oracle):
+    def __init__(self, scope: GraphScopeData, query: "Query", oracle: Oracle):
         super().__init__(scope, query, oracle)
         self._root_ids: set[str] = {str(r.id) for r in query._roots or () if r.id}
         self._roots_cks: set[str] = {str(r.ck) for r in query._roots or () if r.ck}
@@ -359,7 +359,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
     In its final form, this should be a proper incremental materialized view.
     """
 
-    def __init__(self, scope: GraphScopeData, query: QueryBuilder, oracle: Oracle):
+    def __init__(self, scope: GraphScopeData, query: Query, oracle: Oracle):
         super().__init__(scope, query, oracle)
         self._filter = query._filter
         self._block_ck = str(query._base_block.ck) if query._base_block else None
@@ -583,7 +583,7 @@ class ConnectionIndex:
             )
 
     async def connect[ConnectionT: Connection](
-        self, query: QueryBuilder, session: Session, connection_t: type[ConnectionT], *, cache: bool
+        self, query: Query, session: Session, connection_t: type[ConnectionT], *, cache: bool
     ) -> ConnectionT:
         """Creates or reuses a connection to the graph."""
         assert query._type == connection_t.read_type, f"unexpected {query!r} (want {connection_t})"

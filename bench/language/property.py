@@ -48,7 +48,7 @@ if TYPE_CHECKING:
         TypeConstraintIn,
         TypeInfo,
     )
-    from bench.language.expression import _TypeQueryBuilder
+    from bench.language.expression import _TypeQuery
 
 PropertyReferenceMetadata = Union[
     Literal["id"],
@@ -61,7 +61,7 @@ PropertyReferenceMetadata = Union[
 
 
 @dataclass(eq=False, slots=True)
-class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
+class Property(_TypeQuery if TYPE_CHECKING else object):
     """A system-defined attribute of a node or struct."""
 
     # basics
@@ -752,9 +752,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
 @_on_completing_setup
 def _add_property_expression_base():
-    from bench.language.expression import _TypeQueryBuilder
+    from bench.language.expression import _TypeQuery
 
-    for name, attr in _TypeQueryBuilder.__dict__.items():
+    for name, attr in _TypeQuery.__dict__.items():
         if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):
             setattr(Property, name, attr)
 

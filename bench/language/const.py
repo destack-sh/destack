@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.02.3"
+VERSION = "2025.01.02.4"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -257,7 +257,6 @@ class NodeType(IdEnum):
     BLOCK = 3010
     TRIGGER = 3011
     FIELD = 3012  # (based)
-    QUERY = 3013
     VIEW = 3020
     ACTION = 3030
     PIPE = 3031
@@ -536,7 +535,6 @@ class RegionArea(IdEnum):
     ASIA = 6000
     AUSTRALIA = 7000
     PRIVATE = 9000
-    GLOBAL = 10090
 
     @property
     def slug(self) -> str:
@@ -654,30 +652,29 @@ REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
 
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(IdEnum):
-    PAGE = 1  # group of blocks
-    TEXT = 2  # define a 'paragraph' of text
+    PAGE = 1, "A Page with Blocks inside"
+    TEXT = 2, "A paragraph of rich Text"
     # ALIAS   # refer to / 'redefine' an existing block or builtin (like a 'newtype')
 
     # types
     # CLASS?
-    CHOICE = 11  # define a choice type with fields (union of literal options or oneof fields)
-    MESSAGE = 12  # define a signal type with fields
+    CHOICE = 11, "A choice of Field options"
+    MESSAGE = 12, "A Message type to communicate with"
     # SECRET, RESOURCE, PROTOCOL, TAG, ISSUE, METRIC, BLOCK, ...?
 
     # runnable
-    FLOW = 22  # define a flow of actions (actions connected with pipes)
+    FLOW = 22, "A Flow of connected Actions"
 
     # data
-    VARIABLE = 30  # define a single-value variable
-    DATABASE = 31  # define a database with records & queries
-    QUERY = 32  # define a set of queries
+    VARIABLE = 30, "A single-value variable"
+    DATABASE = 31, "A Database full of Records"
 
     # view
-    VIEW = 40  # define a view (with fields and nested views)
+    VIEW = 40, "A View of a user interface"
 
     # auth
-    ROLE = 50  # define a role with policies
-    IDENTITY = 51  # define an identity with roles & policies
+    ROLE = 50, "A Role with Policies"
+    IDENTITY = 51, "An Identity with Roles & Policies"
 
     @property
     def is_type(self) -> bool:

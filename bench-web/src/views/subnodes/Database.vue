@@ -4,7 +4,7 @@ import { getPropertyName, getPropertyTitle, TYPE_BLOCK_TYPES } from "@/language/
 import { makeAndConditional, makeExpression } from "@/language/expression";
 import { createField, getPropertyType, getStorageKey, makeTypeInfo, NAME_TYPE, TypeIdentity } from "@/language/field";
 import { useNodeListActions } from "@/ui/list";
-import { moveNode } from "@/language/node";
+import { moveNode, packSubnode } from "@/language/node";
 import {
   DebounceLevel,
   getTransactionBuffer,
@@ -26,6 +26,7 @@ import {
   NodeType,
   ObjectType,
   Orientation,
+  PickerVariant,
   PrimitiveType,
   PropertyInfo,
   RecordData,
@@ -705,7 +706,10 @@ defineExpose<ViewExposed>({ self, id, actions });
                   title: 'Add Field',
                   placement: 'bottom-left',
                   offset: 'referenceWidth',
-                  props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
+                  props: {
+                    valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }),
+                    subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
+                  },
                   onApply: (typeInfo: TypeIdentity) => {
                     createField(connection.tx, graph, { anchor: 'inside', target: block!, field: typeInfo });
                   },

@@ -63,7 +63,7 @@ if TYPE_CHECKING:
         Expression,
         Field,
         Property,
-        QueryBuilder,
+        Query,
         Session,
     )
 
@@ -84,7 +84,7 @@ class ChannelError(BenchError):
     def __init__(
         self,
         medium: Union["Engine", "Channel", Any],
-        query: Optional["QueryBuilder"] | Collection[EditData] = None,
+        query: Optional["Query"] | Collection[EditData] = None,
         expression: Union["Expression", list["Expression"], None] = None,
         reason: str | None = None,
         cause: Exception | None = None,
@@ -359,11 +359,11 @@ class Channel[E: Engine](abc.ABC):
 
     @abc.abstractmethod
     def _get_connection_cls(
-        self, query: "QueryBuilder", scope: GraphScopeData, options: ConnectionOptions
+        self, query: "Query", scope: GraphScopeData, options: ConnectionOptions
     ) -> "type[Connection]": ...
 
     @final
-    async def get(self, query: "QueryBuilder", options: GetOptions) -> "GetConnection":
+    async def get(self, query: "Query", options: GetOptions) -> "GetConnection":
         """Read a single node given the query in the current transaction context (if any)."""
         assert query._type == QueryType.GET, f"{query!r} is not a get"
         assert query._roots is not None, f"{query!r} has no roots"
@@ -375,7 +375,7 @@ class Channel[E: Engine](abc.ABC):
         return connection
 
     @final
-    async def search(self, query: "QueryBuilder", options: SearchOptions) -> "SearchConnection":
+    async def search(self, query: "Query", options: SearchOptions) -> "SearchConnection":
         """Read the nodes given the search query in the current transaction context (if any)."""
         assert query._type == QueryType.SEARCH, f"{query!r} is not a search"
         scope = self.session._get_scope_for_query(query)
@@ -387,7 +387,7 @@ class Channel[E: Engine](abc.ABC):
 
     @final
     async def aggregate(
-        self, query: "QueryBuilder", options: AggregateOptions
+        self, query: "Query", options: AggregateOptions
     ) -> "AggregateConnection":
         """Read the nodes given the aggregate query in the current transaction context (if any)."""
         assert query._type == QueryType.AGGREGATE, f"{query!r} is not an aggregate"
@@ -446,7 +446,7 @@ class Connection[
         self,
         channel: ChannelT,
         scope: GraphScopeData,
-        query: "QueryBuilder",
+        query: "Query",
         retry: RetryOptions,
         options: OptionsT,
     ):
@@ -658,12 +658,12 @@ class Connection[
         ...
 
     @abc.abstractmethod
-    async def _do_read(self, query: "QueryBuilder") -> ResultDataT:
+    async def _do_read(self, query: "Query") -> ResultDataT:
         """Fetches the result data for the connection."""
         ...
 
     def _do_subscribe(
-        self, query: "QueryBuilder", token: str | None, epoch: int
+        self, query: "Query", token: str | None, epoch: int
     ) -> AsyncIterator[UpdateDataT]:
         """Subscribes to updates for the connection."""
         raise ChannelIncapableError(self, query, reason="live subscription not supported")
@@ -957,7 +957,7 @@ class SplitChannel(Channel[NullEngine]):
 
     @override
     def _get_connection_cls(
-        self, query: "QueryBuilder", scope: GraphScopeData, options: ConnectionOptions
+        self, query: "Query", scope: GraphScopeData, options: ConnectionOptions
     ) -> type[Connection]:
         if query._type == QueryType.GET:
             return SplitGetConnection
@@ -1008,10 +1008,10 @@ class SplitConnection(Connection):
         scope: GraphScopeData,
         combined_graph: NodeDataGraph,
         remaining_types: set[NodeType],
-        query: "QueryBuilder",
+        query: "Query",
     ) -> set[NodeType]:
         """Read descendants for nodes in the graph, returns covered types."""
-        from bench.language import QueryBuilder
+        from bench.language import Query
 
         engine, covered_types = self._get_best_match_engine(
             scope,
@@ -1035,7 +1035,7 @@ class SplitConnection(Connection):
 
                 # get children
                 child_cls = NODE_CLASS_BY_TYPE[child_type]
-                descendant_query = QueryBuilder(
+                descendant_query = Query(
                     type=QueryType.SEARCH,
                     node_type=child_type,
                     filter=C(
@@ -1060,11 +1060,11 @@ class SplitConnection(Connection):
         scope: GraphScopeData,
         combined_graph: NodeDataGraph,
         remaining_types: set[NodeType],
-        query: "QueryBuilder",
+        query: "Query",
     ) -> set[NodeType]:
         """Read ancestors for roots in the graph, returns covered types."""
 
-        from bench.language import NodeReference, QueryBuilder
+        from bench.language import NodeReference, Query
         from bench.proto import wiring
 
         # get parent references from roots
@@ -1095,7 +1095,7 @@ class SplitConnection(Connection):
             if parent_type not in covered_types:
                 continue
 
-            ancestor_query = QueryBuilder(
+            ancestor_query = Query(
                 type=QueryType.GET,
                 node_type=parent_type,
                 roots=[
@@ -1113,7 +1113,7 @@ class SplitConnection(Connection):
 
     async def _do_read_remainder(
         self,
-        query: "QueryBuilder",
+        query: "Query",
         initial_result: GetResultData | SearchResultData,
         initial_types: Collection[NodeType],
     ) -> NodeDataGraph:
@@ -1157,7 +1157,7 @@ class SplitSearchConnection[T: Node](SearchConnection[SplitChannel, T], SplitCon
     """Search across multiple connections."""
 
     @override
-    async def _do_read(self, query: "QueryBuilder") -> SearchResultData:
+    async def _do_read(self, query: "Query") -> SearchResultData:
         # search engine for initial query
         engine, covered_types = self._get_best_match_engine(
             self.scope,
@@ -1192,7 +1192,7 @@ class SplitGetConnection[T: Node](GetConnection[SplitChannel, T], SplitConnectio
     """Get across multiple connections."""
 
     @override
-    async def _do_read(self, query: "QueryBuilder") -> GetResultData:
+    async def _do_read(self, query: "Query") -> GetResultData:
         # get engine for initial query
         engine, covered_types = self._get_best_match_engine(
             self.scope,
@@ -1274,7 +1274,7 @@ class MemoryChannel(Channel[MemoryEngine]):
 
     @override
     def _get_connection_cls(
-        self, query: "QueryBuilder", scope: GraphScopeData, options: ConnectionOptions
+        self, query: "Query", scope: GraphScopeData, options: ConnectionOptions
     ) -> type[Connection]:
         if query._type == QueryType.GET:
             return MemoryGetConnection
@@ -1286,7 +1286,7 @@ class MemoryGetConnection[T: Node](GetConnection[MemoryChannel, T]):
     """Search an in-memory Channel."""
 
     @override
-    async def _do_read(self, query: "QueryBuilder") -> GetResultData:
+    async def _do_read(self, query: "Query") -> GetResultData:
         from bench.language import NodeDataGraph, NodeReference
         from bench.proto import wire
 
@@ -1414,7 +1414,7 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
         pass  # remote channels use a shared client
 
     def _get_connection_cls(
-        self, query: "QueryBuilder", scope: GraphScopeData, options: ConnectionOptions
+        self, query: "Query", scope: GraphScopeData, options: ConnectionOptions
     ) -> type[Connection]:
         if query._type == QueryType.GET:
             return RemoteGetConnection
@@ -1483,7 +1483,7 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
         return CommitResultData(cascaded_edits=list(response.cascaded_edits))
 
 
-def _grpc_wrap_error(query: "QueryBuilder", e: GRPCError):
+def _grpc_wrap_error(query: "Query", e: GRPCError):
     """Wraps a GRPCError in something more harmonized."""
     return e  # NOTE :UX: wrap remote grpc errors :BadRemoteErrors
 
@@ -1492,7 +1492,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
     """Search a remote channel live."""
 
     @override
-    async def _do_read(self, query: "QueryBuilder") -> GetResultData:
+    async def _do_read(self, query: "Query") -> GetResultData:
         from bench.proto import wire, wiring
 
         assert query._roots, f"{query!r} has no roots"
@@ -1524,7 +1524,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
 
     @override
     async def _do_subscribe(
-        self, query: "QueryBuilder", token: str | None, epoch: int
+        self, query: "Query", token: str | None, epoch: int
     ) -> AsyncIterator[WatchGetUpdateData]:
         from bench.proto import wiring
         from bench.proto.services import unary_stream_rpc
@@ -1547,7 +1547,7 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
     """Search a remote channel live."""
 
     @override
-    async def _do_read(self, query: "QueryBuilder") -> SearchResultData:
+    async def _do_read(self, query: "Query") -> SearchResultData:
         from bench.proto import wire, wiring
 
         engine = self.channel.engine
@@ -1590,7 +1590,7 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
 
     @override
     async def _do_subscribe(
-        self, query: "QueryBuilder", token: str | None, epoch: int
+        self, query: "Query", token: str | None, epoch: int
     ) -> AsyncIterator[WatchSearchUpdateData]:
         from bench.proto import wiring
         from bench.proto.services import unary_stream_rpc
@@ -1615,7 +1615,7 @@ class RemoteAggregateConnection(AggregateConnection[RemoteChannel]):
     """Aggregate a remote channel live."""
 
     @override
-    async def _do_read(self, query: "QueryBuilder") -> AggregateResultData:
+    async def _do_read(self, query: "Query") -> AggregateResultData:
         from bench.proto import wire, wiring
 
         engine = self.channel.engine

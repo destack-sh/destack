@@ -132,7 +132,6 @@ enum NodeType {
   NODE_TYPE_BLOCK = 3010;
   NODE_TYPE_TRIGGER = 3011;
   NODE_TYPE_FIELD = 3012;
-  NODE_TYPE_QUERY = 3013;
   NODE_TYPE_VIEW = 3020;
   NODE_TYPE_ACTION = 3030;
   NODE_TYPE_PIPE = 3031;
@@ -238,7 +237,6 @@ enum ObjectType {
   OBJECT_TYPE_BLOCK = 3010;
   OBJECT_TYPE_TRIGGER = 3011;
   OBJECT_TYPE_FIELD = 3012;
-  OBJECT_TYPE_QUERY = 3013;
   OBJECT_TYPE_VIEW = 3020;
   OBJECT_TYPE_ACTION = 3030;
   OBJECT_TYPE_PIPE = 3031;
@@ -426,7 +424,6 @@ enum BenchType {
   BENCH_TYPE_BLOCK = 3010;
   BENCH_TYPE_TRIGGER = 3011;
   BENCH_TYPE_FIELD = 3012;
-  BENCH_TYPE_QUERY = 3013;
   BENCH_TYPE_VIEW = 3020;
   BENCH_TYPE_ACTION = 3030;
   BENCH_TYPE_PIPE = 3031;
@@ -666,7 +663,6 @@ enum RegionArea {
   REGION_AREA_ASIA = 6000;
   REGION_AREA_AUSTRALIA = 7000;
   REGION_AREA_PRIVATE = 9000;
-  REGION_AREA_GLOBAL = 10090;
 }
 
 // Generalized status of a Resource in its lifecycle.
@@ -926,7 +922,6 @@ enum BlockType {
   BLOCK_TYPE_FLOW = 22;
   BLOCK_TYPE_VARIABLE = 30;
   BLOCK_TYPE_DATABASE = 31;
-  BLOCK_TYPE_QUERY = 32;
   BLOCK_TYPE_VIEW = 40;
   BLOCK_TYPE_ROLE = 50;
   BLOCK_TYPE_IDENTITY = 51;
@@ -1222,8 +1217,9 @@ enum RunSpanType {
   RUN_SPAN_TYPE_UNSPECIFIED = 0;
   RUN_SPAN_TYPE_WAIT_FOR = 10;
   RUN_SPAN_TYPE_FLOW_GENERATE_CALLS = 100;
+  RUN_SPAN_TYPE_ACTION_GENERATE_OUTPUT = 200;
   RUN_SPAN_TYPE_APPLICATION_FIND_ELEMENT = 210;
-  RUN_SPAN_TYPE_MODEL_GENERATE = 200;
+  RUN_SPAN_TYPE_MODEL_INFERENCE = 300;
   RUN_SPAN_TYPE_FILE_UPLOAD = 500;
   RUN_SPAN_TYPE_FILE_PREPARE_UPLOAD = 501;
   RUN_SPAN_TYPE_FILE_DOWNLOAD = 502;
@@ -1341,8 +1337,6 @@ enum ActionType {
   ACTION_TYPE_YIELD = 111;
   ACTION_TYPE_GENERATE = 200;
   ACTION_TYPE_TRANSFORM = 201;
-  ACTION_TYPE_TRANSLATE = 202;
-  ACTION_TYPE_EXTRACT = 203;
   ACTION_TYPE_ROUTE = 210;
   ACTION_TYPE_CHANGE = 211;
   ACTION_TYPE_OBSERVE = 1000;
@@ -1661,8 +1655,9 @@ enum ButtonVariant {
 
 enum PickerVariant {
   PICKER_VARIANT_UNSPECIFIED = 0;
-  PICKER_VARIANT_DROPDOWN = 1;
-  PICKER_VARIANT_MULTI_TOGGLE = 2;
+  PICKER_VARIANT_MULTI_TOGGLE = 1;
+  PICKER_VARIANT_DROPDOWN = 2;
+  PICKER_VARIANT_DROPDOWN_LARGE = 3;
 }
 
 enum UserStatus {
@@ -2018,15 +2013,6 @@ message CallData {
   optional ObjectMappingData mapping = 50;
 }
 
-message SelectOptionsData {
-  ObjectType metatype = 1;
-  bool select_all_properties = 40;
-  repeated PropertyReferenceData include_properties_ptr = 41;
-  repeated PropertyReferenceData exclude_properties_ptr = 42;
-  repeated PropertyReferenceData select_properties_ptr = 43;
-  repeated NodeReferenceData select_fields_ptr = 51;
-}
-
 message DomNodeData {
   ObjectType metatype = 1;
   DomNodeType type = 30;
@@ -2112,6 +2098,15 @@ message PathTokenData {
 message PathData {
   ObjectType metatype = 1;
   repeated PathTokenData tokens = 31;
+}
+
+message SelectOptionsData {
+  ObjectType metatype = 1;
+  bool select_all_properties = 40;
+  repeated PropertyReferenceData include_properties_ptr = 41;
+  repeated PropertyReferenceData exclude_properties_ptr = 42;
+  repeated PropertyReferenceData select_properties_ptr = 43;
+  repeated NodeReferenceData select_fields_ptr = 51;
 }
 
 message ColorData {
@@ -2625,11 +2620,11 @@ message TransformActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
-message ExtractActionData {
+message RouteActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
-message RouteActionData {
+message ChangeActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -2813,41 +2808,6 @@ message ClientData {
   optional NodeReferenceData machine_ptr = 62;
 }
 
-message QueryData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  optional int64 templated_epoch = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  QueryType type = 30;
-  string name = 31;
-  string order_key = 32;
-  NodeType node_type = 41;
-  optional NodeReferenceData base_block_ptr = 42;
-  repeated NodeReferenceData roots_ptr = 43;
-  optional ExpressionData filter = 44;
-  repeated ExpressionData sort = 45;
-  optional ExpressionData aggregation = 46;
-  repeated NodeType ancestor_types = 50;
-  repeated NodeType descendant_types = 51;
-  optional SelectOptionsData select = 60;
-  bool include_deleted = 61;
-  optional int32 first = 62;
-  optional int32 skip = 63;
-  NodeMode mode = 90;
-}
-
 message BlockData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2895,12 +2855,6 @@ message FlowBlockData {
 
 // A building block with logic, types, UI, state, auth, AI, ...
 message DatabaseBlockData {
-  optional NodeReferenceData query_ptr = 100;
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
-message QueryBlockData {
-  optional NodeReferenceData query_ptr = 100;
 }
 
 message BrowserData {
@@ -3525,17 +3479,16 @@ message SomeNodeData {
     BlockData block = 18;
     TriggerData trigger = 19;
     FieldData field = 20;
-    QueryData query = 21;
-    ViewData view = 22;
-    ActionData action = 23;
-    PipeData pipe = 24;
-    MessageData message = 25;
-    RecordData record = 26;
-    SessionData session = 27;
-    RunData run = 28;
-    InterruptionData interruption = 29;
-    LogData log = 30;
-    SkipData skip = 31;
+    ViewData view = 21;
+    ActionData action = 22;
+    PipeData pipe = 23;
+    MessageData message = 24;
+    RecordData record = 25;
+    SessionData session = 26;
+    RunData run = 27;
+    InterruptionData interruption = 28;
+    LogData log = 29;
+    SkipData skip = 30;
   };
 }
 

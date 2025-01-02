@@ -24,7 +24,7 @@ class ProjectOptions:
     inline_pages: bool = False  # whether to include all source nodes of contained pages
     node_types: Collection[NodeType] = NODE_TYPES_SET
     # child ndoes to 'consider' implicitly references by parents :FoldedNodes
-    inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER, NodeType.QUERY)
+    inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER)
     inline_page_node_types: Collection[NodeType] = (NodeType.BLOCK,)
 
 

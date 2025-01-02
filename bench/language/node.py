@@ -124,7 +124,7 @@ if TYPE_CHECKING:
         Organization,
         Package,
         PropertyReference,
-        QueryBuilder,
+        Query,
         Run,
         SearchConnection,
         Session,
@@ -2433,45 +2433,45 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     #
 
     @classmethod
-    def _query(cls) -> "QueryBuilder[Self, NodeDataT]":
-        from bench.language.query import QueryBuilder
+    def _query(cls) -> "Query[Self, NodeDataT]":
+        from bench.language.query import Query
 
-        return QueryBuilder(type=QueryType.SEARCH, node_type=cls.metatype)
+        return Query(type=QueryType.SEARCH, node_type=cls.metatype)
 
     @classmethod
     def where(
         cls, filter: Optional["Expression"] = None, **kwargs
-    ) -> "QueryBuilder[Self, NodeDataT]":
+    ) -> "Query[Self, NodeDataT]":
         return cls._query().where(filter, **kwargs)
 
     @classmethod
     def order_by(
         cls, sort: "Optional[Expression] | str | Field | Property" = None, *args: str
-    ) -> "QueryBuilder[Self, NodeDataT]":
+    ) -> "Query[Self, NodeDataT]":
         return cls._query().order_by(sort, *args)
 
     @classmethod
-    def include(cls, *properties: Property) -> "QueryBuilder[Self, NodeDataT]":
+    def include(cls, *properties: Property) -> "Query[Self, NodeDataT]":
         return cls._query().include(*properties)
 
     @classmethod
-    def select(cls, *keys: FieldOrProperty) -> "QueryBuilder[Self, NodeDataT]":
+    def select(cls, *keys: FieldOrProperty) -> "Query[Self, NodeDataT]":
         return cls._query().select(*keys)
 
     @classmethod
-    def select_all(cls) -> "QueryBuilder[Self, NodeDataT]":
+    def select_all(cls) -> "Query[Self, NodeDataT]":
         return cls._query().select_all()
 
     @classmethod
-    def deselect(cls, *properties: FieldOrProperty) -> "QueryBuilder[Self, NodeDataT]":
+    def deselect(cls, *properties: FieldOrProperty) -> "Query[Self, NodeDataT]":
         return cls._query().deselect(*properties)
 
     @classmethod
-    def include_ancestors(cls, *node_types: NodeTypeOrClass) -> "QueryBuilder[Self, NodeDataT]":
+    def include_ancestors(cls, *node_types: NodeTypeOrClass) -> "Query[Self, NodeDataT]":
         return cls._query().include_ancestors(*node_types)
 
     @classmethod
-    def include_descendants(cls, *node_types: NodeTypeOrClass) -> "QueryBuilder[Self, NodeDataT]":
+    def include_descendants(cls, *node_types: NodeTypeOrClass) -> "Query[Self, NodeDataT]":
         return cls._query().include_descendants(*node_types)
 
     @overload
@@ -2501,7 +2501,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return await cls._query().search(filter, **kwargs)
 
     @classmethod
-    def first(cls, count: int) -> "QueryBuilder[Self, NodeDataT]":
+    def first(cls, count: int) -> "Query[Self, NodeDataT]":
         return cls._query().first(count)
 
     @classmethod

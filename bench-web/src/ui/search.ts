@@ -17,6 +17,7 @@ import {
   BenchType,
   BlockData,
   BlockType,
+  ColorType,
   EnumType,
   ExpressionData,
   ExpressionType,
@@ -25,6 +26,7 @@ import {
   NodeType,
   PrimitiveType,
   ResourceStatus,
+  TextData,
   TypeFormat,
   TypeKind,
   ViewType,
@@ -73,6 +75,7 @@ export type ActionItem = Omit<Action, "title"> & {
   itemId: string; // per index
   title: string;
   icon?: IconData;
+  text?: string;
   path?: string;
   pathToIndex?: string;
 };
@@ -86,6 +89,7 @@ export type TypeItem = TypeIdentity & {
   id: string;
   icon?: IconData;
   title: string;
+  text?: string;
   path?: string;
   pathToIndex?: string;
 };
@@ -93,6 +97,8 @@ export type IconItem = IconMetadata & { itemId: string; metatype: "icon"; icon?:
 export type SearchItem = (NodeItem | ActionItem | EnumOptionItem | TypeItem | IconItem) & {
   itemId: string; // per index
   title: string;
+  text?: string;
+  color?: ColorType;
   icon?: IconData;
   alias?: string;
   category?: string;

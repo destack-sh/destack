@@ -186,7 +186,6 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.BLOCK]: "fas fa-cube",
   [NodeType.TRIGGER]: "fas fa-bolt-lightning",
   [NodeType.FIELD]: "fas fa-triangle",
-  [NodeType.QUERY]: "fas fa-magnifying-glass",
   [NodeType.VIEW]: "fas fa-window-frame",
   [NodeType.ACTION]: "fas fa-step-forward",
   [NodeType.PIPE]: "fas fa-pipe-section",
@@ -259,7 +258,6 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.FLOW]: "fas fa-diagram-project",
   // data
   [BlockType.VARIABLE]: "fas fa-hexagon",
-  [BlockType.QUERY]: "fas fa-magnifying-glass",
   [BlockType.DATABASE]: "fas fa-database",
   // view
   [BlockType.VIEW]: "fas fa-window-frame",
@@ -284,17 +282,16 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   [ActionType.UPDATE]: "fas fa-pencil",
   [ActionType.DELETE]: "fas fa-trash",
   [ActionType.PASTE]: "fas fa-paste",
-  // interrupt
-  [ActionType.YIELD]: "fas fa-hand",
   // static
   [ActionType.CODE]: "fas fa-code",
   [ActionType.DELEGATE]: "fas fa-code",
   [ActionType.WAIT]: "fas fa-clock",
+  [ActionType.YIELD]: "fas fa-hand",
   // dynamic
   [ActionType.GENERATE]: "fas fa-maximize",
   [ActionType.TRANSFORM]: "fas fa-shuffle",
-  [ActionType.EXTRACT]: "fas fa-minimize",
   [ActionType.ROUTE]: "fas fa-split",
+  [ActionType.CHANGE]: "fas fa-pen",
   // application
   [ActionType.OBSERVE]: "fas fa-eye",
   [ActionType.CLICK]: "fas fa-computer-mouse",
@@ -564,6 +561,10 @@ export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
 export const ICON_BY_RUN_SPAN_TYPE: Record<RunSpanType, IconData> = {
   [RunSpanType.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
   [RunSpanType.WAIT_FOR]: makeIcon({ faName: "fas fa-hourglass-end" }),
+  [RunSpanType.FLOW_GENERATE_CALLS]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
+  [RunSpanType.ACTION_GENERATE_OUTPUT]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
+  [RunSpanType.APPLICATION_FIND_ELEMENT]: makeIcon({ faName: "fas fa-location-dot" }),
+  [RunSpanType.MODEL_INFERENCE]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
   [RunSpanType.FILE_DOWNLOAD]: makeIcon({ faName: "fas fa-download" }),
   [RunSpanType.FILE_PREPARE_DOWNLOAD]: makeIcon({ faName: "fas fa-download" }),
   [RunSpanType.FILE_UPLOAD]: makeIcon({ faName: "fas fa-upload" }),
@@ -626,7 +627,6 @@ export const ICON_BY_REGION_AREA: Partial<Record<RegionArea, IconData>> = _makeI
   [RegionArea.AFRICA]: "fas fas fa-globe-africa",
   [RegionArea.ASIA]: "fas fas fa-globe-asia",
   [RegionArea.AUSTRALIA]: "🇦🇺",
-  [RegionArea.GLOBAL]: "fas fas fa-globe",
 });
 
 export const ICON_BY_REGION: Partial<Record<Region, IconData>> = _makeIcons<Region>({

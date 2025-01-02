@@ -716,7 +716,7 @@ NodeTypeOrClass = Union[NodeType, type[Node]]
 def _require_expression_op(op: ExpressionType):
     def decorator(func):
         @functools.wraps(func)
-        def wrapper(self: "_TypeQueryBuilder", *args, **kwargs):
+        def wrapper(self: "_TypeQuery", *args, **kwargs):
             _check_type_supports(self.type_info, op)
             return func(self, *args, **kwargs)
 
@@ -739,7 +739,7 @@ def _to_sort(op: SortType, target: Union["Field", "Property"]):
         return S(op, field=target, property=None)
 
 
-class _TypeQueryBuilder:
+class _TypeQuery:
     """
     Base for field-like  on a field-like class.
     We define this here to use it for Property and Field.

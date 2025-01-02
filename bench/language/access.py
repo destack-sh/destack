@@ -67,7 +67,7 @@ if TYPE_CHECKING:
         Client,
         Machine,
         Organization,
-        QueryBuilder,
+        Query,
     )
 
 logger = structlog.get_logger(__name__)
@@ -897,7 +897,7 @@ def evaluate_and_adapt_read(
     matrix: AccessMatrix,
     graph: NodeDataGraph,
     root_node_type: NodeType,
-    query: "QueryBuilder",
+    query: "Query",
     *,
     required_nodes: Collection[NodeReferenceData] | None = None,
 ) -> tuple[PolicyEffect, Collection[Access], Collection[AnyNodeData]]:
