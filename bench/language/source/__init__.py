@@ -43,6 +43,7 @@ from .field import (
 from .flow import FieldMapping, ObjectMapping, Pipe, PipeType, PortSide
 from .project import Projection, ProjectOptions, project
 from .render import Renderer, RenderOptions, render, render_expr, render_stmt
+from .trigger import Schedule, ScheduleType
 from .view import (
     Alignment,
     Anchor,
@@ -118,6 +119,8 @@ __all__ = [
     "Rectangle",
     "RenderOptions",
     "Renderer",
+    "Schedule",
+    "ScheduleType",
     "ScrollAction",
     "SelectAction",
     "Space",

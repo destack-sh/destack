@@ -52,7 +52,7 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.language.runtime.transaction import Transaction
+from bench.language.core.transaction import Transaction
 from bench.proto import wire
 from bench.proto.wire import (
     ClientOriginData,

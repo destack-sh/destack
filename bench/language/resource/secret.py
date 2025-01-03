@@ -11,11 +11,11 @@ from bench.language.core import (
     p_value_runtime,
 )
 from bench.language.resource import DynamicResource
-from bench.language.source import TypeInfo
 from bench.proto.wire import SecretData
 
 if TYPE_CHECKING:
     from bench.language import Bench
+    from bench.language.source import TypeInfo
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -27,7 +27,7 @@ class Secret(DynamicResource[SecretData]):
     parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH, is_system=True)
 
     # content
-    value_type: TypeInfo = p_regular(50, struct=StructType.TYPE_INFO)
+    value_type: "TypeInfo" = p_regular(50, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(51, secret=True)
     value = p_value_runtime(
         51, kind=ObjectKind.MEMBER, typ=lambda self: cast(Secret, self).value_type

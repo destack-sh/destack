@@ -36,10 +36,11 @@ from bench.language.core import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.source import TypeBase
 from bench.proto.wire import BlockData
 from bench.proto.wire.lang_pb2 import RecordData
 from bench.utils.fractional import INTEGER_ZERO
+
+from .field import TypeBase
 
 if TYPE_CHECKING:
     from bench.language import (

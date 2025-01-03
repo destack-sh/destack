@@ -3,7 +3,8 @@ from collections import defaultdict
 from itertools import chain
 from typing import TYPE_CHECKING, Callable, Union, cast
 
-from bench.language.core import (
+from bench.language.core.const import (
+    _ENUM_CLASS_BY_TYPE,
     LOCAL_NODE_TYPES,
     NODE_TYPES,
     STRUCT_TYPES,
@@ -13,7 +14,6 @@ from bench.language.core import (
     ObjectType,
     StructType,
 )
-from bench.language.core.const import _ENUM_CLASS_BY_TYPE
 from bench.utils.env import IS_DEV
 from bench.utils.func import IdEnum, assert_collections_equal, bittuple, get_subclasses
 
@@ -64,7 +64,8 @@ def _on_completing_setup(func: Callable | None = None):
 
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    from bench.language import BuiltinObject, CustomObject, Node, Struct, const
+    from bench.language import BuiltinObject, CustomObject, Node, Struct
+    from bench.language.core import const
     from bench.language.core.node import (
         HasNodeBase,
         _is_setup_complete,

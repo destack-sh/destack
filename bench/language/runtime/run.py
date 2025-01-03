@@ -10,10 +10,12 @@ from bench.language.core import (
     EnumType,
     HasNodeBase,
     LocalNodeList,
+    LogLevel,
     Node,
     NodeType,
     ObjectKind,
     RunErrorKind,
+    RunSpanType,
     RunStatus,
     RuntimeNode,
     RunType,
@@ -35,7 +37,6 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.language.runtime.log import LogLevel
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
@@ -193,25 +194,6 @@ class RunFrame(Struct):
     """A single frame in a stacktrace."""
 
     pass
-
-
-@enum_(EnumType.RUN_SPAN_TYPE)
-class RunSpanType(IdEnum):
-    # general
-    WAIT_FOR = 10
-    # flow
-    FLOW_GENERATE_CALLS = 100
-    # action
-    ACTION_GENERATE_OUTPUT = 200
-    # application (action)
-    APPLICATION_FIND_ELEMENT = 210
-    # model
-    MODEL_INFERENCE = 300
-    # file
-    FILE_UPLOAD = 500
-    FILE_PREPARE_UPLOAD = 501
-    FILE_DOWNLOAD = 502
-    FILE_PREPARE_DOWNLOAD = 503
 
 
 @struct_(StructType.RUN_SPAN)

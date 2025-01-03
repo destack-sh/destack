@@ -5,7 +5,8 @@ import structlog
 
 from bench.language.core import (
     AccessType,
-    EnumType,
+    LogKind,
+    LogLevel,
     Node,
     NodeType,
     ObjectKind,
@@ -14,7 +15,6 @@ from bench.language.core import (
     Struct,
     StructType,
     active_session,
-    enum_,
     p_internal,
     p_node_parent,
     p_system,
@@ -24,7 +24,6 @@ from bench.language.core import (
     timed_node_,
 )
 from bench.proto.wire import LogData
-from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -40,25 +39,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
-
-
-@enum_(EnumType.LOG_KIND)
-class LogKind(IdEnum):
-    # access
-    CHANGE = 1
-    EDIT = 2
-
-    # custom?
-
-
-@enum_(EnumType.LOG_LEVEL)
-class LogLevel(IdEnum):  # :LogLevel
-    TRACE = 1
-    DEBUG = 2
-    INFO = 3
-    WARNING = 4
-    ERROR = 5
-    CRITICAL = 6
 
 
 @struct_(StructType.LOG_INFO)

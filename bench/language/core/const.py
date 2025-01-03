@@ -266,7 +266,6 @@ class NodeType(IdEnum):
     DEPENDENCY = 3002
     SPACE = 3003
     BLOCK = 3010
-    TRIGGER = 3011
     FIELD = 3012  # (based)
     VIEW = 3020
     ACTION = 3030
@@ -872,6 +871,44 @@ class AccessMode(IdEnum):
 #
 # Other stuff
 #
+
+
+@enum_(EnumType.LOG_KIND)
+class LogKind(IdEnum):
+    # access
+    CHANGE = 1
+    EDIT = 2
+
+    # custom?
+
+
+@enum_(EnumType.LOG_LEVEL)
+class LogLevel(IdEnum):  # :LogLevel
+    TRACE = 1
+    DEBUG = 2
+    INFO = 3
+    WARNING = 4
+    ERROR = 5
+    CRITICAL = 6
+
+
+@enum_(EnumType.RUN_SPAN_TYPE)
+class RunSpanType(IdEnum):
+    # general
+    WAIT_FOR = 10
+    # flow
+    FLOW_GENERATE_CALLS = 100
+    # action
+    ACTION_GENERATE_OUTPUT = 200
+    # application (action)
+    APPLICATION_FIND_ELEMENT = 210
+    # model
+    MODEL_INFERENCE = 300
+    # file
+    FILE_UPLOAD = 500
+    FILE_PREPARE_UPLOAD = 501
+    FILE_DOWNLOAD = 502
+    FILE_PREPARE_DOWNLOAD = 503
 
 
 @enum_(EnumType.POLICY_EFFECT)

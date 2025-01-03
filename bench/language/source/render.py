@@ -37,11 +37,12 @@ from bench.language.core import (
     render_path,
 )
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
-from bench.language.source.action import Action
-from bench.language.source.block import Block
-from bench.language.source.field import Field, TypeBase, TypeConstraint, reverse_type_scalar
-from bench.language.source.view import Icon, View, reverse_icon
 from bench.utils.time import timedelta_to_isoformat
+
+from .action import Action
+from .block import Block
+from .field import Field, TypeBase, TypeConstraint, reverse_type_scalar
+from .view import Icon, View, reverse_icon
 
 if TYPE_CHECKING:
     pass
@@ -58,7 +59,7 @@ class RenderOptions:
     as_page: bool = False
     node_types: Collection[NodeType] = NODE_TYPES_SET
     # types to 'fold in' directly as children of nodes (even if not referenced) :FoldedNodes
-    folded_child_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER)
+    folded_child_types: Collection[NodeType] = (NodeType.FIELD,)
     node_filter: Collection[UUID] | None = None
     statement_separator: str = "\n"
     simplify_paths: bool = True

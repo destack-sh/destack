@@ -19,7 +19,9 @@ from bench.language.core import (
     TypeKind,
 )
 from bench.language.core.value import _do_get_value_runtime
-from bench.language.source import Block, TypeBase
+
+from .block import Block
+from .field import TypeBase
 
 if TYPE_CHECKING:
     pass
@@ -34,7 +36,7 @@ class ProjectOptions:
     inline_pages: bool = False  # whether to include all source nodes of contained pages
     node_types: Collection[NodeType] = NODE_TYPES_SET
     # child ndoes to 'consider' implicitly references by parents :FoldedNodes
-    inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER)
+    inline_node_types: Collection[NodeType] = (NodeType.FIELD,)
     inline_page_node_types: Collection[NodeType] = (NodeType.BLOCK,)
 
 

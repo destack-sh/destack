@@ -24,13 +24,12 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.language.source.field import TypeBase
 from bench.proto.wire import AnyNodeData
 from bench.proto.wire.lang_pb2 import InterruptionData, NodeReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Action, Block, Pipe, Run, RunnableNode
+    from bench.language import Action, Block, Pipe, Run, RunnableNode, TypeBase
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -198,7 +197,7 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
             return self.block
 
     @property
-    def output_type(self) -> TypeBase | None:
+    def output_type(self) -> "TypeBase | None":
         runnable = self.runnable
         if runnable is None:
             return None
