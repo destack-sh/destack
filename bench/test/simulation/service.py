@@ -9,8 +9,8 @@ from bench.proto.services import ServiceBase
 from bench.proto.wire import CreateBenchRequest, HostClient, SupervisorClient
 from bench.sql.client import pg_connection
 from bench.sql.engine import sqlstr
-from bench.system.host.service import HostService
-from bench.system.supervisor.service import SupervisorService
+from bench.system.host.host import HostService
+from bench.system.supervisor.supervisor import SupervisorService
 from bench.system.utils.sharding import HostMap
 from bench.test.simulation.spec import HostSpec, ServiceSpec, SupervisorSpec
 from bench.test.simulation.transport import SimulatedChannel

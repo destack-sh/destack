@@ -81,7 +81,7 @@ if TYPE_CHECKING:
         Query,
         Run,
     )
-    from bench.runtime.runtime import Runtime
+    from bench.runtime.core import Runtime
 
 # pyright: reportIncompatibleVariableOverride=false
 

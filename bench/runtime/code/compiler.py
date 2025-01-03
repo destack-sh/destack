@@ -2,7 +2,6 @@
 
 
 import ast
-import builtins
 import inspect
 import io
 import linecache
@@ -18,6 +17,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import Code, CodeType, new_struct_id
+from bench.runtime.code.context import BUILTIN_GLOBALS
 from bench.runtime.core import CodeInvalidError
 from bench.utils.func import stable_hash
 
@@ -26,9 +26,6 @@ from bench.utils.func import stable_hash
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-# standard python builtins (usually available everywhere)
-BUILTIN_GLOBALS = {k: v for k, v in builtins.__dict__.items() if not k.startswith("_")}
 
 
 @dataclass

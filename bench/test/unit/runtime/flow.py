@@ -19,7 +19,7 @@ from bench.language import (
     Text,
     code,
 )
-from bench.runtime.runner import Interrupted, make_run_from_node, make_runner
+from bench.runtime.core import Interrupted, make_run_from_node, make_runner
 from bench.test.unit.conftest import RuntimeHandle
 
 

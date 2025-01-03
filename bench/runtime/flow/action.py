@@ -55,11 +55,11 @@ from bench.language import (
 from bench.runtime.browser.playwright import parse_dom_node
 from bench.runtime.code.code import CodeFunctionRunner
 from bench.runtime.core import ATTEMPT_ONCE, RetryableError, RunImpossibleError
-from bench.runtime.runner import Context, Runner, make_runner, restore_runner
-from bench.runtime.runtime import Runtime
+from bench.runtime.core.runner import Context, Runner, make_runner, restore_runner
+from bench.runtime.core.runtime import Runtime
 
 if TYPE_CHECKING:
-    from bench.runtime.flow import FlowRunnerBase
+    from .flow import FlowRunnerBase
 
 
 logger = structlog.get_logger(__name__)

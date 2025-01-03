@@ -8,6 +8,7 @@ from opentelemetry import trace
 from bench.language import (
     Code,
     CodeType,
+    Context,
     CustomObject,
     Field,
     ObjectKind,
@@ -24,16 +25,9 @@ from bench.language import (
     render,
     upload_file,
 )
-from bench.runtime.core import CodeInvalidError
-from bench.runtime.runner import Context, Runner
-from bench.runtime.runtime import Runtime
+from bench.runtime.core import CodeInvalidError, Runner, Runtime
 
-from .capture import (
-    MAX_LOG_LINE_LENGTH,
-    MAX_LOGS_PER_CAPTURE,
-    LogSink,
-    capture_logs,
-)
+from .capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE, LogSink, capture_logs
 from .compiler import CompiledCode, compile_code
 
 logger = structlog.get_logger(__name__)

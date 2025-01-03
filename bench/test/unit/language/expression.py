@@ -14,7 +14,7 @@ from bench.language import (
     code,
     evaluate_conditional,
 )
-from bench.runtime.runner import make_run_from_node
+from bench.runtime.core import make_run_from_node
 
 # NOTE :Test: generate expressions to test with hypothesis
 

@@ -17,7 +17,7 @@ from bench.proto.wire import (
     UserData,
 )
 from bench.proto.wiring import pack_rpc_headers
-from bench.system.supervisor.service import SupervisorService
+from bench.system.supervisor.supervisor import SupervisorService
 from bench.system.utils.sharding import HostMap, StoreMap
 from bench.test.fixtures import raises_grpc_error
 from bench.test.simulation.transport import SimulatedChannel

@@ -45,7 +45,7 @@ async def system(
     no_supervisor: bool = False,
 ):
     from bench.system.host.router import HostRouterService
-    from bench.system.supervisor.service import SupervisorService
+    from bench.system.supervisor.supervisor import SupervisorService
     from bench.system.utils.session import global_store_from_env, regional_store_from_env
     from bench.system.utils.sharding import HOST_MAP
 
@@ -66,7 +66,7 @@ async def system(
 @app.command()
 @async_to_sync
 async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
-    from bench.system.supervisor.service import SupervisorService
+    from bench.system.supervisor.supervisor import SupervisorService
     from bench.system.utils.session import global_store_from_env
     from bench.system.utils.sharding import HOST_MAP
 

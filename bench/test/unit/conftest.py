@@ -7,8 +7,7 @@ import pytest
 import uvloop
 
 from bench.language import Machine, MachineType, clean_name
-from bench.runtime.cache import MemoryCache
-from bench.runtime.runtime import Runtime
+from bench.runtime.core import MemoryCache, Runtime
 from bench.sql.client import pg_connection
 from bench.sql.engine import sqlstr
 from bench.test.conftest import _setup_test_env
@@ -54,9 +53,9 @@ from bench.language import (
     _active_session,
 )
 from bench.proto.wire import HostClient, RpcMetadata
-from bench.runtime.runner import Runner
-from bench.system.host.service import HostService
-from bench.system.supervisor.service import create_default_bench
+from bench.runtime.core import Runner
+from bench.system.host.host import HostService
+from bench.system.supervisor.supervisor import create_default_bench
 from bench.system.utils.session import pg_engine_from_store
 from bench.test.simulation.transport import SimulatedChannel
 from bench.test.strategies import draw_direct, from_object_type
