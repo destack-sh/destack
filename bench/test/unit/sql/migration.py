@@ -1,6 +1,6 @@
 import psycopg
 
-from bench.language.const import NodeArea
+from bench.language import NodeArea
 from bench.sql.core import ObjectKind
 from bench.sql.graph import (
     BENCH_TABLE_PREFIX,

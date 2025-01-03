@@ -16,8 +16,7 @@ from playwright.async_api import Playwright, async_playwright
 from playwright.async_api import Request as PlaywrightRequest
 from playwright.async_api import Response as PlaywrightResponse
 
-from bench.language.bench import ResourceStatus
-from bench.language.browser import Browser, DomNode, DomNodeType
+from bench.language import Browser, DomNode, DomNodeType, ResourceStatus
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

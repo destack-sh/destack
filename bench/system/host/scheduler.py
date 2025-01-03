@@ -8,17 +8,23 @@ import structlog
 from more_itertools import first
 from opentelemetry import trace
 
-from bench.language.bench import Bench, ResourceStatus
-from bench.language.const import NodeType, RunStatus
-from bench.language.machine import Machine, MachineType
-from bench.language.message import Message
-from bench.language.run import Run, RunError, RunErrorKind, RunErrorType
-from bench.language.session import Session
-from bench.language.text import Text
-from bench.language.trigger import Trigger
+from bench.language import (
+    Bench,
+    Machine,
+    MachineType,
+    NodeType,
+    ResourceStatus,
+    Run,
+    RunError,
+    RunErrorKind,
+    RunErrorType,
+    RunStatus,
+    Session,
+    Text,
+)
 from bench.proto.services import get_channel
 from bench.proto.wire import RunRequest, RuntimeClient
-from bench.system.host.core import Commit, DeferredHostPlugin, Host, HostPlugin
+from bench.system.host.core import Commit, Host, HostPlugin
 from bench.utils.func import bittuple
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
 
@@ -153,19 +159,3 @@ class RunPlugin(HostPlugin[Run]):
                 retry=op.retry,
                 span="current",
             )
-
-
-class MessagePlugin(DeferredHostPlugin[Message | Trigger]):
-    """Process active Triggers when they receive Messages."""
-
-    watch_types = bittuple(NodeType.MESSAGE, NodeType.TRIGGER)
-
-    ...
-
-
-class SchedulePlugin(DeferredHostPlugin[Trigger]):
-    """Process active Triggers according to their Schedule."""
-
-    watch_types = bittuple(NodeType.TRIGGER)
-
-    ...

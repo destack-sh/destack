@@ -5,11 +5,7 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language.bench import Bench, Package
-from bench.language.block import Block
-from bench.language.const import BlockType, NodeType
-from bench.language.field import Field
-from bench.language.session import Session
+from bench.language import Bench, Block, BlockType, Field, NodeType, Package, Session
 from bench.sql.core import Schema, Table
 from bench.sql.graph import (
     BENCH_RECORD_TABLE_PREFIX,

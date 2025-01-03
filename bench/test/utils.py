@@ -1,7 +1,6 @@
 from typing import Collection
 
-from bench.language.const import NodeType
-from bench.language.graph import NodeGraph
+from bench.language import NodeGraph, NodeType
 
 
 def assert_graph_equals(

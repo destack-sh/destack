@@ -7,7 +7,7 @@ import typer
 
 from bench.cli.utils import async_to_sync, parse_region
 from bench.language import Bench, Store
-from bench.language.const import REGION, NodeArea, Region
+from bench.language.core import REGION, NodeArea, Region
 from bench.utils.func import sanitize_connection_uri
 from bench.utils.oracle import REAL_ORACLE
 

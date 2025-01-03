@@ -1,0 +1,81 @@
+from typing import TYPE_CHECKING, Any, Optional, cast, final
+
+import structlog
+
+from bench.language.core import (
+    HasNodeBase,
+    NodeType,
+    ObjectKind,
+    StateNode,
+    StructType,
+    node_,
+    p_internal,
+    p_regular,
+    p_system,
+    p_value_packed,
+    p_value_runtime,
+)
+from bench.language.source import TypeBase
+from bench.proto.wire import AnyNodeData, NodeReferenceData, RecordData
+from bench.utils.fractional import INTEGER_ZERO
+
+if TYPE_CHECKING:
+    from bench.language import Block, CustomObject, Icon, Text
+
+# pyright: reportIncompatibleVariableOverride=false
+
+logger = structlog.get_logger(__name__)
+
+
+@node_(
+    NodeType.RECORD,
+    passthrough_get=("value",),
+    passthrough_set=("value",),
+    stored_value_unraveled=True,
+)
+class Record(StateNode[RecordData], HasNodeBase):
+    """
+    A Record from a DatabaseBlock. May references other Records (except for :ManyToManyRecords).
+    """
+
+    # type: RecordType?
+    name: Optional[str] = p_regular(32, default=None)
+    order_key: str | None = p_internal(33, default=INTEGER_ZERO)
+    icon: Optional["Icon"] = p_regular(34, default=None, struct=StructType.ICON)
+    text: Optional["Text"] = p_regular(
+        35, default=None, require=False, array=False, struct=StructType.TEXT
+    )
+    block: "Block" = p_system(36, require=True, references=NodeType.BLOCK)
+
+    # value
+    value_packed: Any = p_value_packed(40)
+    value: "CustomObject | None" = p_value_runtime(
+        40, kind=ObjectKind.MEMBER, typ=lambda self: cast("Record", self).value_type
+    )
+
+    @final
+    def __repr__(self):  # type: ignore
+        # override the default __repr__ for records
+        block = self.block
+        type_name = block.code_name if block is not None else "?"
+        return f"<{type_name}Record {self!s}>"
+
+    def __content_str__(self):
+        value = self.value
+        if value is not None:
+            return str(value)
+        else:
+            return ""
+
+    @property
+    def value_type(self) -> "TypeBase | None":
+        block = self.block
+        return block.to_type_maybe(of="value") if block is not None else None
+
+    @property
+    def base(self) -> "Block | None":
+        return self.block
+
+    @staticmethod
+    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
+        return cast(RecordData, data).block_ptr

@@ -19,7 +19,7 @@ from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
 from pygments.lexers import PythonLexer
 
-from bench.language.const import Region
+from bench.language.core import Region
 
 if TYPE_CHECKING:
     pass

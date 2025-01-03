@@ -3,22 +3,27 @@ from typing import List, Tuple, cast
 import pytest
 from more_itertools import first
 
-from bench.language.action import Action, ActionType
-from bench.language.bench import Bench, Package, PackageType
-from bench.language.block import FlowBlock
-from bench.language.const import BlockType
-from bench.language.field import Field
-from bench.language.file import File, FileKind, FileType
-from bench.language.path import (
+from bench.language import (
+    Action,
+    ActionType,
+    Bench,
+    BlockType,
+    Field,
+    File,
+    FileKind,
+    FileType,
+    FlowBlock,
+    Package,
+    PackageType,
     PathError,
     PathLogicError,
     PathTokenType,
+    Session,
     get_node,
     get_path,
     parse_path,
     render_path,
 )
-from bench.language.session import Session
 
 # Assuming the necessary imports and definitions are in place
 # from your_module import tokenize_path, PathToken, PathTokenType, PathSyntaxError

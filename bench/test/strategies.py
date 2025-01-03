@@ -11,27 +11,30 @@ from hypothesis import strategies as st
 from hypothesis.strategies import SearchStrategy
 from hypothesis.strategies._internal.utils import cacheable, defines_strategy
 
-from bench.language import NodeReference
-from bench.language.const import (
+from bench.language import (
+    BUILTIN_OBJECT_CLASS_BY_TYPE,
+    ENUM_CLASS_BY_TYPE,
+    MAX_VALUE_BY_PRIMITIVE_TYPE,
+    MIN_VALUE_BY_PRIMITIVE_TYPE,
+    NODE_CLASS_BY_TYPE,
     NODE_TYPES,
+    BuiltinObject,
     EnumType,
+    Field,
     FieldType,
+    Icon,
+    IconKind,
+    NodeReference,
     NodeType,
     ObjectType,
     PrimitiveType,
     StructType,
+    TypeBase,
+    TypeConstraint,
+    TypeInfo,
     TypeKind,
+    ValidationError,
 )
-from bench.language.field import Field, TypeBase, TypeConstraint, TypeInfo
-from bench.language.node import BuiltinObject
-from bench.language.registry import (
-    BUILTIN_OBJECT_CLASS_BY_TYPE,
-    ENUM_CLASS_BY_TYPE,
-    NODE_CLASS_BY_TYPE,
-)
-from bench.language.validation import ValidationError
-from bench.language.value import MAX_VALUE_BY_PRIMITIVE_TYPE, MIN_VALUE_BY_PRIMITIVE_TYPE
-from bench.language.view import Icon, IconKind
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.oracle import MAX_SCHEDULE_DURATION
 

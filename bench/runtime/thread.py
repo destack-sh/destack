@@ -6,11 +6,17 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language.connection import GetConnection, WatchGetUpdate
-from bench.language.const import NONCE, ClientType, NodeType
-from bench.language.interruption import Interruption, InterruptionType
-from bench.language.node import NodeReference
-from bench.language.run import Run
+from bench.language import (
+    NONCE,
+    ClientType,
+    GetConnection,
+    Interruption,
+    InterruptionType,
+    NodeReference,
+    NodeType,
+    Run,
+    WatchGetUpdate,
+)
 from bench.proto import wiring
 from bench.proto.wire import (
     RunRequest,

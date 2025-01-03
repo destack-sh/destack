@@ -1,11 +1,16 @@
 from uuid import UUID, uuid5
 
-from bench.language.block import Block
-from bench.language.const import UUID_NAMESPACE, BlockType, NodeMode
-from bench.language.graph import NodeGraph
-from bench.language.node import NodeReference, SourceNode
+from bench.language.core import (
+    UUID_NAMESPACE,
+    BlockType,
+    NodeGraph,
+    NodeMode,
+    NodeReference,
+    SourceNode,
+)
 from bench.language.registry import _complete_bench_setup
-from bench.language.session import Session
+from bench.language.runtime.session import Session
+from bench.language.source import Block
 
 _complete_bench_setup()
 

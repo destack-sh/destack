@@ -6,8 +6,7 @@ from opentelemetry import trace
 from playwright.async_api import Browser as PlaywrightBrowser
 from playwright.async_api import Playwright, async_playwright
 
-from bench.language.browser import DEFAULT_BROWSER_HEIGHT, DEFAULT_BROWSER_WIDTH, Browser
-from bench.language.view import Vector2
+from bench.language import DEFAULT_BROWSER_HEIGHT, DEFAULT_BROWSER_WIDTH, Browser, Vector2
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

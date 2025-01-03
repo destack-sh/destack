@@ -8,15 +8,21 @@ from uuid import UUID
 from PIL.Image import Image
 
 from bench import language
-from bench.language import render
-from bench.language.const import BenchError
-from bench.language.file import upload_file
-from bench.language.node import Node
-from bench.language.path import get_node
-from bench.language.registry import BENCH_CLASS_BY_NAME, NODE_CLASS_STUBS_BY_NAME
-from bench.language.run import RunError, RunErrorType, RunOptions, RunType
-from bench.language.text import Text
-from bench.runtime.capture import LogSink
+from bench.language import (
+    BENCH_CLASS_BY_NAME,
+    NODE_CLASS_STUBS_BY_NAME,
+    BenchError,
+    Node,
+    RunError,
+    RunErrorType,
+    RunOptions,
+    RunType,
+    Text,
+    get_node,
+    render,
+    upload_file,
+)
+from bench.runtime.code.capture import LogSink
 from bench.utils.func import get_subclasses
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 

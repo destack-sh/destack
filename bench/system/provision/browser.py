@@ -1,8 +1,6 @@
 from typing import override
 
-from bench.language.bench import ResourceStatus
-from bench.language.browser import Browser
-from bench.language.const import NodeType
+from bench.language import Browser, NodeType, ResourceStatus
 from bench.system.provision.browserbase import browserbase_api
 from bench.system.provision.playwright import playwright_server
 from bench.system.provision.provisioner import Provisioner

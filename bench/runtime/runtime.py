@@ -8,36 +8,42 @@ import structlog
 from git import TYPE_CHECKING
 from opentelemetry import baggage, context, trace
 
-from bench.language.bench import Resource, ResourceStatus
-from bench.language.connection import Connection, WatchGetUpdate
-from bench.language.const import (
+from bench.language import (
+    DEFAULT_CHECK_OPTIONS,
+    NODE_CLASS_BY_TYPE,
+    RUN_STATUS_BY_INTERRUPTION_TYPE,
     BenchError,
+    BreakpointSite,
+    CheckOptions,
+    Connection,
+    CustomObject,
+    Field,
+    Interruption,
+    Node,
+    NodeGraph,
     NodeMode,
     NodeType,
     ObjectKind,
+    Resource,
+    ResourceStatus,
+    Run,
+    RunAttempt,
+    RunError,
     RunErrorKind,
+    RunnableNode,
+    RunSpanType,
     RunStatus,
-    is_node_type,
-    run_span,
-)
-from bench.language.field import Field, TypeIn, TypeInfo, to_type_scalar
-from bench.language.graph import NodeGraph
-from bench.language.interruption import (
-    RUN_STATUS_BY_INTERRUPTION_TYPE,
-    BreakpointSite,
-    Interruption,
-)
-from bench.language.node import Node
-from bench.language.registry import NODE_CLASS_BY_TYPE
-from bench.language.run import Run, RunAttempt, RunError, RunnableNode, RunSpanType
-from bench.language.session import Session
-from bench.language.validation import ValidationError, on_invalid_raise
-from bench.language.value import (
-    DEFAULT_CHECK_OPTIONS,
-    CheckOptions,
-    CustomObject,
+    Session,
+    TypeIn,
+    TypeInfo,
+    ValidationError,
+    WatchGetUpdate,
     check_value,
+    is_node_type,
     is_value,
+    on_invalid_raise,
+    run_span,
+    to_type_scalar,
 )
 from bench.runtime.browser.playwright import PlaywrightClient
 from bench.runtime.cache import Cache

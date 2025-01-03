@@ -3,10 +3,7 @@ import typer
 
 from bench.cli.utils import async_to_sync
 from bench.language import User
-from bench.language.const import (
-    NodeArea,
-    UserStatus,
-)
+from bench.language.core import NodeArea, UserStatus
 from bench.utils.oracle import REAL_ORACLE
 
 app = typer.Typer(short_help="some language-level utilities")

@@ -11,7 +11,7 @@ from rich.console import Console
 
 from bench.cli.utils import async_to_sync, parse_region
 from bench.language import Bench, Store
-from bench.language.const import REGION, VERSION, NodeArea, NodeType, Region
+from bench.language.core import REGION, VERSION, NodeArea, NodeType, Region
 from bench.sql.client import pg_connection
 from bench.sql.core import Schema
 from bench.sql.engine import SqlUndefinedObjectError

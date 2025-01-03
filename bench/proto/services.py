@@ -30,10 +30,14 @@ from grpclib._typing import IServable
 from grpclib.client import Channel, ServiceMethod
 from opentelemetry import trace
 
-from bench.language import ValidationError
-from bench.language.access import AccessError, Subject
-from bench.language.const import BenchError, ClientType
-from bench.language.query import NodeNotFoundError
+from bench.language import (
+    AccessError,
+    BenchError,
+    ClientType,
+    NodeNotFoundError,
+    Subject,
+    ValidationError,
+)
 from bench.proto import wire
 from bench.proto.wire import (
     HealthBase,

@@ -5,10 +5,11 @@ import psycopg
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, Store
-from bench.language.connection import (
+from bench.language import (
     AggregateConnection,
     AggregateResultData,
+    AggregationType,
+    Bench,
     ChannelIncapableError,
     ChannelUnavailableError,
     CommitResultData,
@@ -18,15 +19,19 @@ from bench.language.connection import (
     FlushResultData,
     GetConnection,
     GetResultData,
+    Node,
+    NodeDataGraph,
+    NodeReference,
+    NodeType,
+    Query,
+    QueryType,
     SearchConnection,
     SearchResultData,
+    Session,
+    Store,
     WritableChannel,
+    repr_scope,
 )
-from bench.language.const import AggregationType, NodeType, QueryType
-from bench.language.graph import NodeDataGraph
-from bench.language.node import Node, NodeReference, repr_scope
-from bench.language.query import Query
-from bench.language.session import Session
 from bench.proto.wire import (
     AggregationResultData,
     EditData,

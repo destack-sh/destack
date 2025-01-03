@@ -15,11 +15,16 @@ _setup_test_env()
 
 from opentelemetry import trace
 
-from bench.language import VERSION, NodeReference, Store
-from bench.language.bench import Bench
-from bench.language.const import NodeType, Region
-from bench.language.graph import NodeSuperGraph
-from bench.language.validation import clean_name
+from bench.language import (
+    VERSION,
+    Bench,
+    NodeReference,
+    NodeSuperGraph,
+    NodeType,
+    Region,
+    Store,
+    clean_name,
+)
 from bench.sql.client import get_pg_pool, pg_connection
 from bench.sql.core import ALL_EXTENSIONS, Schema
 from bench.sql.graph import (

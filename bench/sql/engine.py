@@ -19,11 +19,11 @@ from opentelemetry import trace
 from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
 
-from bench.language import Block
-from bench.language.const import (
+from bench.language import (
     EMPTY_DICT,
     TRACING,
     BenchError,
+    Block,
     NodeType,
     PrimitiveType,
 )

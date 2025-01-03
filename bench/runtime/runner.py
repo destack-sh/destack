@@ -16,24 +16,25 @@ from typing import (
 import structlog
 from opentelemetry import trace
 
-from bench.language import Action, Block
-from bench.language.bench import Resource, ResourceStatus
-from bench.language.code import Code
-from bench.language.const import NodeMode, ObjectKind, RunStatus
-from bench.language.field import TypeBase, TypeIn, TypeInfo
-from bench.language.flow import Pipe
-from bench.language.interruption import (
+from bench.language import (
+    Action,
+    Block,
     Breakpoint,
     BreakpointScope,
     BreakpointSite,
+    Code,
+    Context,
+    CustomObject,
     Interruption,
     InterruptionStatus,
     InterruptionType,
-)
-from bench.language.log import LogInfo
-from bench.language.node import Node, get_tracing_context
-from bench.language.run import (
-    Context,
+    LogInfo,
+    Node,
+    NodeMode,
+    ObjectKind,
+    Pipe,
+    Resource,
+    ResourceStatus,
     Run,
     RunAttempt,
     RunError,
@@ -41,9 +42,13 @@ from bench.language.run import (
     RunnableNode,
     RunOptions,
     RunSpan,
+    RunStatus,
     RunType,
+    TypeBase,
+    TypeIn,
+    TypeInfo,
+    get_tracing_context,
 )
-from bench.language.value import CustomObject
 from bench.runtime.core import (
     BASE_RUN_OPTIONS_BY_KIND,
     InterruptionCancelledError,
@@ -432,8 +437,7 @@ def make_run_from_node(
     parent: "Run | None" = None,
 ) -> "Run":
     """Creates a Run from a runnable Node."""
-    from bench.language import Action, Block
-    from bench.language.value import coerce_custom_object_scalar
+    from bench.language import Action, Block, coerce_custom_object_scalar
 
     # context
     if isinstance(node, Block):
@@ -567,7 +571,7 @@ def make_runner(
 
     # map to runner
     if RUN_TYPE == RunType.CODE:
-        from bench.runtime.code import CodeFunctionRunner
+        from bench.runtime.code.code import CodeFunctionRunner
 
         code = getattr(node, "code", None) or Code.empty()
         runner = CodeFunctionRunner(**base_kwargs, code=code)

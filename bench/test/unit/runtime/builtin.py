@@ -1,5 +1,5 @@
+from bench.language import sync_node
 from bench.language.builtin import make_builtins
-from bench.language.node import sync_node
 from bench.test.unit.conftest import RuntimeHandle
 
 

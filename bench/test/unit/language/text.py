@@ -1,6 +1,6 @@
 import pytest
 
-from bench.language.text import (
+from bench.language import (
     Text,
     TextLine,
     TextLineType,

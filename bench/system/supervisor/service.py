@@ -7,22 +7,29 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Bench, Client, NodeReference, Store, User
-from bench.language.access import Subject
-from bench.language.bench import PackageType
-from bench.language.block import Block
-from bench.language.const import (
+from bench.language import (
+    EMPTY_SCOPE_DATA,
     USER_NODE_TYPES,
+    Bench,
+    Block,
+    Client,
     ClientType,
+    Handle,
     NodeArea,
+    NodeReference,
     NodeType,
+    Organization,
     OrganizationStatus,
+    PackageType,
     Region,
+    ScalerStrategy,
+    ScalerType,
+    Session,
+    Store,
+    Subject,
+    User,
+    UserStatus,
 )
-from bench.language.node import EMPTY_SCOPE_DATA
-from bench.language.scaler import ScalerStrategy, ScalerType
-from bench.language.session import Session
-from bench.language.user import Handle, Organization, UserStatus
 from bench.proto import wiring
 from bench.proto.wire import (
     ChangeUserPasswordRequest,

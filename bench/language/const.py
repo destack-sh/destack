@@ -14,7 +14,7 @@ from bench.utils.utils import frozendict, get_from_env
 
 if typing.TYPE_CHECKING:
     from bench.language import LogLevel, Node, Session, Text, Transaction
-    from bench.language.run import RunEvent, RunEventType, RunSpan, RunSpanType
+    from bench.language.runtime.run import RunEvent, RunEventType, RunSpan, RunSpanType
     from bench.runtime.runner import Runner
 
 
@@ -266,7 +266,6 @@ class NodeType(IdEnum):
     DEPENDENCY = 3002
     SPACE = 3003
     BLOCK = 3010
-    TRIGGER = 3011
     FIELD = 3012  # (based)
     VIEW = 3020
     ACTION = 3030

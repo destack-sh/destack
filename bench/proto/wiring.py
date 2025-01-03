@@ -12,22 +12,30 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 from pydantic import JsonValue
 
-from bench.language.connection import Connection
-from bench.language.const import NodeType, ObjectType, PrimitiveType, TypeKind
-from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeSuperGraph
-from bench.language.node import BuiltinObject, Node, NodeGraph, NodeReference
-from bench.language.property import Property
-from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE
-from bench.language.session import Session
-from bench.language.validation import on_invalid_raise
-from bench.language.value import (
+from bench.language.core import (
+    NULL_SUPERGRAPH,
+    BuiltinObject,
+    Connection,
     CustomObject,
+    Node,
+    NodeDataGraph,
+    NodeGraph,
+    NodeReference,
+    NodeSuperGraph,
+    NodeType,
+    ObjectType,
+    PrimitiveType,
+    Property,
+    TypeKind,
+    on_invalid_raise,
     pack_custom_object,
     pack_proto_json,
     pack_value,
     unpack_proto_json,
     unpack_value,
 )
+from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE
+from bench.language.runtime.session import Session
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, RpcMetadata
 from bench.utils.func import IdEnumOrUnion

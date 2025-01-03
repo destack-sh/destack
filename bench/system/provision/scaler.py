@@ -5,12 +5,18 @@ from typing import Any, Sequence, cast, final, override
 import structlog
 from opentelemetry import trace
 
-from bench.language.bench import Bench, DynamicResource, Resource, ResourceStatus
-from bench.language.browser import Browser
-from bench.language.const import NodeType
-from bench.language.machine import Machine
-from bench.language.registry import NODE_CLASS_BY_TYPE
-from bench.language.scaler import Scaler, ScalerType
+from bench.language import (
+    NODE_CLASS_BY_TYPE,
+    Bench,
+    Browser,
+    DynamicResource,
+    Machine,
+    NodeType,
+    Resource,
+    ResourceStatus,
+    Scaler,
+    ScalerType,
+)
 from bench.system.host.core import Commit, Host
 from bench.system.provision.provisioner import Provisioner
 from bench.utils.func import bittuple, group_by

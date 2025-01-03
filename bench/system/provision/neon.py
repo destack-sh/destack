@@ -5,7 +5,7 @@ import httpx
 import structlog
 from opentelemetry import trace
 
-from bench.language.bench import Region
+from bench.language import Region
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.tenacity import RetryOptions, retry
 from bench.utils.utils import get_from_env

@@ -1,12 +1,19 @@
-from bench.language.action import Action, ActionType
-from bench.language.bench import Package
-from bench.language.block import Block
-from bench.language.code import code
-from bench.language.const import BlockType, SortType
-from bench.language.expression import Expression, S, apply_sort, evaluate_conditional
-from bench.language.field import Field
-from bench.language.run import Run
-from bench.language.session import Session
+from bench.language import (
+    Action,
+    ActionType,
+    Block,
+    BlockType,
+    Expression,
+    Field,
+    Package,
+    Run,
+    S,
+    Session,
+    SortType,
+    apply_sort,
+    code,
+    evaluate_conditional,
+)
 from bench.runtime.runner import make_run_from_node
 
 # NOTE :Test: generate expressions to test with hypothesis

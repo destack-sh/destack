@@ -8,9 +8,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Client, User
-from bench.language.bench import Bench
-from bench.language.query import NodeNotFoundError
+from bench.language import Bench, Client, NodeNotFoundError, User
 from bench.utils.env import IS_DEV
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env

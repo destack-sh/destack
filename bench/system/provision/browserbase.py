@@ -4,9 +4,14 @@ import structlog
 from browserbase import AsyncBrowserbase
 from opentelemetry import trace
 
-from bench.language.browser import DEFAULT_BROWSER_HEIGHT, DEFAULT_BROWSER_WIDTH, Browser
-from bench.language.const import Region, RegionArea
-from bench.language.view import Vector2
+from bench.language import (
+    DEFAULT_BROWSER_HEIGHT,
+    DEFAULT_BROWSER_WIDTH,
+    Browser,
+    Region,
+    RegionArea,
+    Vector2,
+)
 from bench.utils.utils import get_from_env
 
 BROWSERBASE_API_KEY = get_from_env("BROWSERBASE_API_KEY")

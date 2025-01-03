@@ -13,9 +13,7 @@ import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
 
-from bench.language.const import ClientType
-from bench.language.node import NodeReference
-from bench.language.run import Run
+from bench.language import ClientType, NodeReference, Run
 from bench.proto import wiring
 from bench.proto.wire import (
     HealthCheckRequest,

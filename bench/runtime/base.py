@@ -10,22 +10,26 @@ import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
 
-from bench.language.bench import Bench, Client, Package
-from bench.language.connection import RemoteEngine
-from bench.language.const import (
+from bench.language import (
     BENCH_NODE_TYPES,
+    EMPTY_SCOPE_DATA,
     NONCE,
     PUBLIC_NODE_TYPES,
     SOURCE_NODE_TYPES,
     STATIC_RESOURCE_NODE_TYPES,
+    Bench,
+    Client,
     ClientType,
+    GraphScope,
+    Machine,
+    NodeReference,
+    NodeSuperGraph,
     NodeType,
+    Package,
+    RemoteEngine,
+    Session,
+    User,
 )
-from bench.language.graph import NodeSuperGraph
-from bench.language.machine import Machine
-from bench.language.node import EMPTY_SCOPE_DATA, GraphScope, NodeReference
-from bench.language.session import Session
-from bench.language.user import User
 from bench.proto import wire
 from bench.proto.networking import localize_url
 from bench.proto.services import ServiceBase, get_channel, get_rpc_metadata
