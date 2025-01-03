@@ -4,18 +4,33 @@ from typing import cast
 import pytest
 from hypothesis import HealthCheck, given, settings
 
-from bench.language import Bench, Message, NodeReference, Property
-from bench.language.action import Action, ActionType, DuplicateAction
-from bench.language.bench import Client, Package, PackageType
-from bench.language.block import Block, VariableBlock
-from bench.language.code import Code
-from bench.language.const import BlockType, ClientType, NodeType
-from bench.language.field import Field, to_type
-from bench.language.machine import Machine
-from bench.language.node import BuiltinObject
-from bench.language.registry import NODE_CLASSES, STRUCT_CLASSES
-from bench.language.session import Session
-from bench.language.text import Text, md
+from bench.language import (
+    NODE_CLASSES,
+    STRUCT_CLASSES,
+    Action,
+    ActionType,
+    Bench,
+    Block,
+    BlockType,
+    BuiltinObject,
+    Client,
+    ClientType,
+    Code,
+    DuplicateAction,
+    Field,
+    Machine,
+    Message,
+    NodeReference,
+    NodeType,
+    Package,
+    PackageType,
+    Property,
+    Session,
+    Text,
+    VariableBlock,
+    md,
+    to_type,
+)
 from bench.proto.wiring import unpack_builtin_object
 from bench.test.strategies import structs
 from bench.test.unit.conftest import RuntimeHandle

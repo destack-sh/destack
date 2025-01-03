@@ -4,9 +4,7 @@ from uuid import uuid4
 import pytest
 from grpclib import Status as GRPCStatus
 
-from bench.language import NodeReference, SelectOptions, Store, User
-from bench.language.node import EMPTY_SCOPE_DATA
-from bench.language.property import Property
+from bench.language import EMPTY_SCOPE_DATA, NodeReference, Property, SelectOptions, Store, User
 from bench.proto import wire
 from bench.proto.wire import (
     ClientDataIn,

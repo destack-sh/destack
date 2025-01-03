@@ -43,7 +43,7 @@ def _setup_test_env():
 
     setup_logging()
 
-    from bench.language.registry import _complete_bench_setup
+    from bench.language import _complete_bench_setup
 
     _complete_bench_setup()
 

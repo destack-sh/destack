@@ -8,20 +8,22 @@ from more_itertools import first
 from rich import print
 
 from bench.cli.utils import async_to_sync, parse_region
-from bench.language import Bench, User
-from bench.language.bench import Client, ResourceStatus
-from bench.language.const import (
+from bench.language import (
     BENCH_SLUG,
     CLOUD,
     REGION,
     SYSTEM_SLUG,
+    Bench,
+    Client,
     ClientType,
+    Machine,
     NodeArea,
     NodeType,
     Region,
+    ResourceStatus,
+    User,
     UserStatus,
 )
-from bench.language.machine import Machine
 from bench.utils.env import ENV
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import REAL_ORACLE

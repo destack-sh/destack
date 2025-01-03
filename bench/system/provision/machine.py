@@ -10,8 +10,7 @@ import structlog
 from kubernetes_asyncio import client as k8
 from opentelemetry import trace
 
-from bench.language import Bench, Machine, ResourceStatus
-from bench.language.const import CLOUD, NodeType
+from bench.language import CLOUD, Bench, Machine, NodeType, ResourceStatus
 from bench.proto.networking import dockerify_url, minikubeify_url
 from bench.system.host.core import Host
 from bench.system.provision.kubernetes import (

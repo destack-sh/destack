@@ -3,8 +3,7 @@ from typing import TYPE_CHECKING, override
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, ResourceStatus, Store
-from bench.language.const import NodeArea, NodeType
+from bench.language import Bench, NodeArea, NodeType, ResourceStatus, Store
 from bench.sql.client import pg_connection
 from bench.sql.engine import sqlstr
 from bench.sql.migration import sql_migrate

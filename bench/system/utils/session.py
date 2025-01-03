@@ -3,19 +3,24 @@ from uuid import UUID
 
 import cachetools
 
-from bench.language import Bench, NodeReference, NodeType, Store
-from bench.language.connection import Engine
-from bench.language.const import (
+from bench.language import (
+    EMPTY_SCOPE_DATA,
     NODE_TYPES,
     NODE_TYPES_BY_AREA,
     REGION,
     VERSION,
+    Bench,
+    Engine,
+    GraphScope,
+    Node,
     NodeArea,
+    NodeReference,
+    NodeSuperGraph,
+    NodeType,
     Region,
+    Session,
+    Store,
 )
-from bench.language.graph import NodeSuperGraph
-from bench.language.node import EMPTY_SCOPE_DATA, GraphScope, Node
-from bench.language.session import Session
 from bench.proto.wire import GraphScopeData
 from bench.sql.graph import BenchSqlContext
 from bench.system.graph.postgres import PostgresEngine

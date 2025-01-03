@@ -1,4 +1,4 @@
-from bench.language.bench import Bench
+from bench.language import Bench
 from bench.system.host.core import Host
 from bench.system.provision.browser import BrowserbaseBrowserProvisioner
 from bench.system.provision.provisioner import Provisioner

@@ -4,12 +4,7 @@ from uuid import UUID
 import pytest
 from grpclib import GRPCError, Status
 
-from bench.language.block import Block
-from bench.language.const import BlockType
-from bench.language.field import Field
-from bench.language.file import FileType
-from bench.language.text import Text, md
-from bench.language.value import sample_value
+from bench.language import Block, BlockType, Field, FileType, Text, md, sample_value
 from bench.test.unit.conftest import RuntimeHandle
 from bench.utils.string import Casing, to_casing
 

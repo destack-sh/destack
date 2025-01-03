@@ -3,7 +3,7 @@ from typing import override
 
 import redis.asyncio as redis
 
-from bench.language.bench import Bench
+from bench.language import Bench
 from bench.utils.utils import get_from_env, get_from_env_maybe
 
 LOCAL_CACHE_HOST = get_from_env("LOCAL_CACHE_HOST", description="Redis URL")

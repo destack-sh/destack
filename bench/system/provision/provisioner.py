@@ -5,14 +5,15 @@ from typing import TYPE_CHECKING, Collection, cast, final
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, Resource
-from bench.language.bench import ResourceStatus
-from bench.language.const import (
+from bench.language import (
+    NODE_CLASS_BY_TYPE,
     STATIC_RESOURCE_NODE_TYPES,
     VERSION,
+    Bench,
     NodeType,
+    Resource,
+    ResourceStatus,
 )
-from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.system.host.core import Commit, DeferredHostPlugin, Host
 
 if TYPE_CHECKING:

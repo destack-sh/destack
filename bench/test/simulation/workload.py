@@ -6,23 +6,27 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language import NodeReference
-from bench.language.bench import Bench, Client, Package
-from bench.language.block import Block
-from bench.language.connection import Engine, RemoteEngine
-from bench.language.const import (
+from bench.language import (
     BENCH_NODE_TYPES,
+    EMPTY_SCOPE_DATA,
     PUBLIC_NODE_TYPES,
     SOURCE_NODE_TYPES,
+    Bench,
+    Block,
     BlockType,
+    Client,
     EditType,
+    Engine,
+    GraphScope,
+    Log,
+    NodeReference,
+    NodeSuperGraph,
     NodeType,
+    Package,
+    RemoteEngine,
+    Session,
+    User,
 )
-from bench.language.graph import NodeSuperGraph
-from bench.language.log import Log
-from bench.language.node import EMPTY_SCOPE_DATA, GraphScope
-from bench.language.session import Session
-from bench.language.user import User
 from bench.proto.wire import HostClient, RpcMetadata, SupervisorClient
 from bench.proto.wiring import unpack_builtin_object
 from bench.test.simulation.spec import WorkloadSpec, WorkloadType

@@ -3,8 +3,7 @@ from collections import defaultdict
 from itertools import chain
 from typing import TYPE_CHECKING, Callable, Union, cast
 
-from bench.language.const import (
-    _ENUM_CLASS_BY_TYPE,
+from bench.language.core import (
     LOCAL_NODE_TYPES,
     NODE_TYPES,
     STRUCT_TYPES,
@@ -14,6 +13,7 @@ from bench.language.const import (
     ObjectType,
     StructType,
 )
+from bench.language.core.const import _ENUM_CLASS_BY_TYPE
 from bench.utils.env import IS_DEV
 from bench.utils.func import IdEnum, assert_collections_equal, bittuple, get_subclasses
 
@@ -65,7 +65,7 @@ def _on_completing_setup(func: Callable | None = None):
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     from bench.language import BuiltinObject, CustomObject, Node, Struct, const
-    from bench.language.node import (
+    from bench.language.core.node import (
         HasNodeBase,
         _is_setup_complete,
         _set_setup_complete,
@@ -199,7 +199,7 @@ def _complete_bench_setup():
                         raise ValueError(f"{prop!r} {prop.reference_struct} != {prop.py_type_raw}")
 
     # add all subtype stubs
-    from bench.language.node import NodeSubtypeStub
+    from bench.language.core import NodeSubtypeStub
 
     for node_type in NODE_TYPES:
         node_cls = NODE_CLASS_BY_TYPE[node_type]

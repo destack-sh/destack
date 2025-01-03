@@ -7,20 +7,36 @@ from uuid import UUID
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
 
-from bench.language.action import Action, ActionType
-from bench.language.bench import Package
-from bench.language.block import Block
-from bench.language.const import NODE_TYPES, BlockType, ReferenceKind, StructType
-from bench.language.field import Field, to_type
-from bench.language.file import File, FileKind, FileType
-from bench.language.flow import Pipe, PipeType
-from bench.language.node import BuiltinObject, Node, NodeReference
-from bench.language.render import Renderer, RenderOptions, render, render_expr
-from bench.language.session import Session
-from bench.language.text import md
-from bench.language.validation import constraint
-from bench.language.view import View, ViewType
-from bench.runtime.compiler import BUILTIN_GLOBALS
+from bench.language import (
+    NODE_TYPES,
+    Action,
+    ActionType,
+    Block,
+    BlockType,
+    BuiltinObject,
+    Field,
+    File,
+    FileKind,
+    FileType,
+    Node,
+    NodeReference,
+    Package,
+    Pipe,
+    PipeType,
+    ReferenceKind,
+    Renderer,
+    RenderOptions,
+    Session,
+    StructType,
+    View,
+    ViewType,
+    constraint,
+    md,
+    render,
+    render_expr,
+    to_type,
+)
+from bench.runtime.code.compiler import BUILTIN_GLOBALS
 from bench.runtime.core import STATIC_CODE_GLOBALS
 from bench.test.strategies import builtin_objects, examples
 from bench.test.unit.conftest import BUILTIN_OBJECTS, BUILTIN_OBJECTS_BY_TYPE

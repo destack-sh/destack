@@ -1,9 +1,16 @@
-from bench.language.action import Action, ActionType, DuplicateAction
-from bench.language.block import Block, FlowBlock, VariableBlock
-from bench.language.const import BlockType, EditOperationType
-from bench.language.field import Field
-from bench.language.node import Node
-from bench.language.view import Vector2
+from bench.language import (
+    Action,
+    ActionType,
+    Block,
+    BlockType,
+    DuplicateAction,
+    EditOperationType,
+    Field,
+    FlowBlock,
+    Node,
+    VariableBlock,
+    Vector2,
+)
 from bench.test.unit.conftest import RuntimeHandle
 
 

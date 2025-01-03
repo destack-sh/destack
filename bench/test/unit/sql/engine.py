@@ -6,14 +6,26 @@ import psycopg
 import pytest
 from psycopg import sql
 
-from bench.language import Bench, Block, BlockType, Client, NodeReference, PrimitiveType, Store
-from bench.language.bench import PackageType
-from bench.language.const import ClientType, EnumType, NodeType, Region, UserStatus
-from bench.language.field import TypeKind
-from bench.language.query import NodeNotFoundError
-from bench.language.session import Session
-from bench.language.user import User
-from bench.language.view import ViewType
+from bench.language import (
+    Bench,
+    Block,
+    BlockType,
+    Client,
+    ClientType,
+    EnumType,
+    NodeNotFoundError,
+    NodeReference,
+    NodeType,
+    PackageType,
+    PrimitiveType,
+    Region,
+    Session,
+    Store,
+    TypeKind,
+    User,
+    UserStatus,
+    ViewType,
+)
 from bench.sql.client import pg_connection
 from bench.sql.core import GLOBAL_EXTENSIONS, Column, Schema, Table
 from bench.sql.engine import (

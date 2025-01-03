@@ -6,22 +6,28 @@ from typing import Any, ClassVar, Sequence, final, override
 import structlog
 from opentelemetry import trace
 
-from bench.language import NodeReference, Session, Subject
-from bench.language.connection import (
+from bench.language import (
+    ROOT_NODE_TYPES,
     AggregateOptions,
     AggregateResultData,
+    EditType,
     GetOptions,
     GetResultData,
+    NodeDataGraph,
+    NodeReference,
+    NodeType,
+    Query,
+    QueryType,
     SearchOptions,
     SearchResultData,
+    Session,
+    Subject,
     WatchAggregateUpdateData,
     WatchGetUpdateData,
     WatchSearchUpdateData,
+    apply_sort,
+    evaluate_conditional,
 )
-from bench.language.const import ROOT_NODE_TYPES, EditType, NodeType, QueryType
-from bench.language.expression import apply_sort, evaluate_conditional
-from bench.language.graph import NodeDataGraph
-from bench.language.query import Query
 from bench.proto.wire import (
     AnyNodeData,
     EditData,

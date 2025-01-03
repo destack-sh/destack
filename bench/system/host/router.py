@@ -10,8 +10,16 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Bench, Package, Store, Subject
-from bench.language.const import SOURCE_NODE_TYPES, STATIC_RESOURCE_NODE_TYPES, NodeArea, NodeType
+from bench.language import (
+    SOURCE_NODE_TYPES,
+    STATIC_RESOURCE_NODE_TYPES,
+    Bench,
+    NodeArea,
+    NodeType,
+    Package,
+    Store,
+    Subject,
+)
 from bench.proto.services import ServiceBase
 from bench.proto.wire import GraphScopeData, HostBase, ServiceKind
 from bench.proto.wire.common_pb2 import RpcMetadata

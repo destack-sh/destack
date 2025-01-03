@@ -3,7 +3,7 @@ import io
 import pytest
 from PIL import Image
 
-from bench.language.file import FileFormat, FileIn, FileType, extract_file_info, upload_file
+from bench.language import FileFormat, FileIn, FileType, extract_file_info, upload_file
 from bench.test.unit.conftest import RuntimeHandle
 
 # some random image

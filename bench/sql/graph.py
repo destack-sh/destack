@@ -27,39 +27,45 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 from pydantic import JsonValue
 
-from bench.language import Block, ConditionalType, NodeReference, Property, SelectOptions
-from bench.language.bench import Bench
-from bench.language.connection import ChannelIncapableError
-from bench.language.const import (
+from bench.language import (
     CASCADING_EDIT_TYPES,
+    DESCENDANT_NODE_TYPES_IN_STORE,
+    HAS_CHILD_NODE_TYPES,
+    NODE_CLASS_BY_TYPE,
+    NODE_CLASSES,
     NODE_TYPES,
+    PARENT_NODE_TYPES,
+    UNSET,
+    Bench,
+    BenchNode,
+    Block,
+    C,
+    ChannelIncapableError,
+    ConditionalType,
     EditOperationType,
     EditType,
     EnumType,
+    Expression,
+    ExpressionTypes,
+    Field,
     FieldType,
     LiteralType,
+    Node,
     NodeArea,
+    NodeDataGraph,
+    NodeReference,
     NodeType,
     PrimitiveType,
+    PrimitiveValue,
+    Property,
+    Query,
     QueryType,
+    Record,
     ReferenceKind,
+    SelectOptions,
     SortType,
     TypeKind,
-)
-from bench.language.database import Record
-from bench.language.expression import C, Expression, ExpressionTypes
-from bench.language.field import Field
-from bench.language.graph import NodeDataGraph
-from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node
-from bench.language.query import Query, get_default_query_filter
-from bench.language.registry import (
-    DESCENDANT_NODE_TYPES_IN_STORE,
-    HAS_CHILD_NODE_TYPES,
-    NODE_CLASSES,
-    PARENT_NODE_TYPES,
-)
-from bench.language.value import (
-    PrimitiveValue,
+    get_default_query_filter,
     pack_builtin_object_data,
     pack_proto_date,
     pack_proto_json,
@@ -994,9 +1000,7 @@ async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Qu
 
 
 @_trace_pg_span
-async def pg_graph_exists(
-    *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Query
-) -> bool:
+async def pg_graph_exists(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Query) -> bool:
     """Checks if nodes from the graph matching the given query exist."""
     # compile
     node_type = query._node_type

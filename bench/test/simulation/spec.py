@@ -4,7 +4,7 @@ from datetime import timedelta
 
 import structlog
 
-from bench.language.const import ClientType
+from bench.language import ClientType
 from bench.test.conftest import TestProfile
 from bench.test.simulation.utils import SampledFloat, SampledInt
 

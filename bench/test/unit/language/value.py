@@ -3,36 +3,45 @@ from typing import cast
 import pytest
 from hypothesis import HealthCheck, given, settings
 
-from bench.language.action import Action, ActionType, Call, CreateAction, DuplicateAction
-from bench.language.bench import Package
-from bench.language.block import Block, VariableBlock
-from bench.language.code import Code
-from bench.language.const import (
+from bench.language import (
+    DEFAULT_CHECK_OPTIONS,
     STRUCT_TYPES,
+    Action,
+    ActionType,
+    Block,
     BlockType,
+    BuiltinObject,
+    Call,
+    Code,
+    CreateAction,
+    CustomObject,
+    DuplicateAction,
+    Field,
     FieldType,
+    Message,
+    MessageType,
+    Node,
     NodeType,
     ObjectKind,
+    Package,
     PrimitiveType,
+    Record,
+    Session,
     StructType,
-)
-from bench.language.database import Record
-from bench.language.field import Field, TypeInfo, TypeKind, to_type_scalar
-from bench.language.message import Message, MessageType
-from bench.language.node import BuiltinObject, Node
-from bench.language.session import Session
-from bench.language.text import Text
-from bench.language.validation import constraint, on_invalid_raise
-from bench.language.value import (
-    DEFAULT_CHECK_OPTIONS,
-    CustomObject,
+    Text,
+    TypeInfo,
+    TypeKind,
+    VariableBlock,
     check_value,
     coerce_custom_object_scalar,
+    constraint,
+    on_invalid_raise,
     pack_builtin_object,
     pack_builtin_object_data,
     pack_custom_object,
     pack_value,
     sample_value,
+    to_type_scalar,
     unpack_builtin_object,
     unpack_builtin_object_data,
     unpack_custom_object,

@@ -7,7 +7,7 @@ import typer
 from grpclib.utils import graceful_exit
 
 from bench.cli.utils import async_to_sync
-from bench.language.const import ClientType
+from bench.language.core import ClientType
 from bench.proto.services import GrpcServer, ServiceBase
 from bench.runtime.thread import RuntimeThread
 from bench.system.utils.session import regional_store_from_env

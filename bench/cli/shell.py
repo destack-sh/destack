@@ -5,22 +5,26 @@ import structlog
 import typer
 
 from bench.cli.utils import async_to_sync, repl
-from bench.language import Bench
-from bench.language.bench import Client, Package
-from bench.language.connection import RemoteEngine
-from bench.language.const import (
+from bench.language import (
     BENCH_NODE_TYPES,
+    EMPTY_SCOPE_DATA,
     PUBLIC_NODE_TYPES,
     SOURCE_NODE_TYPES,
     STATIC_RESOURCE_NODE_TYPES,
+    Bench,
+    Client,
+    GraphScope,
     NodeArea,
     NodeType,
+    Package,
+    RemoteEngine,
+    RenderOptions,
+    Session,
+    User,
+    get_node,
+    get_path,
+    render,
 )
-from bench.language.node import EMPTY_SCOPE_DATA, GraphScope
-from bench.language.path import get_node, get_path
-from bench.language.render import RenderOptions, render
-from bench.language.session import Session
-from bench.language.user import User
 from bench.proto import wire
 from bench.proto.services import get_channel, get_rpc_metadata
 from bench.proto.wire.lang_pb2 import GraphScopeData

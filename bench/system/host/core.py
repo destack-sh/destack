@@ -20,12 +20,16 @@ import bitarray
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, Node, NodeType, Store
-from bench.language.const import (
+from bench.language import (
+    Bench,
     EditType,
+    Node,
+    NodeGraph,
+    NodeSuperGraph,
+    NodeType,
+    Session,
+    Store,
 )
-from bench.language.graph import NodeGraph, NodeSuperGraph
-from bench.language.session import Session
 from bench.proto import wiring
 from bench.proto.wire import EditData
 from bench.proto.wire.lang_pb2 import GraphScopeData

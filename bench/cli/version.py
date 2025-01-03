@@ -4,7 +4,7 @@ from pathlib import Path
 import structlog
 import typer
 
-from bench.language.const import VERSION
+from bench.language.core import VERSION
 
 app = typer.Typer(short_help="version management")
 logger = structlog.get_logger(__name__)
@@ -38,7 +38,7 @@ def bump(revision: int | None = typer.Option(None)):
     # write version to 'version', Python files and TS files
     Path("version").write_text(new_version)
     for path in (
-        "bench/language/const.py",
+        "bench.language.core.py",
         "bench/sql/schema.py",
         "bench/proto/wire/__init__.py",
         "bench-web/package.json",

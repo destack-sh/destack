@@ -25,7 +25,7 @@ from more_itertools import first
 from opentelemetry import trace
 from psycopg import sql
 
-from bench.language.const import NodeArea
+from bench.language.core import NodeArea
 from bench.sql.core import (
     MIGRATION_TABLE,
     POSTGRES_TYPE_BY_UDT,

@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from bench.language import Code, CodeType
-from bench.runtime.compiler import (
+from bench.runtime.code.compiler import (
     CodeAnalysisVisitor,
     CodeDefinition,
     CodeDefinitionKind,

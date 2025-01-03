@@ -6,8 +6,7 @@ from typing import Mapping
 import pytest
 import uvloop
 
-from bench.language.machine import Machine, MachineType
-from bench.language.validation import clean_name
+from bench.language import Machine, MachineType, clean_name
 from bench.runtime.cache import MemoryCache
 from bench.runtime.runtime import Runtime
 from bench.sql.client import pg_connection
@@ -21,29 +20,39 @@ _setup_test_env()
 from dataclasses import dataclass
 from typing import Any
 
-from bench.language import Session, Store
-from bench.language.bench import Bench, Client, Package, PackageType, ResourceStatus
-from bench.language.block import Block
-from bench.language.connection import NullEngine, RemoteEngine
-from bench.language.const import (
+from bench.language import (
     BENCH_NODE_TYPES,
+    EMPTY_SCOPE_DATA,
     NODE_TYPES,
     OBJECT_TYPES,
     STRUCT_TYPES,
+    Bench,
+    Block,
     BlockType,
+    BuiltinObject,
+    Client,
     ClientType,
+    GraphScope,
     NodeArea,
+    NodeGraph,
     NodeMode,
+    NodeSuperGraph,
     NodeType,
+    NullEngine,
     ObjectType,
+    Package,
+    PackageType,
     Region,
+    RemoteEngine,
+    ResourceStatus,
+    Run,
+    RunnableNode,
+    Session,
+    Store,
+    User,
     UserStatus,
     _active_session,
 )
-from bench.language.graph import NodeGraph, NodeSuperGraph
-from bench.language.node import EMPTY_SCOPE_DATA, BuiltinObject, GraphScope
-from bench.language.run import Run, RunnableNode
-from bench.language.user import User
 from bench.proto.wire import HostClient, RpcMetadata
 from bench.runtime.runner import Runner
 from bench.system.host.service import HostService

@@ -12,32 +12,44 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Expression, NodeReference, SelectOptions, Session, Subject
-from bench.language.access import (
+from bench.language import (
+    ANCESTOR_NODE_TYPES,
+    BASED_NODE_TYPES,
+    EDIT_SUBJECT_TYPES,
+    EMPTY_SCOPE_DATA,
+    NODE_CLASS_BY_TYPE,
+    NODE_TYPES,
     AccessError,
+    Bench,
+    Block,
+    ChannelUnavailableError,
+    EditType,
+    Engine,
+    Expression,
+    GetOptions,
+    Node,
+    NodeDataGraph,
+    NodeGraph,
+    NodeNotFoundError,
+    NodeReference,
+    NodeSuperGraph,
+    NodeType,
+    PolicyEffect,
+    Query,
+    QueryType,
+    RuntimeContext,
+    SelectOptions,
+    Session,
+    Subject,
+    ValidationError,
+    edit_data_graph,
     evaluate_and_adapt_read,
     evaluate_edit,
     generate_access_matrix,
+    on_invalid_raise,
+    unpack_proto_json,
+    unpack_value_scalar_data,
 )
-from bench.language.bench import Bench
-from bench.language.block import Block
-from bench.language.connection import ChannelUnavailableError, Engine, GetOptions
-from bench.language.const import (
-    BASED_NODE_TYPES,
-    NODE_TYPES,
-    EditType,
-    NodeType,
-    PolicyEffect,
-    QueryType,
-)
-from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
-from bench.language.node import EDIT_SUBJECT_TYPES, EMPTY_SCOPE_DATA, Node
-from bench.language.query import NodeNotFoundError, Query
-from bench.language.registry import ANCESTOR_NODE_TYPES, NODE_CLASS_BY_TYPE
-from bench.language.session import RuntimeContext
-from bench.language.transaction import edit_data_graph
-from bench.language.validation import ValidationError, on_invalid_raise
-from bench.language.value import unpack_proto_json, unpack_value_scalar_data
 from bench.proto import wiring
 from bench.proto.services import ServiceBase
 from bench.proto.wire import (
