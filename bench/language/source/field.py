@@ -38,7 +38,7 @@ from bench.language.core import (
     TypeConstraintIn,
     TypeFormat,
     TypeKind,
-    _TypeQuery,
+    _IntoQuery,
     coerce_custom_object_scalar,
     get_tk_b64_from_ck,
     get_tk_b64_from_ptr,
@@ -46,6 +46,7 @@ from bench.language.core import (
     is_node_type,
     is_struct_type,
     node_,
+    node_subtype_,
     object_,
     p_internal,
     p_node_parent,
@@ -56,7 +57,6 @@ from bench.language.core import (
     pad_ck_from_tk_b64,
     struct_,
 )
-from bench.language.core.node import node_subtype_
 from bench.language.registry import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS
 from bench.proto.wire import AnyNodeData, FieldData, NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
@@ -579,7 +579,7 @@ def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
 
 # pyright: reportIncompatibleMethodOverride=false
 @node_(NodeType.FIELD)
-class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _TypeQuery):
+class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _IntoQuery):
     """
     A custom attribute of some value, the user-defined counterpart to Properties in builtin objects.
     """
@@ -605,7 +605,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _TypeQuery):
             return TypeBase.__content_str__(self)
 
     def __eq__(self, other):  # type: ignore
-        return _TypeQuery.__eq__(self, other)  # override to avoid recursion
+        return _IntoQuery.__eq__(self, other)  # override to avoid recursion
 
     __hash__ = SourceNode.__hash__  # type: ignore
     # (not entirely sure why we need to override Field.__hash__ but not for any other node, maybe

@@ -77,7 +77,7 @@ class PipeRunnerBase(Runner[Pipe], ABC):
         if self.node.delay is not None:
             await self.runtime.oracle.sleep(self.node.delay.total_seconds())
         if self.output_type is not None:
-            # assemble/map inputs from incoming Runs/Context :PipeMapping
+            # assemble/map inputs from inputs
             self.outputs = CustomObject.new(
                 ObjectKind.INPUT, {}, self.output_type, supergraph=self.runtime.session._supergraph
             )

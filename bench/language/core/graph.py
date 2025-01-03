@@ -14,9 +14,10 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language.core.const import EMPTY_LIST, NodeType, ObjectType
 from bench.proto.wire import AnyNodeData, GraphScopeData
 from bench.utils.func import bittuple
+
+from .const import EMPTY_LIST, NodeType, ObjectType
 
 if TYPE_CHECKING:
     from bench.language import Node, NodeReference

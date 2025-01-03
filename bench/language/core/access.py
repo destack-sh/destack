@@ -17,7 +17,14 @@ import structlog
 from bitarray import bitarray
 from opentelemetry import trace
 
-from bench.language.core.const import (
+from bench.language.registry import (
+    CHILD_NODE_TYPES,
+    _on_completing_setup,
+)
+from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
+from bench.utils.func import IdEnum, bittuple
+
+from .const import (
     ACCESS_CLASSES,
     NODE_TYPES,
     PUBLIC_NODE_TYPES,
@@ -37,28 +44,22 @@ from bench.language.core.const import (
     UseType,
     new_struct_id,
 )
-from bench.language.core.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
-from bench.language.core.node import (
+from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
+from .node import (
     NODE_CLASS_BY_TYPE,
     NodeReference,
     Struct,
     struct_,
 )
-from bench.language.core.property import (
+from .property import (
     Property,
     p_regular,
     p_runtime,
     p_system,
 )
-from bench.language.core.text import Text
-from bench.language.core.user import User
-from bench.language.core.validation import NAME_CONSTRAINT, ValidationError, constraint
-from bench.language.registry import (
-    CHILD_NODE_TYPES,
-    _on_completing_setup,
-)
-from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
-from bench.utils.func import IdEnum, bittuple
+from .text import Text
+from .user import User
+from .validation import NAME_CONSTRAINT, ValidationError, constraint
 
 if TYPE_CHECKING:
     from bench.language import (

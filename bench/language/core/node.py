@@ -37,7 +37,31 @@ from bitarray import bitarray
 from more_itertools import first
 from opentelemetry import trace
 
-from bench.language.core.const import (
+from bench.language.registry import (
+    BUILTIN_OBJECT_CLASS_BY_TYPE,
+    DESCENDANT_NODE_TYPES,
+    HAS_CHILD_NODE_TYPES,
+    NODE_CLASS_BY_NAME,
+    NODE_CLASS_BY_TYPE,
+    STRUCT_CLASS_BY_TYPE,
+)
+from bench.proto.wire import (
+    AnyNodeData,
+    AnyObjectData,
+    AnyStructData,
+    ClientOriginData,
+    GraphScopeData,
+    NodeReferenceData,
+    lang_pb2,
+)
+from bench.proto.wire.lang_pb2 import EditOperationData
+from bench.utils.env import IS_DEV, IS_TEST
+from bench.utils.func import IdEnum, bittuple, is_close, stable_hash
+from bench.utils.string import Casing, to_casing, to_code_name
+from bench.utils.utils import frozendict
+from bench.utils.uuidt import UUIDT
+
+from .const import (
     BASED_NODE_TYPES,
     BENCH_NODE_TYPES,
     EMPTY_DICT,
@@ -63,9 +87,9 @@ from bench.language.core.const import (
     _active_session,
     active_session,
 )
-from bench.language.core.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph, NodeSuperGraph
-from bench.language.core.list import LocalNodeList, RemoteNodeList, attach_node
-from bench.language.core.property import (
+from .graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph, NodeSuperGraph
+from .list import LocalNodeList, RemoteNodeList, attach_node
+from .property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
     Property,
@@ -79,35 +103,12 @@ from bench.language.core.property import (
     p_subnode_packed,
     p_system,
 )
-from bench.language.core.validation import (
+from .validation import (
     ValidationError,
     ValidationHandler,
     constraint,
     on_invalid_raise,
 )
-from bench.language.registry import (
-    BUILTIN_OBJECT_CLASS_BY_TYPE,
-    DESCENDANT_NODE_TYPES,
-    HAS_CHILD_NODE_TYPES,
-    NODE_CLASS_BY_NAME,
-    NODE_CLASS_BY_TYPE,
-    STRUCT_CLASS_BY_TYPE,
-)
-from bench.proto.wire import (
-    AnyNodeData,
-    AnyObjectData,
-    AnyStructData,
-    ClientOriginData,
-    GraphScopeData,
-    NodeReferenceData,
-    lang_pb2,
-)
-from bench.proto.wire.lang_pb2 import EditOperationData
-from bench.utils.env import IS_DEV, IS_TEST
-from bench.utils.func import IdEnum, bittuple, is_close, stable_hash
-from bench.utils.string import Casing, to_casing, to_code_name
-from bench.utils.utils import frozendict
-from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -115,6 +116,7 @@ if TYPE_CHECKING:
         Bench,
         Block,
         Client,
+        ComputedValue,
         CustomObject,
         Expression,
         Field,
@@ -360,7 +362,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
 
             # computed runtime value
             if prop.is_value_runtime:
-                from bench.language.core.value import _object_value_runtime
+                from .value import _object_value_runtime
 
                 setattr(cls, prop.name, _object_value_runtime(prop))
 
@@ -1653,6 +1655,9 @@ def is_implicit_node_property(prop_id: int) -> bool:
 NODE_SUBTYPE_PACKED_ID = 29
 NODE_SUBTYPE_PACKED_KEY = str(NODE_SUBTYPE_PACKED_ID)
 
+NODE_COMPUTED_VALUES_ID = 28
+NODE_COMPUTED_VALUES_KEY = str(NODE_COMPUTED_VALUES_ID)
+
 
 @node_component()
 class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
@@ -1742,8 +1747,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     #   so we can't have crazy numbers of subtype-properties unless we pack them like this)
     subnode_packed: dict[str, dict[str, Any]] | None = p_subnode_packed(NODE_SUBTYPE_PACKED_ID)
 
-    # 30-89 for 'user' node/struct properties
-    # <... defined in concrete type ...>
+    # 30-89 for general node/struct properties
+    # ...
 
     _graph: "NodeGraph" = p_runtime(default=None)
     _connection: "GetConnection | SearchConnection" = p_runtime(default=None)
@@ -2395,8 +2400,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         cls, *, type: int | None = None, block: "Block | None" = None, **kwargs: Any
     ) -> "CustomObject":
         """Creates a new partial Node of this type."""
-        from bench.language.core.value import coerce_custom_object_scalar
         from bench.language.source.field import TypeConstraint, TypeInfo
+
+        from .value import coerce_custom_object_scalar
 
         if cls is not Node:
             kwargs["metatype"] = cls.metatype
@@ -2423,7 +2429,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @classmethod
     def from_partial(cls, partial: "CustomObject", **kwargs) -> Self:
         """Creates a new full Node from a partial Node."""
-        from bench.language.core.value import make_node_from_partial
+        from .value import make_node_from_partial
 
         node = make_node_from_partial(partial, **kwargs)
         assert isinstance(node, cls), f"unexpected node {node!r} from partial {partial!r}"
@@ -2587,7 +2593,7 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContex
 
 @node_component()
 class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
-    """A Node in a Package with a persistent identity that can be instanced."""
+    """A Node in a Package with a persistent identity that can be instanced (with computed values)."""
 
     ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
     template: Optional["Node"] = p_node_template(7)
@@ -2597,6 +2603,9 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None
         template_ptr: Optional[NodeReference] = None
+    computed_values: list["ComputedValue"] = p_internal(
+        NODE_COMPUTED_VALUES_ID, require=False, array=True, struct=StructType.COMPUTED_VALUE
+    )
 
 
 @node_component()
@@ -2943,7 +2952,7 @@ class Skip(Node):
 #  (but import at top level to avoid import in critical path)
 
 
-from bench.language.core.value import (  # noqa: E402
+from .value import (  # noqa: E402
     DEFAULT_CHECK_OPTIONS,
     check_value,
     coerce_value,

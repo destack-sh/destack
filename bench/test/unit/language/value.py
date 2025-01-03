@@ -362,7 +362,6 @@ UNGENERATABLE_STRUCT_TYPES = [
     StructType.PROPERTY_REFERENCE,
     # contain required references
     StructType.OBJECT_MAPPING,
-    StructType.FIELD_MAPPING,
     StructType.CALL,
 ]
 

@@ -29,16 +29,6 @@ from grpclib import GRPCError
 from more_itertools import first
 from opentelemetry import trace
 
-from bench.language.core.const import (
-    BenchError,
-    ConditionalType,
-    EditType,
-    NodeType,
-    QueryType,
-)
-from bench.language.core.expression import C
-from bench.language.core.graph import NodeDataGraph, NodeGraph
-from bench.language.core.node import Node, patch_graph, repr_scope
 from bench.language.registry import CHILD_NODE_TYPES, DESCENDANT_NODE_TYPES, NODE_CLASS_BY_TYPE
 from bench.proto.wire import (
     AggregationResultData,
@@ -56,6 +46,17 @@ from bench.proto.wire.system_pb2 import WatchGetRequest, WatchSearchRequest
 from bench.utils.func import bittuple, group_by, repr_enums
 from bench.utils.task import create_task
 from bench.utils.tenacity import RETRY_GRPC, RETRY_GRPC_FOREVER, RetryOptions
+
+from .const import (
+    BenchError,
+    ConditionalType,
+    EditType,
+    NodeType,
+    QueryType,
+)
+from .expression import C
+from .graph import NodeDataGraph, NodeGraph
+from .node import Node, patch_graph, repr_scope
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -719,7 +720,7 @@ class GetConnection[ChannelT: Channel, T: Node](
         update: WatchGetUpdateData,
         unpack_update: bool,
     ) -> WatchGetUpdate | None:
-        from bench.language.core.transaction import edit_data_graph, edit_graph
+        from .transaction import edit_data_graph, edit_graph
 
         # filter edits
         if self.session._origin:
@@ -823,8 +824,9 @@ class SearchConnection[ChannelT: Channel, T: Node](
         update: WatchSearchUpdateData,
         unpack_update: bool,
     ) -> WatchSearchUpdate | None:
-        from bench.language.core.transaction import edit_data_graph, edit_graph
         from bench.proto import wiring
+
+        from .transaction import edit_data_graph, edit_graph
 
         # :ConnectionUpdateOrdering
         assert result_data is not None, f"{self!r} does not work without packed result"

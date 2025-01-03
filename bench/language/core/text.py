@@ -4,8 +4,10 @@ from uuid import UUID
 
 import regex
 
-from bench.language.core.const import EnumType, NodeType, StructType, enum_
-from bench.language.core.node import (
+from bench.utils.func import IdEnum
+
+from .const import EnumType, NodeType, StructType, enum_
+from .node import (
     BenchNode,
     BuiltinObject,
     Node,
@@ -14,8 +16,7 @@ from bench.language.core.node import (
     object_,
     struct_,
 )
-from bench.language.core.property import p_regular
-from bench.utils.func import IdEnum
+from .property import p_regular
 
 if TYPE_CHECKING:
     from bench.language import ColorType

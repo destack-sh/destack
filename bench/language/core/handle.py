@@ -1,18 +1,19 @@
 from typing import TYPE_CHECKING, Union
 
-from bench.language.core.const import (
+from bench.proto.wire import (
+    HandleData,
+)
+
+from .const import (
     NodeType,
 )
-from bench.language.core.node import BenchNode, node_
-from bench.language.core.property import (
+from .node import BenchNode, node_
+from .property import (
     p_node_parent,
     p_system,
 )
-from bench.language.core.validation import (
+from .validation import (
     SLUG_CONSTRAINT,
-)
-from bench.proto.wire import (
-    HandleData,
 )
 
 if TYPE_CHECKING:

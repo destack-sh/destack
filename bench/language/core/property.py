@@ -14,7 +14,12 @@ from typing import (
 )
 from uuid import UUID
 
-from bench.language.core.const import (
+from bench.language.registry import BENCH_CLASS_BY_NAME, ENUM_TYPE_BY_CLASS, _on_completing_setup
+from bench.utils.env import IS_DEV
+from bench.utils.func import IdEnum, parse_py_annotation
+from bench.utils.utils import frozendict
+
+from .const import (
     BASED_NODE_TYPES,
     BENCH_NODE_TYPES,
     NODE_TYPES,
@@ -31,11 +36,7 @@ from bench.language.core.const import (
     StructType,
     TypeKind,
 )
-from bench.language.core.list import LocalNodeList, NodeList, ValueList
-from bench.language.registry import BENCH_CLASS_BY_NAME, ENUM_TYPE_BY_CLASS, _on_completing_setup
-from bench.utils.env import IS_DEV
-from bench.utils.func import IdEnum, parse_py_annotation
-from bench.utils.utils import frozendict
+from .list import LocalNodeList, NodeList, ValueList
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -47,7 +48,8 @@ if TYPE_CHECKING:
         TypeConstraintIn,
         TypeInfo,
     )
-    from bench.language.core.expression import _TypeQuery
+
+    from .expression import _IntoQuery
 
 PropertyReferenceMetadata = Union[
     Literal["id"],
@@ -60,7 +62,7 @@ PropertyReferenceMetadata = Union[
 
 
 @dataclass(eq=False, slots=True)
-class Property(_TypeQuery if TYPE_CHECKING else object):
+class Property(_IntoQuery if TYPE_CHECKING else object):
     """A system-defined attribute of a node or struct."""
 
     # basics
@@ -208,7 +210,7 @@ class Property(_TypeQuery if TYPE_CHECKING else object):
 
         if self._cached_as_ref is None:
             assert self.component is not None, f"{self!r} is not finalized"
-            from bench.language.core.node import PropertyReference
+            from .node import PropertyReference
 
             ref = PropertyReference(type=getattr(self.component, "metatype", None), id=self.id)
             if self.reference_source is not None and self.reference_source.is_node_reference:
@@ -751,9 +753,9 @@ class Property(_TypeQuery if TYPE_CHECKING else object):
 
 @_on_completing_setup
 def _add_property_expression_base():
-    from bench.language.core.expression import _TypeQuery
+    from .expression import _IntoQuery
 
-    for name, attr in _TypeQuery.__dict__.items():
+    for name, attr in _IntoQuery.__dict__.items():
         if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):
             setattr(Property, name, attr)
 

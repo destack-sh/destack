@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict
 
 import regex
 
-from bench.language.core.const import BenchError, NodeType, TypeFormat
+from .const import BenchError, NodeType, TypeFormat
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -13,7 +13,8 @@ if TYPE_CHECKING:
         TypeBase,
         TypeConstraint,
     )
-    from bench.language.core.value import SomeValue
+
+    from .value import SomeValue
 
 ValidationSite = Union["TypeBase", tuple["Property | Any", ...]]
 

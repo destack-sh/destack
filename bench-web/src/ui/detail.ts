@@ -327,19 +327,19 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     );
   }
 
-  function sectionSchemaInput(options?: { subtitle?: string; delegatePtr?: NodeReferenceData }) {
-    section("Input", [{ type: "fields", fieldType: FieldType.INPUT, delegatePtr: options?.delegatePtr }], {
-      actions: [actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT], options)],
+  // nocheckin: section for inputs & variables to delegate
+
+  function rowObject(path: number | [number] | [number, number], options?: { title?: string; subtitle?: string }) {
+    return {
+      type: "view",
+      title: options?.title ?? "Object",
       subtitle: options?.subtitle,
-    });
+      viewType: ViewType.OBJECT,
+      viewProps: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO, isRequired: true }), isInput: true },
+    };
   }
 
-  function sectionSchemaOutput(options?: { subtitle?: string; delegatePtr?: NodeReferenceData }) {
-    section("Output", [{ type: "fields", fieldType: FieldType.OUTPUT, delegatePtr: options?.delegatePtr }], {
-      actions: [actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT], options)],
-      subtitle: options?.subtitle,
-    });
-  }
+  function sectionObject(path: number | [number] | [number, number], options?: { title?: string; subtitle?: string }) {}
 
   function sectionRun(runOptionsProperty: number) {
     section(
@@ -415,28 +415,30 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
         }
       }
 
-      // default
-      const defaultView = getViewForType(node, { forcePickerDropdown: true });
-      if (defaultView?.type != null) {
-        commonRows.push({
-          type: "view",
-          title: "Default",
-          isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(defaultView.type!),
-          viewType: defaultView.type,
-          viewProps: { ...defaultView, isInput: true },
-          read() {
-            if (node.defaultPacked == null) return null;
-            const defaultUnpacked = unpackValue(node.defaultPacked, node, { graph, wrapScalar: true });
-            return defaultUnpacked;
-          },
-          write: (newValue) => {
-            txFactory().update(
-              node,
-              { defaultPacked: packValue(newValue, node, { graph, wrapScalar: true }) },
-              getTransactionOptionsForType(node),
-            );
-          },
-        });
+      // default value
+      if (node.type == FieldType.VARIABLE || node.type == FieldType.MEMBER) {
+        const defaultView = getViewForType(node, { forcePickerDropdown: true });
+        if (defaultView?.type != null) {
+          commonRows.push({
+            type: "view",
+            title: "Default",
+            isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(defaultView.type!),
+            viewType: defaultView.type,
+            viewProps: { ...defaultView, isInput: true },
+            read() {
+              if (node.defaultPacked == null) return null;
+              const defaultUnpacked = unpackValue(node.defaultPacked, node, { graph, wrapScalar: true });
+              return defaultUnpacked;
+            },
+            write: (newValue) => {
+              txFactory().update(
+                node,
+                { defaultPacked: packValue(newValue, node, { graph, wrapScalar: true }) },
+                getTransactionOptionsForType(node),
+              );
+            },
+          });
+        }
       }
 
       const constraintRows: DetailRow[] = [];
@@ -536,7 +538,6 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
           },
         }),
       );
-      // nocheckin: section for inputs & variables to delegate
       // schema from delegate
       const delegatePtr = node.delegatePtr;
       if (delegatePtr != null) {

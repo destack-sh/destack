@@ -8,9 +8,10 @@ from bench.language.core import (
     p_regular,
     p_system,
 )
-from bench.language.resource.resource import StaticResource
 from bench.proto.wire.lang_pb2 import ScalerData
 from bench.utils.func import IdEnum
+
+from .resource import StaticResource
 
 # pyright: reportIncompatibleVariableOverride=false
 

@@ -16,10 +16,11 @@ from uuid import UUID
 
 from more_itertools import first
 
-from bench.language.core.const import NodeType, QueryType, SortType, active_session
-from bench.language.core.validation import on_invalid_raise
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.utils.fractional import get_key_bounds, get_order_key
+
+from .const import NodeType, QueryType, SortType, active_session
+from .validation import on_invalid_raise
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -180,7 +181,7 @@ class LocalNodeList[V: Node](NodeList[V], Sequence[V]):
     @override
     def create(self, **kwargs) -> V:
         if "name" in self._child_node_cls.__properties__ and "name" not in kwargs:
-            from bench.language.core.node import generate_node_name
+            from .node import generate_node_name
 
             # auto-generate name if required and not given :AutoNaming
             kwargs["name"] = generate_node_name(self._child_node_type, kwargs.get("type"), self)
@@ -438,7 +439,7 @@ class ValueList(list, Generic[ValueParentT]):
         *args,
         **kwargs,
     ):  # type: ignore
-        from bench.language.core.node import Property
+        from .node import Property
 
         super().__init__(*args, **kwargs)
         self.parent = parent

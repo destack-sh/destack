@@ -2,16 +2,18 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from bench.language.core.const import (
+from bench.proto.wire import InviteData, MembershipData, UserData
+
+from .const import (
     BlockType,
     NodeType,
     Region,
     StructType,
     UserStatus,
 )
-from bench.language.core.list import LocalNodeList
-from bench.language.core.node import BenchNode, Node, node_
-from bench.language.core.property import (
+from .list import LocalNodeList
+from .node import BenchNode, Node, node_
+from .property import (
     p_internal,
     p_kernel,
     p_node_children,
@@ -19,8 +21,7 @@ from bench.language.core.property import (
     p_regular,
     p_system,
 )
-from bench.language.core.validation import EMAIL_CONSTRAINT, NAME_CONSTRAINT, constraint
-from bench.proto.wire import InviteData, MembershipData, UserData
+from .validation import EMAIL_CONSTRAINT, NAME_CONSTRAINT, constraint
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, Handle, Icon, NodeReference, Text, User

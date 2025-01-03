@@ -1,8 +1,9 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import NodeType, node_, p_node_parent
-from bench.language.resource.resource import DynamicResource
 from bench.proto.wire.lang_pb2 import StreamData
+
+from .resource import DynamicResource
 
 if TYPE_CHECKING:
     from bench.language import Bench

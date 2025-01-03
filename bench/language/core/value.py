@@ -30,7 +30,18 @@ from google.protobuf.struct_pb2 import Value as ProtoValue
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
-from bench.language.core.const import (
+from bench.language.registry import (
+    BENCH_TYPE_BY_CLASS,
+    BUILTIN_OBJECT_CLASS_BY_TYPE,
+    ENUM_CLASS_BY_TYPE,
+    NODE_CLASS_BY_TYPE,
+)
+from bench.proto.wire import AnyNodeData, AnyStructData, Date, TimeOfDay
+from bench.utils.fractional import INTEGER_ZERO
+from bench.utils.func import IdEnum
+from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
+
+from .const import (
     FLOAT_EPSILON,
     PY_TYPE_BY_PRIMITIVE_TYPE,
     UNSET,
@@ -44,42 +55,29 @@ from bench.language.core.const import (
     StructType,
     TypeKind,
 )
-from bench.language.core.graph import NULL_SUPERGRAPH, NodeSuperGraph
-from bench.language.core.property import (
+from .graph import NULL_SUPERGRAPH, NodeSuperGraph
+from .property import (
     Property,
-    p_regular,
-    p_value_packed,
-    p_value_runtime,
 )
-from bench.language.core.validation import (
-    NAME_CONSTRAINT,
+from .validation import (
     TYPE_CONSTRAINT_BY_FORMAT,
     on_invalid_raise,
 )
-from bench.language.registry import (
-    BENCH_TYPE_BY_CLASS,
-    BUILTIN_OBJECT_CLASS_BY_TYPE,
-    ENUM_CLASS_BY_TYPE,
-    NODE_CLASS_BY_TYPE,
-)
-from bench.proto.wire import AnyNodeData, AnyStructData, Date, TimeOfDay
-from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.func import IdEnum
-from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 if TYPE_CHECKING:
     from bench.language import (
         BuiltinObject,
         Field,
         Node,
+        NodeReference,
         Session,
         Text,
         TypeBase,
         TypeConstraint,
         TypeConstraintIn,
-        TypeInfo,
     )
-    from bench.language.core.validation import ValidationHandler
+
+    from .validation import ValidationHandler
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -293,7 +291,7 @@ class CustomObject(Mapping[str, Any]):
         # set/track
         storage_key = key.key
         if track:
-            from bench.language.core.node import _trace_edit_operation
+            from .node import _trace_edit_operation
 
             old_value = self._value.get(storage_key)
             self._value[storage_key] = new_value
@@ -970,7 +968,7 @@ def check_value_scalar(
         if max_value is not None and value > max_value:
             invalid(value, "too large", typ)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
-        from bench.language.core.node import Node, NodeReference
+        from .node import Node, NodeReference
 
         if typ.bench_type is not None:
             allowed_types = (typ.bench_type,)
@@ -1847,7 +1845,7 @@ def unpack_proto_json(value: ProtoValue) -> JsonValue:
 
 
 # import later to avoid circular imports (Object is used in node.py)
-from bench.language.core.node import (  # noqa: E402
+from .node import (  # noqa: E402
     BuiltinObject,
     Node,
     NodeReference,
@@ -1857,6 +1855,7 @@ from bench.language.core.node import (  # noqa: E402
     object_,
     struct_,
 )
+from .property import p_regular  # noqa: E402
 
 # NOTE :Architecture: custom objects properties start at 900 to avoid interference
 #  (when used for partial nodes, especially when they have subtypes)
@@ -1923,18 +1922,3 @@ CUSTOM_OBJECT_CLASS_BY_KIND = {
     ObjectKind.INPUT: InputObject,
     ObjectKind.OUTPUT: OutputObject,
 }
-
-
-@struct_(StructType.VALUE)
-class Value(Struct):
-    """A generic typed 'freeform' value."""
-
-    type: "TypeInfo" = p_regular(31, struct=StructType.TYPE_INFO)
-    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
-    text: Optional["Text"] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.TEXT
-    )
-    value_packed: Any = p_value_packed(35)
-    value: Any = p_value_runtime(
-        35, kind=ObjectKind.MEMBER, typ=lambda self: cast("Value", self).type
-    )
