@@ -8,7 +8,13 @@ import {
   isUnloadedNodeType,
   TYPE_BLOCK_TYPES,
 } from "@/language/const";
-import { EnumOption, getEnumOption, getEnumOptions } from "@/language/enum";
+import {
+  ENUM_OPTIONS_BY_TYPE,
+  ENUM_OPTIONS_BY_VALUE,
+  EnumOption,
+  getEnumOption,
+  getEnumOptions,
+} from "@/language/enum";
 import { makeExpression } from "@/language/expression";
 import { getSubtypeEnum, makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/field";
 import type { NodeSuperGraph, ReadNodeGraph, TypedNodeKey } from "@/language/graph";
@@ -26,6 +32,7 @@ import {
   NodeType,
   PrimitiveType,
   ResourceStatus,
+  StructType,
   TextData,
   TypeFormat,
   TypeKind,
@@ -945,6 +952,7 @@ export function typeIndex(idx: {
 
       const allItems = [
         ...primitiveItems,
+        typeItemFromIntrinsic(EnumType.BENCH_TYPE, ENUM_OPTIONS_BY_VALUE[EnumType.BENCH_TYPE][StructType.TEXT]),
         ...typeFormatItems,
         ...fileItems,
         ...graphItems,

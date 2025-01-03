@@ -309,9 +309,9 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     };
   }
 
-  function sectionSchema(options?: { subtitle?: string; delegatePtr?: NodeReferenceData }) {
+  function sectionSchema(options?: { title?: string; subtitle?: string; delegatePtr?: NodeReferenceData }) {
     section(
-      "Schema",
+      options?.title ?? "Schema",
       [
         { type: "fields", fieldType: FieldType.INPUT, delegatePtr: options?.delegatePtr },
         { type: "icon", icon: makeIcon("fas fa-arrow-down") },
@@ -536,10 +536,11 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
           },
         }),
       );
+      // nocheckin: section for inputs & variables to delegate
       // schema from delegate
       const delegatePtr = node.delegatePtr;
       if (delegatePtr != null) {
-        sectionSchema({ subtitle: "(Delegate)", delegatePtr });
+        sectionSchema({ title: "Schema (Delegate)", delegatePtr });
       }
     } else if (node.type == ActionType.FAIL) {
       commonRows.push(rowProperty(FailActionProperty.errorTitle, { title: "Title" }));

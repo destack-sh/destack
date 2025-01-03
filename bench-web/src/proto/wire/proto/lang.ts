@@ -4137,10 +4137,6 @@ export interface RunData {
      */
     inputsPacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional google.protobuf.Value intermediates_packed = 62;
-     */
-    intermediatesPacked?: JsonValue;
-    /**
      * @generated from protobuf field: optional google.protobuf.Value outputs_packed = 63;
      */
     outputsPacked?: JsonValue;
@@ -4440,6 +4436,41 @@ export interface FieldData {
     mode: NodeMode;
 }
 /**
+ * An input field.
+ *
+ * @generated from protobuf message symbolx.bench.InputFieldData
+ */
+export interface InputFieldData {
+}
+/**
+ * An output field.
+ *
+ * @generated from protobuf message symbolx.bench.OutputFieldData
+ */
+export interface OutputFieldData {
+}
+/**
+ * A member field.
+ *
+ * @generated from protobuf message symbolx.bench.MemberFieldData
+ */
+export interface MemberFieldData {
+}
+/**
+ * A variable field.
+ *
+ * @generated from protobuf message symbolx.bench.VariableFieldData
+ */
+export interface VariableFieldData {
+}
+/**
+ * An option field.
+ *
+ * @generated from protobuf message symbolx.bench.OptionFieldData
+ */
+export interface OptionFieldData {
+}
+/**
  * @generated from protobuf message symbolx.bench.ActionData
  */
 export interface ActionData {
@@ -4551,6 +4582,14 @@ export interface ActionData {
      * @generated from protobuf field: repeated symbolx.bench.CallData calls = 55;
      */
     calls: CallData[];
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value variables_packed = 56;
+     */
+    variablesPacked?: JsonValue;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 57;
+     */
+    inputsPacked?: JsonValue;
     /**
      * @generated from protobuf field: optional symbolx.bench.Vector2Data position = 80;
      */
@@ -22141,7 +22180,6 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 56, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 60, name: "variables_packed", kind: "message", T: () => Value },
             { no: 61, name: "inputs_packed", kind: "message", T: () => Value },
-            { no: 62, name: "intermediates_packed", kind: "message", T: () => Value },
             { no: 63, name: "outputs_packed", kind: "message", T: () => Value },
             { no: 65, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogInfoData },
             { no: 66, name: "spans", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunSpanData },
@@ -22293,9 +22331,6 @@ class RunData$Type extends MessageType$<RunData> {
                     break;
                 case /* optional google.protobuf.Value inputs_packed */ 61:
                     message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* optional google.protobuf.Value intermediates_packed */ 62:
-                    message.intermediatesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional google.protobuf.Value outputs_packed */ 63:
                     message.outputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
@@ -22459,9 +22494,6 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional google.protobuf.Value inputs_packed = 61; */
         if (message.inputsPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(61, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value intermediates_packed = 62; */
-        if (message.intermediatesPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.intermediatesPacked), writer.tag(62, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value outputs_packed = 63; */
         if (message.outputsPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.outputsPacked), writer.tag(63, WireType.LengthDelimited).fork(), options).join();
@@ -23026,6 +23058,131 @@ class FieldData$Type extends MessageType$<FieldData> {
  */
 export const FieldData = new FieldData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class InputFieldData$Type extends MessageType$<InputFieldData> {
+    constructor() {
+        super("symbolx.bench.InputFieldData", []);
+    }
+    create(value?: PartialMessage<InputFieldData>): InputFieldData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<InputFieldData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: InputFieldData): InputFieldData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: InputFieldData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.InputFieldData
+ */
+export const InputFieldData = new InputFieldData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class OutputFieldData$Type extends MessageType$<OutputFieldData> {
+    constructor() {
+        super("symbolx.bench.OutputFieldData", []);
+    }
+    create(value?: PartialMessage<OutputFieldData>): OutputFieldData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<OutputFieldData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: OutputFieldData): OutputFieldData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: OutputFieldData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.OutputFieldData
+ */
+export const OutputFieldData = new OutputFieldData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class MemberFieldData$Type extends MessageType$<MemberFieldData> {
+    constructor() {
+        super("symbolx.bench.MemberFieldData", []);
+    }
+    create(value?: PartialMessage<MemberFieldData>): MemberFieldData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<MemberFieldData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: MemberFieldData): MemberFieldData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: MemberFieldData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.MemberFieldData
+ */
+export const MemberFieldData = new MemberFieldData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class VariableFieldData$Type extends MessageType$<VariableFieldData> {
+    constructor() {
+        super("symbolx.bench.VariableFieldData", []);
+    }
+    create(value?: PartialMessage<VariableFieldData>): VariableFieldData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<VariableFieldData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VariableFieldData): VariableFieldData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: VariableFieldData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.VariableFieldData
+ */
+export const VariableFieldData = new VariableFieldData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class OptionFieldData$Type extends MessageType$<OptionFieldData> {
+    constructor() {
+        super("symbolx.bench.OptionFieldData", []);
+    }
+    create(value?: PartialMessage<OptionFieldData>): OptionFieldData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<OptionFieldData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: OptionFieldData): OptionFieldData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: OptionFieldData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.OptionFieldData
+ */
+export const OptionFieldData = new OptionFieldData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class ActionData$Type extends MessageType$<ActionData> {
     constructor() {
         super("symbolx.bench.ActionData", [
@@ -23056,6 +23213,8 @@ class ActionData$Type extends MessageType$<ActionData> {
             { no: 52, name: "code", kind: "message", T: () => CodeData },
             { no: 53, name: "delegate_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 55, name: "calls", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => CallData },
+            { no: 56, name: "variables_packed", kind: "message", T: () => Value },
+            { no: 57, name: "inputs_packed", kind: "message", T: () => Value },
             { no: 80, name: "position", kind: "message", T: () => Vector2Data },
             { no: 90, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] }
         ]);
@@ -23163,6 +23322,12 @@ class ActionData$Type extends MessageType$<ActionData> {
                 case /* repeated symbolx.bench.CallData calls */ 55:
                     message.calls.push(CallData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
+                case /* optional google.protobuf.Value variables_packed */ 56:
+                    message.variablesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* optional google.protobuf.Value inputs_packed */ 57:
+                    message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
                 case /* optional symbolx.bench.Vector2Data position */ 80:
                     message.position = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
@@ -23262,6 +23427,12 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* repeated symbolx.bench.CallData calls = 55; */
         for (let i = 0; i < message.calls.length; i++)
             CallData.internalBinaryWrite(message.calls[i], writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value variables_packed = 56; */
+        if (message.variablesPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(56, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value inputs_packed = 57; */
+        if (message.inputsPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(57, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.Vector2Data position = 80; */
         if (message.position)
             Vector2Data.internalBinaryWrite(message.position, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
@@ -27760,6 +27931,15 @@ export interface BlockSubtypeMapping extends Record<BlockType, BlockSubtype> {
   [BlockType.DATABASE]: DatabaseBlockData,
 }
 
+export type FieldSubtype = InputFieldData | OutputFieldData | MemberFieldData | VariableFieldData | OptionFieldData;
+export interface FieldSubtypeMapping extends Record<FieldType, FieldSubtype> {
+  [FieldType.INPUT]: InputFieldData,
+  [FieldType.OUTPUT]: OutputFieldData,
+  [FieldType.MEMBER]: MemberFieldData,
+  [FieldType.VARIABLE]: VariableFieldData,
+  [FieldType.OPTION]: OptionFieldData,
+}
+
 export type ViewSubtype = UserWizardViewData | HelpViewData | DetailViewData | RunViewData | HubViewData | ListViewData | TreeViewData | FeedViewData | ButtonViewData | IconViewData | PickerViewData | DatetimeViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.USER_WIZARD]: UserWizardViewData,
@@ -27813,6 +27993,7 @@ export interface PipeSubtypeMapping extends Record<PipeType, PipeSubtype> {
 export interface NodeSubtypeMapping extends Record<NodeType, object> {
   [NodeType.SCALER]: ScalerSubtypeMapping,
   [NodeType.BLOCK]: BlockSubtypeMapping,
+  [NodeType.FIELD]: FieldSubtypeMapping,
   [NodeType.VIEW]: ViewSubtypeMapping,
   [NodeType.ACTION]: ActionSubtypeMapping,
   [NodeType.PIPE]: PipeSubtypeMapping,
@@ -28642,6 +28823,8 @@ export enum ActionProperty {
   code = 52,
   delegatePtr = 53,
   calls = 55,
+  variablesPacked = 56,
+  inputsPacked = 57,
   position = 80,
   mode = 90,
 }
@@ -28794,7 +28977,6 @@ export enum RunProperty {
   interruptionPtr = 56,
   variablesPacked = 60,
   inputsPacked = 61,
-  intermediatesPacked = 62,
   outputsPacked = 63,
   logs = 65,
   spans = 66,
@@ -28913,6 +29095,26 @@ export enum FlowBlockProperty {
 }
 
 export enum DatabaseBlockProperty {
+
+}
+
+export enum InputFieldProperty {
+
+}
+
+export enum OutputFieldProperty {
+
+}
+
+export enum MemberFieldProperty {
+
+}
+
+export enum VariableFieldProperty {
+
+}
+
+export enum OptionFieldProperty {
 
 }
 
@@ -29933,6 +30135,14 @@ export const BLOCK_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<BlockType, any>> = {
   [BlockType.DATABASE]: DatabaseBlockProperty,
 }
 
+export const FIELD_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<FieldType, any>> = {
+  [FieldType.INPUT]: InputFieldProperty,
+  [FieldType.OUTPUT]: OutputFieldProperty,
+  [FieldType.MEMBER]: MemberFieldProperty,
+  [FieldType.VARIABLE]: VariableFieldProperty,
+  [FieldType.OPTION]: OptionFieldProperty,
+}
+
 export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
   [ViewType.USER_WIZARD]: UserWizardViewProperty,
   [ViewType.HELP]: HelpViewProperty,
@@ -29983,6 +30193,7 @@ export const PIPE_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<PipeType, any>> = {
 export const PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<NodeType, Record<any, any>>> = {
   [NodeType.SCALER]: SCALER_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.BLOCK]: BLOCK_PROPERTY_ENUM_BY_SUBTYPE,
+  [NodeType.FIELD]: FIELD_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.VIEW]: VIEW_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.ACTION]: ACTION_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.PIPE]: PIPE_PROPERTY_ENUM_BY_SUBTYPE,
@@ -30235,8 +30446,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.02.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.02.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.03.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.03.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30269,8 +30480,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.02.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.02.4", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.03.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.03.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30634,6 +30845,8 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.code]: { id: 52, name: 'code', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ActionProperty.delegatePtr]: { id: 53, name: 'delegate_ptr', component: ObjectType.ACTION, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [22] }, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.calls]: { id: 55, name: 'calls', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.OUTPUT, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CALL },
+  [ActionProperty.variablesPacked]: { id: 56, name: 'variables_packed', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [ActionProperty.inputsPacked]: { id: 57, name: 'inputs_packed', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ActionProperty.position]: { id: 80, name: 'position', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [ActionProperty.mode]: { id: 90, name: 'mode', component: ObjectType.ACTION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -30781,7 +30994,6 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.interruptionPtr]: { id: 56, name: 'interruption_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.variablesPacked]: { id: 60, name: 'variables_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.inputsPacked]: { id: 61, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.intermediatesPacked]: { id: 62, name: 'intermediates_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.outputsPacked]: { id: 63, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.logs]: { id: 65, name: 'logs', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LOG_INFO },
   [RunProperty.spans]: { id: 66, name: 'spans', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_SPAN },
@@ -30891,6 +31103,21 @@ export const FlowBlockDataInfo: Record<FlowBlockProperty, PropertyInfo> = {
 
 }
 export const DatabaseBlockDataInfo: Record<DatabaseBlockProperty, PropertyInfo> = {
+
+}
+export const InputFieldDataInfo: Record<InputFieldProperty, PropertyInfo> = {
+
+}
+export const OutputFieldDataInfo: Record<OutputFieldProperty, PropertyInfo> = {
+
+}
+export const MemberFieldDataInfo: Record<MemberFieldProperty, PropertyInfo> = {
+
+}
+export const VariableFieldDataInfo: Record<VariableFieldProperty, PropertyInfo> = {
+
+}
+export const OptionFieldDataInfo: Record<OptionFieldProperty, PropertyInfo> = {
 
 }
 export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo> = {
@@ -31696,6 +31923,13 @@ export const BlockSubtypePropertyInfo: Partial<Record<BlockType, Record<any, Pro
   [BlockType.FLOW]: FlowBlockDataInfo,
   [BlockType.DATABASE]: DatabaseBlockDataInfo,
 }
+export const FieldSubtypePropertyInfo: Partial<Record<FieldType, Record<any, PropertyInfo>>> = {
+  [FieldType.INPUT]: InputFieldDataInfo,
+  [FieldType.OUTPUT]: OutputFieldDataInfo,
+  [FieldType.MEMBER]: MemberFieldDataInfo,
+  [FieldType.VARIABLE]: VariableFieldDataInfo,
+  [FieldType.OPTION]: OptionFieldDataInfo,
+}
 export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, PropertyInfo>>> = {
   [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
   [ViewType.HELP]: HelpViewDataInfo,
@@ -31743,6 +31977,7 @@ export const PipeSubtypePropertyInfo: Partial<Record<PipeType, Record<any, Prope
 export const PROPERTY_INFOS_BY_SUBTYPE: Partial<Record<NodeType, Record<any, Record<any, PropertyInfo>>>> = {
   [NodeType.SCALER]: ScalerSubtypePropertyInfo,
   [NodeType.BLOCK]: BlockSubtypePropertyInfo,
+  [NodeType.FIELD]: FieldSubtypePropertyInfo,
   [NodeType.VIEW]: ViewSubtypePropertyInfo,
   [NodeType.ACTION]: ActionSubtypePropertyInfo,
   [NodeType.PIPE]: PipeSubtypePropertyInfo,

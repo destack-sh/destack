@@ -403,10 +403,6 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     inputs: "CustomObject | None" = p_value_runtime(
         61, kind=ObjectKind.INPUT, typ=lambda self: cast("Run", self).input_type
     )
-    intermediates_packed: Any = p_value_packed(62)
-    intermediates: "CustomObject | None" = p_value_runtime(
-        62, kind=ObjectKind.OUTPUT, typ=lambda self: cast("Run", self).output_type
-    )
     outputs_packed: Any = p_value_packed(63)
     outputs: "CustomObject | None" = p_value_runtime(
         63, kind=ObjectKind.OUTPUT, typ=lambda self: cast("Run", self).output_type

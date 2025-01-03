@@ -474,6 +474,8 @@ def make_run_from_node(
         variables = {}
     if run.variable_type is not None:
         variables = coerce_custom_object_scalar(ObjectKind.VARIABLE, variables, run.variable_type)
+        if type(node) is Action and node.inputs_packed is not None:
+            variables.set_default(node.inputs, _skip_validate=True)
         run.variables = variables
 
     # inputs
@@ -481,6 +483,8 @@ def make_run_from_node(
         inputs = {}
     if run.input_type is not None:
         inputs = coerce_custom_object_scalar(ObjectKind.INPUT, inputs, run.input_type)
+        if type(node) is Action and node.inputs_packed is not None:
+            inputs.set_default(node.inputs, _skip_validate=True)
         run.inputs = inputs
 
     return run
