@@ -265,7 +265,7 @@ async def test_run_flow_fail_action(local_runtime: RuntimeHandle):
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
     Fail = Action.new(
-        ActionType.FAIL, "Fail", error_title="Fail title", error_text=Text.plain("Fail text")
+        ActionType.FAIL, "Fail", error_name="Fail title", error_text=Text.plain("Fail text")
     )
     Flow1.actions.extend(Start, Fail)
     Start.connect(PipeType.FORWARD, Fail)
@@ -340,7 +340,7 @@ async def test_run_flow_clone_action(hosted_runtime: RuntimeHandle):
 async def test_run_flow_update_action(hosted_runtime: RuntimeHandle):
     """Run an UpdateAction to update a Record."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=(Field.member("Rating", int),))
-    Record1 = Database1.records.create(title="Record1", Rating=1)
+    Record1 = Database1.records.create(name="Record1", Rating=1)
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Update = Action.new(ActionType.UPDATE, "Update")
     Flow1.actions.append(Update)
@@ -351,7 +351,7 @@ async def test_run_flow_update_action(hosted_runtime: RuntimeHandle):
         Update,
         inputs={
             "node": Record1,
-            "node_partial": Record.partial(block=Database1, title="Record1.1", Rating=3),
+            "node_partial": Record.partial(block=Database1, name="Record1.1", Rating=3),
         },
     )
     assert runner.status == RunStatus.COMPLETED

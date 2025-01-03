@@ -188,8 +188,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                 else:
                     calls = ()
                 for pipe in self.get_pipes_at(runner.node, PortSide.OUTGOING):
-                    # check if Pipe should be continued
-                    if pipe.type == PipeType.FORWARD or (
+                    if pipe.type in (PipeType.FORWARD, PipeType.FORWARD_AND_BACK) or (
                         pipe.type in (PipeType.SELECT, PipeType.SELECT_AND_BACK)
                         and any(c.node == pipe or c.node == pipe.target for c in calls)
                     ):

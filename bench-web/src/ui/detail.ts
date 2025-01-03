@@ -514,6 +514,12 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     section(undefined, commonRows);
     commonRows.push(rowProperty(ActionProperty.text, { title: false, props: { placeholder: "Text..." } }));
 
+    if (node.type == ActionType.START || node.type == ActionType.COMPLETE) {
+      sectionSchema({ subtitle: "(Flow)", delegatePtr: node.parentPtr });
+    } else if (!BOUNDARY_ACTION_TYPES.includes(node.type)) {
+      sectionSchema();
+    }
+
     if (node.type == ActionType.CODE) {
       commonRows.push(rowProperty(ActionProperty.code, { isFullWidth: true }));
     } else if (node.type == ActionType.DELEGATE) {
@@ -530,19 +536,14 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
           },
         }),
       );
-      const action = subnode as ActionData | undefined;
       // schema from delegate
-      const delegatePtr = action?.delegatePtr;
+      const delegatePtr = node.delegatePtr;
       if (delegatePtr != null) {
         sectionSchema({ subtitle: "(Delegate)", delegatePtr });
-      } else {
-        section("Schema", [{ type: "text", text: "No delegate set." }]);
       }
     } else if (node.type == ActionType.FAIL) {
-      section("Error", [
-        rowProperty(FailActionProperty.errorTitle, { title: "Title" }),
-        rowProperty(FailActionProperty.errorText, { title: "Text" }),
-      ]);
+      commonRows.push(rowProperty(FailActionProperty.errorTitle, { title: "Title" }));
+      commonRows.push(rowProperty(FailActionProperty.errorText, { title: "Text" }));
     } else {
       // add all from subproperty enum
       if (subpropertyEnum != null) {
