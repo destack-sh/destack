@@ -9,9 +9,10 @@ from bench.language.core import (
     p_kernel,
     p_system,
 )
-from bench.language.resource.resource import StaticResource
 from bench.proto.wire import StoreData
 from bench.utils.func import IdEnum
+
+from .resource import StaticResource
 
 # pyright: reportIncompatibleVariableOverride=false
 

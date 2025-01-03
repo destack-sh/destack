@@ -42,6 +42,7 @@ from bench.language.core import (
     SplitChannel,
     Struct,
     StructType,
+    Transaction,
     _active_session,
     p_internal,
     p_node_parent,
@@ -52,7 +53,6 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.language.core.transaction import Transaction
 from bench.proto import wire
 from bench.proto.wire import (
     ClientOriginData,

@@ -45,7 +45,6 @@ from bench.language.core import (
     run_span,
     struct_,
 )
-from bench.language.resource.resource import DynamicResource
 from bench.proto.networking import MACHINE_ENVIRONMENT
 from bench.proto.wire import (
     DownloadFilesRequest,
@@ -56,6 +55,8 @@ from bench.proto.wire import (
 from bench.utils.func import IdEnum, group_by
 from bench.utils.string import humanize_bytes
 from bench.utils.utils import get_from_env
+
+from .resource import DynamicResource
 
 if TYPE_CHECKING:
     from magika import Magika

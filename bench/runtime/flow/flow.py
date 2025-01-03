@@ -4,6 +4,7 @@ from typing import Any, ClassVar, Literal, Sequence, assert_never, cast, overrid
 from uuid import UUID
 
 import structlog
+from more_itertools import first
 from opentelemetry import trace
 
 from bench.language import (
@@ -189,6 +190,8 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         logger.debug("flow.tick.stopped", flow=self.node, node=runner.node, runner=runner, exc=exc)
         self._active_runners_by_id.pop(runner.id)
 
+        # nocheckin: support Flow 'and back' + (repeated) Calls
+
         if runner.status == RunStatus.COMPLETED:
             # feed forward connected Pipes/Actions
             outgoing: list[Run] = []
@@ -202,28 +205,15 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                         pipe.type in (PipeType.SELECT, PipeType.SELECT_AND_BACK)
                         and any(c.node == pipe or c.node == pipe.target for c in calls)
                     ):
-                        # assemble Pipe inputs :PipeMapping
-                        input_type = pipe.input_type
-                        assert input_type is not None, f"no input type for {pipe!r}"
-                        inputs = CustomObject.new(
-                            ObjectKind.INPUT,
-                            {},
-                            input_type,
-                            supergraph=self.runtime.session._supergraph,
-                        )
-                        if runner.outputs is not None:
-                            for field in inputs._type._fields:
-                                key = inputs._get_key(field.name)
-                                if key is not None:
-                                    inputs[field] = runner.outputs._do_get(field)
-
-                        # run it
+                        call = first((c for c in calls if c.node == pipe), None)
                         next_run = self._start(
-                            pipe, variables=None, inputs=inputs, incoming=(runner.tracked_run,)
+                            pipe,
+                            variables=None,
+                            inputs=call.inputs if call is not None else None,
+                            incoming=(runner.tracked_run,),
                         )
                         outgoing.append(next_run)
             elif isinstance(runner.node, Pipe):
-                # assemble Action inputs :PipeMapping
                 next_run = self._start(
                     runner.node.target,
                     variables=None,

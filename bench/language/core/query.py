@@ -18,8 +18,12 @@ from typing import (
 import structlog
 from opentelemetry import trace
 
-from bench.language.core.connection import AggregateOptions, ConnectMode, SearchConnection
-from bench.language.core.const import (
+from bench.language.registry import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_completing_setup
+from bench.proto.wire import AnyNodeData
+from bench.utils.func import stable_hash
+
+from .connection import AggregateOptions, ConnectMode, SearchConnection
+from .const import (
     AggregationType,
     BenchError,
     ExpressionKind,
@@ -29,18 +33,15 @@ from bench.language.core.const import (
     StructType,
     active_session,
 )
-from bench.language.core.expression import Expression, coerce_conditional
-from bench.language.core.node import (
+from .expression import Expression, coerce_conditional
+from .node import (
     NODE_CLASS_BY_TYPE,
     Node,
     NodeReference,
     Struct,
     struct_,
 )
-from bench.language.core.property import Property, p_regular
-from bench.language.registry import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_completing_setup
-from bench.proto.wire import AnyNodeData
-from bench.utils.func import stable_hash
+from .property import Property, p_regular
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -253,7 +254,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         first: int | None = None,
         skip: int | None = None,
     ):
-        from bench.language.core.node import Node
+        from .node import Node
 
         # root
         self._type = type
@@ -374,7 +375,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
 
     def where(self, filter: Optional["Expression"] = None, **kwargs) -> "Query[NodeT, NodeDataT]":
         """Adds a filter clause to the query."""
-        from bench.language.core.expression import coerce_conditional
+        from .expression import coerce_conditional
 
         filter = coerce_conditional(
             node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
@@ -393,7 +394,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         *args: str,
     ) -> "Query[NodeT, NodeDataT]":
         """Sorts the query results by the given sort criteria."""
-        from bench.language.core.expression import coerce_sort
+        from .expression import coerce_sort
 
         clone = self.clone()
         clone._sort = coerce_sort(
@@ -581,7 +582,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         **kwargs,
     ) -> list[NodeT]:
         """Fetches the nodes matching the query."""
-        from bench.language.core.connection import SearchOptions
+        from .connection import SearchOptions
 
         filter = coerce_conditional(
             node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
@@ -596,7 +597,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         self, filter: Optional["Expression"] = None, mode: ConnectMode = "both", **kwargs
     ) -> "SearchConnection[Any, NodeT]":
         """Fetches the nodes matching the query (live)."""
-        from bench.language.core.connection import SearchOptions
+        from .connection import SearchOptions
 
         filter = coerce_conditional(
             node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
@@ -625,7 +626,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         self, filter: Optional["Expression"] = None, mode: ConnectMode = "unpacked", **kwargs
     ) -> int:
         """Returns the number of results."""
-        from bench.language.core.expression import A, coerce_conditional
+        from .expression import A, coerce_conditional
 
         # prepare
         filter = coerce_conditional(
@@ -648,7 +649,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         self, filter: Optional["Expression"] = None, mode: ConnectMode = "unpacked", **kwargs
     ) -> bool:
         """Whether any nodes match the query."""
-        from bench.language.core.expression import A, coerce_conditional
+        from .expression import A, coerce_conditional
 
         # prepare
         filter = coerce_conditional(

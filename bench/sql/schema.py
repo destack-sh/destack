@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2025.01.03.1"
+VERSION = "2025.01.03.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -678,6 +678,7 @@ DEPENDENCY_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("depends_on_bench_id", PrimitiveType.UUID),
         Column("depends_on_packages_id", PrimitiveType.UUID, is_array=True),
@@ -712,6 +713,7 @@ SPACE_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),
@@ -772,6 +774,7 @@ BLOCK_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),
@@ -820,6 +823,7 @@ FIELD_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
         Column("name", PrimitiveType.STRING),
@@ -876,6 +880,7 @@ VIEW_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT32),
         Column("name", PrimitiveType.STRING),
@@ -936,6 +941,7 @@ ACTION_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),
@@ -987,6 +993,7 @@ PIPE_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),

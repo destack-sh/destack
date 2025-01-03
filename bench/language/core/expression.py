@@ -10,9 +10,14 @@ import regex
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from bench.language.core.const import (
+from bench.proto.wire import AnyNodeData, NodeReferenceData
+from bench.utils.func import IdEnum
+from bench.utils.string import Casing, to_casing
+
+from .const import (
     AggregationType,
     ConditionalType,
+    EnumType,
     ExpressionKind,
     ExpressionType,
     FieldType,
@@ -22,22 +27,23 @@ from bench.language.core.const import (
     SortMode,
     SortType,
     StructType,
+    enum_,
 )
-from bench.language.core.node import (
+from .node import (
     Node,
     NodeReference,
     Property,
     PropertyReference,
+    SourceNode,
     Struct,
     struct_,
 )
-from bench.language.core.property import p_regular, p_value_packed, p_value_runtime
-from bench.language.core.value import unpack_proto_json
-from bench.proto.wire import AnyNodeData, NodeReferenceData
-from bench.utils.string import Casing, to_casing
+from .property import p_regular, p_value_packed, p_value_runtime
+from .validation import NAME_CONSTRAINT
+from .value import unpack_proto_json
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, TypeBase
+    from bench.language import Block, Field, Text, TypeBase, TypeInfo
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -93,7 +99,7 @@ property_ = property
 @struct_(StructType.EXPRESSION)
 class Expression(Struct):
     """
-    An expression like a value, function, comparison or such.
+    An Expression like a value, function, comparison or such.
     """
 
     type: ExpressionType = p_regular(30, require=True)
@@ -716,7 +722,7 @@ NodeTypeOrClass = Union[NodeType, type[Node]]
 def _require_expression_op(op: ExpressionType):
     def decorator(func):
         @functools.wraps(func)
-        def wrapper(self: "_TypeQuery", *args, **kwargs):
+        def wrapper(self: "_IntoQuery", *args, **kwargs):
             _check_type_supports(self.type_info, op)
             return func(self, *args, **kwargs)
 
@@ -739,7 +745,7 @@ def _to_sort(op: SortType, target: Union["Field", "Property"]):
         return S(op, field=target, property=None)
 
 
-class _TypeQuery:
+class _IntoQuery:
     """
     Base for field-like  on a field-like class.
     We define this here to use it for Property and Field.
@@ -879,3 +885,106 @@ class _TypeQuery:
     #
 
     ...
+
+
+#
+# Value / value mappings & transformations
+#
+
+
+@struct_(StructType.VALUE)
+class Value(Struct):
+    """A generic typed 'freeform' value."""
+
+    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
+    text: Optional["Text"] = p_regular(
+        33, default=None, require=False, array=False, struct=StructType.TEXT
+    )
+    value_type: "TypeInfo" = p_regular(35, struct=StructType.TYPE_INFO)
+    value_packed: Any = p_value_packed(36)
+    value: Any = p_value_runtime(
+        36, kind=ObjectKind.MEMBER, typ=lambda self: cast("Value", self).value_type
+    )
+
+
+@enum_(EnumType.COMPUTED_VALUE_KIND)
+class ComputedValueKind(IdEnum):
+    pass
+
+
+@enum_(EnumType.COMPUTED_SOURCE_KIND)
+class ComputedSourceKind(IdEnum):
+    NODE = 1
+    CONTEXT = 2
+
+
+@struct_(StructType.COMPUTED_VALUE)
+class ComputedValue(Struct):
+    """
+    A computed value for a certain Property/Field on a Node.
+    The value is computed and set according to the context (and may be re-computed later,
+     for instance at the start of a Run or inside an instanced View in a UI).
+    The property/field corresponds to the last element of the path (so we know the type).
+    """
+
+    # meta
+    # scope...?
+
+    # path to set at
+    target_path: list[str] = p_regular(40, array=True)
+    target_property: Optional[Property] = p_regular(
+        41, array=False, require=False, struct=StructType.PROPERTY_REFERENCE
+    )
+    target_field: Optional["Field"] = p_regular(
+        42, array=False, require=False, references=NodeType.FIELD
+    )
+    if TYPE_CHECKING:
+        target_property_ptr: Optional["PropertyReference"] = None
+        target_field_ptr: Optional["NodeReference"] = None
+
+    # value to set
+    source_kind: Optional[ComputedSourceKind] = p_regular(50)
+    source_node: Optional["SourceNode"] = p_regular(
+        51, array=False, require=False, references="any"
+    )
+    source_path: list[str] = p_regular(52, array=True)
+    source_property: Optional[Property] = p_regular(
+        53, array=False, require=False, struct=StructType.PROPERTY_REFERENCE
+    )
+    source_field: Optional["Field"] = p_regular(
+        54, array=False, require=False, references=NodeType.FIELD
+    )
+
+    @functools.cached_property
+    def source_value_type(self) -> "TypeBase | None":
+        if (source_property := self.source_property) is not None:
+            return source_property.type_info
+        elif (source_field := self.source_field) is not None:
+            return source_field
+        else:
+            return None
+
+    @functools.cached_property
+    def target_value_type(self) -> "TypeBase | None":
+        if (target_property := self.target_property) is not None:
+            return target_property.type_info
+        elif (target_field := self.target_field) is not None:
+            return target_field
+        else:
+            return None
+
+    @staticmethod
+    def new(
+        target_path: Sequence[Property | Field],
+        *,
+        source_path: Sequence[Property | Field],
+        source_node: "SourceNode | None" = None,
+    ) -> "ComputedValue":
+        raise NotImplementedError
+
+
+@struct_(StructType.OBJECT_MAPPING)
+class ObjectMapping(Struct):
+    mappings: list["ComputedValue"] = p_regular(
+        40, require=True, array=True, struct=StructType.COMPUTED_VALUE
+    )

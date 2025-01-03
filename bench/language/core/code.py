@@ -5,10 +5,11 @@ import black
 import structlog
 from opentelemetry import trace
 
-from bench.language.core.const import EnumType, StructType, enum_
-from bench.language.core.node import Struct, struct_
-from bench.language.core.property import p_regular
 from bench.utils.func import IdEnum
+
+from .const import EnumType, StructType, enum_
+from .node import Struct, struct_
+from .property import p_regular
 
 if TYPE_CHECKING:
     pass

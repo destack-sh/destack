@@ -11,16 +11,6 @@ from google.protobuf.struct_pb2 import Value as ProtoValue
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
-from bench.language.core.connection import Channel, WritableChannel
-from bench.language.core.const import (
-    TK_LENGTH_B64,
-    EditOperationType,
-    EditType,
-    NodeType,
-    PrimitiveType,
-    StructType,
-)
-from bench.language.core.graph import NodeDataGraph, NodeGraph
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.proto.wire import (
     AnyNodeData,
@@ -35,6 +25,16 @@ from bench.proto.wire.lang_pb2 import EditOperationData
 from bench.utils.func import partition
 from bench.utils.uuidt import UUIDT
 
+from .connection import Channel, WritableChannel
+from .const import (
+    TK_LENGTH_B64,
+    EditOperationType,
+    EditType,
+    NodeType,
+    PrimitiveType,
+    StructType,
+)
+from .graph import NodeDataGraph, NodeGraph
 from .node import (
     EDIT_SUBJECT_TYPES,
     BuiltinObject,

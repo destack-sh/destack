@@ -40,7 +40,7 @@ from .field import (
     to_type,
     to_type_scalar,
 )
-from .flow import FieldMapping, ObjectMapping, Pipe, PipeType, PortSide
+from .flow import Pipe, PipeType, PortSide
 from .project import Projection, ProjectOptions, project
 from .render import Renderer, RenderOptions, render, render_expr, render_stmt
 from .trigger import Schedule, ScheduleType
@@ -91,7 +91,6 @@ __all__ = [
     "DuplicateAction",
     "FailAction",
     "Field",
-    "FieldMapping",
     "FieldType",
     "FlowBlock",
     "Font",
@@ -106,7 +105,6 @@ __all__ = [
     "Icon",
     "IconKind",
     "Line",
-    "ObjectMapping",
     "ObserveAction",
     "Offset",
     "Orientation",

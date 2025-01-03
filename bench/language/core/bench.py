@@ -1,7 +1,14 @@
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.language.core.const import (
+from bench.proto.wire import (
+    BenchData,
+    DependencyData,
+    PackageData,
+)
+from bench.utils.func import IdEnum, generate_encryption_key
+
+from .const import (
     REGION,
     EnumType,
     NodeType,
@@ -9,28 +16,22 @@ from bench.language.core.const import (
     StructType,
     enum_,
 )
-from bench.language.core.list import LocalNodeList
-from bench.language.core.node import (
+from .list import LocalNodeList
+from .node import (
     OWNER_TYPES,
     BenchNode,
     Owner,
     SourceNode,
     node_,
 )
-from bench.language.core.property import (
+from .property import (
     p_kernel,
     p_node_children,
     p_node_parent,
     p_regular,
     p_system,
 )
-from bench.language.core.validation import NAME_CONSTRAINT, SLUG_CONSTRAINT
-from bench.proto.wire import (
-    BenchData,
-    DependencyData,
-    PackageData,
-)
-from bench.utils.func import IdEnum, generate_encryption_key
+from .validation import NAME_CONSTRAINT, SLUG_CONSTRAINT
 
 if TYPE_CHECKING:
     from bench.language import (

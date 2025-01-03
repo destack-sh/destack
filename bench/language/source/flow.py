@@ -9,7 +9,6 @@ from bench.language.core import (
     NodeType,
     RunType,
     SourceNode,
-    Struct,
     StructType,
     enum_,
     node_,
@@ -17,7 +16,6 @@ from bench.language.core import (
     p_internal,
     p_node_parent,
     p_regular,
-    struct_,
 )
 from bench.proto.wire import PipeData
 from bench.utils.fractional import INTEGER_ZERO
@@ -31,26 +29,12 @@ if TYPE_CHECKING:
         Block,
         Color,
         Expression,
-        Field,
         NodeReference,
         RunOptions,
         Text,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@struct_(StructType.OBJECT_MAPPING)
-class ObjectMapping(Struct):
-    field_mappings: list["FieldMapping"] = p_regular(
-        40, require=True, array=True, struct=StructType.FIELD_MAPPING
-    )
-
-
-@struct_(StructType.FIELD_MAPPING)
-class FieldMapping(Struct):
-    source: "Field" = p_regular(35, require=True, references=NodeType.FIELD)
-    target: "Field" = p_regular(36, require=True, references=NodeType.FIELD)
 
 
 @enum_(EnumType.PORT_SIDE)
@@ -121,16 +105,6 @@ class Pipe(SourceNode[PipeData]):
     )
     constraint: Optional["TypeConstraint"] = p_regular(
         62, default=None, array=False, struct=StructType.TYPE_CONSTRAINT
-    )
-
-    # mapping
-    mapping: Optional["ObjectMapping"] = p_regular(
-        70,
-        default=None,
-        require=False,
-        array=False,
-        struct=StructType.OBJECT_MAPPING,
-        description="Mapping for inputs from source node into target node.",
     )
 
     # modulation

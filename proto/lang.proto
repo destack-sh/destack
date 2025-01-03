@@ -181,13 +181,14 @@ enum StructType {
   STRUCT_TYPE_CODE_LINE = 12101;
   STRUCT_TYPE_PATH = 12200;
   STRUCT_TYPE_PATH_TOKEN = 12201;
-  STRUCT_TYPE_EXPRESSION = 12202;
-  STRUCT_TYPE_AGGREGATION_RESULT = 12203;
-  STRUCT_TYPE_SELECTION = 12204;
-  STRUCT_TYPE_SELECT_OPTIONS = 12205;
-  STRUCT_TYPE_VALUE = 12206;
-  STRUCT_TYPE_OBJECT_MAPPING = 12208;
-  STRUCT_TYPE_FIELD_MAPPING = 12209;
+  STRUCT_TYPE_EXPRESSION = 12210;
+  STRUCT_TYPE_AGGREGATION_RESULT = 12211;
+  STRUCT_TYPE_SELECTION = 12220;
+  STRUCT_TYPE_SELECT_OPTIONS = 12230;
+  STRUCT_TYPE_VALUE = 12240;
+  STRUCT_TYPE_COMPUTED_VALUE = 12241;
+  STRUCT_TYPE_OBJECT_MAPPING = 12250;
+  STRUCT_TYPE_FIELD_MAPPING = 12251;
   STRUCT_TYPE_RUN_ERROR = 12700;
   STRUCT_TYPE_RUN_OPTIONS = 12701;
   STRUCT_TYPE_RUN_ATTEMPT = 12702;
@@ -281,13 +282,14 @@ enum ObjectType {
   OBJECT_TYPE_CODE_LINE = 12101;
   OBJECT_TYPE_PATH = 12200;
   OBJECT_TYPE_PATH_TOKEN = 12201;
-  OBJECT_TYPE_EXPRESSION = 12202;
-  OBJECT_TYPE_AGGREGATION_RESULT = 12203;
-  OBJECT_TYPE_SELECTION = 12204;
-  OBJECT_TYPE_SELECT_OPTIONS = 12205;
-  OBJECT_TYPE_VALUE = 12206;
-  OBJECT_TYPE_OBJECT_MAPPING = 12208;
-  OBJECT_TYPE_FIELD_MAPPING = 12209;
+  OBJECT_TYPE_EXPRESSION = 12210;
+  OBJECT_TYPE_AGGREGATION_RESULT = 12211;
+  OBJECT_TYPE_SELECTION = 12220;
+  OBJECT_TYPE_SELECT_OPTIONS = 12230;
+  OBJECT_TYPE_VALUE = 12240;
+  OBJECT_TYPE_COMPUTED_VALUE = 12241;
+  OBJECT_TYPE_OBJECT_MAPPING = 12250;
+  OBJECT_TYPE_FIELD_MAPPING = 12251;
   OBJECT_TYPE_RUN_ERROR = 12700;
   OBJECT_TYPE_RUN_OPTIONS = 12701;
   OBJECT_TYPE_RUN_ATTEMPT = 12702;
@@ -429,13 +431,14 @@ enum BenchType {
   BENCH_TYPE_CODE_LINE = 12101;
   BENCH_TYPE_PATH = 12200;
   BENCH_TYPE_PATH_TOKEN = 12201;
-  BENCH_TYPE_EXPRESSION = 12202;
-  BENCH_TYPE_AGGREGATION_RESULT = 12203;
-  BENCH_TYPE_SELECTION = 12204;
-  BENCH_TYPE_SELECT_OPTIONS = 12205;
-  BENCH_TYPE_VALUE = 12206;
-  BENCH_TYPE_OBJECT_MAPPING = 12208;
-  BENCH_TYPE_FIELD_MAPPING = 12209;
+  BENCH_TYPE_EXPRESSION = 12210;
+  BENCH_TYPE_AGGREGATION_RESULT = 12211;
+  BENCH_TYPE_SELECTION = 12220;
+  BENCH_TYPE_SELECT_OPTIONS = 12230;
+  BENCH_TYPE_VALUE = 12240;
+  BENCH_TYPE_COMPUTED_VALUE = 12241;
+  BENCH_TYPE_OBJECT_MAPPING = 12250;
+  BENCH_TYPE_FIELD_MAPPING = 12251;
   BENCH_TYPE_RUN_ERROR = 12700;
   BENCH_TYPE_RUN_OPTIONS = 12701;
   BENCH_TYPE_RUN_ATTEMPT = 12702;
@@ -1746,14 +1749,6 @@ message OutputObjectData {
   optional TextData text = 900;
 }
 
-message ValueData {
-  ObjectType metatype = 1;
-  TypeInfoData type = 31;
-  optional string name = 32;
-  optional TextData text = 34;
-  optional google.protobuf.Value value_packed = 35;
-}
-
 message TextSpanData {
   ObjectType metatype = 1;
   optional string content = 33;
@@ -1886,6 +1881,32 @@ message AggregationResultData {
   optional bool exists = 31;
   optional int32 count = 32;
   optional float scalar = 33;
+}
+
+message ValueData {
+  ObjectType metatype = 1;
+  optional string name = 32;
+  optional TextData text = 33;
+  TypeInfoData value_type = 35;
+  optional google.protobuf.Value value_packed = 36;
+}
+
+message ComputedValueData {
+  ObjectType metatype = 1;
+  repeated string path = 40;
+  optional PropertyReferenceData property_ptr = 41;
+  optional NodeReferenceData field_ptr = 42;
+}
+
+message ObjectMappingData {
+  ObjectType metatype = 1;
+  repeated FieldMappingData field_mappings = 40;
+}
+
+message FieldMappingData {
+  ObjectType metatype = 1;
+  NodeReferenceData source_ptr = 35;
+  NodeReferenceData target_ptr = 36;
 }
 
 message PathTokenData {
@@ -2187,17 +2208,6 @@ message CallData {
   optional ObjectMappingData mapping = 50;
 }
 
-message ObjectMappingData {
-  ObjectType metatype = 1;
-  repeated FieldMappingData field_mappings = 40;
-}
-
-message FieldMappingData {
-  ObjectType metatype = 1;
-  NodeReferenceData source_ptr = 35;
-  NodeReferenceData target_ptr = 36;
-}
-
 message ColorData {
   ObjectType metatype = 1;
   optional ColorType type = 31;
@@ -2447,6 +2457,7 @@ message DependencyData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
+  repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   NodeReferenceData depends_on_bench_ptr = 40;
   repeated NodeReferenceData depends_on_packages_ptr = 41;
@@ -2941,6 +2952,7 @@ message FieldData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
+  repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   FieldType type = 30;
   string name = 31;
@@ -3000,6 +3012,7 @@ message ActionData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
+  repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   ActionType type = 30;
   string name = 32;
@@ -3191,6 +3204,7 @@ message BlockData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
+  repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   BlockType type = 30;
   string name = 32;
@@ -3240,6 +3254,7 @@ message PipeData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
+  repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   PipeType type = 30;
   string name = 32;
@@ -3279,6 +3294,7 @@ message ViewData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
+  repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   ViewType type = 30;
   string name = 31;
@@ -3393,6 +3409,7 @@ message SpaceData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
+  repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   SpaceType type = 30;
   string name = 31;

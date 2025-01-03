@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.03.1"
+VERSION = "2025.01.03.3"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -76,17 +76,27 @@ def enum_(enum_type: "EnumType"):
 
 
 class EnumType(IdEnum):
-    # intrinsic (20000-20099)
+    #
+    # Intrinsic (20000-20099)
+    #
+
+    # core
     ENUM_TYPE = 20001  # so meta
     NODE_TYPE = 20002
     STRUCT_TYPE = 20003
     OBJECT_TYPE = 20004  # NodeType | StructType
     NODE_MODE = 20010
+
+    # time
     DAY = 20020
     MONTH = 20021
     TIME_INTERVAL = 20022
 
-    # bench core (20100-20199)
+    #
+    # Core (20100-20499)
+    #
+
+    # bench
     BENCH_TYPE = 20101
     PACKAGE_TYPE = 20102
     CLOUD = 20110
@@ -94,7 +104,7 @@ class EnumType(IdEnum):
     REGION_ZONE = 20121
     REGION_AREA = 20122
 
-    # resources (20200-20399)
+    # resources
     RESOURCE_STATUS = 20201
     RESOURCE_OCCUPANCY = 20202
     SCALER_TYPE = 20210
@@ -105,14 +115,17 @@ class EnumType(IdEnum):
     STORE_TYPE = 20240
     CLIENT_TYPE = 20250
 
-    # files (20400-20499)
+    # files
     FILE_RETENTION_MODE = 20401
     FILE_KIND = 20402
     FILE_TYPE = 20403
     FILE_FORMAT = 20404
     ICON_KIND = 20410
 
-    # access (20600-20999)
+    #
+    # Access (20600-20999)
+    #
+
     ACCESS_MODE = 20601
     ACCESS_KIND = 20602
     QUERY_TYPE = 20603
@@ -123,7 +136,10 @@ class EnumType(IdEnum):
     EDIT_OPERATION_TYPE = 20608
     POLICY_EFFECT = 20609
 
-    # type (21000-21499)
+    #
+    # Types (21000-21499)
+    #
+
     PRIMITIVE_TYPE = 21001
     FIELD_ZONE = 21002
     TYPE_KIND = 21003
@@ -132,7 +148,10 @@ class EnumType(IdEnum):
     BLOCK_TYPE = 21006
     TEXT_LINE_TYPE = 21010
 
-    # expression (21500-21999)
+    #
+    # Expression (21500-21999)
+    #
+
     EXPRESSION_KIND = 21501
     EXPRESSION_OP = 21502
     LITERAL_TYPE = 21503
@@ -141,9 +160,14 @@ class EnumType(IdEnum):
     AGGREGATION_TYPE = 21506
     SORT_MODE = 21507
     SORT_TYPE = 21508
-    PATH_TOKEN_TYPE = 21509
+    COMPUTED_VALUE_KIND = 21540
+    COMPUTED_SOURCE_KIND = 21541
+    PATH_TOKEN_TYPE = 21550
 
-    # run (22000-22499)
+    #
+    # Runtime (22000-22499)
+    #
+
     # core
     RUN_STATUS = 22001
     RUN_TYPE = 22002
@@ -155,27 +179,34 @@ class EnumType(IdEnum):
     TRIGGER_TYPE = 22020
     CACHE_MODE = 22030
     SCHEDULE_TYPE = 22040
+
     # logging
     LOG_KIND = 22100
     LOG_LEVEL = 22101
+
     # debugging
     BREAKPOINT_SITE = 22200
     BREAKPOINT_ACTION = 22201
     BREAKPOINT_TARGET = 22202
     INTERRUPTION_TYPE = 22210
     INTERRUPTION_STATUS = 22211
+
     # models
     MODEL_DEVELOPER = 22300
     MODEL_TYPE = 22301
     MODEL_FAMILY = 22302
     MODEL_PROVIDER = 22303
+
     # flow
     ACTION_TYPE = 22400
     CODE_TYPE = 22401
     PORT_SIDE = 22402
     PIPE_TYPE = 22403
 
-    # view (22500-22999)
+    #
+    # View (22500-22999)
+    #
+
     SPACE_TYPE = 22501
     VIEW_TYPE = 22502
     COLOR_TYPE = 22504
@@ -194,11 +225,17 @@ class EnumType(IdEnum):
     BUTTON_VARIANT = 22517
     PICKER_VARIANT = 22518
 
-    # user (23000-23099)
+    #
+    # User (23000-23099)
+    #
+
     USER_STATUS = 23001
     ORGANIZATION_STATUS = 23002
 
-    # message (23100-23199)
+    #
+    # Message (23100-23199)
+    #
+
     MESSAGE_TYPE = 23100
     MESSAGE_STATUS = 23101
 
@@ -433,13 +470,13 @@ class StructType(IdEnum):
     # expression (12200-12699)
     PATH = 12200
     PATH_TOKEN = 12201
-    EXPRESSION = 12202
-    AGGREGATION_RESULT = 12203
-    SELECTION = 12204
-    SELECT_OPTIONS = 12205
-    VALUE = 12206
-    OBJECT_MAPPING = 12208
-    FIELD_MAPPING = 12209
+    EXPRESSION = 12210
+    AGGREGATION_RESULT = 12211
+    SELECTION = 12220
+    SELECT_OPTIONS = 12230
+    VALUE = 12240
+    COMPUTED_VALUE = 12241
+    OBJECT_MAPPING = 12250
 
     # run (12700-13199)
     RUN_ERROR = 12700

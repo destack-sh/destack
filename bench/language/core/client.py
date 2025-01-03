@@ -2,11 +2,12 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.language.core.const import ClientType, NodeType
-from bench.language.core.node import BenchNode, ClientOrigin, node_
-from bench.language.core.property import p_kernel, p_node_parent, p_regular, p_system
-from bench.language.core.validation import TITLE_CONSTRAINT
 from bench.proto.wire import ClientData
+
+from .const import ClientType, NodeType
+from .node import BenchNode, ClientOrigin, node_
+from .property import p_kernel, p_node_parent, p_regular, p_system
+from .validation import TITLE_CONSTRAINT
 
 if TYPE_CHECKING:
     from bench.language import (

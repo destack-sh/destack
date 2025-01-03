@@ -10,8 +10,9 @@ from bench.language.core import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.resource import DynamicResource
 from bench.proto.wire import SecretData
+
+from .resource import DynamicResource
 
 if TYPE_CHECKING:
     from bench.language import Bench

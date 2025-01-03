@@ -3,9 +3,13 @@ from typing import TYPE_CHECKING, Optional, assert_never, cast
 import regex
 from cachetools import LRUCache, cached
 
-from bench.language.core.const import BenchError, EnumType, NodeType, StructType, enum_
-from bench.language.core.list import LocalNodeList
-from bench.language.core.node import (
+from bench.utils.func import IdEnum
+from bench.utils.string import to_code_name
+
+from .bench import Bench, Package
+from .const import BenchError, EnumType, NodeType, StructType, enum_
+from .list import LocalNodeList
+from .node import (
     BenchNode,
     Node,
     PackageNode,
@@ -13,12 +17,8 @@ from bench.language.core.node import (
     Struct,
     struct_,
 )
-from bench.language.core.property import p_regular
-from bench.language.core.validation import NAME_REGEX_CHAR, SLUG_REGEX_CHAR
-from bench.utils.func import IdEnum
-from bench.utils.string import to_code_name
-
-from .bench import Bench, Package
+from .property import p_regular
+from .validation import NAME_REGEX_CHAR, SLUG_REGEX_CHAR
 
 if TYPE_CHECKING:
     from bench.language import Field

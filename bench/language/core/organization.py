@@ -1,11 +1,12 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core.const import NodeType, OrganizationStatus, Region, StructType
-from bench.language.core.list import LocalNodeList
-from bench.language.core.node import Node, node_
-from bench.language.core.property import p_node_children, p_regular, p_system
-from bench.language.core.validation import NAME_CONSTRAINT
 from bench.proto.wire import OrganizationData
+
+from .const import NodeType, OrganizationStatus, Region, StructType
+from .list import LocalNodeList
+from .node import Node, node_
+from .property import p_node_children, p_regular, p_system
+from .validation import NAME_CONSTRAINT
 
 if TYPE_CHECKING:
     from bench.language import Bench, Handle, Icon, Text

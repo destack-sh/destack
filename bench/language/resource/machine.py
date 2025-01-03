@@ -16,9 +16,10 @@ from bench.language.core import (
     p_system,
     struct_,
 )
-from bench.language.resource.resource import DynamicResource
 from bench.proto.wire.lang_pb2 import MachineData
 from bench.utils.func import IdEnum
+
+from .resource import DynamicResource
 
 if TYPE_CHECKING:
     from bench.language import Client
