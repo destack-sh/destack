@@ -132,7 +132,6 @@ enum NodeType {
   NODE_TYPE_DEPENDENCY = 3002;
   NODE_TYPE_SPACE = 3003;
   NODE_TYPE_BLOCK = 3010;
-  NODE_TYPE_TRIGGER = 3011;
   NODE_TYPE_FIELD = 3012;
   NODE_TYPE_VIEW = 3020;
   NODE_TYPE_ACTION = 3030;
@@ -237,7 +236,6 @@ enum ObjectType {
   OBJECT_TYPE_DEPENDENCY = 3002;
   OBJECT_TYPE_SPACE = 3003;
   OBJECT_TYPE_BLOCK = 3010;
-  OBJECT_TYPE_TRIGGER = 3011;
   OBJECT_TYPE_FIELD = 3012;
   OBJECT_TYPE_VIEW = 3020;
   OBJECT_TYPE_ACTION = 3030;
@@ -386,7 +384,6 @@ enum BenchType {
   BENCH_TYPE_DEPENDENCY = 3002;
   BENCH_TYPE_SPACE = 3003;
   BENCH_TYPE_BLOCK = 3010;
-  BENCH_TYPE_TRIGGER = 3011;
   BENCH_TYPE_FIELD = 3012;
   BENCH_TYPE_VIEW = 3020;
   BENCH_TYPE_ACTION = 3030;
@@ -1302,6 +1299,7 @@ enum ModelType {
   MODEL_TYPE_OPENAI_O1_MINI = 2101;
   MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET = 3001;
   MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO = 4001;
+  MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH = 4002;
 }
 
 enum ModelFamily {
@@ -1853,6 +1851,16 @@ message AccessData {
   repeated PropertyReferenceData allowed_properties_ptr = 34;
 }
 
+message CodeLineData {
+  ObjectType metatype = 1;
+  optional string content = 32;
+}
+
+message CodeData {
+  ObjectType metatype = 1;
+  repeated CodeLineData lines = 30;
+}
+
 message SelectionData {
   ObjectType metatype = 1;
   repeated NodeReferenceData nodes_ptr = 40;
@@ -1880,38 +1888,124 @@ message AggregationResultData {
   optional float scalar = 33;
 }
 
-message TypeConstraintData {
+message PathTokenData {
   ObjectType metatype = 1;
-  optional float min_value = 40;
-  optional float max_value = 41;
-  optional float step_value = 42;
-  optional int32 min_length = 50;
-  optional int32 max_length = 51;
-  optional string regex = 60;
-  optional string starts_with = 61;
-  optional string ends_with = 62;
-  repeated NodeType node_types = 70;
-  repeated NodeReferenceData node_scope_ptr = 71;
-  optional int32 node_max_depth = 72;
-  repeated int32 node_subtypes = 73;
+  PathTokenType type = 31;
+  optional string name = 32;
 }
 
-message TypeInfoData {
+message PathData {
   ObjectType metatype = 1;
-  TypeKind kind = 40;
-  optional PrimitiveType primitive_type = 41;
-  optional BenchType bench_type = 42;
-  optional NodeReferenceData base_type_ptr = 43;
-  optional FieldType base_field_type = 44;
-  optional FieldType property_field_type = 45;
-  optional NodeReferenceData oneof_ptr = 49;
-  optional google.protobuf.Value default_packed = 50;
-  optional TypeFormat format = 53;
-  optional ExpressionData condition = 54;
-  optional TypeConstraintData constraint = 55;
-  bool is_required = 60;
-  bool is_list = 61;
-  bool is_secret = 62;
+  repeated PathTokenData tokens = 31;
+}
+
+message SelectOptionsData {
+  ObjectType metatype = 1;
+  bool select_all_properties = 40;
+  repeated PropertyReferenceData include_properties_ptr = 41;
+  repeated PropertyReferenceData exclude_properties_ptr = 42;
+  repeated PropertyReferenceData select_properties_ptr = 43;
+  repeated NodeReferenceData select_fields_ptr = 51;
+}
+
+message ChangeVignetteData {
+  ObjectType metatype = 1;
+  optional string name = 30;
+  optional string title = 31;
+  optional int32 subtype = 32;
+  optional IconData icon = 35;
+}
+
+message EditOperationData {
+  ObjectType metatype = 1;
+  EditOperationType type = 30;
+  repeated string path = 31;
+  optional google.protobuf.Value new_value_packed = 40;
+  optional google.protobuf.Value old_value_packed = 41;
+}
+
+message EditInfoData {
+  ObjectType metatype = 1;
+  string id = 2;
+  EditType type = 30;
+  NodeReferenceData node_ptr = 31;
+  optional ChangeVignetteData vignette = 32;
+  google.protobuf.Timestamp edited_at = 33;
+  optional google.protobuf.Timestamp old_edited_at = 34;
+  optional SomeNodeData node_data = 40;
+  repeated EditOperationData operations = 41;
+}
+
+message EditData {
+  ObjectType metatype = 1;
+  string id = 2;
+  EditType type = 30;
+  NodeReferenceData node_ptr = 31;
+  optional ChangeVignetteData vignette = 32;
+  google.protobuf.Timestamp edited_at = 33;
+  optional google.protobuf.Timestamp old_edited_at = 34;
+  optional SomeNodeData node_data = 40;
+  repeated EditOperationData operations = 41;
+  GraphScopeData scope = 60;
+  optional string change_key = 61;
+  optional ChangeCategory category = 62;
+  optional NodeReferenceData subject_ptr = 63;
+  optional ClientOriginData origin = 64;
+  optional EditContextData context = 65;
+  optional int64 epoch = 68;
+  optional NodeReferenceData undo_of_ptr = 69;
+}
+
+message ChangeData {
+  ObjectType metatype = 1;
+  string key = 30;
+  optional CodeData code = 33;
+  repeated EditData edits = 34;
+}
+
+message DomNodeData {
+  ObjectType metatype = 1;
+  DomNodeType type = 30;
+  optional string tag = 31;
+  optional int32 index = 32;
+  optional string xpath = 33;
+  optional string text = 34;
+  optional bool is_interactive = 40;
+  optional bool is_visible = 41;
+  optional bool is_top = 42;
+  repeated DomNodeData children = 50;
+}
+
+message FileInfoData {
+  ObjectType metatype = 1;
+  string name = 32;
+  FileKind kind = 50;
+  optional string external_url = 53;
+  optional bytes inline_content = 54;
+  FileType type = 60;
+  optional string mime_type = 61;
+  optional FileFormat format = 62;
+  int64 size = 63;
+  optional string sha256 = 64;
+  optional int32 width = 65;
+  optional int32 height = 66;
+  optional float aspect_ratio = 67;
+  optional string codec = 68;
+  optional google.protobuf.Duration duration = 69;
+  optional int32 bitrate = 70;
+  optional int32 channels = 72;
+  optional int32 sample_rate = 73;
+}
+
+message MachineImageData {
+  ObjectType metatype = 1;
+}
+
+message BreakpointData {
+  ObjectType metatype = 1;
+  BreakpointSite site = 30;
+  BreakpointScope scope = 31;
+  BreakpointAction action = 32;
 }
 
 message LogInfoData {
@@ -2030,56 +2124,67 @@ message ContextData {
   ObjectType metatype = 1;
 }
 
+message EditContextData {
+  ObjectType metatype = 1;
+  optional NodeReferenceData block_ptr = 70;
+  optional NodeReferenceData action_ptr = 71;
+  optional NodeReferenceData session_ptr = 72;
+  optional NodeReferenceData run_ptr = 73;
+  optional NodeReferenceData run_root_ptr = 74;
+  optional NodeReferenceData identity_ptr = 75;
+}
+
+message RuntimeContextData {
+  ObjectType metatype = 1;
+  optional NodeReferenceData session_ptr = 80;
+  optional NodeReferenceData run_ptr = 81;
+  optional NodeReferenceData run_root_ptr = 82;
+  optional NodeReferenceData client_ptr = 83;
+  optional NodeReferenceData machine_ptr = 84;
+  optional NodeReferenceData user_ptr = 86;
+  optional NodeReferenceData identity_ptr = 87;
+}
+
+message TypeConstraintData {
+  ObjectType metatype = 1;
+  optional float min_value = 40;
+  optional float max_value = 41;
+  optional float step_value = 42;
+  optional int32 min_length = 50;
+  optional int32 max_length = 51;
+  optional string regex = 60;
+  optional string starts_with = 61;
+  optional string ends_with = 62;
+  repeated NodeType node_types = 70;
+  repeated NodeReferenceData node_scope_ptr = 71;
+  optional int32 node_max_depth = 72;
+  repeated int32 node_subtypes = 73;
+}
+
+message TypeInfoData {
+  ObjectType metatype = 1;
+  TypeKind kind = 40;
+  optional PrimitiveType primitive_type = 41;
+  optional BenchType bench_type = 42;
+  optional NodeReferenceData base_type_ptr = 43;
+  optional FieldType base_field_type = 44;
+  optional FieldType property_field_type = 45;
+  optional NodeReferenceData oneof_ptr = 49;
+  optional google.protobuf.Value default_packed = 50;
+  optional TypeFormat format = 53;
+  optional ExpressionData condition = 54;
+  optional TypeConstraintData constraint = 55;
+  bool is_required = 60;
+  bool is_list = 61;
+  bool is_secret = 62;
+}
+
 message CallData {
   ObjectType metatype = 1;
   NodeReferenceData node_ptr = 31;
   optional ActionType action_type = 32;
   optional google.protobuf.Value inputs_packed = 35;
   optional ObjectMappingData mapping = 50;
-}
-
-message DomNodeData {
-  ObjectType metatype = 1;
-  DomNodeType type = 30;
-  optional string tag = 31;
-  optional int32 index = 32;
-  optional string xpath = 33;
-  optional string text = 34;
-  optional bool is_interactive = 40;
-  optional bool is_visible = 41;
-  optional bool is_top = 42;
-  repeated DomNodeData children = 50;
-}
-
-message CodeLineData {
-  ObjectType metatype = 1;
-  optional string content = 32;
-}
-
-message CodeData {
-  ObjectType metatype = 1;
-  repeated CodeLineData lines = 30;
-}
-
-message FileInfoData {
-  ObjectType metatype = 1;
-  string name = 32;
-  FileKind kind = 50;
-  optional string external_url = 53;
-  optional bytes inline_content = 54;
-  FileType type = 60;
-  optional string mime_type = 61;
-  optional FileFormat format = 62;
-  int64 size = 63;
-  optional string sha256 = 64;
-  optional int32 width = 65;
-  optional int32 height = 66;
-  optional float aspect_ratio = 67;
-  optional string codec = 68;
-  optional google.protobuf.Duration duration = 69;
-  optional int32 bitrate = 70;
-  optional int32 channels = 72;
-  optional int32 sample_rate = 73;
 }
 
 message ObjectMappingData {
@@ -2091,47 +2196,6 @@ message FieldMappingData {
   ObjectType metatype = 1;
   NodeReferenceData source_ptr = 35;
   NodeReferenceData target_ptr = 36;
-}
-
-message ScheduleData {
-  ObjectType metatype = 1;
-  ScheduleType type = 30;
-  string timezone = 31;
-  int32 every = 40;
-  TimeInterval interval = 41;
-  optional google.protobuf.Duration offset = 42;
-  optional string cron = 50;
-}
-
-message BreakpointData {
-  ObjectType metatype = 1;
-  BreakpointSite site = 30;
-  BreakpointScope scope = 31;
-  BreakpointAction action = 32;
-}
-
-message MachineImageData {
-  ObjectType metatype = 1;
-}
-
-message PathTokenData {
-  ObjectType metatype = 1;
-  PathTokenType type = 31;
-  optional string name = 32;
-}
-
-message PathData {
-  ObjectType metatype = 1;
-  repeated PathTokenData tokens = 31;
-}
-
-message SelectOptionsData {
-  ObjectType metatype = 1;
-  bool select_all_properties = 40;
-  repeated PropertyReferenceData include_properties_ptr = 41;
-  repeated PropertyReferenceData exclude_properties_ptr = 42;
-  repeated PropertyReferenceData select_properties_ptr = 43;
-  repeated NodeReferenceData select_fields_ptr = 51;
 }
 
 message ColorData {
@@ -2222,80 +2286,14 @@ message IconData {
   optional ColorData color = 40;
 }
 
-message ChangeVignetteData {
+message ScheduleData {
   ObjectType metatype = 1;
-  optional string name = 30;
-  optional string title = 31;
-  optional int32 subtype = 32;
-  optional IconData icon = 35;
-}
-
-message EditOperationData {
-  ObjectType metatype = 1;
-  EditOperationType type = 30;
-  repeated string path = 31;
-  optional google.protobuf.Value new_value_packed = 40;
-  optional google.protobuf.Value old_value_packed = 41;
-}
-
-message EditInfoData {
-  ObjectType metatype = 1;
-  string id = 2;
-  EditType type = 30;
-  NodeReferenceData node_ptr = 31;
-  optional ChangeVignetteData vignette = 32;
-  google.protobuf.Timestamp edited_at = 33;
-  optional google.protobuf.Timestamp old_edited_at = 34;
-  optional SomeNodeData node_data = 40;
-  repeated EditOperationData operations = 41;
-}
-
-message EditData {
-  ObjectType metatype = 1;
-  string id = 2;
-  EditType type = 30;
-  NodeReferenceData node_ptr = 31;
-  optional ChangeVignetteData vignette = 32;
-  google.protobuf.Timestamp edited_at = 33;
-  optional google.protobuf.Timestamp old_edited_at = 34;
-  optional SomeNodeData node_data = 40;
-  repeated EditOperationData operations = 41;
-  GraphScopeData scope = 60;
-  optional string change_key = 61;
-  optional ChangeCategory category = 62;
-  optional NodeReferenceData subject_ptr = 63;
-  optional ClientOriginData origin = 64;
-  optional EditContextData context = 65;
-  optional int64 epoch = 68;
-  optional NodeReferenceData undo_of_ptr = 69;
-}
-
-message ChangeData {
-  ObjectType metatype = 1;
-  string key = 30;
-  optional CodeData code = 33;
-  repeated EditData edits = 34;
-}
-
-message EditContextData {
-  ObjectType metatype = 1;
-  optional NodeReferenceData block_ptr = 70;
-  optional NodeReferenceData action_ptr = 71;
-  optional NodeReferenceData session_ptr = 72;
-  optional NodeReferenceData run_ptr = 73;
-  optional NodeReferenceData run_root_ptr = 74;
-  optional NodeReferenceData identity_ptr = 75;
-}
-
-message RuntimeContextData {
-  ObjectType metatype = 1;
-  optional NodeReferenceData session_ptr = 80;
-  optional NodeReferenceData run_ptr = 81;
-  optional NodeReferenceData run_root_ptr = 82;
-  optional NodeReferenceData client_ptr = 83;
-  optional NodeReferenceData machine_ptr = 84;
-  optional NodeReferenceData user_ptr = 86;
-  optional NodeReferenceData identity_ptr = 87;
+  ScheduleType type = 30;
+  string timezone = 31;
+  int32 every = 40;
+  TimeInterval interval = 41;
+  optional google.protobuf.Duration offset = 42;
+  optional string cron = 50;
 }
 
 message BaseNodeData {
@@ -2324,22 +2322,6 @@ message SkipData {
   optional string order_key = 31;
 }
 
-message HandleData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  string slug = 30;
-}
-
 message UserData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2363,26 +2345,6 @@ message UserData {
   optional bytes password_hash = 51;
   optional google.protobuf.Timestamp last_logged_in_at = 70;
   bool is_staff = 90;
-}
-
-message OrganizationData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional NodeReferenceData main_handle_ptr = 31;
-  optional string slug = 32;
-  string name = 33;
-  optional TextData text = 34;
-  optional IconData icon = 35;
-  optional NodeReferenceData main_bench_ptr = 36;
-  Region region = 37;
-  OrganizationStatus status = 38;
 }
 
 message MembershipData {
@@ -2421,7 +2383,55 @@ message InviteData {
   repeated NodeReferenceData roles_ptr = 33;
 }
 
-message FieldData {
+message BenchData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional NodeReferenceData main_handle_ptr = 31;
+  string slug = 32;
+  string name = 33;
+  optional TextData text = 34;
+  optional IconData icon = 35;
+  optional NodeReferenceData owner_ptr = 36;
+  Region region = 37;
+  optional string encryption_key = 38;
+  repeated PolicyData policies = 39;
+  optional NodeReferenceData main_store_ptr = 40;
+  optional NodeReferenceData main_package_ptr = 50;
+}
+
+message PackageData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  PackageType type = 30;
+  string name = 32;
+  string slug = 33;
+  optional TextData text = 34;
+  optional IconData icon = 35;
+  optional NodeReferenceData owned_by_ptr = 36;
+  optional NodeReferenceData base_ptr = 40;
+}
+
+message DependencyData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
@@ -2438,25 +2448,367 @@ message FieldData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
-  FieldType type = 30;
-  string name = 31;
-  string order_key = 32;
-  optional TextData text = 33;
-  optional IconData icon = 34;
-  TypeKind kind = 40;
-  optional PrimitiveType primitive_type = 41;
-  optional BenchType bench_type = 42;
-  optional NodeReferenceData base_type_ptr = 43;
-  optional FieldType base_field_type = 44;
-  optional FieldType property_field_type = 45;
-  optional NodeReferenceData oneof_ptr = 49;
-  optional google.protobuf.Value default_packed = 50;
-  optional TypeFormat format = 53;
-  optional ExpressionData condition = 54;
-  optional TypeConstraintData constraint = 55;
-  bool is_required = 60;
-  bool is_list = 61;
-  bool is_secret = 62;
+  NodeReferenceData depends_on_bench_ptr = 40;
+  repeated NodeReferenceData depends_on_packages_ptr = 41;
+  NodeMode mode = 90;
+}
+
+message ClientData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  ClientType type = 30;
+  string name = 32;
+  optional string device_type = 40;
+  optional string device_name = 41;
+  optional string operating_system = 42;
+  optional string browser_name = 43;
+  optional string browser_version = 44;
+  optional string place_id = 45;
+  optional string access_token = 50;
+  optional google.protobuf.Timestamp seen_at = 51;
+  optional google.protobuf.Timestamp logged_in_at = 52;
+  optional NodeReferenceData space_ptr = 60;
+  optional NodeReferenceData machine_ptr = 62;
+}
+
+message HandleData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  string slug = 30;
+}
+
+message OrganizationData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional NodeReferenceData main_handle_ptr = 31;
+  optional string slug = 32;
+  string name = 33;
+  optional TextData text = 34;
+  optional IconData icon = 35;
+  optional NodeReferenceData main_bench_ptr = 36;
+  Region region = 37;
+  OrganizationStatus status = 38;
+}
+
+message BrowserData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  BrowserType type = 30;
+  string name = 32;
+  ResourceStatus status = 33;
+  optional TextData text = 34;
+  Region region = 35;
+  ResourceOccupancy occupancy = 36;
+  optional NodeReferenceData owned_by_ptr = 37;
+  optional NodeReferenceData scaler_ptr = 38;
+  optional google.protobuf.Timestamp activated_at = 40;
+  optional google.protobuf.Timestamp deactivated_at = 41;
+  optional google.protobuf.Timestamp reset_at = 42;
+  optional google.protobuf.Timestamp suspended_at = 43;
+  optional google.protobuf.Timestamp decommissioned_at = 44;
+  optional google.protobuf.Timestamp active_at = 45;
+  optional string version = 50;
+  optional string target_version = 51;
+  optional string external_name = 52;
+  optional string external_id = 53;
+  optional string connection_uri = 54;
+  optional string debugger_uri = 55;
+  optional string view_uri = 56;
+  optional NodeReferenceData client_ptr = 57;
+  optional Vector2Data size = 60;
+  bool is_headless = 70;
+  bool is_insecure = 71;
+  NodeMode mode = 90;
+}
+
+message FileData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  string name = 32;
+  ResourceStatus status = 33;
+  optional TextData text = 34;
+  Region region = 35;
+  ResourceOccupancy occupancy = 36;
+  optional NodeReferenceData owned_by_ptr = 37;
+  optional NodeReferenceData scaler_ptr = 38;
+  optional google.protobuf.Timestamp activated_at = 40;
+  optional google.protobuf.Timestamp deactivated_at = 41;
+  optional google.protobuf.Timestamp reset_at = 42;
+  optional google.protobuf.Timestamp suspended_at = 43;
+  optional google.protobuf.Timestamp decommissioned_at = 44;
+  optional google.protobuf.Timestamp active_at = 45;
+  FileKind kind = 50;
+  optional string external_url = 53;
+  optional bytes inline_content = 54;
+  FileType type = 60;
+  optional string mime_type = 61;
+  optional FileFormat format = 62;
+  int64 size = 63;
+  optional string sha256 = 64;
+  optional int32 width = 65;
+  optional int32 height = 66;
+  optional float aspect_ratio = 67;
+  optional string codec = 68;
+  optional google.protobuf.Duration duration = 69;
+  optional int32 bitrate = 70;
+  optional int32 channels = 72;
+  optional int32 sample_rate = 73;
+  FileRetentionMode retention = 80;
+  optional google.protobuf.Timestamp expires_at = 81;
+  NodeMode mode = 90;
+}
+
+message MachineData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  MachineType type = 30;
+  string name = 32;
+  ResourceStatus status = 33;
+  optional TextData text = 34;
+  Region region = 35;
+  ResourceOccupancy occupancy = 36;
+  optional NodeReferenceData owned_by_ptr = 37;
+  optional NodeReferenceData scaler_ptr = 38;
+  optional google.protobuf.Timestamp activated_at = 40;
+  optional google.protobuf.Timestamp deactivated_at = 41;
+  optional google.protobuf.Timestamp reset_at = 42;
+  optional google.protobuf.Timestamp suspended_at = 43;
+  optional google.protobuf.Timestamp decommissioned_at = 44;
+  optional google.protobuf.Timestamp active_at = 45;
+  string version = 50;
+  string target_version = 51;
+  optional string external_name = 52;
+  optional string external_id = 53;
+  optional string connection_uri = 54;
+  optional NodeReferenceData client_ptr = 55;
+  float cpu = 60;
+  float ram = 61;
+  NodeMode mode = 90;
+}
+
+message ScalerData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  ScalerType type = 30;
+  string name = 32;
+  ResourceStatus status = 33;
+  optional TextData text = 34;
+  Region region = 35;
+  optional google.protobuf.Timestamp activated_at = 40;
+  optional google.protobuf.Timestamp deactivated_at = 41;
+  optional google.protobuf.Timestamp reset_at = 42;
+  optional google.protobuf.Timestamp suspended_at = 43;
+  optional google.protobuf.Timestamp decommissioned_at = 44;
+  optional google.protobuf.Timestamp active_at = 45;
+  ScalerStrategy strategy = 50;
+  int32 target_count = 51;
+  int32 min_count = 52;
+  int32 max_count = 53;
+  int32 min_ready_count = 54;
+  bool is_active = 80;
+  bool is_main = 81;
+  NodeMode mode = 90;
+}
+
+// A Scaler is a static Resource that automatically scales a dynamic Resource.
+message MachineScalerData {
+}
+
+// A Scaler is a static Resource that automatically scales a dynamic Resource.
+message BrowserScalerData {
+}
+
+message SecretData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  string name = 32;
+  ResourceStatus status = 33;
+  optional TextData text = 34;
+  Region region = 35;
+  ResourceOccupancy occupancy = 36;
+  optional NodeReferenceData owned_by_ptr = 37;
+  optional NodeReferenceData scaler_ptr = 38;
+  optional google.protobuf.Timestamp activated_at = 40;
+  optional google.protobuf.Timestamp deactivated_at = 41;
+  optional google.protobuf.Timestamp reset_at = 42;
+  optional google.protobuf.Timestamp suspended_at = 43;
+  optional google.protobuf.Timestamp decommissioned_at = 44;
+  optional google.protobuf.Timestamp active_at = 45;
+  TypeInfoData value_type = 50;
+  optional google.protobuf.Value value_packed = 51;
+  NodeMode mode = 90;
+}
+
+message StoreData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  StoreType type = 30;
+  string name = 32;
+  ResourceStatus status = 33;
+  optional TextData text = 34;
+  Region region = 35;
+  optional google.protobuf.Timestamp activated_at = 40;
+  optional google.protobuf.Timestamp deactivated_at = 41;
+  optional google.protobuf.Timestamp reset_at = 42;
+  optional google.protobuf.Timestamp suspended_at = 43;
+  optional google.protobuf.Timestamp decommissioned_at = 44;
+  optional google.protobuf.Timestamp active_at = 45;
+  string version = 50;
+  string target_version = 51;
+  optional string external_name = 60;
+  optional string external_id = 61;
+  optional string connection_uri = 62;
+  NodeMode mode = 90;
+}
+
+message StreamData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  string name = 32;
+  ResourceStatus status = 33;
+  optional TextData text = 34;
+  Region region = 35;
+  ResourceOccupancy occupancy = 36;
+  optional NodeReferenceData owned_by_ptr = 37;
+  optional NodeReferenceData scaler_ptr = 38;
+  optional google.protobuf.Timestamp activated_at = 40;
+  optional google.protobuf.Timestamp deactivated_at = 41;
+  optional google.protobuf.Timestamp reset_at = 42;
+  optional google.protobuf.Timestamp suspended_at = 43;
+  optional google.protobuf.Timestamp decommissioned_at = 44;
+  optional google.protobuf.Timestamp active_at = 45;
+  NodeMode mode = 90;
+}
+
+message InterruptionData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  InterruptionType type = 30;
+  optional NodeReferenceData root_ptr = 31;
+  optional NodeReferenceData block_ptr = 32;
+  optional NodeReferenceData action_ptr = 33;
+  optional NodeReferenceData pipe_ptr = 34;
+  optional int32 attempt_no = 37;
+  optional BreakpointSite breakpoint_site = 38;
+  InterruptionStatus status = 40;
+  optional google.protobuf.Duration duration = 41;
+  optional google.protobuf.Timestamp closed_at = 42;
+  optional google.protobuf.Value inputs_packed = 51;
+  optional google.protobuf.Value outputs_packed = 52;
+  optional NodeReferenceData session_ptr = 80;
+  optional NodeReferenceData run_ptr = 81;
+  optional NodeReferenceData run_root_ptr = 82;
+  optional NodeReferenceData client_ptr = 83;
+  optional NodeReferenceData machine_ptr = 84;
+  optional NodeReferenceData user_ptr = 86;
+  optional NodeReferenceData identity_ptr = 87;
   NodeMode mode = 90;
 }
 
@@ -2544,6 +2896,72 @@ message RunData {
   optional NodeReferenceData machine_ptr = 84;
   optional NodeReferenceData user_ptr = 86;
   optional NodeReferenceData identity_ptr = 87;
+  NodeMode mode = 90;
+}
+
+message SessionData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  SessionStatus status = 40;
+  optional google.protobuf.Duration duration = 41;
+  optional google.protobuf.Timestamp opened_at = 42;
+  optional google.protobuf.Timestamp closed_at = 43;
+  optional NodeReferenceData session_ptr = 80;
+  optional NodeReferenceData run_ptr = 81;
+  optional NodeReferenceData run_root_ptr = 82;
+  optional NodeReferenceData client_ptr = 83;
+  optional NodeReferenceData machine_ptr = 84;
+  optional NodeReferenceData user_ptr = 86;
+  optional NodeReferenceData identity_ptr = 87;
+  NodeMode mode = 90;
+}
+
+message FieldData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData package_ptr = 5;
+  optional NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  FieldType type = 30;
+  string name = 31;
+  string order_key = 32;
+  optional TextData text = 33;
+  optional IconData icon = 34;
+  TypeKind kind = 40;
+  optional PrimitiveType primitive_type = 41;
+  optional BenchType bench_type = 42;
+  optional NodeReferenceData base_type_ptr = 43;
+  optional FieldType base_field_type = 44;
+  optional FieldType property_field_type = 45;
+  optional NodeReferenceData oneof_ptr = 49;
+  optional google.protobuf.Value default_packed = 50;
+  optional TypeFormat format = 53;
+  optional ExpressionData condition = 54;
+  optional TypeConstraintData constraint = 55;
+  bool is_required = 60;
+  bool is_list = 61;
+  bool is_secret = 62;
   NodeMode mode = 90;
 }
 
@@ -2736,104 +3154,6 @@ message LoopActionData {
   optional NodeReferenceData for_field_ptr = 100;
 }
 
-message BenchData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional NodeReferenceData main_handle_ptr = 31;
-  string slug = 32;
-  string name = 33;
-  optional TextData text = 34;
-  optional IconData icon = 35;
-  optional NodeReferenceData owner_ptr = 36;
-  Region region = 37;
-  optional string encryption_key = 38;
-  repeated PolicyData policies = 39;
-  optional NodeReferenceData main_store_ptr = 40;
-  optional NodeReferenceData main_package_ptr = 50;
-}
-
-message PackageData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  PackageType type = 30;
-  string name = 32;
-  string slug = 33;
-  optional TextData text = 34;
-  optional IconData icon = 35;
-  optional NodeReferenceData owned_by_ptr = 36;
-  optional NodeReferenceData base_ptr = 40;
-}
-
-message DependencyData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  optional int64 templated_epoch = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  NodeReferenceData depends_on_bench_ptr = 40;
-  repeated NodeReferenceData depends_on_packages_ptr = 41;
-  NodeMode mode = 90;
-}
-
-message ClientData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  ClientType type = 30;
-  string name = 32;
-  optional string device_type = 40;
-  optional string device_name = 41;
-  optional string operating_system = 42;
-  optional string browser_name = 43;
-  optional string browser_version = 44;
-  optional string place_id = 45;
-  optional string access_token = 50;
-  optional google.protobuf.Timestamp seen_at = 51;
-  optional google.protobuf.Timestamp logged_in_at = 52;
-  optional NodeReferenceData space_ptr = 60;
-  optional NodeReferenceData machine_ptr = 62;
-}
-
 message BlockData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2883,115 +3203,6 @@ message FlowBlockData {
 message DatabaseBlockData {
 }
 
-message BrowserData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  BrowserType type = 30;
-  string name = 32;
-  ResourceStatus status = 33;
-  optional TextData text = 34;
-  Region region = 35;
-  ResourceOccupancy occupancy = 36;
-  optional NodeReferenceData owned_by_ptr = 37;
-  optional NodeReferenceData scaler_ptr = 38;
-  optional google.protobuf.Timestamp activated_at = 40;
-  optional google.protobuf.Timestamp deactivated_at = 41;
-  optional google.protobuf.Timestamp reset_at = 42;
-  optional google.protobuf.Timestamp suspended_at = 43;
-  optional google.protobuf.Timestamp decommissioned_at = 44;
-  optional google.protobuf.Timestamp active_at = 45;
-  optional string version = 50;
-  optional string target_version = 51;
-  optional string external_name = 52;
-  optional string external_id = 53;
-  optional string connection_uri = 54;
-  optional string debugger_uri = 55;
-  optional string view_uri = 56;
-  optional NodeReferenceData client_ptr = 57;
-  optional Vector2Data size = 60;
-  bool is_headless = 70;
-  bool is_insecure = 71;
-  NodeMode mode = 90;
-}
-
-message RecordData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional string name = 32;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional TextData text = 35;
-  NodeReferenceData block_ptr = 36;
-  optional google.protobuf.Value value_packed = 40;
-}
-
-message FileData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  string name = 32;
-  ResourceStatus status = 33;
-  optional TextData text = 34;
-  Region region = 35;
-  ResourceOccupancy occupancy = 36;
-  optional NodeReferenceData owned_by_ptr = 37;
-  optional NodeReferenceData scaler_ptr = 38;
-  optional google.protobuf.Timestamp activated_at = 40;
-  optional google.protobuf.Timestamp deactivated_at = 41;
-  optional google.protobuf.Timestamp reset_at = 42;
-  optional google.protobuf.Timestamp suspended_at = 43;
-  optional google.protobuf.Timestamp decommissioned_at = 44;
-  optional google.protobuf.Timestamp active_at = 45;
-  FileKind kind = 50;
-  optional string external_url = 53;
-  optional bytes inline_content = 54;
-  FileType type = 60;
-  optional string mime_type = 61;
-  optional FileFormat format = 62;
-  int64 size = 63;
-  optional string sha256 = 64;
-  optional int32 width = 65;
-  optional int32 height = 66;
-  optional float aspect_ratio = 67;
-  optional string codec = 68;
-  optional google.protobuf.Duration duration = 69;
-  optional int32 bitrate = 70;
-  optional int32 channels = 72;
-  optional int32 sample_rate = 73;
-  FileRetentionMode retention = 80;
-  optional google.protobuf.Timestamp expires_at = 81;
-  NodeMode mode = 90;
-}
-
 message PipeData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3029,134 +3240,6 @@ message PipeData {
 // A connection between two Steps in a Flow (source = outgoing, target = incoming).
 // Pipes are stored in the containing Flow or containing Step.
 message SelectPipeData {
-}
-
-message TriggerData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  optional int64 templated_epoch = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  TriggerType type = 30;
-  string name = 31;
-  bool is_paused = 35;
-  optional int32 processed_epoch = 36;
-  optional ScheduleData schedule = 50;
-  optional NodeReferenceData message_ptr = 51;
-  optional ExpressionData condition = 52;
-  NodeMode mode = 90;
-}
-
-message InterruptionData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  InterruptionType type = 30;
-  optional NodeReferenceData root_ptr = 31;
-  optional NodeReferenceData block_ptr = 32;
-  optional NodeReferenceData action_ptr = 33;
-  optional NodeReferenceData pipe_ptr = 34;
-  optional int32 attempt_no = 37;
-  optional BreakpointSite breakpoint_site = 38;
-  InterruptionStatus status = 40;
-  optional google.protobuf.Duration duration = 41;
-  optional google.protobuf.Timestamp closed_at = 42;
-  optional NodeReferenceData trigger_ptr = 49;
-  optional google.protobuf.Value inputs_packed = 51;
-  optional google.protobuf.Value outputs_packed = 52;
-  optional NodeReferenceData session_ptr = 80;
-  optional NodeReferenceData run_ptr = 81;
-  optional NodeReferenceData run_root_ptr = 82;
-  optional NodeReferenceData client_ptr = 83;
-  optional NodeReferenceData machine_ptr = 84;
-  optional NodeReferenceData user_ptr = 86;
-  optional NodeReferenceData identity_ptr = 87;
-  NodeMode mode = 90;
-}
-
-message MachineData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  MachineType type = 30;
-  string name = 32;
-  ResourceStatus status = 33;
-  optional TextData text = 34;
-  Region region = 35;
-  ResourceOccupancy occupancy = 36;
-  optional NodeReferenceData owned_by_ptr = 37;
-  optional NodeReferenceData scaler_ptr = 38;
-  optional google.protobuf.Timestamp activated_at = 40;
-  optional google.protobuf.Timestamp deactivated_at = 41;
-  optional google.protobuf.Timestamp reset_at = 42;
-  optional google.protobuf.Timestamp suspended_at = 43;
-  optional google.protobuf.Timestamp decommissioned_at = 44;
-  optional google.protobuf.Timestamp active_at = 45;
-  string version = 50;
-  string target_version = 51;
-  optional string external_name = 52;
-  optional string external_id = 53;
-  optional string connection_uri = 54;
-  optional NodeReferenceData client_ptr = 55;
-  float cpu = 60;
-  float ram = 61;
-  NodeMode mode = 90;
-}
-
-message MessageData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  MessageType type = 30;
-  MessageStatus status = 31;
-  optional string name = 32;
-  optional NodeReferenceData origin_ptr = 35;
-  optional NodeReferenceData block_ptr = 36;
-  optional NodeReferenceData reply_to_ptr = 37;
-  optional string title = 40;
-  optional TextData text = 41;
-  optional google.protobuf.Value value_packed = 42;
-  optional google.protobuf.Timestamp expires_at = 44;
-  optional google.protobuf.Timestamp read_at = 45;
-  bool is_pinned = 50;
 }
 
 message ViewData {
@@ -3304,7 +3387,7 @@ message SpaceData {
   NodeMode mode = 90;
 }
 
-message ScalerData {
+message MessageData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
@@ -3317,36 +3400,21 @@ message ScalerData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
-  ScalerType type = 30;
-  string name = 32;
-  ResourceStatus status = 33;
-  optional TextData text = 34;
-  Region region = 35;
-  optional google.protobuf.Timestamp activated_at = 40;
-  optional google.protobuf.Timestamp deactivated_at = 41;
-  optional google.protobuf.Timestamp reset_at = 42;
-  optional google.protobuf.Timestamp suspended_at = 43;
-  optional google.protobuf.Timestamp decommissioned_at = 44;
-  optional google.protobuf.Timestamp active_at = 45;
-  ScalerStrategy strategy = 50;
-  int32 target_count = 51;
-  int32 min_count = 52;
-  int32 max_count = 53;
-  int32 min_ready_count = 54;
-  bool is_active = 80;
-  bool is_main = 81;
-  NodeMode mode = 90;
+  MessageType type = 30;
+  MessageStatus status = 31;
+  optional string name = 32;
+  optional NodeReferenceData origin_ptr = 35;
+  optional NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData reply_to_ptr = 37;
+  optional string title = 40;
+  optional TextData text = 41;
+  optional google.protobuf.Value value_packed = 42;
+  optional google.protobuf.Timestamp expires_at = 44;
+  optional google.protobuf.Timestamp read_at = 45;
+  bool is_pinned = 50;
 }
 
-// A Scaler is a static Resource that automatically scales a dynamic Resource.
-message MachineScalerData {
-}
-
-// A Scaler is a static Resource that automatically scales a dynamic Resource.
-message BrowserScalerData {
-}
-
-message SecretData {
+message RecordData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
@@ -3359,110 +3427,12 @@ message SecretData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
-  string name = 32;
-  ResourceStatus status = 33;
-  optional TextData text = 34;
-  Region region = 35;
-  ResourceOccupancy occupancy = 36;
-  optional NodeReferenceData owned_by_ptr = 37;
-  optional NodeReferenceData scaler_ptr = 38;
-  optional google.protobuf.Timestamp activated_at = 40;
-  optional google.protobuf.Timestamp deactivated_at = 41;
-  optional google.protobuf.Timestamp reset_at = 42;
-  optional google.protobuf.Timestamp suspended_at = 43;
-  optional google.protobuf.Timestamp decommissioned_at = 44;
-  optional google.protobuf.Timestamp active_at = 45;
-  TypeInfoData value_type = 50;
-  optional google.protobuf.Value value_packed = 51;
-  NodeMode mode = 90;
-}
-
-message SessionData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  SessionStatus status = 40;
-  optional google.protobuf.Duration duration = 41;
-  optional google.protobuf.Timestamp opened_at = 42;
-  optional google.protobuf.Timestamp closed_at = 43;
-  optional NodeReferenceData session_ptr = 80;
-  optional NodeReferenceData run_ptr = 81;
-  optional NodeReferenceData run_root_ptr = 82;
-  optional NodeReferenceData client_ptr = 83;
-  optional NodeReferenceData machine_ptr = 84;
-  optional NodeReferenceData user_ptr = 86;
-  optional NodeReferenceData identity_ptr = 87;
-  NodeMode mode = 90;
-}
-
-message StoreData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  StoreType type = 30;
-  string name = 32;
-  ResourceStatus status = 33;
-  optional TextData text = 34;
-  Region region = 35;
-  optional google.protobuf.Timestamp activated_at = 40;
-  optional google.protobuf.Timestamp deactivated_at = 41;
-  optional google.protobuf.Timestamp reset_at = 42;
-  optional google.protobuf.Timestamp suspended_at = 43;
-  optional google.protobuf.Timestamp decommissioned_at = 44;
-  optional google.protobuf.Timestamp active_at = 45;
-  string version = 50;
-  string target_version = 51;
-  optional string external_name = 60;
-  optional string external_id = 61;
-  optional string connection_uri = 62;
-  NodeMode mode = 90;
-}
-
-message StreamData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  string name = 32;
-  ResourceStatus status = 33;
-  optional TextData text = 34;
-  Region region = 35;
-  ResourceOccupancy occupancy = 36;
-  optional NodeReferenceData owned_by_ptr = 37;
-  optional NodeReferenceData scaler_ptr = 38;
-  optional google.protobuf.Timestamp activated_at = 40;
-  optional google.protobuf.Timestamp deactivated_at = 41;
-  optional google.protobuf.Timestamp reset_at = 42;
-  optional google.protobuf.Timestamp suspended_at = 43;
-  optional google.protobuf.Timestamp decommissioned_at = 44;
-  optional google.protobuf.Timestamp active_at = 45;
-  NodeMode mode = 90;
+  optional string name = 32;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional TextData text = 35;
+  NodeReferenceData block_ptr = 36;
+  optional google.protobuf.Value value_packed = 40;
 }
 
 enum IdEnum {
@@ -3503,18 +3473,17 @@ message SomeNodeData {
     DependencyData dependency = 16;
     SpaceData space = 17;
     BlockData block = 18;
-    TriggerData trigger = 19;
-    FieldData field = 20;
-    ViewData view = 21;
-    ActionData action = 22;
-    PipeData pipe = 23;
-    MessageData message = 24;
-    RecordData record = 25;
-    SessionData session = 26;
-    RunData run = 27;
-    InterruptionData interruption = 28;
-    LogData log = 29;
-    SkipData skip = 30;
+    FieldData field = 19;
+    ViewData view = 20;
+    ActionData action = 21;
+    PipeData pipe = 22;
+    MessageData message = 23;
+    RecordData record = 24;
+    SessionData session = 25;
+    RunData run = 26;
+    InterruptionData interruption = 27;
+    LogData log = 28;
+    SkipData skip = 29;
   };
 }
 
