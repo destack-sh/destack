@@ -35,11 +35,11 @@ from bench.language.core import (
     p_value_runtime,
     struct_,
 )
-from bench.language.runtime import RunOptions
-from bench.language.source import TypeBase, TypeConstraint, TypeInfo
 from bench.proto.wire.lang_pb2 import ActionData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
+
+from .field import TypeBase, TypeConstraint, TypeInfo
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -55,6 +55,7 @@ if TYPE_CHECKING:
         ObjectMapping,
         Pipe,
         PipeType,
+        RunOptions,
         Text,
         Vector2,
     )
@@ -230,7 +231,7 @@ class Action(SourceNode[ActionData]):
         *,
         name: str | None = None,
         parent: Union["Block", "Action", None] = None,
-        run_options: RunOptions | None = None,
+        run_options: "RunOptions | None" = None,
     ) -> "Pipe":
         """Connects a target Action to this Action."""
         from bench.language import Block, Pipe

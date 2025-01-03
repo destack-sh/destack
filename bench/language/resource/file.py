@@ -25,9 +25,11 @@ from bench.language.core import (
     TITLE_CONSTRAINT,
     BuiltinObject,
     EnumType,
+    LogLevel,
     NodeReference,
     NodeType,
     PrimitiveType,
+    RunSpanType,
     Struct,
     StructType,
     active_session,
@@ -44,8 +46,6 @@ from bench.language.core import (
     struct_,
 )
 from bench.language.resource.resource import DynamicResource
-from bench.language.runtime.log import LogLevel
-from bench.language.runtime.run import RunSpanType
 from bench.proto.networking import MACHINE_ENVIRONMENT
 from bench.proto.wire import (
     DownloadFilesRequest,

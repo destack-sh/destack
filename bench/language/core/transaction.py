@@ -11,39 +11,17 @@ from google.protobuf.struct_pb2 import Value as ProtoValue
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
-from bench.language.core import (
-    EDIT_SUBJECT_TYPES,
+from bench.language.core.connection import Channel, WritableChannel
+from bench.language.core.const import (
     TK_LENGTH_B64,
-    BuiltinObject,
-    ChangeCategory,
-    Channel,
-    ClientOrigin,
-    CustomObject,
     EditOperationType,
-    EditSubject,
     EditType,
-    GraphScope,
-    Node,
-    NodeDataGraph,
-    NodeGraph,
-    NodeReference,
     NodeType,
     PrimitiveType,
-    Struct,
     StructType,
-    WritableChannel,
-    p_internal,
-    p_system,
-    p_value_packed,
-    pack_proto_json,
-    pack_value_data,
-    struct_,
-    unpack_proto_json,
-    unpack_value,
-    unpack_value_data,
 )
+from bench.language.core.graph import NodeDataGraph, NodeGraph
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
-from bench.language.source import decode_type_identity
 from bench.proto.wire import (
     AnyNodeData,
     AnyObjectData,
@@ -57,8 +35,30 @@ from bench.proto.wire.lang_pb2 import EditOperationData
 from bench.utils.func import partition
 from bench.utils.uuidt import UUIDT
 
+from .node import (
+    EDIT_SUBJECT_TYPES,
+    BuiltinObject,
+    ClientOrigin,
+    EditSubject,
+    GraphScope,
+    Node,
+    NodeReference,
+    Struct,
+    struct_,
+)
+from .property import p_internal, p_system, p_value_packed
+from .value import (
+    CustomObject,
+    pack_proto_json,
+    pack_value_data,
+    unpack_proto_json,
+    unpack_value,
+    unpack_value_data,
+)
+
 if TYPE_CHECKING:
     from bench.language import (
+        ChangeCategory,
         Code,
         EditContext,
         Icon,
@@ -165,7 +165,7 @@ class Edit(EditInfo):
     change_key: UUID | None = p_system(
         61, require=False, description="The Change that this Edit is part of."
     )
-    category: ChangeCategory | None = p_system(
+    category: "ChangeCategory | None" = p_system(
         62, require=False, description="Optional classification for the Edit."
     )
     subject: EditSubject | None = p_system(
@@ -582,6 +582,8 @@ class Transaction:
 
 def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
     """Applies an edit operation to a node."""
+    from bench.language.source import decode_type_identity
+
     root_prop = node.__properties_by_id__.get(int(op.path[0]))
     assert root_prop is not None, f"missing root property in {node!r} for {op!r}"
     obj: BuiltinObject | CustomObject = node

@@ -719,7 +719,7 @@ class GetConnection[ChannelT: Channel, T: Node](
         update: WatchGetUpdateData,
         unpack_update: bool,
     ) -> WatchGetUpdate | None:
-        from bench.language.runtime.transaction import edit_data_graph, edit_graph
+        from bench.language.core.transaction import edit_data_graph, edit_graph
 
         # filter edits
         if self.session._origin:
@@ -823,7 +823,7 @@ class SearchConnection[ChannelT: Channel, T: Node](
         update: WatchSearchUpdateData,
         unpack_update: bool,
     ) -> WatchSearchUpdate | None:
-        from bench.language.runtime.transaction import edit_data_graph, edit_graph
+        from bench.language.core.transaction import edit_data_graph, edit_graph
         from bench.proto import wiring
 
         # :ConnectionUpdateOrdering

@@ -281,7 +281,7 @@ def _get_contained_descendant(scope: Node, name: str) -> Node | None:
 
     if isinstance(scope, Block):
         # recurse child triggers/fields/queries
-        for node_type in (NodeType.TRIGGER, NodeType.FIELD):
+        for node_type in (NodeType.FIELD,):
             if node := _get_child(scope, name, node_type):
                 return node
         # recurse descendant views/actions
