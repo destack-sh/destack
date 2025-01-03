@@ -8,6 +8,7 @@ import anthropic
 import openai
 import regex
 
+from bench.language.action import Action
 from bench.language.code import Code
 from bench.language.field import TypeBase
 from bench.language.file import FileBase
@@ -193,13 +194,13 @@ class PromptType(PromptCompound):
 class Prompt:
     """A prompt for an LLM-like model."""
 
-    def __init__(self, task: TaskType, scope: Node, items: list[PromptPart]):
-        self.task = task
-        self.scope = scope
+    def __init__(self, action: Action, context: Context, items: list[PromptPart]):
+        self.action = action
+        self.context = context
         self.items = items
 
     def __str__(self) -> str:
-        return f"task={self.task.name}, scope={self.scope!r}, items={len(self.items)}"
+        return f"action={self.action!r}, items={len(self.items)}"
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self!s}>"
@@ -215,10 +216,11 @@ class Prompt:
 
 
 def make_prompt(
-    task: TaskType,
+    action: Action,
     runner: Runner,
     context: Context,
     inputs: CustomObject | None,
+    outputs: CustomObject | None,
     output_type: TypeBase | None,
     include_run_context: bool,
 ) -> "Prompt":
@@ -226,18 +228,17 @@ def make_prompt(
     # context
     context_items: list[PromptPart] = []
     if include_run_context:
-        for ancestor in reversed(tuple(runner.ancestors)):
+        for i, ancestor in enumerate(reversed(tuple(runner.ancestors))):
             if ancestor.tracked_run is not None:
                 context_items.append(
-                    PromptRun(title="Parent run", weight=5, node=ancestor.tracked_run)
+                    PromptRun(title=f"Parent Run {i}", weight=5, node=ancestor.tracked_run)
                 )
-    context_items.append(PromptSource(title="Current node", weight=10, node=runner.node))
+    context_items.append(PromptSource(title="Current Node", weight=10, node=runner.node))
     # NOTE :Incomplete: more general Context to Prompt?
 
     # core
     task_prompt: list[PromptPart] = [
-        PromptText(title="Task instructions", text=get_task_prompt(task)),
-        PromptSource(title="Current node", weight=10, node=runner.node),
+        PromptSource(title="Current Node", weight=10, node=runner.node),
     ]
     if inputs is not None:
         task_prompt.append(PromptObject(title="Inputs", weight=10, object=inputs))
@@ -247,18 +248,17 @@ def make_prompt(
         task_prompt.append(PromptType(title="Output type", weight=10, type=output_type))
     else:
         task_prompt.append(PromptText(title="Output type", text="No output type"))
+    if outputs is not None:
+        task_prompt.append(PromptObject(title="Outputs", weight=10, object=outputs))
 
     return Prompt(
-        task=task,
-        scope=runner.node,
+        action=action,
+        context=context,
         items=[
-            PromptRegion(title="Examples", weight=1, content=GENERAL_EXAMPLES),
-            PromptRegion(title="Context", weight=1, content=context_items),
-            PromptRegion(
-                title=f"Task: {task.name} (might have to change, see above)",
-                weight=1,
-                content=task_prompt,
-            ),
+            # nocheckin: Prompt tuning/examples/...
+            # PromptRegion(title="Examples", weight=1, content=GENERAL_EXAMPLES),
+            PromptRegion(title="Context", weight=2, content=context_items),
+            PromptRegion(title="Task", weight=3, content=task_prompt),
         ],
     )
 
@@ -303,7 +303,9 @@ class ChatModel[R](Model[PromptElement, R]):
     async def compile(self, prompt: Prompt, budget: float) -> Sequence[PromptElement]:
         projection = Projection(options=ProjectOptions())
         context = CompilationContext(
-            prompt=prompt, projection=projection, render_options=RenderOptions(scope=prompt.scope)
+            prompt=prompt,
+            projection=projection,
+            render_options=RenderOptions(scope=prompt.action),
         )
 
         # expand (recursively)
@@ -348,7 +350,7 @@ def _strip_code_completion(completion: str) -> str:
 #
 
 
-def get_system_prompt(node: Node) -> str:
+def get_system_prompt(action: Action) -> str:
     today = datetime.datetime.now(tz=datetime.UTC).date()
     base_text = f"""\
 You are a programming assistant on an agent development platform called Bench.
@@ -376,7 +378,7 @@ OPENAI_MODEL_BY_TYPE: Mapping[ModelType, str] = {
     ModelType.OPENAI_GPT4_0: "gpt-4o-2024-11-20",
     ModelType.OPENAI_GPT4_O_MINI: "gpt-4o-mini-2024-07-18",
     ModelType.OPENAI_O1_MINI: "o1-mini-2024-09-12",
-    ModelType.OPENAI_O1_PREVIEW: "o1-preview-09-12",
+    ModelType.OPENAI_O1: "o1-2024-12-17",
 }
 OPENAI_DEFAULT_MODEL = ModelType.OPENAI_GPT4_0
 
@@ -420,7 +422,7 @@ class OpenaiChatModel(ChatModel[openai_chat_types.ChatCompletionMessageParam]):
         assert model in OPENAI_MODEL_BY_TYPE, f"unsupported model type {model!r}"
         model_id = OPENAI_MODEL_BY_TYPE[model]
         messages: list[openai_chat_types.ChatCompletionMessageParam] = [
-            {"role": "system", "content": get_system_prompt(node=prompt.scope)},
+            {"role": "system", "content": get_system_prompt(prompt.action)},
             *rendered_prompt,
         ]
         temperature = options.text_options.temperature if options.text_options else 0.1

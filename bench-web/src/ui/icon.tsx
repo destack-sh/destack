@@ -271,7 +271,6 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   [ActionType.START]: "fas fa-circle-play",
   [ActionType.COMPLETE]: "fas fa-flag-checkered",
   [ActionType.FAIL]: "fas fa-circle-exclamation",
-  [ActionType.TRIGGER]: "fas fa-bolt-lightning",
   // read
   [ActionType.GET]: "fas fa-magnifying-glass",
   [ActionType.SEARCH]: "fas fa-magnifying-glass",

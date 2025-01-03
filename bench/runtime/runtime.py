@@ -409,6 +409,7 @@ class Runtime:
                         timeout=DEFAULT_RESOURCE_TIMEOUT,
                     )
                     # nocheckin: deccomission resourcers on Run termination?
+                    #  (use Resource.active_at for timeout/keepalive as backup in Host)
 
         # check inputs
         if runner.input_type is not None:

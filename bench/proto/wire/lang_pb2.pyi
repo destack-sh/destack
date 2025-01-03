@@ -26,6 +26,30 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_NODE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_STRUCT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_OBJECT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_NODE_MODE: _ClassVar[EnumType]
+    ENUM_TYPE_DAY: _ClassVar[EnumType]
+    ENUM_TYPE_MONTH: _ClassVar[EnumType]
+    ENUM_TYPE_TIME_INTERVAL: _ClassVar[EnumType]
+    ENUM_TYPE_BENCH_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_PACKAGE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_CLOUD: _ClassVar[EnumType]
+    ENUM_TYPE_REGION: _ClassVar[EnumType]
+    ENUM_TYPE_REGION_ZONE: _ClassVar[EnumType]
+    ENUM_TYPE_REGION_AREA: _ClassVar[EnumType]
+    ENUM_TYPE_RESOURCE_STATUS: _ClassVar[EnumType]
+    ENUM_TYPE_RESOURCE_OCCUPANCY: _ClassVar[EnumType]
+    ENUM_TYPE_SCALER_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_SCALER_STRATEGY: _ClassVar[EnumType]
+    ENUM_TYPE_MACHINE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_BROWSER_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_DOM_NODE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_STORE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_CLIENT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_FILE_RETENTION_MODE: _ClassVar[EnumType]
+    ENUM_TYPE_FILE_KIND: _ClassVar[EnumType]
+    ENUM_TYPE_FILE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_FILE_FORMAT: _ClassVar[EnumType]
+    ENUM_TYPE_ICON_KIND: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_MODE: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_KIND: _ClassVar[EnumType]
     ENUM_TYPE_QUERY_TYPE: _ClassVar[EnumType]
@@ -35,39 +59,13 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_CHANGE_CATEGORY: _ClassVar[EnumType]
     ENUM_TYPE_EDIT_OPERATION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_POLICY_EFFECT: _ClassVar[EnumType]
-    ENUM_TYPE_BENCH_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_PACKAGE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_CLOUD: _ClassVar[EnumType]
-    ENUM_TYPE_REGION: _ClassVar[EnumType]
-    ENUM_TYPE_REGION_ZONE: _ClassVar[EnumType]
-    ENUM_TYPE_REGION_AREA: _ClassVar[EnumType]
-    ENUM_TYPE_RESOURCE_STATUS: _ClassVar[EnumType]
-    ENUM_TYPE_RESOURCE_OCCUPANCY: _ClassVar[EnumType]
-    ENUM_TYPE_FILE_RETENTION_MODE: _ClassVar[EnumType]
-    ENUM_TYPE_FILE_KIND: _ClassVar[EnumType]
-    ENUM_TYPE_FILE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_FILE_FORMAT: _ClassVar[EnumType]
-    ENUM_TYPE_CLIENT_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_MACHINE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_BROWSER_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_DOM_NODE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_STORE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_SCALER_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_SCALER_STRATEGY: _ClassVar[EnumType]
     ENUM_TYPE_PRIMITIVE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FIELD_ZONE: _ClassVar[EnumType]
     ENUM_TYPE_TYPE_KIND: _ClassVar[EnumType]
     ENUM_TYPE_TYPE_FORMAT: _ClassVar[EnumType]
     ENUM_TYPE_OBJECT_KIND: _ClassVar[EnumType]
     ENUM_TYPE_BLOCK_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_SCHEDULE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_TIME_INTERVAL: _ClassVar[EnumType]
-    ENUM_TYPE_DAY: _ClassVar[EnumType]
-    ENUM_TYPE_MONTH: _ClassVar[EnumType]
     ENUM_TYPE_TEXT_LINE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_ICON_KIND: _ClassVar[EnumType]
-    ENUM_TYPE_MESSAGE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_MESSAGE_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_EXPRESSION_KIND: _ClassVar[EnumType]
     ENUM_TYPE_EXPRESSION_OP: _ClassVar[EnumType]
     ENUM_TYPE_LITERAL_TYPE: _ClassVar[EnumType]
@@ -77,8 +75,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_SORT_MODE: _ClassVar[EnumType]
     ENUM_TYPE_SORT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PATH_TOKEN_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_LOG_KIND: _ClassVar[EnumType]
-    ENUM_TYPE_LOG_LEVEL: _ClassVar[EnumType]
     ENUM_TYPE_RUN_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_RUN_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_RUN_ERROR_KIND: _ClassVar[EnumType]
@@ -87,19 +83,23 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_RUN_EVENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SESSION_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_TRIGGER_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_CACHE_MODE: _ClassVar[EnumType]
+    ENUM_TYPE_SCHEDULE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_LOG_KIND: _ClassVar[EnumType]
+    ENUM_TYPE_LOG_LEVEL: _ClassVar[EnumType]
     ENUM_TYPE_BREAKPOINT_SITE: _ClassVar[EnumType]
     ENUM_TYPE_BREAKPOINT_ACTION: _ClassVar[EnumType]
     ENUM_TYPE_BREAKPOINT_TARGET: _ClassVar[EnumType]
     ENUM_TYPE_INTERRUPTION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_INTERRUPTION_STATUS: _ClassVar[EnumType]
-    ENUM_TYPE_CACHE_MODE: _ClassVar[EnumType]
-    ENUM_TYPE_CODE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_MODEL_PROVIDER: _ClassVar[EnumType]
+    ENUM_TYPE_MODEL_DEVELOPER: _ClassVar[EnumType]
     ENUM_TYPE_MODEL_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_MODEL_FAMILY: _ClassVar[EnumType]
+    ENUM_TYPE_MODEL_PROVIDER: _ClassVar[EnumType]
     ENUM_TYPE_ACTION_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_CODE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PORT_SIDE: _ClassVar[EnumType]
     ENUM_TYPE_PIPE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_NODE_MODE: _ClassVar[EnumType]
     ENUM_TYPE_SPACE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_VIEW_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_COLOR_TYPE: _ClassVar[EnumType]
@@ -119,6 +119,8 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_PICKER_VARIANT: _ClassVar[EnumType]
     ENUM_TYPE_USER_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_ORGANIZATION_STATUS: _ClassVar[EnumType]
+    ENUM_TYPE_MESSAGE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_MESSAGE_STATUS: _ClassVar[EnumType]
 
 class NodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -326,86 +328,53 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_RECTANGLE_CONSTRAINT: _ClassVar[ObjectType]
     OBJECT_TYPE_DOM_NODE: _ClassVar[ObjectType]
 
-class AccessMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class NodeMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    ACCESS_MODE_UNSPECIFIED: _ClassVar[AccessMode]
-    ACCESS_MODE_ADAPTIVE: _ClassVar[AccessMode]
-    ACCESS_MODE_ATOMIC: _ClassVar[AccessMode]
+    NODE_MODE_UNSPECIFIED: _ClassVar[NodeMode]
+    NODE_MODE_BUILTIN: _ClassVar[NodeMode]
+    NODE_MODE_PRODUCTION: _ClassVar[NodeMode]
+    NODE_MODE_DEVELOPMENT: _ClassVar[NodeMode]
+    NODE_MODE_TEST: _ClassVar[NodeMode]
+    NODE_MODE_PREVIEW: _ClassVar[NodeMode]
+    NODE_MODE_ARCHIVE: _ClassVar[NodeMode]
 
-class AccessKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class Day(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    ACCESS_KIND_UNSPECIFIED: _ClassVar[AccessKind]
-    ACCESS_KIND_READ: _ClassVar[AccessKind]
-    ACCESS_KIND_EDIT: _ClassVar[AccessKind]
-    ACCESS_KIND_USE: _ClassVar[AccessKind]
+    DAY_UNSPECIFIED: _ClassVar[Day]
+    DAY_MONDAY: _ClassVar[Day]
+    DAY_TUESDAY: _ClassVar[Day]
+    DAY_WEDNESDAY: _ClassVar[Day]
+    DAY_THURSDAY: _ClassVar[Day]
+    DAY_FRIDAY: _ClassVar[Day]
+    DAY_SATURDAY: _ClassVar[Day]
+    DAY_SUNDAY: _ClassVar[Day]
 
-class QueryType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class Month(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    QUERY_TYPE_UNSPECIFIED: _ClassVar[QueryType]
-    QUERY_TYPE_GET: _ClassVar[QueryType]
-    QUERY_TYPE_SEARCH: _ClassVar[QueryType]
-    QUERY_TYPE_AGGREGATE: _ClassVar[QueryType]
+    MONTH_UNSPECIFIED: _ClassVar[Month]
+    MONTH_JANUARY: _ClassVar[Month]
+    MONTH_FEBRUARY: _ClassVar[Month]
+    MONTH_MARCH: _ClassVar[Month]
+    MONTH_APRIL: _ClassVar[Month]
+    MONTH_MAY: _ClassVar[Month]
+    MONTH_JUNE: _ClassVar[Month]
+    MONTH_JULY: _ClassVar[Month]
+    MONTH_AUGUST: _ClassVar[Month]
+    MONTH_SEPTEMBER: _ClassVar[Month]
+    MONTH_OCTOBER: _ClassVar[Month]
+    MONTH_NOVEMBER: _ClassVar[Month]
+    MONTH_DECEMBER: _ClassVar[Month]
 
-class EditType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class TimeInterval(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    EDIT_TYPE_UNSPECIFIED: _ClassVar[EditType]
-    EDIT_TYPE_CREATE: _ClassVar[EditType]
-    EDIT_TYPE_UPSERT: _ClassVar[EditType]
-    EDIT_TYPE_UPDATE: _ClassVar[EditType]
-    EDIT_TYPE_MOVE: _ClassVar[EditType]
-    EDIT_TYPE_DELETE: _ClassVar[EditType]
-    EDIT_TYPE_RESTORE: _ClassVar[EditType]
-    EDIT_TYPE_ERASE: _ClassVar[EditType]
-
-class UseType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    USE_TYPE_UNSPECIFIED: _ClassVar[UseType]
-    USE_TYPE_START: _ClassVar[UseType]
-    USE_TYPE_PAUSE: _ClassVar[UseType]
-    USE_TYPE_RESUME: _ClassVar[UseType]
-    USE_TYPE_STOP: _ClassVar[UseType]
-    USE_TYPE_KILL: _ClassVar[UseType]
-    USE_TYPE_SEND: _ClassVar[UseType]
-    USE_TYPE_RECEIVE: _ClassVar[UseType]
-
-class AccessType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    ACCESS_TYPE_UNSPECIFIED: _ClassVar[AccessType]
-    ACCESS_TYPE_GET: _ClassVar[AccessType]
-    ACCESS_TYPE_SEARCH: _ClassVar[AccessType]
-    ACCESS_TYPE_AGGREGATE: _ClassVar[AccessType]
-    ACCESS_TYPE_CREATE: _ClassVar[AccessType]
-    ACCESS_TYPE_UPSERT: _ClassVar[AccessType]
-    ACCESS_TYPE_UPDATE: _ClassVar[AccessType]
-    ACCESS_TYPE_MOVE: _ClassVar[AccessType]
-    ACCESS_TYPE_DELETE: _ClassVar[AccessType]
-    ACCESS_TYPE_RESTORE: _ClassVar[AccessType]
-    ACCESS_TYPE_ERASE: _ClassVar[AccessType]
-    ACCESS_TYPE_START: _ClassVar[AccessType]
-    ACCESS_TYPE_PAUSE: _ClassVar[AccessType]
-    ACCESS_TYPE_RESUME: _ClassVar[AccessType]
-    ACCESS_TYPE_STOP: _ClassVar[AccessType]
-    ACCESS_TYPE_KILL: _ClassVar[AccessType]
-    ACCESS_TYPE_SEND: _ClassVar[AccessType]
-    ACCESS_TYPE_RECEIVE: _ClassVar[AccessType]
-
-class ChangeCategory(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    CHANGE_CATEGORY_UNSPECIFIED: _ClassVar[ChangeCategory]
-    CHANGE_CATEGORY_SPACE: _ClassVar[ChangeCategory]
-    CHANGE_CATEGORY_RUNTIME: _ClassVar[ChangeCategory]
-
-class EditOperationType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    EDIT_OPERATION_TYPE_UNSPECIFIED: _ClassVar[EditOperationType]
-    EDIT_OPERATION_TYPE_SET: _ClassVar[EditOperationType]
-    EDIT_OPERATION_TYPE_CLEAR: _ClassVar[EditOperationType]
-
-class PolicyEffect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    POLICY_EFFECT_UNSPECIFIED: _ClassVar[PolicyEffect]
-    POLICY_EFFECT_ALLOW: _ClassVar[PolicyEffect]
-    POLICY_EFFECT_DENY: _ClassVar[PolicyEffect]
+    TIME_INTERVAL_UNSPECIFIED: _ClassVar[TimeInterval]
+    TIME_INTERVAL_SECOND: _ClassVar[TimeInterval]
+    TIME_INTERVAL_MINUTE: _ClassVar[TimeInterval]
+    TIME_INTERVAL_HOUR: _ClassVar[TimeInterval]
+    TIME_INTERVAL_DAY: _ClassVar[TimeInterval]
+    TIME_INTERVAL_WEEK: _ClassVar[TimeInterval]
+    TIME_INTERVAL_MONTH: _ClassVar[TimeInterval]
+    TIME_INTERVAL_YEAR: _ClassVar[TimeInterval]
 
 class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -511,6 +480,30 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_NODE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_STRUCT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_OBJECT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_NODE_MODE: _ClassVar[BenchType]
+    BENCH_TYPE_DAY: _ClassVar[BenchType]
+    BENCH_TYPE_MONTH: _ClassVar[BenchType]
+    BENCH_TYPE_TIME_INTERVAL: _ClassVar[BenchType]
+    BENCH_TYPE_BENCH_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_PACKAGE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_CLOUD: _ClassVar[BenchType]
+    BENCH_TYPE_REGION: _ClassVar[BenchType]
+    BENCH_TYPE_REGION_ZONE: _ClassVar[BenchType]
+    BENCH_TYPE_REGION_AREA: _ClassVar[BenchType]
+    BENCH_TYPE_RESOURCE_STATUS: _ClassVar[BenchType]
+    BENCH_TYPE_RESOURCE_OCCUPANCY: _ClassVar[BenchType]
+    BENCH_TYPE_SCALER_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_SCALER_STRATEGY: _ClassVar[BenchType]
+    BENCH_TYPE_MACHINE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_BROWSER_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_DOM_NODE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_STORE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_CLIENT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_FILE_RETENTION_MODE: _ClassVar[BenchType]
+    BENCH_TYPE_FILE_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_FILE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_FILE_FORMAT: _ClassVar[BenchType]
+    BENCH_TYPE_ICON_KIND: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_MODE: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_KIND: _ClassVar[BenchType]
     BENCH_TYPE_QUERY_TYPE: _ClassVar[BenchType]
@@ -520,39 +513,13 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_CHANGE_CATEGORY: _ClassVar[BenchType]
     BENCH_TYPE_EDIT_OPERATION_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_POLICY_EFFECT: _ClassVar[BenchType]
-    BENCH_TYPE_BENCH_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_PACKAGE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_CLOUD: _ClassVar[BenchType]
-    BENCH_TYPE_REGION: _ClassVar[BenchType]
-    BENCH_TYPE_REGION_ZONE: _ClassVar[BenchType]
-    BENCH_TYPE_REGION_AREA: _ClassVar[BenchType]
-    BENCH_TYPE_RESOURCE_STATUS: _ClassVar[BenchType]
-    BENCH_TYPE_RESOURCE_OCCUPANCY: _ClassVar[BenchType]
-    BENCH_TYPE_FILE_RETENTION_MODE: _ClassVar[BenchType]
-    BENCH_TYPE_FILE_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_FILE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_FILE_FORMAT: _ClassVar[BenchType]
-    BENCH_TYPE_CLIENT_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_MACHINE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_BROWSER_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_DOM_NODE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_STORE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_SCALER_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_SCALER_STRATEGY: _ClassVar[BenchType]
     BENCH_TYPE_PRIMITIVE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_FIELD_ZONE: _ClassVar[BenchType]
     BENCH_TYPE_TYPE_KIND: _ClassVar[BenchType]
     BENCH_TYPE_TYPE_FORMAT: _ClassVar[BenchType]
     BENCH_TYPE_OBJECT_KIND: _ClassVar[BenchType]
     BENCH_TYPE_BLOCK_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_SCHEDULE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_TIME_INTERVAL: _ClassVar[BenchType]
-    BENCH_TYPE_DAY: _ClassVar[BenchType]
-    BENCH_TYPE_MONTH: _ClassVar[BenchType]
     BENCH_TYPE_TEXT_LINE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_ICON_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_MESSAGE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_MESSAGE_STATUS: _ClassVar[BenchType]
     BENCH_TYPE_EXPRESSION_KIND: _ClassVar[BenchType]
     BENCH_TYPE_EXPRESSION_OP: _ClassVar[BenchType]
     BENCH_TYPE_LITERAL_TYPE: _ClassVar[BenchType]
@@ -562,8 +529,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_SORT_MODE: _ClassVar[BenchType]
     BENCH_TYPE_SORT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_PATH_TOKEN_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_LOG_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_LOG_LEVEL: _ClassVar[BenchType]
     BENCH_TYPE_RUN_STATUS: _ClassVar[BenchType]
     BENCH_TYPE_RUN_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_RUN_ERROR_KIND: _ClassVar[BenchType]
@@ -572,19 +537,23 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_RUN_EVENT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_SESSION_STATUS: _ClassVar[BenchType]
     BENCH_TYPE_TRIGGER_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_CACHE_MODE: _ClassVar[BenchType]
+    BENCH_TYPE_SCHEDULE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_LOG_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_LOG_LEVEL: _ClassVar[BenchType]
     BENCH_TYPE_BREAKPOINT_SITE: _ClassVar[BenchType]
     BENCH_TYPE_BREAKPOINT_ACTION: _ClassVar[BenchType]
     BENCH_TYPE_BREAKPOINT_TARGET: _ClassVar[BenchType]
     BENCH_TYPE_INTERRUPTION_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_INTERRUPTION_STATUS: _ClassVar[BenchType]
-    BENCH_TYPE_CACHE_MODE: _ClassVar[BenchType]
-    BENCH_TYPE_CODE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_MODEL_PROVIDER: _ClassVar[BenchType]
+    BENCH_TYPE_MODEL_DEVELOPER: _ClassVar[BenchType]
     BENCH_TYPE_MODEL_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_MODEL_FAMILY: _ClassVar[BenchType]
+    BENCH_TYPE_MODEL_PROVIDER: _ClassVar[BenchType]
     BENCH_TYPE_ACTION_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_CODE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_PORT_SIDE: _ClassVar[BenchType]
     BENCH_TYPE_PIPE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_NODE_MODE: _ClassVar[BenchType]
     BENCH_TYPE_SPACE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_VIEW_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_COLOR_TYPE: _ClassVar[BenchType]
@@ -604,6 +573,8 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_PICKER_VARIANT: _ClassVar[BenchType]
     BENCH_TYPE_USER_STATUS: _ClassVar[BenchType]
     BENCH_TYPE_ORGANIZATION_STATUS: _ClassVar[BenchType]
+    BENCH_TYPE_MESSAGE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_MESSAGE_STATUS: _ClassVar[BenchType]
 
 class PackageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -683,6 +654,48 @@ class ResourceOccupancy(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RESOURCE_OCCUPANCY_RESERVED: _ClassVar[ResourceOccupancy]
     RESOURCE_OCCUPANCY_OCCUPIED: _ClassVar[ResourceOccupancy]
     RESOURCE_OCCUPANCY_DIRTY: _ClassVar[ResourceOccupancy]
+
+class ScalerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SCALER_TYPE_UNSPECIFIED: _ClassVar[ScalerType]
+    SCALER_TYPE_MACHINE: _ClassVar[ScalerType]
+    SCALER_TYPE_BROWSER: _ClassVar[ScalerType]
+
+class ScalerStrategy(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SCALER_STRATEGY_UNSPECIFIED: _ClassVar[ScalerStrategy]
+    SCALER_STRATEGY_MANUAL: _ClassVar[ScalerStrategy]
+    SCALER_STRATEGY_AUTO: _ClassVar[ScalerStrategy]
+
+class MachineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MACHINE_TYPE_UNSPECIFIED: _ClassVar[MachineType]
+    MACHINE_TYPE_RUNTIME: _ClassVar[MachineType]
+
+class BrowserType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    BROWSER_TYPE_UNSPECIFIED: _ClassVar[BrowserType]
+    BROWSER_TYPE_CHROMIUM: _ClassVar[BrowserType]
+
+class DomNodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    DOM_NODE_TYPE_UNSPECIFIED: _ClassVar[DomNodeType]
+    DOM_NODE_TYPE_TEXT: _ClassVar[DomNodeType]
+    DOM_NODE_TYPE_ELEMENT: _ClassVar[DomNodeType]
+
+class StoreType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STORE_TYPE_UNSPECIFIED: _ClassVar[StoreType]
+    STORE_TYPE_POSTGRES: _ClassVar[StoreType]
+
+class ClientType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CLIENT_TYPE_UNSPECIFIED: _ClassVar[ClientType]
+    CLIENT_TYPE_BENCH_WEB: _ClassVar[ClientType]
+    CLIENT_TYPE_BENCH_BROWSER_PLUGIN: _ClassVar[ClientType]
+    CLIENT_TYPE_BENCH_DESKTOP: _ClassVar[ClientType]
+    CLIENT_TYPE_BENCH_MOBILE: _ClassVar[ClientType]
+    CLIENT_TYPE_BENCH_MACHINE: _ClassVar[ClientType]
 
 class FileRetentionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -803,47 +816,93 @@ class FileFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FILE_FORMAT_DEB: _ClassVar[FileFormat]
     FILE_FORMAT_RPM: _ClassVar[FileFormat]
 
-class ClientType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class IconKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    CLIENT_TYPE_UNSPECIFIED: _ClassVar[ClientType]
-    CLIENT_TYPE_BENCH_WEB: _ClassVar[ClientType]
-    CLIENT_TYPE_BENCH_BROWSER_PLUGIN: _ClassVar[ClientType]
-    CLIENT_TYPE_BENCH_DESKTOP: _ClassVar[ClientType]
-    CLIENT_TYPE_BENCH_MOBILE: _ClassVar[ClientType]
-    CLIENT_TYPE_BENCH_MACHINE: _ClassVar[ClientType]
+    ICON_KIND_UNSPECIFIED: _ClassVar[IconKind]
+    ICON_KIND_EMOJI: _ClassVar[IconKind]
+    ICON_KIND_FONT_AWESOME: _ClassVar[IconKind]
+    ICON_KIND_VS_CODE: _ClassVar[IconKind]
 
-class MachineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class AccessMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    MACHINE_TYPE_UNSPECIFIED: _ClassVar[MachineType]
-    MACHINE_TYPE_RUNTIME: _ClassVar[MachineType]
+    ACCESS_MODE_UNSPECIFIED: _ClassVar[AccessMode]
+    ACCESS_MODE_ADAPTIVE: _ClassVar[AccessMode]
+    ACCESS_MODE_ATOMIC: _ClassVar[AccessMode]
 
-class BrowserType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class AccessKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    BROWSER_TYPE_UNSPECIFIED: _ClassVar[BrowserType]
-    BROWSER_TYPE_CHROMIUM: _ClassVar[BrowserType]
+    ACCESS_KIND_UNSPECIFIED: _ClassVar[AccessKind]
+    ACCESS_KIND_READ: _ClassVar[AccessKind]
+    ACCESS_KIND_EDIT: _ClassVar[AccessKind]
+    ACCESS_KIND_USE: _ClassVar[AccessKind]
 
-class DomNodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class QueryType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    DOM_NODE_TYPE_UNSPECIFIED: _ClassVar[DomNodeType]
-    DOM_NODE_TYPE_TEXT: _ClassVar[DomNodeType]
-    DOM_NODE_TYPE_ELEMENT: _ClassVar[DomNodeType]
+    QUERY_TYPE_UNSPECIFIED: _ClassVar[QueryType]
+    QUERY_TYPE_GET: _ClassVar[QueryType]
+    QUERY_TYPE_SEARCH: _ClassVar[QueryType]
+    QUERY_TYPE_AGGREGATE: _ClassVar[QueryType]
 
-class StoreType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class EditType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    STORE_TYPE_UNSPECIFIED: _ClassVar[StoreType]
-    STORE_TYPE_POSTGRES: _ClassVar[StoreType]
+    EDIT_TYPE_UNSPECIFIED: _ClassVar[EditType]
+    EDIT_TYPE_CREATE: _ClassVar[EditType]
+    EDIT_TYPE_UPSERT: _ClassVar[EditType]
+    EDIT_TYPE_UPDATE: _ClassVar[EditType]
+    EDIT_TYPE_MOVE: _ClassVar[EditType]
+    EDIT_TYPE_DELETE: _ClassVar[EditType]
+    EDIT_TYPE_RESTORE: _ClassVar[EditType]
+    EDIT_TYPE_ERASE: _ClassVar[EditType]
 
-class ScalerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class UseType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    SCALER_TYPE_UNSPECIFIED: _ClassVar[ScalerType]
-    SCALER_TYPE_MACHINE: _ClassVar[ScalerType]
-    SCALER_TYPE_BROWSER: _ClassVar[ScalerType]
+    USE_TYPE_UNSPECIFIED: _ClassVar[UseType]
+    USE_TYPE_START: _ClassVar[UseType]
+    USE_TYPE_PAUSE: _ClassVar[UseType]
+    USE_TYPE_RESUME: _ClassVar[UseType]
+    USE_TYPE_STOP: _ClassVar[UseType]
+    USE_TYPE_KILL: _ClassVar[UseType]
+    USE_TYPE_SEND: _ClassVar[UseType]
+    USE_TYPE_RECEIVE: _ClassVar[UseType]
 
-class ScalerStrategy(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class AccessType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    SCALER_STRATEGY_UNSPECIFIED: _ClassVar[ScalerStrategy]
-    SCALER_STRATEGY_MANUAL: _ClassVar[ScalerStrategy]
-    SCALER_STRATEGY_AUTO: _ClassVar[ScalerStrategy]
+    ACCESS_TYPE_UNSPECIFIED: _ClassVar[AccessType]
+    ACCESS_TYPE_GET: _ClassVar[AccessType]
+    ACCESS_TYPE_SEARCH: _ClassVar[AccessType]
+    ACCESS_TYPE_AGGREGATE: _ClassVar[AccessType]
+    ACCESS_TYPE_CREATE: _ClassVar[AccessType]
+    ACCESS_TYPE_UPSERT: _ClassVar[AccessType]
+    ACCESS_TYPE_UPDATE: _ClassVar[AccessType]
+    ACCESS_TYPE_MOVE: _ClassVar[AccessType]
+    ACCESS_TYPE_DELETE: _ClassVar[AccessType]
+    ACCESS_TYPE_RESTORE: _ClassVar[AccessType]
+    ACCESS_TYPE_ERASE: _ClassVar[AccessType]
+    ACCESS_TYPE_START: _ClassVar[AccessType]
+    ACCESS_TYPE_PAUSE: _ClassVar[AccessType]
+    ACCESS_TYPE_RESUME: _ClassVar[AccessType]
+    ACCESS_TYPE_STOP: _ClassVar[AccessType]
+    ACCESS_TYPE_KILL: _ClassVar[AccessType]
+    ACCESS_TYPE_SEND: _ClassVar[AccessType]
+    ACCESS_TYPE_RECEIVE: _ClassVar[AccessType]
+
+class ChangeCategory(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CHANGE_CATEGORY_UNSPECIFIED: _ClassVar[ChangeCategory]
+    CHANGE_CATEGORY_SPACE: _ClassVar[ChangeCategory]
+    CHANGE_CATEGORY_RUNTIME: _ClassVar[ChangeCategory]
+
+class EditOperationType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    EDIT_OPERATION_TYPE_UNSPECIFIED: _ClassVar[EditOperationType]
+    EDIT_OPERATION_TYPE_SET: _ClassVar[EditOperationType]
+    EDIT_OPERATION_TYPE_CLEAR: _ClassVar[EditOperationType]
+
+class PolicyEffect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    POLICY_EFFECT_UNSPECIFIED: _ClassVar[PolicyEffect]
+    POLICY_EFFECT_ALLOW: _ClassVar[PolicyEffect]
+    POLICY_EFFECT_DENY: _ClassVar[PolicyEffect]
 
 class PrimitiveType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -919,50 +978,6 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BLOCK_TYPE_ROLE: _ClassVar[BlockType]
     BLOCK_TYPE_IDENTITY: _ClassVar[BlockType]
 
-class ScheduleType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    SCHEDULE_TYPE_UNSPECIFIED: _ClassVar[ScheduleType]
-    SCHEDULE_TYPE_INTERVAL: _ClassVar[ScheduleType]
-    SCHEDULE_TYPE_CRON: _ClassVar[ScheduleType]
-
-class TimeInterval(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    TIME_INTERVAL_UNSPECIFIED: _ClassVar[TimeInterval]
-    TIME_INTERVAL_SECOND: _ClassVar[TimeInterval]
-    TIME_INTERVAL_MINUTE: _ClassVar[TimeInterval]
-    TIME_INTERVAL_HOUR: _ClassVar[TimeInterval]
-    TIME_INTERVAL_DAY: _ClassVar[TimeInterval]
-    TIME_INTERVAL_WEEK: _ClassVar[TimeInterval]
-    TIME_INTERVAL_MONTH: _ClassVar[TimeInterval]
-    TIME_INTERVAL_YEAR: _ClassVar[TimeInterval]
-
-class Day(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    DAY_UNSPECIFIED: _ClassVar[Day]
-    DAY_MONDAY: _ClassVar[Day]
-    DAY_TUESDAY: _ClassVar[Day]
-    DAY_WEDNESDAY: _ClassVar[Day]
-    DAY_THURSDAY: _ClassVar[Day]
-    DAY_FRIDAY: _ClassVar[Day]
-    DAY_SATURDAY: _ClassVar[Day]
-    DAY_SUNDAY: _ClassVar[Day]
-
-class Month(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    MONTH_UNSPECIFIED: _ClassVar[Month]
-    MONTH_JANUARY: _ClassVar[Month]
-    MONTH_FEBRUARY: _ClassVar[Month]
-    MONTH_MARCH: _ClassVar[Month]
-    MONTH_APRIL: _ClassVar[Month]
-    MONTH_MAY: _ClassVar[Month]
-    MONTH_JUNE: _ClassVar[Month]
-    MONTH_JULY: _ClassVar[Month]
-    MONTH_AUGUST: _ClassVar[Month]
-    MONTH_SEPTEMBER: _ClassVar[Month]
-    MONTH_OCTOBER: _ClassVar[Month]
-    MONTH_NOVEMBER: _ClassVar[Month]
-    MONTH_DECEMBER: _ClassVar[Month]
-
 class TextLineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TEXT_LINE_TYPE_UNSPECIFIED: _ClassVar[TextLineType]
@@ -978,33 +993,6 @@ class TextLineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TEXT_LINE_TYPE_LIST_UNCHECKED: _ClassVar[TextLineType]
     TEXT_LINE_TYPE_LIST_CHECKED: _ClassVar[TextLineType]
     TEXT_LINE_TYPE_DIVIDER: _ClassVar[TextLineType]
-
-class IconKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    ICON_KIND_UNSPECIFIED: _ClassVar[IconKind]
-    ICON_KIND_EMOJI: _ClassVar[IconKind]
-    ICON_KIND_FONT_AWESOME: _ClassVar[IconKind]
-    ICON_KIND_VS_CODE: _ClassVar[IconKind]
-
-class MessageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    MESSAGE_TYPE_UNSPECIFIED: _ClassVar[MessageType]
-    MESSAGE_TYPE_INTERNAL: _ClassVar[MessageType]
-    MESSAGE_TYPE_FEDERATED: _ClassVar[MessageType]
-    MESSAGE_TYPE_EMAIL: _ClassVar[MessageType]
-    MESSAGE_TYPE_SMS: _ClassVar[MessageType]
-
-class MessageStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    MESSAGE_STATUS_UNSPECIFIED: _ClassVar[MessageStatus]
-    MESSAGE_STATUS_DRAFT: _ClassVar[MessageStatus]
-    MESSAGE_STATUS_PREPARED: _ClassVar[MessageStatus]
-    MESSAGE_STATUS_SENDING: _ClassVar[MessageStatus]
-    MESSAGE_STATUS_SENT: _ClassVar[MessageStatus]
-    MESSAGE_STATUS_FAILED: _ClassVar[MessageStatus]
-    MESSAGE_STATUS_RECEIVED: _ClassVar[MessageStatus]
-    MESSAGE_STATUS_READ: _ClassVar[MessageStatus]
-    MESSAGE_STATUS_EXPIRED: _ClassVar[MessageStatus]
 
 class ExpressionKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1141,22 +1129,6 @@ class PathTokenType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PATH_TOKEN_TYPE_UNIQUE: _ClassVar[PathTokenType]
     PATH_TOKEN_TYPE_FIELD: _ClassVar[PathTokenType]
 
-class LogKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    LOG_KIND_UNSPECIFIED: _ClassVar[LogKind]
-    LOG_KIND_CHANGE: _ClassVar[LogKind]
-    LOG_KIND_EDIT: _ClassVar[LogKind]
-
-class LogLevel(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    LOG_LEVEL_UNSPECIFIED: _ClassVar[LogLevel]
-    LOG_LEVEL_TRACE: _ClassVar[LogLevel]
-    LOG_LEVEL_DEBUG: _ClassVar[LogLevel]
-    LOG_LEVEL_INFO: _ClassVar[LogLevel]
-    LOG_LEVEL_WARNING: _ClassVar[LogLevel]
-    LOG_LEVEL_ERROR: _ClassVar[LogLevel]
-    LOG_LEVEL_CRITICAL: _ClassVar[LogLevel]
-
 class RunStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     RUN_STATUS_UNSPECIFIED: _ClassVar[RunStatus]
@@ -1237,6 +1209,34 @@ class TriggerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRIGGER_TYPE_SCHEDULE: _ClassVar[TriggerType]
     TRIGGER_TYPE_SIGNAL: _ClassVar[TriggerType]
 
+class CacheMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CACHE_MODE_UNSPECIFIED: _ClassVar[CacheMode]
+    CACHE_MODE_NEVER: _ClassVar[CacheMode]
+    CACHE_MODE_ALWAYS: _ClassVar[CacheMode]
+
+class ScheduleType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SCHEDULE_TYPE_UNSPECIFIED: _ClassVar[ScheduleType]
+    SCHEDULE_TYPE_INTERVAL: _ClassVar[ScheduleType]
+    SCHEDULE_TYPE_CRON: _ClassVar[ScheduleType]
+
+class LogKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    LOG_KIND_UNSPECIFIED: _ClassVar[LogKind]
+    LOG_KIND_CHANGE: _ClassVar[LogKind]
+    LOG_KIND_EDIT: _ClassVar[LogKind]
+
+class LogLevel(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    LOG_LEVEL_UNSPECIFIED: _ClassVar[LogLevel]
+    LOG_LEVEL_TRACE: _ClassVar[LogLevel]
+    LOG_LEVEL_DEBUG: _ClassVar[LogLevel]
+    LOG_LEVEL_INFO: _ClassVar[LogLevel]
+    LOG_LEVEL_WARNING: _ClassVar[LogLevel]
+    LOG_LEVEL_ERROR: _ClassVar[LogLevel]
+    LOG_LEVEL_CRITICAL: _ClassVar[LogLevel]
+
 class BreakpointSite(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     BREAKPOINT_SITE_UNSPECIFIED: _ClassVar[BreakpointSite]
@@ -1272,26 +1272,15 @@ class InterruptionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     INTERRUPTION_STATUS_CANCELLED: _ClassVar[InterruptionStatus]
     INTERRUPTION_STATUS_COMPLETED: _ClassVar[InterruptionStatus]
 
-class CacheMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class ModelDeveloper(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    CACHE_MODE_UNSPECIFIED: _ClassVar[CacheMode]
-    CACHE_MODE_NEVER: _ClassVar[CacheMode]
-    CACHE_MODE_ALWAYS: _ClassVar[CacheMode]
-
-class CodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    CODE_TYPE_UNSPECIFIED: _ClassVar[CodeType]
-    CODE_TYPE_SNIPPET: _ClassVar[CodeType]
-    CODE_TYPE_SCRIPT: _ClassVar[CodeType]
-    CODE_TYPE_FUNCTION: _ClassVar[CodeType]
-
-class ModelProvider(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    MODEL_PROVIDER_UNSPECIFIED: _ClassVar[ModelProvider]
-    MODEL_PROVIDER_META: _ClassVar[ModelProvider]
-    MODEL_PROVIDER_OPENAI: _ClassVar[ModelProvider]
-    MODEL_PROVIDER_ANTHROPIC: _ClassVar[ModelProvider]
-    MODEL_PROVIDER_GOOGLE: _ClassVar[ModelProvider]
+    MODEL_DEVELOPER_UNSPECIFIED: _ClassVar[ModelDeveloper]
+    MODEL_DEVELOPER_META: _ClassVar[ModelDeveloper]
+    MODEL_DEVELOPER_OPENAI: _ClassVar[ModelDeveloper]
+    MODEL_DEVELOPER_ANTHROPIC: _ClassVar[ModelDeveloper]
+    MODEL_DEVELOPER_GOOGLE: _ClassVar[ModelDeveloper]
+    MODEL_DEVELOPER_AMAZON: _ClassVar[ModelDeveloper]
+    MODEL_DEVELOPER_MICROSOFT: _ClassVar[ModelDeveloper]
 
 class ModelType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1300,16 +1289,34 @@ class ModelType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MODEL_TYPE_META_LLAMA_3_1_400B: _ClassVar[ModelType]
     MODEL_TYPE_OPENAI_GPT4_0: _ClassVar[ModelType]
     MODEL_TYPE_OPENAI_GPT4_O_MINI: _ClassVar[ModelType]
-    MODEL_TYPE_OPENAI_O1_PREVIEW: _ClassVar[ModelType]
+    MODEL_TYPE_OPENAI_O1: _ClassVar[ModelType]
     MODEL_TYPE_OPENAI_O1_MINI: _ClassVar[ModelType]
     MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET: _ClassVar[ModelType]
     MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO: _ClassVar[ModelType]
+
+class ModelFamily(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MODEL_FAMILY_UNSPECIFIED: _ClassVar[ModelFamily]
+    MODEL_FAMILY_META_LLAMA: _ClassVar[ModelFamily]
+    MODEL_FAMILY_OPENAI_GPT: _ClassVar[ModelFamily]
+    MODEL_FAMILY_OPENAI_O: _ClassVar[ModelFamily]
+    MODEL_FAMILY_ANTHROPIC_CLAUDE: _ClassVar[ModelFamily]
+    MODEL_FAMILY_GOOGLE_GEMINI: _ClassVar[ModelFamily]
+
+class ModelProvider(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MODEL_PROVIDER_UNSPECIFIED: _ClassVar[ModelProvider]
+    MODEL_PROVIDER_META: _ClassVar[ModelProvider]
+    MODEL_PROVIDER_OPENAI: _ClassVar[ModelProvider]
+    MODEL_PROVIDER_ANTHROPIC: _ClassVar[ModelProvider]
+    MODEL_PROVIDER_GOOGLE: _ClassVar[ModelProvider]
+    MODEL_PROVIDER_AMAZON: _ClassVar[ModelProvider]
+    MODEL_PROVIDER_MICROSOFT: _ClassVar[ModelProvider]
 
 class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ACTION_TYPE_UNSPECIFIED: _ClassVar[ActionType]
     ACTION_TYPE_START: _ClassVar[ActionType]
-    ACTION_TYPE_TRIGGER: _ClassVar[ActionType]
     ACTION_TYPE_COMPLETE: _ClassVar[ActionType]
     ACTION_TYPE_FAIL: _ClassVar[ActionType]
     ACTION_TYPE_GET: _ClassVar[ActionType]
@@ -1343,6 +1350,13 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_LOOP: _ClassVar[ActionType]
     ACTION_TYPE_TEXT: _ClassVar[ActionType]
 
+class CodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CODE_TYPE_UNSPECIFIED: _ClassVar[CodeType]
+    CODE_TYPE_SNIPPET: _ClassVar[CodeType]
+    CODE_TYPE_SCRIPT: _ClassVar[CodeType]
+    CODE_TYPE_FUNCTION: _ClassVar[CodeType]
+
 class PortSide(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PORT_SIDE_UNSPECIFIED: _ClassVar[PortSide]
@@ -1356,16 +1370,6 @@ class PipeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PIPE_TYPE_FORWARD_AND_BACK: _ClassVar[PipeType]
     PIPE_TYPE_SELECT: _ClassVar[PipeType]
     PIPE_TYPE_SELECT_AND_BACK: _ClassVar[PipeType]
-
-class NodeMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    NODE_MODE_UNSPECIFIED: _ClassVar[NodeMode]
-    NODE_MODE_BUILTIN: _ClassVar[NodeMode]
-    NODE_MODE_PRODUCTION: _ClassVar[NodeMode]
-    NODE_MODE_DEVELOPMENT: _ClassVar[NodeMode]
-    NODE_MODE_TEST: _ClassVar[NodeMode]
-    NODE_MODE_PREVIEW: _ClassVar[NodeMode]
-    NODE_MODE_ARCHIVE: _ClassVar[NodeMode]
 
 class SpaceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1656,6 +1660,26 @@ class OrganizationStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ORGANIZATION_STATUS_REGISTERED: _ClassVar[OrganizationStatus]
     ORGANIZATION_STATUS_ACTIVATED: _ClassVar[OrganizationStatus]
 
+class MessageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MESSAGE_TYPE_UNSPECIFIED: _ClassVar[MessageType]
+    MESSAGE_TYPE_INTERNAL: _ClassVar[MessageType]
+    MESSAGE_TYPE_FEDERATED: _ClassVar[MessageType]
+    MESSAGE_TYPE_EMAIL: _ClassVar[MessageType]
+    MESSAGE_TYPE_SMS: _ClassVar[MessageType]
+
+class MessageStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MESSAGE_STATUS_UNSPECIFIED: _ClassVar[MessageStatus]
+    MESSAGE_STATUS_DRAFT: _ClassVar[MessageStatus]
+    MESSAGE_STATUS_PREPARED: _ClassVar[MessageStatus]
+    MESSAGE_STATUS_SENDING: _ClassVar[MessageStatus]
+    MESSAGE_STATUS_SENT: _ClassVar[MessageStatus]
+    MESSAGE_STATUS_FAILED: _ClassVar[MessageStatus]
+    MESSAGE_STATUS_RECEIVED: _ClassVar[MessageStatus]
+    MESSAGE_STATUS_READ: _ClassVar[MessageStatus]
+    MESSAGE_STATUS_EXPIRED: _ClassVar[MessageStatus]
+
 class IdEnum(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ID_ENUM_UNSPECIFIED: _ClassVar[IdEnum]
@@ -1677,6 +1701,30 @@ ENUM_TYPE_ENUM_TYPE: EnumType
 ENUM_TYPE_NODE_TYPE: EnumType
 ENUM_TYPE_STRUCT_TYPE: EnumType
 ENUM_TYPE_OBJECT_TYPE: EnumType
+ENUM_TYPE_NODE_MODE: EnumType
+ENUM_TYPE_DAY: EnumType
+ENUM_TYPE_MONTH: EnumType
+ENUM_TYPE_TIME_INTERVAL: EnumType
+ENUM_TYPE_BENCH_TYPE: EnumType
+ENUM_TYPE_PACKAGE_TYPE: EnumType
+ENUM_TYPE_CLOUD: EnumType
+ENUM_TYPE_REGION: EnumType
+ENUM_TYPE_REGION_ZONE: EnumType
+ENUM_TYPE_REGION_AREA: EnumType
+ENUM_TYPE_RESOURCE_STATUS: EnumType
+ENUM_TYPE_RESOURCE_OCCUPANCY: EnumType
+ENUM_TYPE_SCALER_TYPE: EnumType
+ENUM_TYPE_SCALER_STRATEGY: EnumType
+ENUM_TYPE_MACHINE_TYPE: EnumType
+ENUM_TYPE_BROWSER_TYPE: EnumType
+ENUM_TYPE_DOM_NODE_TYPE: EnumType
+ENUM_TYPE_STORE_TYPE: EnumType
+ENUM_TYPE_CLIENT_TYPE: EnumType
+ENUM_TYPE_FILE_RETENTION_MODE: EnumType
+ENUM_TYPE_FILE_KIND: EnumType
+ENUM_TYPE_FILE_TYPE: EnumType
+ENUM_TYPE_FILE_FORMAT: EnumType
+ENUM_TYPE_ICON_KIND: EnumType
 ENUM_TYPE_ACCESS_MODE: EnumType
 ENUM_TYPE_ACCESS_KIND: EnumType
 ENUM_TYPE_QUERY_TYPE: EnumType
@@ -1686,39 +1734,13 @@ ENUM_TYPE_ACCESS_TYPE: EnumType
 ENUM_TYPE_CHANGE_CATEGORY: EnumType
 ENUM_TYPE_EDIT_OPERATION_TYPE: EnumType
 ENUM_TYPE_POLICY_EFFECT: EnumType
-ENUM_TYPE_BENCH_TYPE: EnumType
-ENUM_TYPE_PACKAGE_TYPE: EnumType
-ENUM_TYPE_CLOUD: EnumType
-ENUM_TYPE_REGION: EnumType
-ENUM_TYPE_REGION_ZONE: EnumType
-ENUM_TYPE_REGION_AREA: EnumType
-ENUM_TYPE_RESOURCE_STATUS: EnumType
-ENUM_TYPE_RESOURCE_OCCUPANCY: EnumType
-ENUM_TYPE_FILE_RETENTION_MODE: EnumType
-ENUM_TYPE_FILE_KIND: EnumType
-ENUM_TYPE_FILE_TYPE: EnumType
-ENUM_TYPE_FILE_FORMAT: EnumType
-ENUM_TYPE_CLIENT_TYPE: EnumType
-ENUM_TYPE_MACHINE_TYPE: EnumType
-ENUM_TYPE_BROWSER_TYPE: EnumType
-ENUM_TYPE_DOM_NODE_TYPE: EnumType
-ENUM_TYPE_STORE_TYPE: EnumType
-ENUM_TYPE_SCALER_TYPE: EnumType
-ENUM_TYPE_SCALER_STRATEGY: EnumType
 ENUM_TYPE_PRIMITIVE_TYPE: EnumType
 ENUM_TYPE_FIELD_ZONE: EnumType
 ENUM_TYPE_TYPE_KIND: EnumType
 ENUM_TYPE_TYPE_FORMAT: EnumType
 ENUM_TYPE_OBJECT_KIND: EnumType
 ENUM_TYPE_BLOCK_TYPE: EnumType
-ENUM_TYPE_SCHEDULE_TYPE: EnumType
-ENUM_TYPE_TIME_INTERVAL: EnumType
-ENUM_TYPE_DAY: EnumType
-ENUM_TYPE_MONTH: EnumType
 ENUM_TYPE_TEXT_LINE_TYPE: EnumType
-ENUM_TYPE_ICON_KIND: EnumType
-ENUM_TYPE_MESSAGE_TYPE: EnumType
-ENUM_TYPE_MESSAGE_STATUS: EnumType
 ENUM_TYPE_EXPRESSION_KIND: EnumType
 ENUM_TYPE_EXPRESSION_OP: EnumType
 ENUM_TYPE_LITERAL_TYPE: EnumType
@@ -1728,8 +1750,6 @@ ENUM_TYPE_AGGREGATION_TYPE: EnumType
 ENUM_TYPE_SORT_MODE: EnumType
 ENUM_TYPE_SORT_TYPE: EnumType
 ENUM_TYPE_PATH_TOKEN_TYPE: EnumType
-ENUM_TYPE_LOG_KIND: EnumType
-ENUM_TYPE_LOG_LEVEL: EnumType
 ENUM_TYPE_RUN_STATUS: EnumType
 ENUM_TYPE_RUN_TYPE: EnumType
 ENUM_TYPE_RUN_ERROR_KIND: EnumType
@@ -1738,19 +1758,23 @@ ENUM_TYPE_RUN_SPAN_TYPE: EnumType
 ENUM_TYPE_RUN_EVENT_TYPE: EnumType
 ENUM_TYPE_SESSION_STATUS: EnumType
 ENUM_TYPE_TRIGGER_TYPE: EnumType
+ENUM_TYPE_CACHE_MODE: EnumType
+ENUM_TYPE_SCHEDULE_TYPE: EnumType
+ENUM_TYPE_LOG_KIND: EnumType
+ENUM_TYPE_LOG_LEVEL: EnumType
 ENUM_TYPE_BREAKPOINT_SITE: EnumType
 ENUM_TYPE_BREAKPOINT_ACTION: EnumType
 ENUM_TYPE_BREAKPOINT_TARGET: EnumType
 ENUM_TYPE_INTERRUPTION_TYPE: EnumType
 ENUM_TYPE_INTERRUPTION_STATUS: EnumType
-ENUM_TYPE_CACHE_MODE: EnumType
-ENUM_TYPE_CODE_TYPE: EnumType
-ENUM_TYPE_MODEL_PROVIDER: EnumType
+ENUM_TYPE_MODEL_DEVELOPER: EnumType
 ENUM_TYPE_MODEL_TYPE: EnumType
+ENUM_TYPE_MODEL_FAMILY: EnumType
+ENUM_TYPE_MODEL_PROVIDER: EnumType
 ENUM_TYPE_ACTION_TYPE: EnumType
+ENUM_TYPE_CODE_TYPE: EnumType
 ENUM_TYPE_PORT_SIDE: EnumType
 ENUM_TYPE_PIPE_TYPE: EnumType
-ENUM_TYPE_NODE_MODE: EnumType
 ENUM_TYPE_SPACE_TYPE: EnumType
 ENUM_TYPE_VIEW_TYPE: EnumType
 ENUM_TYPE_COLOR_TYPE: EnumType
@@ -1770,6 +1794,8 @@ ENUM_TYPE_BUTTON_VARIANT: EnumType
 ENUM_TYPE_PICKER_VARIANT: EnumType
 ENUM_TYPE_USER_STATUS: EnumType
 ENUM_TYPE_ORGANIZATION_STATUS: EnumType
+ENUM_TYPE_MESSAGE_TYPE: EnumType
+ENUM_TYPE_MESSAGE_STATUS: EnumType
 NODE_TYPE_UNSPECIFIED: NodeType
 NODE_TYPE_BENCH: NodeType
 NODE_TYPE_USER: NodeType
@@ -1967,60 +1993,42 @@ OBJECT_TYPE_VECTOR4: ObjectType
 OBJECT_TYPE_LINE: ObjectType
 OBJECT_TYPE_RECTANGLE_CONSTRAINT: ObjectType
 OBJECT_TYPE_DOM_NODE: ObjectType
-ACCESS_MODE_UNSPECIFIED: AccessMode
-ACCESS_MODE_ADAPTIVE: AccessMode
-ACCESS_MODE_ATOMIC: AccessMode
-ACCESS_KIND_UNSPECIFIED: AccessKind
-ACCESS_KIND_READ: AccessKind
-ACCESS_KIND_EDIT: AccessKind
-ACCESS_KIND_USE: AccessKind
-QUERY_TYPE_UNSPECIFIED: QueryType
-QUERY_TYPE_GET: QueryType
-QUERY_TYPE_SEARCH: QueryType
-QUERY_TYPE_AGGREGATE: QueryType
-EDIT_TYPE_UNSPECIFIED: EditType
-EDIT_TYPE_CREATE: EditType
-EDIT_TYPE_UPSERT: EditType
-EDIT_TYPE_UPDATE: EditType
-EDIT_TYPE_MOVE: EditType
-EDIT_TYPE_DELETE: EditType
-EDIT_TYPE_RESTORE: EditType
-EDIT_TYPE_ERASE: EditType
-USE_TYPE_UNSPECIFIED: UseType
-USE_TYPE_START: UseType
-USE_TYPE_PAUSE: UseType
-USE_TYPE_RESUME: UseType
-USE_TYPE_STOP: UseType
-USE_TYPE_KILL: UseType
-USE_TYPE_SEND: UseType
-USE_TYPE_RECEIVE: UseType
-ACCESS_TYPE_UNSPECIFIED: AccessType
-ACCESS_TYPE_GET: AccessType
-ACCESS_TYPE_SEARCH: AccessType
-ACCESS_TYPE_AGGREGATE: AccessType
-ACCESS_TYPE_CREATE: AccessType
-ACCESS_TYPE_UPSERT: AccessType
-ACCESS_TYPE_UPDATE: AccessType
-ACCESS_TYPE_MOVE: AccessType
-ACCESS_TYPE_DELETE: AccessType
-ACCESS_TYPE_RESTORE: AccessType
-ACCESS_TYPE_ERASE: AccessType
-ACCESS_TYPE_START: AccessType
-ACCESS_TYPE_PAUSE: AccessType
-ACCESS_TYPE_RESUME: AccessType
-ACCESS_TYPE_STOP: AccessType
-ACCESS_TYPE_KILL: AccessType
-ACCESS_TYPE_SEND: AccessType
-ACCESS_TYPE_RECEIVE: AccessType
-CHANGE_CATEGORY_UNSPECIFIED: ChangeCategory
-CHANGE_CATEGORY_SPACE: ChangeCategory
-CHANGE_CATEGORY_RUNTIME: ChangeCategory
-EDIT_OPERATION_TYPE_UNSPECIFIED: EditOperationType
-EDIT_OPERATION_TYPE_SET: EditOperationType
-EDIT_OPERATION_TYPE_CLEAR: EditOperationType
-POLICY_EFFECT_UNSPECIFIED: PolicyEffect
-POLICY_EFFECT_ALLOW: PolicyEffect
-POLICY_EFFECT_DENY: PolicyEffect
+NODE_MODE_UNSPECIFIED: NodeMode
+NODE_MODE_BUILTIN: NodeMode
+NODE_MODE_PRODUCTION: NodeMode
+NODE_MODE_DEVELOPMENT: NodeMode
+NODE_MODE_TEST: NodeMode
+NODE_MODE_PREVIEW: NodeMode
+NODE_MODE_ARCHIVE: NodeMode
+DAY_UNSPECIFIED: Day
+DAY_MONDAY: Day
+DAY_TUESDAY: Day
+DAY_WEDNESDAY: Day
+DAY_THURSDAY: Day
+DAY_FRIDAY: Day
+DAY_SATURDAY: Day
+DAY_SUNDAY: Day
+MONTH_UNSPECIFIED: Month
+MONTH_JANUARY: Month
+MONTH_FEBRUARY: Month
+MONTH_MARCH: Month
+MONTH_APRIL: Month
+MONTH_MAY: Month
+MONTH_JUNE: Month
+MONTH_JULY: Month
+MONTH_AUGUST: Month
+MONTH_SEPTEMBER: Month
+MONTH_OCTOBER: Month
+MONTH_NOVEMBER: Month
+MONTH_DECEMBER: Month
+TIME_INTERVAL_UNSPECIFIED: TimeInterval
+TIME_INTERVAL_SECOND: TimeInterval
+TIME_INTERVAL_MINUTE: TimeInterval
+TIME_INTERVAL_HOUR: TimeInterval
+TIME_INTERVAL_DAY: TimeInterval
+TIME_INTERVAL_WEEK: TimeInterval
+TIME_INTERVAL_MONTH: TimeInterval
+TIME_INTERVAL_YEAR: TimeInterval
 BENCH_TYPE_UNSPECIFIED: BenchType
 BENCH_TYPE_BENCH: BenchType
 BENCH_TYPE_USER: BenchType
@@ -2123,6 +2131,30 @@ BENCH_TYPE_ENUM_TYPE: BenchType
 BENCH_TYPE_NODE_TYPE: BenchType
 BENCH_TYPE_STRUCT_TYPE: BenchType
 BENCH_TYPE_OBJECT_TYPE: BenchType
+BENCH_TYPE_NODE_MODE: BenchType
+BENCH_TYPE_DAY: BenchType
+BENCH_TYPE_MONTH: BenchType
+BENCH_TYPE_TIME_INTERVAL: BenchType
+BENCH_TYPE_BENCH_TYPE: BenchType
+BENCH_TYPE_PACKAGE_TYPE: BenchType
+BENCH_TYPE_CLOUD: BenchType
+BENCH_TYPE_REGION: BenchType
+BENCH_TYPE_REGION_ZONE: BenchType
+BENCH_TYPE_REGION_AREA: BenchType
+BENCH_TYPE_RESOURCE_STATUS: BenchType
+BENCH_TYPE_RESOURCE_OCCUPANCY: BenchType
+BENCH_TYPE_SCALER_TYPE: BenchType
+BENCH_TYPE_SCALER_STRATEGY: BenchType
+BENCH_TYPE_MACHINE_TYPE: BenchType
+BENCH_TYPE_BROWSER_TYPE: BenchType
+BENCH_TYPE_DOM_NODE_TYPE: BenchType
+BENCH_TYPE_STORE_TYPE: BenchType
+BENCH_TYPE_CLIENT_TYPE: BenchType
+BENCH_TYPE_FILE_RETENTION_MODE: BenchType
+BENCH_TYPE_FILE_KIND: BenchType
+BENCH_TYPE_FILE_TYPE: BenchType
+BENCH_TYPE_FILE_FORMAT: BenchType
+BENCH_TYPE_ICON_KIND: BenchType
 BENCH_TYPE_ACCESS_MODE: BenchType
 BENCH_TYPE_ACCESS_KIND: BenchType
 BENCH_TYPE_QUERY_TYPE: BenchType
@@ -2132,39 +2164,13 @@ BENCH_TYPE_ACCESS_TYPE: BenchType
 BENCH_TYPE_CHANGE_CATEGORY: BenchType
 BENCH_TYPE_EDIT_OPERATION_TYPE: BenchType
 BENCH_TYPE_POLICY_EFFECT: BenchType
-BENCH_TYPE_BENCH_TYPE: BenchType
-BENCH_TYPE_PACKAGE_TYPE: BenchType
-BENCH_TYPE_CLOUD: BenchType
-BENCH_TYPE_REGION: BenchType
-BENCH_TYPE_REGION_ZONE: BenchType
-BENCH_TYPE_REGION_AREA: BenchType
-BENCH_TYPE_RESOURCE_STATUS: BenchType
-BENCH_TYPE_RESOURCE_OCCUPANCY: BenchType
-BENCH_TYPE_FILE_RETENTION_MODE: BenchType
-BENCH_TYPE_FILE_KIND: BenchType
-BENCH_TYPE_FILE_TYPE: BenchType
-BENCH_TYPE_FILE_FORMAT: BenchType
-BENCH_TYPE_CLIENT_TYPE: BenchType
-BENCH_TYPE_MACHINE_TYPE: BenchType
-BENCH_TYPE_BROWSER_TYPE: BenchType
-BENCH_TYPE_DOM_NODE_TYPE: BenchType
-BENCH_TYPE_STORE_TYPE: BenchType
-BENCH_TYPE_SCALER_TYPE: BenchType
-BENCH_TYPE_SCALER_STRATEGY: BenchType
 BENCH_TYPE_PRIMITIVE_TYPE: BenchType
 BENCH_TYPE_FIELD_ZONE: BenchType
 BENCH_TYPE_TYPE_KIND: BenchType
 BENCH_TYPE_TYPE_FORMAT: BenchType
 BENCH_TYPE_OBJECT_KIND: BenchType
 BENCH_TYPE_BLOCK_TYPE: BenchType
-BENCH_TYPE_SCHEDULE_TYPE: BenchType
-BENCH_TYPE_TIME_INTERVAL: BenchType
-BENCH_TYPE_DAY: BenchType
-BENCH_TYPE_MONTH: BenchType
 BENCH_TYPE_TEXT_LINE_TYPE: BenchType
-BENCH_TYPE_ICON_KIND: BenchType
-BENCH_TYPE_MESSAGE_TYPE: BenchType
-BENCH_TYPE_MESSAGE_STATUS: BenchType
 BENCH_TYPE_EXPRESSION_KIND: BenchType
 BENCH_TYPE_EXPRESSION_OP: BenchType
 BENCH_TYPE_LITERAL_TYPE: BenchType
@@ -2174,8 +2180,6 @@ BENCH_TYPE_AGGREGATION_TYPE: BenchType
 BENCH_TYPE_SORT_MODE: BenchType
 BENCH_TYPE_SORT_TYPE: BenchType
 BENCH_TYPE_PATH_TOKEN_TYPE: BenchType
-BENCH_TYPE_LOG_KIND: BenchType
-BENCH_TYPE_LOG_LEVEL: BenchType
 BENCH_TYPE_RUN_STATUS: BenchType
 BENCH_TYPE_RUN_TYPE: BenchType
 BENCH_TYPE_RUN_ERROR_KIND: BenchType
@@ -2184,19 +2188,23 @@ BENCH_TYPE_RUN_SPAN_TYPE: BenchType
 BENCH_TYPE_RUN_EVENT_TYPE: BenchType
 BENCH_TYPE_SESSION_STATUS: BenchType
 BENCH_TYPE_TRIGGER_TYPE: BenchType
+BENCH_TYPE_CACHE_MODE: BenchType
+BENCH_TYPE_SCHEDULE_TYPE: BenchType
+BENCH_TYPE_LOG_KIND: BenchType
+BENCH_TYPE_LOG_LEVEL: BenchType
 BENCH_TYPE_BREAKPOINT_SITE: BenchType
 BENCH_TYPE_BREAKPOINT_ACTION: BenchType
 BENCH_TYPE_BREAKPOINT_TARGET: BenchType
 BENCH_TYPE_INTERRUPTION_TYPE: BenchType
 BENCH_TYPE_INTERRUPTION_STATUS: BenchType
-BENCH_TYPE_CACHE_MODE: BenchType
-BENCH_TYPE_CODE_TYPE: BenchType
-BENCH_TYPE_MODEL_PROVIDER: BenchType
+BENCH_TYPE_MODEL_DEVELOPER: BenchType
 BENCH_TYPE_MODEL_TYPE: BenchType
+BENCH_TYPE_MODEL_FAMILY: BenchType
+BENCH_TYPE_MODEL_PROVIDER: BenchType
 BENCH_TYPE_ACTION_TYPE: BenchType
+BENCH_TYPE_CODE_TYPE: BenchType
 BENCH_TYPE_PORT_SIDE: BenchType
 BENCH_TYPE_PIPE_TYPE: BenchType
-BENCH_TYPE_NODE_MODE: BenchType
 BENCH_TYPE_SPACE_TYPE: BenchType
 BENCH_TYPE_VIEW_TYPE: BenchType
 BENCH_TYPE_COLOR_TYPE: BenchType
@@ -2216,6 +2224,8 @@ BENCH_TYPE_BUTTON_VARIANT: BenchType
 BENCH_TYPE_PICKER_VARIANT: BenchType
 BENCH_TYPE_USER_STATUS: BenchType
 BENCH_TYPE_ORGANIZATION_STATUS: BenchType
+BENCH_TYPE_MESSAGE_TYPE: BenchType
+BENCH_TYPE_MESSAGE_STATUS: BenchType
 PACKAGE_TYPE_UNSPECIFIED: PackageType
 PACKAGE_TYPE_ROOT: PackageType
 PACKAGE_TYPE_SIDE: PackageType
@@ -2274,6 +2284,27 @@ RESOURCE_OCCUPANCY_AVAILABLE: ResourceOccupancy
 RESOURCE_OCCUPANCY_RESERVED: ResourceOccupancy
 RESOURCE_OCCUPANCY_OCCUPIED: ResourceOccupancy
 RESOURCE_OCCUPANCY_DIRTY: ResourceOccupancy
+SCALER_TYPE_UNSPECIFIED: ScalerType
+SCALER_TYPE_MACHINE: ScalerType
+SCALER_TYPE_BROWSER: ScalerType
+SCALER_STRATEGY_UNSPECIFIED: ScalerStrategy
+SCALER_STRATEGY_MANUAL: ScalerStrategy
+SCALER_STRATEGY_AUTO: ScalerStrategy
+MACHINE_TYPE_UNSPECIFIED: MachineType
+MACHINE_TYPE_RUNTIME: MachineType
+BROWSER_TYPE_UNSPECIFIED: BrowserType
+BROWSER_TYPE_CHROMIUM: BrowserType
+DOM_NODE_TYPE_UNSPECIFIED: DomNodeType
+DOM_NODE_TYPE_TEXT: DomNodeType
+DOM_NODE_TYPE_ELEMENT: DomNodeType
+STORE_TYPE_UNSPECIFIED: StoreType
+STORE_TYPE_POSTGRES: StoreType
+CLIENT_TYPE_UNSPECIFIED: ClientType
+CLIENT_TYPE_BENCH_WEB: ClientType
+CLIENT_TYPE_BENCH_BROWSER_PLUGIN: ClientType
+CLIENT_TYPE_BENCH_DESKTOP: ClientType
+CLIENT_TYPE_BENCH_MOBILE: ClientType
+CLIENT_TYPE_BENCH_MACHINE: ClientType
 FILE_RETENTION_MODE_UNSPECIFIED: FileRetentionMode
 FILE_RETENTION_MODE_AUTOMATIC: FileRetentionMode
 FILE_RETENTION_MODE_MANUAL: FileRetentionMode
@@ -2381,27 +2412,64 @@ FILE_FORMAT_JAR: FileFormat
 FILE_FORMAT_MSI: FileFormat
 FILE_FORMAT_DEB: FileFormat
 FILE_FORMAT_RPM: FileFormat
-CLIENT_TYPE_UNSPECIFIED: ClientType
-CLIENT_TYPE_BENCH_WEB: ClientType
-CLIENT_TYPE_BENCH_BROWSER_PLUGIN: ClientType
-CLIENT_TYPE_BENCH_DESKTOP: ClientType
-CLIENT_TYPE_BENCH_MOBILE: ClientType
-CLIENT_TYPE_BENCH_MACHINE: ClientType
-MACHINE_TYPE_UNSPECIFIED: MachineType
-MACHINE_TYPE_RUNTIME: MachineType
-BROWSER_TYPE_UNSPECIFIED: BrowserType
-BROWSER_TYPE_CHROMIUM: BrowserType
-DOM_NODE_TYPE_UNSPECIFIED: DomNodeType
-DOM_NODE_TYPE_TEXT: DomNodeType
-DOM_NODE_TYPE_ELEMENT: DomNodeType
-STORE_TYPE_UNSPECIFIED: StoreType
-STORE_TYPE_POSTGRES: StoreType
-SCALER_TYPE_UNSPECIFIED: ScalerType
-SCALER_TYPE_MACHINE: ScalerType
-SCALER_TYPE_BROWSER: ScalerType
-SCALER_STRATEGY_UNSPECIFIED: ScalerStrategy
-SCALER_STRATEGY_MANUAL: ScalerStrategy
-SCALER_STRATEGY_AUTO: ScalerStrategy
+ICON_KIND_UNSPECIFIED: IconKind
+ICON_KIND_EMOJI: IconKind
+ICON_KIND_FONT_AWESOME: IconKind
+ICON_KIND_VS_CODE: IconKind
+ACCESS_MODE_UNSPECIFIED: AccessMode
+ACCESS_MODE_ADAPTIVE: AccessMode
+ACCESS_MODE_ATOMIC: AccessMode
+ACCESS_KIND_UNSPECIFIED: AccessKind
+ACCESS_KIND_READ: AccessKind
+ACCESS_KIND_EDIT: AccessKind
+ACCESS_KIND_USE: AccessKind
+QUERY_TYPE_UNSPECIFIED: QueryType
+QUERY_TYPE_GET: QueryType
+QUERY_TYPE_SEARCH: QueryType
+QUERY_TYPE_AGGREGATE: QueryType
+EDIT_TYPE_UNSPECIFIED: EditType
+EDIT_TYPE_CREATE: EditType
+EDIT_TYPE_UPSERT: EditType
+EDIT_TYPE_UPDATE: EditType
+EDIT_TYPE_MOVE: EditType
+EDIT_TYPE_DELETE: EditType
+EDIT_TYPE_RESTORE: EditType
+EDIT_TYPE_ERASE: EditType
+USE_TYPE_UNSPECIFIED: UseType
+USE_TYPE_START: UseType
+USE_TYPE_PAUSE: UseType
+USE_TYPE_RESUME: UseType
+USE_TYPE_STOP: UseType
+USE_TYPE_KILL: UseType
+USE_TYPE_SEND: UseType
+USE_TYPE_RECEIVE: UseType
+ACCESS_TYPE_UNSPECIFIED: AccessType
+ACCESS_TYPE_GET: AccessType
+ACCESS_TYPE_SEARCH: AccessType
+ACCESS_TYPE_AGGREGATE: AccessType
+ACCESS_TYPE_CREATE: AccessType
+ACCESS_TYPE_UPSERT: AccessType
+ACCESS_TYPE_UPDATE: AccessType
+ACCESS_TYPE_MOVE: AccessType
+ACCESS_TYPE_DELETE: AccessType
+ACCESS_TYPE_RESTORE: AccessType
+ACCESS_TYPE_ERASE: AccessType
+ACCESS_TYPE_START: AccessType
+ACCESS_TYPE_PAUSE: AccessType
+ACCESS_TYPE_RESUME: AccessType
+ACCESS_TYPE_STOP: AccessType
+ACCESS_TYPE_KILL: AccessType
+ACCESS_TYPE_SEND: AccessType
+ACCESS_TYPE_RECEIVE: AccessType
+CHANGE_CATEGORY_UNSPECIFIED: ChangeCategory
+CHANGE_CATEGORY_SPACE: ChangeCategory
+CHANGE_CATEGORY_RUNTIME: ChangeCategory
+EDIT_OPERATION_TYPE_UNSPECIFIED: EditOperationType
+EDIT_OPERATION_TYPE_SET: EditOperationType
+EDIT_OPERATION_TYPE_CLEAR: EditOperationType
+POLICY_EFFECT_UNSPECIFIED: PolicyEffect
+POLICY_EFFECT_ALLOW: PolicyEffect
+POLICY_EFFECT_DENY: PolicyEffect
 PRIMITIVE_TYPE_UNSPECIFIED: PrimitiveType
 PRIMITIVE_TYPE_BOOLEAN: PrimitiveType
 PRIMITIVE_TYPE_INT16: PrimitiveType
@@ -2458,38 +2526,6 @@ BLOCK_TYPE_DATABASE: BlockType
 BLOCK_TYPE_VIEW: BlockType
 BLOCK_TYPE_ROLE: BlockType
 BLOCK_TYPE_IDENTITY: BlockType
-SCHEDULE_TYPE_UNSPECIFIED: ScheduleType
-SCHEDULE_TYPE_INTERVAL: ScheduleType
-SCHEDULE_TYPE_CRON: ScheduleType
-TIME_INTERVAL_UNSPECIFIED: TimeInterval
-TIME_INTERVAL_SECOND: TimeInterval
-TIME_INTERVAL_MINUTE: TimeInterval
-TIME_INTERVAL_HOUR: TimeInterval
-TIME_INTERVAL_DAY: TimeInterval
-TIME_INTERVAL_WEEK: TimeInterval
-TIME_INTERVAL_MONTH: TimeInterval
-TIME_INTERVAL_YEAR: TimeInterval
-DAY_UNSPECIFIED: Day
-DAY_MONDAY: Day
-DAY_TUESDAY: Day
-DAY_WEDNESDAY: Day
-DAY_THURSDAY: Day
-DAY_FRIDAY: Day
-DAY_SATURDAY: Day
-DAY_SUNDAY: Day
-MONTH_UNSPECIFIED: Month
-MONTH_JANUARY: Month
-MONTH_FEBRUARY: Month
-MONTH_MARCH: Month
-MONTH_APRIL: Month
-MONTH_MAY: Month
-MONTH_JUNE: Month
-MONTH_JULY: Month
-MONTH_AUGUST: Month
-MONTH_SEPTEMBER: Month
-MONTH_OCTOBER: Month
-MONTH_NOVEMBER: Month
-MONTH_DECEMBER: Month
 TEXT_LINE_TYPE_UNSPECIFIED: TextLineType
 TEXT_LINE_TYPE_PLAIN: TextLineType
 TEXT_LINE_TYPE_HEADING_1: TextLineType
@@ -2503,24 +2539,6 @@ TEXT_LINE_TYPE_LIST_NUMBERED: TextLineType
 TEXT_LINE_TYPE_LIST_UNCHECKED: TextLineType
 TEXT_LINE_TYPE_LIST_CHECKED: TextLineType
 TEXT_LINE_TYPE_DIVIDER: TextLineType
-ICON_KIND_UNSPECIFIED: IconKind
-ICON_KIND_EMOJI: IconKind
-ICON_KIND_FONT_AWESOME: IconKind
-ICON_KIND_VS_CODE: IconKind
-MESSAGE_TYPE_UNSPECIFIED: MessageType
-MESSAGE_TYPE_INTERNAL: MessageType
-MESSAGE_TYPE_FEDERATED: MessageType
-MESSAGE_TYPE_EMAIL: MessageType
-MESSAGE_TYPE_SMS: MessageType
-MESSAGE_STATUS_UNSPECIFIED: MessageStatus
-MESSAGE_STATUS_DRAFT: MessageStatus
-MESSAGE_STATUS_PREPARED: MessageStatus
-MESSAGE_STATUS_SENDING: MessageStatus
-MESSAGE_STATUS_SENT: MessageStatus
-MESSAGE_STATUS_FAILED: MessageStatus
-MESSAGE_STATUS_RECEIVED: MessageStatus
-MESSAGE_STATUS_READ: MessageStatus
-MESSAGE_STATUS_EXPIRED: MessageStatus
 EXPRESSION_KIND_UNSPECIFIED: ExpressionKind
 EXPRESSION_KIND_LITERAL: ExpressionKind
 EXPRESSION_KIND_FUNCTIONAL: ExpressionKind
@@ -2629,16 +2647,6 @@ PATH_TOKEN_TYPE_CHILD: PathTokenType
 PATH_TOKEN_TYPE_CONTAINER: PathTokenType
 PATH_TOKEN_TYPE_UNIQUE: PathTokenType
 PATH_TOKEN_TYPE_FIELD: PathTokenType
-LOG_KIND_UNSPECIFIED: LogKind
-LOG_KIND_CHANGE: LogKind
-LOG_KIND_EDIT: LogKind
-LOG_LEVEL_UNSPECIFIED: LogLevel
-LOG_LEVEL_TRACE: LogLevel
-LOG_LEVEL_DEBUG: LogLevel
-LOG_LEVEL_INFO: LogLevel
-LOG_LEVEL_WARNING: LogLevel
-LOG_LEVEL_ERROR: LogLevel
-LOG_LEVEL_CRITICAL: LogLevel
 RUN_STATUS_UNSPECIFIED: RunStatus
 RUN_STATUS_SCHEDULED: RunStatus
 RUN_STATUS_QUEUED: RunStatus
@@ -2695,6 +2703,22 @@ SESSION_STATUS_CLOSED: SessionStatus
 TRIGGER_TYPE_UNSPECIFIED: TriggerType
 TRIGGER_TYPE_SCHEDULE: TriggerType
 TRIGGER_TYPE_SIGNAL: TriggerType
+CACHE_MODE_UNSPECIFIED: CacheMode
+CACHE_MODE_NEVER: CacheMode
+CACHE_MODE_ALWAYS: CacheMode
+SCHEDULE_TYPE_UNSPECIFIED: ScheduleType
+SCHEDULE_TYPE_INTERVAL: ScheduleType
+SCHEDULE_TYPE_CRON: ScheduleType
+LOG_KIND_UNSPECIFIED: LogKind
+LOG_KIND_CHANGE: LogKind
+LOG_KIND_EDIT: LogKind
+LOG_LEVEL_UNSPECIFIED: LogLevel
+LOG_LEVEL_TRACE: LogLevel
+LOG_LEVEL_DEBUG: LogLevel
+LOG_LEVEL_INFO: LogLevel
+LOG_LEVEL_WARNING: LogLevel
+LOG_LEVEL_ERROR: LogLevel
+LOG_LEVEL_CRITICAL: LogLevel
 BREAKPOINT_SITE_UNSPECIFIED: BreakpointSite
 BREAKPOINT_SITE_RUN_BEFORE: BreakpointSite
 BREAKPOINT_SITE_RUN_AFTER_FAILED: BreakpointSite
@@ -2715,30 +2739,37 @@ INTERRUPTION_STATUS_UNSPECIFIED: InterruptionStatus
 INTERRUPTION_STATUS_OPEN: InterruptionStatus
 INTERRUPTION_STATUS_CANCELLED: InterruptionStatus
 INTERRUPTION_STATUS_COMPLETED: InterruptionStatus
-CACHE_MODE_UNSPECIFIED: CacheMode
-CACHE_MODE_NEVER: CacheMode
-CACHE_MODE_ALWAYS: CacheMode
-CODE_TYPE_UNSPECIFIED: CodeType
-CODE_TYPE_SNIPPET: CodeType
-CODE_TYPE_SCRIPT: CodeType
-CODE_TYPE_FUNCTION: CodeType
-MODEL_PROVIDER_UNSPECIFIED: ModelProvider
-MODEL_PROVIDER_META: ModelProvider
-MODEL_PROVIDER_OPENAI: ModelProvider
-MODEL_PROVIDER_ANTHROPIC: ModelProvider
-MODEL_PROVIDER_GOOGLE: ModelProvider
+MODEL_DEVELOPER_UNSPECIFIED: ModelDeveloper
+MODEL_DEVELOPER_META: ModelDeveloper
+MODEL_DEVELOPER_OPENAI: ModelDeveloper
+MODEL_DEVELOPER_ANTHROPIC: ModelDeveloper
+MODEL_DEVELOPER_GOOGLE: ModelDeveloper
+MODEL_DEVELOPER_AMAZON: ModelDeveloper
+MODEL_DEVELOPER_MICROSOFT: ModelDeveloper
 MODEL_TYPE_UNSPECIFIED: ModelType
 MODEL_TYPE_META_LLAMA_3_1_80B: ModelType
 MODEL_TYPE_META_LLAMA_3_1_400B: ModelType
 MODEL_TYPE_OPENAI_GPT4_0: ModelType
 MODEL_TYPE_OPENAI_GPT4_O_MINI: ModelType
-MODEL_TYPE_OPENAI_O1_PREVIEW: ModelType
+MODEL_TYPE_OPENAI_O1: ModelType
 MODEL_TYPE_OPENAI_O1_MINI: ModelType
 MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET: ModelType
 MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO: ModelType
+MODEL_FAMILY_UNSPECIFIED: ModelFamily
+MODEL_FAMILY_META_LLAMA: ModelFamily
+MODEL_FAMILY_OPENAI_GPT: ModelFamily
+MODEL_FAMILY_OPENAI_O: ModelFamily
+MODEL_FAMILY_ANTHROPIC_CLAUDE: ModelFamily
+MODEL_FAMILY_GOOGLE_GEMINI: ModelFamily
+MODEL_PROVIDER_UNSPECIFIED: ModelProvider
+MODEL_PROVIDER_META: ModelProvider
+MODEL_PROVIDER_OPENAI: ModelProvider
+MODEL_PROVIDER_ANTHROPIC: ModelProvider
+MODEL_PROVIDER_GOOGLE: ModelProvider
+MODEL_PROVIDER_AMAZON: ModelProvider
+MODEL_PROVIDER_MICROSOFT: ModelProvider
 ACTION_TYPE_UNSPECIFIED: ActionType
 ACTION_TYPE_START: ActionType
-ACTION_TYPE_TRIGGER: ActionType
 ACTION_TYPE_COMPLETE: ActionType
 ACTION_TYPE_FAIL: ActionType
 ACTION_TYPE_GET: ActionType
@@ -2771,6 +2802,10 @@ ACTION_TYPE_OPEN_TAB: ActionType
 ACTION_TYPE_CLOSE_TAB: ActionType
 ACTION_TYPE_LOOP: ActionType
 ACTION_TYPE_TEXT: ActionType
+CODE_TYPE_UNSPECIFIED: CodeType
+CODE_TYPE_SNIPPET: CodeType
+CODE_TYPE_SCRIPT: CodeType
+CODE_TYPE_FUNCTION: CodeType
 PORT_SIDE_UNSPECIFIED: PortSide
 PORT_SIDE_INCOMING: PortSide
 PORT_SIDE_OUTGOING: PortSide
@@ -2779,13 +2814,6 @@ PIPE_TYPE_FORWARD: PipeType
 PIPE_TYPE_FORWARD_AND_BACK: PipeType
 PIPE_TYPE_SELECT: PipeType
 PIPE_TYPE_SELECT_AND_BACK: PipeType
-NODE_MODE_UNSPECIFIED: NodeMode
-NODE_MODE_BUILTIN: NodeMode
-NODE_MODE_PRODUCTION: NodeMode
-NODE_MODE_DEVELOPMENT: NodeMode
-NODE_MODE_TEST: NodeMode
-NODE_MODE_PREVIEW: NodeMode
-NODE_MODE_ARCHIVE: NodeMode
 SPACE_TYPE_UNSPECIFIED: SpaceType
 SPACE_TYPE_DESKTOP: SpaceType
 SPACE_TYPE_BROWSER: SpaceType
@@ -3018,6 +3046,20 @@ USER_STATUS_ACTIVATED: UserStatus
 ORGANIZATION_STATUS_UNSPECIFIED: OrganizationStatus
 ORGANIZATION_STATUS_REGISTERED: OrganizationStatus
 ORGANIZATION_STATUS_ACTIVATED: OrganizationStatus
+MESSAGE_TYPE_UNSPECIFIED: MessageType
+MESSAGE_TYPE_INTERNAL: MessageType
+MESSAGE_TYPE_FEDERATED: MessageType
+MESSAGE_TYPE_EMAIL: MessageType
+MESSAGE_TYPE_SMS: MessageType
+MESSAGE_STATUS_UNSPECIFIED: MessageStatus
+MESSAGE_STATUS_DRAFT: MessageStatus
+MESSAGE_STATUS_PREPARED: MessageStatus
+MESSAGE_STATUS_SENDING: MessageStatus
+MESSAGE_STATUS_SENT: MessageStatus
+MESSAGE_STATUS_FAILED: MessageStatus
+MESSAGE_STATUS_RECEIVED: MessageStatus
+MESSAGE_STATUS_READ: MessageStatus
+MESSAGE_STATUS_EXPIRED: MessageStatus
 ID_ENUM_UNSPECIFIED: IdEnum
 REFERENCE_KIND_UNSPECIFIED: ReferenceKind
 REFERENCE_KIND_NODE_ANCESTOR: ReferenceKind
@@ -3457,7 +3499,7 @@ class VideoOptionsData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
 
 class RunOptionsData(_message.Message):
-    __slots__ = ("metatype", "max_attempts", "max_concurrency", "max_runs", "timeout", "retry_interval", "backoff", "max_retry_interval", "retry_on", "suppress_fail", "suppress_abort", "suppress_pause", "breakpoints", "cache_mode", "cache_retention", "model_provider", "model_type", "text_options", "audio_options", "image_options", "video_options")
+    __slots__ = ("metatype", "max_attempts", "max_concurrency", "max_runs", "timeout", "retry_interval", "backoff", "max_retry_interval", "retry_on", "suppress_fail", "suppress_abort", "suppress_pause", "breakpoints", "cache_mode", "cache_retention", "model_developer", "model_family", "model_type", "text_options", "audio_options", "image_options", "video_options")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     MAX_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
     MAX_CONCURRENCY_FIELD_NUMBER: _ClassVar[int]
@@ -3473,7 +3515,8 @@ class RunOptionsData(_message.Message):
     BREAKPOINTS_FIELD_NUMBER: _ClassVar[int]
     CACHE_MODE_FIELD_NUMBER: _ClassVar[int]
     CACHE_RETENTION_FIELD_NUMBER: _ClassVar[int]
-    MODEL_PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    MODEL_DEVELOPER_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FAMILY_FIELD_NUMBER: _ClassVar[int]
     MODEL_TYPE_FIELD_NUMBER: _ClassVar[int]
     TEXT_OPTIONS_FIELD_NUMBER: _ClassVar[int]
     AUDIO_OPTIONS_FIELD_NUMBER: _ClassVar[int]
@@ -3494,13 +3537,14 @@ class RunOptionsData(_message.Message):
     breakpoints: _containers.RepeatedCompositeFieldContainer[BreakpointData]
     cache_mode: CacheMode
     cache_retention: _duration_pb2.Duration
-    model_provider: ModelProvider
+    model_developer: ModelDeveloper
+    model_family: ModelFamily
     model_type: ModelType
     text_options: TextOptionsData
     audio_options: AudioOptionsData
     image_options: ImageOptionsData
     video_options: VideoOptionsData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., max_attempts: _Optional[int] = ..., max_concurrency: _Optional[int] = ..., max_runs: _Optional[int] = ..., timeout: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., retry_interval: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., backoff: _Optional[float] = ..., max_retry_interval: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., retry_on: _Optional[_Iterable[_Union[RunErrorType, str]]] = ..., suppress_fail: bool = ..., suppress_abort: bool = ..., suppress_pause: bool = ..., breakpoints: _Optional[_Iterable[_Union[BreakpointData, _Mapping]]] = ..., cache_mode: _Optional[_Union[CacheMode, str]] = ..., cache_retention: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., model_provider: _Optional[_Union[ModelProvider, str]] = ..., model_type: _Optional[_Union[ModelType, str]] = ..., text_options: _Optional[_Union[TextOptionsData, _Mapping]] = ..., audio_options: _Optional[_Union[AudioOptionsData, _Mapping]] = ..., image_options: _Optional[_Union[ImageOptionsData, _Mapping]] = ..., video_options: _Optional[_Union[VideoOptionsData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., max_attempts: _Optional[int] = ..., max_concurrency: _Optional[int] = ..., max_runs: _Optional[int] = ..., timeout: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., retry_interval: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., backoff: _Optional[float] = ..., max_retry_interval: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., retry_on: _Optional[_Iterable[_Union[RunErrorType, str]]] = ..., suppress_fail: bool = ..., suppress_abort: bool = ..., suppress_pause: bool = ..., breakpoints: _Optional[_Iterable[_Union[BreakpointData, _Mapping]]] = ..., cache_mode: _Optional[_Union[CacheMode, str]] = ..., cache_retention: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., model_developer: _Optional[_Union[ModelDeveloper, str]] = ..., model_family: _Optional[_Union[ModelFamily, str]] = ..., model_type: _Optional[_Union[ModelType, str]] = ..., text_options: _Optional[_Union[TextOptionsData, _Mapping]] = ..., audio_options: _Optional[_Union[AudioOptionsData, _Mapping]] = ..., image_options: _Optional[_Union[ImageOptionsData, _Mapping]] = ..., video_options: _Optional[_Union[VideoOptionsData, _Mapping]] = ...) -> None: ...
 
 class RunAttemptData(_message.Message):
     __slots__ = ("metatype", "code", "status", "duration", "started_at", "started_epoch", "terminated_at", "terminated_epoch", "interrupted_at", "interruption_ptr", "error", "intermediates_packed")
@@ -4719,8 +4763,10 @@ class RouteActionData(_message.Message):
     def __init__(self) -> None: ...
 
 class ChangeActionData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("nodes_ptr",)
+    NODES_PTR_FIELD_NUMBER: _ClassVar[int]
+    nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
+    def __init__(self, nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
 class ObserveActionData(_message.Message):
     __slots__ = ("exclude_image", "screenshot_ptr", "dom")

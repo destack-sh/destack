@@ -132,7 +132,7 @@ export const CLASSY_BLOCK_TYPES = [BlockType.MESSAGE, ...RUNNABLE_BLOCK_TYPES, B
 // action
 export const ACTION_TYPES = Object.values(ActionType).filter((v) => typeof v == "number" && v > 0) as ActionType[];
 export const BOUNDARY_ACTION_TYPES = ACTION_TYPES.filter((st) => st < 50);
-export const SOURCE_ACTION_TYPES = [ActionType.START, ActionType.TRIGGER];
+export const SOURCE_ACTION_TYPES = [ActionType.START];
 export const SINK_ACTION_TYPES = [ActionType.COMPLETE, ActionType.FAIL];
 export const INVISIBLE_ACTION_TYPES = [ActionType.TEXT];
 export const RUN_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 50 && st < 100);
@@ -294,13 +294,11 @@ export const EDIT_TYPE_PAST_VERB: Partial<Record<EditType, string>> = {
 //  (in code and backend the entire ranges are available)
 export const EXPOSED_NODE_TYPES = NODE_TYPES.filter((t) => t != NodeType.SKIP);
 export const EXPOSED_BLOCK_TYPES = [
+  BlockType.TEXT,
+  BlockType.DATABASE,
+  BlockType.FLOW,
   BlockType.PAGE,
   BlockType.CHOICE,
-  BlockType.TEXT,
-  BlockType.FLOW,
-  // BlockType.VIEW,
-  BlockType.VARIABLE,
-  BlockType.DATABASE,
 ];
 export const EXPOSED_STRUCT_TYPES = [
   // core
@@ -359,7 +357,7 @@ export const EXPOSED_MODEL_TYPES = [
   ModelType.OPENAI_GPT4_0,
   ModelType.OPENAI_GPT4_O_MINI,
   ModelType.OPENAI_O1_MINI,
-  ModelType.OPENAI_O1_PREVIEW,
+  ModelType.OPENAI_O1,
   ModelType.ANTHROPIC_CLAUDE_3_5_SONNET,
 ];
 export const EXPOSED_REGIONS = [Region.FRANKFURT, Region.OHIO];
@@ -394,7 +392,7 @@ export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> 
     [ModelType.OPENAI_GPT4_0]: "OpenAI GPT-4o",
     [ModelType.OPENAI_GPT4_O_MINI]: "OpenAI GPT-4o Mini",
     [ModelType.OPENAI_O1_MINI]: "OpenAI O1 Mini",
-    [ModelType.OPENAI_O1_PREVIEW]: "OpenAI O1 Preview",
+    [ModelType.OPENAI_O1]: "OpenAI O1",
     [ModelType.ANTHROPIC_CLAUDE_3_5_SONNET]: "Anthropic Claude 3.5 Sonnet",
     [ModelType.GOOGLE_GEMINI_1_5_PRO]: "Google Gemini 1.5",
     [ModelType.META_LLAMA_3_1_80B]: "Meta Llama 3.1",

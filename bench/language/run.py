@@ -64,15 +64,52 @@ if TYPE_CHECKING:
 RunnableNode = Union["Block", "Action", "Pipe"]
 
 
+@enum_(EnumType.MODEL_DEVELOPER)
+class ModelDeveloper(IdEnum):
+    # internal
+    # ...
+    # external
+    META = 1000
+    OPENAI = 2000
+    ANTHROPIC = 3000
+    GOOGLE = 4000
+    AMAZON = 5000
+    MICROSOFT = 6000
+
+
 @enum_(EnumType.MODEL_PROVIDER)
 class ModelProvider(IdEnum):
     # internal
-    # ...?
+    # ...
+    # external developers (1000-19999)
+    META = 1000
+    OPENAI = 2000
+    ANTHROPIC = 3000
+    GOOGLE = 4000
+    AMAZON = 5000
+    MICROSOFT = 6000
+    # external providers (20000-)
+    # ...
+
+
+@enum_(EnumType.MODEL_FAMILY)
+class ModelFamily(IdEnum):
+    # internal
+    # ...
     # external
-    META = 100
-    OPENAI = 200
-    ANTHROPIC = 300
-    GOOGLE = 400
+    # meta
+    META_LLAMA = 1000
+    # openai
+    OPENAI_GPT = 2000
+    OPENAI_O = 2100
+    # anthropic
+    ANTHROPIC_CLAUDE = 3000
+    # google
+    GOOGLE_GEMINI = 4000
+    # amazon
+    # ...
+    # microsoft
+    # ...
 
 
 @enum_(EnumType.MODEL_TYPE)
@@ -80,22 +117,20 @@ class ModelType(IdEnum):  # :ModelType
     # internal
     ...  # ?
     # external
-    # meta
-    META_LLAMA_3_1_80B = 101
-    META_LLAMA_3_1_400B = 102
-    # openai
-    OPENAI_GPT4_0 = 201
-    OPENAI_GPT4_O_MINI = 202
-    OPENAI_O1_PREVIEW = 203
-    OPENAI_O1_MINI = 204
-    # anthropic
-    ANTHROPIC_CLAUDE_3_5_SONNET = 301
-    # google
-    GOOGLE_GEMINI_1_5_PRO = 401
-
-    @property
-    def provider(self) -> ModelProvider:
-        return ModelProvider((self.value // 100) * 100)
+    # meta-llama
+    META_LLAMA_3_1_80B = 1001
+    META_LLAMA_3_1_400B = 1002
+    # openai-gpt
+    OPENAI_GPT4_0 = 2001
+    OPENAI_GPT4_O_MINI = 2002
+    # openai-o
+    OPENAI_O1 = 2100
+    OPENAI_O1_MINI = 2101
+    # anthropic-claude
+    ANTHROPIC_CLAUDE_3_5_SONNET = 3001
+    # google-gemini
+    GOOGLE_GEMINI_1_5_PRO = 4001
+    GOOGLE_GEMINI_2_0_FLASH = 4002
 
 
 @struct_(StructType.TEXT_OPTIONS)
@@ -180,19 +215,20 @@ class RunOptions(Struct):
     cache_retention: Optional[timedelta] = p_regular(71)
 
     # model
-    model_provider: Optional["ModelProvider"] = p_regular(80)
-    model_type: Optional["ModelType"] = p_regular(81)
+    model_developer: Optional["ModelDeveloper"] = p_regular(80)
+    model_family: Optional["ModelFamily"] = p_regular(81)
+    model_type: Optional["ModelType"] = p_regular(82)
     text_options: Optional[TextOptions] = p_regular(
-        82, require=False, array=False, struct=StructType.TEXT_OPTIONS
+        83, require=False, array=False, struct=StructType.TEXT_OPTIONS
     )
     audio_options: Optional[AudioOptions] = p_regular(
-        83, require=False, array=False, struct=StructType.AUDIO_OPTIONS
+        84, require=False, array=False, struct=StructType.AUDIO_OPTIONS
     )
     image_options: Optional[ImageOptions] = p_regular(
-        84, require=False, array=False, struct=StructType.IMAGE_OPTIONS
+        85, require=False, array=False, struct=StructType.IMAGE_OPTIONS
     )
     video_options: Optional[VideoOptions] = p_regular(
-        85, require=False, array=False, struct=StructType.VIDEO_OPTIONS
+        86, require=False, array=False, struct=StructType.VIDEO_OPTIONS
     )
 
     def to_retry(self) -> RetryOptions:

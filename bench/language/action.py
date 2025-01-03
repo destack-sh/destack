@@ -72,7 +72,6 @@ if TYPE_CHECKING:
 class ActionType(IdEnum):
     # start
     START = 1, "Begin the Flow"
-    TRIGGER = 2, "Begin on a trigger"
     # end
     COMPLETE = 10, "Complete the entire Flow"
     FAIL = 11, "Fail the entire Flow"
@@ -292,19 +291,11 @@ class Action(SourceNode[ActionData]):
 
             # actions also have their subtype as input & output type
             #  (to enable dynamically setting action properties as inputs)
-            if field_type == FieldType.INPUT:
+            if field_type == FieldType.INPUT or field_type == FieldType.OUTPUT:
                 typ = TypeInfo(
                     kind=TypeKind.PARTIAL_OBJECT,
                     base_type=base,
                     bench_type=NodeType.ACTION,
-                    base_field_type=field_type,
-                    property_field_type=field_type,
-                    constraint=TypeConstraint(node_subtypes=[self.type]),
-                )
-            elif field_type == FieldType.OUTPUT:
-                typ = TypeInfo(
-                    kind=TypeKind.PARTIAL_OBJECT,
-                    base_type=base,
                     base_field_type=field_type,
                     property_field_type=field_type,
                     constraint=TypeConstraint(node_subtypes=[self.type]),
@@ -527,7 +518,9 @@ class RouteAction(Action, HasDynamicContext):
 
 @node_subtype_(ActionType.CHANGE)
 class ChangeAction(Action, HasDynamicContext):
-    pass
+    nodes: list[Node] = p_regular(
+        110, array=True, require=False, references="any", field_type=FieldType.INPUT
+    )
 
 
 #

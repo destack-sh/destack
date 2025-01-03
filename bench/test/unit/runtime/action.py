@@ -1,3 +1,3 @@
-from bench.language.run import ModelProvider
+from bench.language.run import ModelDeveloper
 
-TEST_MODEL_PROVIDERS = (ModelProvider.OPENAI, ModelProvider.ANTHROPIC, ModelProvider.GOOGLE)
+TEST_MODEL_PROVIDERS = (ModelDeveloper.OPENAI, ModelDeveloper.ANTHROPIC, ModelDeveloper.GOOGLE)
