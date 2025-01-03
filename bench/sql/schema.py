@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2025.01.02.4"
+VERSION = "2025.01.03.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -792,47 +792,6 @@ BLOCK_TABLE = Table(
     ),
 )
 
-TRIGGER_TABLE = Table(
-    "bench_trigger",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
-        Column("parent_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("package_ck", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("template_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("templated_epoch", PrimitiveType.INT64, is_nullable=True),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("type", PrimitiveType.INT16),
-        Column("name", PrimitiveType.STRING),
-        Column("is_paused", PrimitiveType.BOOLEAN, default="false"),
-        Column("processed_epoch", PrimitiveType.INT32, is_nullable=True),
-        Column("schedule", PrimitiveType.JSON, is_nullable=True),
-        Column("message_id", PrimitiveType.UUID, is_nullable=True),
-        Column("message_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("message_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("condition", PrimitiveType.JSON, is_nullable=True),
-        Column("mode", PrimitiveType.INT16, default="2"),
-    ),
-)
-
 FIELD_TABLE = Table(
     "bench_field",
     (
@@ -1254,9 +1213,6 @@ INTERRUPTION_TABLE = Table(
         Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
-        Column("trigger_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("trigger_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),

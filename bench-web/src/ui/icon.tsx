@@ -184,7 +184,6 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.SPACE]: "fas fa-galaxy",
   [NodeType.SKIP]: "fas fa-ban",
   [NodeType.BLOCK]: "fas fa-cube",
-  [NodeType.TRIGGER]: "fas fa-bolt-lightning",
   [NodeType.FIELD]: "fas fa-triangle",
   [NodeType.VIEW]: "fas fa-window-frame",
   [NodeType.ACTION]: "fas fa-step-forward",
