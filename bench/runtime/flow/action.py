@@ -101,7 +101,7 @@ class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
             run=run,
         )
         assert self.inputs is not None, f"no inputs for {self!r}"
-        self.action_inputs = cast(A, ProxyReadObject(obj=self.inputs, default=self.node))
+        self.action_inputs = cast(A, ProxyReadObject(self.inputs, self.node))
         self.flow = flow
 
     @override
@@ -144,7 +144,7 @@ class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
             )
             return runner
 
-    # nocheckin: generate missing/unset outputs & Calls (in Flow? or always?)
+    # nocheckin: generate missing/unset inputs/outputs/Calls (in Flow? or always?)
 
 
 #

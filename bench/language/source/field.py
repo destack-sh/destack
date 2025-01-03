@@ -56,6 +56,7 @@ from bench.language.core import (
     pad_ck_from_tk_b64,
     struct_,
 )
+from bench.language.core.node import node_subtype_
 from bench.language.registry import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS
 from bench.proto.wire import AnyNodeData, FieldData, NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
@@ -595,10 +596,6 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _TypeQuery):
     # type identity
     # ...TypeInfo[40-69]
 
-    # member-only flags
-    # is_stored/is_computed, is_indexed, is_unique, ...
-    # resource_options, ...?
-
     _introspected_from: Optional[Property] = p_runtime(default=None)
 
     def __content_str__(self) -> str:
@@ -694,3 +691,43 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _TypeQuery):
         **kwargs,
     ) -> "Field":
         return Field.new(name, typ, type=FieldType.OUTPUT, constraint=constraint, **kwargs)
+
+
+@node_subtype_(FieldType.INPUT)
+class InputField(Field):
+    """An input field."""
+
+    # generation_options, ...?
+    pass
+
+
+@node_subtype_(FieldType.OUTPUT)
+class OutputField(Field):
+    """An output field."""
+
+    # generation_options, ...?
+    pass
+
+
+@node_subtype_(FieldType.MEMBER)
+class MemberField(Field):
+    """A member field."""
+
+    # member-only flags
+    # is_stored/is_computed, is_indexed, is_unique, ...
+    # resource_options, ...?
+    pass
+
+
+@node_subtype_(FieldType.VARIABLE)
+class VariableField(Field):
+    """A variable field."""
+
+    pass
+
+
+@node_subtype_(FieldType.OPTION)
+class OptionField(Field):
+    """An option field."""
+
+    pass

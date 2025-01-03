@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2025.01.03.0"
+VERSION = "2025.01.03.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -954,6 +954,8 @@ ACTION_TABLE = Table(
         Column("delegate_ck", PrimitiveType.UUID, is_nullable=True),
         Column("delegate_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("calls", PrimitiveType.JSON, is_array=True),
+        Column("variables_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("position", PrimitiveType.JSON, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="2"),
     ),
@@ -1153,7 +1155,6 @@ RUN_TABLE = Table(
         Column("interruption_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("variables_packed", PrimitiveType.JSON, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("intermediates_packed", PrimitiveType.JSON, is_nullable=True),
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("logs", PrimitiveType.JSON, is_array=True),
         Column("spans", PrimitiveType.JSON, is_array=True),

@@ -385,14 +385,21 @@ class CustomObject(Mapping[str, Any]):
         | Mapping[str, Any]
         | Mapping["Field", Any]
         | None = None,
+        _skip_validate: bool = False,
         **kwargs,
     ):
         """Updates this object with the given value."""
         if values is not None:
             for key, v in values.items():
-                self._do_set(key, v, validate=True)
+                self._do_set(key, v, validate=not _skip_validate)
         for key, v in kwargs.items():
-            self._do_set(key, v, validate=True)
+            self._do_set(key, v, validate=not _skip_validate)
+
+    def set_default(self, obj: "CustomObject", _skip_validate: bool = False):
+        """Updates this object with the given default object (setting *only* unset values)."""
+        for key, value in obj.items():
+            if self._value.get(key) is None:
+                self._do_set(key, value, validate=not _skip_validate)
 
     @staticmethod
     def new(
@@ -846,22 +853,23 @@ def coerce_value(
 
 class ProxyReadObject:
     """
-    A proxy for a CustomObject that defaults to another object if the value is not set.
+    A proxy for a CustomObject that defaults to a sequence of objects if the value is not set.
     """
 
-    __slots__ = ("default", "obj")
+    __slots__ = ("last_idx", "objects")
 
-    def __init__(self, obj: CustomObject, default: Any):
-        self.obj = obj
-        self.default = default
+    def __init__(self, *objects: Any):
+        self.objects = objects
+        self.last_idx = len(objects) - 1
 
     def __getattr__(self, name: str) -> Any:
-        try:
-            if (value := getattr(self.obj, name)) is not None and value != ():
-                return value
-        except AttributeError:
-            pass
-        return getattr(self.default, name)
+        for i, obj in enumerate(self.objects):
+            try:
+                if (value := getattr(obj, name)) is not None and value != ():
+                    return value
+            except AttributeError as e:
+                if i == self.last_idx:
+                    raise e from None
 
 
 #

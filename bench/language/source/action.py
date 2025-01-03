@@ -198,6 +198,14 @@ class Action(SourceNode[ActionData]):
     calls: list["Call"] = p_regular(
         55, array=True, struct=StructType.CALL, field_type=FieldType.OUTPUT
     )
+    variables_packed: Any = p_value_packed(56)
+    variables: Any = p_value_runtime(
+        56, kind=ObjectKind.VARIABLE, typ=lambda self: cast("Action", self).variable_type
+    )
+    inputs_packed: Any = p_value_packed(57)
+    inputs: Any = p_value_runtime(
+        57, kind=ObjectKind.INPUT, typ=lambda self: cast("Action", self).input_type
+    )
 
     # flow
     position: Optional["Vector2"] = p_regular(

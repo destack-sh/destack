@@ -2884,7 +2884,6 @@ message RunData {
   optional NodeReferenceData interruption_ptr = 56;
   optional google.protobuf.Value variables_packed = 60;
   optional google.protobuf.Value inputs_packed = 61;
-  optional google.protobuf.Value intermediates_packed = 62;
   optional google.protobuf.Value outputs_packed = 63;
   repeated LogInfoData logs = 65;
   repeated RunSpanData spans = 66;
@@ -2965,6 +2964,26 @@ message FieldData {
   NodeMode mode = 90;
 }
 
+// An input field.
+message InputFieldData {
+}
+
+// An output field.
+message OutputFieldData {
+}
+
+// A member field.
+message MemberFieldData {
+}
+
+// A variable field.
+message VariableFieldData {
+}
+
+// An option field.
+message OptionFieldData {
+}
+
 message ActionData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2993,6 +3012,8 @@ message ActionData {
   optional CodeData code = 52;
   optional NodeReferenceData delegate_ptr = 53;
   repeated CallData calls = 55;
+  optional google.protobuf.Value variables_packed = 56;
+  optional google.protobuf.Value inputs_packed = 57;
   optional Vector2Data position = 80;
   NodeMode mode = 90;
 }
