@@ -43,7 +43,7 @@ from bench.proto.wire.system_pb2 import (
     WatchSearchRequest,
     WatchSearchResponse,
 )
-from bench.system.host.service import HostService
+from bench.system.host.host import HostService
 from bench.system.utils.session import global_session, pg_engine_from_store
 from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle

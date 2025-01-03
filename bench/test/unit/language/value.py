@@ -11,7 +11,6 @@ from bench.language import (
     Block,
     BlockType,
     BuiltinObject,
-    Call,
     Code,
     CreateAction,
     CustomObject,
@@ -71,16 +70,15 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
         {
             "Output1": 42,
             "Output 2 with a Space": Text.plain("hello bench!"),
-            "calls": [Call(node=Flow1)],
+            "text": Text.plain("default output text!"),
         },
         Flow1Output,
     )
-    assert obj.calls
-    assert obj.calls == [Call(node=Flow1)]
+    assert obj.text == Text.plain("default output text!")
 
     # get/set
-    obj.calls = []
-    assert obj.calls == []
+    obj.text = None
+    assert obj.text is None
 
     # pack/unpack
     obj_packed = pack_custom_object(obj, Flow1Output)

@@ -25,9 +25,8 @@ from bench.proto.wire import (
     ServiceKind,
 )
 from bench.runtime.base import RuntimeServiceBase
-from bench.runtime.cache import RedisCache
-from bench.runtime.core import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
-from bench.runtime.runtime import Runtime
+from bench.runtime.code.context import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
+from bench.runtime.core import RedisCache, Runtime
 from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
 

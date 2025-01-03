@@ -49,15 +49,13 @@ from bench.language import (
     TypeInfo,
     get_tracing_context,
 )
-from bench.runtime.core import (
-    BASE_RUN_OPTIONS_BY_KIND,
-    InterruptionCancelledError,
-    RunImpossibleError,
-)
 from bench.utils.uuidt import UUIDT
 
+from .error import InterruptionCancelledError, RunImpossibleError
+from .options import BASE_RUN_OPTIONS_BY_KIND
+
 if TYPE_CHECKING:
-    from bench.runtime.runtime import Runtime
+    from .runtime import Runtime
 
 
 logger = structlog.get_logger(__name__)
@@ -580,13 +578,13 @@ def make_runner(
 
         runner = FlowRunner(**base_kwargs)
     elif RUN_TYPE == RunType.ACTION:
-        from bench.runtime.action import ACTION_RUNNER_BY_ACTION_TYPE, Action
+        from bench.runtime.flow import ACTION_RUNNER_BY_ACTION_TYPE
 
         assert isinstance(node, Action), f"expected Action, got {node!r}"
         runner_cls = ACTION_RUNNER_BY_ACTION_TYPE[node.type]
         runner = runner_cls(**base_kwargs)
     elif RUN_TYPE == RunType.PIPE:
-        from bench.runtime.flow import PIPE_RUNNER_BY_PIPE_TYPE, Pipe
+        from bench.runtime.flow import PIPE_RUNNER_BY_PIPE_TYPE
 
         assert isinstance(node, Pipe), f"expected Pipe, got {node!r}"
         runner_cls = PIPE_RUNNER_BY_PIPE_TYPE[node.type]

@@ -1,27 +1,20 @@
 import dataclasses
-import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Mapping, Sequence, cast, override
-
-import anthropic
-import openai
-import regex
+from typing import TYPE_CHECKING, Sequence, override
 
 from bench.language import (
     Action,
     Code,
+    Context,
     CustomObject,
     FileBase,
-    ModelType,
     Node,
     NodeReference,
     Projection,
-    ProjectOptions,
     Query,
     RenderOptions,
     Run,
-    RunOptions,
     SourceNode,
     Text,
     TypeBase,
@@ -29,11 +22,9 @@ from bench.language import (
     render_stmt,
     sample_value,
 )
-from bench.runtime.runner import Context, Runner
-from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
-    pass
+    from bench.runtime.core import Runner
 
 
 #
@@ -204,7 +195,7 @@ class PromptType(PromptCompound):
 class Prompt:
     """A prompt for an LLM-like model."""
 
-    def __init__(self, action: Action, context: Context, items: list[PromptPart]):
+    def __init__(self, action: Action, context: "Context", items: list[PromptPart]):
         self.action = action
         self.context = context
         self.items = items
@@ -227,8 +218,8 @@ class Prompt:
 
 def make_prompt(
     action: Action,
-    runner: Runner,
-    context: Context,
+    runner: "Runner",
+    context: "Context",
     inputs: CustomObject | None,
     outputs: CustomObject | None,
     output_type: TypeBase | None,
@@ -278,206 +269,3 @@ class CompilationContext:  # == ContextOptions?
     prompt: Prompt
     projection: Projection
     render_options: RenderOptions
-
-
-class Model[I, R](ABC):
-    """Compile Prompts into some model backend format."""
-
-    @abstractmethod
-    async def compile(self, prompt: Prompt, budget: float) -> Sequence[I]:
-        """Compile the Prompt into a list of basic prompt parts."""
-        ...
-
-    @abstractmethod
-    async def assemble(self, parts: Sequence[I]) -> Sequence[R]:
-        """Assemble basic Prompt parts into some rendered prompt."""
-        ...
-
-    @abstractmethod
-    async def generate_code(
-        self,
-        prompt: Prompt,
-        model: ModelType,
-        rendered_prompt: list[R],
-        user_id: str,
-        options: RunOptions,
-    ) -> str:
-        """Generate code with some model from the result."""
-        ...
-
-
-class ChatModel[R](Model[PromptElement, R]):
-    """Compile a Prompt into chat messages."""
-
-    @override
-    async def compile(self, prompt: Prompt, budget: float) -> Sequence[PromptElement]:
-        projection = Projection(options=ProjectOptions())
-        context = CompilationContext(
-            prompt=prompt,
-            projection=projection,
-            render_options=RenderOptions(scope=prompt.action),
-        )
-
-        # expand (recursively)
-        async def expand(part: PromptPart) -> list[PromptElement]:
-            elements: list[PromptElement] = []
-            if isinstance(part, PromptCompound):
-                parts = await part.expand(context)
-                for part in parts:
-                    elements.extend(await expand(part))
-            else:
-                elements.append(cast(PromptElement, part))
-            return elements
-
-        elements: list[PromptElement] = []
-        for part in prompt.items:
-            elements.extend(await expand(part))
-
-        # shrink/grow to budget (if needed)
-        # TODO :Incomplete!: budget/weight for Prompts
-
-        return elements
-
-
-def _strip_code_completion(completion: str) -> str:
-    # clean completion
-    completion = completion.strip()
-    # strip ```[python] ... ``` wrapper
-    completion = regex.sub(r"^```[a-zA-Z]*\n", "", completion)
-    completion = regex.sub(r"\n```$", "", completion)
-    # replace suspicious unicode characters
-    completion = completion.replace("’", "'")  # noqa: RUF001
-    completion = completion.replace("‘", "'")  # noqa: RUF001
-    completion = completion.replace("“", '"')
-    completion = completion.replace("”", '"')
-    return completion
-
-
-#
-# Prompting
-# NOTE :Robustness!: tune prompting
-# (right now we just naively use the same text prompts for all models)
-#
-
-
-def get_system_prompt(action: Action) -> str:
-    today = datetime.datetime.now(tz=datetime.UTC).date()
-    base_text = f"""\
-You are a programming assistant on an agent development platform called Bench.
-You must always respond directly with valid inline Python code (escaping as needed).
-
-You will be given context and a specific task expressed in the Bench Python ORM.
-You may interpret and extrapolate a task when it's vague, but guess less if it's specific.
-You must adhere to the types exactly (no missing required & no extraneous values).
-
-Today: {today.strftime('%d %B, %Y')}.
-"""
-    return base_text
-
-
-#
-# OpenAI
-#
-
-from openai.types import chat as openai_chat_types  # noqa: E402
-
-openai_client = openai.AsyncClient(
-    api_key=get_from_env("OPENAI_API_KEY", description="OpenAI API key")
-)
-OPENAI_MODEL_BY_TYPE: Mapping[ModelType, str] = {
-    ModelType.OPENAI_GPT4_0: "gpt-4o-2024-11-20",
-    ModelType.OPENAI_GPT4_O_MINI: "gpt-4o-mini-2024-07-18",
-    ModelType.OPENAI_O1_MINI: "o1-mini-2024-09-12",
-    ModelType.OPENAI_O1: "o1-2024-12-17",
-}
-OPENAI_DEFAULT_MODEL = ModelType.OPENAI_GPT4_0
-
-
-class OpenaiChatModel(ChatModel[openai_chat_types.ChatCompletionMessageParam]):
-    """Compile a Prompt into OpenAI chat messages."""
-
-    SEPARATOR = "#" * 32  # = exactly 1 token
-
-    @override
-    async def assemble(
-        self, parts: Sequence[PromptElement]
-    ) -> Sequence[openai_chat_types.ChatCompletionMessageParam]:
-        content: list[openai_chat_types.ChatCompletionContentPartParam] = []
-        for part in parts:
-            if isinstance(part, PromptBreak):
-                content.append({"type": "text", "text": self.SEPARATOR})
-                if part.title:
-                    content.append({"type": "text", "text": f"# {part.title}"})  # noqa: FURB113
-                    content.append({"type": "text", "text": self.SEPARATOR})
-            elif isinstance(part, PromptText):
-                text = part.text.to_string() if not isinstance(part.text, str) else part.text
-                if part.title:
-                    text = f"# {part.title}\n{text}"
-                content.append({"type": "text", "text": text})
-            elif isinstance(part, PromptFile):
-                raise NotImplementedError
-            else:
-                raise RuntimeError(f"unexpected part {part!r}")
-        return [{"role": "user", "content": content}]
-
-    @override
-    async def generate_code(
-        self,
-        prompt: Prompt,
-        model: ModelType,
-        rendered_prompt: Sequence[openai_chat_types.ChatCompletionMessageParam],
-        user_id: str,
-        options: RunOptions,
-    ) -> str:
-        assert model in OPENAI_MODEL_BY_TYPE, f"unsupported model type {model!r}"
-        model_id = OPENAI_MODEL_BY_TYPE[model]
-        messages: list[openai_chat_types.ChatCompletionMessageParam] = [
-            {"role": "system", "content": get_system_prompt(prompt.action)},
-            *rendered_prompt,
-        ]
-        temperature = options.text_options.temperature if options.text_options else 0.1
-        completion = await openai_client.chat.completions.create(
-            messages=messages,
-            model=model_id,
-            temperature=temperature,
-            user=user_id,
-        )
-        completion_text = completion.choices[0].message.content
-        if completion_text:
-            completion_text = _strip_code_completion(completion_text)
-        return completion_text or ""
-
-
-#
-# Anthropic
-#
-
-from anthropic import types as anthropic_types  # noqa: E402
-
-anthropic_client = anthropic.AsyncClient(
-    api_key=get_from_env("ANTHROPIC_API_KEY", description="Anthropic API key")
-)
-ANTHROPIC_MODEL_BY_TYPE: Mapping[ModelType, str] = {
-    ModelType.ANTHROPIC_CLAUDE_3_5_SONNET: "claude-3-5-sonnet-20241022"
-}
-ANTHROPIC_DEFAULT_MODEL = ModelType.ANTHROPIC_CLAUDE_3_5_SONNET
-
-
-class AnthropicChatModel(ChatModel[anthropic_types.MessageParam]):
-    """Compile a Prompt into Anthropic chat messages."""
-
-    @override
-    async def assemble(self, parts: Sequence[PromptElement]) -> list[anthropic_types.MessageParam]:
-        raise NotImplementedError
-
-    @override
-    async def generate_code(
-        self,
-        prompt: Prompt,
-        model: ModelType,
-        rendered_prompt: Sequence[anthropic_types.MessageParam],
-        user_id: str,
-        options: RunOptions,
-    ) -> str:
-        assert model in ANTHROPIC_MODEL_BY_TYPE, f"unsupported model type {model!r}"
-        raise NotImplementedError

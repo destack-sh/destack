@@ -36,8 +36,7 @@ from bench.language import (
     render_expr,
     to_type,
 )
-from bench.runtime.code.compiler import BUILTIN_GLOBALS
-from bench.runtime.core import STATIC_CODE_GLOBALS
+from bench.runtime.code import BUILTIN_GLOBALS, STATIC_CODE_GLOBALS
 from bench.test.strategies import builtin_objects, examples
 from bench.test.unit.conftest import BUILTIN_OBJECTS, BUILTIN_OBJECTS_BY_TYPE
 
@@ -201,15 +200,17 @@ def test_render_variable(session: Session, package: Package):
 
 @_render_as_stmt
 def test_render_variable_with_file(session: Session, package: Package):
-    File1 = File(
+    myfile_txt = File(
         name="myfile.txt",
         kind=FileKind.DRIVE,
         type=FileType.TEXT,
         mime_type="text/plain",
         size=1024,
     )
-    Variable1 = Block.new(BlockType.VARIABLE, "Variable1", value_type=to_type(File), value=File1)
-    return {"File1": File1, "Variable1": Variable1}
+    Variable1 = Block.new(
+        BlockType.VARIABLE, "Variable1", value_type=to_type(File), value=myfile_txt
+    )
+    return {"myfile_txt": myfile_txt, "Variable1": Variable1}
 
 
 @_render_as_stmt

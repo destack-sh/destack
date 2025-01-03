@@ -46,24 +46,19 @@ from bench.language import (
     to_type_scalar,
 )
 from bench.runtime.browser.playwright import PlaywrightClient
-from bench.runtime.cache import Cache
-from bench.runtime.core import (
-    DYNAMIC_CODE_GLOBALS,
-    STATIC_CODE_GLOBALS,
-    NonRetryableError,
-    RetryableError,
-)
-from bench.runtime.runner import (
+from bench.runtime.core import Cache, NonRetryableError, RetryableError
+from bench.utils.func import group_by
+from bench.utils.naming import generate_random_name
+from bench.utils.oracle import Oracle
+from bench.utils.tenacity import RetryState
+
+from .runner import (
     Interrupted,
     Runner,
     RunnerHook,
     make_run_from_node,
     restore_runner,
 )
-from bench.utils.func import group_by
-from bench.utils.naming import generate_random_name
-from bench.utils.oracle import Oracle
-from bench.utils.tenacity import RetryState
 
 if TYPE_CHECKING:
     from bench.runtime.thread import RuntimeThread
@@ -96,18 +91,21 @@ class Runtime:
         cache: Cache,
         oracle: Oracle,
         thread: "RuntimeThread | None" = None,
-        static_glbls: Mapping[str, Any] = STATIC_CODE_GLOBALS,
-        dynamic_glbls: Mapping[str, Any] = DYNAMIC_CODE_GLOBALS,
+        static_glbls: Mapping[str, Any] | None = None,
+        dynamic_glbls: Mapping[str, Any] | None = None,
     ):
+        from bench.runtime.code.context import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
+
+        assert session.bench is not None, f"{session!r} is not attached"
         assert session.bench is not None, f"{session!r} is not attached"
         self.session = session
         self.bench = session.bench
         self.cache = cache
         self.oracle = oracle
-        self.static_glbls = static_glbls
+        self.static_glbls = static_glbls or STATIC_CODE_GLOBALS
+        self.dynamic_glbls = dynamic_glbls or DYNAMIC_CODE_GLOBALS
+        self.combined_glbls = {**self.static_glbls, **self.dynamic_glbls}
         self.thread = thread
-        self.dynamic_glbls = dynamic_glbls
-        self.combined_glbls = {**static_glbls, **dynamic_glbls}
         self.playwright = PlaywrightClient()
 
         assert session._runtime is None, f"{session!r} already in runtime {session._runtime!r}"

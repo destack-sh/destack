@@ -9,14 +9,10 @@ from bench.language import (
     Bench,
     BlockType,
     Field,
-    File,
-    FileKind,
-    FileType,
     FlowBlock,
     Package,
     PackageType,
     PathError,
-    PathLogicError,
     PathTokenType,
     Session,
     get_node,
@@ -294,22 +290,3 @@ def test_shadow_node(session: Session, mock_package: Package):
 
     assert get_node(code332, "^Choice331") is choice331  # sibling before descendants
     assert get_node(code332, "^Choice31") is code332_output3  # descendants before ancestors
-
-
-def test_unnamed_node(session: Session, mock_package: Package):
-    """Cannot create path to an unnamed node (like a File)."""
-    package = mock_package
-
-    assert package.bench
-    file = File(
-        parent=package.bench,
-        kind=FileKind.DRIVE,
-        name="myfile.txt",
-        type=FileType.TEXT,
-        mime_type="text/plain",
-        size=1024,
-    )
-    session._create(file)
-
-    with pytest.raises(PathLogicError):
-        get_path(package, file)

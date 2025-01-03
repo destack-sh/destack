@@ -29,7 +29,7 @@ from bench.proto import wire
 from bench.proto.services import get_channel, get_rpc_metadata
 from bench.proto.wire.lang_pb2 import GraphScopeData
 from bench.proto.wire.system_grpc import HostClient, SupervisorClient
-from bench.runtime.core import STATIC_CODE_GLOBALS
+from bench.runtime.code import STATIC_CODE_GLOBALS
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 from bench.utils.utils import get_from_env
@@ -136,7 +136,7 @@ async def shell(
         session._subject = session.user
         session._origin = client.to_origin(nonce=None)._to_data()
 
-        # prepare repl context
+        # prepare repl context :CodeGlobals
         _get_node = functools.partial(get_node, main_package)
         _get_path = functools.partial(get_path, main_package)
         _render = functools.partial(render, options=RenderOptions(scope=main_package))

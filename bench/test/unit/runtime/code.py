@@ -14,7 +14,7 @@ from bench.language import (
     code,
 )
 from bench.runtime.code.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
-from bench.runtime.runner import make_run_from_node
+from bench.runtime.core import make_run_from_node
 from bench.test.unit.conftest import RuntimeHandle
 
 
