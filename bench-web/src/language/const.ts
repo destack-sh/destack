@@ -28,6 +28,7 @@ import {
   ViewProperty,
   ViewType,
   type AnyNodeData,
+  ModelFamily,
 } from "@/proto/wire";
 import { describeNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -386,6 +387,13 @@ export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> 
   },
   [EnumType.MODEL_PROVIDER]: {
     [ModelProvider.OPENAI]: "OpenAI",
+  },
+  [EnumType.MODEL_FAMILY]: {
+    [ModelFamily.OPENAI_GPT]: "OpenAI GPT",
+    [ModelFamily.OPENAI_O]: "OpenAI O",
+    [ModelFamily.ANTHROPIC_CLAUDE]: "Anthropic Claude",
+    [ModelFamily.GOOGLE_GEMINI]: "Google Gemini",
+    [ModelFamily.META_LLAMA]: "Meta Llama",
   },
   [EnumType.MODEL_TYPE]: {
     // :ModelType
