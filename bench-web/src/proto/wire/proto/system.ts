@@ -21,7 +21,7 @@ import { OrganizationData } from "./lang";
 import { ClientData } from "./lang";
 import { UserData } from "./lang";
 import { ClientType } from "./lang";
-import { RuntimeContextData } from "./lang";
+import { ContextData } from "./lang";
 import { AggregationResultData } from "./lang";
 import { ExpressionData } from "./lang";
 import { EditData } from "./lang";
@@ -481,9 +481,9 @@ export interface CommitTransactionRequest {
     /**
      * Extra session context (with any info not contained in EditContext, like machine/server).
      *
-     * @generated from protobuf field: optional symbolx.bench.RuntimeContextData context = 4;
+     * @generated from protobuf field: optional symbolx.bench.ContextData context = 4;
      */
-    context?: RuntimeContextData;
+    context?: ContextData;
 }
 /**
  * @generated from protobuf message symbolx.bench.CommitTransactionResponse
@@ -1912,7 +1912,7 @@ class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest
             { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
-            { no: 4, name: "context", kind: "message", T: () => RuntimeContextData }
+            { no: 4, name: "context", kind: "message", T: () => ContextData }
         ]);
     }
     create(value?: PartialMessage<CommitTransactionRequest>): CommitTransactionRequest {
@@ -1937,8 +1937,8 @@ class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest
                 case /* repeated symbolx.bench.EditData edits */ 3:
                     message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.RuntimeContextData context */ 4:
-                    message.context = RuntimeContextData.internalBinaryRead(reader, reader.uint32(), options, message.context);
+                case /* optional symbolx.bench.ContextData context */ 4:
+                    message.context = ContextData.internalBinaryRead(reader, reader.uint32(), options, message.context);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1961,9 +1961,9 @@ class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest
         /* repeated symbolx.bench.EditData edits = 3; */
         for (let i = 0; i < message.edits.length; i++)
             EditData.internalBinaryWrite(message.edits[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RuntimeContextData context = 4; */
+        /* optional symbolx.bench.ContextData context = 4; */
         if (message.context)
-            RuntimeContextData.internalBinaryWrite(message.context, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+            ContextData.internalBinaryWrite(message.context, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

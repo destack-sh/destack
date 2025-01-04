@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2025.01.03.3"
+VERSION = "2025.01.04.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1008,7 +1008,6 @@ PIPE_TABLE = Table(
         Column("run_options", PrimitiveType.JSON, is_nullable=True),
         Column("condition", PrimitiveType.JSON, is_nullable=True),
         Column("constraint", PrimitiveType.JSON, is_nullable=True),
-        Column("mapping", PrimitiveType.JSON, is_nullable=True),
         Column("delay", PrimitiveType.DURATION, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="2"),
         Column("color", PrimitiveType.JSON, is_nullable=True),
@@ -1142,7 +1141,6 @@ RUN_TABLE = Table(
         Column("incoming_base_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("outgoing_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("outgoing_base_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("context", PrimitiveType.JSON, is_nullable=True),
         Column("options", PrimitiveType.JSON),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),

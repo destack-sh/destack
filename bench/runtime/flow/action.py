@@ -27,6 +27,7 @@ from bench.language import (
     GoToTabAction,
     GoToUrlAction,
     HasApplicationContext,
+    HasContext,
     HasNodeBase,
     InterruptionType,
     NodeType,
@@ -55,7 +56,7 @@ from bench.language import (
 from bench.runtime.browser.playwright import parse_dom_node
 from bench.runtime.code.code import CodeFunctionRunner
 from bench.runtime.core import ATTEMPT_ONCE, RetryableError, RunImpossibleError
-from bench.runtime.core.runner import Context, Runner, make_runner, restore_runner
+from bench.runtime.core.runner import Runner, make_runner, restore_runner
 from bench.runtime.core.runtime import Runtime
 
 if TYPE_CHECKING:
@@ -80,7 +81,7 @@ class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
         node: A,
         track: bool,
         options: RunOptions,
-        context: Context,
+        context: HasContext,
         parent: Runner | None = None,
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,

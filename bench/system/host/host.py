@@ -30,6 +30,7 @@ from bench.language import (
     FileBase,
     FileKind,
     GraphScope,
+    HasContext,
     Log,
     Machine,
     MemoryEngine,
@@ -44,7 +45,6 @@ from bench.language import (
     Property,
     Query,
     Run,
-    RuntimeContext,
     Session,
     Store,
     Subject,
@@ -461,7 +461,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
 
     @override
     @tracer.start_as_current_span("host.prepare_commit")
-    def _parse_commit(self, subject: Subject, context: RuntimeContext, edits: Sequence[EditData]):
+    def _parse_commit(self, subject: Subject, context: HasContext, edits: Sequence[EditData]):
         assert subject.client and subject.client_ptr, f"no client for {subject!r}"
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
@@ -562,7 +562,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         session: Session,
         graph: NodeGraph,
         data_graph: NodeDataGraph,
-        context: RuntimeContext | None,
+        context: HasContext | None,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
     ) -> Sequence[EditData]:
@@ -768,7 +768,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
 
 
 @tracer.start_as_current_span("host.validate_context")
-def validate_context(subject: Subject, context: RuntimeContext, edits: Sequence[EditData]):
+def validate_context(subject: Subject, context: HasContext, edits: Sequence[EditData]):
     """Checks the session context and per edit context for consistency."""
     assert subject.client and subject.client_ptr, f"no client for {subject!r}"
     if not context.client_ptr or context.client_ptr.id != subject.client_ptr.id:

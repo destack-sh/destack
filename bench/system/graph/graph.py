@@ -23,10 +23,12 @@ from bench.language import (
     Bench,
     Block,
     ChannelUnavailableError,
+    Context,
     EditType,
     Engine,
     Expression,
     GetOptions,
+    HasContext,
     Node,
     NodeDataGraph,
     NodeGraph,
@@ -37,7 +39,6 @@ from bench.language import (
     PolicyEffect,
     Query,
     QueryType,
-    RuntimeContext,
     SelectOptions,
     Session,
     Subject,
@@ -259,7 +260,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         )
 
     def _parse_commit(
-        self, subject: Subject, context: RuntimeContext, edits: Sequence[EditData]
+        self, subject: Subject, context: HasContext, edits: Sequence[EditData]
     ) -> "CommitArea":
         """Prepares and validates the edits for a commit."""
         area = extract_commit_area(edits, base_graph=None)
@@ -291,7 +292,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         session: Session,
         graph: NodeGraph,
         data_graph: NodeDataGraph,
-        context: RuntimeContext | None,
+        context: HasContext | None,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
     ) -> Sequence[EditData]:
@@ -348,7 +349,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         area: "CommitArea",
         scope: GraphScopeData,
         subject: Subject,
-        context: RuntimeContext,
+        context: HasContext,
         edits: Sequence[EditData],
     ) -> tuple[Sequence[EditData], Sequence[EditData]]:
         """Commits some edits."""
@@ -435,10 +436,10 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
 
         # figure out context
         context = wiring.unpack_builtin_object_validate_maybe(
-            request.context, supergraph=subject._supergraph, expect=RuntimeContext
+            request.context, supergraph=subject._supergraph, expect=Context
         )
         if context is None:
-            context = RuntimeContext(
+            context = Context(
                 client=subject.client,
                 user=subject.user,
                 _supergraph=subject._supergraph,

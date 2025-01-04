@@ -10,7 +10,7 @@ from bench.language import (
     pack_proto_json,
 )
 from bench.proto import wire
-from bench.proto.wire.lang_pb2 import EditData, LogData, RuntimeContextData
+from bench.proto.wire.lang_pb2 import ContextData, EditData, LogData
 from bench.proto.wiring import unwrap_some_node, wrap_some_node
 from bench.system.host.core import Commit, HostPlugin
 from bench.utils.uuidt import UUIDT
@@ -34,7 +34,7 @@ class LogPlugin(HostPlugin):
 
         # add logs
         # NOTE :Incomplete: how does LogPlugin get the session context?
-        context_data: RuntimeContextData = RuntimeContextData()
+        context_data: ContextData = ContextData()
         bench_ptr = session.bench_ptr
         assert bench_ptr is not None, f"no bench_ptr in {session!r}"
         bench_ptr_data = bench_ptr._to_data()

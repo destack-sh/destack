@@ -19,6 +19,7 @@ from bench.language import (
     Text,
     code,
 )
+from bench.language.runtime.run import Run
 from bench.runtime.core import Interrupted, make_run_from_node, make_runner
 from bench.test.unit.conftest import RuntimeHandle
 
@@ -87,6 +88,72 @@ async def test_run_flow_trivial(local_runtime: RuntimeHandle):
 
     runner = await local_runtime.run(Flow1)
     assert runner.tracked_run and len(runner.tracked_run.runs) == 3
+
+
+async def test_run_flow_with_default_values(local_runtime: RuntimeHandle):
+    """Run a Flow with default values in Complete action."""
+    Flow1 = Block.new(
+        BlockType.FLOW,
+        "Flow1",
+        fields=(
+            Field.output("Output1", int, is_required=True),
+            Field.output("Output2", bool),
+            Field.output("Output3", str, is_required=True),
+        ),
+    )
+    Start = Action.new(ActionType.START, "Start")
+    Complete = Action.new(
+        ActionType.COMPLETE, "Complete", parent=Flow1, inputs={"Output1": 1, "Output3": "MyString"}
+    )
+    Flow1.actions.extend(Start, Complete)
+    Start.connect(PipeType.FORWARD, Complete)
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1)
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 3
+
+
+async def test_run_flow_code_action(local_runtime: RuntimeHandle):
+    """Run a code action with values."""
+    Flow1 = Block.new(
+        BlockType.FLOW,
+        "Flow1",
+        fields=(
+            Field.input("Input1", int, is_required=True),
+            Field.output("Output1", int, is_required=True),
+        ),
+    )
+    Start = Action.new(ActionType.START, "Start")
+    Code1 = Action.new(
+        ActionType.CODE,
+        "Code1",
+        code=code("return {'Output1': 2 * Input1}"),
+        fields=(
+            Field.input("Input1", int, is_required=True),
+            Field.output("Output1", int, is_required=True),
+        ),
+    )
+    Code1.set_computed(
+        target_path=(Run.get_property("inputs"), Code1.fields.Input1),
+        source_node=Flow1,
+        source_path=(Run.get_property("inputs"), Flow1.fields.Input1),
+    )
+    Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Complete.set_computed(
+        target_path=(Run.get_property("inputs"), Flow1.fields.Output1),
+        source_node=Code1,
+        source_path=(Run.get_property("outputs"), Code1.fields.Output1),
+    )
+    Flow1.actions.extend(Start, Code1, Complete)
+    Start.connect(PipeType.FORWARD, Code1)
+    Code1.connect(PipeType.FORWARD, Complete)
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1, inputs={"Input1": 2})
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 5
+    assert runner.outputs and runner.outputs.Output1 == 4
 
 
 async def test_run_flow_create_in_test_mode(local_runtime: RuntimeHandle):
@@ -194,38 +261,6 @@ async def test_run_flow_force_invalid_input(local_runtime: RuntimeHandle):
     assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
 
 
-async def test_run_flow_code_action(local_runtime: RuntimeHandle):
-    """Run a code action with values."""
-    Flow1 = Block.new(
-        BlockType.FLOW,
-        "Flow1",
-        fields=(
-            Field.input("Input1", int, is_required=True),
-            Field.output("Output1", int, is_required=True),
-        ),
-    )
-    Start = Action.new(ActionType.START, "Start")
-    Code1 = Action.new(
-        ActionType.CODE,
-        "Code1",
-        code=code("return {'Output1': 2 * Input1}"),
-        fields=(
-            Field.input("Input1", int, is_required=True),
-            Field.output("Output1", int, is_required=True),
-        ),
-    )
-    Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow1.actions.extend(Start, Code1, Complete)
-    Start.connect(PipeType.FORWARD, Code1)
-    Code1.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
-
-    runner = await local_runtime.run(Flow1, inputs={"Input1": 2})
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 5
-    assert runner.outputs and runner.outputs.Output1 == 4
-
-
 async def test_run_flow_error(local_runtime: RuntimeHandle):
     """Run a code Action that raises an error. Flow should abort and fail."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
@@ -268,7 +303,7 @@ async def test_run_flow_fail_action(local_runtime: RuntimeHandle):
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
     Fail = Action.new(
-        ActionType.FAIL, "Fail", error_name="Fail title", error_text=Text.plain("Fail text")
+        ActionType.FAIL, "Fail", error_title="Fail title", error_text=Text.plain("Fail text")
     )
     Flow1.actions.extend(Start, Fail)
     Start.connect(PipeType.FORWARD, Fail)

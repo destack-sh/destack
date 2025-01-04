@@ -145,13 +145,11 @@ class Pipe(SourceNode[PipeData]):
 
     @property
     def input_type(self) -> "TypeBase | None":
-        source = self.source
-        return source.output_type if source is not None else None
+        return None  # Pipes don't have inputs (?)
 
     @property
     def output_type(self) -> "TypeBase | None":
-        target = self.target
-        return target.input_type if target is not None else None
+        return None  # Pipes don't have outputs (?)
 
     @staticmethod
     def new(type: PipeType, name: str, **kwargs) -> "Pipe":

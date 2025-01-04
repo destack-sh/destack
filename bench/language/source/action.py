@@ -333,14 +333,29 @@ class Action(SourceNode[ActionData]):
 
     @staticmethod
     def new[ActionT: "Action" = "Action"](
-        typ: ActionType | Type[ActionT] | NodeSubtypeStub[ActionT], name: str, **kwargs
+        typ: ActionType | Type[ActionT] | NodeSubtypeStub[ActionT],
+        name: str,
+        variables: dict[str, Any] | None = None,
+        inputs: dict[str, Any] | None = None,
+        **kwargs,
     ) -> ActionT:
         """Creates a new Action of the given type."""
         if isinstance(typ, type):
             typ = Action.__subtype_by_subclass__[typ]  # type: ignore
         elif isinstance(typ, NodeSubtypeStub):
             typ = cast(ActionType, typ._node_subtype)
-        return Action(type=typ, name=name, **kwargs)  # type: ignore
+        action = Action(type=cast(ActionType, typ), name=name, **kwargs)
+        if variables is not None:
+            variable_type = action.variable_type
+            assert variable_type is not None, f"no variable_type for {action!r}"
+            action.variables = coerce_custom_object_scalar(
+                ObjectKind.VARIABLE, variables, variable_type
+            )
+        if inputs is not None:
+            input_type = action.input_type
+            assert input_type is not None, f"no input_type for {action!r}"
+            action.inputs = coerce_custom_object_scalar(ObjectKind.INPUT, inputs, input_type)
+        return cast(ActionT, action)
 
 
 #

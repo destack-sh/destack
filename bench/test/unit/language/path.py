@@ -8,12 +8,13 @@ from bench.language import (
     ActionType,
     Bench,
     BlockType,
+    Context,
     Field,
     FlowBlock,
     Package,
     PackageType,
+    PathElementType,
     PathError,
-    PathTokenType,
     Session,
     get_node,
     get_path,
@@ -21,90 +22,90 @@ from bench.language import (
     render_path,
 )
 
-# Assuming the necessary imports and definitions are in place
-# from your_module import tokenize_path, PathToken, PathTokenType, PathSyntaxError
-
 
 @pytest.mark.parametrize(
-    ("input_path", "expected_tokens"),
+    ("input_path", "expected_elements"),
     [
-        ("/", [(PathTokenType.ROOT, None)]),
-        (".", [(PathTokenType.CURRENT, None)]),
+        ("/", [(PathElementType.ROOT, None)]),
+        (".", [(PathElementType.CURRENT, None)]),
         (
             "././.",
             [
-                (PathTokenType.CURRENT, None),
-                (PathTokenType.CURRENT, None),
-                (PathTokenType.CURRENT, None),
+                (PathElementType.CURRENT, None),
+                (PathElementType.CURRENT, None),
+                (PathElementType.CURRENT, None),
             ],
         ),
-        ("..", [(PathTokenType.PARENT, None)]),
-        ("../..", [(PathTokenType.PARENT, None), (PathTokenType.PARENT, None)]),
-        ("Node", [(PathTokenType.CHILD, "Node")]),
-        ("~", [(PathTokenType.CONTAINER, None)]),
-        ("~Container", [(PathTokenType.CONTAINER, "Container")]),
-        ("^Unique", [(PathTokenType.UNIQUE, "Unique")]),
-        (".property", [(PathTokenType.FIELD, "property")]),
-        ("@bench", [(PathTokenType.BENCH, "bench")]),
+        ("..", [(PathElementType.PARENT, None)]),
+        ("../..", [(PathElementType.PARENT, None), (PathElementType.PARENT, None)]),
+        ("Node", [(PathElementType.CHILD, "Node")]),
+        ("~", [(PathElementType.CONTAINER, None)]),
+        ("~Container", [(PathElementType.CONTAINER, "Container")]),
+        ("^Unique", [(PathElementType.UNIQUE, "Unique")]),
+        (".property", [(PathElementType.ATTRIBUTE, "property")]),
+        ("@bench", [(PathElementType.BENCH, "bench")]),
         (
             "/node1/node2",
             [
-                (PathTokenType.ROOT, None),
-                (PathTokenType.CHILD, "node1"),
-                (PathTokenType.CHILD, "node2"),
+                (PathElementType.ROOT, None),
+                (PathElementType.CHILD, "node1"),
+                (PathElementType.CHILD, "node2"),
             ],
         ),
         (
             "./C_RRENT_N_DE/node",
             [
-                (PathTokenType.CURRENT, None),
-                (PathTokenType.CHILD, "C_RRENT_N_DE"),
-                (PathTokenType.CHILD, "node"),
+                (PathElementType.CURRENT, None),
+                (PathElementType.CHILD, "C_RRENT_N_DE"),
+                (PathElementType.CHILD, "node"),
             ],
         ),
-        ("../parent", [(PathTokenType.PARENT, None), (PathTokenType.CHILD, "parent")]),
-        ("^unique_node", [(PathTokenType.UNIQUE, "unique_node")]),
-        ("^Choice.Option", [(PathTokenType.UNIQUE, "Choice"), (PathTokenType.FIELD, "Option")]),
+        ("../parent", [(PathElementType.PARENT, None), (PathElementType.CHILD, "parent")]),
+        ("^unique_node", [(PathElementType.UNIQUE, "unique_node")]),
+        (
+            "^Choice.Option",
+            [(PathElementType.UNIQUE, "Choice"), (PathElementType.ATTRIBUTE, "Option")],
+        ),
         (
             "some/~block/^unique",
             [
-                (PathTokenType.CHILD, "some"),
-                (PathTokenType.CONTAINER, "block"),
-                (PathTokenType.UNIQUE, "unique"),
+                (PathElementType.CHILD, "some"),
+                (PathElementType.CONTAINER, "block"),
+                (PathElementType.UNIQUE, "unique"),
             ],
         ),
         (
             "node.property",
-            [(PathTokenType.CHILD, "node"), (PathTokenType.FIELD, "property")],
+            [(PathElementType.CHILD, "node"), (PathElementType.ATTRIBUTE, "property")],
         ),
         (
             "@bench/node1/^unique2/node3.property",
             [
-                (PathTokenType.BENCH, "bench"),
-                (PathTokenType.CHILD, "node1"),
-                (PathTokenType.UNIQUE, "unique2"),
-                (PathTokenType.CHILD, "node3"),
-                (PathTokenType.FIELD, "property"),
+                (PathElementType.BENCH, "bench"),
+                (PathElementType.CHILD, "node1"),
+                (PathElementType.UNIQUE, "unique2"),
+                (PathElementType.CHILD, "node3"),
+                (PathElementType.ATTRIBUTE, "property"),
             ],
         ),
         (
             "~Container/~/../^Unique",
             [
-                (PathTokenType.CONTAINER, "Container"),
-                (PathTokenType.CONTAINER, None),
-                (PathTokenType.PARENT, None),
-                (PathTokenType.UNIQUE, "Unique"),
+                (PathElementType.CONTAINER, "Container"),
+                (PathElementType.CONTAINER, None),
+                (PathElementType.PARENT, None),
+                (PathElementType.UNIQUE, "Unique"),
             ],
         ),
     ],
 )
-def test_parse_path(input_path: str, expected_tokens: List[Tuple[PathTokenType, str]]):
+def test_parse_path(input_path: str, expected_elements: List[Tuple[PathElementType, str]]):
     # parse
     path = parse_path(input_path)
-    assert len(path.tokens) == len(expected_tokens)
-    for token, (expected_type, expected_name) in zip(path.tokens, expected_tokens):
-        assert token.type == expected_type
-        assert token.name == expected_name
+    assert len(path.elements) == len(expected_elements)
+    for element, (expected_type, expected_name) in zip(path.elements, expected_elements):
+        assert element.type == expected_type
+        assert element.name == expected_name
 
     # roundtrip
     rendered_path = render_path(path)
@@ -223,10 +224,11 @@ def mock_package_populated(session: Session):
 def test_get_node(
     mock_package_populated: Bench, scope_name: str, path: str, expected_node_name: str | None
 ):
+    context = Context()
     scope = first(
         n for n in mock_package_populated._graph.nodes if getattr(n, "name", None) == scope_name
     )
-    node = get_node(scope, path)
+    node = get_node(scope, context, path)
     if expected_node_name:
         assert node is not None, f"node not found for path '{path}' in scope '{scope}'"
         assert getattr(node, "name") == expected_node_name
@@ -262,6 +264,7 @@ def test_get_path(
     package = mock_package_populated
     scope = first(n for n in package._graph.nodes if getattr(n, "name", None) == scope_name)
     node = first(n for n in package._graph.nodes if getattr(n, "name", None) == node_name)
+    context = Context()
 
     # get path
     path = get_path(scope, node)
@@ -271,14 +274,14 @@ def test_get_path(
     # roundtrip
     parsed_path = parse_path(expected_path)
     assert parsed_path == path
-    parsed_node = get_node(scope, expected_path)
+    parsed_node = get_node(scope, context, expected_path)
     assert parsed_node is node
 
 
 def test_shadow_node(session: Session, mock_package: Package):
     """Siblings before descendants before ancestors. See get_unique_node."""
     package = mock_package
-
+    context = Context()
     # shadowing nodes
     page3 = package.blocks.create(name="Page3", type=BlockType.PAGE)
     choice31 = page3.blocks.create(name="Choice31", type=BlockType.CHOICE)
@@ -288,5 +291,7 @@ def test_shadow_node(session: Session, mock_package: Package):
     code332_output1 = code332.fields.append(Field.output("Choice331", choice331))  # noqa: F841
     code332_output3 = code332.fields.append(Field.output("Choice31", choice31))
 
-    assert get_node(code332, "^Choice331") is choice331  # sibling before descendants
-    assert get_node(code332, "^Choice31") is code332_output3  # descendants before ancestors
+    assert get_node(code332, context, "^Choice331") is choice331  # sibling before descendants
+    assert (
+        get_node(code332, context, "^Choice31") is code332_output3
+    )  # descendants before ancestors

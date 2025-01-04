@@ -319,11 +319,6 @@ class RunError(Struct, BenchError):
         return RunError(kind=kind, type=typ, title=title, text=text)
 
 
-@struct_(StructType.CONTEXT)
-class Context(Struct):
-    pass
-
-
 @timed_node_(NodeType.RUN)
 class Run(RuntimeNode[RunData], HasNodeBase):
     """
@@ -363,9 +358,6 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     if TYPE_CHECKING:
         incoming_ptr: tuple["NodeReference", ...] = ()
         outgoing_ptr: tuple["NodeReference", ...] = ()
-    context: Optional["Context"] = p_internal(
-        38, require=False, array=False, struct=StructType.CONTEXT
-    )
     options: "RunOptions" = p_internal(39, require=True, array=False, struct=StructType.RUN_OPTIONS)
 
     # status

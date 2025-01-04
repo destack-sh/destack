@@ -8,9 +8,9 @@ from opentelemetry import trace
 from bench.language import (
     Code,
     CodeType,
-    Context,
     CustomObject,
     Field,
+    HasContext,
     ObjectKind,
     RenderOptions,
     Run,
@@ -51,7 +51,7 @@ class CodeRunnerBase(Runner):
         code: Code,
         track: bool,
         options: RunOptions,
-        context: Context,
+        context: HasContext,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         variables: CustomObject | None = None,
@@ -145,7 +145,7 @@ class CodeRunnerBase(Runner):
         # NOTE :Incomplete: handle references to exported definitions (not just node references)
         resolved_references = {}
         for reference_name in self.compiled.references:
-            reference = get_node_or_error(self.node, f"^{reference_name}")
+            reference = get_node_or_error(self.node, self.context, f"^{reference_name}")
             if isinstance(reference, Field):
                 # replace Field reference with the underlying type if it's the same name
                 # (this is useful for Choice/)

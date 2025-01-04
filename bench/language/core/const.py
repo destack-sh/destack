@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.03.3"
+VERSION = "2025.01.04.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -161,8 +161,7 @@ class EnumType(IdEnum):
     SORT_MODE = 21507
     SORT_TYPE = 21508
     COMPUTED_VALUE_KIND = 21540
-    COMPUTED_SOURCE_KIND = 21541
-    PATH_TOKEN_TYPE = 21550
+    PATH_ELEMENT_TYPE = 21550
 
     #
     # Runtime (22000-22499)
@@ -424,7 +423,7 @@ USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT
 @enum_(EnumType.STRUCT_TYPE)
 class StructType(IdEnum):
     # intrinsic (10000-10499)
-    RUNTIME_CONTEXT = 10001
+    CONTEXT = 10001
     EDIT_CONTEXT = 10002
     EDIT = 10003
     EDIT_INFO = 10004
@@ -469,7 +468,7 @@ class StructType(IdEnum):
 
     # expression (12200-12699)
     PATH = 12200
-    PATH_TOKEN = 12201
+    PATH_ELEMENT = 12201
     EXPRESSION = 12210
     AGGREGATION_RESULT = 12211
     SELECTION = 12220
@@ -491,7 +490,6 @@ class StructType(IdEnum):
     IMAGE_OPTIONS = 12709
     VIDEO_OPTIONS = 12710
     CALL = 12712
-    CONTEXT = 12713
     BREAKPOINT = 12714
     LOG_INFO = 12715
 
