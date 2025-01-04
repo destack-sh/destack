@@ -197,7 +197,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             outgoing: list[Run] = []
             if isinstance(runner.node, Action):
                 if runner.outputs is not None and runner.outputs._kind == ObjectKind.OUTPUT:
-                    calls = cast(Action, runner.outputs).calls
+                    calls = cast(Action, runner.outputs).calls or ()
                 else:
                     calls = ()
                 for pipe in self.get_pipes_at(runner.node, PortSide.OUTGOING):

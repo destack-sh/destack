@@ -1,9 +1,4 @@
-import {
-  GraphScopeData,
-  HostClient,
-  RpcMetadata,
-  SupervisorClient
-} from "@/proto/wire";
+import { GraphScopeData, HostClient, RpcMetadata, SupervisorClient } from "@/proto/wire";
 import { CLIENT_TYPE, clientInfo, clientMeta } from "@/system/client";
 import { toaster } from "@/ui/toast";
 import { SUPERVISOR_URL } from "@/utils/globals";
@@ -316,41 +311,55 @@ const _CACHED_HOST_CLIENTS: Ref<{ [benchId: string]: HostClient }> = shallowRef(
 
 export const supervisorTransport = new BenchGrpcWebTransport(SUPERVISOR_URL);
 export const supervisor = new SupervisorClient(supervisorTransport);
+// Map to store pending host resolution promises
+const _PENDING_HOST_RESOLUTIONS = new Map<string, Promise<HostClient>>();
 
 /**
  * Gets the Host for a given Bench (looking up host info via supervisor if not cached)
  * NOTE :Performance: cache resolved hosts across session in local storage?
- * NOTE :Performance: resolving hosts has a 'race condition' where the same host is resolved multiple times concurrently
  */
 export async function getHostClient(bench: { id: string }): Promise<HostClient> {
   if ("id" in bench && _CACHED_HOST_CLIENTS.value[bench.id]) {
     return _CACHED_HOST_CLIENTS.value[bench.id];
   }
 
-  const startedAt = DateTime.now();
-  log.debug("host.resolve", bench);
-  try {
-    const { hosts: hostInfos } = await supervisor.resolveHosts({
-      benches: [{ bench: { oneofKind: "id", id: bench.id } }],
-    }).response;
-    const hostTransport = new BenchGrpcWebTransport(`${hostInfos[0].domain}:${hostInfos[0].grpcWebPort}`);
-    const hostClient = new HostClient(hostTransport);
-
-    _CACHED_HOST_CLIENTS.value[bench.id!] = hostClient;
-    _CACHED_HOST_TRANSPORTS.value[bench.id!] = hostTransport;
-    triggerRef(_CACHED_HOST_CLIENTS);
-    triggerRef(_CACHED_HOST_TRANSPORTS);
-
-    log.debug("host.resolve.complete", {
-      bench,
-      hostInfos,
-      duration: formatDuration(DateTime.now().diff(startedAt), { maxUnit: "ms" }),
-    });
-    return hostClient;
-  } catch (e) {
-    log.error("host.resolve.error", { bench, e });
-    throw e;
+  // check if there's already a pending resolution for this bench
+  const pendingResolution = _PENDING_HOST_RESOLUTIONS.get(bench.id);
+  if (pendingResolution) {
+    return pendingResolution;
   }
+
+  // resolve host
+  const resolutionPromise = (async () => {
+    const startedAt = DateTime.now();
+    try {
+      const { hosts: hostInfos } = await supervisor.resolveHosts({
+        benches: [{ bench: { oneofKind: "id", id: bench.id } }],
+      }).response;
+      const hostTransport = new BenchGrpcWebTransport(`${hostInfos[0].domain}:${hostInfos[0].grpcWebPort}`);
+      const hostClient = new HostClient(hostTransport);
+
+      _CACHED_HOST_CLIENTS.value[bench.id!] = hostClient;
+      _CACHED_HOST_TRANSPORTS.value[bench.id!] = hostTransport;
+      triggerRef(_CACHED_HOST_CLIENTS);
+      triggerRef(_CACHED_HOST_TRANSPORTS);
+
+      log.info("host.resolve", {
+        bench,
+        hostInfos,
+        duration: formatDuration(DateTime.now().diff(startedAt), { maxUnit: "ms" }),
+      });
+      return hostClient;
+    } catch (e) {
+      log.error("host.resolve.error", { bench, e });
+      throw e;
+    } finally {
+      _PENDING_HOST_RESOLUTIONS.delete(bench.id);
+    }
+  })();
+  _PENDING_HOST_RESOLUTIONS.set(bench.id, resolutionPromise);
+
+  return resolutionPromise;
 }
 
 /** Gets a cached transport for the given scope */
