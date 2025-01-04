@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
 import { toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
-import { createField } from "@/language/field";
+import { createField, useFieldList } from "@/language/field";
 import { useNodeListActions } from "@/ui/list";
 import { moveNode } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
@@ -52,61 +52,12 @@ const allFields = graph.getChildrenRef(block, NodeType.FIELD);
 const fields = computed(() => allFields.value.filter((f) => f.type == props.fieldType));
 
 // dragging :TypeDragAndDrop
-// NOTE: we have separate drop types for left/right (for function types)
-function allowDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent): boolean {
-  if (dragged.kind != "node" && dragged.kind != "selection") return false;
-  return dragged.nodes.every((node) => {
-    node = graph.getOrError(node);
-    if (isNode(node, NodeType.FIELD) && (node.type == FieldType.OPTION) == (block.value?.type == BlockType.CHOICE)) {
-      return true;
-    } else if (
-      isNode(node, NodeType.BLOCK) &&
-      block.value?.type != BlockType.CHOICE &&
-      TYPE_BLOCK_TYPES.includes(node.type)
-    ) {
-      return true;
-    } else {
-      return false;
-    }
-  });
-}
-function onDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
-  if (dragged.kind != "node" && dragged.kind != "selection") return;
-  const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
-  const target = targetId != null ? graph.get({ id: targetId }) : null;
-  for (let i = 0; i < dragged.nodes.length; i++) {
-    const node = graph.getOrError(dragged.nodes[i]);
-    if (isNode(node, NodeType.FIELD)) {
-      // move field
-      if (target != null) {
-        if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
-        moveNode(tx, graph, node, {
-          anchor: i == 0 ? anchor : "after",
-          target: i == 0 ? target : graph.getOrError(dragged.nodes[i - 1]),
-        });
-      } else {
-        moveNode(tx, graph, node, { anchor: "center", target: block.value! });
-      }
-      if (node.type != props.fieldType) {
-        tx.update(node, { type: props.fieldType ?? undefined }, { debounce: "tick" });
-      }
-    } else if (isNode(node, NodeType.BLOCK)) {
-      // add field with block type
-      const type = blockToType(node);
-      const fieldIn = { ...type, type: props.fieldType! };
-      if (target != null) {
-        if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
-        createField(tx, graph, {
-          field: fieldIn,
-          anchor: i == 0 ? anchor : "after",
-          target: i == 0 ? target : (graph.getOrError(dragged.nodes[i - 1]) as FieldData),
-        });
-      } else {
-        createField(tx, graph, { field: fieldIn, anchor: "inside", target: block.value! });
-      }
-    }
-  }
-}
+const { allowDrop, onDrop } = useFieldList({
+  graph,
+  txFactory: () => connection.tx,
+  fieldType: toRef(props, "fieldType"),
+  base: block,
+});
 const { activeDropZone } = useMultiDropZone({
   name: "type",
   container: containerRef,
@@ -124,7 +75,6 @@ const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(nu
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
 // actions
-// NOTE :Incomplete: Type.actions (move, navigate, ...)
 const actions: Partial<ActionMapImplementation<"list">> = {
   // list
   ...useNodeListActions({
@@ -189,6 +139,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           :ref="(ref: any) => (ref != null ? (fieldRefs[field.id] = ref) : delete fieldRefs[field.id])"
           class="cursor-pointer truncate transition-colors duration-150"
           :class="[
+            isMinimal ? 'px-1 py-[3px]' : '',
             orientation == Orientation.VERTICAL ? 'w-full' : 'max-w-[200px]',
             isDragging(field) ? 'opacity-50' : '',
           ]"

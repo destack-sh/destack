@@ -100,8 +100,15 @@ export function getViewComponentId(component: ViewComponent): string {
 /** Finds the closest ViewComponent ancestor. */
 export function findViewComponentUp(
   el: HTMLElement | SVGElement | ComponentInstance<any>,
-  where?: (component: ViewComponent) => boolean,
+  where?: ViewType[] | Set<ViewType> | ((component: ViewComponent) => boolean),
 ): ViewComponent | null {
+  if (Array.isArray(where) || where instanceof Set) {
+    const viewTypes = where instanceof Set ? where : new Set(where);
+    where = (component: ViewComponent) => {
+      const viewType = getViewTypeByComponentName(getVueComponentType(component));
+      return viewType != null && viewTypes.has(viewType);
+    };
+  }
   while (el != null) {
     if (el instanceof HTMLElement || el instanceof SVGElement) {
       // first find vue component

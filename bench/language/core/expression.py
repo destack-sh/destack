@@ -975,9 +975,9 @@ class ComputedValue(Struct):
 
     @staticmethod
     def new(
-        target_path: Sequence[Property | Field],
+        target_path: Sequence["Property | Field"],
         *,
-        source_path: Sequence[Property | Field],
+        source_path: Sequence["Property | Field"],
         source_node: "SourceNode | None" = None,
     ) -> "ComputedValue":
         raise NotImplementedError

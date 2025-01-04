@@ -1308,7 +1308,7 @@ declareActions<"space">({
       }
       const clonedNodes = cloneNodes(connection.tx, graph, nodes);
       canvas.select(clonedNodes);
-      if (clonedNodes.length > 0) {
+      if (clonedNodes.length > 0 && !(ctx.event != null && findViewComponentUp(ctx.event.target, HELPER_VIEW_TYPES))) {
         canvas.goToNode(clonedNodes[0]);
         canvas.inspect({ node: clonedNodes[0], view: canvas.focusedViewPtr.value });
       }

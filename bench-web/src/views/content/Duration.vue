@@ -99,7 +99,7 @@ function selectPreset(preset: (typeof presets)[number]) {
 }
 
 function focus() {
-  return buttonRef.value;
+  return buttonRef.value ?? queryRef.value;
 }
 
 defineExpose<ViewExposed>({
