@@ -28,7 +28,7 @@ from bench.language.core import (
     EditSubject,
     EditType,
     Engine,
-    HasRuntimeContext,
+    HasContext,
     Node,
     NodeDataGraph,
     NodeGraph,
@@ -56,11 +56,11 @@ from bench.language.core import (
 from bench.proto import wire
 from bench.proto.wire import (
     ClientOriginData,
+    ContextData,
     EditData,
     GraphScopeData,
     HostClient,
     RpcMetadata,
-    RuntimeContextData,
     SessionData,
     SupervisorClient,
     lang_pb2,
@@ -142,7 +142,7 @@ class Session(RuntimeNode[SessionData]):
     # context
     _origin: ClientOriginData | None = p_runtime(default=None)
     _subject: EditSubject | None = p_runtime(default=None)
-    _context_data: RuntimeContextData | None = p_runtime(default=None)
+    _context_data: ContextData | None = p_runtime(default=None)
     _is_readonly: bool = p_runtime(default=False)
     _is_suspended: bool = p_runtime(default=False)
 
@@ -479,10 +479,10 @@ class Session(RuntimeNode[SessionData]):
             if not self._on_edit_subs[node.id]:
                 del self._on_edit_subs[node.id]
 
-    def _get_context(self) -> RuntimeContextData:
+    def _get_context(self) -> ContextData:
         """Gathers context valid for the entire session"""
         if self._context_data is None:
-            context = RuntimeContextData(metatype=wire.ObjectType.OBJECT_TYPE_RUNTIME_CONTEXT)
+            context = ContextData(metatype=wire.ObjectType.OBJECT_TYPE_CONTEXT)
             if self.client_ptr is not None:
                 context.client_ptr.CopyFrom(self.client_ptr._to_data())
             if self.machine_ptr is not None:
@@ -886,8 +886,8 @@ class EditContext(Struct):
         identity_ptr: Optional[NodeReference] = None
 
 
-@struct_(StructType.RUNTIME_CONTEXT)
-class RuntimeContext(Struct, HasRuntimeContext):
+@struct_(StructType.CONTEXT)
+class Context(Struct, HasContext):
     """Context information for runtime nodes created in a session."""
 
     pass

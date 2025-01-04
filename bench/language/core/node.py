@@ -2607,6 +2607,29 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
         NODE_COMPUTED_VALUES_ID, require=False, array=True, struct=StructType.COMPUTED_VALUE
     )
 
+    def set_computed(
+        self,
+        target_path: Sequence["Property | Field"],
+        source_path: Sequence["Property | Field"],
+        source_node: "SourceNode | None" = None,
+    ):
+        """Sets and overrides the computed value for the target path."""
+        from .expression import ComputedValue
+
+        computed_value = ComputedValue.new(
+            target_path, source_path=source_path, source_node=source_node
+        )
+        self.computed_values = [
+            *(cv for cv in self.computed_values if cv.target_path != target_path),
+            computed_value,
+        ]
+
+    def clear_computed(self, target_path: Sequence["Property | Field"]):
+        """Clears the computed value for the target path."""
+        self.computed_values = [
+            *(cv for cv in self.computed_values if cv.target_path != target_path),
+        ]
+
 
 @node_component()
 class StateNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
@@ -2624,8 +2647,8 @@ class HasTimeIdentity(BuiltinObject, abc.ABC):
 
 
 @object_()
-class HasRuntimeContext(BuiltinObject):
-    """Context for a Node in some Session."""
+class HasContext(BuiltinObject):
+    """Context for a Node sonewhere."""
 
     # NOTE :Security: session context properties are p_internal (not p_system) so we can update
     #   them in all Clients. But this also means Users could mess with them if they really want to.
@@ -2681,7 +2704,7 @@ class HasRuntimeContext(BuiltinObject):
 
 @node_component()
 class RuntimeNode[NodeDataT: AnyNodeData](
-    HasTimeIdentity, BenchNode[NodeDataT], HasRuntimeContext, HasTracingContext, abc.ABC
+    HasTimeIdentity, BenchNode[NodeDataT], HasContext, HasTracingContext, abc.ABC
 ):
     """A Node that exists only (conceptually) at/in a Runtime."""
 

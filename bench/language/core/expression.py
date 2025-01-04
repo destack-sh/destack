@@ -43,7 +43,7 @@ from .validation import NAME_CONSTRAINT
 from .value import unpack_proto_json
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, Text, TypeBase, TypeInfo
+    from bench.language import Block, Field, Path, Text, TypeBase, TypeInfo
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -912,12 +912,6 @@ class ComputedValueKind(IdEnum):
     pass
 
 
-@enum_(EnumType.COMPUTED_SOURCE_KIND)
-class ComputedSourceKind(IdEnum):
-    NODE = 1
-    CONTEXT = 2
-
-
 @struct_(StructType.COMPUTED_VALUE)
 class ComputedValue(Struct):
     """
@@ -931,47 +925,12 @@ class ComputedValue(Struct):
     # scope...?
 
     # path to set at
-    target_path: list[str] = p_regular(40, array=True)
-    target_property: Optional[Property] = p_regular(
-        41, array=False, require=False, struct=StructType.PROPERTY_REFERENCE
-    )
-    target_field: Optional["Field"] = p_regular(
-        42, array=False, require=False, references=NodeType.FIELD
-    )
-    if TYPE_CHECKING:
-        target_property_ptr: Optional["PropertyReference"] = None
-        target_field_ptr: Optional["NodeReference"] = None
+    target_path_key: str = p_regular(40)
+    target_path: "Path" = p_regular(41, struct=StructType.PATH)
 
     # value to set
-    source_kind: Optional[ComputedSourceKind] = p_regular(50)
-    source_node: Optional["SourceNode"] = p_regular(
-        51, array=False, require=False, references="any"
-    )
-    source_path: list[str] = p_regular(52, array=True)
-    source_property: Optional[Property] = p_regular(
-        53, array=False, require=False, struct=StructType.PROPERTY_REFERENCE
-    )
-    source_field: Optional["Field"] = p_regular(
-        54, array=False, require=False, references=NodeType.FIELD
-    )
-
-    @functools.cached_property
-    def source_value_type(self) -> "TypeBase | None":
-        if (source_property := self.source_property) is not None:
-            return source_property.type_info
-        elif (source_field := self.source_field) is not None:
-            return source_field
-        else:
-            return None
-
-    @functools.cached_property
-    def target_value_type(self) -> "TypeBase | None":
-        if (target_property := self.target_property) is not None:
-            return target_property.type_info
-        elif (target_field := self.target_field) is not None:
-            return target_field
-        else:
-            return None
+    source_path_key: str = p_regular(50)
+    source_path: "Path" = p_regular(51, struct=StructType.PATH)
 
     @staticmethod
     def new(

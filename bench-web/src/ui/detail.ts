@@ -655,11 +655,12 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
         "Schema",
         [
           // delegate variables & inputs
-          rowObject(
-            ActionProperty.variablesPacked,
-            makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.VARIABLE, baseTypePtr: delegatePtr }),
-            { title: false, isComputable: true },
-          ),
+          // (NOTE :Incomplete: should we include Action delegate variables?)
+          // rowObject(
+          //   ActionProperty.variablesPacked,
+          //   makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.VARIABLE, baseTypePtr: delegatePtr }),
+          //   { title: false, isComputable: true },
+          // ),
           rowObject(
             ActionProperty.inputsPacked,
             makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.INPUT, baseTypePtr: delegatePtr }),
@@ -722,20 +723,26 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
       rowProperty(PipeProperty.color),
       rowProperty(PipeProperty.delay),
     ]);
-    sectionRun(PipeProperty.runOptions);
   }
 
   //
   // Records
   //
   else if (isNode(node, NodeType.RECORD)) {
-    section(undefined, [
-      rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }),
-      rowObject(
-        RecordProperty.valuePacked,
-        makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.MEMBER, baseTypePtr: node.blockPtr }),
-      ),
-    ]);
+    section(undefined, [rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } })]);
+    section(
+      "Schema",
+      [
+        rowObject(
+          RecordProperty.valuePacked,
+          makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.MEMBER, baseTypePtr: node.blockPtr }),
+          { title: false },
+        ),
+      ],
+      {
+        actions: [actionAddField(FieldType.MEMBER)],
+      },
+    );
   }
 
   const layout: DetailLayout = { sections };

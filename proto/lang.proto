@@ -63,7 +63,8 @@ enum EnumType {
   ENUM_TYPE_AGGREGATION_TYPE = 21506;
   ENUM_TYPE_SORT_MODE = 21507;
   ENUM_TYPE_SORT_TYPE = 21508;
-  ENUM_TYPE_PATH_TOKEN_TYPE = 21509;
+  ENUM_TYPE_COMPUTED_VALUE_KIND = 21540;
+  ENUM_TYPE_PATH_ELEMENT_TYPE = 21550;
   ENUM_TYPE_RUN_STATUS = 22001;
   ENUM_TYPE_RUN_TYPE = 22002;
   ENUM_TYPE_RUN_ERROR_KIND = 22003;
@@ -147,7 +148,7 @@ enum NodeType {
 
 enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
-  STRUCT_TYPE_RUNTIME_CONTEXT = 10001;
+  STRUCT_TYPE_CONTEXT = 10001;
   STRUCT_TYPE_EDIT_CONTEXT = 10002;
   STRUCT_TYPE_EDIT = 10003;
   STRUCT_TYPE_EDIT_INFO = 10004;
@@ -180,7 +181,7 @@ enum StructType {
   STRUCT_TYPE_CODE = 12100;
   STRUCT_TYPE_CODE_LINE = 12101;
   STRUCT_TYPE_PATH = 12200;
-  STRUCT_TYPE_PATH_TOKEN = 12201;
+  STRUCT_TYPE_PATH_ELEMENT = 12201;
   STRUCT_TYPE_EXPRESSION = 12210;
   STRUCT_TYPE_AGGREGATION_RESULT = 12211;
   STRUCT_TYPE_SELECTION = 12220;
@@ -188,7 +189,6 @@ enum StructType {
   STRUCT_TYPE_VALUE = 12240;
   STRUCT_TYPE_COMPUTED_VALUE = 12241;
   STRUCT_TYPE_OBJECT_MAPPING = 12250;
-  STRUCT_TYPE_FIELD_MAPPING = 12251;
   STRUCT_TYPE_RUN_ERROR = 12700;
   STRUCT_TYPE_RUN_OPTIONS = 12701;
   STRUCT_TYPE_RUN_ATTEMPT = 12702;
@@ -201,7 +201,6 @@ enum StructType {
   STRUCT_TYPE_IMAGE_OPTIONS = 12709;
   STRUCT_TYPE_VIDEO_OPTIONS = 12710;
   STRUCT_TYPE_CALL = 12712;
-  STRUCT_TYPE_CONTEXT = 12713;
   STRUCT_TYPE_BREAKPOINT = 12714;
   STRUCT_TYPE_LOG_INFO = 12715;
   STRUCT_TYPE_COLOR = 13200;
@@ -248,7 +247,7 @@ enum ObjectType {
   OBJECT_TYPE_INTERRUPTION = 3602;
   OBJECT_TYPE_LOG = 3603;
   OBJECT_TYPE_SKIP = 9000;
-  OBJECT_TYPE_RUNTIME_CONTEXT = 10001;
+  OBJECT_TYPE_CONTEXT = 10001;
   OBJECT_TYPE_EDIT_CONTEXT = 10002;
   OBJECT_TYPE_EDIT = 10003;
   OBJECT_TYPE_EDIT_INFO = 10004;
@@ -281,7 +280,7 @@ enum ObjectType {
   OBJECT_TYPE_CODE = 12100;
   OBJECT_TYPE_CODE_LINE = 12101;
   OBJECT_TYPE_PATH = 12200;
-  OBJECT_TYPE_PATH_TOKEN = 12201;
+  OBJECT_TYPE_PATH_ELEMENT = 12201;
   OBJECT_TYPE_EXPRESSION = 12210;
   OBJECT_TYPE_AGGREGATION_RESULT = 12211;
   OBJECT_TYPE_SELECTION = 12220;
@@ -289,7 +288,6 @@ enum ObjectType {
   OBJECT_TYPE_VALUE = 12240;
   OBJECT_TYPE_COMPUTED_VALUE = 12241;
   OBJECT_TYPE_OBJECT_MAPPING = 12250;
-  OBJECT_TYPE_FIELD_MAPPING = 12251;
   OBJECT_TYPE_RUN_ERROR = 12700;
   OBJECT_TYPE_RUN_OPTIONS = 12701;
   OBJECT_TYPE_RUN_ATTEMPT = 12702;
@@ -302,7 +300,6 @@ enum ObjectType {
   OBJECT_TYPE_IMAGE_OPTIONS = 12709;
   OBJECT_TYPE_VIDEO_OPTIONS = 12710;
   OBJECT_TYPE_CALL = 12712;
-  OBJECT_TYPE_CONTEXT = 12713;
   OBJECT_TYPE_BREAKPOINT = 12714;
   OBJECT_TYPE_LOG_INFO = 12715;
   OBJECT_TYPE_COLOR = 13200;
@@ -397,7 +394,7 @@ enum BenchType {
   BENCH_TYPE_INTERRUPTION = 3602;
   BENCH_TYPE_LOG = 3603;
   BENCH_TYPE_SKIP = 9000;
-  BENCH_TYPE_RUNTIME_CONTEXT = 10001;
+  BENCH_TYPE_CONTEXT = 10001;
   BENCH_TYPE_EDIT_CONTEXT = 10002;
   BENCH_TYPE_EDIT = 10003;
   BENCH_TYPE_EDIT_INFO = 10004;
@@ -430,7 +427,7 @@ enum BenchType {
   BENCH_TYPE_CODE = 12100;
   BENCH_TYPE_CODE_LINE = 12101;
   BENCH_TYPE_PATH = 12200;
-  BENCH_TYPE_PATH_TOKEN = 12201;
+  BENCH_TYPE_PATH_ELEMENT = 12201;
   BENCH_TYPE_EXPRESSION = 12210;
   BENCH_TYPE_AGGREGATION_RESULT = 12211;
   BENCH_TYPE_SELECTION = 12220;
@@ -438,7 +435,6 @@ enum BenchType {
   BENCH_TYPE_VALUE = 12240;
   BENCH_TYPE_COMPUTED_VALUE = 12241;
   BENCH_TYPE_OBJECT_MAPPING = 12250;
-  BENCH_TYPE_FIELD_MAPPING = 12251;
   BENCH_TYPE_RUN_ERROR = 12700;
   BENCH_TYPE_RUN_OPTIONS = 12701;
   BENCH_TYPE_RUN_ATTEMPT = 12702;
@@ -451,7 +447,6 @@ enum BenchType {
   BENCH_TYPE_IMAGE_OPTIONS = 12709;
   BENCH_TYPE_VIDEO_OPTIONS = 12710;
   BENCH_TYPE_CALL = 12712;
-  BENCH_TYPE_CONTEXT = 12713;
   BENCH_TYPE_BREAKPOINT = 12714;
   BENCH_TYPE_LOG_INFO = 12715;
   BENCH_TYPE_COLOR = 13200;
@@ -517,7 +512,8 @@ enum BenchType {
   BENCH_TYPE_AGGREGATION_TYPE = 21506;
   BENCH_TYPE_SORT_MODE = 21507;
   BENCH_TYPE_SORT_TYPE = 21508;
-  BENCH_TYPE_PATH_TOKEN_TYPE = 21509;
+  BENCH_TYPE_COMPUTED_VALUE_KIND = 21540;
+  BENCH_TYPE_PATH_ELEMENT_TYPE = 21550;
   BENCH_TYPE_RUN_STATUS = 22001;
   BENCH_TYPE_RUN_TYPE = 22002;
   BENCH_TYPE_RUN_ERROR_KIND = 22003;
@@ -1124,17 +1120,24 @@ enum SortType {
   SORT_TYPE_DESCENDING = 501;
 }
 
-enum PathTokenType {
-  PATH_TOKEN_TYPE_UNSPECIFIED = 0;
-  PATH_TOKEN_TYPE_ROOT = 1;
-  PATH_TOKEN_TYPE_CURRENT = 2;
-  PATH_TOKEN_TYPE_PARENT = 3;
-  PATH_TOKEN_TYPE_BENCH = 4;
-  PATH_TOKEN_TYPE_PACKAGE = 5;
-  PATH_TOKEN_TYPE_CHILD = 6;
-  PATH_TOKEN_TYPE_CONTAINER = 7;
-  PATH_TOKEN_TYPE_UNIQUE = 8;
-  PATH_TOKEN_TYPE_FIELD = 10;
+enum ComputedValueKind {
+  COMPUTED_VALUE_KIND_UNSPECIFIED = 0;
+}
+
+enum PathElementType {
+  PATH_ELEMENT_TYPE_UNSPECIFIED = 0;
+  PATH_ELEMENT_TYPE_ROOT = 1;
+  PATH_ELEMENT_TYPE_BENCH = 2;
+  PATH_ELEMENT_TYPE_PACKAGE = 3;
+  PATH_ELEMENT_TYPE_NODE = 4;
+  PATH_ELEMENT_TYPE_CONTEXT = 5;
+  PATH_ELEMENT_TYPE_CURRENT = 10;
+  PATH_ELEMENT_TYPE_CONTAINER = 11;
+  PATH_ELEMENT_TYPE_UNIQUE = 12;
+  PATH_ELEMENT_TYPE_PARENT = 13;
+  PATH_ELEMENT_TYPE_CHILD = 14;
+  PATH_ELEMENT_TYPE_ATTRIBUTE = 20;
+  PATH_ELEMENT_TYPE_PROPERTY = 21;
 }
 
 enum RunStatus {
@@ -1893,31 +1896,28 @@ message ValueData {
 
 message ComputedValueData {
   ObjectType metatype = 1;
-  repeated string path = 40;
-  optional PropertyReferenceData property_ptr = 41;
-  optional NodeReferenceData field_ptr = 42;
+  string target_path_key = 40;
+  PathData target_path = 41;
+  string source_path_key = 50;
+  PathData source_path = 51;
 }
 
 message ObjectMappingData {
   ObjectType metatype = 1;
-  repeated FieldMappingData field_mappings = 40;
+  repeated ComputedValueData mappings = 40;
 }
 
-message FieldMappingData {
+message PathElementData {
   ObjectType metatype = 1;
-  NodeReferenceData source_ptr = 35;
-  NodeReferenceData target_ptr = 36;
-}
-
-message PathTokenData {
-  ObjectType metatype = 1;
-  PathTokenType type = 31;
+  PathElementType type = 31;
   optional string name = 32;
+  optional NodeReferenceData node_ptr = 33;
+  optional PropertyReferenceData property_ptr = 34;
 }
 
 message PathData {
   ObjectType metatype = 1;
-  repeated PathTokenData tokens = 31;
+  repeated PathElementData elements = 31;
 }
 
 message SelectOptionsData {
@@ -2141,10 +2141,6 @@ message RunErrorData {
   optional RunTraceData trace = 35;
 }
 
-message ContextData {
-  ObjectType metatype = 1;
-}
-
 message EditContextData {
   ObjectType metatype = 1;
   optional NodeReferenceData block_ptr = 70;
@@ -2155,7 +2151,7 @@ message EditContextData {
   optional NodeReferenceData identity_ptr = 75;
 }
 
-message RuntimeContextData {
+message ContextData {
   ObjectType metatype = 1;
   optional NodeReferenceData session_ptr = 80;
   optional NodeReferenceData run_ptr = 81;
@@ -2876,7 +2872,6 @@ message RunData {
   optional NodeReferenceData pipe_ptr = 34;
   repeated NodeReferenceData incoming_ptr = 36;
   repeated NodeReferenceData outgoing_ptr = 37;
-  optional ContextData context = 38;
   RunOptionsData options = 39;
   RunStatus status = 40;
   optional google.protobuf.Duration duration = 41;
@@ -3265,7 +3260,6 @@ message PipeData {
   optional RunOptionsData run_options = 50;
   optional ExpressionData condition = 60;
   optional TypeConstraintData constraint = 62;
-  optional ObjectMappingData mapping = 70;
   optional google.protobuf.Duration delay = 80;
   NodeMode mode = 90;
   optional ColorData color = 91;

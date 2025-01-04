@@ -7,9 +7,8 @@ from opentelemetry import trace
 from bench.language import (
     BreakpointScope,
     BreakpointSite,
-    Context,
     CustomObject,
-    ObjectKind,
+    HasContext,
     Pipe,
     PipeType,
     Run,
@@ -40,7 +39,7 @@ class PipeRunnerBase(Runner[Pipe], ABC):
         node: Pipe,
         track: bool,
         options: RunOptions,
-        context: Context,
+        context: HasContext,
         flow: "FlowRunnerBase | None" = None,
         parent: Runner | None = None,
         variables: CustomObject | None = None,
@@ -76,16 +75,6 @@ class PipeRunnerBase(Runner[Pipe], ABC):
     async def run(self) -> None:
         if self.node.delay is not None:
             await self.runtime.oracle.sleep(self.node.delay.total_seconds())
-        if self.output_type is not None:
-            # assemble/map inputs from inputs
-            self.outputs = CustomObject.new(
-                ObjectKind.INPUT, {}, self.output_type, supergraph=self.runtime.session._supergraph
-            )
-            if self.inputs is not None:
-                for field in self.outputs._type._fields:
-                    key = self.inputs._get_key(field.name)
-                    if key is not None:
-                        self.outputs[field] = self.inputs._do_get(key)
 
 
 class ForwardPipeRunner(PipeRunnerBase):

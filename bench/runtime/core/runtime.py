@@ -12,9 +12,11 @@ from bench.language import (
     DEFAULT_CHECK_OPTIONS,
     NODE_CLASS_BY_TYPE,
     RUN_STATUS_BY_INTERRUPTION_TYPE,
+    Action,
     BenchError,
     BreakpointSite,
     CheckOptions,
+    ComputedValue,
     Connection,
     CustomObject,
     Field,
@@ -288,6 +290,10 @@ class Runtime:
                 logger.debug("runtime.acquire_resources.new", resource=resource)
         return resources_to_acquire
 
+    def _apply_computed_value(self, runner: Runner, computed_value: ComputedValue):
+        """Applies the ComputedValue in/to the Run/Runner."""
+        ...
+
     @tracer.start_as_current_span("runtime.run_runner.attempt")
     async def _do_attempt(self, runner: Runner, retry: RetryState, attempt: RunAttempt):
         trace.get_current_span().set_attribute("runner", repr(runner))
@@ -362,8 +368,22 @@ class Runtime:
 
     @tracer.start_as_current_span("runtime.run_runner.run")
     async def _do_run(self, runner: Runner):
-        """Runs a a Runner, retrying automatically and updating the Runner along the way."""
+        """Runs a Runner, retrying automatically."""
         # NOTE :Performance: track attempt as efficiently as possible :RuntimeHotPath
+
+        # compute variables/inputs/options from context (on initial attempt)
+        # nocheckin
+        if runner.status < RunStatus.RUNNING:
+            if isinstance(runner.node, Action):
+                # set default variables/inputs from node
+                if runner.variables is not None and runner.node.variables_packed is not None:
+                    runner.variables.set_default(runner.node.variables, _skip_validate=True)
+                if runner.inputs is not None and runner.node.inputs_packed is not None:
+                    runner.inputs.set_default(runner.node.inputs, _skip_validate=True)
+            if computed_values := runner.node.computed_values:
+                # apply computed values
+                for computed_value in computed_values:
+                    self._apply_computed_value(runner, computed_value)
 
         # check variables
         if runner.variable_type is not None:

@@ -23,8 +23,8 @@ from bench.language import (
     BreakpointScope,
     BreakpointSite,
     Code,
-    Context,
     CustomObject,
+    HasContext,
     Interruption,
     InterruptionStatus,
     InterruptionType,
@@ -121,7 +121,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         node: N,
         track: bool,
         options: RunOptions,
-        context: Context,
+        context: HasContext,
         parent: "Runner | None" = None,
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
@@ -201,6 +201,11 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                 self.id = run.id
                 self.session._create(run)
             self.tracked_run = run
+
+        # assume context
+        if self.context is None and run is not None:
+            self.context = run
+        assert self.context is not None, f"{self!r} has no context"
 
     def __str__(self):
         str_parts: list[str] = [
@@ -467,6 +472,7 @@ def make_run_from_node(
         pipe=pipe,
         options=options,
         mode=mode or get_tracing_context(),
+        _skip_validate_self=True,
     )
 
     # variables
@@ -474,8 +480,6 @@ def make_run_from_node(
         variables = {}
     if run.variable_type is not None:
         variables = coerce_custom_object_scalar(ObjectKind.VARIABLE, variables, run.variable_type)
-        if type(node) is Action and node.inputs_packed is not None:
-            variables.set_default(node.inputs, _skip_validate=True)
         run.variables = variables
 
     # inputs
@@ -483,8 +487,6 @@ def make_run_from_node(
         inputs = {}
     if run.input_type is not None:
         inputs = coerce_custom_object_scalar(ObjectKind.INPUT, inputs, run.input_type)
-        if type(node) is Action and node.inputs_packed is not None:
-            inputs.set_default(node.inputs, _skip_validate=True)
         run.inputs = inputs
 
     return run
@@ -516,7 +518,7 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
         runtime,
         node,
         kind=run.type,
-        context=run.context,
+        context=run,
         variables=variables,
         inputs=inputs,
         run=run,
@@ -530,7 +532,7 @@ def make_runner(
     track: bool,
     *,
     kind: RunType | None = None,
-    context: Context | None = None,
+    context: HasContext | None = None,
     variables: CustomObject | None = None,
     inputs: Any | None = None,
     output_type: TypeBase | None = None,
@@ -561,7 +563,7 @@ def make_runner(
     base_kwargs: dict[str, Any] = {
         "runtime": runtime,
         "options": options,
-        "context": context,
+        "context": context or run,
         "inputs": inputs,
         "variables": variables,
         "output_type": output_type,

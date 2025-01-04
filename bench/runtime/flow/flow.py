@@ -10,9 +10,9 @@ from opentelemetry import trace
 from bench.language import (
     Action,
     ActionType,
-    Context,
     CustomObject,
     FlowBlock,
+    HasContext,
     Interruption,
     ObjectKind,
     Pipe,
@@ -57,7 +57,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         node: N,
         track: bool,
         options: RunOptions,
-        context: Context,
+        context: HasContext,
         parent: Runner[RunnableNode] | None = None,
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
@@ -119,17 +119,17 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             self._stop_result = "completed"
         self._abort()  # cancel all active actions
         self._stop_event.set()
-        logger.debug("flow.complete", flow=self.node, runner=self)
+        logger.debug("flow.complete", flow=self.node, runner=self, outputs=outputs)
 
     def _fail(self, error: RunError) -> None:
         """Fail this Flow, aborting all active Actions."""
         if self._stop_result is not None:
-            logger.debug("flow.fail.skip", flow=self.node, runner=self)
+            logger.debug("flow.fail.skip", flow=self.node, runner=self, error=error)
             return  # already done
         self._stop_result = error
         self._abort()  # cancel all active actions
         self._stop_event.set()
-        logger.debug("flow.fail", flow=self.node, runner=self)
+        logger.debug("flow.fail", flow=self.node, runner=self, error=error)
 
     def _stop_if_needed(self) -> None:
         """Checks whether this Flow should stop (and stops it)."""

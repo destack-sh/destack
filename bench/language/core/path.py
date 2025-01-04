@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, assert_never, cast
+from typing import TYPE_CHECKING, Any, Optional, assert_never, cast
 
 import regex
 from cachetools import LRUCache, cached
@@ -11,17 +11,20 @@ from .const import BenchError, EnumType, NodeType, StructType, enum_
 from .list import LocalNodeList
 from .node import (
     BenchNode,
+    HasContext,
     Node,
     PackageNode,
     SourceNode,
     Struct,
     struct_,
 )
-from .property import p_regular
+from .property import Property, p_regular
 from .validation import NAME_REGEX_CHAR, SLUG_REGEX_CHAR
 
 if TYPE_CHECKING:
     from bench.language import Field
+
+_property = property
 
 
 class PathError(BenchError, ValueError):
@@ -44,27 +47,37 @@ class PathLookupError(PathError, LookupError):
     pass
 
 
-@enum_(EnumType.PATH_TOKEN_TYPE)
-class PathTokenType(IdEnum):
+@enum_(EnumType.PATH_ELEMENT_TYPE)
+class PathElementType(IdEnum):
+    # absolute
     ROOT = 1
-    CURRENT = 2
-    PARENT = 3
-    BENCH = 4
-    PACKAGE = 5
-    CHILD = 6
-    CONTAINER = 7
-    UNIQUE = 8
-    FIELD = 10
+    BENCH = 2
+    PACKAGE = 3
+    NODE = 4
+    CONTEXT = 5
+    # relative
+    CURRENT = 10
+    CONTAINER = 11
+    UNIQUE = 12
+    PARENT = 13
+    CHILD = 14
+    # sub
+    ATTRIBUTE = 20
+    PROPERTY = 21
 
 
-@struct_(StructType.PATH_TOKEN)
-class PathToken(Struct):
+@struct_(StructType.PATH_ELEMENT)
+class PathElement(Struct):
     """A semantic part of a Bench path."""
 
-    type: PathTokenType = p_regular(31)
+    type: PathElementType = p_regular(31)
     name: Optional[str] = p_regular(32, default=None)
+    node: Optional[Node] = p_regular(33, require=False, array=False, references="any")
+    property: Optional[Property] = p_regular(
+        34, require=False, struct=StructType.PROPERTY_REFERENCE
+    )
 
-    @property
+    @_property
     def code_name(self) -> str | None:
         if self.name is None:
             return None
@@ -81,13 +94,14 @@ class PathToken(Struct):
 @struct_(StructType.PATH)
 class Path(Struct):
     """
-    A human-readable Bench path to reference nodes.
+    A human-readable Bench path to reference Nodes and Properties.
     Paths names and special operators are combined with slashes.
     Names may be the actual names or the code names of nodes.
-    Fields may also be accessed with '.' separators.
+    Fields/Properties are accessed with '.' separators.
 
     Segments:
         / -> root of this package
+        $ -> context
         . -> current node
         .. -> parent of current node
         ../.. -> parent of parent of current node
@@ -97,8 +111,10 @@ class Path(Struct):
         ~ -> closest container
         ~Node -> closest container with name 'Node'
         ^Name -> uniquely named node or child in closest container
-        .field -> 'field' Field of current node
+        .field -> Field of current node
+        .property -> Property of current node
 
+        Node1.name -> 'name' Property of 'Node1'
         Node2.field -> 'field' of 'Node2' (there must not be anything after .property)
         Node1/Node2/Node3 -> child 'Node3' of child 'Node2' of child 'Node1' of current node
 
@@ -107,21 +123,23 @@ class Path(Struct):
         @bench/Node1/Node2/Node3 -> absolute reference to 'Node3' in current package of @bench
     """
 
-    tokens: list[PathToken] = p_regular(31, require=True, array=True, struct=StructType.PATH_TOKEN)
+    elements: list[PathElement] = p_regular(
+        31, require=True, array=True, struct=StructType.PATH_ELEMENT
+    )
 
     def __content_str__(self) -> str:
         return self.render()
 
     def __len__(self) -> int:
-        return len(self.tokens)
+        return len(self.elements)
 
-    def __getitem__(self, index: int) -> PathToken:
-        return self.tokens[index]
+    def __getitem__(self, index: int) -> PathElement:
+        return self.elements[index]
 
     @property
     def is_absolute(self) -> bool:
         """Whether the path is absolute from a Bench root."""
-        return len(self.tokens) > 0 and self.tokens[0].type == PathTokenType.ROOT
+        return len(self.elements) > 0 and self.elements[0].type == PathElementType.ROOT
 
     @property
     def is_relative(self) -> bool:
@@ -147,112 +165,119 @@ NODE_PATTERN = regex.compile(rf"^([>\^~:])?([{NAME_REGEX_CHAR}\.]*)$")
 
 @cached(LRUCache(maxsize=1024 * 10))
 def parse_path(path: str) -> Path:
+    """Parse a path string into a Path (for named Nodes/Properties)."""
     # plain root references
     if path == "/":
-        return Path(tokens=[PathToken(type=PathTokenType.ROOT)])
+        return Path(elements=[PathElement(type=PathElementType.ROOT)])
 
     segments = path.strip().split("/")
 
     # empty path
     if not segments:
-        return Path(tokens=[])
+        return Path(elements=[])
 
-    tokens: list[PathToken] = []
+    elements: list[PathElement] = []
     if segments[0] == "":
         # skip the root segment
-        tokens.append(PathToken(type=PathTokenType.ROOT))
+        elements.append(PathElement(type=PathElementType.ROOT))
         segments.pop(0)
-    for i, segment in enumerate(segments):
+    for segment in segments:
         if not segment:
             raise PathSyntaxError(f"empty name in '{path}'")
         elif segment == ".":
-            token = PathToken(type=PathTokenType.CURRENT)
-            tokens.append(token)
+            element = PathElement(type=PathElementType.CURRENT)
+            elements.append(element)
         elif segment == "..":
-            token = PathToken(type=PathTokenType.PARENT)
-            tokens.append(token)
+            element = PathElement(type=PathElementType.PARENT)
+            elements.append(element)
         else:
             # named nodes
             if match := BENCH_PATTERN.match(segment):
-                if len(tokens) > 0:
+                if len(elements) > 0:
                     raise PathLogicError(f"bench reference must be the first segment in '{path}'")
-                token = PathToken(type=PathTokenType.BENCH, name=match.group(1))
+                element = PathElement(type=PathElementType.BENCH, name=match.group(1))
                 if len(match.group(1)) != len(segment) - 1 and not match.group(2):
                     raise PathSyntaxError(f"invalid bench name '{segment}' in '{path}'")
-                tokens.append(token)
+                elements.append(element)
                 if package_name := match.group(2):
-                    tokens.append(PathToken(type=PathTokenType.PACKAGE, name=package_name))
+                    elements.append(PathElement(type=PathElementType.PACKAGE, name=package_name))
                 continue
             elif match := NODE_PATTERN.match(segment):
-                node_type = PathTokenType.CHILD
+                node_type = PathElementType.CHILD
                 if match.group(1) == "~":
-                    node_type = PathTokenType.CONTAINER
+                    node_type = PathElementType.CONTAINER
                 elif match.group(1) == "^":
-                    node_type = PathTokenType.UNIQUE
+                    node_type = PathElementType.UNIQUE
                 name = match.group(2)
-                if not name and node_type != PathTokenType.CONTAINER:
+                if not name and node_type != PathElementType.CONTAINER:
                     raise PathSyntaxError(f"empty name in '{segment}' in '{path}'")
-                token = PathToken(type=node_type, name=name or None)
+                element = PathElement(type=node_type, name=name or None)
             else:
                 raise PathSyntaxError(f"invalid path: '{segment}' in '{path}'")
-            tokens.append(token)
+            elements.append(element)
 
-            # get property (if any)
-            if token.name and "." in token.name:
-                node_name, property_name = token.name.split(".", maxsplit=1)
-                if "." in property_name:
-                    raise PathSyntaxError(f"cannot nest properties: '{segment}' in '{path}'")
-                if i < len(segments) - 1:
-                    raise PathSyntaxError(f"property must be the last segment in '{path}'")
+            # get attribute (if any)
+            if element.name and "." in element.name:
+                parts = element.name.split(".")
+                node_name = parts[0]
+                attribute_names = parts[1:]
                 if not node_name:
-                    if i > 0:
-                        raise PathSyntaxError(
-                            f"property shorthand must be first segment in '{path}'"
-                        )
-                    tokens.pop()
+                    elements.pop()
                 else:
-                    token.name = node_name
-                property_token = PathToken(type=PathTokenType.FIELD, name=property_name)
-                tokens.append(property_token)
+                    element.name = node_name
+                for attr_name in attribute_names:
+                    if not attr_name:
+                        raise PathSyntaxError(f"empty attribute name in '{segment}' in '{path}'")
+                    property_element = PathElement(type=PathElementType.ATTRIBUTE, name=attr_name)
+                    elements.append(property_element)
             elif "." in segment:
                 raise PathSyntaxError(f"invalid property syntax: '{segment}' in '{path}'")
 
-    return Path(tokens=tokens)
+    return Path(elements=elements)
 
 
 def render_path(path: Path) -> str:
     """Renders a path back into a string."""
     path_parts = []
-    for i, token in enumerate(path.tokens):
-        if token.type == PathTokenType.ROOT:
+    for i, element in enumerate(path.elements):
+        # absolute
+        if element.type == PathElementType.ROOT:
             path_parts.append("")
-            if len(path.tokens) == 1:
+            if len(path.elements) == 1:
                 return "/"
-        elif token.type == PathTokenType.CURRENT:
-            path_parts.append(".")
-        elif token.type == PathTokenType.PARENT:
-            path_parts.append("..")
-        elif token.type == PathTokenType.BENCH:
-            bench_part = f"@{token.code_name}"
+        elif element.type == PathElementType.BENCH:
+            bench_part = f"@{element.code_name}"
             # combined with package if set
-            if i + 1 < len(path.tokens) and path.tokens[i + 1].type == PathTokenType.PACKAGE:
-                bench_part += f":{path.tokens[i + 1].code_name}"
+            if i + 1 < len(path.elements) and path.elements[i + 1].type == PathElementType.PACKAGE:
+                bench_part += f":{path.elements[i + 1].code_name}"
             path_parts.append(bench_part)
-        elif token.type == PathTokenType.PACKAGE:
+        elif element.type == PathElementType.PACKAGE:
             continue  # handled above
-        elif token.type == PathTokenType.CONTAINER:
-            path_parts.append(f"~{token.code_name or ''}")
-        elif token.type == PathTokenType.UNIQUE:
-            path_parts.append(f"^{token.code_name or ''}")
-        elif token.type == PathTokenType.CHILD:
-            path_parts.append(token.code_name)
-        elif token.type == PathTokenType.FIELD:
+        elif element.type == PathElementType.NODE:
+            node = element.node
+            assert node is not None, f"no node found for {element!r} in {path!r}"
+            path_parts.append(f"[id={node.id}]")
+        elif element.type == PathElementType.CONTEXT:
+            path_parts.append("$")
+        # relative
+        elif element.type == PathElementType.CURRENT:
+            path_parts.append(".")
+        elif element.type == PathElementType.CONTAINER:
+            path_parts.append(f"~{element.code_name or ''}")
+        elif element.type == PathElementType.UNIQUE:
+            path_parts.append(f"^{element.code_name or ''}")
+        elif element.type == PathElementType.PARENT:
+            path_parts.append("..")
+        elif element.type == PathElementType.CHILD:
+            path_parts.append(element.code_name)
+        # sub
+        elif element.type == PathElementType.ATTRIBUTE or element.type == PathElementType.PROPERTY:
             if path_parts:
-                path_parts[-1] += f".{token.code_name}"
+                path_parts[-1] += f".{element.code_name}"
             else:  # property shorthand
-                path_parts.append(f".{token.code_name}")
+                path_parts.append(f".{element.code_name}")
         else:
-            assert_never(token.type)
+            assert_never(element.type)
     return "/".join(path_parts)
 
 
@@ -396,76 +421,104 @@ def _raise_scope(scope: Node) -> Node:
         return scope
 
 
-def get_node(scope: Node, path: str | Path) -> Node | None:
+def evaluate_path(scope: Node, context: HasContext, path: str | Path) -> Any | None:
+    if isinstance(path, str):
+        path = parse_path(path)
+    if len(path.elements) == 0:
+        return None
+    current: Node | Any = scope
+    for element in path.elements:
+        # absolute
+        if element.type == PathElementType.ROOT:
+            if not isinstance(scope, (Package, PackageNode)):
+                raise PathLogicError(f"root references are only valid for Bench Nodes: {path}")
+            current = scope.package
+        elif element.type == PathElementType.BENCH:
+            if not isinstance(scope, BenchNode):
+                raise PathLogicError(f"bench references are only valid for Bench Nodes: {path}")
+            bench = scope.bench
+            if bench is not None and element.name != bench.name:
+                raise PathLogicError(f"references to other Benches are not supported: {path}")
+            else:
+                current = bench
+        elif element.type == PathElementType.PACKAGE:
+            assert element.name, f"missing name for {element!r} in {path!r}"
+            if not isinstance(current, Bench):
+                raise PathLogicError(f"package references are only valid for Benches: {path}")
+            current = _get_child(current, element.name, NodeType.PACKAGE)
+        elif element.type == PathElementType.NODE:
+            node = element.node
+            if node is None:
+                raise PathLookupError(f"node at {path} not found in {scope!r}")
+            current = node
+        elif element.type == PathElementType.CONTEXT:
+            current = context
+
+        # relative
+        elif element.type == PathElementType.CURRENT:
+            pass
+        elif element.type == PathElementType.CONTAINER:
+            if current.metatype == NodeType.PACKAGE:
+                return None  # has no parent in path
+            current = _lower_scope(current)
+            current = _get_container(current, element.name)
+        elif element.type == PathElementType.UNIQUE:
+            assert element.name, f"missing name for {element!r} in {path!r}"
+            current = _lower_scope(current)
+            current = _get_unique(current, element.name)
+        elif element.type == PathElementType.PARENT:
+            if current.metatype == NodeType.PACKAGE:
+                return None  # has no parent in path
+            current = current.parent
+        elif element.type == PathElementType.CHILD:
+            current = _lower_scope(current)
+            assert element.name, f"missing name for {element!r} in {path!r}"
+            current = _get_child(current, element.name)
+
+        # sub
+        elif element.type == PathElementType.ATTRIBUTE:
+            assert element.name, f"missing name for {element!r} in {path!r}"
+            current = _lower_scope(current)
+            if element.name in current.__properties__:
+                current = getattr(current, element.name)
+            else:
+                fields = cast(LocalNodeList["Field"] | None, getattr(current, "fields", None))
+                if fields is not None:
+                    current = fields.get(element.name)
+                else:
+                    return None
+        elif element.type == PathElementType.PROPERTY:
+            assert element.name, f"missing name for {element!r} in {path!r}"
+            current = _lower_scope(current)
+            current = getattr(current, element.name)
+        else:
+            assert_never(element.type)
+        if current is None:
+            return None
+
+    return current
+
+
+def get_node(scope: Node, context: HasContext, path: str | Path) -> Node | None:
     """
     Resolves a Node against the given scope.
     We try to be forgiving and just return None if we can't find the Node / the Path is weird.
     """
     if isinstance(path, str):
         path = parse_path(path)
-    if len(path.tokens) == 0:
+    target = evaluate_path(scope, context, path)
+    if not isinstance(target, Node):
         return None
-    current = scope
-    for token in path.tokens:
-        if token.type == PathTokenType.ROOT:
-            if not isinstance(scope, (Package, PackageNode)):
-                raise PathLogicError(f"root references are only valid for Bench Nodes: {path}")
-            current = scope.package
-        elif token.type == PathTokenType.CURRENT:
-            pass
-        elif token.type == PathTokenType.PARENT:
-            if current.metatype == NodeType.PACKAGE:
-                return None  # has no parent in path
-            current = current.parent
-        elif token.type == PathTokenType.BENCH:
-            if not isinstance(scope, BenchNode):
-                raise PathLogicError(f"bench references are only valid for Bench Nodes: {path}")
-            bench = scope.bench
-            if bench is not None and token.name != bench.name:
-                raise PathLogicError(f"references to other Benches are not supported: {path}")
-            else:
-                current = bench
-        elif token.type == PathTokenType.PACKAGE:
-            assert token.name, f"missing name for {token!r} in {path!r}"
-            if not isinstance(current, Bench):
-                raise PathLogicError(f"package references are only valid for Benches: {path}")
-            current = _get_child(current, token.name, NodeType.PACKAGE)
-        elif token.type == PathTokenType.CHILD:
-            current = _lower_scope(current)
-            assert token.name, f"missing name for {token!r} in {path!r}"
-            current = _get_child(current, token.name)
-        elif token.type == PathTokenType.CONTAINER:
-            if current.metatype == NodeType.PACKAGE:
-                return None  # has no parent in path
-            current = _lower_scope(current)
-            current = _get_container(current, token.name)
-        elif token.type == PathTokenType.UNIQUE:
-            assert token.name, f"missing name for {token!r} in {path!r}"
-            current = _lower_scope(current)
-            current = _get_unique(current, token.name)
-        elif token.type == PathTokenType.FIELD:
-            assert token.name, f"missing name for {token!r} in {path!r}"
-            current = _lower_scope(current)
-            fields = cast(LocalNodeList["Field"] | None, getattr(current, "fields", None))
-            if fields is not None:
-                current = fields.get(token.name)
-            else:
-                return None
-        else:
-            assert_never(token.type)
-        if current is None:
-            return None
 
-    # raise into bench if last token wasn't package
-    if path.tokens and path.tokens[-1].type != PathTokenType.PACKAGE:
-        current = _raise_scope(current)
-
-    return current
+    # raise into bench if last element wasn't specifically package
+    if path.elements and path.elements[-1].type != PathElementType.PACKAGE:
+        target = _raise_scope(target)
+    return target
 
 
-def get_node_or_error(scope: Node, path: str | Path) -> Node:
+def get_node_or_error(scope: Node, context: HasContext, path: str | Path) -> Node:
     """Resolves a Node against the given scope or raises an error."""
-    node = get_node(scope, path)
+    node = get_node(scope, context, path)
     if node is None:
         raise PathLookupError(f"node at {path} not found in {scope!r}")
     return node
@@ -488,16 +541,18 @@ def _get_path_to_root(node: Node) -> list[Node]:
 
 def _get_bench_path(node: Bench | Package) -> Path:
     if isinstance(node, Bench):
-        return Path(tokens=[PathToken(type=PathTokenType.BENCH, name=node.slug)])
+        return Path(elements=[PathElement(type=PathElementType.BENCH, name=node.slug)])
     elif isinstance(node, Package):
         if node.bench is not None:
             if node.bench.main_package_id == node.id:
-                return Path(tokens=[PathToken(type=PathTokenType.BENCH, name=node.bench.slug)])
+                return Path(
+                    elements=[PathElement(type=PathElementType.BENCH, name=node.bench.slug)]
+                )
             else:
                 return Path(
-                    tokens=[
-                        PathToken(type=PathTokenType.BENCH, name=node.bench.slug),
-                        PathToken(type=PathTokenType.PACKAGE, name=node.slug),
+                    elements=[
+                        PathElement(type=PathElementType.BENCH, name=node.bench.slug),
+                        PathElement(type=PathElementType.PACKAGE, name=node.slug),
                     ]
                 )
         else:
@@ -512,7 +567,7 @@ def get_path(scope: Node, node: Node) -> Path:
         if isinstance(node, (Bench, Package)):
             return _get_bench_path(node)
         else:
-            return Path(tokens=[PathToken(type=PathTokenType.CURRENT)])
+            return Path(elements=[PathElement(type=PathElementType.CURRENT)])
 
     scope_path = _get_path_to_root(scope)
     node_path = _get_path_to_root(node)
@@ -524,12 +579,12 @@ def get_path(scope: Node, node: Node) -> Path:
             or not isinstance(node_path[-1], (Bench, Package))
         ):
             raise PathLogicError(f"no common ancestor found for {scope!r} and {node!r}")
-        tokens = _get_bench_path(node_path[-1]).tokens
+        elements = _get_bench_path(node_path[-1]).elements
         for node_ancestor in node_path[1:]:
             name = getattr(node_ancestor, "name", None)
             if name is None:
                 raise PathUnnamedNodeError(node_ancestor)
-            tokens.append(PathToken(type=PathTokenType.CHILD, name=name))
+            elements.append(PathElement(type=PathElementType.CHILD, name=name))
     else:
         # find relative path from scope to node (up/down)
         common_ancestor = None
@@ -545,40 +600,40 @@ def get_path(scope: Node, node: Node) -> Path:
             raise PathLogicError(f"no common ancestor found for {scope!r} and {node!r}")
         if isinstance(common_ancestor, (Bench, Package)):
             # absolute path from bench to node
-            tokens = _get_bench_path(common_ancestor).tokens
+            elements = _get_bench_path(common_ancestor).elements
             for node_ancestor in reversed(node_path):
                 if not isinstance(node_ancestor, (Bench, Package)):
                     name = getattr(node_ancestor, "name", None)
                     if name is None:
                         raise PathUnnamedNodeError(node_ancestor)
-                    tokens.append(PathToken(type=PathTokenType.CHILD, name=name))
+                    elements.append(PathElement(type=PathElementType.CHILD, name=name))
         elif node_ancestor_idx == 0:
             # node is a direct ancestor of scope
-            tokens = []
+            elements = []
             for i in range(1, scope_ancestor_idx + 1):
                 name = getattr(scope_path[i], "name", None)
                 if name is None:
                     raise PathUnnamedNodeError(scope_path[i])
-                tokens.append(PathToken(type=PathTokenType.CONTAINER, name=name))
+                elements.append(PathElement(type=PathElementType.CONTAINER, name=name))
         else:
             # get from scope to common ancestor, then from common ancestor to node
-            tokens = []
+            elements = []
             for i in range(1, scope_ancestor_idx):
                 name = getattr(scope_path[i], "name", None)
                 if name is None:
                     raise PathUnnamedNodeError(scope_path[i])
-                tokens.append(PathToken(type=PathTokenType.CONTAINER, name=name))
+                elements.append(PathElement(type=PathElementType.CONTAINER, name=name))
             for i in range(node_ancestor_idx - 1, -1, -1):
                 name = getattr(node_path[i], "name", None)
                 if name is None:
                     raise PathUnnamedNodeError(node_path[i])
-                if not tokens and not _get_child(scope, name):
+                if not elements and not _get_child(scope, name):
                     # refer to sibling as unique node
-                    tokens.append(PathToken(type=PathTokenType.UNIQUE, name=name))
+                    elements.append(PathElement(type=PathElementType.UNIQUE, name=name))
                 else:
-                    # must be a child if we already have other tokens
-                    tokens.append(PathToken(type=PathTokenType.CHILD, name=name))
+                    # must be a child if we already have other elements
+                    elements.append(PathElement(type=PathElementType.CHILD, name=name))
 
     if node.metatype == NodeType.FIELD:
-        tokens[-1].type = PathTokenType.FIELD
-    return Path(tokens=tokens)
+        elements[-1].type = PathElementType.ATTRIBUTE
+    return Path(elements=elements)

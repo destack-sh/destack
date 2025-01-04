@@ -21,7 +21,6 @@ from .model import (
     VideoOptions,
 )
 from .run import (
-    Context,
     Run,
     RunAttempt,
     RunError,
@@ -31,7 +30,7 @@ from .run import (
     RunSpan,
     RunSpanType,
 )
-from .session import EditContext, RuntimeContext, Session
+from .session import Context, EditContext, Session
 
 __all__ = [
     "INTERRUPTION_TYPE_BY_RUN_STATUS",
@@ -63,7 +62,6 @@ __all__ = [
     "RunOptions",
     "RunSpan",
     "RunSpanType",
-    "RuntimeContext",
     "Session",
     "TextOptions",
     "VideoOptions",

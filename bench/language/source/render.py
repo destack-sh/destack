@@ -23,7 +23,7 @@ from bench.language.core import (
     NodeReference,
     NodeType,
     ObjectType,
-    PathTokenType,
+    PathElementType,
     PrimitiveType,
     Property,
     ScalarValue,
@@ -270,13 +270,16 @@ class Renderer:
             rendered_path = render_path(path)
             if self._options.simplify_paths:
                 # simplify path for use in Code (which treats references as unique get_node)
-                if len(path) == 1 and path[0].type in (PathTokenType.UNIQUE, PathTokenType.CHILD):
+                if len(path) == 1 and path[0].type in (
+                    PathElementType.UNIQUE,
+                    PathElementType.CHILD,
+                ):
                     assert path[0].code_name is not None, f"no name for {path[0]!r}"
                     return path[0].code_name
                 elif (
                     len(path) == 2
-                    and path[0].type in (PathTokenType.UNIQUE, PathTokenType.CHILD)
-                    and path[1].type == PathTokenType.FIELD
+                    and path[0].type in (PathElementType.UNIQUE, PathElementType.CHILD)
+                    and path[1].type == PathElementType.ATTRIBUTE
                 ):
                     return f"{path[0].name}.{path[1].code_name}"
             return f"get_node({rendered_path!r})"
