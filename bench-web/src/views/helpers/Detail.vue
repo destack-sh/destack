@@ -123,7 +123,7 @@ defineExpose<ViewExposed>({ self, id });
           :key="row.title ?? i"
           class="mx-4"
           :class="[
-            row.type == 'view' || row.type == 'property'
+            row.type == 'view' || row.type == 'property' || row.type == 'object'
               ? row.isFullWidth
                 ? 'flex flex-col gap-y-1'
                 : 'flex flex-row flex-wrap items-center gap-x-[5%]'
@@ -150,9 +150,15 @@ defineExpose<ViewExposed>({ self, id });
           <!-- View -->
           <component
             :is="getViewComponent(row.viewType)"
-            v-else-if="(row.type == 'view' || row.type == 'property') && hasViewComponent(row.viewType)"
+            v-else-if="
+              (row.type == 'view' || row.type == 'property' || row.type == 'object') && hasViewComponent(row.viewType)
+            "
             :id="i + '.value'"
-            :class="['ml-auto flex-shrink-0', row.isFullWidth ? '' : 'text-right']"
+            :class="[
+              'ml-auto flex-shrink-0',
+              row.isFullWidth ? '' : 'text-right',
+              row.type == 'object' ? '' : '',
+            ]"
             :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
             v-bind="row.viewProps"
             :model-value="row.read()"
@@ -167,7 +173,7 @@ defineExpose<ViewExposed>({ self, id });
             <span>{{ row.text }}</span>
           </div>
           <!-- Line -->
-          <div v-else-if="row.type == 'line'" class="h-px w-full bg-gray-200" />
+          <div v-else-if="row.type == 'line'" class="my-0.5 h-px w-full bg-gray-200" />
           <!-- Error -->
           <div v-else class="text-red-500">
             <span>No View for '{{ row.type }}'</span>

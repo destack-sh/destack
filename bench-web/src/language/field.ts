@@ -1,3 +1,4 @@
+import { blockToType } from "@/language/block";
 import {
   getTkB64FromCk,
   getTkB64FromPtr,
@@ -11,9 +12,9 @@ import {
 } from "@/language/const";
 import { getEnumTitle } from "@/language/enum";
 import type { ReadNodeGraph } from "@/language/graph";
-import { makeNodeName } from "@/language/node";
+import { makeNodeName, moveNode } from "@/language/node";
 import { getOrderKey } from "@/language/order";
-import type { Transaction } from "@/language/transaction";
+import { newChangeId, type Transaction } from "@/language/transaction";
 import {
   BenchType,
   BlockData,
@@ -48,10 +49,12 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { supergraph } from "@/system/globals";
+import { DragContent, MultiAnchor } from "@/ui/drag";
 import { getNodeIcon, getTypeIcon, makeIcon } from "@/ui/icon";
 import { getRandomColorType } from "@/ui/style";
 import { assertNever, decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
+import { Ref } from "vue";
 
 export type TypeIdentity = Pick<
   TypeInfoData,
@@ -557,4 +560,73 @@ export function getTitleField(fields: FieldData[]): { field: FieldData | undefin
   let titleIdx = fields.findIndex((f) => f.primitiveType == PrimitiveType.STRING);
   if (titleIdx == null) titleIdx = fields.findIndex((f) => typeIsNumeric(f));
   return { field: titleIdx != null ? fields[titleIdx] : undefined, idx: titleIdx };
+}
+
+/** Handle drag/drop for Fields. */
+export function useFieldList(options: {
+  graph: ReadNodeGraph;
+  txFactory: () => Transaction;
+  fieldType: Ref<FieldType>;
+  base: Ref<BlockData | ActionData | null>;
+}) {
+  const { graph, txFactory, fieldType, base: block } = options;
+
+  /** Whether the given drag content is allowed to be dropped on the target. */
+  function allowDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent): boolean {
+    if (dragged.kind != "node" && dragged.kind != "selection") return false;
+    return dragged.nodes.every((node) => {
+      node = graph.getOrError(node);
+      if (isNode(node, NodeType.FIELD) && (node.type == FieldType.OPTION) == (fieldType.value == FieldType.OPTION)) {
+        return true;
+      } else if (
+        isNode(node, NodeType.BLOCK) &&
+        block.value?.type != BlockType.CHOICE &&
+        TYPE_BLOCK_TYPES.includes(node.type)
+      ) {
+        return true;
+      } else {
+        return false;
+      }
+    });
+  }
+
+  function onDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
+    if (dragged.kind != "node" && dragged.kind != "selection") return;
+    const tx = txFactory().with({ change: { key: newChangeId(), title: "Move" } });
+    const target = targetId != null ? graph.get({ id: targetId }) : null;
+    for (let i = 0; i < dragged.nodes.length; i++) {
+      const node = graph.getOrError(dragged.nodes[i]);
+      if (isNode(node, NodeType.FIELD)) {
+        // move field
+        if (target != null) {
+          if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
+          moveNode(tx, graph, node, {
+            anchor: i == 0 ? anchor : "after",
+            target: i == 0 ? target : graph.getOrError(dragged.nodes[i - 1]),
+          });
+        } else {
+          moveNode(tx, graph, node, { anchor: "center", target: block.value! });
+        }
+        if (node.type != fieldType.value) {
+          tx.update(node, { type: fieldType.value ?? undefined }, { debounce: "tick" });
+        }
+      } else if (isNode(node, NodeType.BLOCK)) {
+        // add field with block type
+        const type = blockToType(node);
+        const fieldIn = { ...type, type: fieldType.value! };
+        if (target != null) {
+          if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
+          createField(tx, graph, {
+            field: fieldIn,
+            anchor: i == 0 ? anchor : "after",
+            target: i == 0 ? target : (graph.getOrError(dragged.nodes[i - 1]) as FieldData),
+          });
+        } else {
+          createField(tx, graph, { field: fieldIn, anchor: "inside", target: block.value! });
+        }
+      }
+    }
+  }
+
+  return { allowDrop, onDrop };
 }

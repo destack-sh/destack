@@ -26,6 +26,9 @@ import {
 } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import {
+  ActionData,
+  ActionProperty,
+  ActionType,
   AnyNodeData,
   BenchType,
   BlockData,
@@ -41,6 +44,7 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
+  PickerVariant,
   PipeProperty,
   PrimitiveType,
   PROPERTY_ENUM_BY_SUBTYPE,
@@ -50,14 +54,10 @@ import {
   PropertyInfo,
   RecordProperty,
   RunOptionsProperty,
-  ActionProperty,
-  ActionType,
   TypeConstraintProperty,
+  TypeInfoData,
   TypeKind,
   ViewType,
-  ActionData,
-  PickerVariant,
-  TypeInfoData,
 } from "@/proto/wire";
 import { isNode, makeStruct, toNodeRef } from "@/proto/wiring";
 import { canvas, supergraph } from "@/system/globals";
@@ -86,22 +86,16 @@ export type DetailSection = {
   actions?: DetailAction[];
 };
 
-type DetailRowBase = {
+type RowBase = {
   title?: string;
   subtitle?: string;
 };
-export type DetailFieldsRow = DetailRowBase & {
+export type FieldsRow = RowBase & {
   type: "fields";
   fieldType: FieldType;
   delegatePtr?: NodeReferenceData;
 };
-export type DetailObjectRow = DetailRowBase & {
-  type: "object";
-  isComputable: boolean;
-  prop: PropertyInfo;
-  valueType: TypeInfoData;
-};
-export type DetailViewRow = DetailRowBase & {
+export type ViewRow = RowBase & {
   type: "view";
   isFullWidth: boolean;
   viewType: ViewType;
@@ -109,30 +103,28 @@ export type DetailViewRow = DetailRowBase & {
   read: () => any;
   write: (value: any, path?: any) => void;
 };
-export type DetailViewProperty = Omit<DetailViewRow, "type"> & {
+export type ObjectRow = Omit<ViewRow, "type"> & {
+  type: "object";
+  isComputable: boolean;
+  prop: PropertyInfo;
+};
+export type PropertyRow = Omit<ViewRow, "type"> & {
   type: "property";
   isComputable: boolean;
   prop: PropertyInfo;
 };
-export type DetailIconRow = DetailRowBase & {
+export type IconRow = RowBase & {
   type: "icon";
   icon: IconData;
 };
-export type DetailLineRow = DetailRowBase & {
+export type LineRow = RowBase & {
   type: "line";
 };
-export type DetailTextRow = DetailRowBase & {
+export type TextRow = RowBase & {
   type: "text";
   text: string;
 };
-export type DetailRow =
-  | DetailFieldsRow
-  | DetailViewRow
-  | DetailViewProperty
-  | DetailObjectRow
-  | DetailIconRow
-  | DetailTextRow
-  | DetailLineRow;
+export type DetailRow = FieldsRow | ViewRow | PropertyRow | ObjectRow | IconRow | TextRow | LineRow;
 
 export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFactory: () => Transaction): DetailLayout {
   const sections: DetailSection[] = [];
@@ -233,7 +225,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     if (view == null) {
       return { type: "text", title: title === false ? undefined : title, subtitle: options?.subtitle, text: "No View" };
     }
-    const row: DetailViewProperty = {
+    const row: PropertyRow = {
       type: "property",
       prop,
       title: title === false ? undefined : title,
@@ -303,11 +295,8 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
   }
 
   /** Type row */
-  function rowType(options?: {
-    title?: string;
-    extendWrite?: (tx: Transaction, newValue: any) => void;
-  }): DetailViewRow {
-    const row: DetailViewRow = {
+  function rowType(options?: { title?: string; extendWrite?: (tx: Transaction, newValue: any) => void }): ViewRow {
+    const row: ViewRow = {
       type: "view",
       title: options?.title ?? "Type",
       viewType: ViewType.PICKER,
@@ -340,37 +329,56 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
       icon: makeIcon(icon),
       action: (e) => {
         const delegate = options?.delegatePtr != null ? graph.get(options.delegatePtr) : null;
-        onAddFieldAction(e, fieldType, (delegate ?? node) as BlockData, graph, txFactory);
+        onAddFieldAction(e, fieldType, (delegate ?? node) as BlockData, graph, txFactory, { dontFocus: true });
       },
     };
   }
 
   /** Object row */
   function rowObject(
-    path: number,
+    propertyId: number,
     valueType: TypeIdentity,
     options?: { title?: string | false; subtitle?: string; isComputable?: boolean },
-  ): DetailObjectRow {
-    const { prop, propKey } = property(path);
+  ): ObjectRow {
+    const { prop, propKey } = property(propertyId);
     const title = options?.title ?? getPropertyTitle(prop);
-    const row: DetailObjectRow = {
+    const row: ObjectRow = {
       type: "object",
       title: title === false ? undefined : title,
       subtitle: options?.subtitle,
       isComputable: options?.isComputable ?? false,
       prop,
-      valueType: makeTypeInfo(valueType),
+      viewType: ViewType.OBJECT,
+      viewProps: { valueType: makeTypeInfo(valueType), isInput: true, isInline: true, isMinimal: true },
+      isFullWidth: true,
+      read: () => (node as any)[propKey],
+      write: (newValue, options?: ModelValueOptions) => {
+        if (options == null) {
+          txFactory().update(node, { [propKey]: newValue });
+        } else {
+          const operations: EditOperationData[] = [
+            {
+              metatype: ObjectType.EDIT_OPERATION,
+              type: newValue == null ? EditOperationType.CLEAR : EditOperationType.SET,
+              path: [propertyId.toString(), ...options.path],
+              newValuePacked: (newValue as any)?.[options.path[0]],
+              oldValuePacked: (node as any)?.[options.path[0]],
+            },
+          ];
+          txFactory().update(node, operations, getTransactionOptionsForType(options.field));
+        }
+      },
     };
     return row;
   }
 
   /** Line row */
-  function rowLine(): DetailLineRow {
+  function rowLine(): LineRow {
     return { type: "line" };
   }
 
   /** Icon row */
-  function rowIcon(icon: IconData | string): DetailIconRow {
+  function rowIcon(icon: IconData | string): IconRow {
     return { type: "icon", icon: makeIcon(icon) };
   }
 
@@ -605,55 +613,100 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     }
 
     // schema
-    let delegatePtr;
+    let delegatePtr: NodeReferenceData | undefined = undefined;
     if (node.type == ActionType.START || node.type == ActionType.COMPLETE) {
       delegatePtr = node.parentPtr;
     } else if (node.type == ActionType.DELEGATE) {
       delegatePtr = node.delegatePtr;
-    } else {
-      delegatePtr = null;
     }
-    if (node.type == ActionType.DELEGATE && delegatePtr != null) {
+    if (node.type == ActionType.START) {
+      // flow inputs
+      section("Schema", [{ type: "fields", fieldType: FieldType.INPUT, delegatePtr: node.parentPtr }], {
+        subtitle: "(Flow)",
+        actions: [
+          actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT], { delegatePtr: node.parentPtr }),
+        ],
+      });
+    } else if (node.type == ActionType.COMPLETE) {
+      // ƒlow outputs as inputs
+      section(
+        "Schema",
+        [
+          rowObject(
+            ActionProperty.inputsPacked,
+            makeTypeInfo({
+              kind: TypeKind.CUSTOM_OBJECT,
+              baseFieldType: FieldType.OUTPUT,
+              baseTypePtr: node.parentPtr,
+            }),
+            { title: false, isComputable: true },
+          ),
+        ],
+        {
+          subtitle: "(Flow)",
+          actions: [
+            actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT], { delegatePtr: node.parentPtr }),
+          ],
+        },
+      );
+    } else if (node.type == ActionType.DELEGATE && delegatePtr != null) {
       // own schema with delegate schema
-      section("Schema", [
-        // inputs
-        rowObject(
-          ActionProperty.inputsPacked,
-          makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.INPUT, baseTypePtr: nodePtr }),
-          { title: false, isComputable: true },
-        ),
-        rowLine(),
-        // delegate variables & inputs
-        rowObject(
-          ActionProperty.variablesPacked,
-          makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.VARIABLE, baseTypePtr: delegatePtr }),
-          { title: false, isComputable: true },
-        ),
-        rowObject(
-          ActionProperty.inputsPacked,
-          makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.INPUT, baseTypePtr: delegatePtr }),
-          { title: false, isComputable: true },
-        ),
-        // arrow
-        rowIcon("fas fa-arrow-down"),
-        // outputs
-        { type: "fields", fieldType: FieldType.OUTPUT },
-        rowLine(),
-        { type: "fields", fieldType: FieldType.OUTPUT, delegatePtr },
-      ]);
-    } else {
+      section(
+        "Schema",
+        [
+          // delegate variables & inputs
+          rowObject(
+            ActionProperty.variablesPacked,
+            makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.VARIABLE, baseTypePtr: delegatePtr }),
+            { title: false, isComputable: true },
+          ),
+          rowObject(
+            ActionProperty.inputsPacked,
+            makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.INPUT, baseTypePtr: delegatePtr }),
+            { title: false, isComputable: true },
+          ),
+          // arrow
+          rowIcon("fas fa-arrow-down"),
+          // outputs
+          { type: "fields", fieldType: FieldType.OUTPUT, delegatePtr },
+          rowLine(),
+          { type: "fields", fieldType: FieldType.OUTPUT },
+        ],
+        {
+          subtitle: "(Delegate)",
+          actions: [
+            actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
+            actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
+          ],
+        },
+      );
+    } else if (node.type != ActionType.FAIL) {
       // own schema
-      section("Schema", [
-        rowObject(
-          ActionProperty.inputsPacked,
-          makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.INPUT, baseTypePtr: nodePtr }),
-          { title: false, isComputable: true },
-        ),
-        rowIcon("fas fa-arrow-down"),
-        { type: "fields", fieldType: FieldType.OUTPUT },
-      ]);
+      section(
+        "Schema",
+        [
+          rowObject(
+            ActionProperty.inputsPacked,
+            makeTypeInfo({
+              kind: TypeKind.CUSTOM_OBJECT,
+              baseFieldType: FieldType.INPUT,
+              baseTypePtr: delegatePtr ?? nodePtr,
+            }),
+            { title: false, isComputable: true },
+          ),
+          rowIcon("fas fa-arrow-down"),
+          { type: "fields", fieldType: FieldType.OUTPUT },
+        ],
+        {
+          actions: [
+            actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
+            actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
+          ],
+        },
+      );
     }
 
+    // run options
     if (!BOUNDARY_ACTION_TYPES.includes(node.type)) {
       sectionRun(ActionProperty.runOptions);
     }
@@ -693,9 +746,10 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
 export function onAddFieldAction(
   e: MouseEvent,
   fieldType: FieldType,
-  parent: BlockData,
+  parent: BlockData | ActionData,
   graph: ReadNodeGraph,
   txFactory: () => Transaction,
+  options?: { dontFocus?: boolean },
 ) {
   if (fieldType == FieldType.OPTION) {
     const field = createField(txFactory(), graph, {
@@ -727,7 +781,9 @@ export function onAddFieldAction(
           target: parent,
           field: { ...typeInfo, type: fieldType },
         });
-        canvas.inspect({ node: field });
+        if (!options?.dontFocus) {
+          canvas.inspect({ node: field });
+        }
       },
     });
   }

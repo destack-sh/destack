@@ -63,10 +63,9 @@ defineExpose<ViewExposed>({ self, id, actions });
     ]"
     data-suppress-drag="select"
   >
-    <!-- Icon -->
     <NodeReference
       ref="nameRef"
-      class="px-1 py-[3px]"
+      :class="[!isMinimal ? 'px-1 py-[3px]' : '']"
       :node="field"
       :tx="() => connection.tx"
       size="regular"
