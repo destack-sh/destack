@@ -26,6 +26,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
+const subnodePacked = toRef(props, "subnodePacked");
 
 const nodePtr = computedValue(() => props.nodePtr);
 const { node, graph, connection } = supergraph.getLinkRef(nodePtr);
@@ -35,31 +36,21 @@ const layout = computed(() => {
   return layout;
 });
 
-const expandedSections = useSubnodeProperty(
-  NodeType.VIEW,
-  ViewType.DETAIL,
-  toRef(props, "subnodePacked"),
-  "expandedSections",
-);
-const collapsedSections = useSubnodeProperty(
-  NodeType.VIEW,
-  ViewType.DETAIL,
-  toRef(props, "subnodePacked"),
-  "collapsedSections",
-);
+const expandedSections = useSubnodeProperty(NodeType.VIEW, ViewType.DETAIL, subnodePacked, "expandedSections");
+const collapsedSections = useSubnodeProperty(NodeType.VIEW, ViewType.DETAIL, subnodePacked, "collapsedSections");
 function isSectionExpanded(section: DetailSection) {
-  if (section.title == null) return true;
-  if (section.isDefaultCollapsed) return expandedSections.value?.includes(section.title);
-  else return !collapsedSections.value?.includes(section.title);
+  if (section.key == null) return true;
+  if (section.isDefaultCollapsed) return expandedSections.value?.includes(section.key);
+  else return !collapsedSections.value?.includes(section.key);
 }
 function toggleSection(section: DetailSection) {
   if (section.title == null) throw new Error("cannot toggle a section without a title");
   if (section.isDefaultCollapsed) {
     let newExpandedSections;
     if (isSectionExpanded(section)) {
-      newExpandedSections = expandedSections.value.filter((title) => title != section.title);
+      newExpandedSections = expandedSections.value.filter((key) => key != section.key);
     } else {
-      newExpandedSections = [...(expandedSections.value ?? []), section.title];
+      newExpandedSections = [...(expandedSections.value ?? []), section.key];
     }
     state.update(
       { metatype: NodeType.VIEW, type: ViewType.DETAIL, subnode: { expandedSections: newExpandedSections } },
@@ -68,9 +59,9 @@ function toggleSection(section: DetailSection) {
   } else {
     let newCollapsedSections;
     if (isSectionExpanded(section)) {
-      newCollapsedSections = [...(collapsedSections.value ?? []), section.title];
+      newCollapsedSections = [...(collapsedSections.value ?? []), section.key];
     } else {
-      newCollapsedSections = collapsedSections.value.filter((title) => title != section.title);
+      newCollapsedSections = collapsedSections.value.filter((key) => key != section.key);
     }
     state.update(
       { metatype: NodeType.VIEW, type: ViewType.DETAIL, subnode: { collapsedSections: newCollapsedSections } },
@@ -132,9 +123,9 @@ defineExpose<ViewExposed>({ self, id });
           :key="row.title ?? i"
           class="mx-4"
           :class="[
-            row.type == 'view'
+            row.type == 'view' || row.type == 'property'
               ? row.isFullWidth
-                ? 'flex flex-col gap-y-0.5'
+                ? 'flex flex-col gap-y-1'
                 : 'flex flex-row flex-wrap items-center gap-x-[5%]'
               : '',
           ]"
@@ -144,6 +135,8 @@ defineExpose<ViewExposed>({ self, id });
             <span class="">{{ row.title }}</span>
             <span v-if="row.subtitle" class="ml-1.5 text-gray-400">{{ row.subtitle }}</span>
           </div>
+
+          <!-- Body -->
           <!-- Fields -->
           <div v-if="row.type == 'fields'" class="rounded border border-gray-200">
             <FieldList
@@ -157,7 +150,7 @@ defineExpose<ViewExposed>({ self, id });
           <!-- View -->
           <component
             :is="getViewComponent(row.viewType)"
-            v-else-if="row.type == 'view' && hasViewComponent(row.viewType)"
+            v-else-if="(row.type == 'view' || row.type == 'property') && hasViewComponent(row.viewType)"
             :id="i + '.value'"
             :class="['ml-auto flex-shrink-0', row.isFullWidth ? '' : 'text-right']"
             :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
@@ -172,6 +165,12 @@ defineExpose<ViewExposed>({ self, id });
           <!-- Text -->
           <div v-else-if="row.type == 'text'" class="text-gray-400">
             <span>{{ row.text }}</span>
+          </div>
+          <!-- Line -->
+          <div v-else-if="row.type == 'line'" class="h-px w-full bg-gray-200" />
+          <!-- Error -->
+          <div v-else class="text-red-500">
+            <span>No View for '{{ row.type }}'</span>
           </div>
         </div>
       </div>

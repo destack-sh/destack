@@ -57,8 +57,9 @@ import {
   ViewType,
   ActionData,
   PickerVariant,
+  TypeInfoData,
 } from "@/proto/wire";
-import { isNode, makeStruct } from "@/proto/wiring";
+import { isNode, makeStruct, toNodeRef } from "@/proto/wiring";
 import { canvas, supergraph } from "@/system/globals";
 import { getNodeName, ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
@@ -76,6 +77,7 @@ export type DetailAction = {
   action: (e: MouseEvent) => void;
 };
 export type DetailSection = {
+  key?: string;
   title?: string;
   subtitle?: string;
   rows: DetailRow[];
@@ -93,6 +95,12 @@ export type DetailFieldsRow = DetailRowBase & {
   fieldType: FieldType;
   delegatePtr?: NodeReferenceData;
 };
+export type DetailObjectRow = DetailRowBase & {
+  type: "object";
+  isComputable: boolean;
+  prop: PropertyInfo;
+  valueType: TypeInfoData;
+};
 export type DetailViewRow = DetailRowBase & {
   type: "view";
   isFullWidth: boolean;
@@ -101,19 +109,35 @@ export type DetailViewRow = DetailRowBase & {
   read: () => any;
   write: (value: any, path?: any) => void;
 };
+export type DetailViewProperty = Omit<DetailViewRow, "type"> & {
+  type: "property";
+  isComputable: boolean;
+  prop: PropertyInfo;
+};
 export type DetailIconRow = DetailRowBase & {
   type: "icon";
   icon: IconData;
+};
+export type DetailLineRow = DetailRowBase & {
+  type: "line";
 };
 export type DetailTextRow = DetailRowBase & {
   type: "text";
   text: string;
 };
-export type DetailRow = DetailFieldsRow | DetailViewRow | DetailIconRow | DetailTextRow;
+export type DetailRow =
+  | DetailFieldsRow
+  | DetailViewRow
+  | DetailViewProperty
+  | DetailObjectRow
+  | DetailIconRow
+  | DetailTextRow
+  | DetailLineRow;
 
 export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFactory: () => Transaction): DetailLayout {
   const sections: DetailSection[] = [];
 
+  const nodePtr = toNodeRef(node);
   const metatype = node.metatype as unknown as NodeType;
   const propertyEnum = PROPERTY_ENUM_BY_TYPE[node.metatype]!;
   const propertyInfos = PROPERTY_INFOS_BY_TYPE[node.metatype]!;
@@ -129,16 +153,25 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
   function section(
     title: string | undefined,
     rows: DetailRow[],
-    options?: { isDefaultCollapsed?: boolean; subtitle?: string; summary?: string; actions?: DetailAction[] },
-  ) {
-    sections.push({
+    options?: {
+      key?: string;
+      isDefaultCollapsed?: boolean;
+      subtitle?: string;
+      summary?: string;
+      actions?: DetailAction[];
+    },
+  ): DetailSection {
+    const s: DetailSection = {
+      key: options?.key ?? (title != null ? `section-${title}-${options?.subtitle ?? ""}` : undefined),
       title,
       subtitle: options?.subtitle,
       rows,
       isDefaultCollapsed: options?.isDefaultCollapsed,
       summary: options?.summary,
       actions: options?.actions,
-    });
+    };
+    sections.push(s);
+    return s;
   }
 
   /** Gets a top-level property with the given key */
@@ -168,6 +201,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
       subtitle?: string;
       isFullWidth?: boolean;
       isDisabled?: boolean;
+      isComputable?: boolean;
       default?: any;
       props?: Partial<ViewProps>;
       extendWrite?: (tx: Transaction, newValue: any, options: TransactionOptions) => void;
@@ -195,14 +229,16 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
 
     const title = options?.title ?? getPropertyTitle(prop);
     const propType = options?.props?.valueType ?? getPropertyType(prop);
-    const view = getViewForType(propType);
+    const view = getViewForType(propType, { forcePickerDropdown: true });
     if (view == null) {
       return { type: "text", title: title === false ? undefined : title, subtitle: options?.subtitle, text: "No View" };
     }
-    const row: DetailViewRow = {
-      type: "view",
+    const row: DetailViewProperty = {
+      type: "property",
+      prop,
       title: title === false ? undefined : title,
       subtitle: options?.subtitle,
+      isComputable: options?.isComputable ?? false,
       isFullWidth: options?.isFullWidth || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
       viewType: view.type!,
       viewProps: { ...view, ...options?.props, isInput: !options?.isDisabled },
@@ -309,8 +345,41 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     };
   }
 
-  function sectionSchema(options?: { title?: string; subtitle?: string; delegatePtr?: NodeReferenceData }) {
-    section(
+  /** Object row */
+  function rowObject(
+    path: number,
+    valueType: TypeIdentity,
+    options?: { title?: string | false; subtitle?: string; isComputable?: boolean },
+  ): DetailObjectRow {
+    const { prop, propKey } = property(path);
+    const title = options?.title ?? getPropertyTitle(prop);
+    const row: DetailObjectRow = {
+      type: "object",
+      title: title === false ? undefined : title,
+      subtitle: options?.subtitle,
+      isComputable: options?.isComputable ?? false,
+      prop,
+      valueType: makeTypeInfo(valueType),
+    };
+    return row;
+  }
+
+  /** Line row */
+  function rowLine(): DetailLineRow {
+    return { type: "line" };
+  }
+
+  /** Icon row */
+  function rowIcon(icon: IconData | string): DetailIconRow {
+    return { type: "icon", icon: makeIcon(icon) };
+  }
+
+  function sectionSchema(options?: {
+    title?: string;
+    subtitle?: string;
+    delegatePtr?: NodeReferenceData;
+  }): DetailSection {
+    return section(
       options?.title ?? "Schema",
       [
         { type: "fields", fieldType: FieldType.INPUT, delegatePtr: options?.delegatePtr },
@@ -327,28 +396,13 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     );
   }
 
-  // nocheckin: section for inputs & variables to delegate
-
-  function rowObject(path: number | [number] | [number, number], options?: { title?: string; subtitle?: string }) {
-    return {
-      type: "view",
-      title: options?.title ?? "Object",
-      subtitle: options?.subtitle,
-      viewType: ViewType.OBJECT,
-      viewProps: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO, isRequired: true }), isInput: true },
-    };
-  }
-
-  function sectionObject(path: number | [number] | [number, number], options?: { title?: string; subtitle?: string }) {}
-
   function sectionRun(runOptionsProperty: number) {
     section(
       "Run",
       [
         rowProperty([runOptionsProperty, RunOptionsProperty.maxAttempts], { title: "Attempts" }),
-        rowProperty([runOptionsProperty, RunOptionsProperty.suppressPause]),
-        rowProperty([runOptionsProperty, RunOptionsProperty.suppressAbort]),
         rowProperty([runOptionsProperty, RunOptionsProperty.suppressFail]),
+        rowProperty([runOptionsProperty, RunOptionsProperty.modelFamily]),
       ],
       { isDefaultCollapsed: true },
     );
@@ -516,12 +570,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     section(undefined, commonRows);
     commonRows.push(rowProperty(ActionProperty.text, { title: false, props: { placeholder: "Text..." } }));
 
-    if (node.type == ActionType.START || node.type == ActionType.COMPLETE) {
-      sectionSchema({ subtitle: "(Flow)", delegatePtr: node.parentPtr });
-    } else if (!BOUNDARY_ACTION_TYPES.includes(node.type)) {
-      sectionSchema();
-    }
-
+    // common rows
     if (node.type == ActionType.CODE) {
       commonRows.push(rowProperty(ActionProperty.code, { isFullWidth: true }));
     } else if (node.type == ActionType.DELEGATE) {
@@ -538,14 +587,9 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
           },
         }),
       );
-      // schema from delegate
-      const delegatePtr = node.delegatePtr;
-      if (delegatePtr != null) {
-        sectionSchema({ title: "Schema (Delegate)", delegatePtr });
-      }
     } else if (node.type == ActionType.FAIL) {
-      commonRows.push(rowProperty(FailActionProperty.errorTitle, { title: "Title" }));
-      commonRows.push(rowProperty(FailActionProperty.errorText, { title: "Text" }));
+      commonRows.push(rowProperty(FailActionProperty.errorTitle, { title: "Title", isComputable: true }));
+      commonRows.push(rowProperty(FailActionProperty.errorText, { title: "Text", isComputable: true }));
     } else {
       // add all from subproperty enum
       if (subpropertyEnum != null) {
@@ -554,10 +598,60 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
           .forEach((subproperty) => {
             const { prop } = property(subproperty as any);
             if (prop != null && prop.fieldType != FieldType.OUTPUT) {
-              commonRows.push(rowProperty(subproperty));
+              commonRows.push(rowProperty(subproperty, { isComputable: true }));
             }
           });
       }
+    }
+
+    // schema
+    let delegatePtr;
+    if (node.type == ActionType.START || node.type == ActionType.COMPLETE) {
+      delegatePtr = node.parentPtr;
+    } else if (node.type == ActionType.DELEGATE) {
+      delegatePtr = node.delegatePtr;
+    } else {
+      delegatePtr = null;
+    }
+    if (node.type == ActionType.DELEGATE && delegatePtr != null) {
+      // own schema with delegate schema
+      section("Schema", [
+        // inputs
+        rowObject(
+          ActionProperty.inputsPacked,
+          makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.INPUT, baseTypePtr: nodePtr }),
+          { title: false, isComputable: true },
+        ),
+        rowLine(),
+        // delegate variables & inputs
+        rowObject(
+          ActionProperty.variablesPacked,
+          makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.VARIABLE, baseTypePtr: delegatePtr }),
+          { title: false, isComputable: true },
+        ),
+        rowObject(
+          ActionProperty.inputsPacked,
+          makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.INPUT, baseTypePtr: delegatePtr }),
+          { title: false, isComputable: true },
+        ),
+        // arrow
+        rowIcon("fas fa-arrow-down"),
+        // outputs
+        { type: "fields", fieldType: FieldType.OUTPUT },
+        rowLine(),
+        { type: "fields", fieldType: FieldType.OUTPUT, delegatePtr },
+      ]);
+    } else {
+      // own schema
+      section("Schema", [
+        rowObject(
+          ActionProperty.inputsPacked,
+          makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.INPUT, baseTypePtr: nodePtr }),
+          { title: false, isComputable: true },
+        ),
+        rowIcon("fas fa-arrow-down"),
+        { type: "fields", fieldType: FieldType.OUTPUT },
+      ]);
     }
 
     if (!BOUNDARY_ACTION_TYPES.includes(node.type)) {
@@ -584,38 +678,10 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
   else if (isNode(node, NodeType.RECORD)) {
     section(undefined, [
       rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }),
-      {
-        type: "view",
-        viewType: ViewType.OBJECT,
-        viewProps: {
-          valueType: makeTypeInfo({
-            kind: TypeKind.CUSTOM_OBJECT,
-            baseFieldType: FieldType.MEMBER,
-            baseTypePtr: node.blockPtr,
-          }),
-          isInput: true,
-          isInline: true,
-          isMinimal: true,
-        },
-        isFullWidth: true,
-        read: () => node.valuePacked,
-        write: (newValue, options?: ModelValueOptions) => {
-          if (options == null) {
-            txFactory().update(node, { valuePacked: newValue });
-          } else {
-            const operations: EditOperationData[] = [
-              {
-                metatype: ObjectType.EDIT_OPERATION,
-                type: newValue == null ? EditOperationType.CLEAR : EditOperationType.SET,
-                path: [RecordProperty.valuePacked.toString(), ...options.path],
-                newValuePacked: (newValue as any)?.[options.path[0]],
-                oldValuePacked: (node.valuePacked as any)?.[options.path[0]],
-              },
-            ];
-            txFactory().update(node, operations, getTransactionOptionsForType(options.field));
-          }
-        },
-      },
+      rowObject(
+        RecordProperty.valuePacked,
+        makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.MEMBER, baseTypePtr: node.blockPtr }),
+      ),
     ]);
   }
 
