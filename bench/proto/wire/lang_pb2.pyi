@@ -76,6 +76,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_SORT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_COMPUTED_VALUE_KIND: _ClassVar[EnumType]
     ENUM_TYPE_PATH_ELEMENT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_PATH_RUN_SELECTOR: _ClassVar[EnumType]
     ENUM_TYPE_RUN_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_RUN_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_RUN_ERROR_KIND: _ClassVar[EnumType]
@@ -525,6 +526,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_SORT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_COMPUTED_VALUE_KIND: _ClassVar[BenchType]
     BENCH_TYPE_PATH_ELEMENT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_PATH_RUN_SELECTOR: _ClassVar[BenchType]
     BENCH_TYPE_RUN_STATUS: _ClassVar[BenchType]
     BENCH_TYPE_RUN_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_RUN_ERROR_KIND: _ClassVar[BenchType]
@@ -1123,14 +1125,19 @@ class PathElementType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PATH_ELEMENT_TYPE_BENCH: _ClassVar[PathElementType]
     PATH_ELEMENT_TYPE_PACKAGE: _ClassVar[PathElementType]
     PATH_ELEMENT_TYPE_NODE: _ClassVar[PathElementType]
-    PATH_ELEMENT_TYPE_CONTEXT: _ClassVar[PathElementType]
     PATH_ELEMENT_TYPE_CURRENT: _ClassVar[PathElementType]
     PATH_ELEMENT_TYPE_CONTAINER: _ClassVar[PathElementType]
     PATH_ELEMENT_TYPE_UNIQUE: _ClassVar[PathElementType]
     PATH_ELEMENT_TYPE_PARENT: _ClassVar[PathElementType]
     PATH_ELEMENT_TYPE_CHILD: _ClassVar[PathElementType]
     PATH_ELEMENT_TYPE_ATTRIBUTE: _ClassVar[PathElementType]
-    PATH_ELEMENT_TYPE_PROPERTY: _ClassVar[PathElementType]
+    PATH_ELEMENT_TYPE_CONTEXT: _ClassVar[PathElementType]
+    PATH_ELEMENT_TYPE_RUN: _ClassVar[PathElementType]
+
+class PathRunSelector(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PATH_RUN_SELECTOR_UNSPECIFIED: _ClassVar[PathRunSelector]
+    PATH_RUN_SELECTOR_LATEST: _ClassVar[PathRunSelector]
 
 class RunStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1755,6 +1762,7 @@ ENUM_TYPE_SORT_MODE: EnumType
 ENUM_TYPE_SORT_TYPE: EnumType
 ENUM_TYPE_COMPUTED_VALUE_KIND: EnumType
 ENUM_TYPE_PATH_ELEMENT_TYPE: EnumType
+ENUM_TYPE_PATH_RUN_SELECTOR: EnumType
 ENUM_TYPE_RUN_STATUS: EnumType
 ENUM_TYPE_RUN_TYPE: EnumType
 ENUM_TYPE_RUN_ERROR_KIND: EnumType
@@ -2180,6 +2188,7 @@ BENCH_TYPE_SORT_MODE: BenchType
 BENCH_TYPE_SORT_TYPE: BenchType
 BENCH_TYPE_COMPUTED_VALUE_KIND: BenchType
 BENCH_TYPE_PATH_ELEMENT_TYPE: BenchType
+BENCH_TYPE_PATH_RUN_SELECTOR: BenchType
 BENCH_TYPE_RUN_STATUS: BenchType
 BENCH_TYPE_RUN_TYPE: BenchType
 BENCH_TYPE_RUN_ERROR_KIND: BenchType
@@ -2643,14 +2652,16 @@ PATH_ELEMENT_TYPE_ROOT: PathElementType
 PATH_ELEMENT_TYPE_BENCH: PathElementType
 PATH_ELEMENT_TYPE_PACKAGE: PathElementType
 PATH_ELEMENT_TYPE_NODE: PathElementType
-PATH_ELEMENT_TYPE_CONTEXT: PathElementType
 PATH_ELEMENT_TYPE_CURRENT: PathElementType
 PATH_ELEMENT_TYPE_CONTAINER: PathElementType
 PATH_ELEMENT_TYPE_UNIQUE: PathElementType
 PATH_ELEMENT_TYPE_PARENT: PathElementType
 PATH_ELEMENT_TYPE_CHILD: PathElementType
 PATH_ELEMENT_TYPE_ATTRIBUTE: PathElementType
-PATH_ELEMENT_TYPE_PROPERTY: PathElementType
+PATH_ELEMENT_TYPE_CONTEXT: PathElementType
+PATH_ELEMENT_TYPE_RUN: PathElementType
+PATH_RUN_SELECTOR_UNSPECIFIED: PathRunSelector
+PATH_RUN_SELECTOR_LATEST: PathRunSelector
 RUN_STATUS_UNSPECIFIED: RunStatus
 RUN_STATUS_SCHEDULED: RunStatus
 RUN_STATUS_QUEUED: RunStatus
@@ -3351,6 +3362,30 @@ class CodeData(_message.Message):
     lines: _containers.RepeatedCompositeFieldContainer[CodeLineData]
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., lines: _Optional[_Iterable[_Union[CodeLineData, _Mapping]]] = ...) -> None: ...
 
+class PathElementData(_message.Message):
+    __slots__ = ("metatype", "type", "name", "node_ptr", "property_ptr", "run")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    PROPERTY_PTR_FIELD_NUMBER: _ClassVar[int]
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    type: PathElementType
+    name: str
+    node_ptr: NodeReferenceData
+    property_ptr: PropertyReferenceData
+    run: PathRunSelector
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[PathElementType, str]] = ..., name: _Optional[str] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., property_ptr: _Optional[_Union[PropertyReferenceData, _Mapping]] = ..., run: _Optional[_Union[PathRunSelector, str]] = ...) -> None: ...
+
+class PathData(_message.Message):
+    __slots__ = ("metatype", "elements")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ELEMENTS_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    elements: _containers.RepeatedCompositeFieldContainer[PathElementData]
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., elements: _Optional[_Iterable[_Union[PathElementData, _Mapping]]] = ...) -> None: ...
+
 class SelectionData(_message.Message):
     __slots__ = ("metatype", "nodes_ptr", "fields_ptr", "properties_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -3414,18 +3449,14 @@ class ValueData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., value_type: _Optional[_Union[TypeInfoData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class ComputedValueData(_message.Message):
-    __slots__ = ("metatype", "target_path_key", "target_path", "source_path_key", "source_path")
+    __slots__ = ("metatype", "target_path", "source_path")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TARGET_PATH_KEY_FIELD_NUMBER: _ClassVar[int]
     TARGET_PATH_FIELD_NUMBER: _ClassVar[int]
-    SOURCE_PATH_KEY_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    target_path_key: str
     target_path: PathData
-    source_path_key: str
     source_path: PathData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., target_path_key: _Optional[str] = ..., target_path: _Optional[_Union[PathData, _Mapping]] = ..., source_path_key: _Optional[str] = ..., source_path: _Optional[_Union[PathData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., target_path: _Optional[_Union[PathData, _Mapping]] = ..., source_path: _Optional[_Union[PathData, _Mapping]] = ...) -> None: ...
 
 class ObjectMappingData(_message.Message):
     __slots__ = ("metatype", "mappings")
@@ -3434,28 +3465,6 @@ class ObjectMappingData(_message.Message):
     metatype: ObjectType
     mappings: _containers.RepeatedCompositeFieldContainer[ComputedValueData]
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., mappings: _Optional[_Iterable[_Union[ComputedValueData, _Mapping]]] = ...) -> None: ...
-
-class PathElementData(_message.Message):
-    __slots__ = ("metatype", "type", "name", "node_ptr", "property_ptr")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
-    PROPERTY_PTR_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    type: PathElementType
-    name: str
-    node_ptr: NodeReferenceData
-    property_ptr: PropertyReferenceData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[PathElementType, str]] = ..., name: _Optional[str] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., property_ptr: _Optional[_Union[PropertyReferenceData, _Mapping]] = ...) -> None: ...
-
-class PathData(_message.Message):
-    __slots__ = ("metatype", "elements")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ELEMENTS_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    elements: _containers.RepeatedCompositeFieldContainer[PathElementData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., elements: _Optional[_Iterable[_Union[PathElementData, _Mapping]]] = ...) -> None: ...
 
 class SelectOptionsData(_message.Message):
     __slots__ = ("metatype", "select_all_properties", "include_properties_ptr", "exclude_properties_ptr", "select_properties_ptr", "select_fields_ptr")

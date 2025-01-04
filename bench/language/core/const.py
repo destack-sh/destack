@@ -162,6 +162,7 @@ class EnumType(IdEnum):
     SORT_TYPE = 21508
     COMPUTED_VALUE_KIND = 21540
     PATH_ELEMENT_TYPE = 21550
+    PATH_RUN_SELECTOR = 21551
 
     #
     # Runtime (22000-22499)

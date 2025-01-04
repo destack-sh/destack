@@ -195,6 +195,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                     status=self.status,
                     mode=self.mode,
                     inputs=self.inputs,
+                    variables=self.variables,
                     session=self.session,
                     _skip_validate_self=True,
                 )

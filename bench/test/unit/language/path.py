@@ -122,8 +122,6 @@ def test_parse_path(input_path: str, expected_elements: List[Tuple[PathElementTy
         ":",
         "^^node",
         "node1//node2",
-        "node1.property1.property2",
-        "node1/node2.property/invalid",
         ".../invalid",
         "node@invalid",
         "node1/invalid!path",
@@ -278,7 +276,7 @@ def test_get_path(
     assert parsed_node is node
 
 
-def test_shadow_node(session: Session, mock_package: Package):
+def test_path_shadowed_node(session: Session, mock_package: Package):
     """Siblings before descendants before ancestors. See get_unique_node."""
     package = mock_package
     context = Context()

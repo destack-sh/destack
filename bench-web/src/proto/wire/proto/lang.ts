@@ -507,6 +507,48 @@ export interface CodeData {
     lines: CodeLineData[];
 }
 /**
+ * @generated from protobuf message symbolx.bench.PathElementData
+ */
+export interface PathElementData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbolx.bench.PathElementType type = 31;
+     */
+    type: PathElementType;
+    /**
+     * @generated from protobuf field: optional string name = 32;
+     */
+    name?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 33;
+     */
+    nodePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.PropertyReferenceData property_ptr = 34;
+     */
+    propertyPtr?: PropertyReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.PathRunSelector run = 35;
+     */
+    run?: PathRunSelector;
+}
+/**
+ * @generated from protobuf message symbolx.bench.PathData
+ */
+export interface PathData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.PathElementData elements = 31;
+     */
+    elements: PathElementData[];
+}
+/**
  * @generated from protobuf message symbolx.bench.SelectionData
  */
 export interface SelectionData {
@@ -627,17 +669,9 @@ export interface ComputedValueData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: string target_path_key = 40;
-     */
-    targetPathKey: string;
-    /**
      * @generated from protobuf field: symbolx.bench.PathData target_path = 41;
      */
     targetPath?: PathData;
-    /**
-     * @generated from protobuf field: string source_path_key = 50;
-     */
-    sourcePathKey: string;
     /**
      * @generated from protobuf field: symbolx.bench.PathData source_path = 51;
      */
@@ -655,44 +689,6 @@ export interface ObjectMappingData {
      * @generated from protobuf field: repeated symbolx.bench.ComputedValueData mappings = 40;
      */
     mappings: ComputedValueData[];
-}
-/**
- * @generated from protobuf message symbolx.bench.PathElementData
- */
-export interface PathElementData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbolx.bench.PathElementType type = 31;
-     */
-    type: PathElementType;
-    /**
-     * @generated from protobuf field: optional string name = 32;
-     */
-    name?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 33;
-     */
-    nodePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.PropertyReferenceData property_ptr = 34;
-     */
-    propertyPtr?: PropertyReferenceData;
-}
-/**
- * @generated from protobuf message symbolx.bench.PathData
- */
-export interface PathData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.PathElementData elements = 31;
-     */
-    elements: PathElementData[];
 }
 /**
  * @generated from protobuf message symbolx.bench.SelectOptionsData
@@ -6365,6 +6361,10 @@ export enum EnumType {
      */
     PATH_ELEMENT_TYPE = 21550,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_PATH_RUN_SELECTOR = 21551;
+     */
+    PATH_RUN_SELECTOR = 21551,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 22001;
      */
     RUN_STATUS = 22001,
@@ -8104,6 +8104,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_PATH_ELEMENT_TYPE = 21550;
      */
     PATH_ELEMENT_TYPE = 21550,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PATH_RUN_SELECTOR = 21551;
+     */
+    PATH_RUN_SELECTOR = 21551,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_RUN_STATUS = 22001;
      */
@@ -10217,10 +10221,6 @@ export enum PathElementType {
      */
     NODE = 4,
     /**
-     * @generated from protobuf enum value: PATH_ELEMENT_TYPE_CONTEXT = 5;
-     */
-    CONTEXT = 5,
-    /**
      * @generated from protobuf enum value: PATH_ELEMENT_TYPE_CURRENT = 10;
      */
     CURRENT = 10,
@@ -10245,9 +10245,26 @@ export enum PathElementType {
      */
     ATTRIBUTE = 20,
     /**
-     * @generated from protobuf enum value: PATH_ELEMENT_TYPE_PROPERTY = 21;
+     * @generated from protobuf enum value: PATH_ELEMENT_TYPE_CONTEXT = 30;
      */
-    PROPERTY = 21
+    CONTEXT = 30,
+    /**
+     * @generated from protobuf enum value: PATH_ELEMENT_TYPE_RUN = 31;
+     */
+    RUN = 31
+}
+/**
+ * @generated from protobuf enum symbolx.bench.PathRunSelector
+ */
+export enum PathRunSelector {
+    /**
+     * @generated from protobuf enum value: PATH_RUN_SELECTOR_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PATH_RUN_SELECTOR_LATEST = 1;
+     */
+    LATEST = 1
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunStatus
@@ -13722,6 +13739,144 @@ class CodeData$Type extends MessageType$<CodeData> {
  */
 export const CodeData = new CodeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class PathElementData$Type extends MessageType$<PathElementData> {
+    constructor() {
+        super("symbolx.bench.PathElementData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathElementType", PathElementType, "PATH_ELEMENT_TYPE_"] },
+            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 34, name: "property_ptr", kind: "message", T: () => PropertyReferenceData },
+            { no: 35, name: "run", kind: "enum", opt: true, T: () => ["symbolx.bench.PathRunSelector", PathRunSelector, "PATH_RUN_SELECTOR_"] }
+        ]);
+    }
+    create(value?: PartialMessage<PathElementData>): PathElementData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        if (value !== undefined)
+            reflectionMergePartial<PathElementData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PathElementData): PathElementData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbolx.bench.PathElementType type */ 31:
+                    message.type = reader.int32();
+                    break;
+                case /* optional string name */ 32:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 33:
+                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                case /* optional symbolx.bench.PropertyReferenceData property_ptr */ 34:
+                    message.propertyPtr = PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.propertyPtr);
+                    break;
+                case /* optional symbolx.bench.PathRunSelector run */ 35:
+                    message.run = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PathElementData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.PathElementType type = 31; */
+        if (message.type !== 0)
+            writer.tag(31, WireType.Varint).int32(message.type);
+        /* optional string name = 32; */
+        if (message.name !== undefined)
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 33; */
+        if (message.nodePtr)
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.PropertyReferenceData property_ptr = 34; */
+        if (message.propertyPtr)
+            PropertyReferenceData.internalBinaryWrite(message.propertyPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.PathRunSelector run = 35; */
+        if (message.run !== undefined)
+            writer.tag(35, WireType.Varint).int32(message.run);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PathElementData
+ */
+export const PathElementData = new PathElementData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PathData$Type extends MessageType$<PathData> {
+    constructor() {
+        super("symbolx.bench.PathData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 31, name: "elements", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PathElementData }
+        ]);
+    }
+    create(value?: PartialMessage<PathData>): PathData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.elements = [];
+        if (value !== undefined)
+            reflectionMergePartial<PathData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PathData): PathData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* repeated symbolx.bench.PathElementData elements */ 31:
+                    message.elements.push(PathElementData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PathData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* repeated symbolx.bench.PathElementData elements = 31; */
+        for (let i = 0; i < message.elements.length; i++)
+            PathElementData.internalBinaryWrite(message.elements[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PathData
+ */
+export const PathData = new PathData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class SelectionData$Type extends MessageType$<SelectionData> {
     constructor() {
         super("symbolx.bench.SelectionData", [
@@ -14053,17 +14208,13 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
     constructor() {
         super("symbolx.bench.ComputedValueData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 40, name: "target_path_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "target_path", kind: "message", T: () => PathData },
-            { no: 50, name: "source_path_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "source_path", kind: "message", T: () => PathData }
         ]);
     }
     create(value?: PartialMessage<ComputedValueData>): ComputedValueData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.targetPathKey = "";
-        message.sourcePathKey = "";
         if (value !== undefined)
             reflectionMergePartial<ComputedValueData>(this, message, value);
         return message;
@@ -14076,14 +14227,8 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* string target_path_key */ 40:
-                    message.targetPathKey = reader.string();
-                    break;
                 case /* symbolx.bench.PathData target_path */ 41:
                     message.targetPath = PathData.internalBinaryRead(reader, reader.uint32(), options, message.targetPath);
-                    break;
-                case /* string source_path_key */ 50:
-                    message.sourcePathKey = reader.string();
                     break;
                 case /* symbolx.bench.PathData source_path */ 51:
                     message.sourcePath = PathData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePath);
@@ -14103,15 +14248,9 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string target_path_key = 40; */
-        if (message.targetPathKey !== "")
-            writer.tag(40, WireType.LengthDelimited).string(message.targetPathKey);
         /* symbolx.bench.PathData target_path = 41; */
         if (message.targetPath)
             PathData.internalBinaryWrite(message.targetPath, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* string source_path_key = 50; */
-        if (message.sourcePathKey !== "")
-            writer.tag(50, WireType.LengthDelimited).string(message.sourcePathKey);
         /* symbolx.bench.PathData source_path = 51; */
         if (message.sourcePath)
             PathData.internalBinaryWrite(message.sourcePath, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
@@ -14180,137 +14319,6 @@ class ObjectMappingData$Type extends MessageType$<ObjectMappingData> {
  * @generated MessageType for protobuf message symbolx.bench.ObjectMappingData
  */
 export const ObjectMappingData = new ObjectMappingData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class PathElementData$Type extends MessageType$<PathElementData> {
-    constructor() {
-        super("symbolx.bench.PathElementData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathElementType", PathElementType, "PATH_ELEMENT_TYPE_"] },
-            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 34, name: "property_ptr", kind: "message", T: () => PropertyReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<PathElementData>): PathElementData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.type = 0;
-        if (value !== undefined)
-            reflectionMergePartial<PathElementData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PathElementData): PathElementData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbolx.bench.PathElementType type */ 31:
-                    message.type = reader.int32();
-                    break;
-                case /* optional string name */ 32:
-                    message.name = reader.string();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 33:
-                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                case /* optional symbolx.bench.PropertyReferenceData property_ptr */ 34:
-                    message.propertyPtr = PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.propertyPtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PathElementData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.PathElementType type = 31; */
-        if (message.type !== 0)
-            writer.tag(31, WireType.Varint).int32(message.type);
-        /* optional string name = 32; */
-        if (message.name !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional symbolx.bench.NodeReferenceData node_ptr = 33; */
-        if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.PropertyReferenceData property_ptr = 34; */
-        if (message.propertyPtr)
-            PropertyReferenceData.internalBinaryWrite(message.propertyPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PathElementData
- */
-export const PathElementData = new PathElementData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class PathData$Type extends MessageType$<PathData> {
-    constructor() {
-        super("symbolx.bench.PathData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "elements", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PathElementData }
-        ]);
-    }
-    create(value?: PartialMessage<PathData>): PathData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.elements = [];
-        if (value !== undefined)
-            reflectionMergePartial<PathData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PathData): PathData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* repeated symbolx.bench.PathElementData elements */ 31:
-                    message.elements.push(PathElementData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PathData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* repeated symbolx.bench.PathElementData elements = 31; */
-        for (let i = 0; i < message.elements.length; i++)
-            PathElementData.internalBinaryWrite(message.elements[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PathData
- */
-export const PathData = new PathData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SelectOptionsData$Type extends MessageType$<SelectOptionsData> {
     constructor() {
@@ -27833,6 +27841,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.SORT_TYPE]: SortType,
   [EnumType.COMPUTED_VALUE_KIND]: ComputedValueKind,
   [EnumType.PATH_ELEMENT_TYPE]: PathElementType,
+  [EnumType.PATH_RUN_SELECTOR]: PathRunSelector,
   [EnumType.RUN_STATUS]: RunStatus,
   [EnumType.RUN_TYPE]: RunType,
   [EnumType.RUN_ERROR_KIND]: RunErrorKind,
@@ -28220,6 +28229,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.SORT_TYPE]: SortType,
   [EnumType.COMPUTED_VALUE_KIND]: ComputedValueKind,
   [EnumType.PATH_ELEMENT_TYPE]: PathElementType,
+  [EnumType.PATH_RUN_SELECTOR]: PathRunSelector,
   [EnumType.RUN_STATUS]: RunStatus,
   [EnumType.RUN_TYPE]: RunType,
   [EnumType.RUN_ERROR_KIND]: RunErrorKind,
@@ -29710,6 +29720,7 @@ export enum PathElementProperty {
   name = 32,
   nodePtr = 33,
   propertyPtr = 34,
+  run = 35,
 }
 
 export enum ExpressionProperty {
@@ -29758,9 +29769,7 @@ export enum ValueProperty {
 
 export enum ComputedValueProperty {
   metatype = 1,
-  targetPathKey = 40,
   targetPath = 41,
-  sourcePathKey = 50,
   sourcePath = 51,
 }
 
@@ -31644,6 +31653,7 @@ export const PathElementDataInfo: Record<PathElementProperty, PropertyInfo> = {
   [PathElementProperty.name]: { id: 32, name: 'name', component: ObjectType.PATH_ELEMENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [PathElementProperty.nodePtr]: { id: 33, name: 'node_ptr', component: ObjectType.PATH_ELEMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [PathElementProperty.propertyPtr]: { id: 34, name: 'property_ptr', component: ObjectType.PATH_ELEMENT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [PathElementProperty.run]: { id: 35, name: 'run', component: ObjectType.PATH_ELEMENT, enumType: EnumType.PATH_RUN_SELECTOR, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
   [ExpressionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EXPRESSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -31686,9 +31696,7 @@ export const ValueDataInfo: Record<ValueProperty, PropertyInfo> = {
 }
 export const ComputedValueDataInfo: Record<ComputedValueProperty, PropertyInfo> = {
   [ComputedValueProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COMPUTED_VALUE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ComputedValueProperty.targetPathKey]: { id: 40, name: 'target_path_key', component: ObjectType.COMPUTED_VALUE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ComputedValueProperty.targetPath]: { id: 41, name: 'target_path', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
-  [ComputedValueProperty.sourcePathKey]: { id: 50, name: 'source_path_key', component: ObjectType.COMPUTED_VALUE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ComputedValueProperty.sourcePath]: { id: 51, name: 'source_path', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
 }
 export const ObjectMappingDataInfo: Record<ObjectMappingProperty, PropertyInfo> = {

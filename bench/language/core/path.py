@@ -1,4 +1,15 @@
-from typing import TYPE_CHECKING, Any, Optional, assert_never, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    Union,
+    assert_never,
+    cast,
+)
+from uuid import UUID
 
 import regex
 from cachetools import LRUCache, cached
@@ -6,14 +17,15 @@ from cachetools import LRUCache, cached
 from bench.utils.func import IdEnum
 from bench.utils.string import to_code_name
 
-from .bench import Bench, Package
-from .const import BenchError, EnumType, NodeType, StructType, enum_
-from .list import LocalNodeList
+from .const import EMPTY_DICT, BenchError, EnumType, NodeType, StructType, enum_
 from .node import (
     BenchNode,
     HasContext,
     Node,
+    NodeReference,
     PackageNode,
+    PropertyReference,
+    RunnableNode,
     SourceNode,
     Struct,
     struct_,
@@ -22,7 +34,7 @@ from .property import Property, p_regular
 from .validation import NAME_REGEX_CHAR, SLUG_REGEX_CHAR
 
 if TYPE_CHECKING:
-    from bench.language import Field
+    from bench.language import Bench, Field, Package
 
 _property = property
 
@@ -54,7 +66,6 @@ class PathElementType(IdEnum):
     BENCH = 2
     PACKAGE = 3
     NODE = 4
-    CONTEXT = 5
     # relative
     CURRENT = 10
     CONTAINER = 11
@@ -63,7 +74,20 @@ class PathElementType(IdEnum):
     CHILD = 14
     # sub
     ATTRIBUTE = 20
-    PROPERTY = 21
+    # runtime
+    CONTEXT = 30
+    RUN = 31
+
+
+@enum_(EnumType.PATH_RUN_SELECTOR)
+class PathRunSelector(IdEnum):
+    LATEST = 1
+
+
+SIGN_BY_RUN_SELECTOR: dict[PathRunSelector, str] = {
+    PathRunSelector.LATEST: ">",
+}
+RUN_SELECTOR_BY_SIGN: dict[str, PathRunSelector] = {v: k for k, v in SIGN_BY_RUN_SELECTOR.items()}
 
 
 @struct_(StructType.PATH_ELEMENT)
@@ -76,6 +100,30 @@ class PathElement(Struct):
     property: Optional[Property] = p_regular(
         34, require=False, struct=StructType.PROPERTY_REFERENCE
     )
+    if TYPE_CHECKING:
+        node_ptr: Optional[NodeReference] = None
+        property_ptr: Optional[PropertyReference] = None
+    run: Optional[PathRunSelector] = p_regular(35, require=False)
+
+    def equals(
+        self,
+        other: "PathElement | Any",
+        identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
+    ) -> bool:
+        """Checks if the content of the two objects is equal (recursively)."""
+        if other is None or self.metatype != getattr(other, "metatype", None):
+            return False
+        if other.type != self.type:
+            return False
+        if other.name != self.name:
+            return False
+        if (other.node_ptr.id if other.node_ptr else None) != (
+            self.node_ptr.id if self.node_ptr else None
+        ):
+            return False
+        if other.property_ptr != self.property_ptr:  # noqa: SIM103
+            return False
+        return True
 
     @_property
     def code_name(self) -> str | None:
@@ -90,6 +138,73 @@ class PathElement(Struct):
         else:
             return self.type.bench_name
 
+    # absolute
+
+    @staticmethod
+    def root() -> "PathElement":
+        return PathElement(type=PathElementType.ROOT)
+
+    @staticmethod
+    def bench(name: str) -> "PathElement":
+        return PathElement(type=PathElementType.BENCH, name=name)
+
+    @staticmethod
+    def package(name: str) -> "PathElement":
+        return PathElement(type=PathElementType.PACKAGE, name=name)
+
+    @staticmethod
+    def node_(node: Node) -> "PathElement":
+        return PathElement(type=PathElementType.NODE, node=node)
+
+    # relative
+
+    @staticmethod
+    def current() -> "PathElement":
+        return PathElement(type=PathElementType.CURRENT)
+
+    @staticmethod
+    def container(name: str | None = None) -> "PathElement":
+        return PathElement(type=PathElementType.CONTAINER, name=name)
+
+    @staticmethod
+    def unique(name: str | None = None) -> "PathElement":
+        return PathElement(type=PathElementType.UNIQUE, name=name)
+
+    @staticmethod
+    def parent_() -> "PathElement":
+        return PathElement(type=PathElementType.PARENT)
+
+    @staticmethod
+    def child(name: str | None = None) -> "PathElement":
+        return PathElement(type=PathElementType.CHILD, name=name)
+
+    # sub
+
+    @staticmethod
+    def attribute(key: "str | Property | Field") -> "PathElement":
+        from bench.language import Field
+
+        if isinstance(key, str):
+            return PathElement(type=PathElementType.ATTRIBUTE, name=key)
+        elif isinstance(key, Property):
+            if type(key.value_packed_ptr) is Property:
+                key = key.value_packed_ptr
+            return PathElement(type=PathElementType.ATTRIBUTE, property=key)
+        elif isinstance(key, Field):
+            return PathElement(type=PathElementType.ATTRIBUTE, node=key)
+        else:
+            assert_never(key)
+
+    # runtime
+
+    @staticmethod
+    def context() -> "PathElement":
+        return PathElement(type=PathElementType.CONTEXT)
+
+    @staticmethod
+    def run_(selector: PathRunSelector = PathRunSelector.LATEST) -> "PathElement":
+        return PathElement(type=PathElementType.RUN, run=selector)
+
 
 @struct_(StructType.PATH)
 class Path(Struct):
@@ -101,7 +216,6 @@ class Path(Struct):
 
     Segments:
         / -> root of this package
-        $ -> context
         . -> current node
         .. -> parent of current node
         ../.. -> parent of parent of current node
@@ -111,8 +225,7 @@ class Path(Struct):
         ~ -> closest container
         ~Node -> closest container with name 'Node'
         ^Name -> uniquely named node or child in closest container
-        .field -> Field of current node
-        .property -> Property of current node
+        .attribute -> Field/Property of current node (or other value)
 
         Node1.name -> 'name' Property of 'Node1'
         Node2.field -> 'field' of 'Node2' (there must not be anything after .property)
@@ -121,6 +234,10 @@ class Path(Struct):
         @bench -> absolute reference to bench 'bench' (uses main package)
         @bench:package -> absolute reference to package 'package' in bench 'bench'
         @bench/Node1/Node2/Node3 -> absolute reference to 'Node3' in current package of @bench
+
+        $ -> context
+        Node$> -> latest Run of 'Node'
+
     """
 
     elements: list[PathElement] = p_regular(
@@ -158,9 +275,61 @@ class Path(Struct):
     from_string = parse
 
 
-# see NAME_REGEX in validationl
+PathElementIn = Union[
+    "PathElement",
+    Literal[
+        PathElementType.ROOT,
+        PathElementType.PARENT,
+        PathElementType.CURRENT,
+        PathElementType.CONTEXT,
+        PathElementType.RUN,
+    ],
+    str,
+    Property,
+    "SourceNode",
+]
+
+
+def path(*elements_in: PathElementIn) -> Path:
+    """Create a Path from a list of PathElements or strings."""
+    from bench.language import Field, Property
+
+    elements = []
+    for element_in in elements_in:
+        if isinstance(element_in, PathElement):
+            elements.append(element_in)
+        elif isinstance(element_in, str):
+            elements.extend(parse_path(element_in).elements)
+        elif isinstance(element_in, (Property, Field)):
+            elements.append(PathElement.attribute(element_in))
+        elif isinstance(element_in, SourceNode):
+            elements.append(PathElement.node_(element_in))
+        elif isinstance(element_in, PathElementType):
+            elements.append(PathElement(type=element_in))
+        else:
+            assert_never(element_in)
+    return Path(elements=elements)
+
+
+PathIn = PathElementIn | Sequence[PathElementIn] | Path
+
+
+def to_path(path_in: PathIn) -> Path:
+    """Create a Path from a Path-like."""
+    if isinstance(path_in, Path):
+        return path_in
+    elif isinstance(path_in, Sequence):
+        return path(*path_in)
+    else:
+        return path(path_in)
+
+
+# see NAME_REGEX in validation
 BENCH_PATTERN = regex.compile(rf"^@([{SLUG_REGEX_CHAR}]+)(?::([{SLUG_REGEX_CHAR}]+))?$")
 NODE_PATTERN = regex.compile(rf"^([>\^~:])?([{NAME_REGEX_CHAR}\.]*)$")
+CONTEXT_PATTERN: regex.Pattern[str] = regex.compile(
+    rf"^\$([{''.join(SIGN_BY_RUN_SELECTOR.values())}])?$"
+)
 
 
 @cached(LRUCache(maxsize=1024 * 10))
@@ -201,6 +370,20 @@ def parse_path(path: str) -> Path:
                 elements.append(element)
                 if package_name := match.group(2):
                     elements.append(PathElement(type=PathElementType.PACKAGE, name=package_name))
+                continue
+            elif match := CONTEXT_PATTERN.match(segment):
+                if match.group(1):
+                    # $> means RUN with LATEST selector
+                    run_sign = match.group(1)
+                    if run_sign not in RUN_SELECTOR_BY_SIGN:
+                        raise PathSyntaxError(f"invalid run selector '{run_sign}' in '{path}'")
+                    element = PathElement(
+                        type=PathElementType.RUN, run=RUN_SELECTOR_BY_SIGN[run_sign]
+                    )
+                else:
+                    # $ means CONTEXT
+                    element = PathElement(type=PathElementType.CONTEXT)
+                elements.append(element)
                 continue
             elif match := NODE_PATTERN.match(segment):
                 node_type = PathElementType.CHILD
@@ -257,8 +440,6 @@ def render_path(path: Path) -> str:
             node = element.node
             assert node is not None, f"no node found for {element!r} in {path!r}"
             path_parts.append(f"[id={node.id}]")
-        elif element.type == PathElementType.CONTEXT:
-            path_parts.append("$")
         # relative
         elif element.type == PathElementType.CURRENT:
             path_parts.append(".")
@@ -271,11 +452,25 @@ def render_path(path: Path) -> str:
         elif element.type == PathElementType.CHILD:
             path_parts.append(element.code_name)
         # sub
-        elif element.type == PathElementType.ATTRIBUTE or element.type == PathElementType.PROPERTY:
+        elif element.type == PathElementType.ATTRIBUTE:
+            element_key = element.code_name
+            if element_key is None:
+                if (node := element.node) is not None:
+                    element_key = node._path_key
+                elif (property := element.property) is not None:
+                    element_key = property.name
+                else:
+                    raise PathLookupError(f"no node or property found for {element!r} in {path!r}")
             if path_parts:
-                path_parts[-1] += f".{element.code_name}"
-            else:  # property shorthand
-                path_parts.append(f".{element.code_name}")
+                path_parts[-1] += f".{element_key}"
+            else:
+                path_parts.append(f".{element_key}")
+        elif element.type == PathElementType.RUN:
+            assert element.run is not None, f"missing run selector for {element!r} in {path!r}"
+            sign = SIGN_BY_RUN_SELECTOR[element.run]
+            path_parts.append(f"${sign}")
+        elif element.type == PathElementType.CONTEXT:
+            path_parts.append("$")
         else:
             assert_never(element.type)
     return "/".join(path_parts)
@@ -421,13 +616,25 @@ def _raise_scope(scope: Node) -> Node:
         return scope
 
 
-def evaluate_path(scope: Node, context: HasContext, path: str | Path) -> Any | None:
+def evaluate_path(
+    current: Node | Any, scope: Node, context: HasContext, path: str | Path | Sequence[PathElement]
+) -> Any | None:
+    """Get the thing pointed to by a Path."""
+    from bench.language import Bench, CustomObject, Field, Package
+
+    # resolve to elements
     if isinstance(path, str):
-        path = parse_path(path)
-    if len(path.elements) == 0:
+        elements = parse_path(path).elements
+    elif isinstance(path, Path):
+        elements = path.elements
+    else:
+        elements = path
+    if len(elements) == 0:
         return None
-    current: Node | Any = scope
-    for element in path.elements:
+
+    # walk path
+    current = scope
+    for element in elements:
         # absolute
         if element.type == PathElementType.ROOT:
             if not isinstance(scope, (Package, PackageNode)):
@@ -451,8 +658,6 @@ def evaluate_path(scope: Node, context: HasContext, path: str | Path) -> Any | N
             if node is None:
                 raise PathLookupError(f"node at {path} not found in {scope!r}")
             current = node
-        elif element.type == PathElementType.CONTEXT:
-            current = context
 
         # relative
         elif element.type == PathElementType.CURRENT:
@@ -460,17 +665,25 @@ def evaluate_path(scope: Node, context: HasContext, path: str | Path) -> Any | N
         elif element.type == PathElementType.CONTAINER:
             if current.metatype == NodeType.PACKAGE:
                 return None  # has no parent in path
+            if not isinstance(current, Node):
+                raise PathLogicError(f"cannot get container of {current!r} in {path!r}")
             current = _lower_scope(current)
             current = _get_container(current, element.name)
         elif element.type == PathElementType.UNIQUE:
             assert element.name, f"missing name for {element!r} in {path!r}"
+            if not isinstance(current, Node):
+                raise PathLogicError(f"cannot get unique of {current!r} in {path!r}")
             current = _lower_scope(current)
             current = _get_unique(current, element.name)
         elif element.type == PathElementType.PARENT:
             if current.metatype == NodeType.PACKAGE:
                 return None  # has no parent in path
+            if not isinstance(current, Node):
+                raise PathLogicError(f"cannot get parent of {current!r} in {path!r}")
             current = current.parent
         elif element.type == PathElementType.CHILD:
+            if not isinstance(current, Node):
+                raise PathLogicError(f"cannot get child of {current!r} in {path!r}")
             current = _lower_scope(current)
             assert element.name, f"missing name for {element!r} in {path!r}"
             current = _get_child(current, element.name)
@@ -479,20 +692,35 @@ def evaluate_path(scope: Node, context: HasContext, path: str | Path) -> Any | N
         elif element.type == PathElementType.ATTRIBUTE:
             assert element.name, f"missing name for {element!r} in {path!r}"
             current = _lower_scope(current)
-            if element.name in current.__properties__:
+            if element.name is not None:
                 current = getattr(current, element.name)
-            else:
-                fields = cast(LocalNodeList["Field"] | None, getattr(current, "fields", None))
-                if fields is not None:
-                    current = fields.get(element.name)
+            elif (node := element.node) is not None:
+                assert isinstance(node, Field), f"expected Field, got {node!r}"
+                if isinstance(current, CustomObject):
+                    current = current._do_get(node)
                 else:
-                    return None
-        elif element.type == PathElementType.PROPERTY:
-            assert element.name, f"missing name for {element!r} in {path!r}"
-            current = _lower_scope(current)
-            current = getattr(current, element.name)
+                    raise PathLookupError(f"cannot get {node!r} from {current!r} in {path!r}")
+            elif (prop := element.property) is not None:
+                current = getattr(current, prop.name)
+            else:
+                return None
+
+        # runtime
+        elif element.type == PathElementType.CONTEXT:
+            current = context
+        elif element.type == PathElementType.RUN:
+            runtime = context.active_session.runtime
+            assert element.run is not None, f"missing run selector for {element!r} in {path!r}"
+            if not isinstance(current, Node):
+                raise PathLogicError(f"cannot get run of {current!r} in {path!r}")
+            if element.run == PathRunSelector.LATEST:
+                current = runtime.get_latest_run(cast(RunnableNode, current))
+            else:
+                assert_never(element.run)
         else:
             assert_never(element.type)
+
+        # bail if we can't find anything
         if current is None:
             return None
 
@@ -506,7 +734,7 @@ def get_node(scope: Node, context: HasContext, path: str | Path) -> Node | None:
     """
     if isinstance(path, str):
         path = parse_path(path)
-    target = evaluate_path(scope, context, path)
+    target = evaluate_path(scope, scope, context, path)
     if not isinstance(target, Node):
         return None
 
@@ -539,7 +767,9 @@ def _get_path_to_root(node: Node) -> list[Node]:
     return ancestors
 
 
-def _get_bench_path(node: Bench | Package) -> Path:
+def _get_bench_path(node: "Bench | Package") -> Path:
+    from .bench import Bench, Package
+
     if isinstance(node, Bench):
         return Path(elements=[PathElement(type=PathElementType.BENCH, name=node.slug)])
     elif isinstance(node, Package):
@@ -563,6 +793,8 @@ def _get_bench_path(node: Bench | Package) -> Path:
 
 def get_path(scope: Node, node: Node) -> Path:
     """Finds a path to the given node from a scope. The inverse of get_node."""
+    from .bench import Bench, Package
+
     if scope == node:
         if isinstance(node, (Bench, Package)):
             return _get_bench_path(node)

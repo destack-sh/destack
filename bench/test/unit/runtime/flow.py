@@ -11,15 +11,16 @@ from bench.language import (
     Interruption,
     InterruptionStatus,
     NodeMode,
+    PathElement,
     PipeType,
     Record,
+    Run,
     RunErrorType,
     RunOptions,
     RunStatus,
     Text,
     code,
 )
-from bench.language.runtime.run import Run
 from bench.runtime.core import Interrupted, make_run_from_node, make_runner
 from bench.test.unit.conftest import RuntimeHandle
 
@@ -135,15 +136,13 @@ async def test_run_flow_code_action(local_runtime: RuntimeHandle):
         ),
     )
     Code1.set_computed(
-        target_path=(Run.get_property("inputs"), Code1.fields.Input1),
-        source_node=Flow1,
-        source_path=(Run.get_property("inputs"), Flow1.fields.Input1),
+        target=(PathElement.run_(), Run.get_property("inputs"), Code1.fields.Input1),
+        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input1),
     )
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Complete.set_computed(
-        target_path=(Run.get_property("inputs"), Flow1.fields.Output1),
-        source_node=Code1,
-        source_path=(Run.get_property("outputs"), Code1.fields.Output1),
+        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output1),
+        source=(Code1, PathElement.run_(), Run.get_property("outputs"), Code1.fields.Output1),
     )
     Flow1.actions.extend(Start, Code1, Complete)
     Start.connect(PipeType.FORWARD, Code1)
@@ -175,6 +174,10 @@ return {'Block': block}
         fields=(Field.output("Block", Block, is_required=True),),
     )
     Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Complete.set_computed(
+        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Block),
+        source=(Create, PathElement.run_(), Run.get_property("outputs"), Create.fields.Block),
+    )
     Flow1.actions.extend(Start, Create, Complete)
     Start.connect(PipeType.FORWARD, Create)
     Create.connect(PipeType.FORWARD, Complete)
