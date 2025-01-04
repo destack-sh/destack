@@ -518,7 +518,7 @@ export class SpaceCanvas {
       const error = new Error(
         `no component for view: ${viewPtr != null ? describeNode(viewPtr) : getVueComponentType(view)}`,
       );
-      log.debug("canvas.focusInComponent.error", { view, viewPtr, error });
+      log.trace("canvas.focusInComponent.error", { view, viewPtr, error });
       return false;
     }
 

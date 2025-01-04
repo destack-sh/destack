@@ -513,7 +513,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
         try {
           // (re)connect once
           if (this.isConnecting.value) this.abortController?.abort();
-          log.debug(`graph.${this.kind}`, this.meta.name, this.params);
+          log.trace(`graph.${this.kind}.connect`, this.meta.name, this.params);
           this.isConnecting.value = true;
           this.abortController = new AbortController();
           let newResult;
@@ -530,7 +530,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
             );
             connectedSignal.resolve();
             this.abortController = null;
-            log.debug(`graph.${this.kind}.complete`, this.meta.name, this.params, newResult);
+            log.debug(`graph.${this.kind}`, this.meta.name, this.params, newResult);
           } finally {
             if (this.abortController) {
               // cleanup

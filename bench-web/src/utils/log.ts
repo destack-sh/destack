@@ -29,7 +29,7 @@ export class Logger {
   public static globalInstance: Logger;
 
   log(level: LogLevel, ...args: any[]) {
-    const minLevel = IS_DEVELOPER_MODE.value ? LogLevel.TRACE : LogLevel.DEBUG;
+    const minLevel = IS_DEVELOPER_MODE.value ? LogLevel.TRACE : LogLevel.INFO;
     if (LOG_LEVEL_INDEX[level] < LOG_LEVEL_INDEX[minLevel]) return;
 
     const method = CONSOLE_METHOD_MAP[level];
