@@ -34,10 +34,10 @@ from .node import (
     NodeReference,
     Property,
     PropertyReference,
-    SourceNode,
     Struct,
     struct_,
 )
+from .path import PathIn, to_path
 from .property import p_regular, p_value_packed, p_value_runtime
 from .validation import NAME_CONSTRAINT
 from .value import unpack_proto_json
@@ -925,21 +925,23 @@ class ComputedValue(Struct):
     # scope...?
 
     # path to set at
-    target_path_key: str = p_regular(40)
     target_path: "Path" = p_regular(41, struct=StructType.PATH)
 
     # value to set
-    source_path_key: str = p_regular(50)
     source_path: "Path" = p_regular(51, struct=StructType.PATH)
+
+    def __content_str__(self) -> str:
+        return f"{self.target_path} <- {self.source_path}"
 
     @staticmethod
     def new(
-        target_path: Sequence["Property | Field"],
+        target: PathIn,
         *,
-        source_path: Sequence["Property | Field"],
-        source_node: "SourceNode | None" = None,
+        source: PathIn,
     ) -> "ComputedValue":
-        raise NotImplementedError
+        target = to_path(target)
+        source = to_path(source)
+        return ComputedValue(target_path=target, source_path=source)
 
 
 @struct_(StructType.OBJECT_MAPPING)

@@ -65,6 +65,7 @@ enum EnumType {
   ENUM_TYPE_SORT_TYPE = 21508;
   ENUM_TYPE_COMPUTED_VALUE_KIND = 21540;
   ENUM_TYPE_PATH_ELEMENT_TYPE = 21550;
+  ENUM_TYPE_PATH_RUN_SELECTOR = 21551;
   ENUM_TYPE_RUN_STATUS = 22001;
   ENUM_TYPE_RUN_TYPE = 22002;
   ENUM_TYPE_RUN_ERROR_KIND = 22003;
@@ -514,6 +515,7 @@ enum BenchType {
   BENCH_TYPE_SORT_TYPE = 21508;
   BENCH_TYPE_COMPUTED_VALUE_KIND = 21540;
   BENCH_TYPE_PATH_ELEMENT_TYPE = 21550;
+  BENCH_TYPE_PATH_RUN_SELECTOR = 21551;
   BENCH_TYPE_RUN_STATUS = 22001;
   BENCH_TYPE_RUN_TYPE = 22002;
   BENCH_TYPE_RUN_ERROR_KIND = 22003;
@@ -1130,14 +1132,19 @@ enum PathElementType {
   PATH_ELEMENT_TYPE_BENCH = 2;
   PATH_ELEMENT_TYPE_PACKAGE = 3;
   PATH_ELEMENT_TYPE_NODE = 4;
-  PATH_ELEMENT_TYPE_CONTEXT = 5;
   PATH_ELEMENT_TYPE_CURRENT = 10;
   PATH_ELEMENT_TYPE_CONTAINER = 11;
   PATH_ELEMENT_TYPE_UNIQUE = 12;
   PATH_ELEMENT_TYPE_PARENT = 13;
   PATH_ELEMENT_TYPE_CHILD = 14;
   PATH_ELEMENT_TYPE_ATTRIBUTE = 20;
-  PATH_ELEMENT_TYPE_PROPERTY = 21;
+  PATH_ELEMENT_TYPE_CONTEXT = 30;
+  PATH_ELEMENT_TYPE_RUN = 31;
+}
+
+enum PathRunSelector {
+  PATH_RUN_SELECTOR_UNSPECIFIED = 0;
+  PATH_RUN_SELECTOR_LATEST = 1;
 }
 
 enum RunStatus {
@@ -1859,6 +1866,20 @@ message CodeData {
   repeated CodeLineData lines = 30;
 }
 
+message PathElementData {
+  ObjectType metatype = 1;
+  PathElementType type = 31;
+  optional string name = 32;
+  optional NodeReferenceData node_ptr = 33;
+  optional PropertyReferenceData property_ptr = 34;
+  optional PathRunSelector run = 35;
+}
+
+message PathData {
+  ObjectType metatype = 1;
+  repeated PathElementData elements = 31;
+}
+
 message SelectionData {
   ObjectType metatype = 1;
   repeated NodeReferenceData nodes_ptr = 40;
@@ -1896,28 +1917,13 @@ message ValueData {
 
 message ComputedValueData {
   ObjectType metatype = 1;
-  string target_path_key = 40;
   PathData target_path = 41;
-  string source_path_key = 50;
   PathData source_path = 51;
 }
 
 message ObjectMappingData {
   ObjectType metatype = 1;
   repeated ComputedValueData mappings = 40;
-}
-
-message PathElementData {
-  ObjectType metatype = 1;
-  PathElementType type = 31;
-  optional string name = 32;
-  optional NodeReferenceData node_ptr = 33;
-  optional PropertyReferenceData property_ptr = 34;
-}
-
-message PathData {
-  ObjectType metatype = 1;
-  repeated PathElementData elements = 31;
 }
 
 message SelectOptionsData {

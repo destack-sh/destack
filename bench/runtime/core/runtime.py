@@ -47,6 +47,7 @@ from bench.language import (
     run_span,
     to_type_scalar,
 )
+from bench.language.core.path import evaluate_path
 from bench.runtime.browser.playwright import PlaywrightClient
 from bench.runtime.core import Cache, NonRetryableError, RetryableError
 from bench.utils.func import group_by
@@ -138,6 +139,20 @@ class Runtime:
     def active_mode(self) -> NodeMode:
         runner = self._active_runner.get(None)
         return runner.mode if runner else self.session.mode
+
+    def get_latest_run(self, node: RunnableNode) -> Run | None:
+        """Find the latest Run of a Node in this Runtime."""
+        raise NotImplementedError(f"nocheckin: get latest run {node!r}")
+
+    def _apply_computed_value(self, runner: Runner, computed_value: ComputedValue):
+        """Applies the ComputedValue in/to the Run/Runner."""
+        target_obj = evaluate_path(
+            runner.node, runner.node, runner.context, computed_value.target_path.elements[:-1]
+        )
+        source_value = evaluate_path(
+            runner.node, runner.node, runner.context, computed_value.source_path
+        )
+        raise NotImplementedError(f"nocheckin: apply computed {computed_value!r}")
 
     @tracer.start_as_current_span("runtime.wait_for")
     async def _wait_for(
@@ -290,10 +305,6 @@ class Runtime:
                 logger.debug("runtime.acquire_resources.new", resource=resource)
         return resources_to_acquire
 
-    def _apply_computed_value(self, runner: Runner, computed_value: ComputedValue):
-        """Applies the ComputedValue in/to the Run/Runner."""
-        ...
-
     @tracer.start_as_current_span("runtime.run_runner.attempt")
     async def _do_attempt(self, runner: Runner, retry: RetryState, attempt: RunAttempt):
         trace.get_current_span().set_attribute("runner", repr(runner))
@@ -374,16 +385,15 @@ class Runtime:
         # compute variables/inputs/options from context (on initial attempt)
         # nocheckin
         if runner.status < RunStatus.RUNNING:
+            # set default variables/inputs from node
             if isinstance(runner.node, Action):
-                # set default variables/inputs from node
                 if runner.variables is not None and runner.node.variables_packed is not None:
                     runner.variables.set_default(runner.node.variables, _skip_validate=True)
                 if runner.inputs is not None and runner.node.inputs_packed is not None:
                     runner.inputs.set_default(runner.node.inputs, _skip_validate=True)
-            if computed_values := runner.node.computed_values:
-                # apply computed values
-                for computed_value in computed_values:
-                    self._apply_computed_value(runner, computed_value)
+            # apply computed values
+            for computed_value in runner.node.computed_values:
+                self._apply_computed_value(runner, computed_value)
 
         # check variables
         if runner.variable_type is not None:

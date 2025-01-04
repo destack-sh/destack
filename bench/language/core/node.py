@@ -125,6 +125,7 @@ if TYPE_CHECKING:
         NodeReference,
         Organization,
         Package,
+        PathIn,
         Pipe,
         PropertyReference,
         Query,
@@ -2607,27 +2608,23 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
         NODE_COMPUTED_VALUES_ID, require=False, array=True, struct=StructType.COMPUTED_VALUE
     )
 
-    def set_computed(
-        self,
-        target_path: Sequence["Property | Field"],
-        source_path: Sequence["Property | Field"],
-        source_node: "SourceNode | None" = None,
-    ):
+    def set_computed(self, target: "PathIn", source: "PathIn"):
         """Sets and overrides the computed value for the target path."""
         from .expression import ComputedValue
 
-        computed_value = ComputedValue.new(
-            target_path, source_path=source_path, source_node=source_node
-        )
+        computed_value = ComputedValue.new(target=target, source=source)
         self.computed_values = [
-            *(cv for cv in self.computed_values if cv.target_path != target_path),
+            *(cv for cv in self.computed_values if cv.target_path != target),
             computed_value,
         ]
 
-    def clear_computed(self, target_path: Sequence["Property | Field"]):
+    def clear_computed(self, target: "PathIn"):
         """Clears the computed value for the target path."""
+        from .path import to_path
+
+        target = to_path(target)
         self.computed_values = [
-            *(cv for cv in self.computed_values if cv.target_path != target_path),
+            *(cv for cv in self.computed_values if cv.target_path != target),
         ]
 
 
