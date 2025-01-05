@@ -15,7 +15,14 @@ from .error import (
     RuntimeError,
 )
 from .options import ATTEMPT_FOREVER, ATTEMPT_ONCE, ATTEMPT_THRICE, BASE_RUN_OPTIONS_BY_KIND
-from .runner import Interrupted, Runner, RunnerHook, make_run_from_node, make_runner, restore_runner
+from .runner import (
+    Interrupted,
+    Runner,
+    RunnerHook,
+    create_run_from_node,
+    make_runner,
+    restore_runner,
+)
 from .runtime import Runtime
 
 __all__ = [
@@ -43,7 +50,7 @@ __all__ = [
     "RunnerHook",
     "Runtime",
     "RuntimeError",
-    "make_run_from_node",
+    "create_run_from_node",
     "make_runner",
     "restore_runner",
 ]

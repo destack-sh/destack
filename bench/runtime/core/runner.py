@@ -18,6 +18,7 @@ from opentelemetry import trace
 
 from bench.language import (
     Action,
+    Bench,
     Block,
     Breakpoint,
     BreakpointScope,
@@ -44,9 +45,11 @@ from bench.language import (
     RunSpan,
     RunStatus,
     RunType,
+    Session,
     TypeBase,
     TypeIn,
     TypeInfo,
+    active_session,
     get_tracing_context,
 )
 from bench.utils.uuidt import UUIDT
@@ -420,9 +423,10 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     @abc.abstractmethod
     async def run(self) -> None:
         """
-        Run until the Run stops:
+        Run until the Run stops (for now):
          - On completion, return normally.
          - On error, raise an exception.
+         - On cancel, (re)raise the CancelledError.
          - On interrupt, raise Interrupted.
         """
         ...
@@ -445,19 +449,22 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             self.status = self.tracked_run.status
 
 
-def make_run_from_node(
+def create_run_from_node(
     node: "RunnableNode",
     *,
     variables: Any | None = None,
     inputs: Any | None = None,
     options: RunOptions | None = None,
     mode: NodeMode | None = None,
-    parent: "Run | None" = None,
+    parent: "Run | Bench | None" = None,
+    session: "Session | None" = None,
 ) -> "Run":
     """Creates a Run from a runnable Node."""
     from bench.language import Action, Block, coerce_custom_object_scalar
 
     # context
+    if session is None:
+        session = active_session()
     if isinstance(node, Block):
         block = node
         action = None
@@ -513,6 +520,7 @@ def make_run_from_node(
         options.set_default(BASE_RUN_OPTIONS_BY_KIND[kind], copy=False)
     run.options = options
 
+    session._create(run)
     return run
 
 
