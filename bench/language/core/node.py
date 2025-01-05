@@ -2262,15 +2262,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             else:
                 return bench_ident
         elif "ck" in self.__properties__:
-            if "title" in self.__properties__ and (title := getattr(self, "title", None)):
-                return f"{title} [ck={self.ck}]"
-            else:
-                return f"[ck={self.ck}]"
+            return f"{self.metatype.bench_name}[ck={self.ck}]"
         else:
-            if "title" in self.__properties__ and (title := getattr(self, "title", None)):
-                return f"{title} [id={self.id}]"
-            else:
-                return f"[id={self.id}]"
+            return f"{self.metatype.bench_name}[id={self.id}]"
 
     @property
     def _ident_key(self) -> str:

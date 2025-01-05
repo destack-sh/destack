@@ -537,10 +537,20 @@ class Runtime:
                         _skip_validate_self=True,
                     )
                     runner.attempts.append(current_attempt)
+                    if runner.tracked_run is not None:  # track attempt
+                        runner.tracked_run._do_set("attempts", runner.attempts, validate=False)
                 last_attempt = current_attempt
-                await self._do_attempt(runner=runner, retry=retry, attempt=current_attempt)
-                if last_attempt.error is not None:
-                    retry.on_error(last_attempt.error)
+                try:
+                    await self._do_attempt(runner=runner, retry=retry, attempt=current_attempt)
+                except (Interrupted, asyncio.CancelledError):
+                    raise
+                except Exception:
+                    pass  # swallow non-interrupted errors (let retry decide what to do)
+                finally:
+                    if runner.tracked_run is not None:  # track attempt
+                        runner.tracked_run._do_set("attempts", runner.attempts, validate=False)
+                    if last_attempt.error is not None:
+                        retry.on_error(last_attempt.error)
 
             # give up if retry exhausted
             if last_attempt is not None and last_attempt.status != RunStatus.COMPLETED:
