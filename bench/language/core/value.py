@@ -255,6 +255,7 @@ class CustomObject(Mapping[str, Any]):
         item: "str | Field | Property",
         new_value: SomeValue,
         track: bool = True,
+        coerce: bool = True,
         validate: bool = True,
     ) -> None:
         if type(item) is str and item in self.OWN_PROPERTIES:
@@ -269,7 +270,6 @@ class CustomObject(Mapping[str, Any]):
             key = item
 
         # check/coerce
-        coerce = True
         if isinstance(key, Property):
             assert not key.is_value_packed, f"cannot set {key!r} directly in {self!r}"
             if key.is_value_runtime:

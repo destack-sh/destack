@@ -175,9 +175,9 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         else:
             self.mode = NodeMode.PRODUCTION
 
-        # nest active Runners/Runs
+        # track with Run
         if self.parent is not None:
-            self.parent.runners.append(self)
+            self.parent.runners.append(self)  # register with parent Runner
         if track and run is None:
             if self.parent is not None:
                 assert self.parent.tracked_run is not None, f"{self.parent!r} has no Run"
@@ -201,7 +201,17 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                 )
                 self.id = run.id
                 self.session._create(run)
+                # get objects from Run (Node may copy them if they're from a different parent,
+                #  like when we re-use a Flow's inputs for the StartAction.inputs)
+                self.inputs = run.inputs
+                self.variables = run.variables
+                self.options = run.options
             self.tracked_run = run
+        if run is not None:
+            # Run and Runner *must* share the same objects (so we can apply computed values)
+            assert run.variables is self.variables, f"{run!r} has other variables than {self!r}"
+            assert run.inputs is self.inputs, f"{run!r} has other inputs than {self!r}"
+            assert run.options is self.options, f"{run!r} has other options than {self!r}"
 
         # assume context
         if self.context is None and run is not None:
@@ -250,6 +260,15 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     @property
     def is_root(self) -> bool:
         return self.parent is None
+
+    @property
+    def closest_tracked_run(self) -> Run | None:
+        runner = self
+        while runner is not None:
+            if runner.tracked_run is not None:
+                return runner.tracked_run
+            runner = runner.parent
+        return None
 
     @property
     def should_pause(self) -> bool:
@@ -426,17 +445,12 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             self.status = self.tracked_run.status
 
 
-def get_run_options(kind: RunType, options: RunOptions | None):
-    """Get the combined run options for a node."""
-    base_options = BASE_RUN_OPTIONS_BY_KIND[kind]
-    return base_options.override(options)
-
-
 def make_run_from_node(
     node: "RunnableNode",
     *,
     variables: Any | None = None,
     inputs: Any | None = None,
+    options: RunOptions | None = None,
     mode: NodeMode | None = None,
     parent: "Run | None" = None,
 ) -> "Run":
@@ -464,14 +478,12 @@ def make_run_from_node(
         assert_never(node)
 
     # build run
-    options = get_run_options(kind, node.run_options)
     run = Run(
         parent=parent or node.bench,
         type=kind,
         block=block,
         action=action,
         pipe=pipe,
-        options=options,
         mode=mode or get_tracing_context(),
         _skip_validate_self=True,
     )
@@ -489,6 +501,17 @@ def make_run_from_node(
     if run.input_type is not None:
         inputs = coerce_custom_object_scalar(ObjectKind.INPUT, inputs, run.input_type)
         run.inputs = inputs
+
+    # options
+    if options is None:
+        if node.run_options is not None:
+            options = node.run_options.clone()
+            options.set_default(BASE_RUN_OPTIONS_BY_KIND[kind], copy=False)
+        else:
+            options = BASE_RUN_OPTIONS_BY_KIND[kind].clone()
+    else:
+        options.set_default(BASE_RUN_OPTIONS_BY_KIND[kind], copy=False)
+    run.options = options
 
     return run
 
@@ -537,6 +560,7 @@ def make_runner(
     variables: CustomObject | None = None,
     inputs: Any | None = None,
     output_type: TypeBase | None = None,
+    options: RunOptions | None = None,
     parent: "Runner | None" = None,
     run: Run | None = None,
 ) -> "Runner":
@@ -559,8 +583,18 @@ def make_runner(
             ObjectKind.INPUT, {}, typ=input_type, supergraph=runtime.session._supergraph
         )
 
+    # options
+    if options is None:
+        if run is not None:
+            options = run.options
+        elif node.run_options is not None:
+            options = node.run_options.clone()
+    if options is None:
+        options = BASE_RUN_OPTIONS_BY_KIND[RUN_TYPE].clone()
+    else:
+        options.set_default(BASE_RUN_OPTIONS_BY_KIND[RUN_TYPE], copy=False)
+
     # build runner
-    options = get_run_options(RUN_TYPE, run.options if run is not None else node.run_options)
     base_kwargs: dict[str, Any] = {
         "runtime": runtime,
         "options": options,

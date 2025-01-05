@@ -7,18 +7,24 @@ from bench.language import (
     Action,
     ActionType,
     Bench,
+    Block,
     BlockType,
     Context,
     Field,
     FlowBlock,
+    ModelFamily,
     Package,
     PackageType,
     PathElementType,
     PathError,
+    RunOptions,
     Session,
+    TextOptions,
+    evaluate_path,
     get_node,
     get_path,
     parse_path,
+    path,
     render_path,
 )
 
@@ -117,7 +123,6 @@ def test_parse_path(input_path: str, expected_elements: List[Tuple[PathElementTy
     [
         "//",
         "^",
-        "$",
         ">",
         ":",
         "^^node",
@@ -293,3 +298,44 @@ def test_path_shadowed_node(session: Session, mock_package: Package):
     assert (
         get_node(code332, context, "^Choice31") is code332_output3
     )  # descendants before ancestors
+
+
+def test_path_evaluate_attribute(session: Session, mock_package: Package):
+    """Evaluate nested path Attributes on a Node."""
+    page1 = mock_package.blocks.create(
+        name="Page1",
+        type=BlockType.FLOW,
+        run_options=RunOptions(max_attempts=2, text_options=TextOptions(temperature=0.5)),
+    )
+    action1 = page1.actions.create(  # noqa: F841
+        name="Action1",
+        type=ActionType.CODE,
+        run_options=RunOptions(
+            model_family=ModelFamily.META_LLAMA,
+        ),
+    )
+
+    # relative to scope
+    p = path(
+        Block.get_property("run_options"),
+        RunOptions.get_property("text_options"),
+        TextOptions.get_property("temperature"),
+    )
+    assert evaluate_path(page1, page1, Context(), p) == 0.5
+
+    # absolute node path
+    p = path(
+        page1,
+        Block.get_property("run_options"),
+        RunOptions.get_property("text_options"),
+        TextOptions.get_property("temperature"),
+    )
+    assert evaluate_path(page1, page1, Context(), p) == 0.5
+
+    # combind relative
+    p = path(
+        "Action1",
+        Action.get_property("run_options"),
+        RunOptions.get_property("model_family"),
+    )
+    assert evaluate_path(page1, page1, Context(), p) == ModelFamily.META_LLAMA

@@ -85,7 +85,7 @@ class PathRunSelector(IdEnum):
 
 
 SIGN_BY_RUN_SELECTOR: dict[PathRunSelector, str] = {
-    PathRunSelector.LATEST: ">",
+    PathRunSelector.LATEST: "[-1]",
 }
 RUN_SELECTOR_BY_SIGN: dict[str, PathRunSelector] = {v: k for k, v in SIGN_BY_RUN_SELECTOR.items()}
 
@@ -328,7 +328,7 @@ def to_path(path_in: PathIn) -> Path:
 BENCH_PATTERN = regex.compile(rf"^@([{SLUG_REGEX_CHAR}]+)(?::([{SLUG_REGEX_CHAR}]+))?$")
 NODE_PATTERN = regex.compile(rf"^([>\^~:])?([{NAME_REGEX_CHAR}\.]*)$")
 CONTEXT_PATTERN: regex.Pattern[str] = regex.compile(
-    rf"^\$([{''.join(SIGN_BY_RUN_SELECTOR.values())}])?$"
+    rf"^\$((?:{'|'.join(regex.escape(sign) for sign in SIGN_BY_RUN_SELECTOR.values())}))?$"
 )
 
 
@@ -439,7 +439,10 @@ def render_path(path: Path) -> str:
         elif element.type == PathElementType.NODE:
             node = element.node
             assert node is not None, f"no node found for {element!r} in {path!r}"
-            path_parts.append(f"[id={node.id}]")
+            if "name" in node.__properties__:
+                path_parts.append(node.absolute_path)
+            else:
+                path_parts.append(f"{node.metatype.bench_name}[id={node.id}]")
         # relative
         elif element.type == PathElementType.CURRENT:
             path_parts.append(".")
@@ -457,18 +460,24 @@ def render_path(path: Path) -> str:
             if element_key is None:
                 if (node := element.node) is not None:
                     element_key = node._path_key
-                elif (property := element.property) is not None:
-                    element_key = property.name
+                elif (prop := element.property) is not None:
+                    if type(prop.value_runtime_ptr) is Property:
+                        prop = prop.value_runtime_ptr
+                    element_key = prop.name
                 else:
                     raise PathLookupError(f"no node or property found for {element!r} in {path!r}")
             if path_parts:
                 path_parts[-1] += f".{element_key}"
             else:
                 path_parts.append(f".{element_key}")
+        # runtime
         elif element.type == PathElementType.RUN:
             assert element.run is not None, f"missing run selector for {element!r} in {path!r}"
             sign = SIGN_BY_RUN_SELECTOR[element.run]
-            path_parts.append(f"${sign}")
+            if path_parts:
+                path_parts[-1] += f"${sign}"
+            else:
+                path_parts.append(f"${sign}")
         elif element.type == PathElementType.CONTEXT:
             path_parts.append("$")
         else:
@@ -599,7 +608,7 @@ def _get_unique(scope: Node, name: str) -> Node | None:
 def _lower_scope(scope: Node) -> Node:
     """Lower Bench into its main Package."""
     if scope.metatype == NodeType.BENCH:
-        package = cast(Bench, scope).main_package
+        package = cast("Bench", scope).main_package
         assert package is not None, f"bench {scope!r} has no main package"
         return package
     else:
@@ -609,7 +618,7 @@ def _lower_scope(scope: Node) -> Node:
 def _raise_scope(scope: Node) -> Node:
     """Raise a Package into its Bench."""
     if scope.metatype == NodeType.PACKAGE:
-        bench = cast(Package, scope).bench
+        bench = cast("Package", scope).bench
         assert bench is not None, f"package {scope!r} has no bench"
         return bench
     else:
@@ -690,8 +699,6 @@ def evaluate_path(
 
         # sub
         elif element.type == PathElementType.ATTRIBUTE:
-            assert element.name, f"missing name for {element!r} in {path!r}"
-            current = _lower_scope(current)
             if element.name is not None:
                 current = getattr(current, element.name)
             elif (node := element.node) is not None:
@@ -701,6 +708,8 @@ def evaluate_path(
                 else:
                     raise PathLookupError(f"cannot get {node!r} from {current!r} in {path!r}")
             elif (prop := element.property) is not None:
+                if type(prop.value_runtime_ptr) is Property:
+                    prop = prop.value_runtime_ptr
                 current = getattr(current, prop.name)
             else:
                 return None
@@ -714,7 +723,7 @@ def evaluate_path(
             if not isinstance(current, Node):
                 raise PathLogicError(f"cannot get run of {current!r} in {path!r}")
             if element.run == PathRunSelector.LATEST:
-                current = runtime.get_latest_run(cast(RunnableNode, current))
+                current = runtime.get_latest_run(cast("RunnableNode", current))
             else:
                 assert_never(element.run)
         else:
