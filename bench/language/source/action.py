@@ -672,6 +672,9 @@ class Call(Struct):
         struct=StructType.OBJECT_MAPPING,
         description="Mapping for inputs from current node into called node.",
     )
+    if TYPE_CHECKING:
+        node_ptr: NodeReference | None = None
+        node_id: str | None = None
 
     @property
     def input_type(self) -> Optional["TypeBase"]:
@@ -687,3 +690,7 @@ class Call(Struct):
             inputs=coerce_custom_object_scalar(ObjectKind.INPUT, inputs or {}, input_type),
             **kwargs,
         )
+
+
+def call(node: "Block | Action", **kwargs) -> "Call":
+    return Call.new(node, inputs=kwargs)

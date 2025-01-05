@@ -21,6 +21,7 @@ from .action import (
     TypeAction,
     UpdateAction,
     WaitAction,
+    call,
 )
 from .block import Block, BlockType, DatabaseBlock, FlowBlock, TextBlock, VariableBlock
 from .field import (
@@ -138,6 +139,7 @@ __all__ = [
     "View",
     "ViewType",
     "WaitAction",
+    "call",
     "constraint",
     "decode_b64vlq",
     "decode_type_identity",

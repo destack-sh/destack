@@ -493,8 +493,29 @@ async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
     assert runner.tracked_run and len(runner.tracked_run.runs) <= 10  # should complete quickly
 
 
-async def test_run_flow_continue_with_calls(local_runtime: RuntimeHandle):
-    """Runs a Flow with manually selected Calls."""
+async def test_run_flow_calls_none(local_runtime: RuntimeHandle):
+    """Runs a Flow with no calls selected."""
+    Flow = Block.new(BlockType.FLOW, "Flow1")
+    Start = Action.new(ActionType.START, "Start")
+    Route = Action.new(ActionType.CODE, "Router", code=code("pass"))
+    Code2 = Action.new(ActionType.CODE, "Code2", code=code("pass"))
+    Code3 = Action.new(ActionType.CODE, "Code3", code=code("pass"))
+    Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Flow.actions.extend(Start, Route, Code2, Code3, Complete)
+    Start.connect(PipeType.FORWARD, Route)
+    Route.connect(PipeType.SELECT, Complete)
+    Route.connect(PipeType.SELECT, Code2)
+    Route.connect(PipeType.SELECT, Code3)
+    await local_runtime.commit()
+
+    Route.code = code("pass")
+    runner = await local_runtime.run(Flow)
+    assert runner.tracked_run
+    assert not runner.tracked_run.has(Code2, Code3, Complete)
+
+
+async def test_run_flow_calls_forward(local_runtime: RuntimeHandle):
+    """Runs a Flow with forward calls selected."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
     Route = Action.new(ActionType.CODE, "Router", code=code("pass"))
@@ -510,16 +531,10 @@ async def test_run_flow_continue_with_calls(local_runtime: RuntimeHandle):
     Route.connect(PipeType.SELECT, Code4)
     await local_runtime.commit()
 
-    # Route: none
-    Route.code = code("pass")
-    runner = await local_runtime.run(Flow)
-    assert runner.tracked_run
-    assert not runner.tracked_run.has(Code2, Code3, Code4, Complete)
-
     # Route: Code2 + Code3
     Route.code = code("""\
 return {
-    'calls': [Call.new(Code2), Call.new(Code3)],
+    'calls': [call(Code2), call(Code3)],
 }
 """)
     runner = await local_runtime.run(Flow)
@@ -530,7 +545,7 @@ return {
     # Route: Code4
     Route.code = code("""\
 return {
-    'calls': [Call.new(Code4)],
+    'calls': [call(Code4)],
 }
 """)
     runner = await local_runtime.run(Flow)
@@ -541,13 +556,37 @@ return {
     # Route: Complete + Code2
     Route.code = code("""\
 return {
-    'calls': [Call.new(Complete), Call.new(Code2)],
+    'calls': [call(Complete), call(Code2)],
 }
 """)
     runner = await local_runtime.run(Flow)
     assert runner.tracked_run
     assert runner.tracked_run.has(Complete, Code2)
     assert not runner.tracked_run.has(Code3, Code4)
+
+
+async def test_run_flow_calls_back(local_runtime: RuntimeHandle):
+    """Runs a Flow with a selective call that goes back."""
+    Flow = Block.new(BlockType.FLOW, "Flow1")
+    Start = Action.new(ActionType.START, "Start")
+    Route = Action.new(ActionType.CODE, "Router", code=code("pass"))
+    Code5 = Action.new(ActionType.CODE, "Code5", code=code("pass"))
+    Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Flow.actions.extend(Start, Route, Code5, Complete)
+    Start.connect(PipeType.FORWARD, Route)
+    Route.connect(PipeType.SELECT_AND_BACK, Code5)
+    await local_runtime.commit()
+
+    Route.code = code("""\
+if not runtime.get_latest_run(Code5):  # avoid infinite loops
+    return {
+        'calls': [call(Code5)],
+    }
+""")
+    runner = await local_runtime.run(Flow)
+    assert runner.tracked_run
+    assert runner.tracked_run.has(Code5)
+    assert not runner.tracked_run.has(Complete)
 
 
 async def test_run_flow_abort(local_runtime: RuntimeHandle):

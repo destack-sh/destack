@@ -422,7 +422,6 @@ class Runtime:
         # NOTE :Performance: track attempt as efficiently as possible :RuntimeHotPath
 
         # compute variables/inputs/options from context (on initial attempt)
-        # nocheckin
         if runner.status < RunStatus.RUNNING:
             # set default variables/inputs from node
             if isinstance(runner.node, Action):

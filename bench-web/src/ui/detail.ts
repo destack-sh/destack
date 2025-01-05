@@ -127,8 +127,9 @@ export type TextRow = RowBase & {
 export type DetailRow = FieldsRow | ViewRow | PropertyRow | ObjectRow | IconRow | TextRow | LineRow;
 
 export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFactory: () => Transaction): DetailLayout {
-  const sections: DetailSection[] = [];
-
+  // nocheckin: edit ComputedValues in Detail layout (incl. in CustomObject for variables/inputs, node partials, ... Path view?)
+  
+  // node stuff
   const nodePtr = toNodeRef(node);
   const metatype = node.metatype as unknown as NodeType;
   const propertyEnum = PROPERTY_ENUM_BY_TYPE[node.metatype]!;
@@ -142,6 +143,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
       : null;
 
   /** Make a Section */
+  const sections: DetailSection[] = [];
   function section(
     title: string | undefined,
     rows: DetailRow[],

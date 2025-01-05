@@ -4,7 +4,6 @@ import {
   BenchType,
   BlockType,
   CacheMode,
-  ChangeVignetteData,
   ColorData,
   ColorShade,
   ColorType,
@@ -312,7 +311,6 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
 
 export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons<PipeType>({
   [PipeType.FORWARD]: "fas fa-arrow-right-long",
-  [PipeType.FORWARD_AND_BACK]: "fas fa-arrows-left-right",
   [PipeType.SELECT]: "fas fa-arrow-right-from-line",
   [PipeType.SELECT_AND_BACK]: "fas fa-arrows-left-right-to-line",
 });
