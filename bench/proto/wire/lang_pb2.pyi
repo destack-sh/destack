@@ -1378,7 +1378,6 @@ class PipeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PIPE_TYPE_UNSPECIFIED: _ClassVar[PipeType]
     PIPE_TYPE_FORWARD: _ClassVar[PipeType]
-    PIPE_TYPE_FORWARD_AND_BACK: _ClassVar[PipeType]
     PIPE_TYPE_SELECT: _ClassVar[PipeType]
     PIPE_TYPE_SELECT_AND_BACK: _ClassVar[PipeType]
 
@@ -2827,7 +2826,6 @@ PORT_SIDE_INCOMING: PortSide
 PORT_SIDE_OUTGOING: PortSide
 PIPE_TYPE_UNSPECIFIED: PipeType
 PIPE_TYPE_FORWARD: PipeType
-PIPE_TYPE_FORWARD_AND_BACK: PipeType
 PIPE_TYPE_SELECT: PipeType
 PIPE_TYPE_SELECT_AND_BACK: PipeType
 SPACE_TYPE_UNSPECIFIED: SpaceType

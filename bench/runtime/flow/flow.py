@@ -17,7 +17,6 @@ from bench.language import (
     ObjectKind,
     Pipe,
     PipeType,
-    PortSide,
     Run,
     RunError,
     RunnableNode,
@@ -89,7 +88,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         ...
 
     @abstractmethod
-    def get_pipes_at(self, action: Action, side: PortSide) -> Sequence[Pipe]:
+    def get_pipes_at(self, action: Action) -> Sequence[Pipe]:
         """Gets all Pipes connected to a Action."""
         ...
 
@@ -190,7 +189,9 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         logger.debug("flow.tick.stopped", flow=self.node, node=runner.node, runner=runner, exc=exc)
         self._active_runners_by_id.pop(runner.id)
 
-        # nocheckin: support Flow 'and back' + (repeated) Calls
+        # NOTE :Incomplete: support Flow (repeated) Calls?
+        #  (so an Action can emit multiple successive Calls in one go that auto-trigger instead
+        #   of asking the Action again when they rebound to that same Action)
 
         if runner.status == RunStatus.COMPLETED:
             # feed forward connected Pipes/Actions
@@ -200,10 +201,19 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                     calls = cast(Action, runner.outputs).calls or ()
                 else:
                     calls = ()
-                for pipe in self.get_pipes_at(runner.node, PortSide.OUTGOING):
-                    if pipe.type in (PipeType.FORWARD, PipeType.FORWARD_AND_BACK) or (
-                        pipe.type in (PipeType.SELECT, PipeType.SELECT_AND_BACK)
-                        and any(c.node == pipe or c.node == pipe.target for c in calls)
+                available_pipes = self.get_pipes_at(runner.node)
+                for pipe in available_pipes:
+                    is_source = pipe.source_id == runner.node.id
+                    is_target = pipe.target_id == runner.node.id
+                    is_selected = any(c.node_id == pipe.target_id for c in calls)
+                    if (
+                        (is_source and pipe.type == PipeType.FORWARD)
+                        or (
+                            is_source
+                            and pipe.type in (PipeType.SELECT, PipeType.SELECT_AND_BACK)
+                            and is_selected
+                        )
+                        or (is_target and pipe.type == PipeType.SELECT_AND_BACK)
                     ):
                         call = first((c for c in calls if c.node == pipe), None)
                         next_run = self._start(
@@ -214,8 +224,15 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                         )
                         outgoing.append(next_run)
             elif isinstance(runner.node, Pipe):
+                if (
+                    runner.node.type == PipeType.SELECT_AND_BACK
+                    and runner.tracked_run.incoming[0].base == runner.node.target
+                ):  # go back to source
+                    next_action = runner.node.source
+                else:
+                    next_action = runner.node.target
                 next_run = self._start(
-                    runner.node.target,
+                    next_action,
                     variables=None,
                     inputs=runner.outputs,
                     incoming=(runner.tracked_run,),
@@ -300,18 +317,11 @@ class FlowRunner(FlowRunnerBase[FlowBlock]):
         return self.node.actions
 
     @override
-    def get_pipes_at(self, action: Action, side: PortSide) -> Sequence[Pipe]:
-        if side == PortSide.INCOMING:
-            return tuple(
-                pipe
-                for pipe in self.node.pipes
-                if pipe.target_id == action.id and pipe.source is not None
-            )
-        elif side == PortSide.OUTGOING:
-            return tuple(
-                pipe
-                for pipe in self.node.pipes
-                if pipe.source_id == action.id and pipe.target is not None
-            )
-        else:
-            assert_never(side)
+    def get_pipes_at(self, action: Action) -> Sequence[Pipe]:
+        return tuple(
+            pipe
+            for pipe in self.node.pipes
+            if (pipe.target_id == action.id or pipe.source_id == action.id)
+            and pipe.source is not None
+            and pipe.target is not None
+        )

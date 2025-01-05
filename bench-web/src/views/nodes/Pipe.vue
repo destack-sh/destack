@@ -46,9 +46,7 @@ const isInspected = computed(() => canvas.isInspected(pipePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
 const isSelected = computed(() => state.isSelected(pipePtr.value));
 const isHidden = computed(() => pipe.value?.isHidden && !isInspected.value && !isHighlighted.value);
-const hasStartMarker = computed(
-  () => pipe.value?.type == PipeType.FORWARD_AND_BACK || pipe.value?.type == PipeType.SELECT_AND_BACK,
-);
+const isBack = computed(() => pipe.value?.type == PipeType.SELECT_AND_BACK);
 const strokeDashArray = computed(() => {
   if (pipe.value?.type === PipeType.SELECT || pipe.value?.type === PipeType.SELECT_AND_BACK) {
     // dashed
@@ -98,19 +96,6 @@ defineExpose<ViewExposed>({ self, id, actions });
           <path d="M0,0 L12,4 L0,8 L2,4 Z" fill="currentColor" />
         </marker>
 
-        <!-- Background Arrowhead Marker (Larger) -->
-        <marker
-          :id="'arrowhead-background-' + pipe.id"
-          markerWidth="16"
-          markerHeight="12"
-          refX="14"
-          refY="6"
-          orient="auto"
-          markerUnits="userSpaceOnUse"
-        >
-          <path d="M0,0 L16,6 L0,12 L3,6 Z" fill="currentColor" />
-        </marker>
-
         <!-- Inverted Start Marker -->
         <marker
           :id="'arrowhead-start-' + pipe.id"
@@ -123,53 +108,33 @@ defineExpose<ViewExposed>({ self, id, actions });
         >
           <path d="M10,0 L0,3.5 L10,7 L7.5,3.5 Z" fill="currentColor" />
         </marker>
-
-        <!-- Inverted Start Background Marker -->
-        <marker
-          :id="'arrowhead-start-background-' + pipe.id"
-          markerWidth="14"
-          markerHeight="9"
-          refX="2"
-          refY="4.5"
-          orient="auto"
-          markerUnits="userSpaceOnUse"
-        >
-          <path d="M14,0 L0,4.5 L14,9 L10.5,4.5 Z" fill="currentColor" />
-        </marker>
       </defs>
 
-      <!-- Background Path for Hover and Hit Target -->
+      <!-- Background Hit Target -->
       <path
-        :stroke-width="PIPE_WIDTH * 2"
+        :stroke-width="PIPE_WIDTH * 3"
         stroke-linecap="round"
         stroke-linejoin="bevel"
         fill="none"
-        :marker-start="hasStartMarker ? 'url(#arrowhead-start-background-' + pipe.id + ')' : undefined"
-        :marker-end="'url(#arrowhead-background-' + pipe.id + ')'"
-        class="pointer-events-auto cursor-pointer transition-colors duration-150"
-        :class="
-          isInspected || isHighlighted || isSelected
-            ? 'stroke-current'
-            : 'stroke-transparent group-hover:stroke-current'
-        "
+        stroke="transparent"
+        class="pointer-events-auto cursor-pointer"
         :data-node-type="pipe.metatype"
         :data-node-id="pipe.id"
         :data-node-ck="pipe.ck"
         data-suppress-drag="select"
         :d="pathToSvg(path)"
-        :stroke-dasharray="strokeDashArray"
       />
 
       <!-- Main Path -->
       <path
-        :stroke-width="PIPE_WIDTH"
+        :stroke-width="isInspected || isHighlighted || isSelected ? PIPE_WIDTH * 1.5 : PIPE_WIDTH"
         stroke-linecap="round"
         stroke-linejoin="bevel"
         stroke="currentColor"
         fill="none"
-        :marker-start="hasStartMarker ? 'url(#arrowhead-start-' + pipe.id + ')' : undefined"
+        :marker-start="isBack ? 'url(#arrowhead-start-' + pipe.id + ')' : undefined"
         :marker-end="'url(#arrowhead-main-' + pipe.id + ')'"
-        class="transition-colors duration-150"
+        class="pointer-events-none transition-colors duration-150"
         :stroke-dasharray="strokeDashArray"
         :d="pathToSvg(path)"
       />
@@ -180,7 +145,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="group/meta pointer-events-auto absolute z-10 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer select-none flex-row items-center gap-x-1 rounded-2xl border px-1 py-0.5 transition-colors duration-150"
       :class="[
         isInspected ? 'bg-gray-100/80' : 'bg-gray-100/60',
-        isInspected || isHighlighted
+        isInspected || isHighlighted || isSelected
           ? 'border-gray-300 opacity-100 backdrop-blur-xs'
           : 'border-gray-200 opacity-0 group-hover/meta:opacity-100',
       ]"
