@@ -21,7 +21,7 @@ from bench.language import (
     Text,
     code,
 )
-from bench.runtime.core import Interrupted, make_run_from_node, make_runner
+from bench.runtime.core import Interrupted, create_run_from_node, make_runner
 from bench.test.unit.conftest import RuntimeHandle
 
 
@@ -562,7 +562,7 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 
-    run = make_run_from_node(Flow)
+    run = create_run_from_node(Flow)
     run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)
@@ -714,7 +714,7 @@ async def test_run_flow_breakpoint(hosted_runtime: RuntimeHandle):
     await hosted_runtime.commit()
 
     # check that all yield points are hit in order
-    run = make_run_from_node(Flow)
+    run = create_run_from_node(Flow)
     runner = None
     for yield_point in (
         Start,

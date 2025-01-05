@@ -14,7 +14,7 @@ from bench.language import (
     code,
 )
 from bench.runtime.code.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
-from bench.runtime.core import make_run_from_node
+from bench.runtime.core import create_run_from_node
 from bench.test.unit.conftest import RuntimeHandle
 
 
@@ -155,7 +155,7 @@ async def test_run_code_invalid_inputs(local_runtime: RuntimeHandle):
     local_runtime.page().actions.append(Code1)
     await local_runtime.commit()
 
-    run = make_run_from_node(Code1)
+    run = create_run_from_node(Code1)
     runner = await local_runtime.run(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert len(runner.attempts) == 0
@@ -174,7 +174,7 @@ async def test_run_code_invalid_outputs(local_runtime: RuntimeHandle):
     local_runtime.page().actions.append(Code1)
     await local_runtime.commit()
 
-    run = make_run_from_node(Code1)
+    run = create_run_from_node(Code1)
     runner = await local_runtime.run(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
@@ -442,7 +442,7 @@ async def test_run_code_abort(local_runtime: RuntimeHandle):
     local_runtime.page().actions.append(CodeBlock)
     await local_runtime.commit()
 
-    run = make_run_from_node(CodeBlock)
+    run = create_run_from_node(CodeBlock)
     run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)

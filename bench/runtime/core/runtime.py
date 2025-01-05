@@ -62,7 +62,7 @@ from .runner import (
     Interrupted,
     Runner,
     RunnerHook,
-    make_run_from_node,
+    create_run_from_node,
     restore_runner,
 )
 
@@ -713,15 +713,15 @@ class Runtime:
     ) -> Runner | None:
         """Start or resume a top-level Run in this Runtime until termination/interruption."""
         if not isinstance(run, Run):
-            run = make_run_from_node(
+            run = create_run_from_node(
                 run,
                 variables=variables,
                 inputs=inputs,
                 options=options,
                 mode=mode,
                 parent=self.active_run,
+                session=self.session,
             )
-            self.session._create(run)
         runner = None
         async with self.session.active():
             try:
