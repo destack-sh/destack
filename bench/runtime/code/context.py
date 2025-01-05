@@ -11,12 +11,18 @@ from bench import language
 from bench.language import (
     BENCH_CLASS_BY_NAME,
     NODE_CLASS_STUBS_BY_NAME,
+    Bench,
     Node,
+    Run,
+    Session,
+    evaluate_path,
     get_node,
+    get_node_or_error,
     render,
     upload_file,
 )
 from bench.runtime.code.capture import LogSink
+from bench.runtime.core.runtime import Runtime
 from bench.utils.func import get_subclasses
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
@@ -50,7 +56,13 @@ for t in (datetime, timedelta, UUID, base64):
 DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
     # dynamic globals are set per code run, these are just the types :CodeGlobals
     "self": Node,
+    "session": Session,
+    "runtime": Runtime,
+    "bench": Bench,
+    "run": Run,
     "get_node": get_node,
+    "get_node_or_error": get_node_or_error,
+    "evaluate_path": evaluate_path,
     "render": render,
     "upload": upload_file,
     "log": LogSink.log,

@@ -119,6 +119,7 @@ class CodeRunnerBase(Runner):
         # assemble globals
         assert self.node is not None, f"no node scope for {self!r}"
         _get_node = functools.partial(get_node, self.node)
+        _get_node_or_error = functools.partial(get_node_or_error, self.node)
         _get_path = functools.partial(get_path, self.node)
         _render = functools.partial(render, options=RenderOptions(scope=self.node))
         _upload = functools.partial(upload_file)
@@ -127,7 +128,12 @@ class CodeRunnerBase(Runner):
             **self.runtime.static_glbls,
             # dynamic
             "self": self.node,
+            "session": self.runtime.session,
+            "runtime": self.runtime,
+            "bench": self.runtime.bench,
+            "run": self.closest_tracked_run,
             "get_node": _get_node,
+            "get_node_or_error": _get_node_or_error,
             "get_path": _get_path,
             "render": _render,
             "upload": _upload,

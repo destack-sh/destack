@@ -223,11 +223,14 @@ class RuntimeHandle:
         self,
         run: Run | RunnableNode,
         *,
+        variables: Any | None = None,
         inputs: Any | None = None,
         mode: NodeMode | None = None,
         return_error: bool = False,
     ) -> Runner:
-        runner = await self.runtime.run(run, inputs=inputs, mode=mode, return_error=return_error)
+        runner = await self.runtime.run(
+            run, variables=variables, inputs=inputs, mode=mode, return_error=return_error
+        )
         assert runner is not None, f"no runner for {run!r}"
         return runner
 

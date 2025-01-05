@@ -15,6 +15,7 @@ from bench.language import (
     Action,
     BenchError,
     BreakpointSite,
+    BuiltinObject,
     CheckOptions,
     ComputedValue,
     Connection,
@@ -26,6 +27,7 @@ from bench.language import (
     NodeMode,
     NodeType,
     ObjectKind,
+    PathElementType,
     Resource,
     ResourceStatus,
     Run,
@@ -33,6 +35,7 @@ from bench.language import (
     RunError,
     RunErrorKind,
     RunnableNode,
+    RunOptions,
     RunSpanType,
     RunStatus,
     Session,
@@ -41,14 +44,14 @@ from bench.language import (
     ValidationError,
     WatchGetUpdate,
     check_value,
+    coerce_value,
+    evaluate_path,
     is_node_type,
     is_value,
     on_invalid_raise,
     run_span,
     to_type_scalar,
 )
-from bench.language.core.path import evaluate_path
-from bench.runtime.browser.playwright import PlaywrightClient
 from bench.runtime.core import Cache, NonRetryableError, RetryableError
 from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
@@ -97,6 +100,7 @@ class Runtime:
         static_glbls: Mapping[str, Any] | None = None,
         dynamic_glbls: Mapping[str, Any] | None = None,
     ):
+        from bench.runtime.browser.playwright import PlaywrightClient
         from bench.runtime.code.context import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
 
         assert session.bench is not None, f"{session!r} is not attached"
@@ -140,19 +144,54 @@ class Runtime:
         runner = self._active_runner.get(None)
         return runner.mode if runner else self.session.mode
 
-    def get_latest_run(self, node: RunnableNode) -> Run | None:
+    def get_runs(self, runnable: RunnableNode) -> list[Run]:
+        """Find all Runs of a Node in this Runtime."""
+        matching_runs: list[Run] = []
+        for node in self.session._graph.nodes:
+            if type(node) is Run and node.base == runnable:
+                matching_runs.append(node)
+        matching_runs.sort(
+            key=lambda r: r.terminated_at or r.interrupted_at or r.started_at or r.created_at,
+            reverse=True,
+        )
+        return matching_runs
+
+    def get_latest_run(self, runnable: RunnableNode) -> Run | None:
         """Find the latest Run of a Node in this Runtime."""
-        raise NotImplementedError(f"nocheckin: get latest run {node!r}")
+        matching_runs = self.get_runs(runnable)
+        return matching_runs[0] if matching_runs else None
 
     def _apply_computed_value(self, runner: Runner, computed_value: ComputedValue):
         """Applies the ComputedValue in/to the Run/Runner."""
-        target_obj = evaluate_path(
-            runner.node, runner.node, runner.context, computed_value.target_path.elements[:-1]
-        )
+        # get & transform source value
         source_value = evaluate_path(
             runner.node, runner.node, runner.context, computed_value.source_path
         )
-        raise NotImplementedError(f"nocheckin: apply computed {computed_value!r}")
+
+        # get target site
+        target_obj = evaluate_path(
+            runner.node, runner.node, runner.context, computed_value.target_path.elements[:-1]
+        )
+        target_key = computed_value.target_path.elements[-1]
+
+        # coerce & set value
+        assert (
+            target_key.type == PathElementType.ATTRIBUTE
+        ), f"bad target {target_key!r} in {computed_value!r}"
+        if isinstance(node := target_key.node, Field):
+            assert isinstance(
+                target_obj, CustomObject
+            ), f"bad target {target_obj!r} in {computed_value!r}"
+            mapped_value = coerce_value(source_value, node)
+            target_obj._do_set(node, mapped_value, coerce=False)
+        elif (prop := target_key.property) is not None:
+            assert isinstance(
+                target_obj, BuiltinObject
+            ), f"bad target {target_obj!r} in {computed_value!r}"
+            mapped_value = coerce_value(source_value, prop.type_info)
+            target_obj._do_set(prop.name, mapped_value)
+        else:
+            raise RuntimeError(f"bad target {target_obj!r} in {computed_value!r}")
 
     @tracer.start_as_current_span("runtime.wait_for")
     async def _wait_for(
@@ -392,8 +431,9 @@ class Runtime:
                 if runner.inputs is not None and runner.node.inputs_packed is not None:
                     runner.inputs.set_default(runner.node.inputs, _skip_validate=True)
             # apply computed values
-            for computed_value in runner.node.computed_values:
-                self._apply_computed_value(runner, computed_value)
+            if runner.tracked_run is not None:  # (only in tracked runs)
+                for computed_value in runner.node.computed_values:
+                    self._apply_computed_value(runner, computed_value)
 
         # check variables
         if runner.variable_type is not None:
@@ -656,6 +696,7 @@ class Runtime:
         *,
         variables: Any | None = None,
         inputs: Any | None = None,
+        options: RunOptions | None = None,
         mode: NodeMode | None = None,
         return_error: bool = False,
         optimistic: bool = False,
@@ -663,7 +704,12 @@ class Runtime:
         """Start or resume a top-level Run in this Runtime until termination/interruption."""
         if not isinstance(run, Run):
             run = make_run_from_node(
-                run, variables=variables, inputs=inputs, mode=mode, parent=self.active_run
+                run,
+                variables=variables,
+                inputs=inputs,
+                options=options,
+                mode=mode,
+                parent=self.active_run,
             )
             self.session._create(run)
         runner = None

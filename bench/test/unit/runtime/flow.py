@@ -191,6 +191,40 @@ return {'Block': block}
     assert runner.outputs.Block.mode == NodeMode.TEST
 
 
+async def test_run_flow_computed_run_options(local_runtime: RuntimeHandle):
+    """Run a Flow with computed run options."""
+    Flow1 = Block.new(BlockType.FLOW, "Flow1", fields=(Field.variable("Attempts", int),))
+    Start = Action.new(ActionType.START, "Start")
+    Code1 = Action.new(
+        ActionType.CODE,
+        "Code1",
+        code=code("""
+if len(run.attempts) <= 5:
+    raise ValueError("not enough attempts")
+else:
+    pass  # yay!
+"""),
+    )
+    Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Flow1.actions.extend(Start, Code1, Complete)
+    Start.connect(PipeType.FORWARD, Code1)
+    Code1.connect(PipeType.FORWARD, Complete)
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    Code1.set_computed(
+        target=(
+            PathElement.run_(),
+            Run.get_property("options"),
+            RunOptions.get_property("max_attempts"),
+        ),
+        source=(Flow1, PathElement.run_(), Run.get_property("variables"), Flow1.fields.Attempts),
+    )
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1, variables={"Attempts": 6})
+
+
 async def test_run_flow_pipe_from_nowhere(local_runtime: RuntimeHandle):
     """Run a flow with a pipe from nowhere. Should not be run and just be ignored."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
@@ -643,7 +677,7 @@ async def test_run_flow_yield_cancelled(local_runtime: RuntimeHandle):
     assert runner.error and runner.error.type == RunErrorType.INTERRUPTION_CANCELLED
 
 
-async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
+async def test_run_flow_breakpoint(hosted_runtime: RuntimeHandle):
     """Run a Flow with breakpoints all over. Should yield and resume properly."""
     Flow = Block.new(
         BlockType.FLOW,
@@ -675,8 +709,8 @@ async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
         Complete,
         run_options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_completed()]),
     )
-    local_runtime.page().blocks.append(Flow)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow)
+    await hosted_runtime.commit()
 
     # check that all yield points are hit in order
     run = make_run_from_node(Flow)
@@ -693,14 +727,14 @@ async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
         Complete,
     ):
         # run up to yield
-        runner = await local_runtime.run(run)
+        runner = await hosted_runtime.run(run)
         assert runner.status == RunStatus.YIELDED
         assert runner.interruption and runner.interruption.runnable == yield_point
         assert runner.tracked_run
         run = runner.tracked_run
 
         # run up to yield again (without handling Interruption)
-        runner = await local_runtime.run(run)
+        runner = await hosted_runtime.run(run)
         assert runner.status == RunStatus.YIELDED
         assert runner.interruption and runner.interruption.runnable == yield_point
         assert runner.tracked_run
@@ -710,7 +744,7 @@ async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
         runner.interruption.complete()
 
     # run up to completion
-    runner = await local_runtime.run(run)
+    runner = await hosted_runtime.run(run)
     assert runner.status == RunStatus.COMPLETED
 
 
