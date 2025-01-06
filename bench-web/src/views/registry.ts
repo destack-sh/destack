@@ -27,6 +27,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // structs
   [ViewType.OBJECT]: () => import("@/views/structs/CustomObject.vue"),
   [ViewType.FIELD_LIST]: () => import("@/views/structs/FieldList.vue"),
+  [ViewType.PATH]: () => import("@/views/structs/Path.vue"),
   // helpers
   [ViewType.USER_WIZARD]: () => import("@/views/helpers/UserWizard.vue"),
   [ViewType.BENCH_WIZARD]: () => import("@/views/helpers/BenchWizard.vue"),

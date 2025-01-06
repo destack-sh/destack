@@ -3,7 +3,8 @@
 # ruff: noqa
 
 from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
-    
+
+
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf import duration_pb2 as _duration_pb2
@@ -1117,6 +1118,9 @@ class SortType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class ComputedValueKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     COMPUTED_VALUE_KIND_UNSPECIFIED: _ClassVar[ComputedValueKind]
+    COMPUTED_VALUE_KIND_REFERENCE: _ClassVar[ComputedValueKind]
+    COMPUTED_VALUE_KIND_EXPRESSION: _ClassVar[ComputedValueKind]
+    COMPUTED_VALUE_KIND_CODE: _ClassVar[ComputedValueKind]
 
 class PathElementType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1404,6 +1408,7 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_TYPE: _ClassVar[ViewType]
     VIEW_TYPE_OBJECT: _ClassVar[ViewType]
     VIEW_TYPE_FIELD_LIST: _ClassVar[ViewType]
+    VIEW_TYPE_PATH: _ClassVar[ViewType]
     VIEW_TYPE_USER_WIZARD: _ClassVar[ViewType]
     VIEW_TYPE_BENCH_WIZARD: _ClassVar[ViewType]
     VIEW_TYPE_EMPTY: _ClassVar[ViewType]
@@ -2646,6 +2651,9 @@ SORT_TYPE_UNSPECIFIED: SortType
 SORT_TYPE_ASCENDING: SortType
 SORT_TYPE_DESCENDING: SortType
 COMPUTED_VALUE_KIND_UNSPECIFIED: ComputedValueKind
+COMPUTED_VALUE_KIND_REFERENCE: ComputedValueKind
+COMPUTED_VALUE_KIND_EXPRESSION: ComputedValueKind
+COMPUTED_VALUE_KIND_CODE: ComputedValueKind
 PATH_ELEMENT_TYPE_UNSPECIFIED: PathElementType
 PATH_ELEMENT_TYPE_ROOT: PathElementType
 PATH_ELEMENT_TYPE_BENCH: PathElementType
@@ -2846,6 +2854,7 @@ VIEW_TYPE_FLOW: ViewType
 VIEW_TYPE_TYPE: ViewType
 VIEW_TYPE_OBJECT: ViewType
 VIEW_TYPE_FIELD_LIST: ViewType
+VIEW_TYPE_PATH: ViewType
 VIEW_TYPE_USER_WIZARD: ViewType
 VIEW_TYPE_BENCH_WIZARD: ViewType
 VIEW_TYPE_EMPTY: ViewType
@@ -3447,14 +3456,22 @@ class ValueData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., value_type: _Optional[_Union[TypeInfoData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class ComputedValueData(_message.Message):
-    __slots__ = ("metatype", "target_path", "source_path")
+    __slots__ = ("metatype", "kind", "target_path", "source_path", "source_expression", "source_code", "is_active")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
     TARGET_PATH_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_EXPRESSION_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_CODE_FIELD_NUMBER: _ClassVar[int]
+    IS_ACTIVE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
+    kind: ComputedValueKind
     target_path: PathData
     source_path: PathData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., target_path: _Optional[_Union[PathData, _Mapping]] = ..., source_path: _Optional[_Union[PathData, _Mapping]] = ...) -> None: ...
+    source_expression: ExpressionData
+    source_code: CodeData
+    is_active: bool
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[ComputedValueKind, str]] = ..., target_path: _Optional[_Union[PathData, _Mapping]] = ..., source_path: _Optional[_Union[PathData, _Mapping]] = ..., source_expression: _Optional[_Union[ExpressionData, _Mapping]] = ..., source_code: _Optional[_Union[CodeData, _Mapping]] = ..., is_active: bool = ...) -> None: ...
 
 class ObjectMappingData(_message.Message):
     __slots__ = ("metatype", "mappings")

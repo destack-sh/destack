@@ -55,9 +55,8 @@ import {
   RecordProperty,
   RunOptionsProperty,
   TypeConstraintProperty,
-  TypeInfoData,
   TypeKind,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { isNode, makeStruct, toNodeRef } from "@/proto/wiring";
 import { canvas, supergraph } from "@/system/globals";
@@ -582,7 +581,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
 
     // common rows
     if (node.type == ActionType.CODE) {
-      commonRows.push(rowProperty(ActionProperty.code, { isFullWidth: true }));
+      commonRows.push(rowProperty(ActionProperty.code, { isFullWidth: true, isComputable: true }));
     } else if (node.type == ActionType.DELEGATE) {
       commonRows.push(
         rowProperty(ActionProperty.delegatePtr, {

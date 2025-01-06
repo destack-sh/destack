@@ -120,3 +120,44 @@ AnyStructData = Union[
     DomNodeData,
 ]
 AnyObjectData = AnyNodeData | AnyStructData
+BenchNodeData = Union[
+    BenchData,
+    HandleData,
+    ClientData,
+    MembershipData,
+    InviteData,
+    ScalerData,
+    StoreData,
+    MachineData,
+    BrowserData,
+    FileData,
+    StreamData,
+    SecretData,
+    PackageData,
+    DependencyData,
+    SpaceData,
+    BlockData,
+    FieldData,
+    ViewData,
+    ActionData,
+    PipeData,
+    MessageData,
+    RecordData,
+    SessionData,
+    RunData,
+    InterruptionData,
+    LogData,
+]
+PackageNodeData = Union[
+    DependencyData, SpaceData, BlockData, FieldData, ViewData, ActionData, PipeData
+]
+ResourceNodeData = Union[
+    ScalerData, StoreData, MachineData, BrowserData, FileData, StreamData, SecretData
+]
+DynamicResourceNodeData = Union[MachineData, BrowserData, FileData, StreamData, SecretData]
+StaticResourceNodeData = Union[ScalerData, StoreData]
+SourceNodeData = Union[
+    DependencyData, SpaceData, BlockData, FieldData, ViewData, ActionData, PipeData
+]
+StateNodeData = Union[MessageData, RecordData]
+RuntimeNodeData = Union[SessionData, RunData, InterruptionData, LogData]

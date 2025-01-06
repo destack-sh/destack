@@ -1124,6 +1124,9 @@ enum SortType {
 
 enum ComputedValueKind {
   COMPUTED_VALUE_KIND_UNSPECIFIED = 0;
+  COMPUTED_VALUE_KIND_REFERENCE = 1;
+  COMPUTED_VALUE_KIND_EXPRESSION = 2;
+  COMPUTED_VALUE_KIND_CODE = 3;
 }
 
 enum PathElementType {
@@ -1415,6 +1418,7 @@ enum ViewType {
   VIEW_TYPE_TYPE = 20001;
   VIEW_TYPE_OBJECT = 20002;
   VIEW_TYPE_FIELD_LIST = 20003;
+  VIEW_TYPE_PATH = 20004;
   VIEW_TYPE_USER_WIZARD = 30001;
   VIEW_TYPE_BENCH_WIZARD = 30002;
   VIEW_TYPE_EMPTY = 30100;
@@ -1916,8 +1920,12 @@ message ValueData {
 
 message ComputedValueData {
   ObjectType metatype = 1;
-  PathData target_path = 41;
-  PathData source_path = 51;
+  ComputedValueKind kind = 30;
+  optional PathData target_path = 41;
+  optional PathData source_path = 51;
+  optional ExpressionData source_expression = 52;
+  optional CodeData source_code = 53;
+  bool is_active = 60;
 }
 
 message ObjectMappingData {

@@ -117,6 +117,7 @@ if TYPE_CHECKING:
         Bench,
         Block,
         Client,
+        ComputedSourceIn,
         ComputedValue,
         CustomObject,
         Expression,
@@ -2616,7 +2617,7 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
         NODE_COMPUTED_VALUES_ID, require=False, array=True, struct=StructType.COMPUTED_VALUE
     )
 
-    def set_computed(self, target: "PathIn", source: "PathIn"):
+    def set_computed(self, target: "PathIn", source: "ComputedSourceIn"):
         """Sets and overrides the computed value for the target path."""
         from .expression import ComputedValue
 

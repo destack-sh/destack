@@ -53,6 +53,8 @@ class CodeLine(Struct):
 class Code(Struct):
     """Code composed of multiple lines."""
 
+    # TODO :Incomplete: support references in nodes (incl. Paths? also in Text?)
+
     # language: ...
     lines: list[CodeLine] = p_regular(30, require=True, array=True, struct=StructType.CODE_LINE)
 

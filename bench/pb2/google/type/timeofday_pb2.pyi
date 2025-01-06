@@ -3,7 +3,8 @@
 # ruff: noqa
 
 from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
-    
+
+
 
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message

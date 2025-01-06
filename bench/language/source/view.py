@@ -70,6 +70,7 @@ class ViewType(IdEnum):
     TYPE = 20001
     OBJECT = 20002
     FIELD_LIST = 20003
+    PATH = 20004
 
     # helpers (30000-40000)
     USER_WIZARD = 30001

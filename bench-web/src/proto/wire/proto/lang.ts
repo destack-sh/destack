@@ -669,13 +669,29 @@ export interface ComputedValueData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: symbolx.bench.PathData target_path = 41;
+     * @generated from protobuf field: symbolx.bench.ComputedValueKind kind = 30;
+     */
+    kind: ComputedValueKind;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.PathData target_path = 41;
      */
     targetPath?: PathData;
     /**
-     * @generated from protobuf field: symbolx.bench.PathData source_path = 51;
+     * @generated from protobuf field: optional symbolx.bench.PathData source_path = 51;
      */
     sourcePath?: PathData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData source_expression = 52;
+     */
+    sourceExpression?: ExpressionData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.CodeData source_code = 53;
+     */
+    sourceCode?: CodeData;
+    /**
+     * @generated from protobuf field: bool is_active = 60;
+     */
+    isActive: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.ObjectMappingData
@@ -10194,7 +10210,19 @@ export enum ComputedValueKind {
     /**
      * @generated from protobuf enum value: COMPUTED_VALUE_KIND_UNSPECIFIED = 0;
      */
-    UNSPECIFIED = 0
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: COMPUTED_VALUE_KIND_REFERENCE = 1;
+     */
+    REFERENCE = 1,
+    /**
+     * @generated from protobuf enum value: COMPUTED_VALUE_KIND_EXPRESSION = 2;
+     */
+    EXPRESSION = 2,
+    /**
+     * @generated from protobuf enum value: COMPUTED_VALUE_KIND_CODE = 3;
+     */
+    CODE = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.PathElementType
@@ -11147,6 +11175,10 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_FIELD_LIST = 20003;
      */
     FIELD_LIST = 20003,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_PATH = 20004;
+     */
+    PATH = 20004,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_USER_WIZARD = 30001;
      */
@@ -14204,13 +14236,19 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
     constructor() {
         super("symbolx.bench.ComputedValueData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.ComputedValueKind", ComputedValueKind, "COMPUTED_VALUE_KIND_"] },
             { no: 41, name: "target_path", kind: "message", T: () => PathData },
-            { no: 51, name: "source_path", kind: "message", T: () => PathData }
+            { no: 51, name: "source_path", kind: "message", T: () => PathData },
+            { no: 52, name: "source_expression", kind: "message", T: () => ExpressionData },
+            { no: 53, name: "source_code", kind: "message", T: () => CodeData },
+            { no: 60, name: "is_active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ComputedValueData>): ComputedValueData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.kind = 0;
+        message.isActive = false;
         if (value !== undefined)
             reflectionMergePartial<ComputedValueData>(this, message, value);
         return message;
@@ -14223,11 +14261,23 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbolx.bench.PathData target_path */ 41:
+                case /* symbolx.bench.ComputedValueKind kind */ 30:
+                    message.kind = reader.int32();
+                    break;
+                case /* optional symbolx.bench.PathData target_path */ 41:
                     message.targetPath = PathData.internalBinaryRead(reader, reader.uint32(), options, message.targetPath);
                     break;
-                case /* symbolx.bench.PathData source_path */ 51:
+                case /* optional symbolx.bench.PathData source_path */ 51:
                     message.sourcePath = PathData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePath);
+                    break;
+                case /* optional symbolx.bench.ExpressionData source_expression */ 52:
+                    message.sourceExpression = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.sourceExpression);
+                    break;
+                case /* optional symbolx.bench.CodeData source_code */ 53:
+                    message.sourceCode = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.sourceCode);
+                    break;
+                case /* bool is_active */ 60:
+                    message.isActive = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -14244,12 +14294,24 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.PathData target_path = 41; */
+        /* symbolx.bench.ComputedValueKind kind = 30; */
+        if (message.kind !== 0)
+            writer.tag(30, WireType.Varint).int32(message.kind);
+        /* optional symbolx.bench.PathData target_path = 41; */
         if (message.targetPath)
             PathData.internalBinaryWrite(message.targetPath, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.PathData source_path = 51; */
+        /* optional symbolx.bench.PathData source_path = 51; */
         if (message.sourcePath)
             PathData.internalBinaryWrite(message.sourcePath, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData source_expression = 52; */
+        if (message.sourceExpression)
+            ExpressionData.internalBinaryWrite(message.sourceExpression, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.CodeData source_code = 53; */
+        if (message.sourceCode)
+            CodeData.internalBinaryWrite(message.sourceCode, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_active = 60; */
+        if (message.isActive !== false)
+            writer.tag(60, WireType.Varint).bool(message.isActive);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27449,6 +27511,14 @@ export type AnyNodeData = BenchData | UserData | HandleData | ClientData | Organ
 export type AnyStructData = ContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeInfoData | TypeConstraintData | VariableObjectData | MemberObjectData | InputObjectData | OutputObjectData | ScheduleData | FileInfoData | IconData | TextData | TextLineData | TextSpanData | CodeData | CodeLineData | PathData | PathElementData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ObjectMappingData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | CallData | BreakpointData | LogInfoData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData | DomNodeData
 export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof HandleData | typeof ClientData | typeof OrganizationData | typeof MembershipData | typeof InviteData | typeof ScalerData | typeof StoreData | typeof MachineData | typeof BrowserData | typeof FileData | typeof StreamData | typeof SecretData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof FieldData | typeof ViewData | typeof ActionData | typeof PipeData | typeof MessageData | typeof RecordData | typeof SessionData | typeof RunData | typeof InterruptionData | typeof LogData | typeof SkipData
 export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeInfoData | typeof TypeConstraintData | typeof VariableObjectData | typeof MemberObjectData | typeof InputObjectData | typeof OutputObjectData | typeof ScheduleData | typeof FileInfoData | typeof IconData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathElementData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ObjectMappingData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof CallData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData | typeof DomNodeData
+export type BenchNodeData = BenchData | HandleData | ClientData | MembershipData | InviteData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | SpaceData | BlockData | FieldData | ViewData | ActionData | PipeData | MessageData | RecordData | SessionData | RunData | InterruptionData | LogData
+export type PackageNodeData = DependencyData | SpaceData | BlockData | FieldData | ViewData | ActionData | PipeData
+export type ResourceNodeData = ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData
+export type SourceNodeData = DependencyData | SpaceData | BlockData | FieldData | ViewData | ActionData | PipeData
+export type StateNodeData = MessageData | RecordData
+export type RuntimeNodeData = SessionData | RunData | InterruptionData | LogData
+export type StaticResourceNodeData = ScalerData | StoreData
+export type DynamicResourceNodeData = MachineData | BrowserData | FileData | StreamData | SecretData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -29765,8 +29835,12 @@ export enum ValueProperty {
 
 export enum ComputedValueProperty {
   metatype = 1,
+  kind = 30,
   targetPath = 41,
   sourcePath = 51,
+  sourceExpression = 52,
+  sourceCode = 53,
+  isActive = 60,
 }
 
 export enum ObjectMappingProperty {
@@ -30521,8 +30595,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.05.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.05.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.06.6", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.06.6", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30555,8 +30629,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.05.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.05.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.06.6", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.06.6", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31692,8 +31766,12 @@ export const ValueDataInfo: Record<ValueProperty, PropertyInfo> = {
 }
 export const ComputedValueDataInfo: Record<ComputedValueProperty, PropertyInfo> = {
   [ComputedValueProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COMPUTED_VALUE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ComputedValueProperty.targetPath]: { id: 41, name: 'target_path', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
-  [ComputedValueProperty.sourcePath]: { id: 51, name: 'source_path', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
+  [ComputedValueProperty.kind]: { id: 30, name: 'kind', component: ObjectType.COMPUTED_VALUE, enumType: EnumType.COMPUTED_VALUE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputedValueProperty.targetPath]: { id: 41, name: 'target_path', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
+  [ComputedValueProperty.sourcePath]: { id: 51, name: 'source_path', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
+  [ComputedValueProperty.sourceExpression]: { id: 52, name: 'source_expression', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [ComputedValueProperty.sourceCode]: { id: 53, name: 'source_code', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+  [ComputedValueProperty.isActive]: { id: 60, name: 'is_active', component: ObjectType.COMPUTED_VALUE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ObjectMappingDataInfo: Record<ObjectMappingProperty, PropertyInfo> = {
   [ObjectMappingProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.OBJECT_MAPPING, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
