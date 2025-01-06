@@ -17,10 +17,11 @@ from bench.language import (
     Scaler,
     ScalerType,
 )
-from bench.system.host.core import Commit, Host
-from bench.system.provision.provisioner import Provisioner
+from bench.system.host import Commit, Host
 from bench.utils.func import bittuple, group_by
 from bench.utils.naming import generate_random_name
+
+from .provisioner import Provisioner
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -60,6 +61,7 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
         self._reconcile_event.clear()
 
         # get resources
+        # nocheckin close no longer used graphs/connections from queries :TransientGraphs
         resources_query = self._resource_cls.where(
             self._resource_cls.get_property("bench").eq(self.bench)
             & self._resource_cls.get_property("status").neq(ResourceStatus.DECOMMISSIONED)

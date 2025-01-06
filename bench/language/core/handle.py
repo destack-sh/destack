@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Union
 
-from bench.proto.wire import (
+from bench.pb2 import (
     HandleData,
 )
 

@@ -29,8 +29,9 @@ from grpclib import GRPCError
 from more_itertools import first
 from opentelemetry import trace
 
+from bench import pb2
 from bench.language.registry import CHILD_NODE_TYPES, DESCENDANT_NODE_TYPES, NODE_CLASS_BY_TYPE
-from bench.proto.wire import (
+from bench.pb2 import (
     AggregationResultData,
     AnyNodeData,
     BenchData,
@@ -39,10 +40,10 @@ from bench.proto.wire import (
     GraphScopeData,
     NodeReferenceData,
 )
-from bench.proto.wire.common_pb2 import RpcMetadata
-from bench.proto.wire.lang_pb2 import ExpressionData
-from bench.proto.wire.system_grpc import GraphIOClient, HostClient, SupervisorClient
-from bench.proto.wire.system_pb2 import WatchGetRequest, WatchSearchRequest
+from bench.pb2.common_pb2 import RpcMetadata
+from bench.pb2.lang_pb2 import ExpressionData
+from bench.pb2.system_grpc import GraphIOClient, HostClient, SupervisorClient
+from bench.pb2.system_pb2 import WatchGetRequest, WatchSearchRequest
 from bench.utils.func import bittuple, group_by, repr_enums
 from bench.utils.task import create_task
 from bench.utils.tenacity import RETRY_GRPC, RETRY_GRPC_FOREVER, RetryOptions
@@ -1288,7 +1289,6 @@ class MemoryGetConnection[T: Node](GetConnection[MemoryChannel, T]):
     @override
     async def _do_read(self, query: "Query") -> GetResultData:
         from bench.language import NodeDataGraph, NodeReference
-        from bench.proto import wire
 
         loaded_graph = self.channel.engine.graph
         visited_graph = NodeDataGraph(
@@ -1331,8 +1331,8 @@ class MemoryGetConnection[T: Node](GetConnection[MemoryChannel, T]):
         descendant_types = query._descendant_types or ()
         if len(descendant_types) > 0:
             with tracer.start_as_current_span("memory.fetch.get_descendants"):
-                child_types_by_parent: dict[wire.NodeType, tuple[NodeType, ...]] = {
-                    cast(wire.NodeType, node_type): tuple(
+                child_types_by_parent: dict[pb2.NodeType, tuple[NodeType, ...]] = {
+                    cast(pb2.NodeType, node_type): tuple(
                         t for t in CHILD_NODE_TYPES[node_type] if t in descendant_types
                     )
                     for node_type in query.all_node_types
@@ -1341,7 +1341,7 @@ class MemoryGetConnection[T: Node](GetConnection[MemoryChannel, T]):
                 while current_parents:
                     next_parents: list[AnyNodeData] = []
                     for node in current_parents:
-                        child_types = child_types_by_parent[cast(wire.NodeType, node.metatype)]
+                        child_types = child_types_by_parent[cast(pb2.NodeType, node.metatype)]
                         for child_type in child_types:
                             children = loaded_graph.get_descendants(node, child_type)
                             visited_graph.extend(children)
@@ -1468,10 +1468,8 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
     @override
     @_rpc
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> CommitResultData:
-        from bench.proto import wire
-
         edits = list(edits)
-        request = wire.CommitTransactionRequest(
+        request = pb2.CommitTransactionRequest(
             id=str(self.session.tx.id),
             edits=edits,
             scope=self.engine.scope,
@@ -1493,12 +1491,12 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
 
     @override
     async def _do_read(self, query: "Query") -> GetResultData:
-        from bench.proto import wire, wiring
+        from bench.proto import wiring
 
         assert query._roots, f"{query!r} has no roots"
         engine = self.channel.engine
         roots_ptr = [r._to_data() for r in query._roots]
-        request = wire.GetNodesRequest(
+        request = pb2.GetNodesRequest(
             scope=engine.scope,
             roots=roots_ptr,
             block_ptr=query._base_block._to_ref_data() if query._base_block else None,
@@ -1548,10 +1546,10 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
 
     @override
     async def _do_read(self, query: "Query") -> SearchResultData:
-        from bench.proto import wire, wiring
+        from bench.proto import wiring
 
         engine = self.channel.engine
-        request = wire.SearchNodesRequest(
+        request = pb2.SearchNodesRequest(
             scope=engine.scope,
             node_type=wiring.pack_enum(NodeType, query._node_type),
             block_ptr=query._base_block._to_ref_data() if query._base_block else None,
@@ -1616,11 +1614,11 @@ class RemoteAggregateConnection(AggregateConnection[RemoteChannel]):
 
     @override
     async def _do_read(self, query: "Query") -> AggregateResultData:
-        from bench.proto import wire, wiring
+        from bench.proto import wiring
 
         engine = self.channel.engine
         assert query._aggregation is not None, f"{query!r} has no aggregation"
-        request = wire.AggregateNodesRequest(
+        request = pb2.AggregateNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
             filter=wiring.pack_builtin_object_maybe(query._filter, ExpressionData),
             aggregation=cast(ExpressionData, query._aggregation._to_data()),

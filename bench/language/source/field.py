@@ -58,7 +58,7 @@ from bench.language.core import (
     struct_,
 )
 from bench.language.registry import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS
-from bench.proto.wire import AnyNodeData, FieldData, NodeReferenceData
+from bench.pb2 import AnyNodeData, FieldData, NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import decode_b64vlq, encode_b64vlq
 

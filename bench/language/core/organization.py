@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.proto.wire import OrganizationData
+from bench.pb2 import OrganizationData
 
 from .const import NodeType, OrganizationStatus, Region, StructType
 from .list import LocalNodeList

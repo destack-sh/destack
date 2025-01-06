@@ -6,20 +6,19 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import Bench, Block, BlockType, Field, NodeType, Package, Session
-from bench.sql.core import Schema, Table
-from bench.sql.graph import (
+from bench.sql import (
     BENCH_RECORD_TABLE_PREFIX,
     BenchSqlContext,
-    get_record_table_name,
-    map_database_block_to_table,
-)
-from bench.sql.migration import (
     MigrationOpType,
+    Schema,
+    Table,
     apply_sql_migration_ops,
     generate_sql_migration_ops,
+    get_record_table_name,
     introspect_sql_schema,
+    map_database_block_to_table,
 )
-from bench.system.graph.postgres import PostgresChannel
+from bench.system.graph import PostgresChannel
 from bench.system.host.core import Commit, Host, HostPlugin
 from bench.utils.func import bittuple
 

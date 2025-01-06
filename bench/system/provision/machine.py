@@ -11,19 +11,20 @@ from kubernetes_asyncio import client as k8
 from opentelemetry import trace
 
 from bench.language import CLOUD, Bench, Machine, NodeType, ResourceStatus
-from bench.proto.networking import dockerify_url, minikubeify_url
-from bench.system.host.core import Host
-from bench.system.provision.kubernetes import (
-    KUBERNETES_MACHINE_APP_LABEL,
-    KUBERNETES_NAMESPACE,
-    KubernetesApi,
-)
-from bench.system.provision.provisioner import Provisioner
+from bench.proto import dockerify_url, minikubeify_url
+from bench.system.host import Host
 from bench.utils.analytics import SENTRY_DSN
 from bench.utils.env import ENV, IS_DEV, IS_TEST
 from bench.utils.func import bittuple
 from bench.utils.telemetry import OTLP_ENDPOINT
 from bench.utils.utils import get_from_env, get_from_env_maybe
+
+from .kubernetes import (
+    KUBERNETES_MACHINE_APP_LABEL,
+    KUBERNETES_NAMESPACE,
+    KubernetesApi,
+)
+from .provisioner import Provisioner
 
 if TYPE_CHECKING:
     pass

@@ -27,8 +27,11 @@ from bench.language import (
     NodeType,
     PrimitiveType,
 )
-from bench.sql.client import GLOBAL_PG_CRYPTO_KEY
-from bench.sql.core import (
+from bench.utils.oracle import REAL_ORACLE
+from bench.utils.tenacity import RetryOptions, retry
+
+from .client import GLOBAL_PG_CRYPTO_KEY
+from .core import (
     PG_CAST_PRIMITIVE_TYPE,
     Column,
     PostgresConditionalOp,
@@ -36,8 +39,6 @@ from bench.sql.core import (
     SqlPrimitive,
     Table,
 )
-from bench.utils.oracle import REAL_ORACLE
-from bench.utils.tenacity import RetryOptions, retry
 
 # NOTE :Performance: check out asyncpg instead of psycopg (up to 5x faster?)
 #  see https://github.com/MagicStack/asyncpg

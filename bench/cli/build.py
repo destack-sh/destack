@@ -14,7 +14,7 @@ logger = structlog.get_logger(__name__)
 def build(no_sql: bool = False, no_proto: bool = False, no_builtin: bool = False):
     from bench.cli.utils import run_shell_sync
     from bench.proto.build import _build_proto, _build_proto_schema
-    from bench.sql.build import _build_sql_schema
+    from bench.sql import _build_sql_schema
 
     # sql
     if not no_sql:

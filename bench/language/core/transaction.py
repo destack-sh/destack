@@ -11,17 +11,18 @@ from google.protobuf.struct_pb2 import Value as ProtoValue
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
+from bench import pb2
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
-from bench.proto.wire import (
+from bench.pb2 import (
     AnyNodeData,
     AnyObjectData,
     ChangeVignetteData,
     ClientOriginData,
     EditContextData,
     EditData,
+    EditOperationData,
     GraphScopeData,
 )
-from bench.proto.wire.lang_pb2 import EditOperationData
 from bench.utils.func import partition
 from bench.utils.uuidt import UUIDT
 
@@ -383,7 +384,7 @@ class Transaction:
         Turns a series of mini edits into real edits, attempting to coalesce them.
         We only merge sequential updates/moves to the same node (coalescing into moves).
         """
-        from bench.proto import wire, wiring
+        from bench.proto import wiring
 
         span = trace.get_current_span()
         span.set_attribute("edit_events", len(edit_events))
@@ -439,7 +440,7 @@ class Transaction:
 
             # context
             if edit_event.run is not None:
-                edit_context = EditContextData(metatype=wire.ObjectType.OBJECT_TYPE_EDIT_CONTEXT)
+                edit_context = EditContextData(metatype=pb2.OBJECT_TYPE_EDIT_CONTEXT)
                 run = edit_event.run
                 edit_context.run_ptr.CopyFrom(run._to_ref_data())
                 if run.root_ptr is not None:
@@ -461,7 +462,7 @@ class Transaction:
             edited_at = Timestamp()
             edited_at.FromDatetime(edit_event.now)
             edit = EditData(
-                metatype=wire.ObjectType.OBJECT_TYPE_EDIT,
+                metatype=pb2.ObjectType.OBJECT_TYPE_EDIT,
                 id=new_edit_id(),
                 type=wiring.pack_enum(EditType, edit_type),
                 node_ptr=node._to_ref_data(),
@@ -821,10 +822,10 @@ def edit_data_graph(
     """
     trace.get_current_span().set_attribute("edits", len(edits))
 
-    from bench.proto import wire, wiring
+    from bench.proto import wiring
 
     def _make_vignette(node: AnyNodeData) -> ChangeVignetteData:
-        vignette = ChangeVignetteData(metatype=wire.ObjectType.OBJECT_TYPE_CHANGE_VIGNETTE)
+        vignette = ChangeVignetteData(metatype=pb2.OBJECT_TYPE_CHANGE_VIGNETTE)
         if getattr(node, "name", None):
             vignette.name = getattr(node, "name")
         if getattr(node, "title", None):
@@ -911,15 +912,15 @@ def edit_data_graph(
                             prop = prop.reference_wired_ptr
                         if prop.is_optional_scalar and not node.HasField(prop.name):
                             new_value_packed = None
-                            op_type = wire.EDIT_OPERATION_TYPE_CLEAR
+                            op_type = pb2.EDIT_OPERATION_TYPE_CLEAR
                         else:
                             new_value = getattr(node, prop.name)
                             new_value_packed = pack_value_data(
                                 new_value, prop.type_info, wrap_scalar=False
                             )
-                            op_type = wire.EDIT_OPERATION_TYPE_SET
+                            op_type = pb2.EDIT_OPERATION_TYPE_SET
                         flat_op = EditOperationData(
-                            metatype=wire.ObjectType.OBJECT_TYPE_EDIT_OPERATION,
+                            metatype=pb2.OBJECT_TYPE_EDIT_OPERATION,
                             path=[str(prop_id)],
                             type=op_type,
                             new_value_packed=wiring.pack_proto_json(new_value_packed),

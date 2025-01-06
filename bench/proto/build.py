@@ -12,11 +12,21 @@ import structlog
 import typer
 
 from bench.language import (
+    ANCESTOR_NODE_TYPES,
+    CHILD_NODE_TYPES,
+    DESCENDANT_NODE_TYPES,
+    ENUM_CLASS_BY_TYPE,
     ENUM_TYPES,
     FILE_FORMAT_BY_EXTENSION,
     FILE_FORMAT_BY_MIME_TYPE,
+    NODE_CLASS_BY_TYPE,
+    NODE_CLASSES,
     NODE_TYPES,
+    PARENT_NODE_TYPES,
+    STRUCT_CLASS_BY_TYPE,
+    STRUCT_CLASSES,
     STRUCT_TYPES,
+    SUBNODE_CLASSES,
     TYPE_CONSTRAINT_BY_FORMAT,
     UNSET,
     VERSION,
@@ -27,24 +37,13 @@ from bench.language import (
     TypeConstraintIn,
     TypeFormat,
 )
-from bench.language.registry import (
-    ANCESTOR_NODE_TYPES,
-    CHILD_NODE_TYPES,
-    DESCENDANT_NODE_TYPES,
-    ENUM_CLASS_BY_TYPE,
-    NODE_CLASS_BY_TYPE,
-    NODE_CLASSES,
-    PARENT_NODE_TYPES,
-    STRUCT_CLASS_BY_TYPE,
-    STRUCT_CLASSES,
-    SUBNODE_CLASSES,
-)
-from bench.proto.engine import generate_proto_schema
 from bench.utils.string import Casing, to_casing
 
+from .engine import generate_proto_schema
+
 LANG_PROTO = "proto/lang.proto"
-TEMP_PY_DIR = "bench/proto/wire.tmp"
-TARGET_PY_DIR = "bench/proto/wire"
+TEMP_PY_DIR = "bench/pb2.tmp"
+TARGET_PY_DIR = "bench/pb2"
 TEMP_TS_DIR = "bench-web/src/proto/wire.tmp"
 TARGET_TS_DIR = "bench-web/src/proto/wire"
 EXTRA_PROTO_PY_FILES = (
@@ -190,7 +189,8 @@ def _build_proto(schema_str: str) -> None:
 # ruff: noqa
 
 from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
-    """
+
+"""
         path.write_text(patch_prefix_code + "\n\n" + wire_py)
 
     Path(TEMP_PY_DIR + "/__init__.py").write_text(f"""

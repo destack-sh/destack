@@ -9,9 +9,6 @@ from grpclib.utils import graceful_exit
 from bench.cli.utils import async_to_sync
 from bench.language.core import ClientType
 from bench.proto.services import GrpcServer, ServiceBase
-from bench.runtime.thread import RuntimeThread
-from bench.system.utils.session import regional_store_from_env
-from bench.system.utils.sharding import STORE_MAP
 from bench.utils.env import ENV, IS_DEV
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.utils import get_from_env, get_from_env_maybe
@@ -44,10 +41,14 @@ async def system(
     watch: bool = False,
     no_supervisor: bool = False,
 ):
-    from bench.system.host.router import HostRouterService
-    from bench.system.supervisor.supervisor import SupervisorService
-    from bench.system.utils.session import global_store_from_env, regional_store_from_env
-    from bench.system.utils.sharding import HOST_MAP
+    from bench.system import (
+        HOST_MAP,
+        STORE_MAP,
+        HostRouterService,
+        SupervisorService,
+        global_store_from_env,
+        regional_store_from_env,
+    )
 
     global_store = global_store_from_env()
     regional_store = regional_store_from_env()
@@ -66,9 +67,7 @@ async def system(
 @app.command()
 @async_to_sync
 async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
-    from bench.system.supervisor.supervisor import SupervisorService
-    from bench.system.utils.session import global_store_from_env
-    from bench.system.utils.sharding import HOST_MAP
+    from bench.system import HOST_MAP, STORE_MAP, SupervisorService, global_store_from_env
 
     global_store = global_store_from_env()
     supervisor = SupervisorService(
@@ -80,8 +79,7 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
 @app.command()
 @async_to_sync
 async def host(host: str, port: int, watch: bool = False, no_check: bool = False):
-    from bench.system.host.router import HostRouterService
-    from bench.system.utils.session import global_store_from_env
+    from bench.system import HostRouterService, global_store_from_env, regional_store_from_env
 
     global_store = global_store_from_env()
     regional_store = regional_store_from_env()
@@ -94,7 +92,7 @@ async def host(host: str, port: int, watch: bool = False, no_check: bool = False
 @app.command()
 @async_to_sync
 async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = False):
-    from bench.runtime.runtime import RuntimeService, RuntimeThreadMode
+    from bench.runtime import RuntimeService, RuntimeThread, RuntimeThreadMode
 
     logger.info("serve.runtime", host=host, port=port, env=ENV)
 

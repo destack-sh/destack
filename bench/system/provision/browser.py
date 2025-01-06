@@ -1,10 +1,11 @@
 from typing import override
 
 from bench.language import Browser, NodeType, ResourceStatus
-from bench.system.provision.browserbase import browserbase_api
-from bench.system.provision.playwright import playwright_server
-from bench.system.provision.provisioner import Provisioner
 from bench.utils.func import bittuple
+
+from .browserbase import browserbase_api
+from .playwright import playwright_server
+from .provisioner import Provisioner
 
 
 class BrowserbaseBrowserProvisioner(Provisioner[Browser, Browser]):

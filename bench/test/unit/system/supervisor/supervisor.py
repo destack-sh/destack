@@ -4,9 +4,9 @@ from uuid import uuid4
 import pytest
 from grpclib import Status as GRPCStatus
 
+from bench import pb2
 from bench.language import EMPTY_SCOPE_DATA, NodeReference, Property, SelectOptions, Store, User
-from bench.proto import wire
-from bench.proto.wire import (
+from bench.proto import (
     ClientDataIn,
     GetNodesRequest,
     LoginUserRequest,
@@ -15,10 +15,9 @@ from bench.proto.wire import (
     SignupUserRequest,
     SupervisorClient,
     UserData,
+    pack_rpc_headers,
 )
-from bench.proto.wiring import pack_rpc_headers
-from bench.system.supervisor.supervisor import SupervisorService
-from bench.system.utils.sharding import HostMap, StoreMap
+from bench.system import HostMap, StoreMap, SupervisorService
 from bench.test.fixtures import raises_grpc_error
 from bench.test.simulation.transport import SimulatedChannel
 from bench.utils.oracle import REAL_ORACLE
@@ -55,11 +54,11 @@ async def test_user_registration(supervisor: SupervisorClient):
     client_device_name = "pytest"
 
     user_in = UserData(
-        slug=user_slug, name=user_name, email=user_email, region=wire.Region.REGION_ZURICH
+        slug=user_slug, name=user_name, email=user_email, region=pb2.Region.REGION_ZURICH
     )
     client_in = ClientDataIn(
         id=str(uuid4()),
-        type=wire.ClientType.CLIENT_TYPE_BENCH_WEB,
+        type=pb2.ClientType.CLIENT_TYPE_BENCH_WEB,
         name=client_name,
         device_name=client_device_name,
     )
@@ -95,7 +94,7 @@ async def test_user_registration(supervisor: SupervisorClient):
     read_user_req = GetNodesRequest(
         scope=EMPTY_SCOPE_DATA,
         roots=[NodeReference._ref_data_from_node_data(signup_rep.user)],
-        descendant_types=[wire.NodeType.NODE_TYPE_CLIENT, wire.NodeType.NODE_TYPE_HANDLE],
+        descendant_types=[pb2.NodeType.NODE_TYPE_CLIENT, pb2.NodeType.NODE_TYPE_HANDLE],
         select=select,
     )
     access_metadata = RpcMetadata(

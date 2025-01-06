@@ -16,7 +16,7 @@ from bench.language.core import (
     p_value_runtime,
 )
 from bench.language.source import TypeBase
-from bench.proto.wire import AnyNodeData, NodeReferenceData, RecordData
+from bench.pb2 import AnyNodeData, NodeReferenceData, RecordData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:

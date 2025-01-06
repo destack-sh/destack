@@ -25,9 +25,8 @@ from bench.language import (
     Store,
     clean_name,
 )
-from bench.sql.client import get_pg_pool, pg_connection
-from bench.sql.core import ALL_EXTENSIONS, Schema
-from bench.sql.graph import (
+from bench.sql import (
+    ALL_EXTENSIONS,
     BENCH_RECORD_TABLE_PREFIX,
     BENCH_TABLE_PREFIX,
     BUILTIN_GLOBAL_SCHEMA,
@@ -35,14 +34,15 @@ from bench.sql.graph import (
     BUILTIN_LOCAL_TABLES,
     BUILTIN_REGIONAL_SCHEMA,
     BUILTIN_REGIONAL_TABLES,
-    sqlstr,
-)
-from bench.sql.migration import (
+    Schema,
     apply_sql_migration_ops,
     generate_sql_migration_ops,
+    get_pg_pool,
     introspect_sql_schema,
+    pg_connection,
+    sqlstr,
 )
-from bench.system.utils.session import BEGINNING_OF_TIME, global_store_from_env
+from bench.system import BEGINNING_OF_TIME, global_store_from_env
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)

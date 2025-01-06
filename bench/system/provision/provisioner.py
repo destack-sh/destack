@@ -210,7 +210,7 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
 
 async def provision(host: Host, bench: Bench, resources: Collection[Resource]) -> None:
     """Provisions the given resources in *this* environment"""
-    from bench.system.provision.registry import get_provisioners
+    from .registry import get_provisioners
 
     provisioners = get_provisioners(host, bench)
     for resource in resources:
@@ -224,7 +224,7 @@ async def provision(host: Host, bench: Bench, resources: Collection[Resource]) -
 
 async def decommission(host: Host, bench: Bench, resources: Collection[Resource]) -> None:
     """Decommissions the given resources in *this* environment"""
-    from bench.system.provision.registry import get_provisioners
+    from .registry import get_provisioners
 
     provisioners = get_provisioners(host, bench)
     for resource in resources:

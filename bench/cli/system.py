@@ -36,8 +36,8 @@ logger = structlog.get_logger(__name__)
 @app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")
 @async_to_sync
 async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)] = REGION):
-    from bench.system.supervisor.supervisor import create_default_bench
-    from bench.system.utils.session import (
+    from bench.system import (
+        create_default_bench,
         global_session,
         global_store_from_env,
         pg_engine_from_store,
@@ -96,8 +96,8 @@ async def make_local_machine(
     title: str = "Localhost",
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
 ):
-    from bench.system.utils.access import ACCESS_TOKEN_LENGTH
-    from bench.system.utils.session import (
+    from bench.system import (
+        ACCESS_TOKEN_LENGTH,
         global_session,
         global_store_from_env,
         pg_engine_from_store,

@@ -9,9 +9,8 @@ app = typer.Typer(short_help="test utilities")
 @app.command("prune")
 @async_to_sync
 async def prune(prefix="test"):
-    from bench.sql.client import pg_connection
-    from bench.sql.engine import pg_select_raw, sqlstr
-    from bench.system.utils.session import global_store_from_env
+    from bench.sql import pg_connection, pg_select_raw, sqlstr
+    from bench.system import global_store_from_env
 
     """Prune all artifacts with the given prefix"""
     console = Console()

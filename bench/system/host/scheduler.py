@@ -22,8 +22,7 @@ from bench.language import (
     Session,
     Text,
 )
-from bench.proto.services import get_channel
-from bench.proto.wire import RunRequest, RuntimeClient
+from bench.proto import RunRequest, RuntimeClient, get_channel
 from bench.system.host.core import Commit, Host, HostPlugin
 from bench.utils.func import bittuple
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState

@@ -10,6 +10,7 @@ import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
 
+from bench import pb2
 from bench.language import (
     BENCH_NODE_TYPES,
     EMPTY_SCOPE_DATA,
@@ -30,15 +31,14 @@ from bench.language import (
     Session,
     User,
 )
-from bench.proto import wire
-from bench.proto.networking import localize_url
-from bench.proto.services import ServiceBase, get_channel, get_rpc_metadata
-from bench.proto.wire import (
+from bench.pb2 import (
     GraphScopeData,
     HostClient,
     ResolveHostsRequest,
     SupervisorClient,
 )
+from bench.proto.networking import localize_url
+from bench.proto.services import ServiceBase, get_channel, get_rpc_metadata
 from bench.proto.wiring import pack_rpc_headers
 from bench.utils.oracle import Oracle
 from bench.utils.sync import CriticalLock
@@ -149,7 +149,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         # setup host
         self._host = await self.resolve_host_client(self._bench_id)
         bench_scope = GraphScopeData(
-            metatype=wire.ObjectType.OBJECT_TYPE_GRAPH_SCOPE, bench_id=str(self._bench_id)
+            metatype=pb2.ObjectType.OBJECT_TYPE_GRAPH_SCOPE, bench_id=str(self._bench_id)
         )
         self._engines = (
             # global engine

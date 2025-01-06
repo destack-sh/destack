@@ -23,7 +23,7 @@ from bench.language.core import (
     timed_node_,
 )
 from bench.language.source import TypeBase, constraint
-from bench.proto.wire import AnyNodeData, MessageData, NodeReferenceData
+from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:

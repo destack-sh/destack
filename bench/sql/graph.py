@@ -27,6 +27,7 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 from pydantic import JsonValue
 
+from bench import pb2
 from bench.language import (
     CASCADING_EDIT_TYPES,
     DESCENDANT_NODE_TYPES_IN_STORE,
@@ -79,8 +80,7 @@ from bench.language import (
     unpack_value,
     unpack_value_data,
 )
-from bench.proto import wire, wiring
-from bench.proto.wire import (
+from bench.pb2 import (
     AnyNodeData,
     Date,
     EditData,
@@ -88,10 +88,17 @@ from bench.proto.wire import (
     NodeReferenceData,
     TimeOfDay,
 )
+from bench.proto import wiring
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
-from bench.sql import schema
-from bench.sql.client import GLOBAL_PG_CRYPTO_KEY
-from bench.sql.core import (
+from bench.utils.env import IS_DEV
+from bench.utils.func import bittuple, describe_type, group_by, to_uuid
+from bench.utils.string import Casing, to_casing
+from bench.utils.time import timedelta_from_isoformat
+from bench.utils.uuidt import UUIDT
+
+from . import schema
+from .client import GLOBAL_PG_CRYPTO_KEY
+from .core import (
     DEFAULT_GLOBAL_TABLES,
     DEFAULT_LOCAL_TABLES,
     DEFAULT_REGIONAL_TABLES,
@@ -111,7 +118,7 @@ from bench.sql.core import (
     SqlPrimitive,
     Table,
 )
-from bench.sql.engine import (
+from .engine import (
     RowIn,
     RowOut,
     SqlComparison,
@@ -132,11 +139,6 @@ from bench.sql.engine import (
     sqljoin,
     sqlstr,
 )
-from bench.utils.env import IS_DEV
-from bench.utils.func import bittuple, describe_type, group_by, to_uuid
-from bench.utils.string import Casing, to_casing
-from bench.utils.time import timedelta_from_isoformat
-from bench.utils.uuidt import UUIDT
 
 GLOBAL_CONTEXT = SqlContext()
 BENCH_TABLE_PREFIX = "bench_"
@@ -709,9 +711,9 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
             ids = cast(list[UUID] | None, row.get(stored_prop.name))
             for id in ids or ():
                 ptr: NodeReferenceData = ptrs.add()
-                ptr.metatype = wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE
+                ptr.metatype = pb2.ObjectType.OBJECT_TYPE_NODE_REFERENCE
                 ptr.id = str(id)
-                ptr.node_type = cast(list[wire.NodeType], stored_prop.reference_nodes)[0]
+                ptr.node_type = cast(list[pb2.NodeType], stored_prop.reference_nodes)[0]
         # additional pointer metadata
         for i, ptr in enumerate(ptrs):
             for meta_key, meta_prop in prop.reference_stored_metas.items():
@@ -737,10 +739,10 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
             value = cast(UUID | None, row.get(stored_prop.name))
             if value is not None:
                 ptr = NodeReferenceData(
-                    metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
+                    metatype=pb2.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
                     id=str(value),
                     # if this is a heterogeneous ck pointer, type will be overwritten from extras
-                    node_type=cast(list[wire.NodeType], stored_prop.reference_nodes)[0],
+                    node_type=cast(list[pb2.NodeType], stored_prop.reference_nodes)[0],
                 )
                 break
         else:
@@ -1103,9 +1105,9 @@ async def _pg_graph_walk_down(
             )
             for child_row in children_rows:
                 child_ptr = NodeReferenceData(
-                    metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
+                    metatype=pb2.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
                     id=str(child_row["id"]),
-                    node_type=cast(wire.NodeType, child_type),
+                    node_type=cast(pb2.NodeType, child_type),
                 )
                 next_parents.append(child_ptr)
                 all_descendants.append(child_ptr)
@@ -1408,7 +1410,7 @@ async def _pg_edit_cascade(
         for node_ptr in node_ptrs:
             cascaded_edit = EditData(
                 id=str(UUIDT()),
-                type=cast(wire.EditType, edit_type),
+                type=cast(pb2.EditType, edit_type),
                 node_ptr=node_ptr,
                 edited_at=root_edit.edited_at,
                 epoch=root_edit.epoch,

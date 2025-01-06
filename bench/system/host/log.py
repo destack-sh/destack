@@ -1,5 +1,6 @@
 from typing import Any, Sequence, cast, override
 
+from bench import pb2
 from bench.language import (
     NODE_CLASS_BY_TYPE,
     RUNTIME_NODE_TYPES,
@@ -9,11 +10,10 @@ from bench.language import (
     pack_builtin_object_data,
     pack_proto_json,
 )
-from bench.proto import wire
-from bench.proto.wire.lang_pb2 import ContextData, EditData, LogData
-from bench.proto.wiring import unwrap_some_node, wrap_some_node
-from bench.system.host.core import Commit, HostPlugin
+from bench.proto import ContextData, EditData, LogData, unwrap_some_node, wrap_some_node
 from bench.utils.uuidt import UUIDT
+
+from .core import Commit, HostPlugin
 
 
 class LogPlugin(HostPlugin):
@@ -53,7 +53,7 @@ class LogPlugin(HostPlugin):
             # trim secret properties
             node_data = _trim_node_packed_sensitive(node_type, node_data)
             log_data = LogData(
-                metatype=wire.ObjectType.OBJECT_TYPE_LOG,
+                metatype=pb2.ObjectType.OBJECT_TYPE_LOG,
                 id=str(UUIDT()),
                 parent_ptr=bench_ptr_data,
                 bench_ptr=bench_ptr_data,
@@ -62,10 +62,10 @@ class LogPlugin(HostPlugin):
                 updated_at=edit.edited_at,
                 updated_epoch=edit.epoch,
                 # meta
-                kind=wire.LogKind.LOG_KIND_CHANGE,
-                level=wire.LogLevel.LOG_LEVEL_INFO,
+                kind=pb2.LogKind.LOG_KIND_CHANGE,
+                level=pb2.LogLevel.LOG_LEVEL_INFO,
                 # content
-                type=cast(wire.AccessType, edit.type),
+                type=cast(pb2.AccessType, edit.type),
                 operations=edit.operations,
             )
             # meta
@@ -100,7 +100,7 @@ class LogPlugin(HostPlugin):
                 log_data.identity_ptr.CopyFrom(edit.context.identity_ptr)
             create_log_edit = EditData(
                 id=log_data.id,
-                type=wire.EditType.EDIT_TYPE_CREATE,
+                type=pb2.EditType.EDIT_TYPE_CREATE,
                 scope=edit.scope,
                 node_ptr=NodeReference._ref_data_from_node_data(log_data),
                 epoch=edit.epoch,

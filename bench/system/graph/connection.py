@@ -28,13 +28,13 @@ from bench.language import (
     apply_sort,
     evaluate_conditional,
 )
-from bench.proto.wire import (
+from bench.proto import (
     AnyNodeData,
     EditData,
     GraphScopeData,
     NodeReferenceData,
+    unwrap_some_node,
 )
-from bench.proto.wiring import unwrap_some_node
 from bench.utils.func import bittuple, generate_access_token
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env

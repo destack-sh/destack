@@ -1,12 +1,10 @@
 import psycopg
 
 from bench.language import NodeArea
-from bench.sql.core import ObjectKind
-from bench.sql.graph import (
+from bench.sql import (
     BENCH_TABLE_PREFIX,
     BUILTIN_SCHEMA_BY_AREA,
-)
-from bench.sql.migration import (
+    ObjectKind,
     generate_sql_migration_ops,
     introspect_sql_schema,
     read_migrations_from_fs,

@@ -32,16 +32,15 @@ from bench.language import (
     WritableChannel,
     repr_scope,
 )
-from bench.proto.wire import (
+from bench.proto import (
     AggregationResultData,
     EditData,
     GraphScopeData,
 )
-from bench.sql.client import PostgresConnection, get_pg_pool
-from bench.sql.engine import (
+from bench.sql import (
+    PostgresConnection,
     SqlContext,
-)
-from bench.sql.graph import (
+    get_pg_pool,
     pg_graph_count,
     pg_graph_edit,
     pg_graph_exists,
@@ -98,7 +97,7 @@ def _pg_method(func):
     @wraps(func)
     @tracer.start_as_current_span(f"postgres.{method_name}")
     async def wrapper(self: "PostgresChannel", *args, **kwargs):
-        from bench.sql.engine import SqlConnectionError
+        from bench.sql import SqlConnectionError
 
         try:
             return await func(self, *args, **kwargs)

@@ -20,10 +20,7 @@ from bench.language import (
     Store,
     Subject,
 )
-from bench.proto.services import ServiceBase
-from bench.proto.wire import GraphScopeData, HostBase, ServiceKind
-from bench.proto.wire.common_pb2 import RpcMetadata
-from bench.proto.wire.system_pb2 import (
+from bench.proto import (
     AggregateNodesRequest,
     AggregateNodesResponse,
     CommitTransactionRequest,
@@ -32,8 +29,13 @@ from bench.proto.wire.system_pb2 import (
     DownloadFilesResponse,
     GetNodesRequest,
     GetNodesResponse,
+    GraphScopeData,
+    HostBase,
+    RpcMetadata,
     SearchNodesRequest,
     SearchNodesResponse,
+    ServiceBase,
+    ServiceKind,
     UploadFilesRequest,
     UploadFilesResponse,
     WatchAggregateRequest,
@@ -43,12 +45,13 @@ from bench.proto.wire.system_pb2 import (
     WatchSearchRequest,
     WatchSearchResponse,
 )
-from bench.system.host.host import HostService
-from bench.system.utils.session import global_session, pg_engine_from_store
+from bench.system.core import global_session, pg_engine_from_store
 from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
 from bench.utils.utils import get_from_env
+
+from .host import HostService
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

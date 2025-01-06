@@ -27,8 +27,7 @@ from bench.language import (
     Session,
     User,
 )
-from bench.proto.wire import HostClient, RpcMetadata, SupervisorClient
-from bench.proto.wiring import unpack_builtin_object
+from bench.proto import HostClient, RpcMetadata, SupervisorClient, unpack_builtin_object
 from bench.test.simulation.spec import WorkloadSpec, WorkloadType
 from bench.test.simulation.utils import SampledFloat, SampledInt, to_value
 from bench.test.utils import assert_graph_equals

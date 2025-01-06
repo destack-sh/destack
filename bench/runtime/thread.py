@@ -17,13 +17,13 @@ from bench.language import (
     Run,
     WatchGetUpdate,
 )
-from bench.proto import wiring
-from bench.proto.wire import (
+from bench.pb2 import (
     RunRequest,
     RunResponse,
     RuntimeBase,
     ServiceKind,
 )
+from bench.proto import wiring
 from bench.runtime.base import RuntimeServiceBase
 from bench.runtime.code.context import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
 from bench.runtime.core import RedisCache, Runtime

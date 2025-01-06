@@ -157,7 +157,7 @@ async def test_move_database(hosted_runtime: RuntimeHandle):
             fields=[Field.member("Alias", str), Field.member("Image", FileType.IMAGE)],
         )
     )
-    Record1 = Database1.records.create(title="Record1", Alias="1")
+    Record1 = Database1.records.create(name="Record1", Alias="1")
     await hosted_runtime.session.commit()
 
     # query database in Page1
@@ -166,7 +166,7 @@ async def test_move_database(hosted_runtime: RuntimeHandle):
 
     # move database to Page2
     Database1.move(to=Page2)
-    Record2 = Database1.records.create(title="Record2", Alias="2")
+    Record2 = Database1.records.create(name="Record2", Alias="2")
     await hosted_runtime.session.commit()
 
     # query database in Page2
@@ -304,7 +304,7 @@ async def test_record_recursive_reference(hosted_runtime: RuntimeHandle):
     Database1 = Block.new(BlockType.DATABASE, "Database1")
     Database1.fields.append(Field.member("Record", Database1))
     hosted_runtime.page().blocks.append(Database1)
-    Record1 = Database1.records.create(title="Record1")
+    Record1 = Database1.records.create(name="Record1")
     Record1.Record = Record1  # type: ignore
     await hosted_runtime.session.commit()
     assert Record1.Record == Record1  # type: ignore

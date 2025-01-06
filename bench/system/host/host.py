@@ -56,43 +56,43 @@ from bench.language import (
     sync_node,
 )
 from bench.language.builtin import make_builtins
-from bench.proto.wire import (
+from bench.proto import (
     DownloadFilesRequest,
     DownloadFilesResponse,
     EditData,
     GraphScopeData,
     HostBase,
+    RpcMetadata,
     ServiceKind,
     UploadFilesRequest,
     UploadFilesResponse,
-)
-from bench.proto.wire.common_pb2 import RpcMetadata
-from bench.proto.wiring import (
     unpack_builtin_object_validate,
     unpack_node_graph,
 )
-from bench.system.graph.graph import (
-    GraphIoServiceBase,
-    extract_commit_area,
-    validate_edit,
-)
-from bench.system.graph.postgres import PostgresEngine
-from bench.system.host.core import Host, HostPlugin, unpack_commit
-from bench.system.host.database import DatabasePlugin
-from bench.system.host.scheduler import RunPlugin
-from bench.system.provision.provisioner import Provisioner
-from bench.system.provision.registry import get_provisioners
-from bench.system.utils.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
-from bench.system.utils.aws import get_s3_client_for_presigning
-from bench.system.utils.session import (
+from bench.system.core import (
+    CLIENT_CACHE_ENABLED,
+    ClientCache,
+    get_client,
+    get_s3_client_for_presigning,
     global_session,
     local_pg_engine_from_store,
     pg_engine_from_store,
 )
+from bench.system.graph import (
+    GraphIoServiceBase,
+    PostgresEngine,
+    extract_commit_area,
+    validate_edit,
+)
+from bench.system.provision import Provisioner, get_provisioners
 from bench.utils.env import ENV
 from bench.utils.func import bittuple, to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
+
+from .core import Host, HostPlugin, unpack_commit
+from .database import DatabasePlugin
+from .scheduler import RunPlugin
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

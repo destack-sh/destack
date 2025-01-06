@@ -36,7 +36,7 @@ from bench.language.registry import (
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
 )
-from bench.proto.wire import AnyNodeData, AnyStructData, Date, TimeOfDay
+from bench.pb2 import AnyNodeData, AnyStructData, Date, TimeOfDay
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat

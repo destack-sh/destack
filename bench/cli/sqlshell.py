@@ -24,7 +24,7 @@ async def shell(
     bench: Optional[str] = None,
 ):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
-    from bench.system.utils.session import (
+    from bench.system import (
         global_session,
         global_store_from_env,
         pg_engine_from_store,

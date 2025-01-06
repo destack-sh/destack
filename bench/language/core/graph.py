@@ -14,7 +14,7 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.proto.wire import AnyNodeData, GraphScopeData
+from bench.pb2 import AnyNodeData, GraphScopeData
 from bench.utils.func import bittuple
 
 from .const import EMPTY_LIST, NodeType, ObjectType
@@ -454,6 +454,8 @@ class NodeSuperGraph:
             raise RuntimeError(f"{graph!r} is already in {graph.supergraph!r}, not {self!r}")
         assert graph not in self._graphs, f"{graph!r} already in {self!r}"
         self._graphs = (*self._graphs, graph)
+        if self._base is None:
+            print("add graph", repr(self), len(self._graphs), repr(graph))
         for node_type in graph.node_types:
             if node_type not in self._graphs_by_node_type:
                 self._graphs_by_node_type[node_type] = (graph,)
@@ -467,6 +469,8 @@ class NodeSuperGraph:
         """Remove a graph from this supergraph."""
         assert graph in self._graphs, f"{graph!r} not in {self!r}"
         self._graphs = tuple(g for g in self._graphs if g is not graph)
+        if self._base is None:
+            print("remove graph", repr(self), len(self._graphs), repr(graph))
         for node_type in graph.node_types:
             self._graphs_by_node_type[node_type] = tuple(
                 g for g in self._graphs_by_node_type[node_type] if g is not graph

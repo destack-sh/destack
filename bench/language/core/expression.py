@@ -10,7 +10,7 @@ import regex
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from bench.proto.wire import AnyNodeData, NodeReferenceData
+from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
 

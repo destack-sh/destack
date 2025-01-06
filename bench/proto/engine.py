@@ -1,17 +1,20 @@
 import enum
 from typing import TYPE_CHECKING, Any, Collection, Sequence, Union, cast
 
-from bench.language.core import EnumType, PrimitiveType
-from bench.language.core import BuiltinObject, Node
-from bench.language.registry import (
+from bench.language import (
     BENCH_CLASS_BY_TYPE,
     FINAL_BENCH_CLASSES,
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
+    BuiltinObject,
+    EnumType,
+    Node,
+    PrimitiveType,
 )
-from bench.proto.core import Enum, EnumValue, Field, FieldType, Message, ProtoSchema, ProtoThing
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
+
+from .core import Enum, EnumValue, Field, FieldType, Message, ProtoSchema, ProtoThing
 
 if TYPE_CHECKING:
     from bench.language import Property

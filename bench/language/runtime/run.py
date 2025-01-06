@@ -37,7 +37,7 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
+from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
 from bench.utils.tenacity import RetryOptions

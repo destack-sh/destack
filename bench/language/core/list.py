@@ -35,7 +35,7 @@ if TYPE_CHECKING:
         Query,
         Struct,
     )
-    from bench.proto.wire import AnyNodeData
+    from bench.pb2 import AnyNodeData
 
 FieldOrProperty = Union["Field", "Property"]
 NodeTypeOrClass = Union[NodeType, type["Node"]]

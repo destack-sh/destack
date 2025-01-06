@@ -10,8 +10,8 @@ from bench.language import (
     Store,
     User,
 )
-from bench.system.host.core import HostProxy
-from bench.system.utils.session import local_pg_engine_from_store
+from bench.system.core import local_pg_engine_from_store
+from bench.system.host import HostProxy
 
 
 async def create_default_bench(

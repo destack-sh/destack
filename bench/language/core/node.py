@@ -37,6 +37,7 @@ from bitarray import bitarray
 from more_itertools import first
 from opentelemetry import trace
 
+from bench import pb2
 from bench.language.registry import (
     BUILTIN_OBJECT_CLASS_BY_TYPE,
     DESCENDANT_NODE_TYPES,
@@ -45,7 +46,7 @@ from bench.language.registry import (
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
 )
-from bench.proto.wire import (
+from bench.pb2 import (
     AnyNodeData,
     AnyObjectData,
     AnyStructData,
@@ -54,7 +55,7 @@ from bench.proto.wire import (
     NodeReferenceData,
     lang_pb2,
 )
-from bench.proto.wire.lang_pb2 import EditOperationData
+from bench.pb2.lang_pb2 import EditOperationData
 from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.func import IdEnum, bittuple, is_close, stable_hash
 from bench.utils.string import Casing, to_casing, to_code_name
@@ -2865,12 +2866,10 @@ class NodeReference(Struct[NodeReferenceData]):
 
     @staticmethod
     def _ref_data_from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
-        from bench.proto import wire
-
         node_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[cast(ObjectType, node_data.metatype)]
         reference = NodeReferenceData(
-            metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
-            node_type=cast(wire.NodeType, node_data.metatype),
+            metatype=pb2.OBJECT_TYPE_NODE_REFERENCE,
+            node_type=cast(pb2.NodeType, node_data.metatype),
             id=node_data.id,
             ck=getattr(node_data, "ck", node_data.id),
         )

@@ -26,8 +26,7 @@ from bench.language import (
     User,
     UserStatus,
 )
-from bench.proto import wiring
-from bench.proto.wire import (
+from bench.proto import (
     ChangeUserPasswordRequest,
     ChangeUserPasswordResponse,
     ClientDataIn,
@@ -44,25 +43,26 @@ from bench.proto.wire import (
     SignupUserRequest,
     SignupUserResponse,
     SupervisorBase,
+    wiring,
 )
-from bench.system.graph.graph import GraphIoServiceBase
-from bench.system.supervisor.bench import create_default_bench
-from bench.system.utils.access import (
+from bench.system.core import (
     ACCESS_TOKEN_LENGTH,
     SALT_LENGTH,
+    HostMap,
+    StoreMap,
     check_password,
     get_client,
+    global_session,
     hash_password,
+    pg_engine_from_store,
     purge_client_caches,
 )
-from bench.system.utils.session import (
-    global_session,
-    pg_engine_from_store,
-)
-from bench.system.utils.sharding import HostMap, StoreMap
+from bench.system.graph import GraphIoServiceBase
 from bench.utils.func import bittuple, generate_access_token, generate_salt, to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
+
+from .bench import create_default_bench
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

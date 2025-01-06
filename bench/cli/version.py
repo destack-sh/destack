@@ -40,7 +40,7 @@ def bump(revision: int | None = typer.Option(None)):
     for path in (
         "bench/language/core/const.py",
         "bench/sql/schema.py",
-        "bench/proto/wire/__init__.py",
+        "bench/pb2/__init__.py",
         "bench-web/package.json",
         "bench-web/src/utils/globals.ts",
     ):

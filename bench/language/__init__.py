@@ -5,10 +5,12 @@ from .registry import (
     BENCH_CLASS_BY_TYPE,  # noqa: F401
     BUILTIN_OBJECT_CLASS_BY_TYPE,  # noqa: F401
     BUILTIN_OBJECT_TYPE_BY_CLASS,  # noqa: F401
+    CHILD_NODE_TYPES,  # noqa: F401
     DESCENDANT_NODE_TYPES,  # noqa: F401
     DESCENDANT_NODE_TYPES_IN_STORE,  # noqa: F401
     ENUM_CLASS_BY_TYPE,  # noqa: F401
     ENUM_TYPE_BY_CLASS,  # noqa: F401
+    FINAL_BENCH_CLASSES,  # noqa: F401
     HAS_CHILD_NODE_TYPES,  # noqa: F401
     NODE_CLASS_BY_NAME,  # noqa: F401
     NODE_CLASS_BY_TYPE,  # noqa: F401
@@ -18,6 +20,7 @@ from .registry import (
     PARENT_NODE_TYPES,  # noqa: F401
     STRUCT_CLASS_BY_TYPE,  # noqa: F401
     STRUCT_CLASSES,  # noqa: F401
+    SUBNODE_CLASSES,  # noqa: F401
     _complete_bench_setup,
 )
 from .resource import *  # noqa: F403

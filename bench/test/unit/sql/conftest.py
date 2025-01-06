@@ -1,7 +1,7 @@
 import pytest
 
 from bench.language import Store
-from bench.sql.client import pg_connection
+from bench.sql import pg_connection
 
 
 @pytest.fixture

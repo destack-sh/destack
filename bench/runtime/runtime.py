@@ -14,8 +14,7 @@ from grpclib.client import Channel
 from opentelemetry import trace
 
 from bench.language import ClientType, NodeReference, Run
-from bench.proto import wiring
-from bench.proto.wire import (
+from bench.pb2 import (
     HealthCheckRequest,
     HealthClient,
     HostClient,
@@ -25,6 +24,7 @@ from bench.proto.wire import (
     RuntimeClient,
     ServiceKind,
 )
+from bench.proto import wiring
 from bench.runtime.base import RuntimeServiceBase, RuntimeThreadMode
 from bench.runtime.thread import RuntimeThread
 from bench.utils.oracle import Oracle

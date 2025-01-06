@@ -27,7 +27,7 @@ from bench.language.core import (
     p_value_packed,
     struct_,
 )
-from bench.proto.wire import SpaceData, ViewData
+from bench.pb2 import SpaceData, ViewData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.proto.wire import (
+from bench.pb2 import (
     BenchData,
     DependencyData,
     PackageData,

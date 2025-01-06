@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from bench.proto.wire import InviteData, MembershipData, UserData
+from bench.pb2 import InviteData, MembershipData, UserData
 
 from .const import (
     BlockType,

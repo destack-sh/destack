@@ -26,10 +26,9 @@ from bench.language import (
     get_path,
     render,
 )
-from bench.proto import wire
+from bench.pb2.lang_pb2 import GraphScopeData
+from bench.pb2.system_grpc import HostClient, SupervisorClient
 from bench.proto.services import get_channel, get_rpc_metadata
-from bench.proto.wire.lang_pb2 import GraphScopeData
-from bench.proto.wire.system_grpc import HostClient, SupervisorClient
 from bench.runtime.code import STATIC_CODE_GLOBALS
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
@@ -49,11 +48,8 @@ async def shell(
     user: str | None = typer.Option(None, help="User slug"),
 ) -> None:  # type: ignore
     """Open a runtime-like shell to a Bench."""
-    from bench.system.utils.session import (
-        global_session,
-        global_store_from_env,
-        pg_engine_from_store,
-    )
+    from bench import pb2
+    from bench.system import global_session, global_store_from_env, pg_engine_from_store
 
     supervisor_url = get_from_env("SUPERVISOR_URL")
     supervisor = SupervisorClient(get_channel(supervisor_url))
@@ -82,7 +78,7 @@ async def shell(
     supergraph = session._supergraph
     supergraph._root_ptr = bench_node.to_ref()
     bench_scope = GraphScopeData(
-        metatype=wire.ObjectType.OBJECT_TYPE_GRAPH_SCOPE, bench_id=str(bench_node.id)
+        metatype=pb2.ObjectType.OBJECT_TYPE_GRAPH_SCOPE, bench_id=str(bench_node.id)
     )
     remote_engines = (
         # global engine
