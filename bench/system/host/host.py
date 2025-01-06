@@ -148,7 +148,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             regional_store,
             NodeArea.REGIONAL,
         )
-        self._supergraph = NodeSuperGraph(self.bench_ptr)
+        self._supergraph = NodeSuperGraph(name="Host", root_ptr=self.bench_ptr)
         self._client_cache = ClientCache(ttl=60)
         self._bench: Bench | None = None
         self._main_package: Package | None = None
@@ -278,9 +278,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         # NOTE :Incomplete: get roles/memberships/identities/... for subject in this bench
 
         # use new supergraph instance for session
-        # NOTE :Cleanup :Architecture: putting the request supergraph in the request subject
-        #  feels a bit indirect and clumsy, but it has to be the same supergraph during the request.
-        supergraph = self._supergraph.instance()
+        supergraph = self._supergraph.instance(name="Request")
         subject = Subject(
             is_authenticated=client is not None,
             is_staff=is_staff,
@@ -583,7 +581,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         commit = unpack_commit(
             session=session,
             graph=graph,
-            supergraph=session._supergraph,
+            supergraph=session._supergraph,  # use original session's supergraph
             edits=edits,
             cascaded_edits=cascaded_edits,
             epoch=self.epoch,

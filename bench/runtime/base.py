@@ -106,7 +106,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         self._bench_ptr = NodeReference(
             node_type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
-        self._supergraph = NodeSuperGraph(self._bench_ptr)
+        self._supergraph = NodeSuperGraph(name="Runtime", root_ptr=self._bench_ptr)
         self._bench: Bench | None = None
         self._main_package: Package | None = None
         self._session: Session | None = None

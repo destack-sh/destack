@@ -32,7 +32,7 @@ BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 
 def make_system_store(region: Region, pg_url: str, pg_crypto_key: str) -> Store:
     system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
-    supergraph = NodeSuperGraph(root_ptr=system_bench_ptr)
+    supergraph = NodeSuperGraph(name="Global", root_ptr=system_bench_ptr)
     system_bench_stub = Bench(
         id=UUID(int=0),
         name="System",
@@ -115,7 +115,7 @@ def global_session(
     if node is None:
         assert supergraph is not None, "must provide supergraph if no node"
     else:
-        supergraph = node._supergraph.instance()
+        supergraph = node._supergraph.instance(name="Global")
     return Session(
         parent=None,
         _default_scope=EMPTY_SCOPE_DATA,

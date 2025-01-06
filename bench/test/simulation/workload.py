@@ -209,7 +209,7 @@ async def make_remote_session(
     engines = _make_remote_engines(bench_id, client.rpc_metadata, supervisor_client, host_client)
     if supergraph is None:
         root_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, ck=bench_id)
-        supergraph = NodeSuperGraph(root_ptr)
+        supergraph = NodeSuperGraph(name="Remote", root_ptr=root_ptr)
     session = Session(
         _is_readonly=False,
         _default_scope=GraphScope(bench_id=bench_id)._to_data(),

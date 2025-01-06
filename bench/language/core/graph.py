@@ -407,17 +407,20 @@ class NodeSuperGraph:
     If the root_ptr is None, this is the 'null' graph.
     """
 
-    __slots__ = ("_base", "_graphs", "_graphs_by_node_type", "_root_ptr")
+    __slots__ = ("_base", "_graphs", "_graphs_by_node_type", "_root_ptr", "name")
 
-    def __init__(self, root_ptr: "NodeReference | None", base: "NodeSuperGraph | None" = None):
+    def __init__(
+        self, name: str, root_ptr: "NodeReference | None", base: "NodeSuperGraph | None" = None
+    ):
+        self.name = name
         self._root_ptr = root_ptr
         self._graphs = ()
         self._graphs_by_node_type: dict[NodeType, tuple[NodeGraph, ...]] = {}
         self._base = base
 
-    def instance(self) -> "NodeSuperGraph":
+    def instance(self, name: str) -> "NodeSuperGraph":
         """Clone the supergraph, but not the graphs."""
-        instance = NodeSuperGraph(self._root_ptr)
+        instance = NodeSuperGraph(name, self._root_ptr)
         instance._base = self
         instance._graphs = self._graphs
         instance._graphs_by_node_type = {**self._graphs_by_node_type}
@@ -445,11 +448,10 @@ class NodeSuperGraph:
 
     def add_graph(self, graph: NodeGraph):
         """Add a graph to this supergraph."""
-        assert self is not NULL_SUPERGRAPH, f"cannot add to null graph {self!r}"
         if graph.supergraph is None:
             graph.supergraph = self
         elif graph.supergraph is not self:
-            raise RuntimeError(f"{graph!r} is from {graph.supergraph!r}, not {self!r}")
+            raise RuntimeError(f"{graph!r} is already in {graph.supergraph!r}, not {self!r}")
         assert graph not in self._graphs, f"{graph!r} already in {self!r}"
         self._graphs = (*self._graphs, graph)
         for node_type in graph.node_types:
@@ -463,7 +465,6 @@ class NodeSuperGraph:
 
     def remove_graph(self, graph: NodeGraph):
         """Remove a graph from this supergraph."""
-        assert self is not NULL_SUPERGRAPH, f"cannot add to null graph {self!r}"
         assert graph in self._graphs, f"{graph!r} not in {self!r}"
         self._graphs = tuple(g for g in self._graphs if g is not graph)
         for node_type in graph.node_types:
@@ -502,4 +503,14 @@ class NodeSuperGraph:
         return self.get(ptr) is not None
 
 
-NULL_SUPERGRAPH = NodeSuperGraph(root_ptr=None)
+class NullSuperGraph(NodeSuperGraph):
+    """A null supergraph."""
+
+    def add_graph(self, graph: NodeGraph):
+        raise RuntimeError("cannot add graph to null supergraph")
+
+    def remove_graph(self, graph: NodeGraph):
+        raise RuntimeError("cannot remove graph from null supergraph")
+
+
+NULL_SUPERGRAPH = NullSuperGraph(name="<NULL>", root_ptr=None)
