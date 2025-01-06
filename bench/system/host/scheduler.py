@@ -22,6 +22,7 @@ from bench.language import (
     Session,
     Text,
 )
+from bench.language.core.connection import connection_capture
 from bench.proto import RunRequest, RuntimeClient, get_channel
 from bench.system.host.core import Commit, Host, HostPlugin
 from bench.utils.func import bittuple
@@ -85,6 +86,7 @@ class RunPlugin(HostPlugin[Run]):
                 self._queue_run(run.root or run)
 
     @tracer.start_as_current_span("scheduler.process_run")
+    @connection_capture("seal")
     async def _process_run(self, op: PendingRunOperation) -> None:
         """Push Runs to relevant Machines."""
         op.retry.on_attempt()

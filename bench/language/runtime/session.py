@@ -422,7 +422,6 @@ class Session(RuntimeNode[SessionData]):
         self._active_session_tokens.clear()
 
         # remove dangling graph if this was a solo session
-        # NOTE :Cleanup: not sure how to prune graphs from temporary objects like request sessions :TransientGraphs
         if self._is_new:
             if len(self._graph) == 1:
                 self._graph.supergraph.remove_graph(self._graph)
@@ -719,9 +718,7 @@ class Session(RuntimeNode[SessionData]):
             nodes=self._pending_nodes_by_id.values(),
             supergraph=self._supergraph,
         )
-        # nocheckin this is wrong for non-instaned supergraphs (i.e. in HostPlugins) :TransientGraphs
-        print("session._make_pending_graph", repr(self._supergraph))
-        self._supergraph.add_graph(graph)
+        self._supergraph.add_graph(graph)  # cleaned up in _do_commit
         return graph
 
     def _make_pending_data_graph(self) -> NodeDataGraph:
@@ -744,6 +741,7 @@ class Session(RuntimeNode[SessionData]):
 
         log = logger.bind(session=self, span="current")
 
+        pending_graphs: list[NodeGraph] = []
         try:
             async with self._tx_lock:
                 assert self._tx is not None, f"no active transaction in {self!r}"
@@ -756,6 +754,7 @@ class Session(RuntimeNode[SessionData]):
                         filter=lambda e: not NodeType(e.node_ptr.node_type).is_state
                     )
                     graph = self._make_pending_graph()
+                    pending_graphs.append(graph)
                     if data_graph is None:
                         data_graph = self._make_pending_data_graph()
                     new_edits: Sequence[EditData] = await self._on_commit_prepare(
@@ -775,6 +774,7 @@ class Session(RuntimeNode[SessionData]):
             # on commit hook
             if self._on_commit is not None:
                 graph = self._make_pending_graph()
+                pending_graphs.append(graph)
                 if data_graph is None:
                     data_graph = self._make_pending_data_graph()
                 await self._on_commit(self, graph, data_graph, edits, cascaded_edits, new_edits)
@@ -791,6 +791,9 @@ class Session(RuntimeNode[SessionData]):
                     await channel.reset()
                 self._tx.reset()
             raise
+        finally:
+            for graph in pending_graphs:
+                self._supergraph.remove_graph(graph)
 
     @tracer.start_as_current_span("session.flush.schedule")
     async def flush(self, *, optimistic: bool = False) -> tuple[list[EditData], list[EditData]]:

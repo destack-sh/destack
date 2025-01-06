@@ -1,6 +1,7 @@
 from typing import override
 
 from bench.language import Browser, NodeType, ResourceStatus
+from bench.language.core.connection import connection_capture
 from bench.utils.func import bittuple
 
 from .browserbase import browserbase_api
@@ -15,6 +16,7 @@ class BrowserbaseBrowserProvisioner(Provisioner[Browser, Browser]):
     provision_type = NodeType.BROWSER
 
     @override
+    @connection_capture("seal")
     async def _do_start(self) -> None:
         browsers = await Browser.where(
             Browser.get_property("bench").eq(self.bench)
@@ -59,6 +61,7 @@ class LocalhostBrowserProvisioner(Provisioner[Browser, Browser]):
     provision_type = NodeType.BROWSER
 
     @override
+    @connection_capture("seal")
     async def _do_start(self) -> None:
         # local Browsers have to be re-provisioned on start (since playwright is a subprocess)
         browsers = await Browser.where(
