@@ -41,7 +41,7 @@ from .field import (
     to_type,
     to_type_scalar,
 )
-from .flow import Pipe, PipeType, PortSide
+from .pipe import Pipe, PipeType, PortSide
 from .project import Projection, ProjectOptions, project
 from .render import Renderer, RenderOptions, render, render_expr, render_stmt
 from .trigger import Schedule, ScheduleType

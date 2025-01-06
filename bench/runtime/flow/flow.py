@@ -189,7 +189,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         logger.debug("flow.tick.stopped", flow=self.node, node=runner.node, runner=runner, exc=exc)
         self._active_runners_by_id.pop(runner.id)
 
-        # NOTE :Incomplete: support Flow (repeated) Calls?
+        # NOTE :Incomplete: support repeated Calls in Flows?
         #  (so an Action can emit multiple successive Calls in one go that auto-trigger instead
         #   of asking the Action again when they rebound to that same Action)
 

@@ -147,9 +147,10 @@ class Runtime:
     def get_runs(self, runnable: RunnableNode) -> list[Run]:
         """Find all Runs of a Node in this Runtime."""
         matching_runs: list[Run] = []
-        for node in self.session._graph.nodes:
-            if type(node) is Run and node.base == runnable:
-                matching_runs.append(node)
+        for graph in self.session._supergraph._graphs_by_node_type.get(NodeType.RUN, ()):
+            for node in graph.nodes:
+                if type(node) is Run and node.base == runnable:
+                    matching_runs.append(node)
         matching_runs.sort(
             key=lambda r: r.terminated_at or r.interrupted_at or r.started_at or r.created_at,
             reverse=True,

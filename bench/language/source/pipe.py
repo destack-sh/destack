@@ -5,7 +5,6 @@ from uuid import UUID
 from bench.language.core import (
     NAME_CONSTRAINT,
     EnumType,
-    FieldType,
     NodeType,
     RunType,
     SourceNode,
@@ -41,12 +40,6 @@ if TYPE_CHECKING:
 class PortSide(IdEnum):
     INCOMING = 1
     OUTGOING = 2
-
-
-FIELD_ZONES_BY_SIDE: dict[PortSide, tuple[FieldType, ...]] = {
-    PortSide.INCOMING: (FieldType.VARIABLE, FieldType.INPUT),
-    PortSide.OUTGOING: (FieldType.OUTPUT,),
-}
 
 
 @enum_(EnumType.PIPE_TYPE)
