@@ -252,10 +252,10 @@ class Action(SourceNode[ActionData]):
         if name is None:
             siblings = parent.pipes.tolist()
             count = len(siblings) + 1
-            name = f"{self.type.bench_name}{count}"
+            name = f"{type.bench_name}{count}"
             while any(p.name == name for p in siblings):
                 count += 1
-                name = f"{self.type.bench_name}{count}"
+                name = f"{type.bench_name}{count}"
 
         pipe = Pipe(
             type=type,
