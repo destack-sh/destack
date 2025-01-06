@@ -22,6 +22,7 @@ from bench.language import (
     Session,
     User,
     get_node,
+    get_node_or_error,
     get_path,
     render,
 )
@@ -138,6 +139,7 @@ async def shell(
 
         # prepare repl context :CodeGlobals
         _get_node = functools.partial(get_node, main_package)
+        _get_node_or_error = functools.partial(get_node_or_error, main_package)
         _get_path = functools.partial(get_path, main_package)
         _render = functools.partial(render, options=RenderOptions(scope=main_package))
         glbls: dict[str, Any] = {
@@ -147,6 +149,7 @@ async def shell(
             "package": main_package,
             "user": session.user,
             "get_node": _get_node,
+            "get_node_or_error": _get_node_or_error,
             "get_path": _get_path,
             "render": _render,
         }

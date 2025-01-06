@@ -94,7 +94,7 @@ async def host(host: str, port: int, watch: bool = False, no_check: bool = False
 @app.command()
 @async_to_sync
 async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = False):
-    from bench.runtime.service import RuntimeService, RuntimeThreadMode
+    from bench.runtime.runtime import RuntimeService, RuntimeThreadMode
 
     logger.info("serve.runtime", host=host, port=port, env=ENV)
 

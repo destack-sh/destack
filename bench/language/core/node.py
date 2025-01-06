@@ -763,9 +763,6 @@ def _object_node_ref(prop: Property) -> property:
             if value is None:
                 self._do_set(wired_prop.name, None, track=False, validate=False)
             else:
-                assert self._supergraph.has(
-                    value._supergraph
-                ), f"{prop}: {value!r} is from {value._supergraph!r} not {self._supergraph!r}"
                 self._do_set(wired_prop.name, value.to_ref(), track=False, validate=False)
 
         return property(_get_node_scalar, _set_node_scalar)
@@ -788,9 +785,6 @@ def _object_node_ref(prop: Property) -> property:
 
         def _set_node_many(self: BuiltinObject, values: Collection["Node"]):
             values = tuple(values)
-            assert all(
-                self._supergraph.has(v._supergraph) for v in values
-            ), f"{prop}: {values!r} is from {values[0]._supergraph} not {self._supergraph!r}"
             value_ptrs = [p.to_ref() for p in values]
             self._do_set(wired_prop.name, value_ptrs, track=False, validate=False)
 
@@ -1065,14 +1059,8 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 if prop_value is None:
                     wired_prop_value = None
                 elif not prop.is_list:
-                    assert supergraph.has(
-                        prop_value._supergraph
-                    ), f"{prop}: {prop_value!r} is from {prop_value._supergraph!r} not {supergraph!r}"
                     wired_prop_value = cast(Any, prop_value).to_ref()
                 else:
-                    assert all(
-                        supergraph.has(v._supergraph) for v in prop_value
-                    ), f"{prop}: {prop_value!r} is from {prop_value[0]._supergraph!r} not {supergraph!r}"
                     wired_prop_value = [p.to_ref() for p in prop_value]
                 self_dict[wired_ptr_prop.name] = wired_prop_value
                 continue

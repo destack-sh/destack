@@ -58,7 +58,7 @@ def make_global_store(name: str):
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
     system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
-    supergraph = NodeSuperGraph(root_ptr=system_bench_ptr)
+    supergraph = NodeSuperGraph(name="Global", root_ptr=system_bench_ptr)
     system_bench_stub = Bench(
         id=UUID(int=0),
         name="System",
@@ -92,7 +92,7 @@ def make_regional_store(name: str):
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
     system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
-    supergraph = NodeSuperGraph(root_ptr=system_bench_ptr)
+    supergraph = NodeSuperGraph(name="Regional", root_ptr=system_bench_ptr)
     system_bench_stub = Bench(
         id=UUID(int=0),
         name="System",

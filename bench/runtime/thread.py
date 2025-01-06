@@ -31,7 +31,7 @@ from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
 
 if TYPE_CHECKING:
-    from bench.runtime.service import RuntimeThreadMode
+    from bench.runtime.runtime import RuntimeThreadMode
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
