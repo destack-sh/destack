@@ -30,9 +30,7 @@ from bench.language import (
     Session,
     Store,
 )
-from bench.proto import wiring
-from bench.proto.wire import EditData
-from bench.proto.wire.lang_pb2 import GraphScopeData
+from bench.proto import EditData, GraphScopeData, wiring
 from bench.utils.func import bittuple
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager

@@ -1,4 +1,4 @@
-from bench.proto.wire import MachineEnvironment
+from bench.pb2 import MachineEnvironment
 from bench.utils.utils import get_from_env
 
 IS_IN_DOCKER = get_from_env(

@@ -3,15 +3,11 @@ import enum
 from typing import TYPE_CHECKING, final, override
 from uuid import UUID
 
+from bench import pb2
 from bench.language import NodeReference
-from bench.proto import wire
-from bench.proto.services import ServiceBase
-from bench.proto.wire import CreateBenchRequest, HostClient, SupervisorClient
-from bench.sql.client import pg_connection
-from bench.sql.engine import sqlstr
-from bench.system.host.host import HostService
-from bench.system.supervisor.supervisor import SupervisorService
-from bench.system.utils.sharding import HostMap
+from bench.proto import CreateBenchRequest, HostClient, ServiceBase, SupervisorClient
+from bench.sql import pg_connection, sqlstr
+from bench.system import HostMap, HostService, SupervisorService
 from bench.test.simulation.spec import HostSpec, ServiceSpec, SupervisorSpec
 from bench.test.simulation.transport import SimulatedChannel
 from bench.utils.oracle import Oracle
@@ -120,7 +116,7 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
             owner=NodeReference._ref_data_from_node_data(client.user.user_data),
             is_main=True,
             slug=self.spec.bench.name,
-            region=wire.Region.REGION_ZURICH,
+            region=pb2.Region.REGION_ZURICH,
         )
         create_bench_rep = await supervisor_client.create_bench(
             create_bench_req, metadata=client.rpc_headers

@@ -63,7 +63,7 @@ class StoreMap:
         if store is None:
             store = self._store_by_region.get("*")
         if store is None:
-            from bench.system.utils.session import make_system_store
+            from bench.system.core import make_system_store
 
             store_info = self.get_info(region)
             store = make_system_store(region, store_info.pg_url, store_info.pg_crypto_key)

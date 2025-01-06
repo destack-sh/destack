@@ -8,7 +8,7 @@ from bench.language.core import (
     p_regular,
     p_system,
 )
-from bench.proto.wire.lang_pb2 import ScalerData
+from bench.pb2.lang_pb2 import ScalerData
 from bench.utils.func import IdEnum
 
 from .resource import StaticResource

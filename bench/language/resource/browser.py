@@ -12,7 +12,7 @@ from bench.language.core import (
     p_system,
     struct_,
 )
-from bench.proto.wire.lang_pb2 import BrowserData
+from bench.pb2.lang_pb2 import BrowserData
 from bench.utils.func import IdEnum
 
 from .resource import DynamicResource

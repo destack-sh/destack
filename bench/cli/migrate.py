@@ -10,28 +10,25 @@ from rich import print
 from rich.console import Console
 
 from bench.cli.utils import async_to_sync, parse_region
-from bench.language import Bench, Store
-from bench.language.core import REGION, VERSION, NodeArea, NodeType, Region
-from bench.sql.client import pg_connection
-from bench.sql.core import Schema
-from bench.sql.engine import SqlUndefinedObjectError
-from bench.sql.graph import (
+from bench.language import REGION, VERSION, Bench, NodeArea, NodeType, Region, Store
+from bench.sql import (
     BENCH_RECORD_TABLE_PREFIX,
     BENCH_TABLE_PREFIX,
     BUILTIN_GLOBAL_SCHEMA,
     BUILTIN_LOCAL_SCHEMA,
     BUILTIN_REGIONAL_SCHEMA,
-)
-from bench.sql.migration import (
     Migration,
+    Schema,
+    SqlUndefinedObjectError,
     add_migration_to_fs,
     generate_sql_migration_code,
     generate_sql_migration_ops,
     introspect_sql_schema,
+    pg_connection,
     read_migrations_from_fs,
     read_migrations_from_pg,
 )
-from bench.sql.migration import sql_migrate as _migrate
+from bench.sql import sql_migrate as _migrate
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.utils import format_python
 
@@ -53,7 +50,7 @@ async def make(
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
-    from bench.system.utils.session import (
+    from bench.system import (
         global_session,
         global_store_from_env,
         pg_engine_from_store,
@@ -189,7 +186,7 @@ async def apply(
     ),
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
-    from bench.system.utils.session import (
+    from bench.system import (
         global_session,
         global_store_from_env,
         pg_engine_from_store,
@@ -242,7 +239,7 @@ async def introspect(
     bench: Optional[str] = None,
 ):  # type: ignore
     """Introspect the current schema of the Postgres instance."""
-    from bench.system.utils.session import (
+    from bench.system import (
         global_session,
         global_store_from_env,
         pg_engine_from_store,

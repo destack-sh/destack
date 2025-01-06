@@ -31,7 +31,7 @@ from bench.language import (
     md,
     to_type,
 )
-from bench.proto.wiring import unpack_builtin_object
+from bench.proto import unpack_builtin_object
 from bench.test.strategies import structs
 from bench.test.unit.conftest import RuntimeHandle
 

@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, final
 
+from bench import pb2
 from bench.language import ClientType, NodeReference
-from bench.proto import wire
-from bench.proto.wire import (
+from bench.proto import (
     ClientData,
     ClientDataIn,
     ClientOriginData,
@@ -11,8 +11,10 @@ from bench.proto.wire import (
     SignupUserRequest,
     SupervisorClient,
     UserData,
+    pack_enum,
+    pack_rpc_headers,
+    unpack_builtin_object,
 )
-from bench.proto.wiring import pack_enum, pack_rpc_headers, unpack_builtin_object
 from bench.test.simulation.spec import ClientSpec
 
 if TYPE_CHECKING:
@@ -53,7 +55,7 @@ class UserHandle:
     async def prepare(self, supervisor_client: SupervisorClient):
         """Creates the User"""
         client_in = ClientDataIn(
-            type=wire.ClientType.CLIENT_TYPE_BENCH_MACHINE,
+            type=pb2.ClientType.CLIENT_TYPE_BENCH_MACHINE,
             name=f"{self.name}-signup",
             device_name="test",
         )
@@ -99,7 +101,7 @@ class ClientHandle:
 
     def to_origin(self, *, nonce: str | None) -> ClientOriginData:
         return ClientOriginData(
-            metatype=wire.ObjectType.OBJECT_TYPE_CLIENT_ORIGIN,
+            metatype=pb2.ObjectType.OBJECT_TYPE_CLIENT_ORIGIN,
             type=self.client_data.type,
             id=self.client_data.id,
             nonce=nonce or self.client_data.id,

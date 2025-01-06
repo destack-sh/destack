@@ -30,6 +30,7 @@ from grpclib._typing import IServable
 from grpclib.client import Channel, ServiceMethod
 from opentelemetry import trace
 
+from bench import pb2
 from bench.language import (
     AccessError,
     BenchError,
@@ -38,15 +39,13 @@ from bench.language import (
     Subject,
     ValidationError,
 )
-from bench.proto import wire
-from bench.proto.wire import (
+from bench.pb2 import (
     HealthBase,
     HealthCheckRequest,
     HealthCheckResponse,
     RpcMetadata,
     ServiceKind,
 )
-from bench.proto.wiring import pack_rpc_headers
 from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.oracle import Oracle
 from bench.utils.string import Casing, to_casing
@@ -57,6 +56,8 @@ from bench.utils.telemetry import (
     export_now,
     set_baggage,
 )
+
+from .wiring import pack_rpc_headers
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -308,7 +309,7 @@ def get_rpc_metadata(
 ):
     """Gets the gRPC metadata for a client."""
     rpc_metadata = RpcMetadata(
-        client_type=cast(wire.ClientType, client_type),
+        client_type=cast(pb2.ClientType, client_type),
         client_id=str(client_id),
         client_nonce=str(client_nonce) if client_nonce is not None else None,
         client_access_token=str(client_access_token),

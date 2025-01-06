@@ -19,10 +19,8 @@ from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
 from pygments.lexers import PythonLexer
 
-from bench.language.core import Region
-
 if TYPE_CHECKING:
-    pass
+    from bench.language import Region
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -64,8 +62,10 @@ def run_shell_sync(cmd: str, check=True, **kwargs):
     subprocess.run(cmd, shell=True, check=check, **kwargs)
 
 
-def parse_region(region: str | Region) -> Region:
+def parse_region(region: "str | Region") -> "Region":
     """Parse a Region from a string."""
+    from bench.language import Region
+
     if isinstance(region, Region):
         return region
     region = region.upper()

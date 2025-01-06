@@ -11,11 +11,11 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import Store
-from bench.proto.wire import (
+from bench.proto import (
     SupervisorClient,
 )
-from bench.sql.graph import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
-from bench.system.utils.sharding import StoreMap
+from bench.sql import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
+from bench.system import StoreMap
 from bench.test.conftest import TestProfile
 from bench.test.fixtures import (
     create_test_db,

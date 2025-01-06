@@ -35,7 +35,7 @@ from bench.language.core import (
     p_value_runtime,
     struct_,
 )
-from bench.proto.wire.lang_pb2 import ActionData
+from bench.pb2.lang_pb2 import ActionData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 

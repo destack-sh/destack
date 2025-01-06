@@ -24,8 +24,8 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.proto.wire import AnyNodeData
-from bench.proto.wire.lang_pb2 import InterruptionData, NodeReferenceData
+from bench.pb2 import AnyNodeData
+from bench.pb2.lang_pb2 import InterruptionData, NodeReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:

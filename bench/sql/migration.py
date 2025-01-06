@@ -25,8 +25,13 @@ from more_itertools import first
 from opentelemetry import trace
 from psycopg import sql
 
-from bench.language.core import NodeArea
-from bench.sql.core import (
+from bench.language import NodeArea
+from bench.utils.env import REPOSITORY_PATH
+from bench.utils.func import partition, re_search_or_error
+from bench.utils.oracle import Oracle
+from bench.utils.utils import format_python
+
+from .core import (
     MIGRATION_TABLE,
     POSTGRES_TYPE_BY_UDT,
     PRIMITIVE_TYPE_BY_POSTGRES_TYPE,
@@ -44,7 +49,7 @@ from bench.sql.core import (
     Table,
     TableObject,
 )
-from bench.sql.engine import (
+from .engine import (
     SqlUndefinedObjectError,
     pg_delete,
     pg_select,
@@ -52,11 +57,7 @@ from bench.sql.engine import (
     pg_upsert,
     sqlstr,
 )
-from bench.sql.graph import GLOBAL_CONTEXT
-from bench.utils.env import REPOSITORY_PATH
-from bench.utils.func import partition, re_search_or_error
-from bench.utils.oracle import Oracle
-from bench.utils.utils import format_python
+from .graph import GLOBAL_CONTEXT
 
 if TYPE_CHECKING:
     from bench.language import Store

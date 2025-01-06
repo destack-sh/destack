@@ -16,7 +16,7 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
-from bench.proto.wire import PipeData
+from bench.pb2 import PipeData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 

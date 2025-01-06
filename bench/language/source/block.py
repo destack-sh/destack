@@ -36,8 +36,8 @@ from bench.language.core import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.proto.wire import BlockData
-from bench.proto.wire.lang_pb2 import RecordData
+from bench.pb2 import BlockData
+from bench.pb2.lang_pb2 import RecordData
 from bench.utils.fractional import INTEGER_ZERO
 
 from .field import TypeBase

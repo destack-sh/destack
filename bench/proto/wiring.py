@@ -12,6 +12,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 from pydantic import JsonValue
 
+from bench import pb2
 from bench.language.core import (
     NULL_SUPERGRAPH,
     BuiltinObject,
@@ -35,9 +36,8 @@ from bench.language.core import (
     unpack_value,
 )
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE
-from bench.language.runtime.session import Session
-from bench.proto import wire
-from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, RpcMetadata
+from bench.language.runtime import Session
+from bench.pb2 import AnyNodeData, AnyStructData, NodeReferenceData, RpcMetadata
 from bench.utils.func import IdEnumOrUnion
 from bench.utils.string import Casing, to_casing
 
@@ -46,9 +46,9 @@ tracer = trace.get_tracer(__name__)
 
 
 PROTO_CLASS_BY_TYPE: dict[ObjectType, type[Union[AnyNodeData, AnyStructData]]] = {
-    object_type: getattr(wire, object_type.bench_name + "Data")
+    object_type: getattr(pb2, object_type.bench_name + "Data")
     for object_type in ObjectType  # type: ignore
-    if hasattr(wire, object_type.bench_name + "Data")  # may just be creating a new class
+    if hasattr(pb2, object_type.bench_name + "Data")  # may just be creating a new class
 }
 OBJECT_TYPE_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], ObjectType] = {
     cls: object_type for object_type, cls in PROTO_CLASS_BY_TYPE.items()
@@ -120,7 +120,7 @@ def pack_builtin_object_prop_scalar(obj: BuiltinObject, prop: Property, value: A
     elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
         value_id = str(value.id)
         return NodeReferenceData(
-            metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
+            metatype=pb2.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
             node_type=pack_enum(NodeType, value.type),
             id=value_id,
             ck=str(value.ck) if value.ck is not None else value_id,
@@ -454,22 +454,22 @@ def unpack_node_roots(
         return node_graph.find_roots(), node_graph
 
 
-def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:
+def wrap_some_node(node: AnyNodeData) -> pb2.SomeNodeData:
     """Wraps a concrete node type into a generic node message."""
-    wrapper = wire.SomeNodeData()
+    wrapper = pb2.SomeNodeData()
     field_name = to_casing(cast(str, NodeType(node.metatype).name), Casing.SNAKE)
     getattr(wrapper, field_name).CopyFrom(node)
     return wrapper
 
 
-def wrap_some_node_maybe(node: AnyNodeData | None) -> wire.SomeNodeData | None:
+def wrap_some_node_maybe(node: AnyNodeData | None) -> pb2.SomeNodeData | None:
     if node is None:
         return None
     else:
         return wrap_some_node(node)
 
 
-def unwrap_some_node(node: wire.SomeNodeData) -> AnyNodeData:
+def unwrap_some_node(node: pb2.SomeNodeData) -> AnyNodeData:
     """Unwraps a generic node type into a concrete node type."""
     node_key = node.WhichOneof("node")
     assert node_key is not None, f"node not set in {node!r}"
@@ -503,7 +503,7 @@ def unpack_rpc_headers(headers: Mapping) -> RpcMetadata:
     # flat encoding with prefixy, messages as base64 :RpcMetadataEncoding
     metadata = RpcMetadata()
     if headers.get("x-bench-2"):
-        metadata.client_type = cast(wire.ClientType, int(headers["x-bench-2"]))
+        metadata.client_type = cast(pb2.ClientType, int(headers["x-bench-2"]))
     if headers.get("x-bench-3"):
         metadata.client_id = headers.get("x-bench-3")  # type: ignore
     if headers.get("x-bench-4"):

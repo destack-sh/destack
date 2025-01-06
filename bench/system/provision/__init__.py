@@ -1,10 +1,11 @@
-from bench.system.provision.machine import (
+from .machine import (
     DockerMachineProvisioner,
     KubernetesMachineProvisioner,
     LocalhostMachineProvisioner,
 )
-from bench.system.provision.provisioner import Provisioner
-from bench.system.provision.store import (
+from .provisioner import Provisioner
+from .registry import get_provisioners
+from .store import (
     LocalhostStoreProvisioner,
     NeonStoreProvisioner,
 )
@@ -16,4 +17,5 @@ __all__ = [
     "LocalhostStoreProvisioner",
     "NeonStoreProvisioner",
     "Provisioner",
+    "get_provisioners",
 ]

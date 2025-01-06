@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.proto.wire import ClientData
+from bench.pb2 import ClientData
 
 from .const import ClientType, NodeType
 from .node import BenchNode, ClientOrigin, node_

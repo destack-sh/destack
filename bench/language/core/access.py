@@ -17,11 +17,10 @@ import structlog
 from bitarray import bitarray
 from opentelemetry import trace
 
-from bench.language.registry import (
-    CHILD_NODE_TYPES,
-    _on_completing_setup,
-)
-from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
+from bench import pb2
+from bench.language.registry import CHILD_NODE_TYPES, _on_completing_setup
+from bench.pb2 import AnyNodeData, EditData, NodeReferenceData
+from bench.pb2.lang_pb2 import SkipData
 from bench.utils.func import IdEnum, bittuple
 
 from .const import (
@@ -45,18 +44,8 @@ from .const import (
     new_struct_id,
 )
 from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
-from .node import (
-    NODE_CLASS_BY_TYPE,
-    NodeReference,
-    Struct,
-    struct_,
-)
-from .property import (
-    Property,
-    p_regular,
-    p_runtime,
-    p_system,
-)
+from .node import NODE_CLASS_BY_TYPE, NodeReference, Struct, struct_
+from .property import Property, p_regular, p_runtime, p_system
 from .text import Text
 from .user import User
 from .validation import NAME_CONSTRAINT, ValidationError, constraint
@@ -914,8 +903,6 @@ def evaluate_and_adapt_read(
     NOTE: assumes that all policies are valid.
     NOTE: nodes are returned in pre-order (parents before children).
     """
-    from bench.proto import wire
-
     trace.get_current_span().set_attribute("nodes", len(graph))
     requested_node_types = bittuple(root_node_type, *query.all_node_types)
     requested_nodes_preorder: list[AnyNodeData] = []
@@ -987,13 +974,13 @@ def evaluate_and_adapt_read(
                 visible_nodes.append(node_copy)
 
     # add any required skipped nodes back in (as Skips)
-    skips: dict[str, wire.SkipData] = {}
+    skips: dict[str, SkipData] = {}
     for node in visible_nodes:
         if node.parent_ptr.id in skipped:
             if node.parent_ptr.id in skips:
                 continue
-            skip = wire.SkipData(
-                metatype=wire.ObjectType.OBJECT_TYPE_SKIP,
+            skip = SkipData(
+                metatype=pb2.OBJECT_TYPE_SKIP,
                 id=node.id,
                 parent_ptr=node.parent_ptr,
                 order_key=getattr(node, "order_key", None),

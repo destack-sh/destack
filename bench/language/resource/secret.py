@@ -10,7 +10,7 @@ from bench.language.core import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.proto.wire import SecretData
+from bench.pb2 import SecretData
 
 from .resource import DynamicResource
 

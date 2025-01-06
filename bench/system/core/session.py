@@ -21,8 +21,8 @@ from bench.language import (
     Session,
     Store,
 )
-from bench.proto.wire import GraphScopeData
-from bench.sql.graph import BenchSqlContext
+from bench.proto import GraphScopeData
+from bench.sql import BenchSqlContext
 from bench.system.graph.postgres import PostgresEngine
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
@@ -65,7 +65,7 @@ def global_store_from_env() -> Store:
 
 def regional_store_from_env(region: Region = REGION) -> Store:
     """Get the default regional store configured in the environment"""
-    from bench.system.utils.sharding import STORE_MAP
+    from bench.system.core import STORE_MAP
 
     return STORE_MAP.get(region)
 

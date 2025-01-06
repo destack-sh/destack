@@ -45,8 +45,7 @@ from bench.language.core import (
     run_span,
     struct_,
 )
-from bench.proto.networking import MACHINE_ENVIRONMENT
-from bench.proto.wire import (
+from bench.pb2 import (
     DownloadFilesRequest,
     FileData,
     FileInfoData,
@@ -806,6 +805,8 @@ async def upload_file_batch(
     files: list[File], file_contents: list[bytes], session: "Session | None" = None
 ):
     """Uploads the given Files to their Host."""
+    from bench.proto import MACHINE_ENVIRONMENT
+
     assert len(files) == len(
         file_contents
     ), f"unexpected files: {len(files)} != {len(file_contents)}"
@@ -864,12 +865,12 @@ async def download_file_batch(
     session: "Session | None" = None,
 ) -> list[File]:
     """Downloads the given Files from their Host."""
+    from bench.proto import MACHINE_ENVIRONMENT, unpack_builtin_object
+
     if not file_refs:
         return []
     if session is None:
         session = active_session()
-
-    from bench.proto.wiring import unpack_builtin_object
 
     # get download URLs
     with run_span(tracer, "file.prepare_download", RunSpanType.FILE_PREPARE_DOWNLOAD) as span:

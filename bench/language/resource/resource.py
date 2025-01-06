@@ -24,7 +24,7 @@ from bench.language.core import (
     p_regular,
     p_system,
 )
-from bench.proto.wire import AnyNodeData
+from bench.pb2 import AnyNodeData
 from bench.utils.func import IdEnum, bittuple
 
 if TYPE_CHECKING:

@@ -9,7 +9,7 @@ from uuid import UUID
 from more_itertools import first
 from psycopg.types.json import Jsonb
 
-from bench.language.core import ConditionalType, PrimitiveType, SortType
+from bench.language import ConditionalType, PrimitiveType, SortType
 from bench.utils.func import stable_hash
 
 if TYPE_CHECKING:

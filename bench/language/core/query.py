@@ -19,7 +19,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language.registry import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_completing_setup
-from bench.proto.wire import AnyNodeData
+from bench.pb2 import AnyNodeData
 from bench.utils.func import stable_hash
 
 from .connection import AggregateOptions, ConnectMode, SearchConnection

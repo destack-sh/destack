@@ -14,7 +14,7 @@ logger = structlog.get_logger(__name__)
 @app.command(help="check whether the current Bench state is properly migrated")
 @async_to_sync
 async def unwaitlist(user_slug: str):
-    from bench.system.utils.session import (
+    from bench.system import (
         global_session,
         global_store_from_env,
         pg_engine_from_store,

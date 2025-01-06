@@ -26,13 +26,15 @@ from bench.language import (
     UserStatus,
     ViewType,
 )
-from bench.sql.client import pg_connection
-from bench.sql.core import GLOBAL_EXTENSIONS, Column, Schema, Table
-from bench.sql.engine import (
+from bench.sql import (
+    GLOBAL_EXTENSIONS,
+    Column,
     RowIn,
+    Schema,
     StaticContext,
-    _pg_adapt_row,
-    _pg_adapt_rows,
+    Table,
+    force_create_schema,
+    pg_connection,
     pg_delete,
     pg_insert,
     pg_select,
@@ -40,9 +42,7 @@ from bench.sql.engine import (
     pg_update_variable,
     pg_upsert,
 )
-from bench.sql.migration import (
-    force_create_schema,
-)
+from bench.sql.engine import _pg_adapt_row, _pg_adapt_rows
 from bench.utils.func import generate_encryption_key
 
 #

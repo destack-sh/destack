@@ -17,6 +17,7 @@ import structlog
 from attr import dataclass
 from opentelemetry import trace
 
+from bench import pb2
 from bench.language.core import (
     EMPTY_SCOPE_DATA,
     NODE_TYPES,
@@ -53,8 +54,7 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.proto import wire
-from bench.proto.wire import (
+from bench.pb2 import (
     ClientOriginData,
     ContextData,
     EditData,
@@ -65,7 +65,7 @@ from bench.proto.wire import (
     SupervisorClient,
     lang_pb2,
 )
-from bench.proto.wire.lang_pb2 import EditOperationData
+from bench.pb2.lang_pb2 import EditOperationData
 from bench.utils.func import async_shield, bittuple, uuid_to_str
 from bench.utils.oracle import Oracle
 from bench.utils.sync import CriticalLock
@@ -259,7 +259,7 @@ class Session(RuntimeNode[SessionData]):
 
     def _get_scope_for_node(self, n: Node) -> GraphScopeData:
         """Get the scope for a node in this session."""
-        scope = GraphScopeData(metatype=wire.ObjectType.OBJECT_TYPE_GRAPH_SCOPE)
+        scope = GraphScopeData(metatype=pb2.ObjectType.OBJECT_TYPE_GRAPH_SCOPE)
         if isinstance(n, BenchNode):
             scope.bench_id = uuid_to_str(n.bench_id) or self._default_scope.bench_id
         if isinstance(n, PackageNode):
@@ -268,7 +268,7 @@ class Session(RuntimeNode[SessionData]):
 
     def _get_scope_for_node_ptr(self, ptr: NodeReference) -> GraphScopeData:
         """Get the scope for a node pointer in this session."""
-        scope = GraphScopeData(metatype=wire.ObjectType.OBJECT_TYPE_GRAPH_SCOPE)
+        scope = GraphScopeData(metatype=pb2.ObjectType.OBJECT_TYPE_GRAPH_SCOPE)
         if ptr.bench_id is not None:
             scope.bench_id = uuid_to_str(ptr.bench_id) or ""
         return scope
@@ -482,7 +482,7 @@ class Session(RuntimeNode[SessionData]):
     def _get_context(self) -> ContextData:
         """Gathers context valid for the entire session"""
         if self._context_data is None:
-            context = ContextData(metatype=wire.ObjectType.OBJECT_TYPE_CONTEXT)
+            context = ContextData(metatype=pb2.ObjectType.OBJECT_TYPE_CONTEXT)
             if self.client_ptr is not None:
                 context.client_ptr.CopyFrom(self.client_ptr._to_data())
             if self.machine_ptr is not None:
@@ -532,8 +532,8 @@ class Session(RuntimeNode[SessionData]):
         assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
         if node.is_attached:
-            from bench.language.core import pack_value
-            from bench.proto.wiring import pack_proto_json
+            from bench.language import pack_value
+            from bench.proto import pack_proto_json
 
             parent_property = node.__parent_property__
             assert parent_property is not None, f"{node!r} has no parent property"
@@ -719,7 +719,8 @@ class Session(RuntimeNode[SessionData]):
             nodes=self._pending_nodes_by_id.values(),
             supergraph=self._supergraph,
         )
-        self._supergraph.add_graph(graph)  # is this right? :TransientGraphs
+        print("session._make_pending_graph", repr(self._supergraph))
+        self._supergraph.add_graph(graph)  # nocheckin is this right? :TransientGraphs
         return graph
 
     def _make_pending_data_graph(self) -> NodeDataGraph:

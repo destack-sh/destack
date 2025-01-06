@@ -23,7 +23,7 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.proto.wire import LogData
+from bench.pb2 import LogData
 
 if TYPE_CHECKING:
     from bench.language import (

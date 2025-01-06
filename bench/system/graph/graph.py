@@ -51,9 +51,7 @@ from bench.language import (
     unpack_proto_json,
     unpack_value_scalar_data,
 )
-from bench.proto import wiring
-from bench.proto.services import ServiceBase
-from bench.proto.wire import (
+from bench.proto import (
     AggregateNodesRequest,
     AggregateNodesResponse,
     CommitTransactionRequest,
@@ -66,14 +64,22 @@ from bench.proto.wire import (
     NodeReferenceData,
     SearchNodesRequest,
     SearchNodesResponse,
+    ServiceBase,
     WatchAggregateRequest,
     WatchAggregateResponse,
     WatchGetRequest,
     WatchGetResponse,
     WatchSearchRequest,
     WatchSearchResponse,
+    wiring,
 )
-from bench.system.graph.connection import (
+from bench.utils.func import bittuple, group_by, to_uuid
+from bench.utils.oracle import Oracle
+from bench.utils.sync import RWLock
+from bench.utils.tenacity import RetryOptions
+from bench.utils.utils import get_from_env
+
+from .connection import (
     AggregateConnection,
     ConnectionIndex,
     GetConnection,
@@ -81,11 +87,6 @@ from bench.system.graph.connection import (
     WatchGetUpdateData,
     WatchSearchUpdateData,
 )
-from bench.utils.func import bittuple, group_by, to_uuid
-from bench.utils.oracle import Oracle
-from bench.utils.sync import RWLock
-from bench.utils.tenacity import RetryOptions
-from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

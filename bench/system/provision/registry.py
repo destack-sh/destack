@@ -1,19 +1,20 @@
 from bench.language import Bench
-from bench.system.host.core import Host
-from bench.system.provision.browser import BrowserbaseBrowserProvisioner
-from bench.system.provision.provisioner import Provisioner
+from bench.system.host import Host
 from bench.utils.env import ENV, Env
+
+from .browser import BrowserbaseBrowserProvisioner
+from .provisioner import Provisioner
 
 
 def get_provisioners(host: Host, bench: Bench) -> list[Provisioner]:
     """Gets all available provisioners for that Bench in *this* environment"""
-    from bench.system.provision.browser import LocalhostBrowserProvisioner
-    from bench.system.provision.machine import (
+    from .browser import LocalhostBrowserProvisioner
+    from .machine import (
         KubernetesMachineProvisioner,
         LocalhostMachineProvisioner,
     )
-    from bench.system.provision.scaler import BrowserScalerProvisioner, MachineScalerProvisioner
-    from bench.system.provision.store import LocalhostStoreProvisioner, NeonStoreProvisioner
+    from .scaler import BrowserScalerProvisioner, MachineScalerProvisioner
+    from .store import LocalhostStoreProvisioner, NeonStoreProvisioner
 
     provisioners: list[type[Provisioner]]
     if ENV == Env.TEST or ENV == Env.DEV:

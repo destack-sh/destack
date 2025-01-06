@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import NodeType, node_, p_node_parent
-from bench.proto.wire.lang_pb2 import StreamData
+from bench.pb2.lang_pb2 import StreamData
 
 from .resource import DynamicResource
 
