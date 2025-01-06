@@ -753,7 +753,7 @@ def _object_node_ref(prop: Property) -> property:
                 return None
             value = self._supergraph.get(value_ptr)
             if value is None and self._session is not None:
-                # node may already have been removed :TransientGraphs
+                # node may already have been removed
                 value = self._session._pending_nodes_by_id.get(cast(UUID, value_ptr.id))
             if value is not None:
                 return value
@@ -778,7 +778,7 @@ def _object_node_ref(prop: Property) -> property:
             for value_ptr in value_ptrs:
                 value = self._supergraph.get(value_ptr)
                 if value is None and self._session is not None:
-                    # node may already have been removed :TransientGraphs
+                    # node may already have been removed
                     value = self._session._pending_nodes_by_id.get(cast(UUID, value_ptr.id))
                 if value is not None:
                     values.append(value)

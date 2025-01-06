@@ -4,6 +4,7 @@
 import abc
 import asyncio
 import contextlib
+import contextvars
 from dataclasses import dataclass
 from functools import wraps
 from typing import (
@@ -432,6 +433,33 @@ class WritableChannel[E: Engine](Channel[E]):
         ...
 
 
+_connection_captures: contextvars.ContextVar[list[Callable[["Connection"], None]] | None] = (
+    contextvars.ContextVar("connection_captures", default=None)
+)
+
+
+@contextlib.asynccontextmanager
+async def connection_capture(on_exit: Literal["release", "close", "seal"] | None = None):  # noqa: RUF029
+    """Capture all connections created in this context."""
+
+    # watch for connections
+    connections: list[Connection] = []
+    if (connection_captures := _connection_captures.get()) is None:
+        connection_captures = []
+        _connection_captures.set(connection_captures)
+    connection_captures.append(connections.append)
+    yield connections
+    connection_captures.remove(connections.append)
+
+    # auto-handle new connections
+    if on_exit == "close" or on_exit == "seal":
+        for connection in connections:
+            connection.close()
+    if on_exit == "release" or on_exit == "seal":
+        for connection in connections:
+            connection.release()
+
+
 class Connection[
     ChannelT: Channel,
     OptionsT: ConnectionOptions,
@@ -469,6 +497,11 @@ class Connection[
         self._epoch: int | None = None
         self._is_closed = False
         self._update_subscribers: list[Callable[[Any, UpdateT], None]] = []
+
+        # capture
+        if (captures := _connection_captures.get()) is not None:
+            for capture in captures:
+                capture(self)
 
     def __str__(self):
         is_live_postfix = " (live)" if self.is_live else ""

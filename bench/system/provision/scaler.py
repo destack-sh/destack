@@ -17,6 +17,7 @@ from bench.language import (
     Scaler,
     ScalerType,
 )
+from bench.language.core.connection import connection_capture
 from bench.system.host import Commit, Host
 from bench.utils.func import bittuple, group_by
 from bench.utils.naming import generate_random_name
@@ -51,6 +52,7 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
 
     @final
     @tracer.start_as_current_span("scaler.reconcile")
+    @connection_capture("seal")
     async def _do_reconcile(self, scalers: tuple[Scaler, ...] | None = None) -> None:
         """Reconcile the Scalers and the Resources they scale."""
 
@@ -61,7 +63,6 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
         self._reconcile_event.clear()
 
         # get resources
-        # nocheckin close no longer used graphs/connections from queries :TransientGraphs
         resources_query = self._resource_cls.where(
             self._resource_cls.get_property("bench").eq(self.bench)
             & self._resource_cls.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
