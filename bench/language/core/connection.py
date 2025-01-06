@@ -669,13 +669,15 @@ class Connection[
         raise ChannelIncapableError(self, query, reason="live subscription not supported")
 
     @final
-    def close(self):
-        """Close the connection."""
+    def close(self, release: bool = False):
+        """Close the connection. Optionally release any acquired graphs."""
         if self._is_closed:
             return  # already closed
         self._is_closed = True
         if self._connect_task is not None:
             self._connect_task.cancel()
+        if release:
+            self.release()
         self.log.trace(f"connect.{self.type_name}.close")
 
     @final
@@ -685,6 +687,20 @@ class Connection[
             with contextlib.suppress(asyncio.CancelledError):
                 await self._connect_task
             self._connect_task = None
+
+    @final
+    def release(self):
+        """Release any acquired graphs."""
+        if self._result is not None:
+            self._release_result(self._result)
+            self.log.trace(f"connect.{self.type_name}.release")
+        self._result = None
+        self._result_data = None
+
+    @abc.abstractmethod
+    def _release_result(self, result: ResultT):
+        """Release the result."""
+        ...
 
 
 class GetConnection[ChannelT: Channel, T: Node](
@@ -712,6 +728,10 @@ class GetConnection[ChannelT: Channel, T: Node](
         _ = patch_graph(old_graph=old_result.graph, new_graph=new_result.graph)
         old_result.roots = [old_result.graph.get(root.id) for root in new_result.roots]
         return old_result
+
+    @override
+    def _release_result(self, result: GetResult):
+        result.graph.supergraph.remove_graph(result.graph)
 
     @override
     def _apply_update(
@@ -818,6 +838,10 @@ class SearchConnection[ChannelT: Channel, T: Node](
         return old_result
 
     @override
+    def _release_result(self, result: SearchResult):
+        result.graph.supergraph.remove_graph(result.graph)
+
+    @override
     def _apply_update(
         self,
         result_data: SearchResultData | None,
@@ -857,6 +881,7 @@ class SearchConnection[ChannelT: Channel, T: Node](
                     session=self.session,
                     connection=self,
                     expect=Node,
+                    graph=result.graph,
                 )
                 result.graph.add(node)
             for node_ptr in update.removed_nodes_ptr:
@@ -921,6 +946,10 @@ class AggregateConnection[ChannelT: Channel](
         self, old_result: AggregateResult, new_result: AggregateResult
     ) -> AggregateResult:
         return new_result  # nothing to patch
+
+    @override
+    def _release_result(self, result: AggregateResult):
+        pass  # nothing to release
 
     @override
     def _apply_update(

@@ -719,8 +719,9 @@ class Session(RuntimeNode[SessionData]):
             nodes=self._pending_nodes_by_id.values(),
             supergraph=self._supergraph,
         )
+        # nocheckin this is wrong for non-instaned supergraphs (i.e. in HostPlugins) :TransientGraphs
         print("session._make_pending_graph", repr(self._supergraph))
-        self._supergraph.add_graph(graph)  # nocheckin is this right? :TransientGraphs
+        self._supergraph.add_graph(graph)
         return graph
 
     def _make_pending_data_graph(self) -> NodeDataGraph:

@@ -2367,6 +2367,18 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         else:
             raise ValueError(f"cannot append {child!r} to {self!r}")
 
+    def _move_to_graph(self, graph: NodeGraph, force: bool = False):
+        """Moves this Node and its descendants to a new graph."""
+        moved = self._graph.get_descendants(self, recursive=True)
+        moved = (self, *moved)
+        for n in moved:
+            if force and graph.get(n.id) is not None:
+                graph.update(n)
+            else:
+                graph.add(n)
+            n._graph = graph
+        return moved
+
     async def wait_until(self, condition: Callable[[Self], bool]):
         """Wait until the given condition is true."""
         runtime = active_session().runtime

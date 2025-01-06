@@ -70,8 +70,9 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
         resources = cast(list[WT], await resources_query.tolist())
         resources_by_scalar = group_by(resources, lambda r: r.scaler_id)
 
+        # bail if nothing to do
         if not scalers and not resources:
-            return  # nothing to do
+            return
 
         # reconcile
         async with self.host.session(commit=True):

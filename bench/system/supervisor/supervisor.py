@@ -51,7 +51,7 @@ from bench.system.core import (
     HostMap,
     StoreMap,
     check_password,
-    get_client,
+    get_client_or_error,
     global_session,
     hash_password,
     pg_engine_from_store,
@@ -117,7 +117,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
             if not metadata.client_id or not metadata.client_access_token:
                 return Subject(is_authenticated=False)
             client_id = UUID(metadata.client_id)
-            client = await get_client(client_id, metadata.client_access_token)
+            client = await get_client_or_error(client_id, metadata.client_access_token)
             if isinstance(client.parent, User):
                 return Subject(
                     is_authenticated=True,

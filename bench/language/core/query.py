@@ -22,7 +22,13 @@ from bench.language.registry import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_compl
 from bench.pb2 import AnyNodeData
 from bench.utils.func import stable_hash
 
-from .connection import AggregateOptions, ConnectMode, SearchConnection
+from .connection import (
+    AggregateOptions,
+    ConnectMode,
+    GetConnection,
+    SearchConnection,
+    SearchOptions,
+)
 from .const import (
     AggregationType,
     BenchError,
@@ -537,6 +543,37 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         Returns the unique result matching the query (one or multiple nodes, errors otherwise).
         NOTE: this is only a true get query with specific node pointers as roots, otherwise it's a search.
         """
+        result, _ = await self.get_connection(filter, live, mode, **kwargs)
+        return result
+
+    @overload
+    async def get_connection(
+        self,
+        filter: Union["Expression", "NodeReference", None] = None,
+        live: bool = False,
+        mode: ConnectMode = "unpacked",
+        **kwargs,
+    ) -> tuple[NodeT, "GetConnection[Any, NodeT] | SearchConnection[Any, NodeT]"]: ...
+    @overload
+    async def get_connection(
+        self,
+        filter: Sequence["NodeReference"],
+        live: bool = False,
+        mode: ConnectMode = "unpacked",
+        **kwargs,
+    ) -> tuple[list[NodeT], "GetConnection[Any, NodeT] | SearchConnection[Any, NodeT]"]: ...
+    @tracer.start_as_current_span("query.get_connection")
+    async def get_connection(
+        self,
+        filter: Union["Expression", "NodeReference", Sequence["NodeReference"], None] = None,
+        live: bool = False,
+        mode: ConnectMode = "unpacked",
+        **kwargs,
+    ) -> tuple[NodeT | list[NodeT], "GetConnection[Any, NodeT] | SearchConnection[Any, NodeT]"]:
+        """
+        Returns the unique result matching the query and its connection.
+        NOTE: this is only a true get query with specific node pointers as roots, otherwise it's a search.
+        """
         from bench.language import GetOptions, NodeReference, coerce_conditional
 
         if isinstance(filter, (NodeReference, Sequence)):
@@ -556,22 +593,22 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
                     raise MultipleNodesFoundError(query=query, result=connection.result.roots)
             if isinstance(filter, NodeReference):  # keep single node
                 node = connection.result.roots[0]
-                return cast(NodeT, node)
+                return cast(NodeT, node), connection
             else:
-                return cast(list[NodeT], connection.result.roots)
+                return cast(list[NodeT], connection.result.roots), connection
         else:
             # search which should only have one result
             filter = coerce_conditional(
                 node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
             )
             query = self.where(filter) if filter is not None else self.clone()
-            results = await query.search()
+            results, connection = await query.search_connection()
             if len(results) != 1:
                 if len(results) == 0:
                     raise NodeNotFoundError(query=query)
                 else:
                     raise MultipleNodesFoundError(query=query, result=results)
-            return results[0]  # success
+            return results[0], connection  # success
 
     @tracer.start_as_current_span("query.search")
     async def search(
@@ -582,42 +619,44 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         **kwargs,
     ) -> list[NodeT]:
         """Fetches the nodes matching the query."""
-        from .connection import SearchOptions
+        results, _ = await self.search_connection(filter, live, mode, **kwargs)
+        return results
 
+    @tracer.start_as_current_span("query.search_connection")
+    async def search_connection(
+        self,
+        filter: Optional["Expression"] = None,
+        live: bool = False,
+        mode: ConnectMode = "both",
+        **kwargs,
+    ) -> tuple[list[NodeT], "SearchConnection"]:
+        """Fetches the nodes matching the query and returns the connection."""
         filter = coerce_conditional(
             node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
         )
         query = self.where(filter) if filter is not None else self
         channel = await query._get_read_channel()
         connection = await channel.search(query, SearchOptions(live=live, mode=mode, count=False))
-        return cast(list[NodeT], connection.result.roots)
-
-    @tracer.start_as_current_span("query.search")
-    async def search_live(
-        self, filter: Optional["Expression"] = None, mode: ConnectMode = "both", **kwargs
-    ) -> "SearchConnection[Any, NodeT]":
-        """Fetches the nodes matching the query (live)."""
-        from .connection import SearchOptions
-
-        filter = coerce_conditional(
-            node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
-        )
-        query = self.where(filter) if filter is not None else self
-        channel = await query._get_read_channel()
-        connection = await channel.search(query, SearchOptions(live=True, mode=mode, count=False))
-        return connection
+        return cast(list[NodeT], connection.result.roots), connection
 
     tolist = search  # type: ignore
     to_list = search  # type: ignore
+    to_list_connection = search_connection  # type: ignore
 
     @tracer.start_as_current_span("query.one_or_none")
     async def one_or_none(self) -> NodeT | None:
         """Returns the unique result matching the query (one or none, errors otherwise)."""
-        results = await self.first(1).search()
+        result, _ = await self.one_or_none_connection()
+        return result
+
+    @tracer.start_as_current_span("query.one_or_none_connection")
+    async def one_or_none_connection(self) -> tuple[NodeT | None, "SearchConnection"]:
+        """Returns the unique result matching the query and its connection (one or none, errors otherwise)."""
+        results, connection = await self.first(1).search_connection()
         if len(results) == 1:
-            return results[0]
+            return results[0], connection
         elif len(results) == 0:
-            return None
+            return None, connection
         else:
             raise MultipleNodesFoundError(query=self, result=results)
 
@@ -672,24 +711,28 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         """Returns a single value from the single result (error if None)."""
         assert properties, "expected at least one property"
         properties_names = tuple(p.name if not isinstance(p, str) else p for p in properties)
-        node = await self.get()
+        node, connection = await self.get_connection()
         if len(properties) == 1:
-            return getattr(node, properties_names[0])
+            scalar = getattr(node, properties_names[0])
         else:
-            return tuple(getattr(node, p) for p in properties_names)
+            scalar = tuple(getattr(node, p) for p in properties_names)
+        connection.release()
+        return scalar
 
     @tracer.start_as_current_span("query.scalar_maybe")
     async def scalar_maybe(self, *properties: "str | Property") -> Any | None:
         """Returns a single value from the single result, or None if no result."""
         assert properties, "expected at least one property"
         properties_names = tuple(p.name if not isinstance(p, str) else p for p in properties)
-        results = await self.search()
+        results, connection = await self.search_connection()
         if len(results) == 1:
             node = results[0]
             if len(properties) == 1:
-                return getattr(node, properties_names[0])
+                scalar = getattr(node, properties_names[0])
             else:
-                return tuple(getattr(node, p) for p in properties_names)
+                scalar = tuple(getattr(node, p) for p in properties_names)
+            connection.release()
+            return scalar
         elif len(results) == 0:
             return None
         else:
@@ -700,12 +743,13 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         """Returns a list of values from the results."""
         assert properties, "expected at least one property"
         properties_names = tuple(p.name if not isinstance(p, str) else p for p in properties)
+        nodes, connection = await self.search_connection()
         if len(properties) == 1:
-            return [getattr(node, properties_names[0]) for node in await self.search()]
+            scalars = [getattr(node, properties_names[0]) for node in nodes]
         else:
-            return [
-                tuple(getattr(node, p) for p in properties_names) for node in await self.search()
-            ]
+            scalars = [tuple(getattr(node, p) for p in properties_names) for node in nodes]
+        connection.release()
+        return scalars
 
     def _to_properties(self, properties: tuple[FieldOrProperty, ...]) -> tuple["Property", ...]:
         if not all(isinstance(p, Property) for p in properties):

@@ -59,7 +59,7 @@ class RunPlugin(HostPlugin[Run]):
     async def start(self) -> None:
         # TODO :Robustness: kill/re-queue abandoned Runs
         #  (like Runs 'stuck' on dead or since restarted Machines)
-        self.tasks.start_queue(self._run_queue, self._process_queue, skip_errors=True)
+        self.tasks.start_queue(self._run_queue, self._process_run, skip_errors=True)
 
     def _queue_run(self, run: Run) -> PendingRunOperation:
         """Queues a Run operation."""
@@ -85,7 +85,7 @@ class RunPlugin(HostPlugin[Run]):
                 self._queue_run(run.root or run)
 
     @tracer.start_as_current_span("scheduler.process_run")
-    async def _process_queue(self, op: PendingRunOperation) -> None:
+    async def _process_run(self, op: PendingRunOperation) -> None:
         """Push Runs to relevant Machines."""
         op.retry.on_attempt()
         run = op.run

@@ -8,10 +8,18 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Bench, Client, NodeNotFoundError, User
+from bench.language import (
+    EMPTY_SCOPE_DATA,
+    Bench,
+    Client,
+    NodeGraph,
+    NodeNotFoundError,
+    NodeSuperGraph,
+    NodeType,
+    User,
+)
 from bench.utils.env import IS_DEV
 from bench.utils.oracle import Oracle
-from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -61,26 +69,26 @@ async def check_password(password: str, salt: bytes, password_hash: bytes, oracl
     return result
 
 
-CLIENT_CACHE_ENABLED = get_from_env(
-    "CLIENT_CACHE_ENABLED",
-    typ=bool,
-    default=True,
-    description="Whether to cache Clients in the access system",
-)
 _caches: weakref.WeakSet["ClientCache"] = weakref.WeakSet()
 
 
 class ClientCache:
-    # NOTE :Architecture: should all cached clients be created in the same graph?
-    def __init__(self, *, ttl: int, maxsize: float = 100_000):
+    """A cache of Clients for a Bench. Keeps all Clients in one graph for efficiency."""
+
+    def __init__(self, *, ttl: int, maxsize: float = 1_000, supergraph: NodeSuperGraph):
+        self._client_graph: NodeGraph = NodeGraph(
+            EMPTY_SCOPE_DATA, (NodeType.CLIENT, NodeType.USER, NodeType.BENCH), supergraph
+        )
         self._cache = TTLCache[UUID, Client](maxsize=maxsize, ttl=ttl)
         self._locks: weakref.WeakValueDictionary[UUID, asyncio.Lock] = weakref.WeakValueDictionary()
         _caches.add(self)
 
     def has(self, client_id: UUID) -> bool:
+        """Checks if a Client is cached."""
         return client_id in self._cache
 
-    async def get(self, client_id: UUID, client_access_token: str) -> Client:
+    async def get_or_error(self, client_id: UUID, client_access_token: str) -> Client:
+        """Gets a valid Client by ID with a matching access token."""
         # get client
         client = self._cache.get(client_id)
         if client is None:  # cache miss
@@ -92,20 +100,24 @@ class ClientCache:
                 client = self._cache.get(client_id)
                 if client is None:
                     client = await _do_get_client(client_id)
+                    assert client.parent is not None, f"no parent for {client!r}"
+                    client.parent._move_to_graph(self._client_graph, force=True)
                     self._cache[client_id] = client
-
         # check access
         if client.access_token != client_access_token:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
         return client
 
     def purge(self, user: User) -> None:
+        """Purges all Client caches for a User."""
         for key, client in list(self._cache.items()):
             if client.parent_id == user.id:
+                client.connection.release()
                 self._cache.pop(key)
 
 
-async def get_client(client_id: UUID, client_access_token: str):
+async def get_client_or_error(client_id: UUID, client_access_token: str):
+    """Gets a valid Client by ID with a matching access token."""
     client = await _do_get_client(client_id)
     if client.access_token != client_access_token:
         raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
@@ -114,6 +126,7 @@ async def get_client(client_id: UUID, client_access_token: str):
 
 @tracer.start_as_current_span("access.get_client")
 async def _do_get_client(client_id: UUID) -> Client:
+    """Loads a Client by ID."""
     try:
         client: Client = (
             await Client.include(User.get_property("email"), Client.get_property("access_token"))
@@ -127,6 +140,7 @@ async def _do_get_client(client_id: UUID) -> Client:
 
 
 def purge_client_caches(user: User) -> None:
+    """Purges all Client caches for a User."""
     for cache in _caches:
         cache.purge(user)
 

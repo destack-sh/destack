@@ -1,13 +1,12 @@
 from .access import (
     ACCESS_TOKEN_LENGTH,
-    CLIENT_CACHE_ENABLED,
     MIN_CHECK_PASSWORD_DURATION,
     PASSWORD_MAX_LENGTH,
     PASSWORD_MIN_LENGTH,
     SALT_LENGTH,
     ClientCache,
     check_password,
-    get_client,
+    get_client_or_error,
     hash_password,
     purge_client_caches,
 )
@@ -42,7 +41,6 @@ from .sharding import (
 __all__ = [
     "ACCESS_TOKEN_LENGTH",
     "BEGINNING_OF_TIME",
-    "CLIENT_CACHE_ENABLED",
     "HOST_MAP",
     "MIN_CHECK_PASSWORD_DURATION",
     "PASSWORD_MAX_LENGTH",
@@ -55,7 +53,7 @@ __all__ = [
     "StoreInfo",
     "StoreMap",
     "check_password",
-    "get_client",
+    "get_client_or_error",
     "get_s3_client",
     "get_s3_client_for_presigning",
     "global_session",
