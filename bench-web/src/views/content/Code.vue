@@ -185,7 +185,6 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
-  <!-- NOTE: codeRef must be in a stable fragment to mount the editor view -->
   <div
     ref="codeRef"
     data-contextmenu-items="code.*"
@@ -198,7 +197,9 @@ defineExpose<ViewExposed>({ self, id, actions });
         : 'stealth',
       isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
     ]"
-  />
+  >
+    <!-- NOTE: codeRef must be in a stable fragment to mount the editor view -->
+  </div>
 </template>
 <style>
 /* Code */

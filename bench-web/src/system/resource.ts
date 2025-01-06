@@ -1,36 +1,34 @@
 import { isResourceNodeType } from "@/language/const";
 import { newChangeId, Transaction } from "@/language/transaction";
-import { BrowserData, MachineData, NodeType, ResourceStatus, Timestamp } from "@/proto/wire";
+import { NodeType, ResourceNodeData, ResourceStatus, Timestamp } from "@/proto/wire";
 import { Action, ActionContext, getNodesForAction, provideActions } from "@/ui/action";
 
-export type ResourceData = MachineData | BrowserData; // | ...
-
 /** Provision or activate a Resource. */
-export function activateResource(tx: Transaction, resource: ResourceData) {
+export function activateResource(tx: Transaction, resource: ResourceNodeData) {
   tx.update(resource, { activatedAt: Timestamp.now() });
 }
 
 /** Decommission a Resource. */
-export function decommissionResource(tx: Transaction, resource: ResourceData) {
+export function decommissionResource(tx: Transaction, resource: ResourceNodeData) {
   tx.update(resource, { decommissionedAt: Timestamp.now() });
 }
 
 /** Suspend a Resource. */
-export function suspendResource(tx: Transaction, resource: ResourceData) {
+export function suspendResource(tx: Transaction, resource: ResourceNodeData) {
   tx.update(resource, { suspendedAt: Timestamp.now() });
 }
 
 function applyResourceAction(
   action: Action,
   context: ActionContext | undefined,
-  method: (tx: Transaction, resource: ResourceData) => void,
+  method: (tx: Transaction, resource: ResourceNodeData) => void,
 ) {
   const { connection, graph, nodes } = getNodesForAction(action, context);
   if (connection == null) return false;
   const tx = connection.tx.with({ change: { key: newChangeId(), title: "Provision" } });
   nodes
     .filter((node) => isResourceNodeType(node.metatype as unknown as NodeType))
-    .forEach((node) => method(tx, node as ResourceData));
+    .forEach((node) => method(tx, node as ResourceNodeData));
 }
 
 function isResourceActionEnabled(
@@ -41,7 +39,7 @@ function isResourceActionEnabled(
   const nodes = getNodesForAction(action, context).nodes;
   return (
     nodes.every((n) => isResourceNodeType(n.metatype as any)) &&
-    nodes.some((n) => statusPredicate((n as ResourceData).status))
+    nodes.some((n) => statusPredicate((n as ResourceNodeData).status))
   );
 }
 

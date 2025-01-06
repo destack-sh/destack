@@ -3,7 +3,8 @@
 # ruff: noqa
 
 from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
-    
+
+
 
 from google.protobuf import struct_pb2 as _struct_pb2
 from . import common_pb2 as _common_pb2

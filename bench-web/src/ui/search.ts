@@ -953,6 +953,7 @@ export function typeIndex(idx: {
       const allItems = [
         ...primitiveItems,
         typeItemFromIntrinsic(EnumType.BENCH_TYPE, ENUM_OPTIONS_BY_VALUE[EnumType.BENCH_TYPE][StructType.TEXT]),
+        typeItemFromIntrinsic(EnumType.BENCH_TYPE, ENUM_OPTIONS_BY_VALUE[EnumType.BENCH_TYPE][StructType.CODE]),
         ...typeFormatItems,
         ...fileItems,
         ...graphItems,

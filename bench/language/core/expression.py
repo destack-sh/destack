@@ -43,7 +43,7 @@ from .validation import NAME_CONSTRAINT
 from .value import unpack_proto_json
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, Path, Text, TypeBase, TypeInfo
+    from bench.language import Block, Code, Field, Path, Text, TypeBase, TypeInfo
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -909,7 +909,12 @@ class Value(Struct):
 
 @enum_(EnumType.COMPUTED_VALUE_KIND)
 class ComputedValueKind(IdEnum):
-    pass
+    REFERENCE = 1
+    EXPRESSION = 2
+    CODE = 3
+
+
+ComputedSourceIn = Union[PathIn, Expression, "Code"]
 
 
 @struct_(StructType.COMPUTED_VALUE)
@@ -922,13 +927,19 @@ class ComputedValue(Struct):
     """
 
     # meta
+    kind: ComputedValueKind = p_regular(30)
     # scope...?
 
     # path to set at
-    target_path: "Path" = p_regular(41, struct=StructType.PATH)
+    target_path: "Path | None" = p_regular(41, struct=StructType.PATH)
 
     # value to set
-    source_path: "Path" = p_regular(51, struct=StructType.PATH)
+    source_path: "Path | None" = p_regular(51, struct=StructType.PATH)
+    source_expression: "Expression | None" = p_regular(52, struct=StructType.EXPRESSION)
+    source_code: "Code | None" = p_regular(53, struct=StructType.CODE)
+
+    # flags
+    is_active: bool = p_regular(60, default=True)
 
     def __content_str__(self) -> str:
         return f"{self.target_path} <- {self.source_path}"
@@ -937,11 +948,34 @@ class ComputedValue(Struct):
     def new(
         target: PathIn,
         *,
-        source: PathIn,
+        source: ComputedSourceIn,
+        is_active: bool = True,
     ) -> "ComputedValue":
+        from .code import Code
+
         target = to_path(target)
-        source = to_path(source)
-        return ComputedValue(target_path=target, source_path=source)
+        if isinstance(source, Code):
+            return ComputedValue(
+                kind=ComputedValueKind.CODE,
+                target_path=target,
+                source_code=source,
+                is_active=is_active,
+            )
+        elif isinstance(source, Expression):
+            return ComputedValue(
+                kind=ComputedValueKind.EXPRESSION,
+                target_path=target,
+                source_expression=source,
+                is_active=is_active,
+            )
+        else:
+            source = to_path(source)
+            return ComputedValue(
+                kind=ComputedValueKind.REFERENCE,
+                target_path=target,
+                source_path=source,
+                is_active=is_active,
+            )
 
 
 @struct_(StructType.OBJECT_MAPPING)

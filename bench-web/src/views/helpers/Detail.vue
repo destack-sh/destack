@@ -126,14 +126,20 @@ defineExpose<ViewExposed>({ self, id });
             row.type == 'view' || row.type == 'property' || row.type == 'object'
               ? row.isFullWidth
                 ? 'flex flex-col gap-y-1'
-                : 'flex flex-row flex-wrap items-center gap-x-[5%]'
+                : 'flex flex-row flex-wrap items-center gap-x-[2%]'
               : '',
           ]"
         >
           <!-- Header -->
-          <div v-if="row.title" class="py-0.5">
+          <div v-if="row.title" class="flex flex-1 flex-row items-center py-0.5">
             <span class="">{{ row.title }}</span>
             <span v-if="row.subtitle" class="ml-1.5 text-gray-400">{{ row.subtitle }}</span>
+            <!-- Actions -->
+            <div class="ml-auto pr-1.5">
+              <button v-if="row.isComputable" class="rounded text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700">
+                <i class="fas fa-function" />
+              </button>
+            </div>
           </div>
 
           <!-- Body -->
@@ -154,11 +160,7 @@ defineExpose<ViewExposed>({ self, id });
               (row.type == 'view' || row.type == 'property' || row.type == 'object') && hasViewComponent(row.viewType)
             "
             :id="i + '.value'"
-            :class="[
-              'ml-auto flex-shrink-0',
-              row.isFullWidth ? '' : 'text-right',
-              row.type == 'object' ? '' : '',
-            ]"
+            :class="['ml-auto flex-shrink-0', row.isFullWidth ? '' : 'text-right', row.type == 'object' ? '' : '']"
             :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
             v-bind="row.viewProps"
             :model-value="row.read()"

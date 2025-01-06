@@ -29,6 +29,12 @@ import {
   ViewType,
   type AnyNodeData,
   ModelFamily,
+  SourceNodeData,
+  StateNodeData,
+  RuntimeNodeData,
+  ResourceNodeData,
+  StaticResourceNodeData,
+  DynamicResourceNodeData,
 } from "@/proto/wire";
 import { describeNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -64,24 +70,54 @@ export function isSourceNodeType(nodeType: NodeType): boolean {
   return nodeType >= 3000 && nodeType < 3100;
 }
 
+export function isSourceNode(node: any): node is SourceNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isSourceNodeType(node.metatype as unknown as NodeType);
+}
+
 export function isStateNodeType(nodeType: NodeType): boolean {
   return nodeType >= 3500 && nodeType < 3600;
+}
+
+export function isStateNode(node: any): node is StateNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isStateNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isRuntimeNodeType(nodeType: NodeType): boolean {
   return nodeType >= 3600 && nodeType < 3700;
 }
 
+export function isRuntimeNode(node: any): node is RuntimeNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isRuntimeNodeType(node.metatype as unknown as NodeType);
+}
+
 export function isResourceNodeType(nodeType: NodeType): boolean {
   return nodeType >= 2000 && nodeType < 3000;
+}
+
+export function isResourceNode(node: any): node is ResourceNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isResourceNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isStaticResourceNodeType(nodeType: NodeType): boolean {
   return nodeType >= 2000 && nodeType < 2100;
 }
 
+export function isStaticResourceNode(node: any): node is StaticResourceNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isStaticResourceNodeType(node.metatype as unknown as NodeType);
+}
+
 export function isDynamicResourceNodeType(nodeType: NodeType): boolean {
   return nodeType >= 2100 && nodeType < 2200;
+}
+
+export function isDynamicResourceNode(node: any): node is DynamicResourceNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isDynamicResourceNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isLocalNodeType(nodeType: NodeType): boolean {

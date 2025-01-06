@@ -18,6 +18,7 @@ from bench.language import (
     BuiltinObject,
     CheckOptions,
     ComputedValue,
+    ComputedValueKind,
     Connection,
     CustomObject,
     Field,
@@ -162,14 +163,22 @@ class Runtime:
         matching_runs = self.get_runs(runnable)
         return matching_runs[0] if matching_runs else None
 
+    def _evaluate_computed_value(self, runner: Runner, computed_value: ComputedValue):
+        """Evaluates the ComputedValue in/to the Run/Runner."""
+        if computed_value.kind == ComputedValueKind.REFERENCE:
+            source_path = computed_value.source_path
+            assert source_path is not None, f"no source path for {computed_value!r}"
+            return evaluate_path(runner.node, runner.node, runner.context, source_path)
+        else:
+            raise RuntimeError(f"unsupported {computed_value!r}")
+
     def _apply_computed_value(self, runner: Runner, computed_value: ComputedValue):
         """Applies the ComputedValue in/to the Run/Runner."""
-        # get & transform source value
-        source_value = evaluate_path(
-            runner.node, runner.node, runner.context, computed_value.source_path
-        )
+        # get source value
+        source_value = self._evaluate_computed_value(runner, computed_value)
 
         # get target site
+        assert computed_value.target_path is not None, f"no target for {computed_value!r}"
         target_obj = evaluate_path(
             runner.node, runner.node, runner.context, computed_value.target_path.elements[:-1]
         )

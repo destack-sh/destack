@@ -3,7 +3,8 @@
 # ruff: noqa
 
 from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
-    
+
+
 
 from google.protobuf import duration_pb2 as _duration_pb2
 from google.protobuf import descriptor as _descriptor

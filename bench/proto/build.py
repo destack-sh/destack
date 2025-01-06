@@ -30,9 +30,17 @@ from bench.language import (
     TYPE_CONSTRAINT_BY_FORMAT,
     UNSET,
     VERSION,
+    BenchNode,
+    DynamicResource,
     EnumType,
     Node,
+    PackageNode,
     Property,
+    Resource,
+    RuntimeNode,
+    SourceNode,
+    StateNode,
+    StaticResource,
     TypeConstraint,
     TypeConstraintIn,
     TypeFormat,
@@ -219,6 +227,14 @@ from .google.type.datetime_pb2 import *
 AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]
 AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]
 AnyObjectData = AnyNodeData | AnyStructData
+BenchNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, BenchNode)])}]
+PackageNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, PackageNode)])}]
+ResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, Resource)])}]
+DynamicResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, DynamicResource)])}]
+StaticResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, StaticResource)])}]
+SourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, SourceNode)])}]
+StateNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, StateNode)])}]
+RuntimeNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, RuntimeNode)])}]
 """)
     on_apply.append(lambda: shutil.rmtree(TARGET_PY_DIR, ignore_errors=True))  # noqa: FURB113
     on_apply.append(lambda: shutil.copytree(TEMP_PY_DIR, TARGET_PY_DIR))
@@ -715,6 +731,14 @@ export type AnyNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLAS
 export type AnyStructData = {' | '.join(cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
 export type AnyNodeDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in NODE_CLASSES)}
 export type AnyStructDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
+export type BenchNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, BenchNode))}
+export type PackageNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, PackageNode))}
+export type ResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, Resource))}
+export type SourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, SourceNode))}
+export type StateNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, StateNode))}
+export type RuntimeNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, RuntimeNode))}
+export type StaticResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, StaticResource))}
+export type DynamicResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, DynamicResource))}
 
 // Ancestry maps
 {ancestry_maps_str}
