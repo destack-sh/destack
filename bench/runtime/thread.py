@@ -130,7 +130,7 @@ class RunHandle:
 
     def close(self):
         """Close this RunHandle."""
-        self.connection.close()
+        self.connection.close(release=True)
         del self.thread._owned_runs[self.root.id]
 
 

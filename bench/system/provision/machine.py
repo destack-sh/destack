@@ -229,10 +229,10 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
 
     async def _get_machine_by_external_name(self, external_name: str) -> Machine | None:
         """Gets the Machine with the given external name."""
-        machines = await Machine.where(
+        machine = await Machine.where(
             Machine.get_property("external_name").eq(external_name)
-        ).tolist()
-        return machines[0] if machines else None
+        ).one_or_none()
+        return machine
 
     def _get_pod_resources_requests(self, machine: Machine) -> dict[str, str]:
         """Gets the resource requests for the given Machine."""

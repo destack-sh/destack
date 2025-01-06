@@ -420,7 +420,7 @@ class WatchLogsWorkload(SingleClientWorkloadBase[WatchLogsSpec]):
         if self.spec.tail_user:
             tail_user = self.simulation.get_user(self.spec.tail_user)
             log_query = log_query.where(user=tail_user.user_ptr)
-        self.connection = await log_query.search_live()
+        _, self.connection = await log_query.search_connection(live=True)
 
     @property
     def logs(self) -> list[Log]:

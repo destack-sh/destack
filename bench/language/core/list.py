@@ -82,11 +82,7 @@ def attach_node[N: "Node"](node: N, parent: "Node", move: bool = False) -> N:
         assert new_graph.supergraph.has(
             node._graph.supergraph
         ), f"{node!r} not in same supergraph as {parent!r} ({node._graph.supergraph!r} != {new_graph.supergraph!r})"
-        moved = node._graph.get_descendants(node, recursive=True)
-        moved = (node, *moved)
-        for n in moved:
-            new_graph.add(n)
-            n._graph = new_graph
+        moved = node._move_to_graph(new_graph)
         new_graph.supergraph.remove_graph(old_graph)  # must be in same supergraph
     else:
         moved = (node,)  # already in the graph

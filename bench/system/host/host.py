@@ -70,9 +70,7 @@ from bench.proto import (
     unpack_node_graph,
 )
 from bench.system.core import (
-    CLIENT_CACHE_ENABLED,
     ClientCache,
-    get_client,
     get_s3_client_for_presigning,
     global_session,
     local_pg_engine_from_store,
@@ -149,7 +147,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             NodeArea.REGIONAL,
         )
         self._supergraph = NodeSuperGraph(name="Host", root_ptr=self.bench_ptr)
-        self._client_cache = ClientCache(ttl=60)
+        self._client_cache = ClientCache(ttl=60, supergraph=self._supergraph)
         self._bench: Bench | None = None
         self._main_package: Package | None = None
         self._global_pg_engine: PostgresEngine | None = None
@@ -250,16 +248,15 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             if not metadata.client_type:
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "missing client type")
             client_id = UUID(metadata.client_id)
-            if CLIENT_CACHE_ENABLED and self._client_cache.has(client_id):
-                client = await self._client_cache.get(client_id, metadata.client_access_token)
+            if self._client_cache.has(client_id):
+                client = await self._client_cache.get_or_error(
+                    client_id, metadata.client_access_token
+                )
             else:
                 async with self.global_session():
-                    if CLIENT_CACHE_ENABLED:
-                        client = await self._client_cache.get(
-                            client_id, metadata.client_access_token
-                        )
-                    else:
-                        client = await get_client(client_id, metadata.client_access_token)
+                    client = await self._client_cache.get_or_error(
+                        client_id, metadata.client_access_token
+                    )
             if isinstance(client.parent, User):
                 if client.parent.main_bench_id == self._bench.id:
                     owned = [client.parent, self._bench]
@@ -326,7 +323,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             self._main_package = await PACKAGE_QUERY.get(self._bench.main_package_ptr, mode="both")
 
             # cleanup
-            self._supergraph.remove_graph(tmp_bench._graph)
+            tmp_bench.connection.release()
             del tmp_bench
             self._bench._untrack_rec()
             self._main_package._untrack_rec()
