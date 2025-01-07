@@ -236,6 +236,7 @@ def pack_and_set_object_prop(
         else:  # primitive field
             setattr(obj_data, prop.name, packed_value)
     elif len(value) > 0:  # list
+        obj_data.ClearField(prop.name)
         packed_value = getattr(obj_data, prop.name)
         if prop.is_struct:
             for item in value:
@@ -259,9 +260,10 @@ def set_builtin_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Propert
             obj_data.ClearField(prop.name)
         else:  # primitive field
             setattr(obj_data, prop.name, value)
-    elif len(value) > 0:  # list
+    else:  # list
         obj_data.ClearField(prop.name)
-        getattr(obj_data, prop.name).extend(value)
+        if len(value) > 0:
+            getattr(obj_data, prop.name).extend(value)
 
 
 def pack_builtin_object[T: AnyStructData | AnyNodeData](
