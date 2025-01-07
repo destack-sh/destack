@@ -7,6 +7,7 @@ from bench.language import (
     BlockType,
     Breakpoint,
     BreakpointScope,
+    Code,
     Field,
     Interruption,
     InterruptionStatus,
@@ -21,7 +22,7 @@ from bench.language import (
     Text,
     code,
 )
-from bench.runtime.core import Interrupted, create_run_from_node, make_runner
+from bench.runtime import Interrupted, create_run_from_node, make_runner
 from bench.test.unit.conftest import RuntimeHandle
 
 
@@ -115,7 +116,7 @@ async def test_run_flow_with_default_values(local_runtime: RuntimeHandle):
     assert runner.tracked_run and len(runner.tracked_run.runs) == 3
 
 
-async def test_run_flow_code_action(local_runtime: RuntimeHandle):
+async def test_run_flow_code(local_runtime: RuntimeHandle):
     """Run a code action with values."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -222,6 +223,40 @@ async def test_run_flow_computed_value_chain(local_runtime: RuntimeHandle):
     runner = await local_runtime.run(Flow1, variables={"BoolIn": True}, inputs={"IntIn": 0})
     assert runner.outputs and runner.outputs.BoolOut is False
     assert runner.outputs and runner.outputs.IntOut == 10
+
+
+async def test_run_flow_code_dynamic(local_runtime: RuntimeHandle):
+    """Run a Code action with Action.code set by dynamically in a Variable."""
+    Flow1 = Block.new(
+        BlockType.FLOW, "Flow1", fields=(Field.variable("Code", Code), Field.output("Output", int))
+    )
+    Start = Action.new(ActionType.START, "Start")
+    Flow1.actions.append(Start)
+    Code1 = Action.new(
+        ActionType.CODE,
+        "Code",
+        code=code("return {'Output': 1}"),
+        fields=(Field.output("Output", int),),
+    )
+    Flow1.actions.append(Code1)
+    Start.connect(PipeType.FORWARD, Code1)
+    Code1.set_computed(
+        target=(PathElement.run_(), Run.get_property("inputs"), Code1.get_property("code")),
+        source=(Flow1, PathElement.run_(), Run.get_property("variables"), Flow1.fields.Code),
+    )
+    Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Complete.set_computed(
+        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output),
+        source=(Code1, PathElement.run_(), Run.get_property("outputs"), Code1.fields.Output),
+    )
+    Flow1.actions.append(Complete)
+    Code1.connect(PipeType.FORWARD, Complete)
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    # override the code to return 2
+    runner = await local_runtime.run(Flow1, variables={"Code": code("return {'Output': 2}")})
+    assert runner.outputs and runner.outputs.Output == 2
 
 
 async def test_run_flow_create_in_test_mode(local_runtime: RuntimeHandle):

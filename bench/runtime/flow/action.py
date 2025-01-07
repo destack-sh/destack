@@ -308,7 +308,7 @@ class CodeActionRunner(ActionRunnerBase[CodeAction]):
         code_runner = CodeFunctionRunner(
             runtime=self.runtime,
             node=self.node,
-            code=self.node.code or CODE_PASS,
+            code=self.action_inputs.code or CODE_PASS,
             variables=self.variables,
             inputs=self.inputs,
             output_type=self.output_type,
@@ -323,13 +323,13 @@ class CodeActionRunner(ActionRunnerBase[CodeAction]):
 class ToolActionRunner(ActionRunnerBase[ToolAction]):
     @override
     async def run(self) -> None:
-        tool = self.node.tool
+        tool = self.action_inputs.tool
         if not tool:
             raise RunImpossibleError("no tool")
         tool_runner = self._get_resumable_subrunner(
             node=tool,
-            variables=self.variables,
-            inputs=self.inputs,
+            variables=self.action_inputs.variables,
+            inputs=self.action_inputs.inputs,
             output_type=self.output_type,
         )
         await self.runtime.run_runner(tool_runner)
