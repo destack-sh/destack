@@ -80,6 +80,7 @@ from bench.language import (
     unpack_value,
     unpack_value_data,
 )
+from bench.language.core.property import PROPERTY_META_KEY_BY_TYPE, PropertyReferenceType
 from bench.pb2 import (
     AnyNodeData,
     Date,
@@ -392,10 +393,10 @@ def _pg_lower_conditional(
             id_clause.value = cond.value.id if not is_list else [r.id for r in cond.value]
         if (
             prop.reference_stored_metas
-            and "ck" in prop.reference_stored_metas
-            and prop.reference_stored_metas["ck"] is not id_prop
+            and PropertyReferenceType.CK in prop.reference_stored_metas
+            and prop.reference_stored_metas[PropertyReferenceType.CK] is not id_prop
         ):
-            ck_prop = prop.reference_stored_metas["ck"]
+            ck_prop = prop.reference_stored_metas[PropertyReferenceType.CK]
             ck_clause = C(op=cond.type, property=ck_prop)
             if cond.value_packed is not None:
                 ck_clause.value = cond.value.ck if not is_list else [r.ck for r in cond.value]
@@ -665,7 +666,8 @@ def _pg_pack_node_reference_into_row(
             stored_prop = prop.reference_stored_ids_by_type[cast(NodeType, ref.node_type)]
             row[stored_prop.name].append(ref.id)
         # additional pointer metadata
-        for meta_key, meta_prop in prop.reference_stored_metas.items():
+        for meta_type, meta_prop in prop.reference_stored_metas.items():
+            meta_key = PROPERTY_META_KEY_BY_TYPE[meta_type]
             row[meta_prop.name] = [getattr(v, meta_key) or None for v in references]
     else:  # single reference
         # map to single reference
@@ -683,10 +685,11 @@ def _pg_pack_node_reference_into_row(
             else:
                 row[stored_prop.name] = None
         # additional pointer metadata
-        for meta_key, meta_prop in prop.reference_stored_metas.items():
+        for meta_type, meta_prop in prop.reference_stored_metas.items():
             if value is None:
                 row[meta_prop.name] = None
             else:
+                meta_key = PROPERTY_META_KEY_BY_TYPE[meta_type]
                 row[meta_prop.name] = getattr(value, meta_key) or None
 
 
@@ -716,7 +719,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                 ptr.node_type = cast(list[pb2.NodeType], stored_prop.reference_nodes)[0]
         # additional pointer metadata
         for i, ptr in enumerate(ptrs):
-            for meta_key, meta_prop in prop.reference_stored_metas.items():
+            for meta_type, meta_prop in prop.reference_stored_metas.items():
                 extra_value = cast(list, row.get(meta_prop.name))[i]
                 if extra_value is None:
                     continue
@@ -726,6 +729,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                     extra_value = NodeType(extra_value)
                 else:
                     raise RuntimeError(f"unexpected meta prop type: {meta_prop!r}")
+                meta_key = PROPERTY_META_KEY_BY_TYPE[meta_type]
                 setattr(ptr, meta_key, extra_value)
             if not ptr.ck:
                 ptr.ck = ptr.id
@@ -749,7 +753,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
             return
 
         # additional pointer metadata
-        for meta_key, meta_prop in prop.reference_stored_metas.items():
+        for meta_type, meta_prop in prop.reference_stored_metas.items():
             extra_value = row.get(meta_prop.name)
             if extra_value is None:
                 continue
@@ -759,6 +763,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                 extra_value = NodeType(cast(int, extra_value))
             else:
                 raise RuntimeError(f"unexpected meta prop type: {meta_prop!r}")
+            meta_key = PROPERTY_META_KEY_BY_TYPE[meta_type]
             setattr(ptr, meta_key, extra_value)
         if not ptr.ck:
             ptr.ck = ptr.id

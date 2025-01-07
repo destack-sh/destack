@@ -95,21 +95,25 @@ export interface PropertyReferenceData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ObjectType type = 30;
+     * @generated from protobuf field: optional symbolx.bench.ObjectType object_type = 30;
      */
-    type?: ObjectType;
+    objectType?: ObjectType;
     /**
      * @generated from protobuf field: int32 id = 31;
      */
     id: number;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeType references_node = 32;
+     * @generated from protobuf field: optional int32 node_subtype = 32;
      */
-    referencesNode?: NodeType;
+    nodeSubtype?: number;
     /**
-     * @generated from protobuf field: optional string references_meta = 33;
+     * @generated from protobuf field: optional symbolx.bench.NodeType references_node_type = 35;
      */
-    referencesMeta?: string;
+    referencesNodeType?: NodeType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.PropertyReferenceType references_meta = 36;
+     */
+    referencesMeta?: PropertyReferenceType;
 }
 /**
  * @generated from protobuf message symbolx.bench.VariableObjectData
@@ -6177,6 +6181,10 @@ export enum EnumType {
      */
     OBJECT_TYPE = 20004,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 20005;
+     */
+    PROPERTY_REFERENCE_TYPE = 20005,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_NODE_MODE = 20010;
      */
     NODE_MODE = 20010,
@@ -7353,6 +7361,39 @@ export enum ObjectType {
     DOM_NODE = 13700
 }
 /**
+ * @generated from protobuf enum symbolx.bench.PropertyReferenceType
+ */
+export enum PropertyReferenceType {
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_ID = 1;
+     */
+    ID = 1,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_CK = 2;
+     */
+    CK = 2,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BENCH_ID = 3;
+     */
+    BENCH_ID = 3,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BASE_CK = 4;
+     */
+    BASE_CK = 4,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID = 5;
+     */
+    BASE_BENCH_ID = 5,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_NODE_TYPE = 6;
+     */
+    NODE_TYPE = 6
+}
+/**
  * @generated from protobuf enum symbolx.bench.NodeMode
  */
 export enum NodeMode {
@@ -7920,6 +7961,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_OBJECT_TYPE = 20004;
      */
     OBJECT_TYPE = 20004,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PROPERTY_REFERENCE_TYPE = 20005;
+     */
+    PROPERTY_REFERENCE_TYPE = 20005,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_NODE_MODE = 20010;
      */
@@ -12482,10 +12527,11 @@ class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
     constructor() {
         super("symbolx.bench.PropertyReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "object_type", kind: "enum", opt: true, T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 31, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 32, name: "references_node", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 33, name: "references_meta", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 32, name: "node_subtype", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 35, name: "references_node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 36, name: "references_meta", kind: "enum", opt: true, T: () => ["symbolx.bench.PropertyReferenceType", PropertyReferenceType, "PROPERTY_REFERENCE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<PropertyReferenceData>): PropertyReferenceData {
@@ -12504,17 +12550,20 @@ class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional symbolx.bench.ObjectType type */ 30:
-                    message.type = reader.int32();
+                case /* optional symbolx.bench.ObjectType object_type */ 30:
+                    message.objectType = reader.int32();
                     break;
                 case /* int32 id */ 31:
                     message.id = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeType references_node */ 32:
-                    message.referencesNode = reader.int32();
+                case /* optional int32 node_subtype */ 32:
+                    message.nodeSubtype = reader.int32();
                     break;
-                case /* optional string references_meta */ 33:
-                    message.referencesMeta = reader.string();
+                case /* optional symbolx.bench.NodeType references_node_type */ 35:
+                    message.referencesNodeType = reader.int32();
+                    break;
+                case /* optional symbolx.bench.PropertyReferenceType references_meta */ 36:
+                    message.referencesMeta = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -12531,18 +12580,21 @@ class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional symbolx.bench.ObjectType type = 30; */
-        if (message.type !== undefined)
-            writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional symbolx.bench.ObjectType object_type = 30; */
+        if (message.objectType !== undefined)
+            writer.tag(30, WireType.Varint).int32(message.objectType);
         /* int32 id = 31; */
         if (message.id !== 0)
             writer.tag(31, WireType.Varint).int32(message.id);
-        /* optional symbolx.bench.NodeType references_node = 32; */
-        if (message.referencesNode !== undefined)
-            writer.tag(32, WireType.Varint).int32(message.referencesNode);
-        /* optional string references_meta = 33; */
+        /* optional int32 node_subtype = 32; */
+        if (message.nodeSubtype !== undefined)
+            writer.tag(32, WireType.Varint).int32(message.nodeSubtype);
+        /* optional symbolx.bench.NodeType references_node_type = 35; */
+        if (message.referencesNodeType !== undefined)
+            writer.tag(35, WireType.Varint).int32(message.referencesNodeType);
+        /* optional symbolx.bench.PropertyReferenceType references_meta = 36; */
         if (message.referencesMeta !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.referencesMeta);
+            writer.tag(36, WireType.Varint).int32(message.referencesMeta);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27857,6 +27909,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.NODE_TYPE]: NodeType,
   [EnumType.STRUCT_TYPE]: StructType,
   [EnumType.OBJECT_TYPE]: ObjectType,
+  [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType,
   [EnumType.NODE_MODE]: NodeMode,
   [EnumType.DAY]: Day,
   [EnumType.MONTH]: Month,
@@ -28245,6 +28298,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.NODE_TYPE]: NodeType,
   [EnumType.STRUCT_TYPE]: StructType,
   [EnumType.OBJECT_TYPE]: ObjectType,
+  [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType,
   [EnumType.NODE_MODE]: NodeMode,
   [EnumType.DAY]: Day,
   [EnumType.MONTH]: Month,
@@ -29566,10 +29620,11 @@ export enum NodeReferenceProperty {
 
 export enum PropertyReferenceProperty {
   metatype = 1,
-  type = 30,
+  objectType = 30,
   id = 31,
-  referencesNode = 32,
-  referencesMeta = 33,
+  nodeSubtype = 32,
+  referencesNodeType = 35,
+  referencesMeta = 36,
 }
 
 export enum PolicyProperty {
@@ -31526,10 +31581,11 @@ export const NodeReferenceDataInfo: Record<NodeReferenceProperty, PropertyInfo> 
 }
 export const PropertyReferenceDataInfo: Record<PropertyReferenceProperty, PropertyInfo> = {
   [PropertyReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PropertyReferenceProperty.type]: { id: 30, name: 'type', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [PropertyReferenceProperty.objectType]: { id: 30, name: 'object_type', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [PropertyReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.PROPERTY_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PropertyReferenceProperty.referencesNode]: { id: 32, name: 'references_node', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PropertyReferenceProperty.referencesMeta]: { id: 33, name: 'references_meta', component: ObjectType.PROPERTY_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PropertyReferenceProperty.nodeSubtype]: { id: 32, name: 'node_subtype', component: ObjectType.PROPERTY_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PropertyReferenceProperty.referencesNodeType]: { id: 35, name: 'references_node_type', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PropertyReferenceProperty.referencesMeta]: { id: 36, name: 'references_meta', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.PROPERTY_REFERENCE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const PolicyDataInfo: Record<PolicyProperty, PropertyInfo> = {
   [PolicyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

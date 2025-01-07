@@ -57,7 +57,7 @@ from bench.pb2 import (
 )
 from bench.pb2.lang_pb2 import EditOperationData
 from bench.utils.env import IS_DEV, IS_TEST
-from bench.utils.func import IdEnum, bittuple, is_close, stable_hash
+from bench.utils.func import IdEnum, bittuple, dualmethod, is_close, stable_hash
 from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
@@ -94,6 +94,7 @@ from .property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
     Property,
+    PropertyReferenceType,
     p_internal,
     p_node_ancestor_with_self,
     p_node_parent,
@@ -259,7 +260,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
             or type(prop).__name__.startswith("_")
             or inspect.ismethod(prop)
             or inspect.isfunction(prop)
-            or isinstance(prop, (property, classmethod, staticmethod))
+            or isinstance(prop, (property, classmethod, staticmethod, dualmethod))
             or type(prop) is functools.cached_property
         ):
             continue  # ignore reserved names and non-fields
@@ -715,7 +716,7 @@ def _object_property_ref(prop: Property) -> property:
         def _get_property_scalar(self: BuiltinObject) -> Optional[Property]:
             value_ptr: PropertyReference | None = getattr(self, wired_prop.name)
             if value_ptr is not None:
-                return value_ptr.resolve()
+                return value_ptr.resolve_or_error()
             else:
                 return None
 
@@ -732,7 +733,7 @@ def _object_property_ref(prop: Property) -> property:
         def _get_properties_many(self: BuiltinObject) -> tuple[Property, ...]:
             value_ptrs: list[PropertyReference] = getattr(self, wired_prop.name)
             assert type(value_ptrs) is list, f"invalid {prop!r}: {value_ptrs!r}"
-            return tuple(p.resolve() for p in value_ptrs)
+            return tuple(p.resolve_or_error() for p in value_ptrs)
 
         def _set_properties_many(self: BuiltinObject, values: Collection[Property]):
             self._do_set(wired_prop.name, [p.to_ref() for p in values], track=False, validate=False)
@@ -1472,22 +1473,11 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         return pack_builtin_object(self)  # type: ignore
 
     @classmethod
-    def get_property(cls, key: str | Property) -> Property:
-        if isinstance(key, str):
-            prop = cls.__properties__.get(key)
-            if prop is None:
-                raise ValueError(f"no property {key} in {cls}")
-            return prop
-        elif isinstance(key, Property):
-            if key.component == cls:
-                return key
-            else:
-                prop = cls.__properties_by_id__.get(key.id)
-                if prop is None:
-                    raise ValueError(f"no property {key} in {cls}")
-                return prop
-        else:
-            raise ValueError(f"invalid prop key {key}")
+    def get_property(cls, key: str) -> Property:
+        prop = cls.__properties__.get(key)
+        if prop is None:
+            raise ValueError(f"no property {key} in {cls}")
+        return prop
 
     @classmethod
     def get_value_property(
@@ -1832,6 +1822,22 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             if self._is_new and not _skip_validate_self:
                 self._validate_self((), invalid=on_invalid_raise)
             self._track_self(self._session)
+
+    @dualmethod
+    def get_property(self, key: str) -> Property:  # type: ignore
+        """Get a property by key from this instance."""
+        prop = self._get_effective_cls().__properties__.get(key)
+        if prop is None:
+            raise ValueError(f"no property {key} in {self.__class__}")
+        return prop
+
+    @get_property.cls
+    def get_property_cls(cls, key: str) -> Property:  # type: ignore  # noqa: N805
+        """Get a property by key from the class."""
+        prop = cls.__properties__.get(key)
+        if prop is None:
+            raise ValueError(f"no property {key} in {cls}")
+        return prop
 
     @override
     def _get_effective_cls(self) -> type["Node"]:
@@ -2911,20 +2917,24 @@ class PropertyReference(Struct):
     """
     A reference to a builtin object's Property.
     If type is unset, this refers to a base property in one of the base BuiltinObject types.
+    nocheckin: subtype property references
     """
 
-    type: ObjectType | None = p_regular(30)
+    object_type: ObjectType | None = p_regular(30)
     id: int = p_regular(31)
-    references_node: Optional[NodeType] = p_internal(32)  # disambiguate reference properties
-    references_meta: Optional[str] = p_internal(33, default=None)
+    node_subtype: Optional[int] = p_internal(32, default=None)
+    references_node_type: Optional[NodeType] = p_internal(35)  # disambiguate reference properties
+    references_meta: Optional[PropertyReferenceType] = p_internal(36, default=None)
 
     def __content_str__(self):
-        object_cls = Node if self.type is None else BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.type)
+        object_cls = (
+            Node if self.object_type is None else BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.object_type)
+        )
         if object_cls is None:
-            if self.type is None:
+            if self.object_type is None:
                 return f"Node.??? [id={self.id}]"
             else:
-                return f"{self.type.name}.??? [id={self.id}]"
+                return f"{self.object_type.name}.??? [id={self.id}]"
         else:
             prop = object_cls.__properties_by_id__.get(self.id)
             if prop is None:
@@ -2934,29 +2944,40 @@ class PropertyReference(Struct):
 
     @property
     def object_cls(self) -> Type[BuiltinObject] | None:
-        if self.type is None:
+        if self.object_type is None:
             return Node
         else:
-            return BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.type)
+            return BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.object_type)
 
-    def resolve(self) -> Property:
-        resolved = self.resolve_maybe()
+    def resolve_or_error(self) -> Property:
+        """Resolves the property reference to a Property."""
+        resolved = self.resolve()
         if resolved is None:
             raise ValueError(f"could not resolve {self!r}")
         return resolved
 
-    def resolve_maybe(self) -> Property | None:
+    def resolve(self) -> Property | None:
+        """Resolves the property reference to a Property."""
         object_cls = self.object_cls
         prop = (object_cls or Node).__properties_by_id__.get(self.id)
+        if (
+            prop is None
+            and object_cls is not None
+            and issubclass(object_cls, Node)
+            and self.node_subtype
+        ):
+            subtype_cls = object_cls.__subclass_by_subtype__.get(cast(Any, self.node_subtype))
+            if subtype_cls is not None:
+                prop = subtype_cls.__properties_by_id__.get(self.id)
         if prop is not None:
             if self.references_meta is not None:
                 assert prop.reference_stored_metas is not None, f"{prop!r} has no stored metas"
                 meta_prop = prop.reference_stored_metas.get(self.references_meta)  # type: ignore
                 if meta_prop is not None:
                     return meta_prop
-            if self.references_node is not None:
+            if self.references_node_type is not None:
                 assert prop.reference_stored_ids_by_type is not None, f"{prop!r} has no stored ids"
-                id_prop = prop.reference_stored_ids_by_type.get(self.references_node)
+                id_prop = prop.reference_stored_ids_by_type.get(self.references_node_type)
                 if id_prop is not None:
                     return id_prop
         return prop

@@ -445,7 +445,7 @@ export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> 
 };
 
 export function getPropertyTitle(property: PropertyInfo | PropertyReferenceData): string {
-  if (isStruct(property, StructType.PROPERTY_REFERENCE)) property = propertyInfo(property.type!, property.id);
+  if (isStruct(property, StructType.PROPERTY_REFERENCE)) property = propertyInfo(property.objectType!, property.id);
   let pythonName = property.name;
   if (pythonName.endsWith("_ptr")) pythonName = pythonName.slice(0, -4);
   if (pythonName.endsWith("_packed")) pythonName = pythonName.slice(0, -7);

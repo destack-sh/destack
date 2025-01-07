@@ -185,7 +185,7 @@ export function typeNodeReferenceMaybe<T extends NodeType>(
 }
 
 export function propertyReference(metatype: ObjectType | NodeType | StructType, id: number): PropertyReferenceData {
-  return { metatype: ObjectType.PROPERTY_REFERENCE, type: metatype as unknown as ObjectType, id };
+  return { metatype: ObjectType.PROPERTY_REFERENCE, objectType: metatype as unknown as ObjectType, id };
 }
 
 export function toPropertyRef(property: PropertyInfo | PropertyReferenceData): PropertyReferenceData {

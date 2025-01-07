@@ -89,9 +89,9 @@ def test_node_subtype_property_access(session: "Session"):
     assert Text1.text is not None and Text1.text.to_markdown() == "Hello, world!"
 
     # subtype -> node ref property
-    BlockAction1 = Action.new(DuplicateAction, "BlockAction1", node=Text1)
-    assert BlockAction1.node == Text1
-    assert BlockAction1.node_ptr == Text1.to_ref()
+    Duplicate1 = Action.new(DuplicateAction, "BlockAction1", node=Text1)
+    assert Duplicate1.node == Text1
+    assert Duplicate1.node_ptr == Text1.to_ref()
 
     # subtype -> value packed property
     Value1 = Block.new(VariableBlock, "Value1", value_type=to_type(int), value=42)
@@ -102,6 +102,13 @@ def test_node_subtype_property_access(session: "Session"):
     assert Value1.value_type
     assert Value1.value_packed
     assert Value1.value_packed[Value1.value_type.identity_key] == 43
+
+
+def test_node_subtype_property_reference(session: "Session"):
+    Text1 = Block.new(BlockType.TEXT, "Text1", text=md("Hello!"))
+    Duplicate1 = Action.new(DuplicateAction, "BlockAction1", node=Text1)
+    node_prop: Property = Duplicate1.get_property("node")
+    assert node_prop.to_ref().resolve_or_error() is node_prop
 
 
 def test_node_subtype_pack_unpack(session: "Session"):
