@@ -8,7 +8,7 @@ import { computed, toRef } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "valueType" | "isInput" | "isMinimal">
+    Pick<ViewData, "name" | "title" | "icon" | "valueType" | "isInput" | "isMinimal">
   >
 >();
 const modelValue = defineModel<TypeData | undefined>();
@@ -23,6 +23,7 @@ defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <div class="flex flex-row items-center">
+    <!-- NOTE: Type view just forwards to Picker for now :OverloadedPicker -->
     <Picker
       id="picker"
       :is-input="isInput"

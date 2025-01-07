@@ -5,9 +5,11 @@ import { getPathKey } from "@/language/path";
 import { packValue, unpackValue } from "@/language/value";
 import {
   ComputedValueData,
+  ComputedValueKind,
   FieldData,
   FieldType,
   NodeType,
+  ObjectType,
   Orientation,
   PathData,
   RectangleData,
@@ -48,7 +50,6 @@ const props = defineProps<
   >
 >();
 const modelValue = defineModel<any>("modelValue");
-const computedPrefixKey = computed(() => (props.computedPrefix != null ? getPathKey(props.computedPrefix) : undefined));
 const computedValues = defineModel<ComputedValueData[] | undefined>("computedValues");
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -76,6 +77,19 @@ const fields = computed(() =>
     : baseFields.value,
 );
 const fieldViews = computed(() => getFieldViews(fields.value, graph, { isInput: props.isInput }));
+
+const computedPrefixKey = computed(() => (props.computedPrefix != null ? getPathKey(props.computedPrefix) : undefined));
+const computedValuesByKey: Ref<Record<string, ComputedValueData>> = computed(() =>
+  (computedValues.value ?? [])
+    .filter((cv) => cv.targetPath != null)
+    .reduce(
+      (acc, cv) => {
+        acc[getPathKey(cv.targetPath!)] = cv;
+        return acc;
+      },
+      {} as Record<string, ComputedValueData>,
+    ),
+);
 
 function focus() {
   if (!props.isInline) {
@@ -150,7 +164,7 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
       :key="field.id"
       class="mx-auto w-full"
       :class="[
-        isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row flex-wrap items-center gap-x-[2%]',
+        isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row flex-wrap items-center gap-x-1',
         !isMinimal ? 'px-4' : '',
       ]"
       :style="{ minWidth: MIN_WIDTH + 'px', minHeight: ROW_HEIGHT_MIN + 'px' }"
@@ -184,6 +198,38 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
             v-if="isComputable"
             v-tooltip="{ title: `Compute ${field.name} dynamically`, small: true, group: 'section.header' }"
             class="rounded px-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+            @click="
+              () => {
+                // nocheckin
+                // if (!isComputable) return;
+                // let computedValue = computedValuesByKey[field.id];
+                // if (!computedValue?.isActive) {
+                //   // add/activate computed value
+                //   computedValue = {
+                //     ...computedValue,
+                //     metatype: ObjectType.COMPUTED_VALUE,
+                //     kind: ComputedValueKind.PATH,
+                //     targetPath: row.computedPath,
+                //     isActive: true,
+                //   };
+                //   connection?.tx.update(node, {
+                //     computedValues: [
+                //       ...(node.computedValues.filter(
+                //         (cv) => cv.targetPath != null && getPathKey(cv.targetPath) != row.computedPathKey,
+                //       ) ?? []),
+                //       computedValue,
+                //     ],
+                //   });
+                // } else {
+                //   // remove computed value
+                //   connection?.tx.update(node, {
+                //     computedValues: node.computedValues.filter(
+                //       (cv) => cv.targetPath != null && getPathKey(cv.targetPath) != row.computedPathKey,
+                //     ),
+                //   });
+                // }
+              }
+            "
           >
             <i class="fas fa-percent" />
           </button>
