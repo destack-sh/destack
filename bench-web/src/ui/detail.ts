@@ -245,7 +245,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     let computedPath: PathData | undefined = undefined;
     let computedPathKey: string | undefined = undefined;
     if (options?.isComputable) {
-      computedPath = makePath(PathElementType.RUN, toPropertyRef(prop)) // :RunComputed
+      computedPath = makePath(PathElementType.RUN, toPropertyRef(prop)); // :RunComputed
       computedPathKey = getPathKey(computedPath);
     }
 
@@ -333,7 +333,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     const row: ViewRow = {
       type: "view",
       title: options?.title ?? "Type",
-      viewType: ViewType.PICKER,
+      viewType: ViewType.TYPE,
       isFullWidth: false,
       viewProps: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO, isRequired: true }), isInput: true },
       read: () => node,
@@ -502,14 +502,6 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
           },
         }),
       );
-      if (node.type != FieldType.VARIABLE) {
-        const base = node.baseTypePtr != null ? graph.get(node.baseTypePtr) : null;
-        commonRows.push(rowProperty(FieldProperty.isRequired, { title: "Required" }));
-        if (!(isNode(base, NodeType.BLOCK) && base.type == BlockType.DATABASE)) {
-          // no lists for database fields yet :ManyToManyRecords
-          commonRows.push(rowProperty(FieldProperty.isList, { title: "List" }));
-        }
-      }
 
       // default value
       if (node.type == FieldType.VARIABLE || node.type == FieldType.MEMBER) {

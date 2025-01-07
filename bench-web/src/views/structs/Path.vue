@@ -7,7 +7,7 @@ import { TypedNodeReferenceData } from "@/proto/wiring";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "nodePtr">
+    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "valueType">
   >
 >();
 const modelValue = defineModel<PathData | undefined>();

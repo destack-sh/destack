@@ -30,6 +30,7 @@ import {
   FileType,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeType,
+  PathData,
   PrimitiveType,
   ResourceStatus,
   StructType,
@@ -827,6 +828,7 @@ function anyNodeTypeItem(idxId: string): TypeItem {
 
 /**
  * Search the available type identities (built-ins plus from graph).
+ * NOTE :Architecture: typeIndex shouldn't really be part of search but its full own component?
  */
 export function typeIndex(idx: {
   id: string;
@@ -845,6 +847,9 @@ export function typeIndex(idx: {
       }
       const option = getEnumOptions(EnumType.PRIMITIVE_TYPE).find((option) => option.value == value.primitiveType);
       if (option != null) return typeItemFromIntrinsic(EnumType.PRIMITIVE_TYPE, option);
+    } else if (isStructType(value.benchType)) {
+      const option = getEnumOptions(EnumType.BENCH_TYPE).find((option) => option.value == value.benchType);
+      if (option != null) return typeItemFromIntrinsic(EnumType.BENCH_TYPE, option);
     } else if (isNodeType(value.benchType)) {
       const subtypeEnum = getSubtypeEnum(value.benchType);
       if (subtypeEnum != null && value.constraint?.nodeSubtypes?.length == 1) {
