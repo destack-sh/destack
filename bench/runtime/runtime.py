@@ -40,7 +40,7 @@ RUNTIME_HEALTHCHECK_TIMEOUT = get_from_env(
     "RUNTIME_HEALTHCHECK_TIMEOUT",
     typ=int,
     default=5,
-    description="tnterval/timeout for thread healthcheck",
+    description="interval/timeout for thread healthcheck",
 )
 
 

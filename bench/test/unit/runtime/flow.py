@@ -155,7 +155,73 @@ async def test_run_flow_code_action(local_runtime: RuntimeHandle):
     assert runner.outputs and runner.outputs.Output1 == 4
 
 
-# nocheckin: daisy chain computed value flow
+async def test_run_flow_computed_value_chain(local_runtime: RuntimeHandle):
+    """Run a Flow with Actions chaining computed inputs."""
+    Flow1 = Block.new(
+        BlockType.FLOW,
+        "Flow1",
+        fields=(
+            Field.variable("BoolIn", bool),
+            Field.input("IntIn", int),
+            Field.output("BoolOut", bool),
+            Field.output("IntOut", int),
+        ),
+    )
+    Start = Action.new(ActionType.START, "Start")
+    Flow1.actions.append(Start)
+    prev = Start
+    for i in range(10):
+        Code = Action.new(
+            ActionType.CODE,
+            f"Code{i}",
+            code=code("""
+    return {'BoolOut': not BoolIn, 'IntOut': IntIn + 1}
+    """),
+            fields=(
+                Field.input("BoolIn", bool),
+                Field.input("IntIn", int),
+                Field.output("BoolOut", bool),
+                Field.output("IntOut", int),
+            ),
+        )
+        Flow1.actions.append(Code)
+        if i == 0:
+            Code.set_computed(
+                target=(PathElement.run_(), Run.get_property("inputs"), Code.fields.BoolIn),
+                source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.BoolIn),
+            )
+            Code.set_computed(
+                target=(PathElement.run_(), Run.get_property("inputs"), Code.fields.IntIn),
+                source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.IntIn),
+            )
+        else:
+            Code.set_computed(
+                target=(PathElement.run_(), Run.get_property("inputs"), Code.fields.BoolIn),
+                source=(prev, PathElement.run_(), Run.get_property("outputs"), prev.fields.BoolOut),
+            )
+            Code.set_computed(
+                target=(PathElement.run_(), Run.get_property("inputs"), Code.fields.IntIn),
+                source=(prev, PathElement.run_(), Run.get_property("outputs"), prev.fields.IntOut),
+            )
+        prev.connect(PipeType.FORWARD, Code)
+        prev = Code
+    Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Complete.set_computed(
+        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.BoolOut),
+        source=(prev, PathElement.run_(), Run.get_property("outputs"), prev.fields.BoolOut),
+    )
+    Complete.set_computed(
+        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.IntOut),
+        source=(prev, PathElement.run_(), Run.get_property("outputs"), prev.fields.IntOut),
+    )
+    Flow1.actions.append(Complete)
+    prev.connect(PipeType.FORWARD, Complete)
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1, variables={"BoolIn": True}, inputs={"IntIn": 0})
+    assert runner.outputs and runner.outputs.BoolOut is False
+    assert runner.outputs and runner.outputs.IntOut == 10
 
 
 async def test_run_flow_create_in_test_mode(local_runtime: RuntimeHandle):
