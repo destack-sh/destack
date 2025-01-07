@@ -3,7 +3,7 @@
 import datetime
 import functools
 from collections.abc import Collection
-from typing import TYPE_CHECKING, Any, Optional, Sequence, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Sequence, TypeVar, Union, assert_never, cast
 from uuid import UUID
 
 import regex
@@ -909,7 +909,7 @@ class Value(Struct):
 
 @enum_(EnumType.COMPUTED_VALUE_KIND)
 class ComputedValueKind(IdEnum):
-    REFERENCE = 1
+    PATH = 1
     EXPRESSION = 2
     CODE = 3
 
@@ -942,7 +942,20 @@ class ComputedValue(Struct):
     is_active: bool = p_regular(60, default=True)
 
     def __content_str__(self) -> str:
-        return f"{self.target_path} <- {self.source_path}"
+        if self.kind == ComputedValueKind.PATH:
+            source_str = repr(self.source_path) if self.source_path is not None else "???"
+        elif self.kind == ComputedValueKind.EXPRESSION:
+            source_str = (
+                repr(self.source_expression) if self.source_expression is not None else "???"
+            )
+        elif self.kind == ComputedValueKind.CODE:
+            source_str = repr(self.source_code) if self.source_code is not None else "???"
+        else:
+            assert_never(self.kind)
+        if self.target_path is not None:
+            return f"{self.target_path} <- {source_str}"
+        else:
+            return source_str
 
     @staticmethod
     def new(
@@ -971,7 +984,7 @@ class ComputedValue(Struct):
         else:
             source = to_path(source)
             return ComputedValue(
-                kind=ComputedValueKind.REFERENCE,
+                kind=ComputedValueKind.PATH,
                 target_path=target,
                 source_path=source,
                 is_active=is_active,

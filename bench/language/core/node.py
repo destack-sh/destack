@@ -921,6 +921,7 @@ def _trace_edit_operation(
         parent = obj.parent
         if parent is not None:
             k = obj.parent_key
+            assert k is not None, f"{obj!r} has no parent key"
             parent_key_str = k.key  # type: ignore
             assert (
                 type(parent_key_str) is str

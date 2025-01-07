@@ -2,6 +2,7 @@ import {
   BOUNDARY_ACTION_TYPES,
   getPropertyTitle,
   isNodeType,
+  isSourceNode,
   RUNNABLE_BLOCK_TYPES,
   SOURCE_NODE_TYPES,
   toCamelName,
@@ -17,6 +18,7 @@ import {
 } from "@/language/field";
 import { ReadNodeGraph } from "@/language/graph";
 import { packSubnode, unpackSubnode } from "@/language/node";
+import { getPathKey, makePath } from "@/language/path";
 import {
   getTransactionOptionsForType,
   makeEditFromSubnode,
@@ -34,6 +36,7 @@ import {
   BlockData,
   BlockProperty,
   BlockType,
+  ComputedValueData,
   EditOperationData,
   EditOperationType,
   FailActionProperty,
@@ -44,6 +47,8 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
+  PathData,
+  PathElementType,
   PickerVariant,
   PipeProperty,
   PrimitiveType,
@@ -56,9 +61,9 @@ import {
   RunOptionsProperty,
   TypeConstraintProperty,
   TypeKind,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
-import { isNode, makeStruct, toNodeRef } from "@/proto/wiring";
+import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { canvas, supergraph } from "@/system/globals";
 import { getNodeName, ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
@@ -105,11 +110,16 @@ export type ViewRow = RowBase & {
 export type ObjectRow = Omit<ViewRow, "type"> & {
   type: "object";
   isComputable: boolean;
+  computedPath?: PathData;
+  computedPathKey?: string;
   prop: PropertyInfo;
 };
 export type PropertyRow = Omit<ViewRow, "type"> & {
   type: "property";
   isComputable: boolean;
+  computedPath?: PathData;
+  computedPathKey?: string;
+  computedValue?: ComputedValueData;
   prop: PropertyInfo;
 };
 export type IconRow = RowBase & {
@@ -127,7 +137,7 @@ export type DetailRow = FieldsRow | ViewRow | PropertyRow | ObjectRow | IconRow 
 
 export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFactory: () => Transaction): DetailLayout {
   // nocheckin: edit ComputedValues in Detail layout (incl. in CustomObject for variables/inputs, node partials, ... Path view?)
-  
+
   // node stuff
   const nodePtr = toNodeRef(node);
   const metatype = node.metatype as unknown as NodeType;
@@ -140,6 +150,16 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     (node.subnodePacked as any)?.[subtype?.toString()] != null
       ? (unpackSubnode(metatype, subtype as never, node.subnodePacked) as any)
       : null;
+  const computedValues = isSourceNode(node) ? node.computedValues : undefined;
+  const computedValuesByKey: Record<string, ComputedValueData> = (computedValues ?? [])
+    .filter((cv) => cv.targetPath != null)
+    .reduce(
+      (acc, cv) => {
+        acc[getPathKey(cv.targetPath!)] = cv;
+        return acc;
+      },
+      {} as Record<string, ComputedValueData>,
+    );
 
   /** Make a Section */
   const sections: DetailSection[] = [];
@@ -202,6 +222,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
   ): DetailRow {
     if (typeof path == "number") path = [path];
 
+    // property
     const { prop: rootProp, propKey: rootPropKey, isSubnode } = property(path[0]);
     let prop: PropertyInfo;
     let propKeys: string[];
@@ -220,6 +241,15 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
       assertNever(path);
     }
 
+    // computed
+    let computedPath: PathData | undefined = undefined;
+    let computedPathKey: string | undefined = undefined;
+    if (options?.isComputable) {
+      computedPath = makePath(PathElementType.RUN, toPropertyRef(prop)) // :RunComputed
+      computedPathKey = getPathKey(computedPath);
+    }
+
+    // view
     const title = options?.title ?? getPropertyTitle(prop);
     const propType = options?.props?.valueType ?? getPropertyType(prop);
     const view = getViewForType(propType, { forcePickerDropdown: true });
@@ -232,6 +262,9 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
       title: title === false ? undefined : title,
       subtitle: options?.subtitle,
       isComputable: options?.isComputable ?? false,
+      computedPath,
+      computedPathKey,
+      computedValue: computedPathKey != null ? computedValuesByKey[computedPathKey] : undefined,
       isFullWidth: options?.isFullWidth || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
       viewType: view.type!,
       viewProps: { ...view, ...options?.props, isInput: !options?.isDisabled },
@@ -657,11 +690,11 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
         [
           // delegate variables & inputs
           // (NOTE :Incomplete: should we include Action delegate variables?)
-          // rowObject(
-          //   ActionProperty.variablesPacked,
-          //   makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.VARIABLE, baseTypePtr: delegatePtr }),
-          //   { title: false, isComputable: true },
-          // ),
+          rowObject(
+            ActionProperty.variablesPacked,
+            makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.VARIABLE, baseTypePtr: delegatePtr }),
+            { title: false, isComputable: true },
+          ),
           rowObject(
             ActionProperty.inputsPacked,
             makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.INPUT, baseTypePtr: delegatePtr }),

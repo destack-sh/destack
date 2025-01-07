@@ -165,7 +165,7 @@ class Runtime:
 
     def _evaluate_computed_value(self, runner: Runner, computed_value: ComputedValue):
         """Evaluates the ComputedValue in/to the Run/Runner."""
-        if computed_value.kind == ComputedValueKind.REFERENCE:
+        if computed_value.kind == ComputedValueKind.PATH:
             source_path = computed_value.source_path
             assert source_path is not None, f"no source path for {computed_value!r}"
             return evaluate_path(runner.node, runner.node, runner.context, source_path)

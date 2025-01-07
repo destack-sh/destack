@@ -21,7 +21,7 @@ defineExpose<ViewExposed>({ self, id });
 <template>
   <div>
     <!-- nocheckin: Path view -->
-    Path!
+    <span class="text-red-500">Path!</span>
     {{ modelValue }}
   </div>
 </template>

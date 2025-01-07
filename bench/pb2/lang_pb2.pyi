@@ -1118,7 +1118,7 @@ class SortType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class ComputedValueKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     COMPUTED_VALUE_KIND_UNSPECIFIED: _ClassVar[ComputedValueKind]
-    COMPUTED_VALUE_KIND_REFERENCE: _ClassVar[ComputedValueKind]
+    COMPUTED_VALUE_KIND_PATH: _ClassVar[ComputedValueKind]
     COMPUTED_VALUE_KIND_EXPRESSION: _ClassVar[ComputedValueKind]
     COMPUTED_VALUE_KIND_CODE: _ClassVar[ComputedValueKind]
 
@@ -2651,7 +2651,7 @@ SORT_TYPE_UNSPECIFIED: SortType
 SORT_TYPE_ASCENDING: SortType
 SORT_TYPE_DESCENDING: SortType
 COMPUTED_VALUE_KIND_UNSPECIFIED: ComputedValueKind
-COMPUTED_VALUE_KIND_REFERENCE: ComputedValueKind
+COMPUTED_VALUE_KIND_PATH: ComputedValueKind
 COMPUTED_VALUE_KIND_EXPRESSION: ComputedValueKind
 COMPUTED_VALUE_KIND_CODE: ComputedValueKind
 PATH_ELEMENT_TYPE_UNSPECIFIED: PathElementType

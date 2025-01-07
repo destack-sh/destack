@@ -465,15 +465,14 @@ def render_path(path: Path) -> str:
                         prop = prop.value_runtime_ptr
                     element_key = prop.name
                 else:
-                    raise PathLookupError(f"no node or property found for {element!r} in {path!r}")
+                    element_key = "???"
             if path_parts:
                 path_parts[-1] += f".{element_key}"
             else:
                 path_parts.append(f".{element_key}")
         # runtime
         elif element.type == PathElementType.RUN:
-            assert element.run is not None, f"missing run selector for {element!r} in {path!r}"
-            sign = SIGN_BY_RUN_SELECTOR[element.run]
+            sign = SIGN_BY_RUN_SELECTOR[element.run] if element.run is not None else "???"
             if path_parts:
                 path_parts[-1] += f"${sign}"
             else:

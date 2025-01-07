@@ -1,8 +1,19 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
 import { createField, useFieldList } from "@/language/field";
+import { getPathKey } from "@/language/path";
 import { packValue, unpackValue } from "@/language/value";
-import { FieldData, FieldType, NodeType, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
+import {
+  ComputedValueData,
+  FieldData,
+  FieldType,
+  NodeType,
+  Orientation,
+  PathData,
+  RectangleData,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -25,9 +36,10 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    modelValue?: any;
     size?: Partial<Pick<RectangleData, "width" | "height">>;
     preparedConnection?: PreparedGetConnection;
+    isComputable?: boolean;
+    computedPrefix?: PathData;
   } & Partial<
     Pick<
       ViewData,
@@ -35,6 +47,9 @@ const props = defineProps<
     >
   >
 >();
+const modelValue = defineModel<any>("modelValue");
+const computedPrefixKey = computed(() => (props.computedPrefix != null ? getPathKey(props.computedPrefix) : undefined));
+const computedValues = defineModel<ComputedValueData[] | undefined>("computedValues");
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
@@ -135,7 +150,7 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
       :key="field.id"
       class="mx-auto w-full"
       :class="[
-        isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row flex-wrap items-center gap-x-[5%]',
+        isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row flex-wrap items-center gap-x-[2%]',
         !isMinimal ? 'px-4' : '',
       ]"
       :style="{ minWidth: MIN_WIDTH + 'px', minHeight: ROW_HEIGHT_MIN + 'px' }"
@@ -156,19 +171,28 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
         ]"
       />
       <!-- Field -->
-      <span class="w-[100px]">
+      <span class="flex flex-1 flex-row items-center">
         <Field
           :id="field.id"
           :ref="(ref: any) => (ref != null ? (fieldRefs[field.id] = ref) : delete fieldRefs[field.id])"
           is-minimal
           :node-ptr="toNodeRef(field)"
         />
+        <!-- Actions -->
+        <div class="ml-auto pr-1">
+          <button
+            v-if="isComputable"
+            class="rounded px-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+          >
+            <i class="fas fa-function" />
+          </button>
+        </div>
       </span>
       <!-- Value -->
       <component
         :is="getViewComponent(viewType)"
         v-if="
-          (props.modelValue?.[storageKey] != null || (isInput && !isDisabled)) &&
+          (modelValue?.[storageKey] != null || (isInput && !isDisabled)) &&
           viewType != null &&
           hasViewComponent(viewType)
         "
@@ -177,7 +201,7 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
         :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
         v-bind="viewProps"
         :model-value="
-          unpackValue(props.modelValue?.[storageKey], field, {
+          unpackValue(modelValue?.[storageKey], field, {
             graph: graph,
             wrapScalar: false,
             recurseCustomObject: false,
@@ -190,7 +214,7 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
               wrapScalar: false,
               recurseCustomObject: false,
             });
-            const newObject = { ...props.modelValue, [storageKey]: valuePacked };
+            const newObject = { ...modelValue, [storageKey]: valuePacked };
             const options: ModelValueOptions = { field, path: [storageKey] };
             emit('update:modelValue', newObject, options);
           }
