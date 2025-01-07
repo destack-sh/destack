@@ -120,7 +120,6 @@ export type PropertyRow = Omit<ViewRow, "type"> & {
   isComputable: boolean;
   computedPath?: PathData;
   computedPathKey?: string;
-  computedValue?: ComputedValueData;
   prop: PropertyInfo;
 };
 export type IconRow = RowBase & {
@@ -152,16 +151,6 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     (node.subnodePacked as any)?.[subtype?.toString()] != null
       ? (unpackSubnode(metatype, subtype as never, node.subnodePacked) as any)
       : null;
-  const computedValues = isSourceNode(node) ? node.computedValues : undefined;
-  const computedValuesByKey: Record<string, ComputedValueData> = (computedValues ?? [])
-    .filter((cv) => cv.targetPath != null)
-    .reduce(
-      (acc, cv) => {
-        acc[getPathKey(cv.targetPath!)] = cv;
-        return acc;
-      },
-      {} as Record<string, ComputedValueData>,
-    );
 
   /** Make a Section */
   const sections: DetailSection[] = [];
@@ -256,7 +245,6 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
       );
       computedPathKey = getPathKey(computedPath);
     }
-    const computedValue = computedPathKey != null ? computedValuesByKey[computedPathKey] : undefined;
 
     // view
     const title = options?.title ?? getPropertyTitle(prop);
@@ -273,8 +261,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
       isComputable: options?.isComputable ?? false,
       computedPath,
       computedPathKey,
-      computedValue,
-      isFullWidth: options?.isFullWidth || computedValue?.isActive || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
+      isFullWidth: options?.isFullWidth || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
       viewType: view.type!,
       viewProps: { ...view, ...options?.props, isInput: !options?.isDisabled },
       read: () => {

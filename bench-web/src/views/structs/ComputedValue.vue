@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, ComputedValueData } from "@/proto/wire";
+import { ViewData, NodeType, ComputedValueData, ObjectType } from "@/proto/wire";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
 import { toRef } from "vue";
@@ -24,12 +24,15 @@ defineExpose<ViewExposed>({ self, id });
     <!-- NOTE :Incomplete: ComputedValue Expressions & Code -->
     <Path
       id="path"
+      title="Source Path"
       :value-type="valueType"
       :is-input="isInput"
       :is-disabled="isDisabled"
       :is-minimal="isMinimal"
       :model-value="modelValue?.sourcePath"
-      @update:model-value="(value) => emit('update:modelValue', { ...modelValue, sourcePath: value })"
+      @update:model-value="
+        (value) => emit('update:modelValue', { ...modelValue, metatype: ObjectType.COMPUTED_VALUE, sourcePath: value })
+      "
     />
   </div>
 </template>

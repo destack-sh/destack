@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { isSourceNode, toCamelName } from "@/language/const";
+import { useComputedValues } from "@/language/expression";
 import { makeTypeConstraint, makeTypeInfo } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
 import { getPathKey } from "@/language/path";
@@ -14,7 +15,6 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import ComputedValue from "@/views/structs/ComputedValue.vue";
 import FieldList from "@/views/structs/FieldList.vue";
-import Path from "@/views/structs/Path.vue";
 import { computed, toRef } from "vue";
 
 const SECTION_HEADER_HEIGHT = 32;
@@ -38,6 +38,14 @@ const layout = computed(() => {
   if (node.value == null) return null;
   const layout = makeDetailLayout(node.value, graph.value!, () => (connection.value ?? pkgConnection).tx);
   return layout;
+});
+const computer = useComputedValues({
+  computedValues: computed(() => (isSourceNode(node.value) ? node.value.computedValues : [])),
+  update: (computedValues) => {
+    if (isSourceNode(node.value)) {
+      connection.value?.tx.update(node.value, { computedValues });
+    }
+  },
 });
 
 const expandedSections = useSubnodeProperty(NodeType.VIEW, ViewType.DETAIL, subnodePacked, "expandedSections");
@@ -128,7 +136,7 @@ defineExpose<ViewExposed>({ self, id });
           class="group/row mx-4"
           :class="[
             row.type == 'view' || row.type == 'property' || row.type == 'object'
-              ? row.isFullWidth
+              ? row.isFullWidth || (row.type == 'property' && computer.has(row.computedPathKey))
                 ? 'flex flex-col gap-y-1'
                 : 'flex flex-row flex-wrap items-center gap-x-1'
               : '',
@@ -145,41 +153,11 @@ defineExpose<ViewExposed>({ self, id });
                 v-tooltip="{ title: `Compute ${row.title} dynamically`, small: true, group: 'section.header' }"
                 class="rounded px-0.5 transition-colors duration-75"
                 :class="
-                  row.computedValue?.isActive
+                  computer.has(row.computedPathKey)
                     ? 'text-primary-700 hover:bg-gray-100'
                     : 'text-gray-400 hover/row:bg-gray-100 group-hover/row:text-gray-700'
                 "
-                @click="
-                  () => {
-                    // nocheckin
-                    if (!isSourceNode(node)) return;
-                    if (!row.computedValue?.isActive) {
-                      // add/activate computed value
-                      const computedValue = {
-                        ...row.computedValue,
-                        metatype: ObjectType.COMPUTED_VALUE,
-                        kind: ComputedValueKind.PATH,
-                        targetPath: row.computedPath,
-                        isActive: true,
-                      };
-                      connection?.tx.update(node, {
-                        computedValues: [
-                          ...(node.computedValues.filter(
-                            (cv) => cv.targetPath != null && getPathKey(cv.targetPath) != row.computedPathKey,
-                          ) ?? []),
-                          computedValue,
-                        ],
-                      });
-                    } else {
-                      // remove computed value
-                      connection?.tx.update(node, {
-                        computedValues: node.computedValues.filter(
-                          (cv) => cv.targetPath != null && getPathKey(cv.targetPath) != row.computedPathKey,
-                        ),
-                      });
-                    }
-                  }
-                "
+                @click="() => computer.toggle(row.computedPath!)"
               >
                 <i class="fas fa-percent" />
               </button>
@@ -199,18 +177,19 @@ defineExpose<ViewExposed>({ self, id });
           </div>
           <!-- Computed View -->
           <ComputedValue
-            v-else-if="row.type == 'property' && row.computedValue?.isActive"
+            v-else-if="row.type == 'property' && computer.has(row.computedPathKey)"
             :id="i + '.value'"
-            :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
+            class="w-full"
             is-input
-            :model-value="row.computedValue"
+            :model-value="computer.get(row.computedPathKey)"
             :value-type="
               makeTypeInfo({
                 benchType: BenchType.COMPUTED_VALUE,
                 isRequired: true,
-                constraint: makeTypeConstraint({ nodeScopePtr: [] }), // nocheckin scope to containing runnable
+                constraint: makeTypeConstraint({ nodeScopePtr: [node.parentPtr!] }), // NOTE: should really be the containing runnable
               })
             "
+            @update:model-value="(value) => computer.set(row.computedPath!, value)"
           />
           <!-- Actual View -->
           <component

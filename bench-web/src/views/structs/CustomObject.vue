@@ -1,15 +1,13 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
-import { createField, useFieldList } from "@/language/field";
-import { getPathKey } from "@/language/path";
+import { useComputedValues } from "@/language/expression";
+import { createField, getStorageKey, useFieldList } from "@/language/field";
 import { packValue, unpackValue } from "@/language/value";
 import {
   ComputedValueData,
-  ComputedValueKind,
   FieldData,
   FieldType,
   NodeType,
-  ObjectType,
   Orientation,
   PathData,
   RectangleData,
@@ -23,9 +21,9 @@ import { ActionMapImplementation } from "@/ui/action";
 import { onAddFieldAction } from "@/ui/detail";
 import { startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
 import { useNodeListActions } from "@/ui/list";
-import { getFieldViews } from "@/ui/view";
+import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { ModelValueOptions, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
+import { ModelValueOptions, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -76,20 +74,41 @@ const fields = computed(() =>
     ? baseFields.value.filter((f) => f.type == props.valueType!.baseFieldType)
     : baseFields.value,
 );
-const fieldViews = computed(() => getFieldViews(fields.value, graph, { isInput: props.isInput }));
+const computer = useComputedValues({
+  computedValues: computed(() => computedValues.value ?? []),
+  update: (computedValues) => {
+    emit("update:computedValues", computedValues);
+  },
+});
 
-const computedPrefixKey = computed(() => (props.computedPrefix != null ? getPathKey(props.computedPrefix) : undefined));
-const computedValuesByKey: Ref<Record<string, ComputedValueData>> = computed(() =>
-  (computedValues.value ?? [])
-    .filter((cv) => cv.targetPath != null)
-    .reduce(
-      (acc, cv) => {
-        acc[getPathKey(cv.targetPath!)] = cv;
-        return acc;
-      },
-      {} as Record<string, ComputedValueData>,
-    ),
-);
+type RowView = {
+  field: FieldData;
+  storageKey: string;
+  viewType?: ViewType;
+  viewProps?: any;
+  isFullWidth?: boolean;
+  computedPath?: PathData;
+  computedPathKey?: string;
+};
+const fieldViews = computed(() => {
+  const rows: RowView[] = [];
+  for (const field of fields.value) {
+    const storageKey = getStorageKey(field, field);
+    const view = getViewForType(field);
+    const row = {
+      field,
+      storageKey,
+      viewType: view?.type,
+      viewProps: { ...view, isInput: props.isInput },
+      isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(view?.type!),
+    };
+    if (props.isComputable) {
+      // :RunComputedValue
+    }
+    rows.push(row);
+  }
+  return rows;
+});
 
 function focus() {
   if (!props.isInline) {
@@ -160,18 +179,18 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
     <!-- NOTE :Incomplete: builtin custom object properties :CustomObjectProperties -->
     <!-- Row -->
     <li
-      v-for="{ field, viewType, viewProps, storageKey, isFullWidth } of fieldViews"
-      :key="field.id"
+      v-for="row of fieldViews"
+      :key="row.field.id"
       class="mx-auto w-full"
       :class="[
-        isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row flex-wrap items-center gap-x-1',
+        row.isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row flex-wrap items-center gap-x-1',
         !isMinimal ? 'px-4' : '',
       ]"
       :style="{ minWidth: MIN_WIDTH + 'px', minHeight: ROW_HEIGHT_MIN + 'px' }"
     >
       <!-- Drop indicator -->
       <div
-        v-if="activeDropZone?.targetId == field.id"
+        v-if="activeDropZone?.targetId == row.field.id"
         class="absolute z-10 rounded bg-gray-400"
         :class="[
           isHorizontal ? 'h-full w-1' : 'h-1 w-full',
@@ -187,49 +206,23 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
       <!-- Field -->
       <span class="flex flex-1 flex-row items-center">
         <Field
-          :id="field.id"
-          :ref="(ref: any) => (ref != null ? (fieldRefs[field.id] = ref) : delete fieldRefs[field.id])"
+          :id="row.field.id"
+          :ref="(ref: any) => (ref != null ? (fieldRefs[row.field.id] = ref) : delete fieldRefs[row.field.id])"
           is-minimal
-          :node-ptr="toNodeRef(field)"
+          :node-ptr="toNodeRef(row.field)"
         />
         <!-- Actions -->
         <div class="ml-auto pr-1">
           <button
             v-if="isComputable"
-            v-tooltip="{ title: `Compute ${field.name} dynamically`, small: true, group: 'section.header' }"
-            class="rounded px-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
-            @click="
-              () => {
-                // nocheckin
-                // if (!isComputable) return;
-                // let computedValue = computedValuesByKey[field.id];
-                // if (!computedValue?.isActive) {
-                //   // add/activate computed value
-                //   computedValue = {
-                //     ...computedValue,
-                //     metatype: ObjectType.COMPUTED_VALUE,
-                //     kind: ComputedValueKind.PATH,
-                //     targetPath: row.computedPath,
-                //     isActive: true,
-                //   };
-                //   connection?.tx.update(node, {
-                //     computedValues: [
-                //       ...(node.computedValues.filter(
-                //         (cv) => cv.targetPath != null && getPathKey(cv.targetPath) != row.computedPathKey,
-                //       ) ?? []),
-                //       computedValue,
-                //     ],
-                //   });
-                // } else {
-                //   // remove computed value
-                //   connection?.tx.update(node, {
-                //     computedValues: node.computedValues.filter(
-                //       (cv) => cv.targetPath != null && getPathKey(cv.targetPath) != row.computedPathKey,
-                //     ),
-                //   });
-                // }
-              }
+            v-tooltip="{ title: `Compute ${row.field.name} dynamically`, small: true, group: 'section.header' }"
+            class="rounded px-0.5 transition-colors duration-75"
+            :class="
+              computer.has(row.computedPathKey)
+                ? 'text-primary-700 hover:bg-gray-100'
+                : 'text-gray-400 hover/row:bg-gray-100 group-hover/row:text-gray-700'
             "
+            @click="() => computer.toggle(row.computedPath!)"
           >
             <i class="fas fa-percent" />
           </button>
@@ -237,18 +230,18 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
       </span>
       <!-- Value -->
       <component
-        :is="getViewComponent(viewType)"
+        :is="getViewComponent(row.viewType)"
         v-if="
-          (modelValue?.[storageKey] != null || (isInput && !isDisabled)) &&
-          viewType != null &&
-          hasViewComponent(viewType)
+          (modelValue?.[row.storageKey] != null || (isInput && !isDisabled)) &&
+          row.viewType != null &&
+          hasViewComponent(row.viewType)
         "
-        :id="field.id + '.value'"
-        :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
-        :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
-        v-bind="viewProps"
+        :id="row.field.id + '.value'"
+        :class="['ml-auto flex-shrink-0', row.isFullWidth ? '' : 'text-right']"
+        :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)' }"
+        v-bind="row.viewProps"
         :model-value="
-          unpackValue(modelValue?.[storageKey], field, {
+          unpackValue(modelValue?.[row.storageKey], row.field, {
             graph: graph,
             wrapScalar: false,
             recurseCustomObject: false,
@@ -256,26 +249,26 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
         "
         @update:model-value="
           (value: any) => {
-            const valuePacked = packValue(value, field, {
+            const valuePacked = packValue(value, row.field, {
               graph: graph,
               wrapScalar: false,
               recurseCustomObject: false,
             });
-            const newObject = { ...modelValue, [storageKey]: valuePacked };
-            const options: ModelValueOptions = { field, path: [storageKey] };
+            const newObject = { ...modelValue, [row.storageKey]: valuePacked };
+            const options: ModelValueOptions = { field: row.field, path: [row.storageKey] };
             emit('update:modelValue', newObject, options);
           }
         "
       />
       <div
-        v-else-if="viewType != null"
+        v-else-if="row.viewType != null"
         class="ml-auto flex-shrink-0 text-gray-400"
-        :class="isFullWidth ? '' : 'text-right'"
+        :class="row.isFullWidth ? '' : 'text-right'"
       >
         <span class="">Unset</span>
       </div>
-      <div v-else class="ml-auto flex-shrink-0 text-danger-600" :class="isFullWidth ? '' : 'text-right'">
-        {{ viewType != null ? ViewType[viewType] : "No View" }}
+      <div v-else class="ml-auto flex-shrink-0 text-danger-600" :class="row.isFullWidth ? '' : 'text-right'">
+        {{ row.viewType != null ? ViewType[row.viewType] : "No View" }}
       </div>
     </li>
     <!-- Add button -->

@@ -184,15 +184,19 @@ export function typeNodeReferenceMaybe<T extends NodeType>(
   return typeNodeReference(nodeType, ref);
 }
 
-export function propertyReference(metatype: ObjectType | NodeType | StructType, id: number): PropertyReferenceData {
-  return { metatype: ObjectType.PROPERTY_REFERENCE, objectType: metatype as unknown as ObjectType, id };
+export function propertyReference(
+  metatype: ObjectType | NodeType | StructType,
+  id: number,
+  nodeSubtype?: number,
+): PropertyReferenceData {
+  return { metatype: ObjectType.PROPERTY_REFERENCE, objectType: metatype as unknown as ObjectType, id, nodeSubtype };
 }
 
 export function toPropertyRef(property: PropertyInfo | PropertyReferenceData): PropertyReferenceData {
   if (isStruct(property, StructType.PROPERTY_REFERENCE)) {
     return property;
   } else {
-    return propertyReference(property.component, property.id);
+    return propertyReference(property.component, property.id, property.componentSubtype);
   }
 }
 

@@ -472,11 +472,11 @@ def render_path(path: Path) -> str:
                 path_parts.append(f".{element_key}")
         # runtime
         elif element.type == PathElementType.RUN:
-            sign = SIGN_BY_RUN_SELECTOR[element.run] if element.run is not None else "???"
+            sign = f"${SIGN_BY_RUN_SELECTOR[element.run]}" if element.run is not None else "$"
             if path_parts:
-                path_parts[-1] += f"${sign}"
+                path_parts[-1] += sign
             else:
-                path_parts.append(f"${sign}")
+                path_parts.append(sign)
         elif element.type == PathElementType.CONTEXT:
             path_parts.append("$")
         else:
@@ -718,13 +718,13 @@ def evaluate_path(
             current = context
         elif element.type == PathElementType.RUN:
             runtime = context.active_session.runtime
-            assert element.run is not None, f"missing run selector for {element!r} in {path!r}"
+            run_selector = element.run or PathRunSelector.LATEST
             if not isinstance(current, Node):
                 raise PathLogicError(f"cannot get run of {current!r} in {path!r}")
-            if element.run == PathRunSelector.LATEST:
+            if run_selector == PathRunSelector.LATEST:
                 current = runtime.get_latest_run(cast("RunnableNode", current))
             else:
-                assert_never(element.run)
+                assert_never(run_selector)
         else:
             assert_never(element.type)
 
