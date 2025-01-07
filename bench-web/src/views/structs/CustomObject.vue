@@ -182,9 +182,10 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
         <div class="ml-auto pr-1">
           <button
             v-if="isComputable"
+            v-tooltip="{ title: `Compute ${field.name} dynamically`, small: true, group: 'section.header' }"
             class="rounded px-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
           >
-            <i class="fas fa-function" />
+            <i class="fas fa-percent" />
           </button>
         </div>
       </span>

@@ -532,6 +532,8 @@ export function updateFieldType(tx: Transaction, graph: ReadNodeGraph, field: Fi
     "format",
     "condition",
     "constraint",
+    "isList",
+    "isRequired",
   ] as (keyof TypeIdentity)[]) {
     if (field[key] != type?.[key]) {
       update[key] = type?.[key];

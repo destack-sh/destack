@@ -1,19 +1,20 @@
 <script lang="ts" setup>
 import { isSourceNode, toCamelName } from "@/language/const";
+import { makeTypeConstraint, makeTypeInfo } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
-import { ComputedValueKind, NodeType, ObjectType, Orientation, SourceNodeData, ViewData, ViewType } from "@/proto/wire";
+import { getPathKey } from "@/language/path";
+import { BenchType, ComputedValueKind, NodeType, ObjectType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
-import { IconInline } from "@/ui/icon";
 import { DetailSection, makeDetailLayout } from "@/ui/detail";
+import { IconInline } from "@/ui/icon";
 import { computedValue } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import FieldList from "@/views/structs/FieldList.vue";
-import { computed, toRef } from "vue";
 import Path from "@/views/structs/Path.vue";
-import { getPathKey } from "@/language/path";
+import { computed, toRef } from "vue";
 
 const SECTION_HEADER_HEIGHT = 32;
 const ROW_HEIGHT_MIN = 28;
@@ -123,7 +124,7 @@ defineExpose<ViewExposed>({ self, id });
         <div
           v-for="(row, i) in section.rows"
           :key="row.title ?? i"
-          class="mx-4"
+          class="group/row mx-4"
           :class="[
             row.type == 'view' || row.type == 'property' || row.type == 'object'
               ? row.isFullWidth
@@ -140,31 +141,45 @@ defineExpose<ViewExposed>({ self, id });
             <div class="ml-auto pr-1">
               <button
                 v-if="row.type == 'property' && row.isComputable"
-                class="rounded px-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+                v-tooltip="{ title: `Compute ${row.title} dynamically`, small: true, group: 'section.header' }"
+                class="rounded px-0.5 transition-colors duration-75"
+                :class="
+                  row.computedValue?.isActive
+                    ? 'text-gray-700 hover:bg-gray-100'
+                    : 'text-gray-400 hover/row:bg-gray-100 group-hover/row:text-gray-700'
+                "
                 @click="
                   () => {
                     if (!isSourceNode(node)) return;
-                    if (row.computedValue == null) {
+                    if (!row.computedValue?.isActive) {
+                      // add/activate computed value
+                      const computedValue = {
+                        ...row.computedValue,
+                        metatype: ObjectType.COMPUTED_VALUE,
+                        kind: ComputedValueKind.PATH,
+                        targetPath: row.computedPath,
+                        isActive: true,
+                      };
                       connection?.tx.update(node, {
                         computedValues: [
                           ...(node.computedValues.filter(
                             (cv) => cv.targetPath != null && getPathKey(cv.targetPath) != row.computedPathKey,
                           ) ?? []),
-                          {
-                            metatype: ObjectType.COMPUTED_VALUE,
-                            kind: ComputedValueKind.PATH,
-                            targetPath: row.computedPath,
-                            isActive: true,
-                          },
+                          computedValue,
                         ],
                       });
                     } else {
-
+                      // remove computed value
+                      connection?.tx.update(node, {
+                        computedValues: node.computedValues.filter(
+                          (cv) => cv.targetPath != null && getPathKey(cv.targetPath) != row.computedPathKey,
+                        ),
+                      });
                     }
                   }
                 "
               >
-                <i class="fas fa-function" />
+                <i class="fas fa-percent" />
               </button>
             </div>
           </div>
@@ -184,7 +199,15 @@ defineExpose<ViewExposed>({ self, id });
           <Path
             v-else-if="row.type == 'property' && row.computedValue?.kind == ComputedValueKind.PATH"
             :id="i + '.value'"
+            :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
             :model-value="row.computedValue?.sourcePath"
+            :value-type="
+              makeTypeInfo({
+                benchType: BenchType.PATH,
+                isRequired: true,
+                constraint: makeTypeConstraint({ nodeScopePtr: [] }), // nocheckin
+              })
+            "
           />
           <!-- Actual View -->
           <component
