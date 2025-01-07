@@ -196,7 +196,7 @@ class Runtime:
             target_obj._do_set(node, mapped_value, coerce=False)
         elif (prop := target_key.property) is not None:
             assert isinstance(
-                target_obj, BuiltinObject
+                target_obj, (BuiltinObject, CustomObject)
             ), f"bad target {target_obj!r} in {computed_value!r}"
             mapped_value = coerce_value(source_value, prop.type_info)
             target_obj._do_set(prop.name, mapped_value)

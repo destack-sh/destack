@@ -1,12 +1,26 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, PathData, TypeKind, BenchType, FieldType, StructType } from "@/proto/wire";
-import { viewEmits, type ViewExposed } from "@/views/common";
-import { canvas } from "@/system/space";
-import { computed, toRef } from "vue";
-import { TypedNodeReferenceData } from "@/proto/wiring";
-import Picker from "@/views/content/Picker.vue";
+import { isSourceNode } from "@/language/const";
 import { makeTypeConstraint, makeTypeInfo } from "@/language/field";
-import { ICON_BY_STRUCT_TYPE, makeIcon } from "@/ui/icon";
+import { makePath } from "@/language/path";
+import { RUN_PROPERTY_BY_FIELD_TYPE } from "@/language/session";
+import {
+  BenchType,
+  FieldType,
+  NodeReferenceData,
+  NodeType,
+  PathData,
+  PathElementType,
+  StructType,
+  TypeKind,
+  ViewData
+} from "@/proto/wire";
+import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
+import { supergraph } from "@/system/globals";
+import { canvas } from "@/system/space";
+import { ICON_BY_STRUCT_TYPE } from "@/ui/icon";
+import { viewEmits, type ViewExposed } from "@/views/common";
+import Picker from "@/views/content/Picker.vue";
+import { computed, toRef } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
@@ -19,6 +33,8 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
+// NOTE :Incomplete: Path view just forwards to Picker for now with some wrapping  :OverloadedPicker
+// (obviously we want a richer Path view that supports all sorts of Paths)
 const nodeValueType = computed(() =>
   makeTypeInfo({
     kind: TypeKind.NODE,
@@ -29,13 +45,23 @@ const nodeValueType = computed(() =>
     }),
   }),
 );
+const nodeValue = computed(() => modelValue.value?.elements.findLast((e) => e.type == PathElementType.ATTRIBUTE)?.nodePtr);
+function updateNodeValue(value: NodeReferenceData) {
+  // assumes that we want the node's Runtime-field of that type :RunComputed
+  const { node, graph } = supergraph.getLinkOrError(value);
+  if (!isNode(node, NodeType.FIELD)) throw new Error(`unexpected node ${describeNode(node)}`);
+  const parent = graph.getOrError(node.parentPtr!);
+  if (!isSourceNode(parent)) throw new Error(`unexpected parent ${describeNode(parent)} for ${describeNode(value)}`);
+  const runProperty = RUN_PROPERTY_BY_FIELD_TYPE[node.type];
+  if (runProperty == null) throw new Error(`unexpected field type ${describeNode(node)}`);
+  const path = makePath(parent, PathElementType.RUN, runProperty, node);
+  emit("update:modelValue", path);
+}
 
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <div>
-    <!-- NOTE :Incomplete: Path view just forwards to Picker for now with some wrapping  :OverloadedPicker -->
-    <!-- (obviously we want a richer Path view that supports all sorts of Paths) -->
     <Picker
       id="picker"
       :title="title ?? 'Path'"
@@ -44,6 +70,8 @@ defineExpose<ViewExposed>({ self, id });
       :is-input="isInput"
       :is-disabled="isDisabled"
       :is-minimal="isMinimal"
+      :model-value="nodeValue"
+      @update:model-value="updateNodeValue"
     />
   </div>
 </template>

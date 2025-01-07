@@ -2,20 +2,23 @@ import { ACTIVE_RUN_STATUSES, INTERRUPTED_RUN_STATUSES, TERMINAL_RUN_STATUSES } 
 import {
   BlockType,
   CodeData,
+  FieldType,
   InterruptionData,
-  NodeReferenceData,
   NodeType,
+  ObjectType,
   PipeData,
-  RunType,
-  TextData,
-  type BlockData,
-  type RunData,
-  type ActionData,
-  RunSpanData,
+  PropertyReferenceData,
   RunAttemptData,
+  RunProperty,
+  RunSpanData,
+  RunType,
   StructType,
+  TextData,
+  type ActionData,
+  type BlockData,
+  type RunData
 } from "@/proto/wire";
-import { describeNode, isNode, isStruct } from "@/proto/wiring";
+import { describeNode, isNode, isStruct, propertyReference } from "@/proto/wiring";
 import { assertNever } from "@/utils/functools";
 import {
   compareTimestamps,
@@ -30,6 +33,12 @@ import {
 export type RunnableNode = BlockData | ActionData | PipeData;
 export type RunnableNodeType = NodeType.BLOCK | NodeType.ACTION | NodeType.PIPE;
 export type RunnableObject = RunnableNode | TextData | CodeData;
+
+export const RUN_PROPERTY_BY_FIELD_TYPE: Partial<Record<FieldType, PropertyReferenceData>> = {
+  [FieldType.VARIABLE]: propertyReference(ObjectType.RUN, RunProperty.variablesPacked),
+  [FieldType.OUTPUT]: propertyReference(ObjectType.RUN, RunProperty.outputsPacked),
+  [FieldType.INPUT]: propertyReference(ObjectType.RUN, RunProperty.inputsPacked),
+};
 
 /** Whether the given node is runnable */
 export function isRunnable(node: any | null | undefined): node is RunnableNode {

@@ -291,36 +291,6 @@ export function getViewForType(
   return null;
 }
 
-export type FieldView = {
-  field: FieldData;
-  storageKey: string;
-  viewType?: ViewType;
-  viewProps?: any;
-  isFullWidth?: boolean;
-};
-
-/** View the values of a custom object */
-export function getFieldViews(
-  fields: FieldData[],
-  graph: ReadNodeGraph,
-  options?: { types?: FieldType[]; isInput?: boolean },
-): FieldView[] {
-  const fieldViews: FieldView[] = [];
-  for (const field of fields) {
-    if (options?.types != null && !options.types.includes(field.type)) continue;
-    const storageKey = getStorageKey(field, field);
-    const view = getViewForType(field);
-    fieldViews.push({
-      field,
-      storageKey,
-      viewType: view?.type,
-      viewProps: { ...view, isInput: options?.isInput },
-      isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(view?.type!),
-    });
-  }
-  return fieldViews;
-}
-
 /** Turn a type constraint into props for an Html input element */
 export function getNativeConstraintProps(constraint?: Partial<TypeConstraintData>) {
   if (constraint == null) return {};

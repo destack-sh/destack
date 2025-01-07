@@ -1,3 +1,4 @@
+import { isSourceNode } from "@/language/const";
 import {
   FieldData,
   NodeType,
@@ -6,6 +7,7 @@ import {
   PathElementData,
   PathElementType,
   PropertyReferenceData,
+  SourceNodeData,
   StructType,
 } from "@/proto/wire";
 import { isNode, isStruct, makeStruct, propertyInfo, toNodeRef } from "@/proto/wiring";
@@ -83,7 +85,8 @@ export type PathElementIn =
   | (Partial<PathElementData> & Pick<PathElementData, "type">)
   | PathElementType
   | PropertyReferenceData
-  | FieldData;
+  | FieldData
+  | SourceNodeData;
 
 /** Make a Path from a list of elements. */
 export function makePath(...elementsIn: PathElementIn[]): PathData {
@@ -100,6 +103,8 @@ export function makePath(...elementsIn: PathElementIn[]): PathData {
         type: PathElementType.ATTRIBUTE,
         nodePtr: toNodeRef(elementIn),
       };
+    } else if (isSourceNode(elementIn)) {
+      element = { metatype: ObjectType.PATH_ELEMENT, type: PathElementType.NODE, nodePtr: toNodeRef(elementIn) };
     } else {
       element = { metatype: ObjectType.PATH_ELEMENT, ...elementIn };
     }
