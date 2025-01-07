@@ -10212,9 +10212,9 @@ export enum ComputedValueKind {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: COMPUTED_VALUE_KIND_REFERENCE = 1;
+     * @generated from protobuf enum value: COMPUTED_VALUE_KIND_PATH = 1;
      */
-    REFERENCE = 1,
+    PATH = 1,
     /**
      * @generated from protobuf enum value: COMPUTED_VALUE_KIND_EXPRESSION = 2;
      */

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
+import { isSourceNode, toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
-import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { ComputedValueKind, NodeType, ObjectType, Orientation, SourceNodeData, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
@@ -12,6 +12,8 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import FieldList from "@/views/structs/FieldList.vue";
 import { computed, toRef } from "vue";
+import Path from "@/views/structs/Path.vue";
+import { getPathKey } from "@/language/path";
 
 const SECTION_HEADER_HEIGHT = 32;
 const ROW_HEIGHT_MIN = 28;
@@ -135,8 +137,33 @@ defineExpose<ViewExposed>({ self, id });
             <span class="">{{ row.title }}</span>
             <span v-if="row.subtitle" class="ml-1.5 text-gray-400">{{ row.subtitle }}</span>
             <!-- Actions -->
-            <div class="ml-auto pr-1.5">
-              <button v-if="row.isComputable" class="rounded text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700">
+            <div class="ml-auto pr-1">
+              <button
+                v-if="row.type == 'property' && row.isComputable"
+                class="rounded px-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+                @click="
+                  () => {
+                    if (!isSourceNode(node)) return;
+                    if (row.computedValue == null) {
+                      connection?.tx.update(node, {
+                        computedValues: [
+                          ...(node.computedValues.filter(
+                            (cv) => cv.targetPath != null && getPathKey(cv.targetPath) != row.computedPathKey,
+                          ) ?? []),
+                          {
+                            metatype: ObjectType.COMPUTED_VALUE,
+                            kind: ComputedValueKind.PATH,
+                            targetPath: row.computedPath,
+                            isActive: true,
+                          },
+                        ],
+                      });
+                    } else {
+
+                    }
+                  }
+                "
+              >
                 <i class="fas fa-function" />
               </button>
             </div>
@@ -153,7 +180,13 @@ defineExpose<ViewExposed>({ self, id });
               is-minimal
             />
           </div>
-          <!-- View -->
+          <!-- Computed View -->
+          <Path
+            v-else-if="row.type == 'property' && row.computedValue?.kind == ComputedValueKind.PATH"
+            :id="i + '.value'"
+            :model-value="row.computedValue?.sourcePath"
+          />
+          <!-- Actual View -->
           <component
             :is="getViewComponent(row.viewType)"
             v-else-if="
@@ -163,6 +196,9 @@ defineExpose<ViewExposed>({ self, id });
             :class="['ml-auto flex-shrink-0', row.isFullWidth ? '' : 'text-right', row.type == 'object' ? '' : '']"
             :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
             v-bind="row.viewProps"
+            :is-computable="(row.type == 'property' || row.type == 'object') && row.isComputable"
+            :computed-values="row.type == 'object' && isSourceNode(node) ? node.computedValues : undefined"
+            :computed-prefix="row.type == 'object' ? row.computedPath : undefined"
             :model-value="row.read()"
             @update:model-value="(value: any, path?: any) => row.write(value, path)"
           />

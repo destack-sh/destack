@@ -8,7 +8,8 @@ import {
   ActionData,
   UserData,
   type ExpressionData,
-  type SortType
+  type SortType,
+  ComputedValueData,
 } from "@/proto/wire";
 
 export function makeExpression(
@@ -46,4 +47,3 @@ export function makeAndConditional(clauses: ExpressionData[]): ExpressionData | 
 }
 
 export type EditSubject = UserData | RunData | BlockData | ActionData;
-
