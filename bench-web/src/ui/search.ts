@@ -828,7 +828,7 @@ function anyNodeTypeItem(idxId: string): TypeItem {
 
 /**
  * Search the available type identities (built-ins plus from graph).
- * NOTE :Architecture: typeIndex shouldn't really be part of search but its full own component?
+ * NOTE :Architecture: typeIndex shouldn't really be part of search but its full own component? :OverloadedPicker
  */
 export function typeIndex(idx: {
   id: string;

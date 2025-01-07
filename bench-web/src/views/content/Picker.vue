@@ -81,7 +81,9 @@ const baseType = supergraph.getRef(
   computed(() => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK> | undefined),
 );
 const facetIcon = computed(() => {
-  if (props.valueType?.kind == TypeKind.BASED_NODE && baseType.value != null) {
+  if (props.icon != null) {
+    return props.icon;
+  } else if (props.valueType?.kind == TypeKind.BASED_NODE && baseType.value != null) {
     return getNodeIcon(baseType.value);
   } else if (props.valueType?.benchType != null) {
     return ICON_BY_BENCH_TYPE[props.valueType.benchType];
@@ -92,7 +94,9 @@ const facetIcon = computed(() => {
   }
 });
 const facetName = computed(() => {
-  if (props.valueType?.kind == TypeKind.BASED_NODE && baseType.value != null) {
+  if (props.title != null) {
+    return props.title;
+  } else if (props.valueType?.kind == TypeKind.BASED_NODE && baseType.value != null) {
     return baseType.value.name;
   } else if (props.valueType?.benchType != null) {
     return getConstrainedTypeName(props.valueType);

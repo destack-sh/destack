@@ -12,6 +12,7 @@ import { IconInline } from "@/ui/icon";
 import { computedValue } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
+import ComputedValue from "@/views/structs/ComputedValue.vue";
 import FieldList from "@/views/structs/FieldList.vue";
 import Path from "@/views/structs/Path.vue";
 import { computed, toRef } from "vue";
@@ -129,7 +130,7 @@ defineExpose<ViewExposed>({ self, id });
             row.type == 'view' || row.type == 'property' || row.type == 'object'
               ? row.isFullWidth
                 ? 'flex flex-col gap-y-1'
-                : 'flex flex-row flex-wrap items-center gap-x-[2%]'
+                : 'flex flex-row flex-wrap items-center gap-x-1'
               : '',
           ]"
         >
@@ -145,11 +146,12 @@ defineExpose<ViewExposed>({ self, id });
                 class="rounded px-0.5 transition-colors duration-75"
                 :class="
                   row.computedValue?.isActive
-                    ? 'text-gray-700 hover:bg-gray-100'
+                    ? 'text-primary-700 hover:bg-gray-100'
                     : 'text-gray-400 hover/row:bg-gray-100 group-hover/row:text-gray-700'
                 "
                 @click="
                   () => {
+                    // nocheckin
                     if (!isSourceNode(node)) return;
                     if (!row.computedValue?.isActive) {
                       // add/activate computed value
@@ -196,16 +198,17 @@ defineExpose<ViewExposed>({ self, id });
             />
           </div>
           <!-- Computed View -->
-          <Path
-            v-else-if="row.type == 'property' && row.computedValue?.kind == ComputedValueKind.PATH"
+          <ComputedValue
+            v-else-if="row.type == 'property' && row.computedValue?.isActive"
             :id="i + '.value'"
             :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
-            :model-value="row.computedValue?.sourcePath"
+            is-input
+            :model-value="row.computedValue"
             :value-type="
               makeTypeInfo({
-                benchType: BenchType.PATH,
+                benchType: BenchType.COMPUTED_VALUE,
                 isRequired: true,
-                constraint: makeTypeConstraint({ nodeScopePtr: [] }), // nocheckin
+                constraint: makeTypeConstraint({ nodeScopePtr: [] }), // nocheckin scope to containing runnable
               })
             "
           />
@@ -234,7 +237,13 @@ defineExpose<ViewExposed>({ self, id });
             <span>{{ row.text }}</span>
           </div>
           <!-- Line -->
-          <div v-else-if="row.type == 'line'" class="my-0.5 h-px w-full bg-gray-200" />
+          <div v-else-if="row.type == 'line'" class="relative my-0.5 h-px w-full bg-gray-200">
+            <span
+              v-if="row.text"
+              class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-xs text-gray-400"
+              >{{ row.text }}</span
+            >
+          </div>
           <!-- Error -->
           <div v-else class="text-red-500">
             <span>No View for '{{ row.type }}'</span>

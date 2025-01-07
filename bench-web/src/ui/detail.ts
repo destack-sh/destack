@@ -129,6 +129,7 @@ export type IconRow = RowBase & {
 };
 export type LineRow = RowBase & {
   type: "line";
+  text?: string;
 };
 export type TextRow = RowBase & {
   type: "text";
@@ -255,6 +256,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
       );
       computedPathKey = getPathKey(computedPath);
     }
+    const computedValue = computedPathKey != null ? computedValuesByKey[computedPathKey] : undefined;
 
     // view
     const title = options?.title ?? getPropertyTitle(prop);
@@ -271,8 +273,8 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
       isComputable: options?.isComputable ?? false,
       computedPath,
       computedPathKey,
-      computedValue: computedPathKey != null ? computedValuesByKey[computedPathKey] : undefined,
-      isFullWidth: options?.isFullWidth || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
+      computedValue,
+      isFullWidth: options?.isFullWidth || computedValue?.isActive || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
       viewType: view.type!,
       viewProps: { ...view, ...options?.props, isInput: !options?.isDisabled },
       read: () => {
@@ -430,8 +432,8 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
   }
 
   /** Line row */
-  function rowLine(): LineRow {
-    return { type: "line" };
+  function rowLine(text?: string): LineRow {
+    return { type: "line", text };
   }
 
   /** Icon row */
@@ -439,11 +441,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     return { type: "icon", icon: makeIcon(icon) };
   }
 
-  function sectionSchema(options?: {
-    title?: string;
-    subtitle?: string;
-    toolPtr?: NodeReferenceData;
-  }): DetailSection {
+  function sectionSchema(options?: { title?: string; subtitle?: string; toolPtr?: NodeReferenceData }): DetailSection {
     return section(
       options?.title ?? "Schema",
       [
@@ -633,6 +631,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     } else if (node.type == ActionType.TOOL) {
       commonRows.push(
         rowProperty(ActionProperty.toolPtr, {
+          isComputable: true,
           isFullWidth: false,
           extendWrite: (tx, newValue, options) => {
             // also update node name if tool changes
@@ -672,9 +671,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
       // flow inputs
       section("Schema", [{ type: "fields", fieldType: FieldType.INPUT, toolPtr: node.parentPtr }], {
         subtitle: "(Flow)",
-        actions: [
-          actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT], { toolPtr: node.parentPtr }),
-        ],
+        actions: [actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT], { toolPtr: node.parentPtr })],
       });
     } else if (node.type == ActionType.COMPLETE) {
       // ƒlow outputs as inputs
@@ -718,7 +715,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
           rowIcon("fas fa-arrow-down"),
           // outputs
           { type: "fields", fieldType: FieldType.OUTPUT, toolPtr },
-          rowLine(),
+          rowLine("Self"),
           { type: "fields", fieldType: FieldType.OUTPUT },
         ],
         {
