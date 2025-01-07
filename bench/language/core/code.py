@@ -25,9 +25,9 @@ class CodeType(IdEnum):
     We don't set this explicitly in Code because it depends on where the Code is used.
     """
 
-    SNIPPET = 1  # for inline expressions and procedures anywhere (import only)
-    SCRIPT = 2  # for defining Python-level commons in Block 'scripts' (import & export)
-    FUNCTION = 3  # for Python functions in Blocks/Steps (import only)
+    SNIPPET = 1  # inline expressions and procedures anywhere
+    SCRIPT = 2  # define Python-level commons 'scripts'
+    FUNCTION = 3  # Python functions
 
 
 @struct_(StructType.CODE_LINE)

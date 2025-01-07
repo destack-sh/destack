@@ -462,7 +462,7 @@ class ValueList(list, Generic[ValueParentT]):
                 values = [e._copy_to(self.parent, self.parent_key) for e in items]  # type: ignore
             else:
                 for item in values:
-                    item.parent = self.parent
+                    item._do_set("parent", self.parent, track=False)
 
     def clear(self):
         super().clear()

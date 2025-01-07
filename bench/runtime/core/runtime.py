@@ -455,7 +455,7 @@ class Runtime:
                         variable_value = variables._do_get(field)
                         if (
                             variable_value is None
-                            and is_node_type(field.bench_type) is not None
+                            and is_node_type(field.bench_type)
                             and NodeType(field.bench_type).is_resource
                         ):
                             missing_resource_slots.append(field)

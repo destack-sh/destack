@@ -164,7 +164,7 @@ class CustomObject(Mapping[str, Any]):
                     set_fields.append(f"{prop.name}={prop_value!r}")
         for field in self._type._fields:
             field_value = self._do_get(field)
-            if field_value:
+            if field_value is not None and (not field.is_list or field_value):
                 if type(field_value) is list:
                     set_fields.append(f"{field.name}[{len(field_value)}]")
                 elif type(field_value) is CustomObject:
