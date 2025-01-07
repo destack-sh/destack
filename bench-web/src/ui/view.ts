@@ -19,7 +19,7 @@ import {
   StructType,
   TransformData,
   TypeConstraintData,
-  TypeInfoData,
+  TypeData,
   TypeKind,
   Vector2Data,
   Vector3Data,
@@ -203,6 +203,9 @@ export const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
   [BenchType.TEXT]: ViewType.TEXT,
   [BenchType.FILE]: ViewType.FILE,
   [BenchType.COLOR]: ViewType.COLOR,
+  [BenchType.PATH]: ViewType.PATH,
+  [BenchType.TYPE_INFO]: ViewType.TYPE,
+  [BenchType.COMPUTED_VALUE]: ViewType.COMPUTED_VALUE,
 };
 export const VIEW_TYPE_BY_FILE_TYPE: Partial<Record<FileType, ViewType>> = {
   [FileType.IMAGE]: ViewType.IMAGE,
@@ -233,7 +236,7 @@ export const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE, ViewType.IMA
 
 /** Gets the View for some value type */
 export function getViewForType(
-  type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>,
+  type: Omit<TypeIdentity, "kind"> & Partial<TypeData>,
   options?: { forcePickerDropdown?: boolean },
 ): ViewProps | null {
   const valueType = makeTypeInfo(type);

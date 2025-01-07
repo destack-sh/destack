@@ -98,11 +98,11 @@ export class ActionState {
   actionPtr: TypedNodeReferenceData<NodeType.ACTION>;
   action: Ref<ActionData | null>;
   subnode: Ref<any | null>;
-  delegatePtr: Ref<TypedNodeReferenceData<NodeType.BLOCK | NodeType.ACTION> | null>;
-  delegate: Ref<BlockData | ActionData | null>;
+  toolPtr: Ref<TypedNodeReferenceData<NodeType.BLOCK | NodeType.ACTION> | null>;
+  tool: Ref<BlockData | ActionData | null>;
   fields: Ref<FieldData[]>;
   actionFields: Ref<FieldData[]>;
-  delegateFields: Ref<FieldData[]>;
+  toolFields: Ref<FieldData[]>;
   // layout
   boundingBox: Ref<BoundingBox | null> = shallowRef(null);
 
@@ -114,15 +114,15 @@ export class ActionState {
       if (this.action.value == null) return null;
       return unpackSubnode(NodeType.ACTION, this.action.value.type, this.action.value.subnodePacked);
     });
-    this.delegatePtr = computedValue(() => {
-      if (this.action.value?.type == ActionType.DELEGATE) {
-        return this.action.value.delegatePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.ACTION> | null;
+    this.toolPtr = computedValue(() => {
+      if (this.action.value?.type == ActionType.TOOL) {
+        return this.action.value.toolPtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.ACTION> | null;
       } else {
         return null;
       }
     });
-    this.delegate = flow.graph.getRef(this.delegatePtr);
-    this.delegateFields = flow.graph.getChildrenRef(this.delegatePtr, NodeType.FIELD);
+    this.tool = flow.graph.getRef(this.toolPtr);
+    this.toolFields = flow.graph.getChildrenRef(this.toolPtr, NodeType.FIELD);
     this.actionFields = flow.graph.getChildrenRef(action, NodeType.FIELD);
     this.fields = computed(() => {
       const actionType = this.action.value?.type;
@@ -130,9 +130,9 @@ export class ActionState {
         return this.flow.fields.value.filter((f) => f.type == FieldType.INPUT);
       } else if (actionType == ActionType.COMPLETE) {
         return this.flow.fields.value.filter((f) => f.type == FieldType.OUTPUT);
-      } else if (actionType == ActionType.DELEGATE) {
-        if (this.action.value?.delegatePtr != null) {
-          return this.delegateFields.value;
+      } else if (actionType == ActionType.TOOL) {
+        if (this.action.value?.toolPtr != null) {
+          return this.toolFields.value;
         } else {
           return this.actionFields.value;
         }
@@ -1099,8 +1099,8 @@ export class FlowContext {
       actionFields: state.actionFields.value,
       flow: this.flow.value,
       flowFields: this.fields.value,
-      node: state.delegate.value,
-      nodeFields: state.delegateFields.value,
+      node: state.tool.value,
+      nodeFields: state.toolFields.value,
     });
   }
 
@@ -1308,8 +1308,8 @@ export function getActionFields(
     const flow = getContainingFlow(graph, action);
     if (flow == null) return null;
     let node: BlockData | ActionData | undefined | null = null;
-    if (action.type == ActionType.DELEGATE && action.delegatePtr != null) {
-      node = graph.getMaybe(action.delegatePtr) as BlockData | ActionData | undefined;
+    if (action.type == ActionType.TOOL && action.toolPtr != null) {
+      node = graph.getMaybe(action.toolPtr) as BlockData | ActionData | undefined;
     }
     related = {
       actionFields: graph.getChildren(action, NodeType.FIELD),
@@ -1336,7 +1336,7 @@ export function getActionFields(
       fields: side == PortSide.INCOMING ? related.flowFields.filter((f) => f.type == FieldType.OUTPUT) : [],
       fieldParent: related.flow,
     };
-  } else if (action.type == ActionType.DELEGATE && action.delegatePtr != null) {
+  } else if (action.type == ActionType.TOOL && action.toolPtr != null) {
     // from block
     if (related.node == null) return null;
     const type = side == PortSide.INCOMING ? FieldType.INPUT : FieldType.OUTPUT;

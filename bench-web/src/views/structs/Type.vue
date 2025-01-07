@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { NodeType, TypeInfoData, ViewData } from "@/proto/wire";
+import { NodeType, TypeData, ViewData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -11,7 +11,7 @@ const props = defineProps<
     Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "valueType" | "isInput" | "isMinimal">
   >
 >();
-const modelValue = defineModel<TypeInfoData | undefined>();
+const modelValue = defineModel<TypeData | undefined>();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");

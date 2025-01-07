@@ -21,7 +21,6 @@ from typing import (
     Optional,
     Self,
     Sequence,
-    Type,
     TypeGuard,
     Union,
     cast,
@@ -462,7 +461,7 @@ def object_[_ObjectT: BuiltinObject](
     Mark a class as an object component (or concrete struct for a StructType).
     """
 
-    def decorate(cls_in: Type[_ObjectT]) -> Type[_ObjectT]:
+    def decorate(cls_in: type[_ObjectT]) -> type[_ObjectT]:
         cls, _properties = _process_object_cls(
             cls=cast(Any, cls_in), object_type=struct_type, is_final=is_final
         )
@@ -475,7 +474,7 @@ def object_[_ObjectT: BuiltinObject](
                     f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_TYPE[struct_type]}"
                 )
             STRUCT_CLASS_BY_TYPE[struct_type] = cls
-        return cast(Type[_ObjectT], cls)
+        return cast(type[_ObjectT], cls)
 
     return decorate
 
@@ -484,7 +483,7 @@ def object_[_ObjectT: BuiltinObject](
 def struct_[_ObjectT: BuiltinObject](struct_type: StructType):
     """Register a class as a concrete struct for the given struct type."""
 
-    def decorate(cls: Type[_ObjectT]) -> Type[_ObjectT]:
+    def decorate(cls: type[_ObjectT]) -> type[_ObjectT]:
         cls = object_(struct_type=struct_type, is_final=True)(cls)
         if IS_DEV and cls.__name__ != "Struct" and cls.__name__ != "Struct":
             if not issubclass(cls, (Struct, Struct)):
@@ -492,7 +491,7 @@ def struct_[_ObjectT: BuiltinObject](struct_type: StructType):
             if issubclass(cls, Node):
                 raise ValueError(f"{cls} is a node for {struct_type}")
 
-        return cast(Type[_ObjectT], cls)
+        return cast(type[_ObjectT], cls)
 
     return decorate
 
@@ -513,7 +512,7 @@ def node_component(
     if isinstance(passthrough_set, str):
         passthrough_set = (passthrough_set,)
 
-    def decorate(cls: Type["Node"]) -> Type["Node"]:
+    def decorate(cls: type["Node"]) -> type["Node"]:
         cls, properties = _process_object_cls(
             cls=cls,
             object_type=node_type,
@@ -576,7 +575,7 @@ def node_(
     in_package = node_type in PACKAGE_NODE_TYPES
     in_bench = node_type in BENCH_NODE_TYPES
 
-    def decorate(cls: Type["Node"]) -> Type["Node"]:
+    def decorate(cls: type["Node"]) -> type["Node"]:
         cls = node_component(
             node_type=node_type,
             passthrough_get=passthrough_get,
@@ -623,7 +622,7 @@ def node_subtype_(
     Mark a class as a subtype class of an ancestor node class.
     """
 
-    def decorate(cls: Type["Node"]) -> Type["Node"]:
+    def decorate(cls: type["Node"]) -> type["Node"]:
         for c in cls.__mro__[::-1]:
             if getattr(c, "metatype", None):
                 base_cls = cast(type["Node"], c)
@@ -2417,7 +2416,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         cls, *, type: int | None = None, block: "Block | None" = None, **kwargs: Any
     ) -> "CustomObject":
         """Creates a new partial Node of this type."""
-        from bench.language.source.field import TypeConstraint, TypeInfo
+        from bench.language.source.field import Type, TypeConstraint
 
         from .value import coerce_custom_object_scalar
 
@@ -2430,7 +2429,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             constraint = None
         if block is not None:
             kwargs["block"] = block
-            typ = TypeInfo(
+            typ = Type(
                 kind=TypeKind.PARTIAL_OBJECT,
                 base_type=block,
                 base_field_type=FieldType.MEMBER,
@@ -2438,9 +2437,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 constraint=constraint,
             )
         else:
-            typ = TypeInfo(
-                kind=TypeKind.PARTIAL_OBJECT, bench_type=cls.metatype, constraint=constraint
-            )
+            typ = Type(kind=TypeKind.PARTIAL_OBJECT, bench_type=cls.metatype, constraint=constraint)
         return coerce_custom_object_scalar(ObjectKind.BUILTIN, kwargs, typ)
 
     @classmethod
@@ -2805,7 +2802,7 @@ class NodeReference(Struct[NodeReferenceData]):
 
     @staticmethod
     def _clone_ref[T: NodeReference | Any](
-        ref_cls: Type[T], ref: "NodeReference | Any", **kwargs
+        ref_cls: type[T], ref: "NodeReference | Any", **kwargs
     ) -> T:
         return ref_cls(
             id=ref.id,
@@ -2943,7 +2940,7 @@ class PropertyReference(Struct):
                 return f"{object_cls.__name__}.{prop.name} [id={self.id}]"
 
     @property
-    def object_cls(self) -> Type[BuiltinObject] | None:
+    def object_cls(self) -> type[BuiltinObject] | None:
         if self.object_type is None:
             return Node
         else:

@@ -46,9 +46,9 @@ from bench.language import (
     RunStatus,
     RunType,
     Session,
+    Type,
     TypeBase,
     TypeIn,
-    TypeInfo,
     active_session,
     get_tracing_context,
 )
@@ -400,13 +400,13 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         return await self.runtime._wait_for(nodes, complete_when, timeout)
 
     def _get_resource[R: Resource = Resource](
-        self, resource_type: TypeInfo | TypeIn | type[R]
+        self, resource_type: Type | TypeIn | type[R]
     ) -> R | None:
         """Finds a Resource in the current context of a Runner."""
         return self.runtime._get_resource(self, resource_type)
 
     def _get_ready_resource_or_error[R: Resource = Resource](
-        self, resource_type: TypeInfo | TypeIn | type[R]
+        self, resource_type: Type | TypeIn | type[R]
     ) -> R:
         """Finds a Resource in the current context of a Runner."""
         resource = self._get_resource(resource_type)

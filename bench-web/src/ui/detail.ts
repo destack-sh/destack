@@ -59,6 +59,7 @@ import {
   PropertyInfo,
   RecordProperty,
   RunOptionsProperty,
+  RunProperty,
   TypeConstraintProperty,
   TypeKind,
   ViewType,
@@ -97,7 +98,7 @@ type RowBase = {
 export type FieldsRow = RowBase & {
   type: "fields";
   fieldType: FieldType;
-  delegatePtr?: NodeReferenceData;
+  toolPtr?: NodeReferenceData;
 };
 export type ViewRow = RowBase & {
   type: "view";
@@ -188,19 +189,19 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
   }
 
   /** Gets a top-level property with the given key */
-  function property(property: number): { prop: PropertyInfo; propKey: string; isSubnode: boolean } {
+  function property(property: number): { prop: PropertyInfo; propName: string; isSubnode: boolean } {
     let prop: PropertyInfo;
-    let propKey: string;
+    let propName: string;
     if (propertyInfos[property] != null) {
       prop = propertyInfos[property];
-      propKey = propertyEnum[property];
+      propName = propertyEnum[property];
       if (prop == null) throw new Error(`no property info for: ${property}`);
-      return { prop, propKey, isSubnode: false };
+      return { prop, propName, isSubnode: false };
     } else if (subpropertyInfos?.[property] != null) {
       prop = subpropertyInfos[property];
-      propKey = subpropertyEnum![property];
-      if (prop == null) throw new Error(`no property info for: ${property} ${propKey}`);
-      return { prop, propKey, isSubnode: true };
+      propName = subpropertyEnum![property];
+      if (prop == null) throw new Error(`no property info for: ${property} ${propName}`);
+      return { prop, propName, isSubnode: true };
     } else {
       throw new Error(`no property info for: ${property}`);
     }
@@ -223,29 +224,35 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     if (typeof path == "number") path = [path];
 
     // property
-    const { prop: rootProp, propKey: rootPropKey, isSubnode } = property(path[0]);
+    const { prop: rootProp, propName: rootPropName, isSubnode } = property(path[0]);
     let prop: PropertyInfo;
-    let propKeys: string[];
+    let propNames: string[];
     if (path.length == 1) {
       prop = rootProp;
-      propKeys = [rootPropKey];
+      propNames = [rootPropName];
     } else if (path.length == 2) {
       const rootPropType = getPropertyType(rootProp);
       const rootPropTypeInfos = PROPERTY_INFOS_BY_TYPE[rootPropType?.benchType as unknown as ObjectType];
       const rootPropEnum = PROPERTY_ENUM_BY_TYPE[rootPropType?.benchType as unknown as ObjectType];
       prop = rootPropTypeInfos?.[path[1]];
-      const propKey = rootPropEnum?.[path[1]];
-      if (prop == null || propKey == null) throw new Error(`no nested object at: ${path.join(".")}`);
-      propKeys = [rootPropKey, propKey];
+      const propName = rootPropEnum?.[path[1]];
+      if (prop == null || propName == null) throw new Error(`no nested object at: ${path.join(".")}`);
+      propNames = [rootPropName, propName];
     } else {
       assertNever(path);
     }
 
     // computed
+    // NOTE :Incomplete: currently computed values UI is focused on :RunComputed values
+    //  (as opposed to templated ones in non-runnable Nodes, i.e. we're ignoring non-runtime computation contexts)
     let computedPath: PathData | undefined = undefined;
     let computedPathKey: string | undefined = undefined;
     if (options?.isComputable) {
-      computedPath = makePath(PathElementType.RUN, toPropertyRef(prop)); // :RunComputed
+      computedPath = makePath(
+        PathElementType.RUN,
+        propertyReference(NodeType.RUN, RunProperty.inputsPacked),
+        toPropertyRef(prop),
+      );
       computedPathKey = getPathKey(computedPath);
     }
 
@@ -272,15 +279,15 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
         let val;
         if (path.length == 1) {
           if (!isSubnode) {
-            val = (node as any)[rootPropKey];
+            val = (node as any)[rootPropName];
           } else {
-            val = (subnode as any)?.[rootPropKey];
+            val = (subnode as any)?.[rootPropName];
           }
         } else if (path.length == 2) {
           if (!isSubnode) {
-            val = (node as any)[rootPropKey]?.[propKeys[1]];
+            val = (node as any)[rootPropName]?.[propNames[1]];
           } else {
-            val = (subnode as any)[rootPropKey]?.[propKeys[1]];
+            val = (subnode as any)[rootPropName]?.[propNames[1]];
           }
         } else {
           assertNever(path);
@@ -297,12 +304,12 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
         }
         if (path.length == 1) {
           if (!isSubnode) {
-            tx.update(node, { [rootPropKey]: newValue }, txOptions);
+            tx.update(node, { [rootPropName]: newValue }, txOptions);
           } else {
             tx.update(
               node,
               // @ts-expect-error this is fine, metatype/subtype can't be typed properly here
-              makeEditFromSubnode(node, { metatype, type: subtype, subnode: { [rootPropKey]: newValue } }),
+              makeEditFromSubnode(node, { metatype, type: subtype, subnode: { [rootPropName]: newValue } }),
               txOptions,
             );
           }
@@ -310,10 +317,10 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
           if (!isSubnode) {
             const newRootValue = makeStruct({
               metatype: rootProp.referenceStruct,
-              ...(node as any)[rootPropKey],
-              [propKeys[1]]: newValue,
+              ...(node as any)[rootPropName],
+              [propNames[1]]: newValue,
             });
-            tx.update(node, { [rootPropKey]: newRootValue }, txOptions);
+            tx.update(node, { [rootPropName]: newRootValue }, txOptions);
           } else {
             throw new Error(`nested subnode property edit not yet implemented`);
           }
@@ -356,14 +363,14 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
   function actionAddField(
     fieldType: FieldType,
     icon: IconData | string = "fas fa-plus",
-    options?: { delegatePtr?: NodeReferenceData },
+    options?: { toolPtr?: NodeReferenceData },
   ): DetailAction {
     return {
       title: `Add ${toCamelName(FieldType, fieldType)}`,
       icon: makeIcon(icon),
       action: (e) => {
-        const delegate = options?.delegatePtr != null ? graph.get(options.delegatePtr) : null;
-        onAddFieldAction(e, fieldType, (delegate ?? node) as BlockData, graph, txFactory, { dontFocus: true });
+        const tool = options?.toolPtr != null ? graph.get(options.toolPtr) : null;
+        onAddFieldAction(e, fieldType, (tool ?? node) as BlockData, graph, txFactory, { dontFocus: true });
       },
     };
   }
@@ -374,7 +381,21 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     valueType: TypeIdentity,
     options?: { title?: string | false; subtitle?: string; isComputable?: boolean },
   ): ObjectRow {
-    const { prop, propKey } = property(propertyId);
+    const { prop, propName } = property(propertyId);
+
+    // computed :RunComputed
+    let computedPath: PathData | undefined = undefined;
+    let computedPathKey: string | undefined = undefined;
+    if (options?.isComputable) {
+      computedPath = makePath(
+        PathElementType.RUN,
+        propertyReference(NodeType.RUN, RunProperty[propName as any as keyof typeof RunProperty]),
+        toPropertyRef(prop),
+      );
+      computedPathKey = getPathKey(computedPath);
+    }
+
+    // view
     const title = options?.title ?? getPropertyTitle(prop);
     const row: ObjectRow = {
       type: "object",
@@ -383,12 +404,14 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
       isComputable: options?.isComputable ?? false,
       prop,
       viewType: ViewType.OBJECT,
+      computedPath,
+      computedPathKey,
       viewProps: { valueType: makeTypeInfo(valueType), isInput: true, isInline: true, isMinimal: true },
       isFullWidth: true,
-      read: () => (node as any)[propKey],
+      read: () => (node as any)[propName],
       write: (newValue, options?: ModelValueOptions) => {
         if (options == null) {
-          txFactory().update(node, { [propKey]: newValue });
+          txFactory().update(node, { [propName]: newValue });
         } else {
           const operations: EditOperationData[] = [
             {
@@ -419,14 +442,14 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
   function sectionSchema(options?: {
     title?: string;
     subtitle?: string;
-    delegatePtr?: NodeReferenceData;
+    toolPtr?: NodeReferenceData;
   }): DetailSection {
     return section(
       options?.title ?? "Schema",
       [
-        { type: "fields", fieldType: FieldType.INPUT, delegatePtr: options?.delegatePtr },
+        { type: "fields", fieldType: FieldType.INPUT, toolPtr: options?.toolPtr },
         { type: "icon", icon: makeIcon("fas fa-arrow-down") },
-        { type: "fields", fieldType: FieldType.OUTPUT, delegatePtr: options?.delegatePtr },
+        { type: "fields", fieldType: FieldType.OUTPUT, toolPtr: options?.toolPtr },
       ],
       {
         actions: [
@@ -607,14 +630,14 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     // common rows
     if (node.type == ActionType.CODE) {
       commonRows.push(rowProperty(ActionProperty.code, { isFullWidth: true, isComputable: true }));
-    } else if (node.type == ActionType.DELEGATE) {
+    } else if (node.type == ActionType.TOOL) {
       commonRows.push(
-        rowProperty(ActionProperty.delegatePtr, {
+        rowProperty(ActionProperty.toolPtr, {
           isFullWidth: false,
           extendWrite: (tx, newValue, options) => {
-            // also update node name if delegate changes
-            const delegate = newValue != null ? supergraph.get(newValue) : null;
-            const name = delegate != null ? getNodeName(delegate) : null;
+            // also update node name if tool changes
+            const tool = newValue != null ? supergraph.get(newValue) : null;
+            const name = tool != null ? getNodeName(tool) : null;
             if (name != null) {
               tx.update(node, { name }, options);
             }
@@ -639,18 +662,18 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     }
 
     // schema
-    let delegatePtr: NodeReferenceData | undefined = undefined;
+    let toolPtr: NodeReferenceData | undefined = undefined;
     if (node.type == ActionType.START || node.type == ActionType.COMPLETE) {
-      delegatePtr = node.parentPtr;
-    } else if (node.type == ActionType.DELEGATE) {
-      delegatePtr = node.delegatePtr;
+      toolPtr = node.parentPtr;
+    } else if (node.type == ActionType.TOOL) {
+      toolPtr = node.toolPtr;
     }
     if (node.type == ActionType.START) {
       // flow inputs
-      section("Schema", [{ type: "fields", fieldType: FieldType.INPUT, delegatePtr: node.parentPtr }], {
+      section("Schema", [{ type: "fields", fieldType: FieldType.INPUT, toolPtr: node.parentPtr }], {
         subtitle: "(Flow)",
         actions: [
-          actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT], { delegatePtr: node.parentPtr }),
+          actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT], { toolPtr: node.parentPtr }),
         ],
       });
     } else if (node.type == ActionType.COMPLETE) {
@@ -671,36 +694,35 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
         {
           subtitle: "(Flow)",
           actions: [
-            actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT], { delegatePtr: node.parentPtr }),
+            actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT], { toolPtr: node.parentPtr }),
           ],
         },
       );
-    } else if (node.type == ActionType.DELEGATE && delegatePtr != null) {
-      // own schema with delegate schema
+    } else if (node.type == ActionType.TOOL && toolPtr != null) {
+      // own schema with tool schema
       section(
         "Schema",
         [
-          // delegate variables & inputs
-          // (NOTE :Incomplete: should we include Action delegate variables?)
+          // tool variables & inputs
           rowObject(
             ActionProperty.variablesPacked,
-            makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.VARIABLE, baseTypePtr: delegatePtr }),
+            makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.VARIABLE, baseTypePtr: toolPtr }),
             { title: false, isComputable: true },
           ),
           rowObject(
             ActionProperty.inputsPacked,
-            makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.INPUT, baseTypePtr: delegatePtr }),
+            makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.INPUT, baseTypePtr: toolPtr }),
             { title: false, isComputable: true },
           ),
           // arrow
           rowIcon("fas fa-arrow-down"),
           // outputs
-          { type: "fields", fieldType: FieldType.OUTPUT, delegatePtr },
+          { type: "fields", fieldType: FieldType.OUTPUT, toolPtr },
           rowLine(),
           { type: "fields", fieldType: FieldType.OUTPUT },
         ],
         {
-          subtitle: "(Delegate)",
+          subtitle: "(Tool)",
           actions: [
             actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
             actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
@@ -717,7 +739,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
             makeTypeInfo({
               kind: TypeKind.CUSTOM_OBJECT,
               baseFieldType: FieldType.INPUT,
-              baseTypePtr: delegatePtr ?? nodePtr,
+              baseTypePtr: toolPtr ?? nodePtr,
             }),
             { title: false, isComputable: true },
           ),

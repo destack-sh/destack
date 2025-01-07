@@ -40,8 +40,8 @@ from bench.language import (
     RunSpanType,
     RunStatus,
     Session,
+    Type,
     TypeIn,
-    TypeInfo,
     ValidationError,
     WatchGetUpdate,
     check_value,
@@ -293,7 +293,7 @@ class Runtime:
             _stop()
 
     def _get_resource[R: Resource = Resource](
-        self, runner: Runner, resource_type: TypeInfo | TypeIn | type[R]
+        self, runner: Runner, resource_type: Type | TypeIn | type[R]
     ) -> R | None:
         """Finds a Resource in the current context of a Runner."""
         resource_type = to_type_scalar(resource_type)
@@ -312,7 +312,7 @@ class Runtime:
         return None
 
     def _create_resource(
-        self, resource_type: TypeInfo, title: str | None = None, **kwargs: Any
+        self, resource_type: Type, title: str | None = None, **kwargs: Any
     ) -> Resource:
         """Create a new Resource of the given type."""
         # get class
@@ -331,7 +331,7 @@ class Runtime:
     async def _get_or_create_resources(
         self,
         runner: Runner,
-        resources: Sequence[Resource | TypeInfo | TypeIn],
+        resources: Sequence[Resource | Type | TypeIn],
     ) -> list[Resource]:
         """Get or create the available Resources for the given Runner."""
         # TODO :Incomplete: reuse resources across (unrelated) Runs?

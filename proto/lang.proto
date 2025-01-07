@@ -153,7 +153,6 @@ enum StructType {
   STRUCT_TYPE_CONTEXT = 10001;
   STRUCT_TYPE_EDIT_CONTEXT = 10002;
   STRUCT_TYPE_EDIT = 10003;
-  STRUCT_TYPE_EDIT_INFO = 10004;
   STRUCT_TYPE_EDIT_OPERATION = 10005;
   STRUCT_TYPE_CHANGE = 10006;
   STRUCT_TYPE_CHANGE_VIGNETTE = 10007;
@@ -252,7 +251,6 @@ enum ObjectType {
   OBJECT_TYPE_CONTEXT = 10001;
   OBJECT_TYPE_EDIT_CONTEXT = 10002;
   OBJECT_TYPE_EDIT = 10003;
-  OBJECT_TYPE_EDIT_INFO = 10004;
   OBJECT_TYPE_EDIT_OPERATION = 10005;
   OBJECT_TYPE_CHANGE = 10006;
   OBJECT_TYPE_CHANGE_VIGNETTE = 10007;
@@ -409,7 +407,6 @@ enum BenchType {
   BENCH_TYPE_CONTEXT = 10001;
   BENCH_TYPE_EDIT_CONTEXT = 10002;
   BENCH_TYPE_EDIT = 10003;
-  BENCH_TYPE_EDIT_INFO = 10004;
   BENCH_TYPE_EDIT_OPERATION = 10005;
   BENCH_TYPE_CHANGE = 10006;
   BENCH_TYPE_CHANGE_VIGNETTE = 10007;
@@ -1363,7 +1360,7 @@ enum ActionType {
   ACTION_TYPE_DELETE = 63;
   ACTION_TYPE_PASTE = 70;
   ACTION_TYPE_CODE = 100;
-  ACTION_TYPE_DELEGATE = 101;
+  ACTION_TYPE_TOOL = 101;
   ACTION_TYPE_WAIT = 110;
   ACTION_TYPE_YIELD = 111;
   ACTION_TYPE_GENERATE = 200;
@@ -1431,6 +1428,7 @@ enum ViewType {
   VIEW_TYPE_OBJECT = 20002;
   VIEW_TYPE_FIELD_LIST = 20003;
   VIEW_TYPE_PATH = 20004;
+  VIEW_TYPE_COMPUTED_VALUE = 20005;
   VIEW_TYPE_USER_WIZARD = 30001;
   VIEW_TYPE_BENCH_WIZARD = 30002;
   VIEW_TYPE_EMPTY = 30100;
@@ -1927,7 +1925,7 @@ message ValueData {
   ObjectType metatype = 1;
   optional string name = 32;
   optional TextData text = 33;
-  TypeInfoData value_type = 35;
+  TypeData value_type = 35;
   optional google.protobuf.Value value_packed = 36;
 }
 
@@ -1969,18 +1967,6 @@ message EditOperationData {
   repeated string path = 31;
   optional google.protobuf.Value new_value_packed = 40;
   optional google.protobuf.Value old_value_packed = 41;
-}
-
-message EditInfoData {
-  ObjectType metatype = 1;
-  string id = 2;
-  EditType type = 30;
-  NodeReferenceData node_ptr = 31;
-  optional ChangeVignetteData vignette = 32;
-  google.protobuf.Timestamp edited_at = 33;
-  optional google.protobuf.Timestamp old_edited_at = 34;
-  optional SomeNodeData node_data = 40;
-  repeated EditOperationData operations = 41;
 }
 
 message EditData {
@@ -2204,7 +2190,7 @@ message TypeConstraintData {
   repeated int32 node_subtypes = 73;
 }
 
-message TypeInfoData {
+message TypeData {
   ObjectType metatype = 1;
   TypeKind kind = 40;
   optional PrimitiveType primitive_type = 41;
@@ -2744,7 +2730,7 @@ message SecretData {
   optional google.protobuf.Timestamp suspended_at = 43;
   optional google.protobuf.Timestamp decommissioned_at = 44;
   optional google.protobuf.Timestamp active_at = 45;
-  TypeInfoData value_type = 50;
+  TypeData value_type = 50;
   optional google.protobuf.Value value_packed = 51;
   NodeMode mode = 90;
 }
@@ -3044,7 +3030,7 @@ message ActionData {
   repeated NodeReferenceData roles_ptr = 42;
   optional NodeReferenceData identity_ptr = 43;
   optional CodeData code = 52;
-  optional NodeReferenceData delegate_ptr = 53;
+  optional NodeReferenceData tool_ptr = 53;
   repeated CallData calls = 55;
   optional google.protobuf.Value variables_packed = 56;
   optional google.protobuf.Value inputs_packed = 57;
@@ -3101,7 +3087,7 @@ message CodeActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
-message DelegateActionData {
+message ToolActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -3243,7 +3229,7 @@ message BlockData {
 
 // A building block with logic, types, UI, state, auth, AI, ...
 message VariableBlockData {
-  optional TypeInfoData value_type = 100;
+  optional TypeData value_type = 100;
   optional google.protobuf.Value value_packed = 101;
 }
 
@@ -3322,7 +3308,7 @@ message ViewData {
   string order_key = 34;
   optional IconData icon = 35;
   optional google.protobuf.Value subviews_packed = 39;
-  optional TypeInfoData value_type = 40;
+  optional TypeData value_type = 40;
   optional NodeReferenceData node_ptr = 42;
   optional OffsetData position = 60;
   optional RectangleData size = 61;

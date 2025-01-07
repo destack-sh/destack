@@ -736,7 +736,7 @@ async def test_run_flow_yield_nested(hosted_runtime: RuntimeHandle):
     # outer flow
     FlowOuter = Block.new(BlockType.FLOW, "FlowOuter")
     StartOuter = Action.new(ActionType.START, "Start")
-    ActionOuter = Action.new(ActionType.DELEGATE, "Action", delegate=FlowInner)
+    ActionOuter = Action.new(ActionType.TOOL, "Action", delegate=FlowInner)
     CompleteOuter = Action.new(ActionType.COMPLETE, "Complete")
     FlowOuter.actions.extend(StartOuter, ActionOuter, CompleteOuter)
     StartOuter.connect(PipeType.FORWARD, ActionOuter)

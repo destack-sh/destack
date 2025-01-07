@@ -190,7 +190,7 @@ defineExpose<ViewExposed>({ self, id });
             <FieldList
               :id="row.title ?? `type-${i}`"
               :orientation="Orientation.VERTICAL"
-              :node-ptr="row.delegatePtr ?? nodePtr"
+              :node-ptr="row.toolPtr ?? nodePtr"
               :field-type="row.fieldType"
               is-minimal
             />

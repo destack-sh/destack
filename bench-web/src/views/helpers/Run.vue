@@ -11,7 +11,7 @@ import {
   InterruptionType,
   NodeType,
   RunData,
-  TypeInfoData,
+  TypeData,
   TypeKind,
   ViewData,
   ViewType,
@@ -108,8 +108,8 @@ function getRunObjectValue(fieldType: FieldType) {
 type InterruptionInfo = {
   base: RunnableNode | null;
   interruption: InterruptionData;
-  inputType: TypeInfoData;
-  outputType: TypeInfoData;
+  inputType: TypeData;
+  outputType: TypeData;
 };
 const interruptions = computed(() => {
   const interruptions: InterruptionInfo[] = [];

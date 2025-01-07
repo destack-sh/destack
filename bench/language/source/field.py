@@ -5,7 +5,6 @@ from typing import (
     Literal,
     Optional,
     Sequence,
-    Type,
     Union,
     cast,
 )
@@ -147,7 +146,7 @@ def decode_type_identity(key: str) -> "TypeBase":
     # value
     if kind == TypeKind.PRIMITIVE.value:
         primitive_type = PrimitiveType(decode_b64vlq(value))
-        return TypeInfo(
+        return Type(
             kind=TypeKind.PRIMITIVE,
             primitive_type=primitive_type,
             is_list=is_list,
@@ -155,16 +154,16 @@ def decode_type_identity(key: str) -> "TypeBase":
         )
     elif kind == TypeKind.STRUCT.value or kind == TypeKind.ENUM.value:
         bench_type = BenchType(decode_b64vlq(value))  # type: ignore
-        return TypeInfo(
+        return Type(
             kind=TypeKind(kind), bench_type=bench_type, is_list=is_list, is_secret=is_secret
         )
     elif kind == TypeKind.NODE or kind == TypeKind.BASED_NODE.value:
-        return TypeInfo(kind=TypeKind(kind), is_list=is_list, is_secret=is_secret)
+        return Type(kind=TypeKind(kind), is_list=is_list, is_secret=is_secret)
     elif kind == TypeKind.CUSTOM_OBJECT.value:
         base_type_ptr = NodeReference(
             node_type=NodeType.BLOCK, ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64])
         )
-        return TypeInfo(
+        return Type(
             kind=TypeKind.CUSTOM_OBJECT,
             base_type_ptr=base_type_ptr,
             is_list=is_list,
@@ -172,7 +171,7 @@ def decode_type_identity(key: str) -> "TypeBase":
         )
     elif kind == TypeKind.PARTIAL_OBJECT.value:
         bench_type = BenchType(decode_b64vlq(value)) if value else None  # type: ignore
-        return TypeInfo(
+        return Type(
             kind=TypeKind.PARTIAL_OBJECT,
             bench_type=bench_type,
             is_list=is_list,
@@ -443,8 +442,8 @@ class TypeBase(BuiltinObject):
 
 
 @struct_(StructType.TYPE_INFO)
-class TypeInfo(Struct, TypeBase):
-    """A type in the type system."""
+class Type(Struct, TypeBase):
+    """A Type in the type system."""
 
     # redirect so we get TypeBase.__content_str__ (not Struct.__content_str__)
     __content_str__ = TypeBase.__content_str__  # type: ignore
@@ -452,7 +451,7 @@ class TypeInfo(Struct, TypeBase):
     @staticmethod
     def from_type(
         typ: "TypeIn", constraint: "TypeConstraintIn | TypeConstraint | None" = None
-    ) -> "TypeInfo":
+    ) -> "Type":
         """Converts a type-like object to a TypeInfo."""
         typ = to_type_scalar(typ)
         if constraint is not None:
@@ -474,9 +473,9 @@ TypeIn = Union[
     "BenchType",
     "TypeFormat",
     "FileType",
-    Type[Struct],
-    Type[Node],
-    Type[PrimitiveValue],
+    type[Struct],
+    type[Node],
+    type[PrimitiveValue],
 ]
 
 
@@ -485,30 +484,30 @@ def to_type_scalar(
     *,
     of: Literal["instance", "value"] = "instance",
     field_type: FieldType | None = None,
-) -> "TypeInfo":
+) -> "Type":
     """Converts a type-like object to a TypeInfo."""
     from bench.language.resource.file import FileType
 
     if isinstance(typ, TypeBase):
-        return cast("TypeInfo", typ)
+        return cast("Type", typ)
     elif isinstance(typ, Node) and typ.metatype in (NodeType.BLOCK, NodeType.ACTION):
         type_info = cast("Block|Action", typ).to_type_maybe(of=of, field_type=field_type)
         if type_info is not None:
-            assert isinstance(type_info, TypeInfo), f"expected TypeInfo, got {type_info!r}"
+            assert isinstance(type_info, Type), f"expected TypeInfo, got {type_info!r}"
             return type_info
     elif isinstance(typ, PrimitiveType):
-        return TypeInfo(kind=TypeKind.PRIMITIVE, primitive_type=typ)
+        return Type(kind=TypeKind.PRIMITIVE, primitive_type=typ)
     elif isinstance(typ, (NodeType, StructType, EnumType, BenchType)):
         if is_node_type(typ):
-            return TypeInfo(kind=TypeKind.NODE, bench_type=typ)
+            return Type(kind=TypeKind.NODE, bench_type=typ)
         elif is_struct_type(typ):
-            return TypeInfo(kind=TypeKind.STRUCT, bench_type=typ)
+            return Type(kind=TypeKind.STRUCT, bench_type=typ)
         elif is_enum_type(typ):
-            return TypeInfo(kind=TypeKind.ENUM, bench_type=typ)
+            return Type(kind=TypeKind.ENUM, bench_type=typ)
     elif isinstance(typ, TypeFormat):
-        return TypeInfo(kind=TypeKind.PRIMITIVE, primitive_type=typ.primitive_type, format=typ)
+        return Type(kind=TypeKind.PRIMITIVE, primitive_type=typ.primitive_type, format=typ)
     elif isinstance(typ, FileType):
-        return TypeInfo(
+        return Type(
             kind=TypeKind.NODE,
             bench_type=NodeType.FILE,
             constraint=TypeConstraint(node_subtypes=[typ]),
@@ -516,17 +515,17 @@ def to_type_scalar(
     elif isinstance(typ, type):
         primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(typ)
         if primitive_type:
-            return TypeInfo(kind=TypeKind.PRIMITIVE, primitive_type=primitive_type)
+            return Type(kind=TypeKind.PRIMITIVE, primitive_type=primitive_type)
         bench_type = BENCH_TYPE_BY_CLASS.get(cast(Any, typ))
         if bench_type is not None:
             if is_node_type(bench_type):
-                return TypeInfo(kind=TypeKind.NODE, bench_type=bench_type)
+                return Type(kind=TypeKind.NODE, bench_type=bench_type)
             elif is_struct_type(bench_type):
-                return TypeInfo(kind=TypeKind.STRUCT, bench_type=bench_type)
+                return Type(kind=TypeKind.STRUCT, bench_type=bench_type)
             elif is_enum_type(bench_type):
-                return TypeInfo(kind=TypeKind.ENUM, bench_type=bench_type)
+                return Type(kind=TypeKind.ENUM, bench_type=bench_type)
         elif typ == Node:
-            return TypeInfo(kind=TypeKind.NODE)
+            return Type(kind=TypeKind.NODE)
 
     raise ValueError(f"unsupported type {typ!r}")
 
@@ -539,7 +538,7 @@ def to_type(
     constraint: TypeConstraintIn | TypeConstraint | None = None,
     is_required: bool = False,
     is_list: bool = False,
-) -> TypeInfo:
+) -> Type:
     """Converts a TypeIn into a TypeBase."""
     type_scalar = to_type_scalar(typ, of=of, field_type=field_type)
     if isinstance(constraint, TypeConstraintIn):

@@ -43,7 +43,7 @@ from .validation import NAME_CONSTRAINT
 from .value import unpack_proto_json
 
 if TYPE_CHECKING:
-    from bench.language import Block, Code, Field, Path, Text, TypeBase, TypeInfo
+    from bench.language import Block, Code, Field, Path, Text, Type, TypeBase
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -900,7 +900,7 @@ class Value(Struct):
     text: Optional["Text"] = p_regular(
         33, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    value_type: "TypeInfo" = p_regular(35, struct=StructType.TYPE_INFO)
+    value_type: "Type" = p_regular(35, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(36)
     value: Any = p_value_runtime(
         36, kind=ObjectKind.MEMBER, typ=lambda self: cast("Value", self).value_type

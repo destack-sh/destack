@@ -33,7 +33,7 @@ import {
   ActionData,
   StructType,
   TypeConstraintData,
-  TypeInfoData,
+  TypeData,
   TypeKind,
   type AnyNodeData,
   type PropertyInfo,
@@ -57,7 +57,7 @@ import { deepValueEquals } from "@/utils/ref";
 import { Ref } from "vue";
 
 export type TypeIdentity = Pick<
-  TypeInfoData,
+  TypeData,
   | "kind"
   | "primitiveType"
   | "benchType"
@@ -112,7 +112,7 @@ export function makeTypeConstraint(partial: Partial<Omit<TypeConstraintData, "me
   return makeDefaultObject({ ...partial, metatype: ObjectType.TYPE_CONSTRAINT });
 }
 
-export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): TypeInfoData {
+export function makeTypeInfo(partial: Partial<Omit<TypeData, "metatype">>): TypeData {
   return makeDefaultObject({ ...partial, metatype: ObjectType.TYPE_INFO });
 }
 
@@ -192,7 +192,7 @@ export function getPropertyType(prop: PropertyInfo | PropertyReferenceData): Typ
   return _propertyTypeInfos[cacheKey]!;
 }
 
-export function propertyType(metatype: ObjectType, id: number, override?: Partial<TypeInfoData>) {
+export function propertyType(metatype: ObjectType, id: number, override?: Partial<TypeData>) {
   const prop = propertyInfo(metatype, id);
   const type = getPropertyType(prop);
   if (override != null) {
@@ -305,7 +305,7 @@ export function nodeMatchesConstraint(node: AnyNodeData, constraint: TypeConstra
 }
 
 /** Whether the given type supports lists :ListableTypes. */
-export function typeSupportsList(type: { kind: TypeKind } & Partial<TypeInfoData>): boolean {
+export function typeSupportsList(type: { kind: TypeKind } & Partial<TypeData>): boolean {
   if (
     [TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.ENUM, TypeKind.CUSTOM_OBJECT, TypeKind.PARTIAL_OBJECT].includes(
       type.kind,
@@ -328,7 +328,7 @@ export function typeSupportsList(type: { kind: TypeKind } & Partial<TypeInfoData
 }
 
 /** Whether the type is some numeric type (int, float, etc.) */
-export function typeIsNumeric(type: { kind: TypeKind } & Partial<TypeInfoData>): boolean {
+export function typeIsNumeric(type: { kind: TypeKind } & Partial<TypeData>): boolean {
   return type.primitiveType != null && type.primitiveType >= 2 && type.primitiveType < 20;
 }
 
@@ -367,7 +367,7 @@ export function getConstrainedTypeName(type: TypeIdentity): string | null {
 }
 
 /** Gets the default Field name from a type  */
-export function getTypeName(field: Partial<TypeInfoData>): string {
+export function getTypeName(field: Partial<TypeData>): string {
   if (field == null) throw new Error(`missing type for field in ${describeNode(field)}`);
   if (field.kind == TypeKind.PRIMITIVE) {
     if (field.format != null) {

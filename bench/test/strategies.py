@@ -29,9 +29,9 @@ from bench.language import (
     ObjectType,
     PrimitiveType,
     StructType,
+    Type,
     TypeBase,
     TypeConstraint,
-    TypeInfo,
     TypeKind,
     ValidationError,
 )
@@ -376,7 +376,7 @@ def draw_type_info_base_dict(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]
 @st.composite
 def type_infos(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
     base_dict = draw_type_info_base_dict(draw, kinds)
-    return TypeInfo(**base_dict)
+    return Type(**base_dict)
 
 
 @st.composite
