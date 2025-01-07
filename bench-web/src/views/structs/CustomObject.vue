@@ -104,6 +104,7 @@ const fieldViews = computed(() => {
     };
     if (props.isComputable) {
       // :RunComputedValue
+      // nocheckin
     }
     rows.push(row);
   }
@@ -148,7 +149,6 @@ const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(nu
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
 // actions
-// NOTE :Incomplete: Type.actions (move, navigate, ...)
 const actions: Partial<ActionMapImplementation<"list">> = {
   // list
   ...useNodeListActions({
@@ -214,7 +214,7 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
         <!-- Actions -->
         <div class="ml-auto pr-1">
           <button
-            v-if="isComputable"
+            v-if="isComputable && row.computedPath != null"
             v-tooltip="{ title: `Compute ${row.field.name} dynamically`, small: true, group: 'section.header' }"
             class="rounded px-0.5 transition-colors duration-75"
             :class="

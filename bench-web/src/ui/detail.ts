@@ -2,10 +2,9 @@ import {
   BOUNDARY_ACTION_TYPES,
   getPropertyTitle,
   isNodeType,
-  isSourceNode,
   RUNNABLE_BLOCK_TYPES,
   SOURCE_NODE_TYPES,
-  toCamelName,
+  toCamelName
 } from "@/language/const";
 import {
   createField,
@@ -36,7 +35,6 @@ import {
   BlockData,
   BlockProperty,
   BlockType,
-  ComputedValueData,
   EditOperationData,
   EditOperationType,
   FailActionProperty,
@@ -62,7 +60,7 @@ import {
   RunProperty,
   TypeConstraintProperty,
   TypeKind,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { canvas, supergraph } from "@/system/globals";

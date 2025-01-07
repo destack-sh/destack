@@ -38,7 +38,7 @@ const id = toRef(props, "id");
 
 const query: Ref<string> = ref("");
 const queryRef: Ref<HTMLInputElement | null> = ref(null);
-const headerRef: Ref<HTMLDivElement | null> = ref(null);
+const columnHeaderRef: Ref<HTMLDivElement | null> = ref(null);
 const activeResultId: Ref<string | null> = ref(null);
 const color: Ref<ColorData | null> = ref(props.modelValue?.color ?? null);
 const effectiveColorType = computed(() => color.value?.type ?? ColorType.GRAY);
@@ -156,7 +156,7 @@ defineExpose<ViewExposed>({ self, id, focus });
             kind: 'view',
             component: ViewType.COLOR,
             placement: 'top',
-            reference: headerRef!,
+            reference: columnHeaderRef!,
             props: { modelValue: color, isInput: true },
             // NOTE :UX: not sure whether changing Color in Icon picker should instantly apply to current icon
             onApply: (value) => (color = value),

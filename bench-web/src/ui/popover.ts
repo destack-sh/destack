@@ -261,7 +261,7 @@ function makePopoverDirective(options: {
         if (info.isEnabled === false) return;
         e.preventDefault();
         e.stopPropagation();
-        pushPopover({ trigger: triggerEl, reference, ...info });
+        pushPopover({ trigger: triggerEl, ...info, reference: info.reference ?? reference });
       };
       triggerEl.addEventListener(options.event, triggerEl.menuOnEvent);
     },

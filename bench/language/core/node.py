@@ -2914,7 +2914,6 @@ class PropertyReference(Struct):
     """
     A reference to a builtin object's Property.
     If type is unset, this refers to a base property in one of the base BuiltinObject types.
-    nocheckin: subtype property references
     """
 
     object_type: ObjectType | None = p_regular(30)
