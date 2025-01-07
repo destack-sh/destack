@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Literal, Optional, Type, Union, assert_never, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, assert_never, cast
 
 import cachetools
 
@@ -39,7 +39,7 @@ from bench.pb2.lang_pb2 import ActionData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 
-from .field import TypeBase, TypeConstraint, TypeInfo
+from .field import Type, TypeBase, TypeConstraint
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -61,6 +61,8 @@ if TYPE_CHECKING:
     )
 
 # pyright: reportIncompatibleVariableOverride=false
+
+_type = type
 
 
 @enum_(EnumType.ACTION_TYPE)
@@ -90,7 +92,7 @@ class ActionType(IdEnum):
 
     # static
     CODE = 100, "Run arbitrary Python code"
-    DELEGATE = 101, "Delegate to another Block"
+    TOOL = 101, "Delegate to another Block"
     WAIT = 110, "Wait for a Trigger"
     YIELD = 111, "Defer to the User"
     # dynamic
@@ -184,7 +186,7 @@ class Action(SourceNode[ActionData]):
         description="Current implementation code for this action.",
         field_type=FieldType.INPUT,
     )
-    delegate: Union["Block", None] = p_regular(
+    tool: Union["Block", None] = p_regular(
         53,
         require=False,
         array=False,
@@ -194,7 +196,7 @@ class Action(SourceNode[ActionData]):
         field_type=FieldType.INPUT,
     )
     if TYPE_CHECKING:
-        delegate_ptr: "NodeReference | None" = None
+        tool_ptr: "NodeReference | None" = None
     calls: list["Call"] = p_regular(
         55, array=True, struct=StructType.CALL, field_type=FieldType.OUTPUT
     )
@@ -275,10 +277,10 @@ class Action(SourceNode[ActionData]):
         field_type: FieldType | None = None,
     ) -> "TypeBase | None":
         """Gets a type represented by this Action (if any)"""
-        from bench.language import TypeInfo
+        from bench.language import Type
 
         if of == "instance":
-            typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
+            typ = Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
             return typ
         elif of == "value":
             if self.type == ActionType.START:
@@ -289,13 +291,13 @@ class Action(SourceNode[ActionData]):
                 return parent.output_type if parent is not None else None
 
             base = self
-            if self.type == ActionType.DELEGATE and self.delegate_ptr is not None:
-                base = self.delegate
+            if self.type == ActionType.TOOL and self.tool_ptr is not None:
+                base = self.tool
 
             # actions also have their subtype as input & output type
             #  (to enable dynamically setting action properties as inputs)
             if field_type == FieldType.INPUT or field_type == FieldType.OUTPUT:
-                typ = TypeInfo(
+                typ = Type(
                     kind=TypeKind.PARTIAL_OBJECT,
                     base_type=base,
                     bench_type=NodeType.ACTION,
@@ -304,9 +306,7 @@ class Action(SourceNode[ActionData]):
                     constraint=TypeConstraint(node_subtypes=[self.type]),
                 )
             else:
-                typ = TypeInfo(
-                    kind=TypeKind.CUSTOM_OBJECT, base_type=base, base_field_type=field_type
-                )
+                typ = Type(kind=TypeKind.CUSTOM_OBJECT, base_type=base, base_field_type=field_type)
             return typ
         else:
             assert_never(of)
@@ -333,7 +333,7 @@ class Action(SourceNode[ActionData]):
 
     @staticmethod
     def new[ActionT: "Action" = "Action"](
-        typ: ActionType | Type[ActionT] | NodeSubtypeStub[ActionT],
+        typ: ActionType | _type[ActionT] | NodeSubtypeStub[ActionT],
         name: str,
         variables: dict[str, Any] | None = None,
         inputs: dict[str, Any] | None = None,
@@ -420,7 +420,7 @@ class CreateAction(Action):
     @classmethod
     @cachetools.cached({})  # :CachedTypeInfo
     def _node_partial_type(cls) -> "TypeBase":
-        return TypeInfo(kind=TypeKind.PARTIAL_OBJECT)
+        return Type(kind=TypeKind.PARTIAL_OBJECT)
 
 
 @node_subtype_(ActionType.DUPLICATE)
@@ -440,7 +440,7 @@ class DuplicateAction(Action):
     @classmethod
     @cachetools.cached({})  # :CachedTypeInfo
     def _node_partial_type(cls) -> "TypeBase":
-        return TypeInfo(kind=TypeKind.PARTIAL_OBJECT)
+        return Type(kind=TypeKind.PARTIAL_OBJECT)
 
 
 @node_subtype_(ActionType.UPDATE)
@@ -459,7 +459,7 @@ class UpdateAction(Action):
     @classmethod
     @cachetools.cached({})  # :CachedTypeInfo
     def _node_partial_type(cls) -> "TypeBase":
-        return TypeInfo(kind=TypeKind.PARTIAL_OBJECT)
+        return Type(kind=TypeKind.PARTIAL_OBJECT)
 
 
 @node_subtype_(ActionType.DELETE)
@@ -499,8 +499,8 @@ class CodeAction(Action):
     pass
 
 
-@node_subtype_(ActionType.DELEGATE)
-class DelegateAction(Action):
+@node_subtype_(ActionType.TOOL)
+class ToolAction(Action):
     pass
 
 

@@ -16,7 +16,6 @@ from bench.language import (
     CodeAction,
     CreateAction,
     CustomObject,
-    DelegateAction,
     DeleteAction,
     DuplicateAction,
     FailAction,
@@ -42,6 +41,7 @@ from bench.language import (
     ScrollAction,
     SelectAction,
     Text,
+    ToolAction,
     TypeAction,
     TypeBase,
     UpdateAction,
@@ -320,19 +320,19 @@ class CodeActionRunner(ActionRunnerBase[CodeAction]):
         self.outputs = code_runner.outputs
 
 
-class DelegateActionRunner(ActionRunnerBase[DelegateAction]):
+class ToolActionRunner(ActionRunnerBase[ToolAction]):
     @override
     async def run(self) -> None:
-        delegate = self.node.delegate
-        if not delegate:
-            raise RunImpossibleError("no delegate")
-        delegate_runner = self._get_resumable_subrunner(
-            node=delegate,
+        tool = self.node.tool
+        if not tool:
+            raise RunImpossibleError("no tool")
+        tool_runner = self._get_resumable_subrunner(
+            node=tool,
             variables=self.variables,
             inputs=self.inputs,
             output_type=self.output_type,
         )
-        await self.runtime.run_runner(delegate_runner)
+        await self.runtime.run_runner(tool_runner)
 
 
 class WaitActionRunner(ActionRunnerBase[WaitAction]):
@@ -527,7 +527,7 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunnerBase[Any]]] = {
     ActionType.YIELD: YieldActionRunner,
     # static
     ActionType.CODE: CodeActionRunner,
-    ActionType.DELEGATE: DelegateActionRunner,
+    ActionType.TOOL: ToolActionRunner,
     ActionType.WAIT: WaitActionRunner,
     # dynamic
     ActionType.GENERATE: DynamicActionRunner,

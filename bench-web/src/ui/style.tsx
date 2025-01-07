@@ -159,7 +159,7 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   // ...
   // static
   [ActionType.CODE]: ColorType.ORANGE,
-  [ActionType.DELEGATE]: ColorType.ORANGE,
+  [ActionType.TOOL]: ColorType.ORANGE,
   [ActionType.WAIT]: ColorType.ORANGE,
   [ActionType.YIELD]: ColorType.ORANGE,
   // dynamic

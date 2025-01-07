@@ -281,7 +281,7 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   [ActionType.PASTE]: "fas fa-paste",
   // static
   [ActionType.CODE]: "fas fa-code",
-  [ActionType.DELEGATE]: "fas fa-code",
+  [ActionType.TOOL]: "fas fa-hammer",
   [ActionType.WAIT]: "fas fa-clock",
   [ActionType.YIELD]: "fas fa-hand",
   // dynamic
@@ -742,10 +742,10 @@ export function getNodeIcon(
       const icon = getNodeIcon(base, options);
       if (icon != null) return icon;
     }
-  } else if (isNode(node, NodeType.ACTION) && node.delegatePtr != null && node.type == ActionType.DELEGATE) {
-    const delegate = supergraph.get(node.delegatePtr);
-    if (delegate != null) {
-      const icon = getNodeIcon(delegate, options);
+  } else if (isNode(node, NodeType.ACTION) && node.toolPtr != null && node.type == ActionType.TOOL) {
+    const tool = supergraph.get(node.toolPtr);
+    if (tool != null) {
+      const icon = getNodeIcon(tool, options);
       if (icon != null) return icon;
     }
   }

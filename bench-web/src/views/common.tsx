@@ -3,7 +3,7 @@
 import {
   FieldData,
   Orientation,
-  TypeInfoData,
+  TypeData,
   ViewData,
   ViewType,
   type NodeReferenceData,

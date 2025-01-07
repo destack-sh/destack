@@ -3,7 +3,6 @@ from typing import (
     Any,
     Literal,
     Optional,
-    Type,
     Union,
     assert_never,
     cast,
@@ -54,16 +53,13 @@ if TYPE_CHECKING:
         Record,
         RunOptions,
         Text,
-        TypeInfo,
+        Type,
         View,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
 
-# NOTE :UX: auto-generate node names in code just like in the UI (if unset -> block7, etc.)
-#  (Maybe postpone name validation if detached so we can leave it unset?,
-#   auto-naming currently only works in NodeList where we know the siblings).
-#  see :AutoNaming
+_type = type
 
 
 @node_(NodeType.BLOCK, passthrough_get=("fields",))
@@ -164,7 +160,7 @@ class Block(SourceNode[BlockData]):
         self, *, of: Literal["instance", "value"] = "instance", field_type: FieldType | None = None
     ) -> "TypeBase | None":
         """Get a type represented by this Block (if any)"""
-        from bench.language.source.field import TypeInfo
+        from bench.language.source.field import Type
 
         if of == "instance":
             if self.type == BlockType.CHOICE:
@@ -177,9 +173,9 @@ class Block(SourceNode[BlockData]):
                 instance_type = NodeType.RUN
             else:
                 return None  # no 'instance' type
-            return TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=instance_type)
+            return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=instance_type)
         elif of == "value":
-            return TypeInfo(
+            return Type(
                 kind=TypeKind.CUSTOM_OBJECT,
                 base_type=self,
                 base_field_type=field_type or FieldType.MEMBER,
@@ -209,7 +205,7 @@ class Block(SourceNode[BlockData]):
 
     @staticmethod
     def new[BlockT: "Block" = "Block"](
-        typ: BlockType | Type[BlockT] | NodeSubtypeStub[BlockT], name: str, **kwargs
+        typ: BlockType | _type[BlockT] | NodeSubtypeStub[BlockT], name: str, **kwargs
     ) -> "BlockT":
         if isinstance(typ, type):
             typ = Block.__subtype_by_subclass__[typ]  # type: ignore
@@ -220,7 +216,7 @@ class Block(SourceNode[BlockData]):
 
 @node_subtype_(BlockType.VARIABLE, passthrough_get=("value",), passthrough_set=("value",))
 class VariableBlock(Block):
-    value_type: Optional["TypeInfo"] = p_regular(100, default=None, struct=StructType.TYPE_INFO)
+    value_type: Optional["Type"] = p_regular(100, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(101)
     value: Any = p_value_runtime(
         101, kind=ObjectKind.MEMBER, typ=lambda self: cast("VariableBlock", self).value_type

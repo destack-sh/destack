@@ -12,7 +12,7 @@ import {
   NodeType,
   ObjectType,
   PackageData,
-  TypeInfoData,
+  TypeData,
   TypeKind,
   VariableBlockData
 } from "@/proto/wire";
@@ -70,7 +70,7 @@ export function createBlock(
 }
 
 /** Gets the (primary) type represented by the Block. */
-export function blockToType(block: BlockData): TypeInfoData {
+export function blockToType(block: BlockData): TypeData {
   // NOTE: technically there is more than one possible mapping from node to type identity
   //  (for instance Signal blocks could map to both Signal nodes based in that block or Values of that Signal type)
   let kind: TypeKind;

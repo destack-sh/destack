@@ -108,10 +108,10 @@ class EditOperation(Struct):
         return int(self.path[0])
 
 
-@struct_(StructType.EDIT_INFO)
-class EditInfo(Struct):
+@struct_(StructType.EDIT)
+class Edit(Struct):
     """
-    An Edit to a Node.
+    An Edit to a Node in some context.
     """
 
     # core
@@ -149,15 +149,6 @@ class EditInfo(Struct):
         description="The operations to perform on the Node",
         struct=StructType.EDIT_OPERATION,
     )
-
-
-@struct_(StructType.EDIT)
-class Edit(EditInfo):
-    """
-    An Edit to a Node in some context.
-    """
-
-    # ...EditInfo[30-59]
 
     # meta
     scope: GraphScope = p_system(

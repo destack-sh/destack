@@ -3,18 +3,18 @@ import { SINK_ACTION_TYPES, toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { isRunActive } from "@/language/session";
 import {
+  ActionType,
+  ActionTypeOptionInfo,
   ColorShade,
   FailActionData,
   FieldType,
   NodeType,
   Orientation,
   PortSide,
-  ActionType,
   ViewData,
-  ActionTypeOptionInfo,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { FLOW_PORT_SIZE, getActionSides, ACTION_SIZE, useFlowContext } from "@/system/flow";
+import { ACTION_SIZE, FLOW_PORT_SIZE, getActionSides, useFlowContext } from "@/system/flow";
 import { runtime } from "@/system/runtime";
 import { canvas } from "@/system/space";
 import { type ActionMapImplementation } from "@/ui/action";
@@ -44,7 +44,7 @@ const state = canvas.registerView(self, id);
 const actionPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.ACTION>);
 const flowCtx = useFlowContext();
 const actionState = flowCtx.actionsStates.value[actionPtr.value.id!]; // must exist
-const { action, subnode, fields, delegatePtr, delegate, delegateFields } = actionState;
+const { action, subnode, fields, toolPtr, tool: tool, toolFields: toolFields } = actionState;
 const isInspected = computed(() => canvas.isInspected(actionPtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(actionPtr.value));
 const isSelected = computed(() => state.isSelected(actionPtr.value));
@@ -145,7 +145,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       >
         <IconInline
           ref="iconRef"
-          v-bind="getNodeIcon(action, { base: delegate })"
+          v-bind="getNodeIcon(action, { base: tool })"
           class="rounded text-center text-lg text-gray-700"
         />
       </div>
@@ -172,11 +172,11 @@ defineExpose<ViewExposed>({ self, id, actions });
               (newValue) => flowCtx.tx.update(action!, { name: newValue as string }, { debounce: 'long' })
             "
           />
-          <!-- Link (if delegate) -->
+          <!-- Link (if tool) -->
           <button
-            v-if="delegate"
+            v-if="tool"
             class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            @click.stop="canvas.goToNode(delegate)"
+            @click.stop="canvas.goToNode(tool)"
           >
             <i class="fas fa-arrow-up-right" />
           </button>
@@ -192,7 +192,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         </div>
         <!-- Body -->
         <div class="flex max-w-full flex-row items-center gap-x-1 truncate text-gray-700">
-          <!-- Delegate -->
+          <!-- TOOL -->
           <!-- ...? -->
           <!-- Fields -->
           <!-- NOTE :Incomplete: better Action body -->

@@ -40,7 +40,7 @@ if TYPE_CHECKING:
         Policy,
         Run,
         Text,
-        TypeInfo,
+        Type,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -71,6 +71,7 @@ class ViewType(IdEnum):
     OBJECT = 20002
     FIELD_LIST = 20003
     PATH = 20004
+    COMPUTED_VALUE = 20005
 
     # helpers (30000-40000)
     USER_WIZARD = 30001
@@ -495,7 +496,7 @@ class View(SourceNode[ViewData]):
     subviews_packed: dict[str, Any] | None = p_value_packed(39)
 
     # content
-    value_type: Optional["TypeInfo"] = p_regular(
+    value_type: Optional["Type"] = p_regular(
         40, default=None, require=False, struct=StructType.TYPE_INFO
     )
     node: Optional["Node"] = p_regular(

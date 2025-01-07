@@ -28,7 +28,7 @@ from bench.language import (
     Session,
     StructType,
     Text,
-    TypeInfo,
+    Type,
     TypeKind,
     VariableBlock,
     check_value,
@@ -100,9 +100,7 @@ def test_partial_node_message(session: Session, package: Package) -> None:
             Field.member("title", Text),
         ),
     )
-    typ = TypeInfo(
-        kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.MESSAGE, base_type=message_type
-    )
+    typ = Type(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.MESSAGE, base_type=message_type)
     obj = CustomObject.new(ObjectKind.BUILTIN, {}, typ)
 
     # should be init to empty/default values for Message
@@ -139,7 +137,7 @@ def test_partial_node_message(session: Session, package: Package) -> None:
 
 def test_partial_node_block(session: Session, package: Package) -> None:
     """Create, update, pack/unpack a partial Block node with subtypes."""
-    typ = TypeInfo(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.ACTION)
+    typ = Type(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.ACTION)
     obj = Action.partial(type=ActionType.DUPLICATE, name="Action1")
 
     # should be init to set/empty/default values for ActionBlock
@@ -174,7 +172,7 @@ def test_partial_node_block(session: Session, package: Package) -> None:
 
 def test_partial_node_generic(session: Session, package: Package) -> None:
     """Create, update, pack/unpack a partial generic node."""
-    typ = TypeInfo(kind=TypeKind.PARTIAL_OBJECT)
+    typ = Type(kind=TypeKind.PARTIAL_OBJECT)
     obj = CustomObject.new(ObjectKind.BUILTIN, {}, typ)
 
     # should be init to empty/default values for Node
@@ -349,7 +347,6 @@ def test_roundtrip_builtin_object_value(obj: BuiltinObject, session: Session, pa
 UNGENERATABLE_STRUCT_TYPES = [
     # Edit/Change have old/new_node_packed data
     StructType.EDIT,
-    StructType.EDIT_INFO,
     StructType.EDIT_OPERATION,
     StructType.CHANGE,
     # custom objects are never instantiated
@@ -367,13 +364,13 @@ UNGENERATABLE_STRUCT_TYPES = [
 
 
 def test_sample_value_scalar(session: Session, package: Package):
-    typ = TypeInfo.from_type(bool)
+    typ = Type.from_type(bool)
     val = sample_value(typ)
     check_value(val, typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise)
 
 
 def test_sample_value_scalar_constrained(session: Session, package: Package):
-    typ = TypeInfo.from_type(int, constraint=constraint(min_value=10.0, max_value=20.0))
+    typ = Type.from_type(int, constraint=constraint(min_value=10.0, max_value=20.0))
     val = sample_value(typ)
     check_value(val, typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise)
 
@@ -384,7 +381,7 @@ def test_sample_value_scalar_constrained(session: Session, package: Package):
     ids=lambda t: t.bench_name,
 )
 def test_sample_value_struct(struct_type: StructType, session: Session, package: Package):
-    typ = TypeInfo(kind=TypeKind.STRUCT, bench_type=struct_type)
+    typ = Type(kind=TypeKind.STRUCT, bench_type=struct_type)
     val = sample_value(typ)
     check_value(val, typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise)
 

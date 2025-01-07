@@ -44,10 +44,10 @@ if TYPE_CHECKING:
         BuiltinObject,
         NodeReference,
         PropertyReference,
+        Type,
         TypeBase,
         TypeConstraint,
         TypeConstraintIn,
-        TypeInfo,
     )
 
     from .expression import _IntoQuery
@@ -146,7 +146,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     reference_is_node_data: bool = False
 
     _cached_as_ref: Optional["PropertyReference"] = None
-    _type_info: Optional["TypeInfo"] = None
+    _type_info: Optional["Type"] = None
     _is_finalized: bool = False
 
     def __post_init__(self):
@@ -323,8 +323,8 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 return False
         return True
 
-    def _to_type_info(self) -> "TypeInfo":
-        from bench.language.source.field import TypeConstraintIn, TypeInfo
+    def _to_type_info(self) -> "Type":
+        from bench.language.source.field import Type, TypeConstraintIn
 
         if isinstance(self.constraint, TypeConstraintIn):
             constraint = self.constraint.into()
@@ -356,7 +356,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             primitive_type = self.primitive_type
         else:
             raise ValueError(f"cannot determine type info for {self!r}")
-        typ = TypeInfo(
+        typ = Type(
             kind=kind,
             bench_type=bench_type,
             primitive_type=primitive_type,
@@ -371,7 +371,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         return typ
 
     @property
-    def type_info(self) -> "TypeInfo":
+    def type_info(self) -> "Type":
         """The type info for this property (can't extend TypeInfo because circles)."""
         assert self._type_info is not None, f"{self!r} is not finalized"
         return self._type_info
