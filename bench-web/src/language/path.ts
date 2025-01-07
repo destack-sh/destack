@@ -51,7 +51,7 @@ export function renderPath(path: PathData): string {
         const node = supergraph.get(element.nodePtr);
         pathParts.push(node != null ? (getNodeName(node) ?? "???") : "???");
       } else if (element.propertyPtr != null) {
-        const property = propertyInfo(element.propertyPtr.type!, element.propertyPtr.id);
+        const property = propertyInfo(element.propertyPtr.objectType!, element.propertyPtr.id);
         pathParts.push(property.name);
       } else {
         pathParts.push(element.name ?? "??");

@@ -133,7 +133,7 @@ const _propertyTypeInfos: Record<string, TypeIdentity> = {};
 export function getPropertyType(prop: PropertyInfo | PropertyReferenceData): TypeIdentity {
   // cast to property info if necessary
   if (isStruct(prop, StructType.PROPERTY_REFERENCE)) {
-    prop = propertyInfo(prop.type as unknown as ObjectType, prop.id);
+    prop = propertyInfo(prop.objectType as unknown as ObjectType, prop.id);
   }
 
   // check cache

@@ -15,6 +15,7 @@ enum EnumType {
   ENUM_TYPE_NODE_TYPE = 20002;
   ENUM_TYPE_STRUCT_TYPE = 20003;
   ENUM_TYPE_OBJECT_TYPE = 20004;
+  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 20005;
   ENUM_TYPE_NODE_MODE = 20010;
   ENUM_TYPE_DAY = 20020;
   ENUM_TYPE_MONTH = 20021;
@@ -316,6 +317,16 @@ enum ObjectType {
   OBJECT_TYPE_DOM_NODE = 13700;
 }
 
+enum PropertyReferenceType {
+  PROPERTY_REFERENCE_TYPE_UNSPECIFIED = 0;
+  PROPERTY_REFERENCE_TYPE_ID = 1;
+  PROPERTY_REFERENCE_TYPE_CK = 2;
+  PROPERTY_REFERENCE_TYPE_BENCH_ID = 3;
+  PROPERTY_REFERENCE_TYPE_BASE_CK = 4;
+  PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID = 5;
+  PROPERTY_REFERENCE_TYPE_NODE_TYPE = 6;
+}
+
 enum NodeMode {
   NODE_MODE_UNSPECIFIED = 0;
   NODE_MODE_BUILTIN = 1;
@@ -465,6 +476,7 @@ enum BenchType {
   BENCH_TYPE_NODE_TYPE = 20002;
   BENCH_TYPE_STRUCT_TYPE = 20003;
   BENCH_TYPE_OBJECT_TYPE = 20004;
+  BENCH_TYPE_PROPERTY_REFERENCE_TYPE = 20005;
   BENCH_TYPE_NODE_MODE = 20010;
   BENCH_TYPE_DAY = 20020;
   BENCH_TYPE_MONTH = 20021;
@@ -1738,10 +1750,11 @@ message NodeReferenceData {
 
 message PropertyReferenceData {
   ObjectType metatype = 1;
-  optional ObjectType type = 30;
+  optional ObjectType object_type = 30;
   int32 id = 31;
-  optional NodeType references_node = 32;
-  optional string references_meta = 33;
+  optional int32 node_subtype = 32;
+  optional NodeType references_node_type = 35;
+  optional PropertyReferenceType references_meta = 36;
 }
 
 message VariableObjectData {

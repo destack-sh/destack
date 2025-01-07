@@ -1,8 +1,7 @@
 <script lang="ts" setup>
-import { isResourceNodeType } from "@/language/const";
+import { isResourceNode } from "@/language/const";
 import { AnyNodeData, NodeType } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
-import { ResourceNodeData } from "@/system/resource";
 import { COLOR_BY_RESOURCE_STATUS, COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
 import { computed } from "vue";
 
@@ -26,12 +25,12 @@ const textClass = computed(() => [
 </script>
 <template>
   <div>
-    <span v-if="isResourceNodeType(node.metatype as any)">
+    <span v-if="isResourceNode(node)">
       <!-- Resource metadata -->
       <span
         class="fas fa-circle-small w-5 text-center"
         :class="iconClass"
-        :style="{ color: getColorHex(COLOR_BY_RESOURCE_STATUS[(node as ResourceNodeData).status]) }"
+        :style="{ color: getColorHex(COLOR_BY_RESOURCE_STATUS[node.status]) }"
       />
     </span>
     <span v-else-if="isNode(node, NodeType.RUN)">

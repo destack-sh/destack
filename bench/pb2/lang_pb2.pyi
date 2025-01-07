@@ -27,6 +27,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_NODE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_STRUCT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_OBJECT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_PROPERTY_REFERENCE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_NODE_MODE: _ClassVar[EnumType]
     ENUM_TYPE_DAY: _ClassVar[EnumType]
     ENUM_TYPE_MONTH: _ClassVar[EnumType]
@@ -327,6 +328,16 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_RECTANGLE_CONSTRAINT: _ClassVar[ObjectType]
     OBJECT_TYPE_DOM_NODE: _ClassVar[ObjectType]
 
+class PropertyReferenceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PROPERTY_REFERENCE_TYPE_UNSPECIFIED: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_ID: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_CK: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_BENCH_ID: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_BASE_CK: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_NODE_TYPE: _ClassVar[PropertyReferenceType]
+
 class NodeMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     NODE_MODE_UNSPECIFIED: _ClassVar[NodeMode]
@@ -477,6 +488,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_NODE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_STRUCT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_OBJECT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_PROPERTY_REFERENCE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_NODE_MODE: _ClassVar[BenchType]
     BENCH_TYPE_DAY: _ClassVar[BenchType]
     BENCH_TYPE_MONTH: _ClassVar[BenchType]
@@ -1716,6 +1728,7 @@ ENUM_TYPE_ENUM_TYPE: EnumType
 ENUM_TYPE_NODE_TYPE: EnumType
 ENUM_TYPE_STRUCT_TYPE: EnumType
 ENUM_TYPE_OBJECT_TYPE: EnumType
+ENUM_TYPE_PROPERTY_REFERENCE_TYPE: EnumType
 ENUM_TYPE_NODE_MODE: EnumType
 ENUM_TYPE_DAY: EnumType
 ENUM_TYPE_MONTH: EnumType
@@ -2006,6 +2019,13 @@ OBJECT_TYPE_VECTOR4: ObjectType
 OBJECT_TYPE_LINE: ObjectType
 OBJECT_TYPE_RECTANGLE_CONSTRAINT: ObjectType
 OBJECT_TYPE_DOM_NODE: ObjectType
+PROPERTY_REFERENCE_TYPE_UNSPECIFIED: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_ID: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_CK: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_BENCH_ID: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_BASE_CK: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_NODE_TYPE: PropertyReferenceType
 NODE_MODE_UNSPECIFIED: NodeMode
 NODE_MODE_BUILTIN: NodeMode
 NODE_MODE_PRODUCTION: NodeMode
@@ -2142,6 +2162,7 @@ BENCH_TYPE_ENUM_TYPE: BenchType
 BENCH_TYPE_NODE_TYPE: BenchType
 BENCH_TYPE_STRUCT_TYPE: BenchType
 BENCH_TYPE_OBJECT_TYPE: BenchType
+BENCH_TYPE_PROPERTY_REFERENCE_TYPE: BenchType
 BENCH_TYPE_NODE_MODE: BenchType
 BENCH_TYPE_DAY: BenchType
 BENCH_TYPE_MONTH: BenchType
@@ -3136,18 +3157,20 @@ class NodeReferenceData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., bench_id: _Optional[str] = ..., base_ck: _Optional[str] = ..., base_bench_id: _Optional[str] = ...) -> None: ...
 
 class PropertyReferenceData(_message.Message):
-    __slots__ = ("metatype", "type", "id", "references_node", "references_meta")
+    __slots__ = ("metatype", "object_type", "id", "node_subtype", "references_node_type", "references_meta")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
+    OBJECT_TYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
-    REFERENCES_NODE_FIELD_NUMBER: _ClassVar[int]
+    NODE_SUBTYPE_FIELD_NUMBER: _ClassVar[int]
+    REFERENCES_NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
     REFERENCES_META_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    type: ObjectType
+    object_type: ObjectType
     id: int
-    references_node: NodeType
-    references_meta: str
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[int] = ..., references_node: _Optional[_Union[NodeType, str]] = ..., references_meta: _Optional[str] = ...) -> None: ...
+    node_subtype: int
+    references_node_type: NodeType
+    references_meta: PropertyReferenceType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., object_type: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[int] = ..., node_subtype: _Optional[int] = ..., references_node_type: _Optional[_Union[NodeType, str]] = ..., references_meta: _Optional[_Union[PropertyReferenceType, str]] = ...) -> None: ...
 
 class VariableObjectData(_message.Message):
     __slots__ = ("metatype",)

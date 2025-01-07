@@ -438,6 +438,34 @@ def re_search_or_error(pattern: str, string: str) -> regex.Match[str]:
     return match
 
 
+class dualmethod:  # noqa: N801
+    """Decorator that can store both an instance and class version of the same method name."""
+
+    def __init__(self, func=None):
+        self._instance_func = func
+        self._class_func = None
+
+    def inst(self, func):
+        self._instance_func = func
+        return self
+
+    def cls(self, func):
+        self._class_func = func
+        return self
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            # called on the class
+            if self._class_func is None:
+                raise AttributeError("No class method defined.")
+            return self._class_func.__get__(owner, owner)
+        else:
+            # called on an instance
+            if self._instance_func is None:
+                raise AttributeError("No instance method defined.")
+            return self._instance_func.__get__(instance, owner)
+
+
 def sanitize_connection_uri(uri: str) -> str:
     return regex.sub(r":[^@]+@", ":*****@", uri)
 

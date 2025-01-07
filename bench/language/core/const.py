@@ -85,6 +85,7 @@ class EnumType(IdEnum):
     NODE_TYPE = 20002
     STRUCT_TYPE = 20003
     OBJECT_TYPE = 20004  # NodeType | StructType
+    PROPERTY_REFERENCE_TYPE = 20005
     NODE_MODE = 20010
 
     # time
