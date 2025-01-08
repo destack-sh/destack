@@ -14,8 +14,8 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import Inspect from "@/views/helpers/Detail.vue";
-import Start from "@/views/helpers/Run.vue";
+import SomeObject from "@/views/helpers/Detail.vue";
+import Start from "@/views/nodes/Run.vue";
 import { computed, nextTick, ref, Ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
@@ -153,7 +153,7 @@ defineExpose<ViewExposed>({ self });
         size-is-dynamic
         :size="{ width: size?.width, height: (size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT }"
       >
-        <Inspect id="inspect" :node-ptr="nodePtr" v-bind="state.getChildState('scroll.inspect', { nodePtr })" />
+        <SomeObject id="inspect" :node-ptr="nodePtr" v-bind="state.getChildState('scroll.inspect', { nodePtr })" />
       </Scroll>
     </div>
     <div v-else-if="aspect == HelpAspect.RUN">

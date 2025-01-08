@@ -21,7 +21,7 @@ import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
-import { onAddFieldAction } from "@/ui/detail";
+import { onAddFieldAction } from "@/ui/object";
 import { startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
 import { useNodeListActions } from "@/ui/list";
 import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
@@ -29,7 +29,7 @@ import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { ModelValueOptions, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
-import ComputedValue from "@/views/structs/ComputedValue.vue";
+import ComputedValue from "@/views/objects/ComputedValue.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const MIN_WIDTH = 320;

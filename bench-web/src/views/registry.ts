@@ -20,22 +20,22 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.FIELD]: () => import("@/views/nodes/Field.vue"),
   [ViewType.ACTION]: () => import("@/views/nodes/Action.vue"),
   [ViewType.PIPE]: () => import("@/views/nodes/Pipe.vue"),
+  [ViewType.RUN]: () => import("@/views/nodes/Run.vue"),
   // subnodes
   [ViewType.PAGE]: () => import("@/views/subnodes/Page.vue"),
   [ViewType.DATABASE]: () => import("@/views/subnodes/Database.vue"),
   [ViewType.FLOW]: () => import("@/views/subnodes/Flow.vue"),
   // structs
-  [ViewType.TYPE]: () => import("@/views/structs/Type.vue"),
-  [ViewType.OBJECT]: () => import("@/views/structs/CustomObject.vue"),
-  [ViewType.FIELD_LIST]: () => import("@/views/structs/FieldList.vue"),
-  [ViewType.PATH]: () => import("@/views/structs/Path.vue"),
-  [ViewType.COMPUTED_VALUE]: () => import("@/views/structs/ComputedValue.vue"),
+  [ViewType.TYPE]: () => import("@/views/objects/Type.vue"),
+  [ViewType.OBJECT]: () => import("@/views/objects/CustomObject.vue"),
+  [ViewType.FIELD_LIST]: () => import("@/views/objects/FieldList.vue"),
+  [ViewType.COMPUTED_VALUE]: () => import("@/views/objects/ComputedValue.vue"),
+  [ViewType.PATH]: () => import("@/views/objects/Path.vue"),
   // helpers
+  [ViewType.DETAIL]: () => import("@/views/helpers/Detail.vue"),
   [ViewType.USER_WIZARD]: () => import("@/views/helpers/UserWizard.vue"),
   [ViewType.BENCH_WIZARD]: () => import("@/views/helpers/BenchWizard.vue"),
   [ViewType.EMPTY]: () => import("@/views/helpers/Empty.vue"),
-  [ViewType.DETAIL]: () => import("@/views/helpers/Detail.vue"),
-  [ViewType.RUN]: () => import("@/views/helpers/Run.vue"),
   [ViewType.HUB]: () => import("@/views/helpers/Hub.vue"),
   [ViewType.HELP]: () => import("@/views/helpers/Help.vue"),
   [ViewType.CATALOG]: () => import("@/views/helpers/Catalog.vue"),
@@ -80,8 +80,6 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   //
   // Content
   //
-
-  [ViewType.VALUE]: () => import("@/views/content/Value.vue"),
 
   // numeric
   [ViewType.NUMBER]: () => import("@/views/content/NativeInput.vue"),

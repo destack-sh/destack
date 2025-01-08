@@ -4,7 +4,7 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
 import { toRef } from "vue";
 import { TypedNodeReferenceData } from "@/proto/wiring";
-import Path from "@/views/structs/Path.vue";
+import Path from "@/views/objects/Path.vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<

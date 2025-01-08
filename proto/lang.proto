@@ -1421,11 +1421,12 @@ enum ViewType {
   VIEW_TYPE_VIEW = 3020;
   VIEW_TYPE_PIPE = 3031;
   VIEW_TYPE_ACTION = 3030;
+  VIEW_TYPE_RUN = 3601;
   VIEW_TYPE_PAGE = 10010;
   VIEW_TYPE_DATABASE = 10011;
   VIEW_TYPE_FLOW = 10012;
+  VIEW_TYPE_OBJECT = 20000;
   VIEW_TYPE_TYPE = 20001;
-  VIEW_TYPE_OBJECT = 20002;
   VIEW_TYPE_FIELD_LIST = 20003;
   VIEW_TYPE_PATH = 20004;
   VIEW_TYPE_COMPUTED_VALUE = 20005;
@@ -1435,7 +1436,6 @@ enum ViewType {
   VIEW_TYPE_DETAIL = 30200;
   VIEW_TYPE_CREATE = 30201;
   VIEW_TYPE_CHAT = 30202;
-  VIEW_TYPE_RUN = 30203;
   VIEW_TYPE_TIMELINE = 30204;
   VIEW_TYPE_HUB = 30205;
   VIEW_TYPE_HELP = 30206;
@@ -1470,27 +1470,23 @@ enum ViewType {
   VIEW_TYPE_BUTTON = 42001;
   VIEW_TYPE_MULTI_BUTTON = 42002;
   VIEW_TYPE_LINK = 42003;
-  VIEW_TYPE_VALUE = 44001;
   VIEW_TYPE_NUMBER = 45001;
   VIEW_TYPE_SLIDER = 45002;
-  VIEW_TYPE_STRING = 46001;
-  VIEW_TYPE_TEXT = 46002;
-  VIEW_TYPE_CODE = 46003;
-  VIEW_TYPE_JSON = 46004;
-  VIEW_TYPE_TOGGLE = 47001;
-  VIEW_TYPE_PICKER = 47002;
-  VIEW_TYPE_COLOR = 47003;
-  VIEW_TYPE_ICON = 47004;
-  VIEW_TYPE_DATETIME = 47005;
-  VIEW_TYPE_DURATION = 47006;
-  VIEW_TYPE_FILE = 48001;
-  VIEW_TYPE_IMAGE = 48002;
-  VIEW_TYPE_AUDIO = 48003;
-  VIEW_TYPE_VIDEO = 48004;
-  VIEW_TYPE_DOCUMENT = 48005;
-  VIEW_TYPE_CONDITIONAL = 49001;
-  VIEW_TYPE_SORT = 49002;
-  VIEW_TYPE_AGGREGATION = 49003;
+  VIEW_TYPE_STRING = 45101;
+  VIEW_TYPE_TEXT = 45102;
+  VIEW_TYPE_CODE = 45103;
+  VIEW_TYPE_JSON = 45104;
+  VIEW_TYPE_TOGGLE = 45201;
+  VIEW_TYPE_PICKER = 45202;
+  VIEW_TYPE_COLOR = 45203;
+  VIEW_TYPE_ICON = 45204;
+  VIEW_TYPE_DATETIME = 45205;
+  VIEW_TYPE_DURATION = 45206;
+  VIEW_TYPE_FILE = 45301;
+  VIEW_TYPE_IMAGE = 45302;
+  VIEW_TYPE_AUDIO = 45303;
+  VIEW_TYPE_VIDEO = 45304;
+  VIEW_TYPE_DOCUMENT = 45305;
 }
 
 // Built-in color types a la SwiftUI or Tailwind.
@@ -3330,13 +3326,9 @@ message ViewData {
 }
 
 // A view of a user interface in a Bench.
-message UserWizardViewData {
-  optional UserWizardViewStage stage = 100;
-}
-
-// A view of a user interface in a Bench.
-message HelpViewData {
-  HelpAspect aspect = 100;
+message RunViewData {
+  optional google.protobuf.Value variables_packed = 100;
+  optional google.protobuf.Value inputs_packed = 101;
 }
 
 // A view of a user interface in a Bench.
@@ -3346,14 +3338,18 @@ message DetailViewData {
 }
 
 // A view of a user interface in a Bench.
-message RunViewData {
-  optional google.protobuf.Value variables_packed = 100;
-  optional google.protobuf.Value inputs_packed = 101;
+message UserWizardViewData {
+  optional UserWizardViewStage stage = 100;
 }
 
 // A view of a user interface in a Bench.
 message HubViewData {
   HubAspect aspect = 100;
+}
+
+// A view of a user interface in a Bench.
+message HelpViewData {
+  HelpAspect aspect = 100;
 }
 
 // A view of a user interface in a Bench.
@@ -3385,11 +3381,6 @@ message ButtonViewData {
 }
 
 // A view of a user interface in a Bench.
-message IconViewData {
-  bool include_color = 100;
-}
-
-// A view of a user interface in a Bench.
 message PickerViewData {
   optional PickerVariant variant = 100;
 }
@@ -3397,6 +3388,11 @@ message PickerViewData {
 // A view of a user interface in a Bench.
 message DatetimeViewData {
   optional bool is_relative = 100;
+}
+
+// A view of a user interface in a Bench.
+message IconViewData {
+  bool include_color = 100;
 }
 
 message SpaceData {

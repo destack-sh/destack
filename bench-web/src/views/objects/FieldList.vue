@@ -10,7 +10,7 @@ import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { FIELD_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
-import { onAddFieldAction } from "@/ui/detail";
+import { onAddFieldAction } from "@/ui/object";
 import {
   isDragging,
   startDraggingIfAllowed,

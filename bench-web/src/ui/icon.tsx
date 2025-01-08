@@ -338,13 +338,12 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.TYPE]: "fas fa-objects-column",
   [ViewType.OBJECT]: "fas fa-cubes",
   [ViewType.PIPE]: "fas fa-tachometer-alt",
+  [ViewType.RUN]: "fas fa-play",
 
-  // helpers
+  // utilities
   [ViewType.TREE]: "fas fa-list-tree",
-  [ViewType.DETAIL]: "fas fa-eye",
   [ViewType.CREATE]: "fas fa-plus",
   [ViewType.CHAT]: "fas fa-message",
-  [ViewType.RUN]: "fas fa-play",
   [ViewType.FEED]: "fas fa-list-timeline",
   [ViewType.TIMELINE]: "fas fa-timeline",
 
@@ -405,8 +404,6 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   //
   // Content
   //
-
-  [ViewType.VALUE]: "fas fa-box-taped",
 
   // numeric
   [ViewType.NUMBER]: "fas fa-hashtag",

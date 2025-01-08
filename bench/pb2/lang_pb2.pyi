@@ -1411,11 +1411,12 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_VIEW: _ClassVar[ViewType]
     VIEW_TYPE_PIPE: _ClassVar[ViewType]
     VIEW_TYPE_ACTION: _ClassVar[ViewType]
+    VIEW_TYPE_RUN: _ClassVar[ViewType]
     VIEW_TYPE_PAGE: _ClassVar[ViewType]
     VIEW_TYPE_DATABASE: _ClassVar[ViewType]
     VIEW_TYPE_FLOW: _ClassVar[ViewType]
-    VIEW_TYPE_TYPE: _ClassVar[ViewType]
     VIEW_TYPE_OBJECT: _ClassVar[ViewType]
+    VIEW_TYPE_TYPE: _ClassVar[ViewType]
     VIEW_TYPE_FIELD_LIST: _ClassVar[ViewType]
     VIEW_TYPE_PATH: _ClassVar[ViewType]
     VIEW_TYPE_COMPUTED_VALUE: _ClassVar[ViewType]
@@ -1425,7 +1426,6 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_DETAIL: _ClassVar[ViewType]
     VIEW_TYPE_CREATE: _ClassVar[ViewType]
     VIEW_TYPE_CHAT: _ClassVar[ViewType]
-    VIEW_TYPE_RUN: _ClassVar[ViewType]
     VIEW_TYPE_TIMELINE: _ClassVar[ViewType]
     VIEW_TYPE_HUB: _ClassVar[ViewType]
     VIEW_TYPE_HELP: _ClassVar[ViewType]
@@ -1460,7 +1460,6 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_BUTTON: _ClassVar[ViewType]
     VIEW_TYPE_MULTI_BUTTON: _ClassVar[ViewType]
     VIEW_TYPE_LINK: _ClassVar[ViewType]
-    VIEW_TYPE_VALUE: _ClassVar[ViewType]
     VIEW_TYPE_NUMBER: _ClassVar[ViewType]
     VIEW_TYPE_SLIDER: _ClassVar[ViewType]
     VIEW_TYPE_STRING: _ClassVar[ViewType]
@@ -1478,9 +1477,6 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_AUDIO: _ClassVar[ViewType]
     VIEW_TYPE_VIDEO: _ClassVar[ViewType]
     VIEW_TYPE_DOCUMENT: _ClassVar[ViewType]
-    VIEW_TYPE_CONDITIONAL: _ClassVar[ViewType]
-    VIEW_TYPE_SORT: _ClassVar[ViewType]
-    VIEW_TYPE_AGGREGATION: _ClassVar[ViewType]
 
 class ColorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2864,11 +2860,12 @@ VIEW_TYPE_FIELD: ViewType
 VIEW_TYPE_VIEW: ViewType
 VIEW_TYPE_PIPE: ViewType
 VIEW_TYPE_ACTION: ViewType
+VIEW_TYPE_RUN: ViewType
 VIEW_TYPE_PAGE: ViewType
 VIEW_TYPE_DATABASE: ViewType
 VIEW_TYPE_FLOW: ViewType
-VIEW_TYPE_TYPE: ViewType
 VIEW_TYPE_OBJECT: ViewType
+VIEW_TYPE_TYPE: ViewType
 VIEW_TYPE_FIELD_LIST: ViewType
 VIEW_TYPE_PATH: ViewType
 VIEW_TYPE_COMPUTED_VALUE: ViewType
@@ -2878,7 +2875,6 @@ VIEW_TYPE_EMPTY: ViewType
 VIEW_TYPE_DETAIL: ViewType
 VIEW_TYPE_CREATE: ViewType
 VIEW_TYPE_CHAT: ViewType
-VIEW_TYPE_RUN: ViewType
 VIEW_TYPE_TIMELINE: ViewType
 VIEW_TYPE_HUB: ViewType
 VIEW_TYPE_HELP: ViewType
@@ -2913,7 +2909,6 @@ VIEW_TYPE_CHART: ViewType
 VIEW_TYPE_BUTTON: ViewType
 VIEW_TYPE_MULTI_BUTTON: ViewType
 VIEW_TYPE_LINK: ViewType
-VIEW_TYPE_VALUE: ViewType
 VIEW_TYPE_NUMBER: ViewType
 VIEW_TYPE_SLIDER: ViewType
 VIEW_TYPE_STRING: ViewType
@@ -2931,9 +2926,6 @@ VIEW_TYPE_IMAGE: ViewType
 VIEW_TYPE_AUDIO: ViewType
 VIEW_TYPE_VIDEO: ViewType
 VIEW_TYPE_DOCUMENT: ViewType
-VIEW_TYPE_CONDITIONAL: ViewType
-VIEW_TYPE_SORT: ViewType
-VIEW_TYPE_AGGREGATION: ViewType
 COLOR_TYPE_UNSPECIFIED: ColorType
 COLOR_TYPE_PRIMARY: ColorType
 COLOR_TYPE_SECONDARY: ColorType
@@ -5990,17 +5982,13 @@ class ViewData(_message.Message):
     mode: NodeMode
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., computed_values: _Optional[_Iterable[_Union[ComputedValueData, _Mapping]]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ViewType, str]] = ..., name: _Optional[str] = ..., title: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., subviews_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., value_type: _Optional[_Union[TypeData, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., position: _Optional[_Union[OffsetData, _Mapping]] = ..., size: _Optional[_Union[RectangleData, _Mapping]] = ..., margin: _Optional[_Union[OffsetData, _Mapping]] = ..., padding: _Optional[_Union[OffsetData, _Mapping]] = ..., orientation: _Optional[_Union[Orientation, str]] = ..., alignment: _Optional[_Union[Alignment, str]] = ..., transform: _Optional[_Union[TransformData, _Mapping]] = ..., constraint: _Optional[_Union[RectangleConstraintData, _Mapping]] = ..., selection: _Optional[_Union[SelectionData, _Mapping]] = ..., focus: _Optional[_Union[SelectionData, _Mapping]] = ..., is_hidden: bool = ..., is_disabled: bool = ..., is_input: bool = ..., is_inline: bool = ..., is_minimal: bool = ..., is_loading: bool = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
 
-class UserWizardViewData(_message.Message):
-    __slots__ = ("stage",)
-    STAGE_FIELD_NUMBER: _ClassVar[int]
-    stage: UserWizardViewStage
-    def __init__(self, stage: _Optional[_Union[UserWizardViewStage, str]] = ...) -> None: ...
-
-class HelpViewData(_message.Message):
-    __slots__ = ("aspect",)
-    ASPECT_FIELD_NUMBER: _ClassVar[int]
-    aspect: HelpAspect
-    def __init__(self, aspect: _Optional[_Union[HelpAspect, str]] = ...) -> None: ...
+class RunViewData(_message.Message):
+    __slots__ = ("variables_packed", "inputs_packed")
+    VARIABLES_PACKED_FIELD_NUMBER: _ClassVar[int]
+    INPUTS_PACKED_FIELD_NUMBER: _ClassVar[int]
+    variables_packed: _struct_pb2.Value
+    inputs_packed: _struct_pb2.Value
+    def __init__(self, variables_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class DetailViewData(_message.Message):
     __slots__ = ("expanded_sections", "collapsed_sections")
@@ -6010,19 +5998,23 @@ class DetailViewData(_message.Message):
     collapsed_sections: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, expanded_sections: _Optional[_Iterable[str]] = ..., collapsed_sections: _Optional[_Iterable[str]] = ...) -> None: ...
 
-class RunViewData(_message.Message):
-    __slots__ = ("variables_packed", "inputs_packed")
-    VARIABLES_PACKED_FIELD_NUMBER: _ClassVar[int]
-    INPUTS_PACKED_FIELD_NUMBER: _ClassVar[int]
-    variables_packed: _struct_pb2.Value
-    inputs_packed: _struct_pb2.Value
-    def __init__(self, variables_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+class UserWizardViewData(_message.Message):
+    __slots__ = ("stage",)
+    STAGE_FIELD_NUMBER: _ClassVar[int]
+    stage: UserWizardViewStage
+    def __init__(self, stage: _Optional[_Union[UserWizardViewStage, str]] = ...) -> None: ...
 
 class HubViewData(_message.Message):
     __slots__ = ("aspect",)
     ASPECT_FIELD_NUMBER: _ClassVar[int]
     aspect: HubAspect
     def __init__(self, aspect: _Optional[_Union[HubAspect, str]] = ...) -> None: ...
+
+class HelpViewData(_message.Message):
+    __slots__ = ("aspect",)
+    ASPECT_FIELD_NUMBER: _ClassVar[int]
+    aspect: HelpAspect
+    def __init__(self, aspect: _Optional[_Union[HelpAspect, str]] = ...) -> None: ...
 
 class ListViewData(_message.Message):
     __slots__ = ("query_node_type", "filter", "sort")
@@ -6064,12 +6056,6 @@ class ButtonViewData(_message.Message):
     variant: ButtonVariant
     def __init__(self, variant: _Optional[_Union[ButtonVariant, str]] = ...) -> None: ...
 
-class IconViewData(_message.Message):
-    __slots__ = ("include_color",)
-    INCLUDE_COLOR_FIELD_NUMBER: _ClassVar[int]
-    include_color: bool
-    def __init__(self, include_color: bool = ...) -> None: ...
-
 class PickerViewData(_message.Message):
     __slots__ = ("variant",)
     VARIANT_FIELD_NUMBER: _ClassVar[int]
@@ -6081,6 +6067,12 @@ class DatetimeViewData(_message.Message):
     IS_RELATIVE_FIELD_NUMBER: _ClassVar[int]
     is_relative: bool
     def __init__(self, is_relative: bool = ...) -> None: ...
+
+class IconViewData(_message.Message):
+    __slots__ = ("include_color",)
+    INCLUDE_COLOR_FIELD_NUMBER: _ClassVar[int]
+    include_color: bool
+    def __init__(self, include_color: bool = ...) -> None: ...
 
 class SpaceData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "computed_values", "subnode_packed", "type", "name", "text", "order_key", "policies", "owned_by_ptr", "focus", "selection", "inspection_ptr", "base_ptr", "run_ptr", "mode")

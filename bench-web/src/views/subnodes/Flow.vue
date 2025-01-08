@@ -44,7 +44,7 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
-import FieldList from "@/views/structs/FieldList.vue";
+import FieldList from "@/views/objects/FieldList.vue";
 import Pipe from "@/views/nodes/Pipe.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, provide, ref, toRef, type Ref } from "vue";

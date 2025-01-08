@@ -60,15 +60,16 @@ class ViewType(IdEnum):
     VIEW = 3020
     PIPE = 3031
     ACTION = 3030
+    RUN = 3601
 
     # subnodes (10000-20000)
     PAGE = 10010
     DATABASE = 10011
     FLOW = 10012
 
-    # structs (20000-30000)
+    # objects (20000-30000)
+    OBJECT = 20000
     TYPE = 20001
-    OBJECT = 20002
     FIELD_LIST = 20003
     PATH = 20004
     COMPUTED_VALUE = 20005
@@ -80,7 +81,6 @@ class ViewType(IdEnum):
     DETAIL = 30200
     CREATE = 30201
     CHAT = 30202
-    RUN = 30203
     TIMELINE = 30204
     HUB = 30205
     HELP = 30206
@@ -91,7 +91,7 @@ class ViewType(IdEnum):
     # Organization (40000-41000)
     #
 
-    # layout
+    # layout (40000-40100)
     WINDOW = 40001
     TAB = 40002
     HISTORY = 40003
@@ -102,16 +102,16 @@ class ViewType(IdEnum):
     SCROLL = 40008
     GRID = 40009
 
-    # groups
+    # groups (40100-40200)
     GROUP = 40100
     SECTION = 40101
     FORM = 40102
 
-    # presentation
+    # presentation (40200-40300)
     SPACER = 40200
     DIVIDER = 40201
 
-    # collections
+    # collections (40300-40400)
     LIST = 40300
     TABLE = 40301
     TREE = 40302
@@ -125,62 +125,57 @@ class ViewType(IdEnum):
     # Style (41000-42000)
     #
 
-    # navigation
+    # navigation (41000-41100)
     BREADCRUMB = 41001
     PROGRESS = 41002
     AVATAR = 41003
     BADGE = 41004
-    # illustration
+    # illustration (41100-41200)
     SHAPE = 41100
 
-    # graphing
+    # graphing (41200-41300)
     CHART = 41200
 
     #
     # Action (42000-43000)
     #
 
-    # controls
+    # controls (42000-42100)
     BUTTON = 42001
     MULTI_BUTTON = 42002
     LINK = 42003
 
     #
-    # Content (44000-50000)
+    # Content (45000-)
     #
 
-    VALUE = 44001  # (generic content routed according to value type)
-
-    # numeric
+    # numeric (45000-45100)
     NUMBER = 45001
     SLIDER = 45002
 
-    # stringy
-    STRING = 46001
-    TEXT = 46002
-    CODE = 46003
-    JSON = 46004
+    # stringy (45100-45200)
+    STRING = 45101
+    TEXT = 45102
+    CODE = 45103
+    JSON = 45104
 
-    # selection
-    TOGGLE = 47001
-    PICKER = 47002
-    COLOR = 47003
-    ICON = 47004
-    DATETIME = 47005
-    DURATION = 47006
+    # selection (45200-45300)
+    TOGGLE = 45201
+    PICKER = 45202
+    COLOR = 45203
+    ICON = 45204
+    DATETIME = 45205
+    DURATION = 45206
 
-    # file
-    FILE = 48001  # (generic file content according to file type)
-    IMAGE = 48002
-    AUDIO = 48003
-    VIDEO = 48004
-    DOCUMENT = 48005
-    ...
+    # file (45300-45400)
+    FILE = 45301  # (generic file content according to file type)
+    IMAGE = 45302
+    AUDIO = 45303
+    VIDEO = 45304
+    DOCUMENT = 45305
 
     # expression
-    CONDITIONAL = 49001
-    SORT = 49002
-    AGGREGATION = 49003
+    # ...
 
 
 @enum_(EnumType.COLOR_TYPE)
@@ -557,8 +552,30 @@ class View(SourceNode[ViewData]):
 
 
 #
-# Intrinsics
+# Intrinsics (0-30000)
 #
+
+# nodes (0-10000)
+
+
+@node_subtype_(ViewType.RUN)
+class RunView(View):
+    variables_packed: Any = p_value_packed(100)
+    inputs_packed: Any = p_value_packed(101)
+
+
+# subnodes (10000-20000)
+
+# objects (20000-30000)
+
+
+# helpers (30000-40000)
+
+
+@node_subtype_(ViewType.DETAIL)
+class DetailView(View):
+    expanded_sections: list[str] = p_regular(100, array=True)
+    collapsed_sections: list[str] = p_regular(101, array=True)
 
 
 @enum_(EnumType.USER_WIZARD_STAGE)
@@ -574,31 +591,6 @@ class UserWizardView(View):
     stage: UserWizardViewStage | None = p_regular(100)
 
 
-@enum_(EnumType.HELP_ASPECT)
-class HelpAspect(IdEnum):
-    DETAIL = 1
-    RUN = 2
-    CHAT = 3
-    VERSION = 4
-
-
-@node_subtype_(ViewType.HELP)
-class HelpView(View):
-    aspect: HelpAspect = p_regular(100)
-
-
-@node_subtype_(ViewType.DETAIL)
-class DetailView(View):
-    expanded_sections: list[str] = p_regular(100, array=True)
-    collapsed_sections: list[str] = p_regular(101, array=True)
-
-
-@node_subtype_(ViewType.RUN)
-class RunView(View):
-    variables_packed: Any = p_value_packed(100)
-    inputs_packed: Any = p_value_packed(101)
-
-
 @enum_(EnumType.HUB_ASPECT)
 class HubAspect(IdEnum):
     BENCH = 1
@@ -612,9 +604,24 @@ class HubView(View):
     aspect: HubAspect = p_regular(100)
 
 
+@enum_(EnumType.HELP_ASPECT)
+class HelpAspect(IdEnum):
+    DETAIL = 1
+    RUN = 2
+    CHAT = 3
+    VERSION = 4
+
+
+@node_subtype_(ViewType.HELP)
+class HelpView(View):
+    aspect: HelpAspect = p_regular(100)
+
+
 #
-# Collections
+# Organization (40000-41000)
 #
+
+# collections (40300-40400)
 
 
 @node_subtype_(ViewType.LIST)
@@ -654,15 +661,19 @@ class FeedView(View):
 
 
 #
-# Style
+# Style (41000-42000)
 #
 
+# navigation (41000-41100)
+# illustration (41100-41200)
+# graphing (41200-41300)
 
-...
 
 #
-# Controls
+# Action (42000-43000)
 #
+
+# controls (42000-42100)
 
 
 @enum_(EnumType.BUTTON_VARIANT)
@@ -678,25 +689,14 @@ class ButtonView(View):
 
 
 #
-# Numeric
+# Content (45000-)
 #
 
+# numeric (45000-45100)
 
-...
+# stringy (45100-45200)
 
-#
-# Stringy
-#
-
-
-@node_subtype_(ViewType.ICON)
-class IconView(View):
-    include_color: bool = p_regular(100, default=False)
-
-
-#
-# Selection
-#
+# selection (45200-45300)
 
 
 @enum_(EnumType.PICKER_VARIANT)
@@ -716,11 +716,12 @@ class DatetimeView(View):
     is_relative: bool | None = p_regular(100, default=False)
 
 
-#
-# File
-#
+@node_subtype_(ViewType.ICON)
+class IconView(View):
+    include_color: bool = p_regular(100, default=False)
 
-...
+
+# file (45300-45400)
 
 
 #

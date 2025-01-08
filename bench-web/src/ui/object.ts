@@ -71,23 +71,23 @@ import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
 import { ModelValueOptions, ViewProps } from "@/views/common";
 
-export type DetailLayout = {
-  sections: DetailSection[];
+export type ObjectLayout = {
+  sections: ObjectSection[];
 };
 
-export type DetailAction = {
+export type ObjectAction = {
   title: string;
   icon: IconData;
   action: (e: MouseEvent) => void;
 };
-export type DetailSection = {
+export type ObjectSection = {
   key?: string;
   title?: string;
   subtitle?: string;
   rows: DetailRow[];
   isDefaultCollapsed?: boolean;
   summary?: string;
-  actions?: DetailAction[];
+  actions?: ObjectAction[];
 };
 
 type RowBase = {
@@ -136,12 +136,13 @@ export type TextRow = RowBase & {
 };
 export type DetailRow = FieldsRow | ViewRow | PropertyRow | ObjectRow | IconRow | TextRow | LineRow;
 
-export function makeDetailLayout(options: {
+/** Get the layout for a detailed view of a CustomObject or Node› */
+export function makeObjectLayout(options: {
   node: AnyNodeData;
   graph: ReadNodeGraph;
   txFactory: () => Transaction;
   computedType?: TypeData;
-}): DetailLayout {
+}): ObjectLayout {
   // nocheckin: edit node partials in Detail layout (incl. as computed)
   const { node, graph, txFactory, computedType } = options;
 
@@ -159,7 +160,7 @@ export function makeDetailLayout(options: {
       : null;
 
   /** Make a Section */
-  const sections: DetailSection[] = [];
+  const sections: ObjectSection[] = [];
   function section(
     title: string | undefined,
     rows: DetailRow[],
@@ -168,10 +169,10 @@ export function makeDetailLayout(options: {
       isDefaultCollapsed?: boolean;
       subtitle?: string;
       summary?: string;
-      actions?: DetailAction[];
+      actions?: ObjectAction[];
     },
-  ): DetailSection {
-    const s: DetailSection = {
+  ): ObjectSection {
+    const s: ObjectSection = {
       key: options?.key ?? (title != null ? `section-${title}-${options?.subtitle ?? ""}` : undefined),
       title,
       subtitle: options?.subtitle,
@@ -359,7 +360,7 @@ export function makeDetailLayout(options: {
     fieldType: FieldType,
     icon: IconData | string = "fas fa-plus",
     options?: { toolPtr?: NodeReferenceData },
-  ): DetailAction {
+  ): ObjectAction {
     return {
       title: `Add ${toCamelName(FieldType, fieldType)}`,
       icon: makeIcon(icon),
@@ -434,7 +435,7 @@ export function makeDetailLayout(options: {
     return { type: "icon", icon: makeIcon(icon) };
   }
 
-  function sectionSchema(options?: { title?: string; subtitle?: string; toolPtr?: NodeReferenceData }): DetailSection {
+  function sectionSchema(options?: { title?: string; subtitle?: string; toolPtr?: NodeReferenceData }): ObjectSection {
     return section(
       options?.title ?? "Schema",
       [
@@ -783,7 +784,7 @@ export function makeDetailLayout(options: {
     ]);
   }
 
-  const layout: DetailLayout = { sections };
+  const layout: ObjectLayout = { sections };
   return layout;
 }
 
