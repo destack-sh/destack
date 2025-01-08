@@ -398,7 +398,7 @@ export class SpaceCanvas {
     if (focus == "target") {
       this.focusInGraph({ focus: makeSelection([inspect.node]), view: view });
     } else if (focus == "detail") {
-      this.addView({ type: ViewType.DETAIL }, { ifPresent: "focus" });
+      this.addView({ type: ViewType.OBJECT }, { ifPresent: "focus" });
     } else {
       assertNever(focus);
     }

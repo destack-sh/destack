@@ -5462,24 +5462,17 @@ export interface ViewData {
 /**
  * A view of a user interface in a Bench.
  *
- * @generated from protobuf message symbolx.bench.UserWizardViewData
+ * @generated from protobuf message symbolx.bench.RunViewData
  */
-export interface UserWizardViewData {
+export interface RunViewData {
     /**
-     * @generated from protobuf field: optional symbolx.bench.UserWizardViewStage stage = 100;
+     * @generated from protobuf field: optional google.protobuf.Value variables_packed = 100;
      */
-    stage?: UserWizardViewStage;
-}
-/**
- * A view of a user interface in a Bench.
- *
- * @generated from protobuf message symbolx.bench.HelpViewData
- */
-export interface HelpViewData {
+    variablesPacked?: JsonValue;
     /**
-     * @generated from protobuf field: symbolx.bench.HelpAspect aspect = 100;
+     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 101;
      */
-    aspect: HelpAspect;
+    inputsPacked?: JsonValue;
 }
 /**
  * A view of a user interface in a Bench.
@@ -5499,17 +5492,13 @@ export interface DetailViewData {
 /**
  * A view of a user interface in a Bench.
  *
- * @generated from protobuf message symbolx.bench.RunViewData
+ * @generated from protobuf message symbolx.bench.UserWizardViewData
  */
-export interface RunViewData {
+export interface UserWizardViewData {
     /**
-     * @generated from protobuf field: optional google.protobuf.Value variables_packed = 100;
+     * @generated from protobuf field: optional symbolx.bench.UserWizardViewStage stage = 100;
      */
-    variablesPacked?: JsonValue;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 101;
-     */
-    inputsPacked?: JsonValue;
+    stage?: UserWizardViewStage;
 }
 /**
  * A view of a user interface in a Bench.
@@ -5521,6 +5510,17 @@ export interface HubViewData {
      * @generated from protobuf field: symbolx.bench.HubAspect aspect = 100;
      */
     aspect: HubAspect;
+}
+/**
+ * A view of a user interface in a Bench.
+ *
+ * @generated from protobuf message symbolx.bench.HelpViewData
+ */
+export interface HelpViewData {
+    /**
+     * @generated from protobuf field: symbolx.bench.HelpAspect aspect = 100;
+     */
+    aspect: HelpAspect;
 }
 /**
  * A view of a user interface in a Bench.
@@ -5601,17 +5601,6 @@ export interface ButtonViewData {
 /**
  * A view of a user interface in a Bench.
  *
- * @generated from protobuf message symbolx.bench.IconViewData
- */
-export interface IconViewData {
-    /**
-     * @generated from protobuf field: bool include_color = 100;
-     */
-    includeColor: boolean;
-}
-/**
- * A view of a user interface in a Bench.
- *
  * @generated from protobuf message symbolx.bench.PickerViewData
  */
 export interface PickerViewData {
@@ -5630,6 +5619,17 @@ export interface DatetimeViewData {
      * @generated from protobuf field: optional bool is_relative = 100;
      */
     isRelative?: boolean;
+}
+/**
+ * A view of a user interface in a Bench.
+ *
+ * @generated from protobuf message symbolx.bench.IconViewData
+ */
+export interface IconViewData {
+    /**
+     * @generated from protobuf field: bool include_color = 100;
+     */
+    includeColor: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.SpaceData
@@ -11144,6 +11144,10 @@ export enum ViewType {
      */
     ACTION = 3030,
     /**
+     * @generated from protobuf enum value: VIEW_TYPE_RUN = 3601;
+     */
+    RUN = 3601,
+    /**
      * @generated from protobuf enum value: VIEW_TYPE_PAGE = 10010;
      */
     PAGE = 10010,
@@ -11156,13 +11160,13 @@ export enum ViewType {
      */
     FLOW = 10012,
     /**
+     * @generated from protobuf enum value: VIEW_TYPE_OBJECT = 20000;
+     */
+    OBJECT = 20000,
+    /**
      * @generated from protobuf enum value: VIEW_TYPE_TYPE = 20001;
      */
     TYPE = 20001,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_OBJECT = 20002;
-     */
-    OBJECT = 20002,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_FIELD_LIST = 20003;
      */
@@ -11199,10 +11203,6 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_CHAT = 30202;
      */
     CHAT = 30202,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_RUN = 30203;
-     */
-    RUN = 30203,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_TIMELINE = 30204;
      */
@@ -11340,10 +11340,6 @@ export enum ViewType {
      */
     LINK = 42003,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_VALUE = 44001;
-     */
-    VALUE = 44001,
-    /**
      * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 45001;
      */
     NUMBER = 45001,
@@ -11352,77 +11348,65 @@ export enum ViewType {
      */
     SLIDER = 45002,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_STRING = 46001;
+     * @generated from protobuf enum value: VIEW_TYPE_STRING = 45101;
      */
-    STRING = 46001,
+    STRING = 45101,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TEXT = 46002;
+     * @generated from protobuf enum value: VIEW_TYPE_TEXT = 45102;
      */
-    TEXT = 46002,
+    TEXT = 45102,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CODE = 46003;
+     * @generated from protobuf enum value: VIEW_TYPE_CODE = 45103;
      */
-    CODE = 46003,
+    CODE = 45103,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_JSON = 46004;
+     * @generated from protobuf enum value: VIEW_TYPE_JSON = 45104;
      */
-    JSON = 46004,
+    JSON = 45104,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TOGGLE = 47001;
+     * @generated from protobuf enum value: VIEW_TYPE_TOGGLE = 45201;
      */
-    TOGGLE = 47001,
+    TOGGLE = 45201,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PICKER = 47002;
+     * @generated from protobuf enum value: VIEW_TYPE_PICKER = 45202;
      */
-    PICKER = 47002,
+    PICKER = 45202,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 47003;
+     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 45203;
      */
-    COLOR = 47003,
+    COLOR = 45203,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_ICON = 47004;
+     * @generated from protobuf enum value: VIEW_TYPE_ICON = 45204;
      */
-    ICON = 47004,
+    ICON = 45204,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DATETIME = 47005;
+     * @generated from protobuf enum value: VIEW_TYPE_DATETIME = 45205;
      */
-    DATETIME = 47005,
+    DATETIME = 45205,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DURATION = 47006;
+     * @generated from protobuf enum value: VIEW_TYPE_DURATION = 45206;
      */
-    DURATION = 47006,
+    DURATION = 45206,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_FILE = 48001;
+     * @generated from protobuf enum value: VIEW_TYPE_FILE = 45301;
      */
-    FILE = 48001,
+    FILE = 45301,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_IMAGE = 48002;
+     * @generated from protobuf enum value: VIEW_TYPE_IMAGE = 45302;
      */
-    IMAGE = 48002,
+    IMAGE = 45302,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 48003;
+     * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 45303;
      */
-    AUDIO = 48003,
+    AUDIO = 45303,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_VIDEO = 48004;
+     * @generated from protobuf enum value: VIEW_TYPE_VIDEO = 45304;
      */
-    VIDEO = 48004,
+    VIDEO = 45304,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DOCUMENT = 48005;
+     * @generated from protobuf enum value: VIEW_TYPE_DOCUMENT = 45305;
      */
-    DOCUMENT = 48005,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_CONDITIONAL = 49001;
-     */
-    CONDITIONAL = 49001,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_SORT = 49002;
-     */
-    SORT = 49002,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_AGGREGATION = 49003;
-     */
-    AGGREGATION = 49003
+    DOCUMENT = 45305
 }
 /**
  * Built-in color types a la SwiftUI or Tailwind.
@@ -25788,25 +25772,29 @@ class ViewData$Type extends MessageType$<ViewData> {
  */
 export const ViewData = new ViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
+class RunViewData$Type extends MessageType$<RunViewData> {
     constructor() {
-        super("symbolx.bench.UserWizardViewData", [
-            { no: 100, name: "stage", kind: "enum", opt: true, T: () => ["symbolx.bench.UserWizardViewStage", UserWizardViewStage, "USER_WIZARD_VIEW_STAGE_"] }
+        super("symbolx.bench.RunViewData", [
+            { no: 100, name: "variables_packed", kind: "message", T: () => Value },
+            { no: 101, name: "inputs_packed", kind: "message", T: () => Value }
         ]);
     }
-    create(value?: PartialMessage<UserWizardViewData>): UserWizardViewData {
+    create(value?: PartialMessage<RunViewData>): RunViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<UserWizardViewData>(this, message, value);
+            reflectionMergePartial<RunViewData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UserWizardViewData): UserWizardViewData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunViewData): RunViewData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional symbolx.bench.UserWizardViewStage stage */ 100:
-                    message.stage = reader.int32();
+                case /* optional google.protobuf.Value variables_packed */ 100:
+                    message.variablesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* optional google.protobuf.Value inputs_packed */ 101:
+                    message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -25819,10 +25807,13 @@ class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
         }
         return message;
     }
-    internalBinaryWrite(message: UserWizardViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.UserWizardViewStage stage = 100; */
-        if (message.stage !== undefined)
-            writer.tag(100, WireType.Varint).int32(message.stage);
+    internalBinaryWrite(message: RunViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional google.protobuf.Value variables_packed = 100; */
+        if (message.variablesPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value inputs_packed = 101; */
+        if (message.inputsPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(101, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25830,56 +25821,9 @@ class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.UserWizardViewData
+ * @generated MessageType for protobuf message symbolx.bench.RunViewData
  */
-export const UserWizardViewData = new UserWizardViewData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class HelpViewData$Type extends MessageType$<HelpViewData> {
-    constructor() {
-        super("symbolx.bench.HelpViewData", [
-            { no: 100, name: "aspect", kind: "enum", T: () => ["symbolx.bench.HelpAspect", HelpAspect, "HELP_ASPECT_"] }
-        ]);
-    }
-    create(value?: PartialMessage<HelpViewData>): HelpViewData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.aspect = 0;
-        if (value !== undefined)
-            reflectionMergePartial<HelpViewData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: HelpViewData): HelpViewData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.HelpAspect aspect */ 100:
-                    message.aspect = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: HelpViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.HelpAspect aspect = 100; */
-        if (message.aspect !== 0)
-            writer.tag(100, WireType.Varint).int32(message.aspect);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.HelpViewData
- */
-export const HelpViewData = new HelpViewData$Type();
+export const RunViewData = new RunViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class DetailViewData$Type extends MessageType$<DetailViewData> {
     constructor() {
@@ -25936,29 +25880,25 @@ class DetailViewData$Type extends MessageType$<DetailViewData> {
  */
 export const DetailViewData = new DetailViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunViewData$Type extends MessageType$<RunViewData> {
+class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
     constructor() {
-        super("symbolx.bench.RunViewData", [
-            { no: 100, name: "variables_packed", kind: "message", T: () => Value },
-            { no: 101, name: "inputs_packed", kind: "message", T: () => Value }
+        super("symbolx.bench.UserWizardViewData", [
+            { no: 100, name: "stage", kind: "enum", opt: true, T: () => ["symbolx.bench.UserWizardViewStage", UserWizardViewStage, "USER_WIZARD_VIEW_STAGE_"] }
         ]);
     }
-    create(value?: PartialMessage<RunViewData>): RunViewData {
+    create(value?: PartialMessage<UserWizardViewData>): UserWizardViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<RunViewData>(this, message, value);
+            reflectionMergePartial<UserWizardViewData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunViewData): RunViewData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UserWizardViewData): UserWizardViewData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional google.protobuf.Value variables_packed */ 100:
-                    message.variablesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* optional google.protobuf.Value inputs_packed */ 101:
-                    message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                case /* optional symbolx.bench.UserWizardViewStage stage */ 100:
+                    message.stage = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -25971,13 +25911,10 @@ class RunViewData$Type extends MessageType$<RunViewData> {
         }
         return message;
     }
-    internalBinaryWrite(message: RunViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional google.protobuf.Value variables_packed = 100; */
-        if (message.variablesPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value inputs_packed = 101; */
-        if (message.inputsPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+    internalBinaryWrite(message: UserWizardViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional symbolx.bench.UserWizardViewStage stage = 100; */
+        if (message.stage !== undefined)
+            writer.tag(100, WireType.Varint).int32(message.stage);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25985,9 +25922,9 @@ class RunViewData$Type extends MessageType$<RunViewData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.RunViewData
+ * @generated MessageType for protobuf message symbolx.bench.UserWizardViewData
  */
-export const RunViewData = new RunViewData$Type();
+export const UserWizardViewData = new UserWizardViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class HubViewData$Type extends MessageType$<HubViewData> {
     constructor() {
@@ -26035,6 +25972,53 @@ class HubViewData$Type extends MessageType$<HubViewData> {
  * @generated MessageType for protobuf message symbolx.bench.HubViewData
  */
 export const HubViewData = new HubViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class HelpViewData$Type extends MessageType$<HelpViewData> {
+    constructor() {
+        super("symbolx.bench.HelpViewData", [
+            { no: 100, name: "aspect", kind: "enum", T: () => ["symbolx.bench.HelpAspect", HelpAspect, "HELP_ASPECT_"] }
+        ]);
+    }
+    create(value?: PartialMessage<HelpViewData>): HelpViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.aspect = 0;
+        if (value !== undefined)
+            reflectionMergePartial<HelpViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: HelpViewData): HelpViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.HelpAspect aspect */ 100:
+                    message.aspect = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: HelpViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.HelpAspect aspect = 100; */
+        if (message.aspect !== 0)
+            writer.tag(100, WireType.Varint).int32(message.aspect);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.HelpViewData
+ */
+export const HelpViewData = new HelpViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListViewData$Type extends MessageType$<ListViewData> {
     constructor() {
@@ -26288,53 +26272,6 @@ class ButtonViewData$Type extends MessageType$<ButtonViewData> {
  */
 export const ButtonViewData = new ButtonViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class IconViewData$Type extends MessageType$<IconViewData> {
-    constructor() {
-        super("symbolx.bench.IconViewData", [
-            { no: 100, name: "include_color", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
-        ]);
-    }
-    create(value?: PartialMessage<IconViewData>): IconViewData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.includeColor = false;
-        if (value !== undefined)
-            reflectionMergePartial<IconViewData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: IconViewData): IconViewData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* bool include_color */ 100:
-                    message.includeColor = reader.bool();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: IconViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* bool include_color = 100; */
-        if (message.includeColor !== false)
-            writer.tag(100, WireType.Varint).bool(message.includeColor);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.IconViewData
- */
-export const IconViewData = new IconViewData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class PickerViewData$Type extends MessageType$<PickerViewData> {
     constructor() {
         super("symbolx.bench.PickerViewData", [
@@ -26426,6 +26363,53 @@ class DatetimeViewData$Type extends MessageType$<DatetimeViewData> {
  * @generated MessageType for protobuf message symbolx.bench.DatetimeViewData
  */
 export const DatetimeViewData = new DatetimeViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class IconViewData$Type extends MessageType$<IconViewData> {
+    constructor() {
+        super("symbolx.bench.IconViewData", [
+            { no: 100, name: "include_color", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+        ]);
+    }
+    create(value?: PartialMessage<IconViewData>): IconViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.includeColor = false;
+        if (value !== undefined)
+            reflectionMergePartial<IconViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: IconViewData): IconViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* bool include_color */ 100:
+                    message.includeColor = reader.bool();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: IconViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* bool include_color = 100; */
+        if (message.includeColor !== false)
+            writer.tag(100, WireType.Varint).bool(message.includeColor);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.IconViewData
+ */
+export const IconViewData = new IconViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SpaceData$Type extends MessageType$<SpaceData> {
     constructor() {
@@ -27977,20 +27961,20 @@ export interface FieldSubtypeMapping extends Record<FieldType, FieldSubtype> {
   [FieldType.OPTION]: OptionFieldData,
 }
 
-export type ViewSubtype = UserWizardViewData | HelpViewData | DetailViewData | RunViewData | HubViewData | ListViewData | TreeViewData | FeedViewData | ButtonViewData | IconViewData | PickerViewData | DatetimeViewData;
+export type ViewSubtype = RunViewData | DetailViewData | UserWizardViewData | HubViewData | HelpViewData | ListViewData | TreeViewData | FeedViewData | ButtonViewData | PickerViewData | DatetimeViewData | IconViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
-  [ViewType.USER_WIZARD]: UserWizardViewData,
-  [ViewType.HELP]: HelpViewData,
-  [ViewType.DETAIL]: DetailViewData,
   [ViewType.RUN]: RunViewData,
+  [ViewType.DETAIL]: DetailViewData,
+  [ViewType.USER_WIZARD]: UserWizardViewData,
   [ViewType.HUB]: HubViewData,
+  [ViewType.HELP]: HelpViewData,
   [ViewType.LIST]: ListViewData,
   [ViewType.TREE]: TreeViewData,
   [ViewType.FEED]: FeedViewData,
   [ViewType.BUTTON]: ButtonViewData,
-  [ViewType.ICON]: IconViewData,
   [ViewType.PICKER]: PickerViewData,
   [ViewType.DATETIME]: DatetimeViewData,
+  [ViewType.ICON]: IconViewData,
 }
 
 export type ActionSubtype = GetActionData | SearchActionData | CreateActionData | DuplicateActionData | UpdateActionData | DeleteActionData | FailActionData | CodeActionData | ToolActionData | WaitActionData | GenerateActionData | TransformActionData | RouteActionData | ChangeActionData | ObserveActionData | ClickActionData | PressActionData | TypeActionData | ScrollActionData | SelectActionData | GoBackwardActionData | GoForwardActionData | GoToUrlActionData | GoToTabActionData | LoopActionData;
@@ -29161,12 +29145,9 @@ export enum OptionFieldProperty {
 
 }
 
-export enum UserWizardViewProperty {
-  stage = 100,
-}
-
-export enum HelpViewProperty {
-  aspect = 100,
+export enum RunViewProperty {
+  variablesPacked = 100,
+  inputsPacked = 101,
 }
 
 export enum DetailViewProperty {
@@ -29174,12 +29155,15 @@ export enum DetailViewProperty {
   collapsedSections = 101,
 }
 
-export enum RunViewProperty {
-  variablesPacked = 100,
-  inputsPacked = 101,
+export enum UserWizardViewProperty {
+  stage = 100,
 }
 
 export enum HubViewProperty {
+  aspect = 100,
+}
+
+export enum HelpViewProperty {
   aspect = 100,
 }
 
@@ -29207,16 +29191,16 @@ export enum ButtonViewProperty {
   variant = 100,
 }
 
-export enum IconViewProperty {
-  includeColor = 100,
-}
-
 export enum PickerViewProperty {
   variant = 100,
 }
 
 export enum DatetimeViewProperty {
   isRelative = 100,
+}
+
+export enum IconViewProperty {
+  includeColor = 100,
 }
 
 export enum GetActionProperty {
@@ -30175,18 +30159,18 @@ export const FIELD_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<FieldType, any>> = {
 }
 
 export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
-  [ViewType.USER_WIZARD]: UserWizardViewProperty,
-  [ViewType.HELP]: HelpViewProperty,
-  [ViewType.DETAIL]: DetailViewProperty,
   [ViewType.RUN]: RunViewProperty,
+  [ViewType.DETAIL]: DetailViewProperty,
+  [ViewType.USER_WIZARD]: UserWizardViewProperty,
   [ViewType.HUB]: HubViewProperty,
+  [ViewType.HELP]: HelpViewProperty,
   [ViewType.LIST]: ListViewProperty,
   [ViewType.TREE]: TreeViewProperty,
   [ViewType.FEED]: FeedViewProperty,
   [ViewType.BUTTON]: ButtonViewProperty,
-  [ViewType.ICON]: IconViewProperty,
   [ViewType.PICKER]: PickerViewProperty,
   [ViewType.DATETIME]: DatetimeViewProperty,
+  [ViewType.ICON]: IconViewProperty,
 }
 
 export const ACTION_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ActionType, any>> = {
@@ -30478,8 +30462,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.08.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.08.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30512,8 +30496,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.08.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.08.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.08.3", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31157,22 +31141,22 @@ export const VariableFieldDataInfo: Record<VariableFieldProperty, PropertyInfo> 
 export const OptionFieldDataInfo: Record<OptionFieldProperty, PropertyInfo> = {
 
 }
-export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo> = {
-  [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, componentSubtype: 30001, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-}
-export const HelpViewDataInfo: Record<HelpViewProperty, PropertyInfo> = {
-  [HelpViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 30206, enumType: EnumType.HELP_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+export const RunViewDataInfo: Record<RunViewProperty, PropertyInfo> = {
+  [RunViewProperty.variablesPacked]: { id: 100, name: 'variables_packed', component: ObjectType.VIEW, componentSubtype: 3601, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunViewProperty.inputsPacked]: { id: 101, name: 'inputs_packed', component: ObjectType.VIEW, componentSubtype: 3601, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const DetailViewDataInfo: Record<DetailViewProperty, PropertyInfo> = {
   [DetailViewProperty.expandedSections]: { id: 100, name: 'expanded_sections', component: ObjectType.VIEW, componentSubtype: 30200, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [DetailViewProperty.collapsedSections]: { id: 101, name: 'collapsed_sections', component: ObjectType.VIEW, componentSubtype: 30200, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
-export const RunViewDataInfo: Record<RunViewProperty, PropertyInfo> = {
-  [RunViewProperty.variablesPacked]: { id: 100, name: 'variables_packed', component: ObjectType.VIEW, componentSubtype: 30203, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunViewProperty.inputsPacked]: { id: 101, name: 'inputs_packed', component: ObjectType.VIEW, componentSubtype: 30203, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo> = {
+  [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, componentSubtype: 30001, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
   [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 30205, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const HelpViewDataInfo: Record<HelpViewProperty, PropertyInfo> = {
+  [HelpViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 30206, enumType: EnumType.HELP_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ListViewDataInfo: Record<ListViewProperty, PropertyInfo> = {
   [ListViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, componentSubtype: 40300, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -31194,14 +31178,14 @@ export const FeedViewDataInfo: Record<FeedViewProperty, PropertyInfo> = {
 export const ButtonViewDataInfo: Record<ButtonViewProperty, PropertyInfo> = {
   [ButtonViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 42001, enumType: EnumType.BUTTON_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
-export const IconViewDataInfo: Record<IconViewProperty, PropertyInfo> = {
-  [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, componentSubtype: 47004, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-}
 export const PickerViewDataInfo: Record<PickerViewProperty, PropertyInfo> = {
-  [PickerViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 47002, enumType: EnumType.PICKER_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [PickerViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 45202, enumType: EnumType.PICKER_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const DatetimeViewDataInfo: Record<DatetimeViewProperty, PropertyInfo> = {
-  [DatetimeViewProperty.isRelative]: { id: 100, name: 'is_relative', component: ObjectType.VIEW, componentSubtype: 47005, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
+  [DatetimeViewProperty.isRelative]: { id: 100, name: 'is_relative', component: ObjectType.VIEW, componentSubtype: 45205, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
+}
+export const IconViewDataInfo: Record<IconViewProperty, PropertyInfo> = {
+  [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, componentSubtype: 45204, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const GetActionDataInfo: Record<GetActionProperty, PropertyInfo> = {
   [GetActionProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.ACTION, componentSubtype: 40, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
@@ -31960,18 +31944,18 @@ export const FieldSubtypePropertyInfo: Partial<Record<FieldType, Record<any, Pro
   [FieldType.OPTION]: OptionFieldDataInfo,
 }
 export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, PropertyInfo>>> = {
-  [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
-  [ViewType.HELP]: HelpViewDataInfo,
-  [ViewType.DETAIL]: DetailViewDataInfo,
   [ViewType.RUN]: RunViewDataInfo,
+  [ViewType.DETAIL]: DetailViewDataInfo,
+  [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
   [ViewType.HUB]: HubViewDataInfo,
+  [ViewType.HELP]: HelpViewDataInfo,
   [ViewType.LIST]: ListViewDataInfo,
   [ViewType.TREE]: TreeViewDataInfo,
   [ViewType.FEED]: FeedViewDataInfo,
   [ViewType.BUTTON]: ButtonViewDataInfo,
-  [ViewType.ICON]: IconViewDataInfo,
   [ViewType.PICKER]: PickerViewDataInfo,
   [ViewType.DATETIME]: DatetimeViewDataInfo,
+  [ViewType.ICON]: IconViewDataInfo,
 }
 export const ActionSubtypePropertyInfo: Partial<Record<ActionType, Record<any, PropertyInfo>>> = {
   [ActionType.GET]: GetActionDataInfo,

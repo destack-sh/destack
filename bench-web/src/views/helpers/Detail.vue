@@ -3,28 +3,25 @@ import { isSourceNode, toCamelName } from "@/language/const";
 import { useComputedValues } from "@/language/expression";
 import { makeTypeConstraint, makeTypeInfo } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
-import { getPathKey } from "@/language/path";
 import {
   BenchType,
   ComputedValueData,
-  ComputedValueKind,
   NodeType,
-  ObjectType,
   Orientation,
   TypeData,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
-import { DetailSection, makeDetailLayout } from "@/ui/detail";
 import { IconInline } from "@/ui/icon";
+import { ObjectSection, makeObjectLayout } from "@/ui/object";
 import { computedValue } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
+import ComputedValue from "@/views/objects/ComputedValue.vue";
+import FieldList from "@/views/objects/FieldList.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
-import ComputedValue from "@/views/structs/ComputedValue.vue";
-import FieldList from "@/views/structs/FieldList.vue";
 import { computed, toRef } from "vue";
 
 const SECTION_HEADER_HEIGHT = 32;
@@ -34,7 +31,7 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-  } & Pick<ViewData, "icon" | "size" | "nodePtr" | "subnodePacked">
+  } & Pick<ViewData, "icon" | "size" | "nodePtr" | "subnodePacked" | "valueType">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -63,7 +60,7 @@ const computedType = computed<TypeData | undefined>(() => {
 });
 const layout = computed(() => {
   if (node.value == null) return null;
-  const layout = makeDetailLayout({
+  const layout = makeObjectLayout({
     node: node.value,
     graph: graph.value!,
     txFactory: () => (connection.value ?? pkgConnection).tx,
@@ -75,12 +72,12 @@ const layout = computed(() => {
 const isLayoutEmpty = computed(() => !layout.value?.sections.some((section) => section.rows.length > 0));
 const expandedSections = useSubnodeProperty(NodeType.VIEW, ViewType.DETAIL, subnodePacked, "expandedSections");
 const collapsedSections = useSubnodeProperty(NodeType.VIEW, ViewType.DETAIL, subnodePacked, "collapsedSections");
-function isSectionExpanded(section: DetailSection) {
+function isSectionExpanded(section: ObjectSection) {
   if (section.key == null) return true;
   if (section.isDefaultCollapsed) return expandedSections.value?.includes(section.key);
   else return !collapsedSections.value?.includes(section.key);
 }
-function toggleSection(section: DetailSection) {
+function toggleSection(section: ObjectSection) {
   if (section.title == null) throw new Error("cannot toggle a section without a title");
   if (section.isDefaultCollapsed) {
     let newExpandedSections;
@@ -90,7 +87,7 @@ function toggleSection(section: DetailSection) {
       newExpandedSections = [...(expandedSections.value ?? []), section.key];
     }
     state.update(
-      { metatype: NodeType.VIEW, type: ViewType.DETAIL, subnode: { expandedSections: newExpandedSections } },
+      { metatype: NodeType.VIEW, type: ViewType.OBJECT, subnode: { expandedSections: newExpandedSections } },
       { debounce: "long" },
     );
   } else {
@@ -101,7 +98,7 @@ function toggleSection(section: DetailSection) {
       newCollapsedSections = collapsedSections.value.filter((key) => key != section.key);
     }
     state.update(
-      { metatype: NodeType.VIEW, type: ViewType.DETAIL, subnode: { collapsedSections: newCollapsedSections } },
+      { metatype: NodeType.VIEW, type: ViewType.OBJECT, subnode: { collapsedSections: newCollapsedSections } },
       { debounce: "long" },
     );
   }

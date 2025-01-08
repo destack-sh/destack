@@ -24,7 +24,7 @@ import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
 import { ModelValueOptions, viewEmits, type ViewExposed } from "@/views/common";
-import CustomObject from "@/views/structs/CustomObject.vue";
+import SomeObject from "@/views/helpers/Detail.vue";
 import { computed, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = 32;
@@ -162,7 +162,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         >
           <span>{{ toCamelName(FieldType, fieldType) }}s</span>
         </h4>
-        <CustomObject
+        <SomeObject
           :id="`fields-${fieldType}`"
           class="w-full"
           :value-type="getRunObjectType(fieldType)"
@@ -200,7 +200,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         >
           <span class="font-semibold">{{ toCamelName(FieldType, fieldType) }}s</span>
         </div>
-        <CustomObject
+        <SomeObject
           :id="`fields-${fieldType}`"
           class="w-full"
           :value-type="getRunObjectType(fieldType)"
@@ -275,7 +275,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
             <!-- Interrupt Body -->
             <div v-if="interrupt.interruption.status == InterruptionStatus.OPEN">
               <!-- Interrupt Outputs -->
-              <CustomObject
+              <SomeObject
                 id="interrupt-outputs"
                 class="w-full"
                 :value-type="interrupt.outputType"
