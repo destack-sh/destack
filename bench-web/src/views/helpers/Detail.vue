@@ -4,7 +4,17 @@ import { useComputedValues } from "@/language/expression";
 import { makeTypeConstraint, makeTypeInfo } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
 import { getPathKey } from "@/language/path";
-import { BenchType, ComputedValueKind, NodeType, ObjectType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import {
+  BenchType,
+  ComputedValueData,
+  ComputedValueKind,
+  NodeType,
+  ObjectType,
+  Orientation,
+  TypeData,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
@@ -34,11 +44,6 @@ const subnodePacked = toRef(props, "subnodePacked");
 
 const nodePtr = computedValue(() => props.nodePtr);
 const { node, graph, connection } = supergraph.getLinkRef(nodePtr);
-const layout = computed(() => {
-  if (node.value == null) return null;
-  const layout = makeDetailLayout(node.value, graph.value!, () => (connection.value ?? pkgConnection).tx);
-  return layout;
-});
 const computer = useComputedValues({
   computedValues: computed(() => (isSourceNode(node.value) ? node.value.computedValues : [])),
   update: (computedValues) => {
@@ -46,6 +51,25 @@ const computer = useComputedValues({
       connection.value?.tx.update(node.value, { computedValues });
     }
   },
+});
+const computedType = computed<TypeData | undefined>(() => {
+  if (node.value == null) return undefined;
+  const type = makeTypeInfo({
+    benchType: BenchType.COMPUTED_VALUE,
+    isRequired: true,
+    constraint: makeTypeConstraint({ nodeScopePtr: [node.value.parentPtr!] }), // NOTE: should really be the containing runnable
+  });
+  return type;
+});
+const layout = computed(() => {
+  if (node.value == null) return null;
+  const layout = makeDetailLayout({
+    node: node.value,
+    graph: graph.value!,
+    txFactory: () => (connection.value ?? pkgConnection).tx,
+    computedType: computedType.value,
+  });
+  return layout;
 });
 
 const expandedSections = useSubnodeProperty(NodeType.VIEW, ViewType.DETAIL, subnodePacked, "expandedSections");
@@ -148,9 +172,10 @@ defineExpose<ViewExposed>({ self, id });
             <span v-if="row.subtitle" class="ml-1.5 text-gray-400">{{ row.subtitle }}</span>
             <!-- Actions -->
             <div class="ml-auto pr-1">
+              <!-- Computed actions :ComputedView -->
               <button
                 v-if="row.type == 'property' && row.isComputable"
-                v-tooltip="{ title: `Compute ${row.title} dynamically`, small: true, group: 'section.header' }"
+                v-tooltip="{ title: `Set ${row.title} dynamically`, small: true, group: 'section.header' }"
                 class="rounded px-0.5 transition-colors duration-75"
                 :class="
                   computer.has(row.computedPathKey)
@@ -175,20 +200,14 @@ defineExpose<ViewExposed>({ self, id });
               is-minimal
             />
           </div>
-          <!-- Computed View -->
+          <!-- Computed View :ComputedView -->
           <ComputedValue
             v-else-if="row.type == 'property' && computer.has(row.computedPathKey)"
             :id="i + '.value'"
             class="w-full"
             is-input
             :model-value="computer.get(row.computedPathKey)"
-            :value-type="
-              makeTypeInfo({
-                benchType: BenchType.COMPUTED_VALUE,
-                isRequired: true,
-                constraint: makeTypeConstraint({ nodeScopePtr: [node.parentPtr!] }), // NOTE: should really be the containing runnable
-              })
-            "
+            :value-type="computedType"
             @update:model-value="(value) => computer.set(row.computedPath!, value)"
           />
           <!-- Actual View -->
@@ -204,8 +223,16 @@ defineExpose<ViewExposed>({ self, id });
             :is-computable="(row.type == 'property' || row.type == 'object') && row.isComputable"
             :computed-values="row.type == 'object' && isSourceNode(node) ? node.computedValues : undefined"
             :computed-prefix="row.type == 'object' ? row.computedPath : undefined"
+            :computed-type="row.type == 'object' ? computedType : undefined"
             :model-value="row.read()"
             @update:model-value="(value: any, path?: any) => row.write(value, path)"
+            @update:computed-values="
+              (computedValues: ComputedValueData[]) => {
+                if (isSourceNode(node)) {
+                  connection?.tx.update(node, { computedValues });
+                }
+              }
+            "
           />
           <!-- Icon -->
           <div v-else-if="row.type == 'icon'" class="w-full text-center">

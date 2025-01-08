@@ -1,9 +1,11 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
 import { useComputedValues } from "@/language/expression";
-import { createField, getStorageKey, useFieldList } from "@/language/field";
+import { createField, getStorageKey, makeTypeInfo, useFieldList } from "@/language/field";
+import { getPathKey, makePath } from "@/language/path";
 import { packValue, unpackValue } from "@/language/value";
 import {
+  BenchType,
   ComputedValueData,
   FieldData,
   FieldType,
@@ -11,6 +13,8 @@ import {
   Orientation,
   PathData,
   RectangleData,
+  TypeConstraintData,
+  TypeData,
   ViewData,
   ViewType,
 } from "@/proto/wire";
@@ -26,6 +30,7 @@ import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { ModelValueOptions, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
+import ComputedValue from "@/views/structs/ComputedValue.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const MIN_WIDTH = 320;
@@ -40,6 +45,7 @@ const props = defineProps<
     preparedConnection?: PreparedGetConnection;
     isComputable?: boolean;
     computedPrefix?: PathData;
+    computedType?: TypeData;
   } & Partial<
     Pick<
       ViewData,
@@ -95,7 +101,7 @@ const fieldViews = computed(() => {
   for (const field of fields.value) {
     const storageKey = getStorageKey(field, field);
     const view = getViewForType(field);
-    const row = {
+    const row: RowView = {
       field,
       storageKey,
       viewType: view?.type,
@@ -103,8 +109,10 @@ const fieldViews = computed(() => {
       isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(view?.type!),
     };
     if (props.isComputable) {
-      // :RunComputedValue
-      // nocheckin
+      // :RunComputedValue (?)
+      const path = makePath(...(props.computedPrefix?.elements ?? []), field);
+      row.computedPath = path;
+      row.computedPathKey = getPathKey(path);
     }
     rows.push(row);
   }
@@ -183,7 +191,9 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
       :key="row.field.id"
       class="mx-auto w-full"
       :class="[
-        row.isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row flex-wrap items-center gap-x-1',
+        row.isFullWidth || computer.has(row.computedPathKey)
+          ? 'flex flex-col gap-y-1'
+          : 'flex flex-row flex-wrap items-center gap-x-1',
         !isMinimal ? 'px-4' : '',
       ]"
       :style="{ minWidth: MIN_WIDTH + 'px', minHeight: ROW_HEIGHT_MIN + 'px' }"
@@ -213,9 +223,10 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
         />
         <!-- Actions -->
         <div class="ml-auto pr-1">
+          <!-- Computed actions :ComputedView -->
           <button
             v-if="isComputable && row.computedPath != null"
-            v-tooltip="{ title: `Compute ${row.field.name} dynamically`, small: true, group: 'section.header' }"
+            v-tooltip="{ title: `Set ${row.field.name} dynamically`, small: true, group: 'section.header' }"
             class="rounded px-0.5 transition-colors duration-75"
             :class="
               computer.has(row.computedPathKey)
@@ -228,10 +239,20 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
           </button>
         </div>
       </span>
+      <!-- Computed Value :ComputedView -->
+      <ComputedValue
+        v-if="computer.has(row.computedPathKey)"
+        :id="row.field.id + '.value'"
+        class="w-full"
+        is-input
+        :model-value="computer.get(row.computedPathKey)"
+        :value-type="computedType"
+        @update:model-value="(value) => computer.set(row.computedPath!, value)"
+      />
       <!-- Value -->
       <component
         :is="getViewComponent(row.viewType)"
-        v-if="
+        v-else-if="
           (modelValue?.[row.storageKey] != null || (isInput && !isDisabled)) &&
           row.viewType != null &&
           hasViewComponent(row.viewType)
