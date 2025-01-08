@@ -628,7 +628,7 @@ def _raise_scope(scope: Node) -> Node:
 class PathOptions(NamedTuple):
     """Options for evaluating a path."""
 
-    detached_is: Literal["none", "invalid"] = "none"
+    missing_is: Literal["none", "invalid"] = "none"
 
 
 DEFAULT_EVALUATE_OPTIONS = PathOptions()
@@ -679,7 +679,7 @@ def evaluate_path(
         elif element.type == PathElementType.NODE:
             node = element.node
             if node is None:
-                if options.detached_is == "invalid":
+                if options.missing_is == "invalid":
                     raise PathLookupError(f"node at {path} not found in {scope!r}")
                 else:
                     return None
@@ -716,23 +716,33 @@ def evaluate_path(
 
         # sub
         elif element.type == PathElementType.ATTRIBUTE:
-            if element.name is not None:
-                current = getattr(current, element.name)
-            elif (node := element.node) is not None:
-                assert isinstance(node, Field), f"expected Field, got {node!r}"
-                if isinstance(current, CustomObject):
-                    current = current._do_get(node)
-                else:
-                    if options.detached_is == "invalid":
-                        raise PathLookupError(f"cannot get {node!r} from {current!r} in {path!r}")
+            try:
+                if element.name is not None:
+                    current = getattr(current, element.name)
+                elif (node := element.node) is not None:
+                    assert isinstance(node, Field), f"expected Field, got {node!r}"
+                    if isinstance(current, CustomObject):
+                        current = current._do_get(node)
                     else:
-                        return None
-            elif (prop := element.property) is not None:
-                if type(prop.value_runtime_ptr) is Property:
-                    prop = prop.value_runtime_ptr
-                current = getattr(current, prop.name)
-            else:
-                return None
+                        if options.missing_is == "invalid":
+                            raise PathLookupError(
+                                f"cannot get {node!r} from {current!r} in {path!r}"
+                            )
+                        else:
+                            return None
+                elif (prop := element.property) is not None:
+                    if type(prop.value_runtime_ptr) is Property:
+                        prop = prop.value_runtime_ptr
+                    current = getattr(current, prop.name)
+                else:
+                    return None
+            except AttributeError as e:
+                if options.missing_is == "invalid":
+                    raise PathLookupError(
+                        f"cannot get {element!r} from {current!r} in {path!r}"
+                    ) from e
+                else:
+                    return None
 
         # runtime
         elif element.type == PathElementType.CONTEXT:

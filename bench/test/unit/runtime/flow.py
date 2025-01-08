@@ -261,7 +261,7 @@ async def test_run_flow_invalid_computed_target(local_runtime: RuntimeHandle):
     Flow1.actions.extend(Start, Complete)
     Start.connect(PipeType.FORWARD, Complete)
     Complete.set_computed(
-        # refers to Output, but we delete output - oh no! (should still work)
+        # refers to Output, but we delete output below (oh no!, should be ignored)
         target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output),
         source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input),
     )

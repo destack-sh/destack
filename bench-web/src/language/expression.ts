@@ -91,16 +91,17 @@ export function useComputedValues(options: {
     options.update(newComputedValues);
   }
 
-  /** Sets an active computed value for a given path */
+  /** Sets an active computed value for a given path (or activates if already exists) */
   function set(path: PathData, value?: ComputedValueData): void {
+    const pathKey = getPathKey(path);
+    const existing = computedValuesByKey.value[pathKey];
     const computedValue = {
-      ...value,
+      ...(value ?? existing ?? {}),
       metatype: ObjectType.COMPUTED_VALUE,
       kind: ComputedValueKind.PATH,
       targetPath: path,
       isActive: true,
     };
-    const pathKey = getPathKey(path);
     options.update([
       ...(options.computedValues.value.filter((cv) => cv.targetPath != null && getPathKey(cv.targetPath) != pathKey) ??
         []),
@@ -108,14 +109,27 @@ export function useComputedValues(options: {
     ]);
   }
 
+  /** Deactivates the computed value for a given path */
+  function deactivate(path: PathData | string | undefined): void {
+    if (path == null) return;
+    if (typeof path != "string") path = getPathKey(path);
+    const newComputedValues = options.computedValues.value.map((cv) => {
+      if (cv.targetPath != null && getPathKey(cv.targetPath) === path) {
+        return { ...cv, isActive: false };
+      }
+      return cv;
+    });
+    options.update(newComputedValues);
+  }
+
   /** Toggles an active computed value for a given path */
   function toggle(path: PathData): void {
     if (has(path)) {
-      clear(path);
+      deactivate(path);
     } else {
       set(path);
     }
   }
 
-  return { computedValues: options.computedValues, computedValuesByKey, has, get, clear, set, toggle };
+  return { computedValues: options.computedValues, computedValuesByKey, has, get, clear, set, deactivate, toggle };
 }
