@@ -168,12 +168,15 @@ export function getPropertyType(prop: PropertyInfo | PropertyReferenceData): Typ
     } else if (prop.enumType != null) {
       kind = TypeKind.ENUM;
       benchType = prop.enumType as unknown as BenchType;
-    } else if (prop.primitiveType != null) {
-      kind = TypeKind.PRIMITIVE;
-      primitiveType = prop.primitiveType;
     } else if (prop.referenceIsNodeData) {
       kind = TypeKind.PRIMITIVE;
       primitiveType = PrimitiveType.JSON; // not sure what to put here, this is inaccessible outside of the system
+    } else if (prop.valueIsPartial) {
+      kind = TypeKind.PARTIAL_OBJECT;
+      primitiveType = PrimitiveType.JSON;
+    } else if (prop.primitiveType != null) {
+      kind = TypeKind.PRIMITIVE;
+      primitiveType = prop.primitiveType;
     } else {
       throw new Error(`cannot determine type info for ${JSON.stringify(prop)}`);
     }
@@ -189,6 +192,7 @@ export function getPropertyType(prop: PropertyInfo | PropertyReferenceData): Typ
     };
     _propertyTypeInfos[cacheKey] = type;
   }
+  
   return _propertyTypeInfos[cacheKey]!;
 }
 

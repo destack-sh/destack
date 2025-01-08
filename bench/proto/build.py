@@ -509,6 +509,7 @@ export type PropertyInfo = {
     isValueRuntime?: boolean;
     isValuePacked?: boolean;
     valuePackedId?: number;
+    valueIsPartial?: boolean;
     
     // references
     referenceKind?: ReferenceKind;
@@ -588,6 +589,8 @@ export type PropertyInfo = {
                 prop_info_parts["referenceStruct"] = f"StructType.{prop.reference_struct.name}"
             if prop.reference_is_node_data:
                 prop_info_parts["referenceIsNodeData"] = "true"
+            if prop.value_is_partial:
+                prop_info_parts["valueIsPartial"] = "true"
 
             prop_info_str = ", ".join(f"{k}: {v}" for k, v in prop_info_parts.items())
             prop_infos_strs.append(

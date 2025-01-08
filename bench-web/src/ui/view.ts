@@ -232,7 +232,14 @@ export const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType
   [PrimitiveType.DURATION]: ViewType.DURATION,
 };
 export const LISTABLE_VIEW_TYPES = new Set([ViewType.PICKER, ViewType.OBJECT, ViewType.STRING, ViewType.NUMBER]);
-export const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE, ViewType.IMAGE, ViewType.AUDIO, ViewType.VIDEO];
+export const FULL_WIDTH_VIEW_TYPES = [
+  ViewType.OBJECT,
+  ViewType.TEXT,
+  ViewType.CODE,
+  ViewType.IMAGE,
+  ViewType.AUDIO,
+  ViewType.VIDEO,
+];
 
 /** Gets the View for some value type */
 export function getViewForType(

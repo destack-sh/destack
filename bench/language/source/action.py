@@ -409,12 +409,13 @@ class SearchAction(Action):
 
 @node_subtype_(ActionType.CREATE)
 class CreateAction(Action):
-    node_partial_packed = p_value_packed(100, field_type=FieldType.INPUT)
+    node_partial_packed: Any = p_value_packed(100, field_type=FieldType.INPUT, partial=True)
     node_partial: Any = p_value_runtime(
         100,
         kind=ObjectKind.BUILTIN,
         typ=lambda self: CreateAction._node_partial_type(),
         field_type=FieldType.INPUT,
+        partial=True,
     )
 
     @classmethod
@@ -428,12 +429,13 @@ class DuplicateAction(Action):
     node: Node | None = p_regular(100, require=False, references="any", field_type=FieldType.INPUT)
     if TYPE_CHECKING:
         node_ptr: NodeReference | None = None
-    node_partial_packed = p_value_packed(101, field_type=FieldType.INPUT)
-    node_partial = p_value_runtime(
+    node_partial_packed: Any = p_value_packed(101, field_type=FieldType.INPUT, partial=True)
+    node_partial: Any = p_value_runtime(
         101,
         kind=ObjectKind.BUILTIN,
         typ=lambda self: DuplicateAction._node_partial_type(),
         field_type=FieldType.INPUT,
+        partial=True,
     )
     is_shallow: bool | None = p_regular(110, default=False, field_type=FieldType.INPUT)
 
@@ -448,12 +450,13 @@ class UpdateAction(Action):
     node: Node | None = p_regular(100, require=False, references="any", field_type=FieldType.INPUT)
     if TYPE_CHECKING:
         node_ptr: NodeReference | None = None
-    node_partial_packed = p_value_packed(101)
-    node_partial = p_value_runtime(
+    node_partial_packed: Any = p_value_packed(101, field_type=FieldType.INPUT, partial=True)
+    node_partial: Any = p_value_runtime(
         101,
         kind=ObjectKind.BUILTIN,
         typ=lambda self: UpdateAction._node_partial_type(),
         field_type=FieldType.INPUT,
+        partial=True,
     )
 
     @classmethod

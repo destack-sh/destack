@@ -10390,10 +10390,6 @@ export enum RunErrorType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_TYPE_REPLAY = 1;
-     */
-    REPLAY = 1,
-    /**
      * @generated from protobuf enum value: RUN_ERROR_TYPE_ABORTED = 2;
      */
     ABORTED = 2,
@@ -10409,6 +10405,10 @@ export enum RunErrorType {
      * @generated from protobuf enum value: RUN_ERROR_TYPE_INVALID_VALUE = 5;
      */
     INVALID_VALUE = 5,
+    /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_INVALID_COMPUTED = 6;
+     */
+    INVALID_COMPUTED = 6,
     /**
      * @generated from protobuf enum value: RUN_ERROR_TYPE_CODE_INVALID = 20;
      */
@@ -30268,6 +30268,7 @@ export type PropertyInfo = {
     isValueRuntime?: boolean;
     isValuePacked?: boolean;
     valuePackedId?: number;
+    valueIsPartial?: boolean;
     
     // references
     referenceKind?: ReferenceKind;
@@ -30477,8 +30478,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.06.6", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.06.6", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30511,8 +30512,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.06.6", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.06.6", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.08.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31214,16 +31215,16 @@ export const SearchActionDataInfo: Record<SearchActionProperty, PropertyInfo> = 
   [SearchActionProperty.sort]: { id: 103, name: 'sort', component: ObjectType.ACTION, componentSubtype: 41, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
 export const CreateActionDataInfo: Record<CreateActionProperty, PropertyInfo> = {
-  [CreateActionProperty.nodePartialPacked]: { id: 100, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 60, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [CreateActionProperty.nodePartialPacked]: { id: 100, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 60, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
 }
 export const DuplicateActionDataInfo: Record<DuplicateActionProperty, PropertyInfo> = {
   [DuplicateActionProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 61, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [DuplicateActionProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 61, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [DuplicateActionProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 61, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
   [DuplicateActionProperty.isShallow]: { id: 110, name: 'is_shallow', component: ObjectType.ACTION, componentSubtype: 61, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const UpdateActionDataInfo: Record<UpdateActionProperty, PropertyInfo> = {
   [UpdateActionProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 62, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [UpdateActionProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 62, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [UpdateActionProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 62, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
 }
 export const DeleteActionDataInfo: Record<DeleteActionProperty, PropertyInfo> = {
   [DeleteActionProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 63, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },

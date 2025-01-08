@@ -145,7 +145,7 @@ export function makeDetailLayout(options: {
   // nocheckin: edit node partials in Detail layout (incl. as computed)
   const { node, graph, txFactory, computedType } = options;
 
-  // node stuff
+  // object stuff
   const nodePtr = toNodeRef(node);
   const metatype = node.metatype as unknown as NodeType;
   const propertyEnum = PROPERTY_ENUM_BY_TYPE[node.metatype]!;
@@ -646,7 +646,13 @@ export function makeDetailLayout(options: {
           .filter((v) => typeof v == "number")
           .forEach((subproperty) => {
             const { prop } = property(subproperty as any);
-            if (prop != null && prop.fieldType != FieldType.OUTPUT) {
+            if (prop == null || prop.fieldType == FieldType.OUTPUT) return;
+
+            if (prop.valueIsPartial) {
+              commonRows.push(
+                rowObject(subproperty, makeTypeInfo({ kind: TypeKind.PARTIAL_OBJECT }), { title: false }),
+              );
+            } else {
               commonRows.push(rowProperty(subproperty, { isComputable: true }));
             }
           });
@@ -767,20 +773,14 @@ export function makeDetailLayout(options: {
   // Records
   //
   else if (isNode(node, NodeType.RECORD)) {
-    section(undefined, [rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } })]);
-    section(
-      "Schema",
-      [
-        rowObject(
-          RecordProperty.valuePacked,
-          makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.MEMBER, baseTypePtr: node.blockPtr }),
-          { title: false },
-        ),
-      ],
-      {
-        actions: [actionAddField(FieldType.MEMBER)],
-      },
-    );
+    section(undefined, [
+      rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }),
+      rowObject(
+        RecordProperty.valuePacked,
+        makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.MEMBER, baseTypePtr: node.blockPtr }),
+        { title: false },
+      ),
+    ]);
   }
 
   const layout: DetailLayout = { sections };

@@ -1,11 +1,10 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
 import { useComputedValues } from "@/language/expression";
-import { createField, getStorageKey, makeTypeInfo, useFieldList } from "@/language/field";
+import { createField, getStorageKey, useFieldList } from "@/language/field";
 import { getPathKey, makePath } from "@/language/path";
 import { packValue, unpackValue } from "@/language/value";
 import {
-  BenchType,
   ComputedValueData,
   FieldData,
   FieldType,
@@ -13,8 +12,8 @@ import {
   Orientation,
   PathData,
   RectangleData,
-  TypeConstraintData,
   TypeData,
+  TypeKind,
   ViewData,
   ViewType,
 } from "@/proto/wire";
@@ -60,6 +59,7 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
+// view
 const orientation = computed(() => props.orientation ?? Orientation.VERTICAL);
 const isHorizontal = computed(
   () => orientation.value == Orientation.HORIZONTAL || orientation.value == Orientation.HORIZONTAL_REVERSED,
@@ -69,6 +69,8 @@ const width = computed(() => (props.isMinimal ? null : Math.max(MIN_WIDTH, props
 const containerRef = ref<HTMLElement | null>(null);
 const fieldRefs: Ref<Record<string, InstanceType<typeof Field> | null>> = ref({});
 
+// content
+const isPartial = computed(() => props.valueType?.kind == TypeKind.PARTIAL_OBJECT);
 const basePtr = computed(
   () => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.ACTION> | undefined,
 );
@@ -87,6 +89,7 @@ const computer = useComputedValues({
   },
 });
 
+// rows
 type RowView = {
   field: FieldData;
   storageKey: string;
@@ -294,7 +297,7 @@ defineExpose<ViewExposed>({ self, id, focus, actions });
     </li>
     <!-- Add button -->
     <button
-      v-if="!isMinimal || fields.length == 0"
+      v-if="!isPartial && (!isMinimal || fields.length == 0)"
       class="mx-1.5 h-[28px] rounded px-1 text-left text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
       @click="
         (e) => onAddFieldAction(e, valueType?.baseFieldType ?? FieldType.VARIABLE, base!, graph, () => connection.tx)

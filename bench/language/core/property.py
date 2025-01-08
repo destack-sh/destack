@@ -124,6 +124,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     value_runtime_ptr: Union["Property", None] = None  # the runtime value
     value_type_info_getter: Callable[["BuiltinObject"], "TypeBase | None"] | None = None
     value_object_kind: ObjectKind | None = None
+    value_is_partial: bool = False
 
     # subtype
     is_subnode_packed: bool = False  # for packed subtype properties
@@ -144,7 +145,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     reference_is_baseless: bool = False
     reference_force_fk: bool = False
     reference_is_node_data: bool = False
-
     _cached_as_ref: Optional["PropertyReference"] = None
     _type_info: Optional["Type"] = None
     _is_finalized: bool = False
@@ -985,6 +985,7 @@ def p_value_runtime(
     kind: ObjectKind,
     typ: Callable[["BuiltinObject"], "TypeBase | None"] | None,
     field_type: FieldType | None = None,
+    partial: bool = False,
 ) -> Any:
     """Runtime-only property for a Value."""
     return Property(
@@ -1002,10 +1003,13 @@ def p_value_runtime(
         value_type_info_getter=typ,
         value_object_kind=kind,
         field_type=field_type,
+        value_is_partial=partial,
     )
 
 
-def p_value_packed(id: int, *, secret: bool = False, field_type: FieldType | None = None) -> Any:
+def p_value_packed(
+    id: int, *, secret: bool = False, field_type: FieldType | None = None, partial: bool = False
+) -> Any:
     """Packed value property."""
     return Property(
         id=id,
@@ -1021,6 +1025,7 @@ def p_value_packed(id: int, *, secret: bool = False, field_type: FieldType | Non
         is_encrypted=secret,
         is_deferred=secret,
         field_type=field_type,
+        value_is_partial=partial,
     )
 
 
