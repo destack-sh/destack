@@ -33,7 +33,7 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-// NOTE :Incomplete: Path view just forwards to Picker for now with some wrapping  :OverloadedPicker
+// NOTE :Incomplete: Path view just forwards to Picker for now with some wrapping :OverloadedPicker
 // (obviously we want a richer Path view that supports all sorts of Paths)
 const nodeValueType = computed(() =>
   makeTypeInfo({

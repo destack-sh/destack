@@ -175,7 +175,7 @@ class Runtime:
                 scope=runner.node,
                 context=runner.context,
                 path=source_path,
-                options=PathOptions(detached_is="invalid"),
+                options=PathOptions(missing_is="invalid"),
             )
         else:
             raise RuntimeError(f"unsupported {computed_value!r}")
@@ -195,10 +195,13 @@ class Runtime:
             scope=runner.node,
             context=runner.context,
             path=computed_value.target_path.elements[:-1],
-            options=PathOptions(detached_is="none"),
+            options=PathOptions(missing_is="none"),
         )
         target_key = computed_value.target_path.elements[-1]
         if target_obj is None:
+            logger.trace(
+                "runtime.apply_computed_value.missing", runner=runner, computed_value=computed_value
+            )
             return False
 
         # coerce & set value
@@ -219,6 +222,12 @@ class Runtime:
             target_obj._do_set(prop.name, mapped_value)
         else:
             raise RuntimeError(f"bad target {target_obj!r} in {computed_value!r}")
+        logger.trace(
+            "runtime.apply_computed_value",
+            computed_value=computed_value,
+            target=target_obj,
+            value=mapped_value,
+        )
         return True
 
     @tracer.start_as_current_span("runtime.wait_for")
@@ -461,7 +470,8 @@ class Runtime:
             if runner.tracked_run is not None:  # (only in tracked runs)
                 try:
                     for computed_value in runner.node.computed_values:
-                        self._apply_computed_value(runner, computed_value)
+                        if computed_value.target_path is not None and computed_value.is_active:
+                            self._apply_computed_value(runner, computed_value)
                 except Exception as e:
                     runner.status = RunStatus.FAILED
                     runner.error = RunError.from_exception(RunErrorKind.RUNTIME, e)

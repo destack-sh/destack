@@ -385,7 +385,6 @@ export function makeDetailLayout(options: {
       computedPath = makePath(
         PathElementType.RUN,
         propertyReference(NodeType.RUN, RunProperty[propName as any as keyof typeof RunProperty]),
-        toPropertyRef(prop),
       );
       computedPathKey = getPathKey(computedPath);
     }
