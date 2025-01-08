@@ -3,6 +3,7 @@ from typing import (
     Any,
     Literal,
     Mapping,
+    NamedTuple,
     Optional,
     Sequence,
     Union,
@@ -624,8 +625,22 @@ def _raise_scope(scope: Node) -> Node:
         return scope
 
 
+class PathOptions(NamedTuple):
+    """Options for evaluating a path."""
+
+    detached_is: Literal["none", "invalid"] = "none"
+
+
+DEFAULT_EVALUATE_OPTIONS = PathOptions()
+
+
 def evaluate_path(
-    current: Node | Any, scope: Node, context: HasContext, path: str | Path | Sequence[PathElement]
+    current: Node | Any,
+    scope: Node,
+    context: HasContext,
+    path: str | Path | Sequence[PathElement],
+    *,
+    options: PathOptions = DEFAULT_EVALUATE_OPTIONS,
 ) -> Any | None:
     """Get the thing pointed to by a Path."""
     from bench.language import Bench, CustomObject, Field, Package
@@ -664,7 +679,10 @@ def evaluate_path(
         elif element.type == PathElementType.NODE:
             node = element.node
             if node is None:
-                raise PathLookupError(f"node at {path} not found in {scope!r}")
+                if options.detached_is == "invalid":
+                    raise PathLookupError(f"node at {path} not found in {scope!r}")
+                else:
+                    return None
             current = node
 
         # relative
@@ -705,7 +723,10 @@ def evaluate_path(
                 if isinstance(current, CustomObject):
                     current = current._do_get(node)
                 else:
-                    raise PathLookupError(f"cannot get {node!r} from {current!r} in {path!r}")
+                    if options.detached_is == "invalid":
+                        raise PathLookupError(f"cannot get {node!r} from {current!r} in {path!r}")
+                    else:
+                        return None
             elif (prop := element.property) is not None:
                 if type(prop.value_runtime_ptr) is Property:
                     prop = prop.value_runtime_ptr

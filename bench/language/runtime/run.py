@@ -236,11 +236,11 @@ class RunEvent(Struct):
 @enum_(EnumType.RUN_ERROR_TYPE)
 class RunErrorType(IdEnum):
     # unretryable
-    REPLAY = 1
     ABORTED = 2
     RUNTIME_UNAVAILABLE = 3
     RUN_IMPOSSIBLE = 4
     INVALID_VALUE = 5
+    INVALID_COMPUTED = 6
     CODE_INVALID = 20
     TEXT_INVALID = 21
     MODEL_INCAPABLE = 100

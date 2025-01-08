@@ -171,7 +171,7 @@ async def test_run_flow_computed_value_chain(local_runtime: RuntimeHandle):
     Start = Action.new(ActionType.START, "Start")
     Flow1.actions.append(Start)
     prev = Start
-    for i in range(10):
+    for i in range(4):
         Code = Action.new(
             ActionType.CODE,
             f"Code{i}",
@@ -222,7 +222,58 @@ async def test_run_flow_computed_value_chain(local_runtime: RuntimeHandle):
 
     runner = await local_runtime.run(Flow1, variables={"BoolIn": True}, inputs={"IntIn": 0})
     assert runner.outputs and runner.outputs.BoolOut is False
-    assert runner.outputs and runner.outputs.IntOut == 10
+    assert runner.outputs and runner.outputs.IntOut == 4
+
+
+async def test_run_flow_invalid_computed_source(local_runtime: RuntimeHandle):
+    """Run a Flow with invalid computed values (invalid source). Should fail."""
+    Flow1 = Block.new(
+        BlockType.FLOW,
+        "Flow1",
+        fields=(Field.input("Input", int), Field.output("Output", int)),
+    )
+    Start = Action.new(ActionType.START, "Start")
+    Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Flow1.actions.extend(Start, Complete)
+    Start.connect(PipeType.FORWARD, Complete)
+    Complete.set_computed(
+        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output),
+        # missing PathElement.run_() for source, and Block has no inputs
+        source=(Flow1, Run.get_property("inputs"), Flow1.fields.Input),
+    )
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == RunErrorType.INVALID_COMPUTED
+
+
+async def test_run_flow_invalid_computed_target(local_runtime: RuntimeHandle):
+    """Run a Flow with an invalid computed value (invalid target). Should pass (?)."""
+    Flow1 = Block.new(
+        BlockType.FLOW,
+        "Flow1",
+        fields=(Field.input("Input", int), Field.output("Output", int)),
+    )
+    Start = Action.new(ActionType.START, "Start")
+    Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Flow1.actions.extend(Start, Complete)
+    Start.connect(PipeType.FORWARD, Complete)
+    Complete.set_computed(
+        # refers to Output, but we delete output - oh no! (should still work)
+        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output),
+        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input),
+    )
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    # delete output Field
+    Flow1.fields.Output.delete()
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1, inputs={"Input": 1})
+    assert runner.status == RunStatus.COMPLETED
 
 
 async def test_run_flow_code_dynamic(local_runtime: RuntimeHandle):

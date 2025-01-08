@@ -29,6 +29,8 @@ from bench.language import (
     NodeType,
     ObjectKind,
     PathElementType,
+    PathError,
+    PathOptions,
     Resource,
     ResourceStatus,
     Run,
@@ -53,7 +55,7 @@ from bench.language import (
     run_span,
     to_type_scalar,
 )
-from bench.runtime.core import Cache, NonRetryableError, RetryableError
+from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
 from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
 from bench.utils.oracle import Oracle
@@ -168,21 +170,36 @@ class Runtime:
         if computed_value.kind == ComputedValueKind.PATH:
             source_path = computed_value.source_path
             assert source_path is not None, f"no source path for {computed_value!r}"
-            return evaluate_path(runner.node, runner.node, runner.context, source_path)
+            return evaluate_path(
+                current=runner.node,
+                scope=runner.node,
+                context=runner.context,
+                path=source_path,
+                options=PathOptions(detached_is="invalid"),
+            )
         else:
             raise RuntimeError(f"unsupported {computed_value!r}")
 
-    def _apply_computed_value(self, runner: Runner, computed_value: ComputedValue):
-        """Applies the ComputedValue in/to the Run/Runner."""
+    def _apply_computed_value(self, runner: Runner, computed_value: ComputedValue) -> bool:
+        """Applies the ComputedValue in/to the Run/Runner. Returns True if the value was applied."""
         # get source value
-        source_value = self._evaluate_computed_value(runner, computed_value)
+        try:
+            source_value = self._evaluate_computed_value(runner, computed_value)
+        except (PathError, AttributeError, ValidationError) as e:
+            raise InvalidComputedError(computed_value=computed_value) from e
 
         # get target site
         assert computed_value.target_path is not None, f"no target for {computed_value!r}"
         target_obj = evaluate_path(
-            runner.node, runner.node, runner.context, computed_value.target_path.elements[:-1]
+            current=runner.node,
+            scope=runner.node,
+            context=runner.context,
+            path=computed_value.target_path.elements[:-1],
+            options=PathOptions(detached_is="none"),
         )
         target_key = computed_value.target_path.elements[-1]
+        if target_obj is None:
+            return False
 
         # coerce & set value
         assert (
@@ -202,6 +219,7 @@ class Runtime:
             target_obj._do_set(prop.name, mapped_value)
         else:
             raise RuntimeError(f"bad target {target_obj!r} in {computed_value!r}")
+        return True
 
     @tracer.start_as_current_span("runtime.wait_for")
     async def _wait_for(
@@ -441,8 +459,13 @@ class Runtime:
                     runner.inputs.set_default(runner.node.inputs, _skip_validate=True)
             # apply computed values
             if runner.tracked_run is not None:  # (only in tracked runs)
-                for computed_value in runner.node.computed_values:
-                    self._apply_computed_value(runner, computed_value)
+                try:
+                    for computed_value in runner.node.computed_values:
+                        self._apply_computed_value(runner, computed_value)
+                except Exception as e:
+                    runner.status = RunStatus.FAILED
+                    runner.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+                    return
 
         # check variables
         if runner.variable_type is not None:

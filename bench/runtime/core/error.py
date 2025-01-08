@@ -1,7 +1,6 @@
 from asyncio import CancelledError
 
-from bench.language.core.const import BenchError
-from bench.language.core.text import Text
+from bench.language import BenchError, Code, ComputedValue, Text
 from bench.language.runtime.run import RunError, RunErrorType
 
 
@@ -35,12 +34,32 @@ class InvalidValueError(RunImpossibleError):
     run_error_type = RunErrorType.INVALID_VALUE
 
 
+class InvalidComputedError(RunImpossibleError):
+    run_error_type = RunErrorType.INVALID_COMPUTED
+
+    def __init__(
+        self,
+        title: str | None = None,
+        text: Text | None = None,
+        error: RunError | None = None,
+        computed_value: ComputedValue | None = None,
+    ) -> None:
+        super().__init__(title, text, error)
+        self.computed_value = computed_value
+
+
 class CodeInvalidError(RunImpossibleError, SyntaxError):
     run_error_type = RunErrorType.CODE_INVALID
 
-
-class ReplayError(RunImpossibleError):
-    run_error_type = RunErrorType.REPLAY
+    def __init__(
+        self,
+        title: str | None = None,
+        text: Text | None = None,
+        error: RunError | None = None,
+        code: Code | None = None,
+    ) -> None:
+        super().__init__(title, text, error)
+        self.code = code
 
 
 class AbortedError(CancelledError, NonRetryableError):
