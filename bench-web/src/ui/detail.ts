@@ -4,7 +4,7 @@ import {
   isNodeType,
   RUNNABLE_BLOCK_TYPES,
   SOURCE_NODE_TYPES,
-  toCamelName
+  toCamelName,
 } from "@/language/const";
 import {
   createField,
@@ -59,8 +59,9 @@ import {
   RunOptionsProperty,
   RunProperty,
   TypeConstraintProperty,
+  TypeData,
   TypeKind,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { canvas, supergraph } from "@/system/globals";
@@ -111,6 +112,7 @@ export type ObjectRow = Omit<ViewRow, "type"> & {
   isComputable: boolean;
   computedPath?: PathData;
   computedPathKey?: string;
+  computedType?: TypeData;
   prop: PropertyInfo;
 };
 export type PropertyRow = Omit<ViewRow, "type"> & {
@@ -134,8 +136,14 @@ export type TextRow = RowBase & {
 };
 export type DetailRow = FieldsRow | ViewRow | PropertyRow | ObjectRow | IconRow | TextRow | LineRow;
 
-export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFactory: () => Transaction): DetailLayout {
-  // nocheckin: edit ComputedValues in Detail layout (incl. in CustomObject for variables/inputs, node partials, ... Path view?)
+export function makeDetailLayout(options: {
+  node: AnyNodeData;
+  graph: ReadNodeGraph;
+  txFactory: () => Transaction;
+  computedType?: TypeData;
+}): DetailLayout {
+  // nocheckin: edit node partials in Detail layout (incl. as computed)
+  const { node, graph, txFactory, computedType } = options;
 
   // node stuff
   const nodePtr = toNodeRef(node);
@@ -231,7 +239,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
     }
 
     // computed
-    // NOTE :Incomplete: currently computed values UI is focused on :RunComputed values
+    // NOTE :Incomplete: currently computed values UI is focused on :RunComputedValue values
     //  (as opposed to templated ones in non-runnable Nodes, i.e. we're ignoring non-runtime computation contexts)
     let computedPath: PathData | undefined = undefined;
     let computedPathKey: string | undefined = undefined;
@@ -370,7 +378,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
   ): ObjectRow {
     const { prop, propName } = property(propertyId);
 
-    // computed :RunComputed
+    // computed :RunComputedValue
     let computedPath: PathData | undefined = undefined;
     let computedPathKey: string | undefined = undefined;
     if (options?.isComputable) {
@@ -393,6 +401,7 @@ export function makeDetailLayout(node: AnyNodeData, graph: ReadNodeGraph, txFact
       viewType: ViewType.OBJECT,
       computedPath,
       computedPathKey,
+      computedType,
       viewProps: { valueType: makeTypeInfo(valueType), isInput: true, isInline: true, isMinimal: true },
       isFullWidth: true,
       read: () => (node as any)[propName],

@@ -47,7 +47,7 @@ const nodeValueType = computed(() =>
 );
 const nodeValue = computed(() => modelValue.value?.elements.findLast((e) => e.type == PathElementType.ATTRIBUTE)?.nodePtr);
 function updateNodeValue(value: NodeReferenceData) {
-  // assumes that we want the node's Runtime-field of that type :RunComputed
+  // assumes that we want the node's Runtime-field of that type :RunComputedValue
   const { node, graph } = supergraph.getLinkOrError(value);
   if (!isNode(node, NodeType.FIELD)) throw new Error(`unexpected node ${describeNode(node)}`);
   const parent = graph.getOrError(node.parentPtr!);

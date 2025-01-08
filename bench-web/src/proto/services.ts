@@ -344,7 +344,7 @@ export async function getHostClient(bench: { id: string }): Promise<HostClient> 
       triggerRef(_CACHED_HOST_CLIENTS);
       triggerRef(_CACHED_HOST_TRANSPORTS);
 
-      log.info("host.resolve", {
+      log.debug("host.resolve", {
         bench,
         hostInfos,
         duration: formatDuration(DateTime.now().diff(startedAt), { maxUnit: "ms" }),
