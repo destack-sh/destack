@@ -1,5 +1,6 @@
-import { ACTIVE_RUN_STATUSES, getBaseFromNode } from "@/language/const";
+import { ACTIVE_RUN_STATUSES, getBaseFromNode, isResourceNodeType } from "@/language/const";
 import { makeExpression } from "@/language/expression";
+import { decodeTypeIdentity } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNode } from "@/language/node";
 import { timesortNode } from "@/language/order";
@@ -15,12 +16,14 @@ import {
 } from "@/language/session";
 import { newChangeId, type Transaction } from "@/language/transaction";
 import {
+  ActionData,
   BlockData,
   ChangeCategory,
   ExpressionType,
   IconData,
   InterruptionData,
   InterruptionStatus,
+  NodeMode,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -28,8 +31,6 @@ import {
   RunOptionsData,
   RunProperty,
   RunStatus,
-  NodeMode,
-  ActionData,
   StructType,
   Timestamp,
   type RunData,
@@ -251,6 +252,31 @@ export class Runtime {
     return run;
   }
 
+  /** Replay a Run. */
+  replay(run: RunData, options?: { tx?: Transaction }) {
+    const basePtr = getBaseFromNode(run);
+    if (basePtr == null) throw new Error(`no base for ${describeNode(run)}`);
+    const node = supergraph.get(basePtr);
+    if (!isRunnable(node)) throw new Error(`no node for base ${describeNode(basePtr)} of ${describeNode(run)}`);
+    let variablesPacked: Record<string, any> | undefined = undefined;
+    for (const [key, value] of Object.entries(run.variablesPacked ?? {})) {
+      const type = decodeTypeIdentity(key);
+      if (!isResourceNodeType(type)) {
+        // ignore resources?
+        if (variablesPacked == null) variablesPacked = {};
+        variablesPacked[key] = value;
+      }
+    }
+    this.start(node, {
+      focus: true,
+      benchPtr: run.benchPtr,
+      variablesPacked,
+      inputsPacked: run.inputsPacked as Record<string, any> | undefined,
+      options: run.options,
+      tx: options?.tx,
+    });
+  }
+
   /** Pause a Run. */
   pause(run: RunData, options?: { tx?: Transaction }) {
     if (!isRunActive(run)) return;
@@ -380,15 +406,11 @@ export function getRunActions(run: RunData): RuntimeAction[] {
     });
   } else if (isRunTerminal(run)) {
     actions.push({
-      title: "Restart",
+      title: "Replay",
       isPrimary: true,
       icon: makeIcon("fas fa-redo"),
       action: () => {
-        const basePtr = getBaseFromNode(run);
-        if (basePtr == null) throw new Error(`no base for ${describeNode(run)}`);
-        const node = supergraph.get(basePtr);
-        if (!isRunnable(node)) throw new Error(`no node for base ${describeNode(basePtr)} of ${describeNode(run)}`);
-        runtime.start(node, { focus: true, benchPtr: run.benchPtr, options: run.options });
+        runtime.replay(run);
       },
     });
   }

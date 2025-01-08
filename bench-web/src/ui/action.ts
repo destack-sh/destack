@@ -81,6 +81,7 @@ export const ACTION_BUILTIN_IDS = [
   "runtime.run.pause",
   "runtime.run.resume",
   "runtime.run.kill",
+  "runtime.run.replay",
   "runtime.interruption.resume",
   "runtime.interruption.cancel",
   // list
@@ -548,7 +549,10 @@ export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const RECORD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const ACTION_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const RUN_CONTEXT_ACTIONS: ActionBuiltinId[] = ["runtime.run.pause", "runtime.run.resume", "runtime.run.kill"];
-export const INTERRUPTION_CONTEXT_ACTIONS: ActionBuiltinId[] = ["runtime.interruption.resume", "runtime.interruption.cancel"];
+export const INTERRUPTION_CONTEXT_ACTIONS: ActionBuiltinId[] = [
+  "runtime.interruption.resume",
+  "runtime.interruption.cancel",
+];
 export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["flow.edit.splitPipe"];
 export const RESOURCE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "resource.status.activate",
