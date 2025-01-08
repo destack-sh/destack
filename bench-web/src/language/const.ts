@@ -75,8 +75,8 @@ export function isSourceNode(node: any): node is SourceNodeData {
   else return isSourceNodeType(node.metatype as unknown as NodeType);
 }
 
-export function isStateNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 3500 && nodeType < 3600;
+export function isStateNodeType(nodeType: any): boolean {
+  return typeof nodeType == "number" && nodeType >= 3500 && nodeType < 3600;
 }
 
 export function isStateNode(node: any): node is StateNodeData {
@@ -84,8 +84,8 @@ export function isStateNode(node: any): node is StateNodeData {
   else return isStateNodeType(node.metatype as unknown as NodeType);
 }
 
-export function isRuntimeNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 3600 && nodeType < 3700;
+export function isRuntimeNodeType(nodeType: any): boolean {
+  return typeof nodeType == "number" && nodeType >= 3600 && nodeType < 3700;
 }
 
 export function isRuntimeNode(node: any): node is RuntimeNodeData {
@@ -93,8 +93,8 @@ export function isRuntimeNode(node: any): node is RuntimeNodeData {
   else return isRuntimeNodeType(node.metatype as unknown as NodeType);
 }
 
-export function isResourceNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 2000 && nodeType < 3000;
+export function isResourceNodeType(nodeType: any): boolean {
+  return typeof nodeType == "number" && nodeType >= 2000 && nodeType < 3000;
 }
 
 export function isResourceNode(node: any): node is ResourceNodeData {
@@ -102,8 +102,8 @@ export function isResourceNode(node: any): node is ResourceNodeData {
   else return isResourceNodeType(node.metatype as unknown as NodeType);
 }
 
-export function isStaticResourceNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 2000 && nodeType < 2100;
+export function isStaticResourceNodeType(nodeType: any): boolean {
+  return typeof nodeType == "number" && nodeType >= 2000 && nodeType < 2100;
 }
 
 export function isStaticResourceNode(node: any): node is StaticResourceNodeData {
@@ -111,8 +111,8 @@ export function isStaticResourceNode(node: any): node is StaticResourceNodeData 
   else return isStaticResourceNodeType(node.metatype as unknown as NodeType);
 }
 
-export function isDynamicResourceNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 2100 && nodeType < 2200;
+export function isDynamicResourceNodeType(nodeType: any): boolean {
+  return typeof nodeType == "number" && nodeType >= 2100 && nodeType < 2200;
 }
 
 export function isDynamicResourceNode(node: any): node is DynamicResourceNodeData {
@@ -120,12 +120,12 @@ export function isDynamicResourceNode(node: any): node is DynamicResourceNodeDat
   else return isDynamicResourceNodeType(node.metatype as unknown as NodeType);
 }
 
-export function isLocalNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 3000;
+export function isLocalNodeType(nodeType: any): boolean {
+  return typeof nodeType == "number" && nodeType >= 3000;
 }
 
-export function isBenchNodeType(nodeType: NodeType): boolean {
-  return (
+export function isBenchNodeType(nodeType: any): boolean {
+  return typeof nodeType == "number" && (
     (nodeType >= 2000 && nodeType < 10000) ||
     nodeType == NodeType.BENCH ||
     nodeType == NodeType.PACKAGE ||
@@ -137,8 +137,8 @@ export function isBenchNodeType(nodeType: NodeType): boolean {
 }
 
 /** Whether the node type isn't loaded by default */
-export function isUnloadedNodeType(nodeType: NodeType): boolean {
-  return !isSourceNodeType(nodeType) && !isStaticResourceNodeType(nodeType);
+export function isUnloadedNodeType(nodeType: any): boolean {
+  return typeof nodeType == "number" && !isSourceNodeType(nodeType) && !isStaticResourceNodeType(nodeType);
 }
 
 // node types :NodeTypes
