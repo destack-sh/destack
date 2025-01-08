@@ -72,6 +72,7 @@ const layout = computed(() => {
   return layout;
 });
 
+const isLayoutEmpty = computed(() => !layout.value?.sections.some((section) => section.rows.length > 0));
 const expandedSections = useSubnodeProperty(NodeType.VIEW, ViewType.DETAIL, subnodePacked, "expandedSections");
 const collapsedSections = useSubnodeProperty(NodeType.VIEW, ViewType.DETAIL, subnodePacked, "collapsedSections");
 function isSectionExpanded(section: DetailSection) {

@@ -1184,11 +1184,11 @@ class RunErrorKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class RunErrorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     RUN_ERROR_TYPE_UNSPECIFIED: _ClassVar[RunErrorType]
-    RUN_ERROR_TYPE_REPLAY: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_ABORTED: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_RUN_IMPOSSIBLE: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_INVALID_VALUE: _ClassVar[RunErrorType]
+    RUN_ERROR_TYPE_INVALID_COMPUTED: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_CODE_INVALID: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_TEXT_INVALID: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_MODEL_INCAPABLE: _ClassVar[RunErrorType]
@@ -2706,11 +2706,11 @@ RUN_ERROR_KIND_UNSPECIFIED: RunErrorKind
 RUN_ERROR_KIND_INTERNAL: RunErrorKind
 RUN_ERROR_KIND_RUNTIME: RunErrorKind
 RUN_ERROR_TYPE_UNSPECIFIED: RunErrorType
-RUN_ERROR_TYPE_REPLAY: RunErrorType
 RUN_ERROR_TYPE_ABORTED: RunErrorType
 RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE: RunErrorType
 RUN_ERROR_TYPE_RUN_IMPOSSIBLE: RunErrorType
 RUN_ERROR_TYPE_INVALID_VALUE: RunErrorType
+RUN_ERROR_TYPE_INVALID_COMPUTED: RunErrorType
 RUN_ERROR_TYPE_CODE_INVALID: RunErrorType
 RUN_ERROR_TYPE_TEXT_INVALID: RunErrorType
 RUN_ERROR_TYPE_MODEL_INCAPABLE: RunErrorType
