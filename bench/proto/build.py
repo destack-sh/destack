@@ -643,6 +643,19 @@ export type PropertyInfo = {
         "".join(object_type_info_map_parts) + "\n" + "".join(subnode_type_info_maps)
     )
 
+    # node subtype keys
+    node_subtype_info_parts: list[str] = []
+    for node_cls in NODE_CLASSES:
+        if node_cls.__subtype_base_property__:
+            node_subtype_info_parts.append(
+                f"  [NodeType.{node_cls.metatype.name}]: {node_cls.__subtype_base_property__.id},"
+            )
+    node_subtype_info_str = f"""
+export const NODE_SUBTYPE_PROPERTY_ID: Partial<Record<NodeType, number>> = {{
+{'\n'.join(node_subtype_info_parts)}
+}}
+"""
+
     # enum options
     enum_option_info_type_str = """
 export type EnumOptionInfo = {
@@ -772,7 +785,7 @@ export type AnyPropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' 
 {object_info_type_str}
 {object_info_definitions_str}
 {object_info_map_str}
-
+{node_subtype_info_str}
 // Enum options
 {enum_option_info_type_str}
 {enum_option_info_str}

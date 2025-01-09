@@ -6678,9 +6678,9 @@ export enum StructType {
      */
     MACHINE_IMAGE = 11000,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TYPE_INFO = 11500;
+     * @generated from protobuf enum value: STRUCT_TYPE_TYPE = 11500;
      */
-    TYPE_INFO = 11500,
+    TYPE = 11500,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_TYPE_CONSTRAINT = 11501;
      */
@@ -7047,9 +7047,9 @@ export enum ObjectType {
      */
     MACHINE_IMAGE = 11000,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TYPE_INFO = 11500;
+     * @generated from protobuf enum value: OBJECT_TYPE_TYPE = 11500;
      */
-    TYPE_INFO = 11500,
+    TYPE = 11500,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_TYPE_CONSTRAINT = 11501;
      */
@@ -7613,9 +7613,9 @@ export enum BenchType {
      */
     MACHINE_IMAGE = 11000,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_INFO = 11500;
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE = 11500;
      */
-    TYPE_INFO = 11500,
+    TYPE = 11500,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_TYPE_CONSTRAINT = 11501;
      */
@@ -27260,7 +27260,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.ACCESS_MATRIX]: AccessMatrixData,
   [ObjectType.ACCESS]: AccessData,
   [ObjectType.MACHINE_IMAGE]: MachineImageData,
-  [ObjectType.TYPE_INFO]: TypeData,
+  [ObjectType.TYPE]: TypeData,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintData,
   [ObjectType.SCHEDULE]: ScheduleData,
   [ObjectType.FILE_INFO]: FileInfoData,
@@ -27353,7 +27353,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.AccessMatrixData"]: ObjectType.ACCESS_MATRIX,
   ["symbolx.bench.AccessData"]: ObjectType.ACCESS,
   ["symbolx.bench.MachineImageData"]: ObjectType.MACHINE_IMAGE,
-  ["symbolx.bench.TypeData"]: ObjectType.TYPE_INFO,
+  ["symbolx.bench.TypeData"]: ObjectType.TYPE,
   ["symbolx.bench.TypeConstraintData"]: ObjectType.TYPE_CONSTRAINT,
   ["symbolx.bench.ScheduleData"]: ObjectType.SCHEDULE,
   ["symbolx.bench.FileInfoData"]: ObjectType.FILE_INFO,
@@ -27524,7 +27524,7 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.ACCESS_MATRIX]: AccessMatrixData,
   [StructType.ACCESS]: AccessData,
   [StructType.MACHINE_IMAGE]: MachineImageData,
-  [StructType.TYPE_INFO]: TypeData,
+  [StructType.TYPE]: TypeData,
   [StructType.TYPE_CONSTRAINT]: TypeConstraintData,
   [StructType.SCHEDULE]: ScheduleData,
   [StructType.FILE_INFO]: FileInfoData,
@@ -27731,7 +27731,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.ACCESS_MATRIX]: AccessMatrixData,
   [ObjectType.ACCESS]: AccessData,
   [ObjectType.MACHINE_IMAGE]: MachineImageData,
-  [ObjectType.TYPE_INFO]: TypeData,
+  [ObjectType.TYPE]: TypeData,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintData,
   [ObjectType.SCHEDULE]: ScheduleData,
   [ObjectType.FILE_INFO]: FileInfoData,
@@ -29630,7 +29630,7 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.ACCESS_MATRIX]: AccessMatrixProperty,
   [ObjectType.ACCESS]: AccessProperty,
   [ObjectType.MACHINE_IMAGE]: MachineImageProperty,
-  [ObjectType.TYPE_INFO]: TypeProperty,
+  [ObjectType.TYPE]: TypeProperty,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintProperty,
   [ObjectType.SCHEDULE]: ScheduleProperty,
   [ObjectType.FILE_INFO]: FileInfoProperty,
@@ -29723,7 +29723,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.ACCESS_MATRIX]: AccessMatrixProperty,
   [ObjectType.ACCESS]: AccessProperty,
   [ObjectType.MACHINE_IMAGE]: MachineImageProperty,
-  [ObjectType.TYPE_INFO]: TypeProperty,
+  [ObjectType.TYPE]: TypeProperty,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintProperty,
   [ObjectType.SCHEDULE]: ScheduleProperty,
   [ObjectType.FILE_INFO]: FileInfoProperty,
@@ -30277,7 +30277,7 @@ export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SecretProperty.valueType]: { id: 50, name: 'value_type', component: ObjectType.SECRET, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
+  [SecretProperty.valueType]: { id: 50, name: 'value_type', component: ObjectType.SECRET, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE },
   [SecretProperty.valuePacked]: { id: 51, name: 'value_packed', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [SecretProperty.mode]: { id: 90, name: 'mode', component: ObjectType.SECRET, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -30449,7 +30449,7 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.orderKey]: { id: 34, name: 'order_key', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.icon]: { id: 35, name: 'icon', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ViewProperty.subviewsPacked]: { id: 39, name: 'subviews_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [ViewProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
+  [ViewProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE },
   [ViewProperty.nodePtr]: { id: 42, name: 'node_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [ViewProperty.position]: { id: 60, name: 'position', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
   [ViewProperty.size]: { id: 61, name: 'size', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RECTANGLE },
@@ -30745,7 +30745,7 @@ export const BrowserScalerDataInfo: Record<BrowserScalerProperty, PropertyInfo> 
 
 }
 export const VariableBlockDataInfo: Record<VariableBlockProperty, PropertyInfo> = {
-  [VariableBlockProperty.valueType]: { id: 100, name: 'value_type', component: ObjectType.BLOCK, componentSubtype: 30, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
+  [VariableBlockProperty.valueType]: { id: 100, name: 'value_type', component: ObjectType.BLOCK, componentSubtype: 30, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE },
   [VariableBlockProperty.valuePacked]: { id: 101, name: 'value_packed', component: ObjectType.BLOCK, componentSubtype: 30, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const TextBlockDataInfo: Record<TextBlockProperty, PropertyInfo> = {
@@ -31085,21 +31085,21 @@ export const MachineImageDataInfo: Record<MachineImageProperty, PropertyInfo> = 
   [MachineImageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MACHINE_IMAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
 }
 export const TypeDataInfo: Record<TypeProperty, PropertyInfo> = {
-  [TypeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TYPE_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TypeProperty.kind]: { id: 40, name: 'kind', component: ObjectType.TYPE_INFO, enumType: EnumType.TYPE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeProperty.primitiveType]: { id: 41, name: 'primitive_type', component: ObjectType.TYPE_INFO, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeProperty.benchType]: { id: 42, name: 'bench_type', component: ObjectType.TYPE_INFO, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
-  [TypeProperty.baseFieldTypes]: { id: 44, name: 'base_field_types', component: ObjectType.TYPE_INFO, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeProperty.propertyFieldTypes]: { id: 45, name: 'property_field_types', component: ObjectType.TYPE_INFO, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeProperty.oneofPtr]: { id: 49, name: 'oneof_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [TypeProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [TypeProperty.format]: { id: 53, name: 'format', component: ObjectType.TYPE_INFO, enumType: EnumType.TYPE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeProperty.condition]: { id: 54, name: 'condition', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [TypeProperty.constraint]: { id: 55, name: 'constraint', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
-  [TypeProperty.isRequired]: { id: 60, name: 'is_required', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeProperty.isList]: { id: 61, name: 'is_list', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeProperty.isSecret]: { id: 62, name: 'is_secret', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TYPE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TypeProperty.kind]: { id: 40, name: 'kind', component: ObjectType.TYPE, enumType: EnumType.TYPE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeProperty.primitiveType]: { id: 41, name: 'primitive_type', component: ObjectType.TYPE, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeProperty.benchType]: { id: 42, name: 'bench_type', component: ObjectType.TYPE, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.TYPE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
+  [TypeProperty.baseFieldTypes]: { id: 44, name: 'base_field_types', component: ObjectType.TYPE, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeProperty.propertyFieldTypes]: { id: 45, name: 'property_field_types', component: ObjectType.TYPE, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeProperty.oneofPtr]: { id: 49, name: 'oneof_ptr', component: ObjectType.TYPE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TypeProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.TYPE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [TypeProperty.format]: { id: 53, name: 'format', component: ObjectType.TYPE, enumType: EnumType.TYPE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeProperty.condition]: { id: 54, name: 'condition', component: ObjectType.TYPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [TypeProperty.constraint]: { id: 55, name: 'constraint', component: ObjectType.TYPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
+  [TypeProperty.isRequired]: { id: 60, name: 'is_required', component: ObjectType.TYPE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeProperty.isList]: { id: 61, name: 'is_list', component: ObjectType.TYPE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeProperty.isSecret]: { id: 62, name: 'is_secret', component: ObjectType.TYPE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const TypeConstraintDataInfo: Record<TypeConstraintProperty, PropertyInfo> = {
   [TypeConstraintProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -31235,7 +31235,7 @@ export const ValueDataInfo: Record<ValueProperty, PropertyInfo> = {
   [ValueProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VALUE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ValueProperty.name]: { id: 32, name: 'name', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ValueProperty.text]: { id: 33, name: 'text', component: ObjectType.VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ValueProperty.valueType]: { id: 35, name: 'value_type', component: ObjectType.VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
+  [ValueProperty.valueType]: { id: 35, name: 'value_type', component: ObjectType.VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE },
   [ValueProperty.valuePacked]: { id: 36, name: 'value_packed', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const ComputedValueDataInfo: Record<ComputedValueProperty, PropertyInfo> = {
@@ -31491,7 +31491,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.ACCESS_MATRIX]: AccessMatrixDataInfo,
   [ObjectType.ACCESS]: AccessDataInfo,
   [ObjectType.MACHINE_IMAGE]: MachineImageDataInfo,
-  [ObjectType.TYPE_INFO]: TypeDataInfo,
+  [ObjectType.TYPE]: TypeDataInfo,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintDataInfo,
   [ObjectType.SCHEDULE]: ScheduleDataInfo,
   [ObjectType.FILE_INFO]: FileInfoDataInfo,
@@ -31607,6 +31607,15 @@ export const PROPERTY_INFOS_BY_SUBTYPE: Partial<Record<NodeType, Record<any, Rec
   [NodeType.PIPE]: PipeSubtypePropertyInfo,
 }
 
+
+export const NODE_SUBTYPE_PROPERTY_ID: Partial<Record<NodeType, number>> = {
+  [NodeType.SCALER]: 30,
+  [NodeType.BLOCK]: 30,
+  [NodeType.FIELD]: 30,
+  [NodeType.VIEW]: 30,
+  [NodeType.ACTION]: 30,
+  [NodeType.PIPE]: 30,
+}
 
 // Enum options
 

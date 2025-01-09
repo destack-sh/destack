@@ -1,5 +1,5 @@
 import { INVISIBLE_ACTION_TYPES, SINK_ACTION_TYPES, SOURCE_ACTION_TYPES } from "@/language/const";
-import { makeTypeInfo } from "@/language/field";
+import { makeType } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNodeName, NodeIn, unpackSubnode, unpackSubnodeProperty } from "@/language/node";
 import { newChangeId, type Transaction, type TransactionOptions } from "@/language/transaction";
@@ -984,7 +984,7 @@ export class FlowContext {
             title: "Add Action",
             component: ViewType.PICKER,
             props: {
-              valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
+              valueType: makeType({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
             },
             onApply: (value) => {
               const tx = this.tx.with({ change: { key: newChangeId() } });

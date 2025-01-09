@@ -1,6 +1,6 @@
 import { isEnumType, isNodeType } from "@/language/const";
 import { getEnumOptions } from "@/language/enum";
-import { getStorageKey, makeTypeInfo, type TypeIdentity } from "@/language/field";
+import { getStorageKey, makeType, type TypeIdentity } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
 import { packSubnode } from "@/language/node";
 import {
@@ -246,7 +246,7 @@ export function getViewForType(
   type: Omit<TypeIdentity, "kind"> & Partial<TypeData>,
   options?: { forcePickerDropdown?: boolean },
 ): ViewProps | null {
-  const valueType = makeTypeInfo(type);
+  const valueType = makeType(type);
   if (type.kind == TypeKind.CUSTOM_OBJECT || type.kind == TypeKind.PARTIAL_OBJECT) {
     // object
     return { type: ViewType.OBJECT, valueType };

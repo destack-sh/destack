@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { SOURCE_ACTION_TYPES } from "@/language/const";
-import { makeTypeInfo } from "@/language/field";
+import { makeType } from "@/language/field";
 import { newChangeId } from "@/language/transaction";
 import {
   ActionData,
@@ -173,7 +173,7 @@ const implementedActions: Partial<ActionMapImplementation<"flow" | "space" | "ru
         placement: "inside-top",
         title: "Add Action",
         props: {
-          valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
+          valueType: makeType({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
           subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
         },
         onApply: (value) => {
@@ -195,7 +195,7 @@ const implementedActions: Partial<ActionMapImplementation<"flow" | "space" | "ru
         placement: "bottom-right",
         title: "Add Action",
         props: {
-          valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
+          valueType: makeType({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
           subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
         },
         onApply: (value) => {
@@ -364,7 +364,7 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
                 placement: 'bottom-left',
                 offset: 'referenceWidth',
                 props: {
-                  valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
+                  valueType: makeType({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
                   subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
                 },
                 onApply: (value) => {
@@ -562,7 +562,7 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
                   component: ViewType.PICKER,
                   placement: 'top',
                   props: {
-                    valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
+                    valueType: makeType({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
                     subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
                   },
                   onApply: (value) => {

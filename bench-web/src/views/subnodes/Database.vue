@@ -2,7 +2,7 @@
 import { blockToType } from "@/language/block";
 import { getPropertyName, getPropertyTitle, TYPE_BLOCK_TYPES } from "@/language/const";
 import { makeAndConditional, makeExpression } from "@/language/expression";
-import { createField, getPropertyType, getStorageKey, makeTypeInfo, NAME_TYPE, TypeIdentity } from "@/language/field";
+import { createField, getPropertyType, getStorageKey, makeType, NAME_TYPE, TypeIdentity } from "@/language/field";
 import { useNodeListActions } from "@/ui/list";
 import { moveNode, packSubnode } from "@/language/node";
 import {
@@ -707,7 +707,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   placement: 'bottom-left',
                   offset: 'referenceWidth',
                   props: {
-                    valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }),
+                    valueType: makeType({ benchType: BenchType.TYPE_INFO }),
                     subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
                   },
                   onApply: (typeInfo: TypeIdentity) => {

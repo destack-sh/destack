@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { makeTypeInfo } from "@/language/field";
+import { makeType } from "@/language/field";
 import { BenchType, NodeReferenceData, Region, UserStatus, ViewData } from "@/proto/wire/";
 import { toNodeRef } from "@/proto/wiring";
 import { canvas, goToBench } from "@/system/space";
@@ -105,7 +105,7 @@ defineExpose({ self, focus });
         name="Region"
         title="Region"
         is-input
-        :value-type="makeTypeInfo({ benchType: BenchType.REGION, isList: false, isRequired: true })"
+        :value-type="makeType({ benchType: BenchType.REGION, isList: false, isRequired: true })"
       />
     </div>
     <!-- Actions -->
