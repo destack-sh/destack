@@ -1,10 +1,11 @@
 <script lang="ts" setup>
-import { isSourceNode, toCamelName } from "@/language/const";
+import { getBaseFromNode, isSourceNode, toCamelName } from "@/language/const";
 import { useComputedValues } from "@/language/expression";
 import { makeType, makeTypeConstraint } from "@/language/field";
 import { unpackSubnode, useSubnodeProperty } from "@/language/node";
 import { getCustomObjectNodeType, getCustomObjectSubtype } from "@/language/value";
 import {
+  ActionType,
   BenchType,
   ComputedValueData,
   NodeType,
@@ -14,13 +15,14 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph, useExistingConnection } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import { ObjectSection, makeObjectLayout } from "@/ui/object";
 import { computedValue } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
+import Field from "@/views/nodes/Field.vue";
 import ComputedValue from "@/views/objects/ComputedValue.vue";
 import FieldList from "@/views/objects/FieldList.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
@@ -43,19 +45,26 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 const subnodePacked = toRef(props, "subnodePacked");
 
-const kind = computed(() => {
-  if (props.valueType?.kind == TypeKind.PARTIAL_OBJECT) return "partial";
-  else if (props.valueType?.kind == TypeKind.CUSTOM_OBJECT) return "custom";
-  else return "node";
-});
+// node
 const nodePtr = computedValue(() => props.nodePtr);
-const { node, graph, connection } = supergraph.getLinkRef(nodePtr);
-const basePtr = computed(
-  () => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.ACTION> | undefined,
+const { node, connection } = supergraph.getLinkRef(nodePtr);
+const { graph } = useExistingConnection(nodePtr);
+const fields = graph.getChildrenRef(node, NodeType.FIELD);
+
+// delegate (base or some other delegate)
+const delegatePtr = computed(
+  () => {
+    if (props.valueType?.baseTypePtr != null) return props.valueType.baseTypePtr;
+    else if (isNode(node.value, NodeType.ACTION) && node.value.type == ActionType.TOOL) return node.value.toolPtr;
+    else if (node.value != null) return getBaseFromNode(node.value);
+    else return null;
+  },
 );
-const { graph: baseGraph, connection: baseConnection } = useExistingConnection(basePtr);
-const base = baseGraph.getRef(basePtr);
-const baseFields = baseGraph.getChildrenRef(base, NodeType.FIELD);
+const { graph: delegateGraph, connection: delegateConnection } = useExistingConnection(delegatePtr);
+const delegate = delegateGraph.getRef(delegatePtr);
+const delegateFields = delegateGraph.getChildrenRef(delegate, NodeType.FIELD);
+
+// computed
 const computer = useComputedValues({
   computedValues: computed(() => (isSourceNode(node.value) ? node.value.computedValues : [])),
   update: (computedValues) => {
@@ -74,6 +83,13 @@ const computedType = computed<TypeData | undefined>(() => {
   });
   return type;
 });
+
+// layout
+const kind = computed(() => {
+  if (props.valueType?.kind == TypeKind.PARTIAL_OBJECT) return "partial";
+  else if (props.valueType?.kind == TypeKind.CUSTOM_OBJECT) return "custom";
+  else return "node";
+});
 const layout = computed(() => {
   if (kind.value == "node") {
     if (node.value == null) return null;
@@ -86,12 +102,13 @@ const layout = computed(() => {
     return makeObjectLayout({
       kind: "node",
       node: node.value,
+      fields: fields.value,
       nodeType: node.value.metatype,
       subtype: subtype,
       subnode: subnode,
-      base: base.value,
-      baseFields: baseFields.value,
-      graph: graph.value!,
+      delegate: delegate.value,
+      delegateFields: delegateFields.value,
+      graph,
       update: (update, options) => {
         if (node.value != null) {
           connection.value?.tx.update(node.value, update, options);
@@ -112,11 +129,12 @@ const layout = computed(() => {
       valueType: props.valueType,
       valuePacked: modelValue.value,
       computedType: computedType.value,
-      base: base.value,
-      baseFields: baseFields.value,
-      graph: graph.value!,
+      fields: fields.value,
+      delegate: delegate.value,
+      delegateFields: delegateFields.value,
+      graph,
       update: (update, options) => {
-        // nocheckin
+        emit("update:modelValue", { ...modelValue.value, ...update });
       },
       txFactory: () => (connection.value ?? pkgConnection).tx,
     });
@@ -126,11 +144,12 @@ const layout = computed(() => {
       valueType: props.valueType!,
       valuePacked: modelValue.value,
       computedType: computedType.value,
-      base: base.value,
-      baseFields: baseFields.value,
-      graph: graph.value!,
+      fields: fields.value,
+      delegate: delegate.value,
+      delegateFields: delegateFields.value,
+      graph,
       update: (update, options) => {
-        // nocheckin
+        emit("update:modelValue", { ...modelValue.value, ...update });
       },
       txFactory: () => (connection.value ?? pkgConnection).tx,
     });
@@ -138,7 +157,7 @@ const layout = computed(() => {
   return null;
 });
 
-const isLayoutEmpty = computed(() => !layout.value?.sections.some((section) => section.rows.length > 0));
+// sections
 const expandedSections = useSubnodeProperty(NodeType.VIEW, ViewType.OBJECT, subnodePacked, "expandedSections");
 const collapsedSections = useSubnodeProperty(NodeType.VIEW, ViewType.OBJECT, subnodePacked, "collapsedSections");
 function isSectionExpanded(section: ObjectSection) {
@@ -226,8 +245,9 @@ defineExpose<ViewExposed>({ self, id });
           :key="row.title ?? i"
           class="group/row mx-4"
           :class="[
-            row.type == 'view' || row.type == 'property' || row.type == 'object'
-              ? row.isFullWidth || (row.type == 'property' && computer.has(row.computedPathKey))
+            row.type == 'view' || row.type == 'property' || row.type == 'object' || row.type == 'field'
+              ? row.isFullWidth ||
+                ((row.type == 'property' || row.type == 'field') && computer.has(row.computedPathKey))
                 ? 'flex flex-col gap-y-1'
                 : 'flex flex-row flex-wrap items-center gap-x-1'
               : '',
@@ -235,13 +255,15 @@ defineExpose<ViewExposed>({ self, id });
         >
           <!-- Header -->
           <div v-if="row.title" class="flex flex-1 flex-row items-center py-0.5">
-            <span class="">{{ row.title }}</span>
+            <!-- Title -->
+            <span v-if="row.type != 'field'" class="">{{ row.title }}</span>
+            <Field v-else :id="i + '.value'" :node-ptr="toNodeRef(row.field)" is-minimal />
             <span v-if="row.subtitle" class="ml-1.5 text-gray-400">{{ row.subtitle }}</span>
             <!-- Actions -->
             <div class="ml-auto pr-1">
               <!-- Computed actions :ComputedView -->
               <button
-                v-if="row.type == 'property' && row.isComputable"
+                v-if="(row.type == 'property' || row.type == 'field') && row.isComputable"
                 v-tooltip="{ title: `Set ${row.title} dynamically`, small: true, group: 'section.header' }"
                 class="rounded px-0.5 transition-colors duration-75"
                 :class="

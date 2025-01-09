@@ -10,9 +10,8 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import { computed, nextTick, ref, toRef } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Pick<
-    ViewData,
-    "isMinimal" | "nodePtr" | "orientation"
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
+    Pick<ViewData, "isMinimal" | "nodePtr" | "orientation">
   >
 >();
 const emit = defineEmits(viewEmits());
