@@ -13,7 +13,7 @@ import {
   getTypeName,
   makeType,
   TypeIdentity,
-  typeIsNumeric
+  typeIsNumeric,
 } from "@/language/field";
 import { ReadNodeGraph } from "@/language/graph";
 import { packSubnode, unpackSubnode } from "@/language/node";
@@ -22,7 +22,7 @@ import {
   getTransactionOptionsForType,
   makeEditFromSubnode,
   Transaction,
-  TransactionOptions
+  TransactionOptions,
 } from "@/language/transaction";
 import { getCustomObjectNodeType, getCustomObjectSubtype, packValue, unpackValue } from "@/language/value";
 import {
@@ -43,6 +43,7 @@ import {
   IconData,
   NodeReferenceData,
   NodeType,
+  NodeTypeMapping,
   ObjectType,
   PathData,
   PathElementType,
@@ -62,7 +63,7 @@ import {
   TypeKind,
   ViewType,
 } from "@/proto/wire";
-import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
+import { makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { canvas } from "@/system/globals";
 import { getNodeName, ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
@@ -138,109 +139,59 @@ export type TextRow = RowBase & {
 };
 export type DetailRow = FieldsListRow | ViewRow | PropertyRow | FieldRow | ObjectRow | IconRow | TextRow | LineRow;
 
-type BaseObjectInfo = {
+export type BaseObjectInfo = {
   base: AnyNodeData | null;
   baseFields: FieldData[];
   graph: ReadNodeGraph;
   update: (update: Partial<AnyNodeData> | Record<string, any>, options?: TransactionOptions) => void;
   txFactory: () => Transaction;
 };
-type NodeInfo = BaseObjectInfo & {
+type NodeInfo<T extends NodeType> = BaseObjectInfo & {
   kind: "node";
-  node: AnyNodeData;
+  nodeType: T;
+  subtype: number | null;
+  node: NodeTypeMapping[T];
+  subnode: any;
 };
 type PartialNodeInfo = BaseObjectInfo & {
   kind: "partial";
+  nodeType: NodeType | null;
+  subtype: number | null;
   node: AnyNodeData | null;
+  subnode: any | null;
   valuePacked: Record<string, any>;
   valueType: TypeData;
-  computedType: TypeData;
+  computedType: TypeData | null | undefined;
 };
 type CustomObjectInfo = BaseObjectInfo & {
   kind: "custom";
   valuePacked: Record<string, any>;
   valueType: TypeData;
-  computedType: TypeData;
+  computedType: TypeData | null | undefined;
 };
-type ObjectInfo = NodeInfo | PartialNodeInfo | CustomObjectInfo;
+type ObjectInfo = NodeInfo<any> | PartialNodeInfo | CustomObjectInfo;
 
-
-/** Get the layout for a detailed view of a CustomObject or Node› */
-export class ObjectLayout {
+/** Base class for object layouts */
+export abstract class BaseObjectLayout {
   kind: "node" | "partial" | "custom";
 
-  // node
-  private nodeType: NodeType | null;
-  private subtype: number | null;
-  private propertyEnum: Record<number, string>;
-  private propertyInfos: Record<number, PropertyInfo>;
-  private subpropertyEnum?: Record<number, string>;
-  private subpropertyInfos?: Record<number, PropertyInfo>;
-  private subnode: any;
-
-  private node: AnyNodeData | null;
-  private base: AnyNodeData | null;
-  private baseFields: FieldData[];
-  private graph: ReadNodeGraph;
-  private update: (
-    update: Partial<AnyNodeData> | EditOperationData[] | Record<string, any>,
-    options?: TransactionOptions,
-  ) => void;
-  private txFactory: () => Transaction;
-  private valuePacked?: Record<string, any>;
-  private valueType?: TypeData;
-  private computedType?: TypeData;
+  // common
+  base: AnyNodeData | null;
+  baseFields: FieldData[];
+  graph: ReadNodeGraph;
+  update: (update: Partial<AnyNodeData> | Record<string, any>, options?: TransactionOptions) => void;
+  txFactory: () => Transaction;
 
   // layout
   sections: ObjectSection[] = [];
 
-  constructor(options: {
-    kind: "node" | "partial" | "custom";
-    node: AnyNodeData | null;
-    base: AnyNodeData | null;
-    baseFields: FieldData[];
-    graph: ReadNodeGraph;
-    update: (update: Partial<AnyNodeData> | Record<string, any>, options?: TransactionOptions) => void;
-    txFactory: () => Transaction;
-    valuePacked?: Record<string, any>;
-    valueType?: TypeData;
-    computedType?: TypeData;
-  }) {
+  constructor(options: ObjectInfo) {
     this.kind = options.kind;
-    this.node = options.node;
     this.base = options.base;
     this.baseFields = options.baseFields;
     this.graph = options.graph;
     this.update = options.update;
     this.txFactory = options.txFactory;
-    this.valuePacked = options.valuePacked;
-    this.valueType = options.valueType;
-    this.computedType = options.computedType;
-
-    // initialize object stuff
-    if (this.kind == "node") {
-      if (this.node == null) throw new Error("node is null");
-      this.nodeType = this.node.metatype as unknown as NodeType;
-      this.subtype = (this.node as any).type;
-      this.subnode =
-        (this.node.subnodePacked as any)?.[this.subtype?.toString()!] != null
-          ? (unpackSubnode(this.nodeType, this.subtype as never, this.node.subnodePacked) as any)
-          : null;
-    } else if (this.kind == "partial") {
-      if (this.valueType == null) throw new Error("valueType is null");
-      this.nodeType = getCustomObjectNodeType(this.valueType, this.valuePacked ?? {});
-      this.subtype = getCustomObjectSubtype(this.valueType, this.valuePacked ?? {});
-    } else if (this.kind == "custom") {
-      if (this.valueType == null) throw new Error("valueType is null");
-      this.nodeType = null;
-      this.subtype = null;
-    } else {
-      assertNever(this.kind);
-    }
-    this.propertyEnum = this.nodeType != null ? PROPERTY_ENUM_BY_TYPE[this.nodeType]! : {};
-    this.propertyInfos = this.nodeType != null ? PROPERTY_INFOS_BY_TYPE[this.nodeType]! : {};
-    this.subpropertyEnum = this.subtype != null ? PROPERTY_ENUM_BY_SUBTYPE[this.nodeType!]?.[this.subtype] : undefined;
-    this.subpropertyInfos = this.subtype != null ? PROPERTY_INFOS_BY_SUBTYPE[this.nodeType!]?.[this.subtype] : {};
   }
 
   /** Add a section to the layout */
@@ -266,6 +217,59 @@ export class ObjectLayout {
     };
     this.sections.push(s);
     return s;
+  }
+
+  /** Line row */
+  rowLine(text?: string): LineRow {
+    return { type: "line", text };
+  }
+
+  /** Icon row */
+  rowIcon(icon: IconData | string): IconRow {
+    return { type: "icon", icon: makeIcon(icon) };
+  }
+
+  abstract build(): void;
+}
+
+export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
+  kind: "node" | "partial";
+
+  // node
+  protected nodeType: T | null;
+  protected subtype: number | null;
+  protected node: NodeTypeMapping[T] | null;
+  protected subnode: any;
+  protected propertyEnum: Record<number, string>;
+  protected propertyInfos: Record<number, PropertyInfo>;
+  protected subpropertyEnum?: Record<number, string>;
+  protected subpropertyInfos?: Record<number, PropertyInfo>;
+
+  // value
+  protected valuePacked?: Record<string, any>;
+  protected valueType?: TypeData;
+  protected computedType?: TypeData;
+
+  constructor(options: NodeInfo<T> | PartialNodeInfo) {
+    super(options);
+    this.kind = options.kind;
+
+    this.node = options.node as NodeTypeMapping[T];
+    this.subnode = options.subnode;
+    this.nodeType = options.nodeType as T;
+    this.subtype = options.subtype;
+    if (this.nodeType != null) {
+      this.propertyEnum = PROPERTY_ENUM_BY_TYPE[this.nodeType]!;
+      this.propertyInfos = PROPERTY_INFOS_BY_TYPE[this.nodeType as any as ObjectType]!;
+      this.subpropertyEnum =
+        this.subtype != null ? PROPERTY_ENUM_BY_SUBTYPE[this.nodeType!]?.[this.subtype] : undefined;
+      this.subpropertyInfos = this.subtype != null ? PROPERTY_INFOS_BY_SUBTYPE[this.nodeType!]?.[this.subtype] : {};
+    } else {
+      this.propertyEnum = PROPERTY_ENUM_BY_TYPE[ObjectType.EMPTY]!;
+      this.propertyInfos = PROPERTY_INFOS_BY_TYPE[ObjectType.EMPTY]!;
+      this.subpropertyEnum = undefined;
+      this.subpropertyInfos = undefined;
+    }
   }
 
   /** Get the property info for a property */
@@ -308,28 +312,6 @@ export class ObjectLayout {
       assertNever(path);
     }
     return { path, prop, propNames, rootProp, rootPropName, isSubnode };
-  }
-
-  /** Read a property from a node or partial node */
-  readProperty(pathIn: number | [number] | [number, number], options?: { default?: any }) {
-    const { path, prop, propNames, rootProp, rootPropName, isSubnode } = this.getPropertyPath(pathIn);
-    let val;
-    if (path.length == 1) {
-      if (!isSubnode) {
-        val = (this.node as any)?.[rootPropName];
-      } else {
-        val = (this.subnode as any)?.[rootPropName];
-      }
-    } else if (path.length == 2) {
-      if (!isSubnode) {
-        val = (this.node as any)[rootPropName]?.[propNames[1]];
-      } else {
-        val = (this.subnode as any)[rootPropName]?.[propNames[1]];
-      }
-    } else {
-      assertNever(path);
-    }
-    return val ?? options?.default ?? prop.default;
   }
 
   /** Property row for node or partial node */
@@ -378,7 +360,25 @@ export class ObjectLayout {
       isFullWidth: options?.isFullWidth || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
       viewType: view.type!,
       viewProps: { ...view, ...options?.props, isInput: !options?.isDisabled },
-      read: () => this.readProperty(pathIn, options),
+      read: () => {
+        let val;
+        if (path.length == 1) {
+          if (!isSubnode) {
+            val = (this.node as any)?.[rootPropName];
+          } else {
+            val = (this.subnode as any)?.[rootPropName];
+          }
+        } else if (path.length == 2) {
+          if (!isSubnode) {
+            val = (this.node as any)[rootPropName]?.[propNames[1]];
+          } else {
+            val = (this.subnode as any)[rootPropName]?.[propNames[1]];
+          }
+        } else {
+          assertNever(path);
+        }
+        return val ?? options?.default ?? prop.default;
+      },
       write: (newValue) => {
         if (this.kind == "node") {
           const txOptions: TransactionOptions = getTransactionOptionsForType(propType);
@@ -515,16 +515,6 @@ export class ObjectLayout {
     return row;
   }
 
-  /** Line row */
-  rowLine(text?: string): LineRow {
-    return { type: "line", text };
-  }
-
-  /** Icon row */
-  rowIcon(icon: IconData | string): IconRow {
-    return { type: "icon", icon: makeIcon(icon) };
-  }
-
   /** IO Schema section */
   sectionIO(options?: { title?: string; subtitle?: string; toolPtr?: NodeReferenceData }): ObjectSection {
     return this.section(
@@ -544,353 +534,402 @@ export class ObjectLayout {
     );
   }
 
-  sectionRun(runOptionsProperty: number) {
+  /** Run options section */
+  sectionRunOptions(baseProperty: number) {
     this.section(
       "Run",
       [
-        this.rowProperty([runOptionsProperty, RunOptionsProperty.maxAttempts], { title: "Attempts" }),
-        this.rowProperty([runOptionsProperty, RunOptionsProperty.suppressFail]),
-        this.rowProperty([runOptionsProperty, RunOptionsProperty.modelFamily]),
+        this.rowProperty([baseProperty, RunOptionsProperty.maxAttempts], { title: "Attempts" }),
+        this.rowProperty([baseProperty, RunOptionsProperty.suppressFail]),
+        this.rowProperty([baseProperty, RunOptionsProperty.modelFamily]),
       ],
       { isDefaultCollapsed: true },
     );
   }
+}
 
+export class BlockLayout extends NodeLayout<NodeType.BLOCK> {
   build() {
     const node = this.node!;
-    const nodePtr = toNodeRef(node);
-    const graph = this.graph;
-    const txFactory = this.txFactory;
-
-    //
-    // Blocks
-    //
-
-    if (isNode(node, NodeType.BLOCK)) {
-      const commonRows: DetailRow[] = [];
-      this.section(undefined, commonRows);
-      if (node.type != BlockType.TEXT) {
-        commonRows.push(this.rowProperty(BlockProperty.text, { title: false, props: { placeholder: "Text..." } }));
-      }
-
-      if (node.type == BlockType.CHOICE) {
-        this.section("Options", [{ type: "fields-list", fieldType: FieldType.OPTION }], {
-          actions: [this.actionAddField(FieldType.OPTION)],
-        });
-      } else if (node.type == BlockType.DATABASE || node.type == BlockType.MESSAGE) {
-        this.section("Members", [{ type: "fields-list", fieldType: FieldType.MEMBER }], {
-          actions: [this.actionAddField(FieldType.MEMBER)],
-        });
-      } else if (RUNNABLE_BLOCK_TYPES.includes(node.type)) {
-        this.section("Variables", [{ type: "fields-list", fieldType: FieldType.VARIABLE }], {
-          actions: [this.actionAddField(FieldType.VARIABLE)],
-        });
-        this.sectionIO();
-      }
-      if (RUNNABLE_BLOCK_TYPES.includes(node.type)) {
-        this.sectionRun(BlockProperty.runOptions);
-      }
+    const commonRows: DetailRow[] = [];
+    this.section(undefined, commonRows);
+    if (node.type != BlockType.TEXT) {
+      commonRows.push(this.rowProperty(BlockProperty.text, { title: false, props: { placeholder: "Text..." } }));
     }
 
-    //
-    // Fields
-    //
-    else if (isNode(node, NodeType.FIELD)) {
-      const commonRows: DetailRow[] = [
-        this.rowProperty(FieldProperty.text, { title: false, props: { placeholder: "Text..." } }),
-      ];
-      this.section(undefined, commonRows);
-      if (node.type == FieldType.OPTION) {
-        // color?
-      } else {
-        commonRows.push(
-          this.rowType({
-            extendWrite: (newType) => {
-              // also update field name if type changes
-              const name = getTypeName(newType);
-              return name != null ? { name } : {};
+    if (node.type == BlockType.CHOICE) {
+      this.section("Options", [{ type: "fields-list", fieldType: FieldType.OPTION }], {
+        actions: [this.actionAddField(FieldType.OPTION)],
+      });
+    } else if (node.type == BlockType.DATABASE || node.type == BlockType.MESSAGE) {
+      this.section("Members", [{ type: "fields-list", fieldType: FieldType.MEMBER }], {
+        actions: [this.actionAddField(FieldType.MEMBER)],
+      });
+    } else if (RUNNABLE_BLOCK_TYPES.includes(node.type)) {
+      this.section("Variables", [{ type: "fields-list", fieldType: FieldType.VARIABLE }], {
+        actions: [this.actionAddField(FieldType.VARIABLE)],
+      });
+      this.sectionIO();
+    }
+    if (RUNNABLE_BLOCK_TYPES.includes(node.type)) {
+      this.sectionRunOptions(BlockProperty.runOptions);
+    }
+  }
+}
+
+export class FieldLayout extends NodeLayout<NodeType.FIELD> {
+  build() {
+    const node = this.node!;
+    const graph = this.graph;
+    const commonRows: DetailRow[] = [
+      this.rowProperty(FieldProperty.text, { title: false, props: { placeholder: "Text..." } }),
+    ];
+    this.section(undefined, commonRows);
+    if (node.type == FieldType.OPTION) {
+      // color?
+    } else {
+      commonRows.push(
+        this.rowType({
+          extendWrite: (newType) => {
+            // also update field name if type changes
+            const name = getTypeName(newType);
+            return name != null ? { name } : {};
+          },
+        }),
+      );
+
+      // default value
+      if (node.type == FieldType.VARIABLE || node.type == FieldType.MEMBER) {
+        const defaultView = getViewForType(node, { forcePickerDropdown: true });
+        if (defaultView?.type != null) {
+          commonRows.push({
+            type: "view",
+            title: "Default",
+            isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(defaultView.type!),
+            viewType: defaultView.type,
+            viewProps: { ...defaultView, isInput: true },
+            read() {
+              if (node.defaultPacked == null) return null;
+              const defaultUnpacked = unpackValue(node.defaultPacked, node, { graph, wrapScalar: true });
+              return defaultUnpacked;
             },
-          }),
+            write: (newValue) => {
+              this.txFactory().update(
+                node,
+                { defaultPacked: packValue(newValue, node, { graph: this.graph, wrapScalar: true }) },
+                getTransactionOptionsForType(node),
+              );
+            },
+          });
+        }
+      }
+
+      const constraintRows: DetailRow[] = [];
+      // list
+      if (node.isList || node.primitiveType == PrimitiveType.STRING) {
+        constraintRows.push(
+          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.minLength], { title: "Minimum Length" }),
         );
-
-        // default value
-        if (node.type == FieldType.VARIABLE || node.type == FieldType.MEMBER) {
-          const defaultView = getViewForType(node, { forcePickerDropdown: true });
-          if (defaultView?.type != null) {
-            commonRows.push({
-              type: "view",
-              title: "Default",
-              isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(defaultView.type!),
-              viewType: defaultView.type,
-              viewProps: { ...defaultView, isInput: true },
-              read() {
-                if (node.defaultPacked == null) return null;
-                const defaultUnpacked = unpackValue(node.defaultPacked, node, { graph, wrapScalar: true });
-                return defaultUnpacked;
-              },
-              write: (newValue) => {
-                this.txFactory().update(
-                  node,
-                  { defaultPacked: packValue(newValue, node, { graph: this.graph, wrapScalar: true }) },
-                  getTransactionOptionsForType(node),
-                );
-              },
-            });
-          }
-        }
-
-        const constraintRows: DetailRow[] = [];
-        // list
-        if (node.isList || node.primitiveType == PrimitiveType.STRING) {
+        constraintRows.push(
+          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxLength], { title: "Maximum Length" }),
+        );
+      }
+      // stringy
+      if (node.primitiveType == PrimitiveType.STRING) {
+        constraintRows.push(
+          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.startsWith], { title: "Prefix" }),
+        );
+        constraintRows.push(
+          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.endsWith], { title: "Suffix" }),
+        );
+        constraintRows.push(
+          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.regex], { title: "Regex" }),
+        );
+      }
+      // number
+      if (typeIsNumeric(node)) {
+        constraintRows.push(
+          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.minValue], { title: "Minimum" }),
+        );
+        constraintRows.push(
+          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxValue], { title: "Maximum" }),
+        );
+        constraintRows.push(
+          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.stepValue], { title: "Step" }),
+        );
+      }
+      // node
+      if (isNodeType(node.benchType) && SOURCE_NODE_TYPES.includes(node.benchType)) {
+        const nodeProperties = PROPERTY_INFOS_BY_TYPE[node.benchType as unknown as NodeType];
+        const nodePropertiesEnum = PROPERTY_ENUM_BY_TYPE[node.benchType as unknown as NodeType];
+        const subtypeProperty = nodeProperties[(nodePropertiesEnum as any)?.["type"]!];
+        if (subtypeProperty?.enumType != null) {
           constraintRows.push(
-            this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.minLength], { title: "Minimum Length" }),
-          );
-          constraintRows.push(
-            this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxLength], { title: "Maximum Length" }),
-          );
-        }
-        // stringy
-        if (node.primitiveType == PrimitiveType.STRING) {
-          constraintRows.push(
-            this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.startsWith], { title: "Prefix" }),
-          );
-          constraintRows.push(
-            this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.endsWith], { title: "Suffix" }),
-          );
-          constraintRows.push(
-            this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.regex], { title: "Regex" }),
-          );
-        }
-        // number
-        if (typeIsNumeric(node)) {
-          constraintRows.push(
-            this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.minValue], { title: "Minimum" }),
-          );
-          constraintRows.push(
-            this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxValue], { title: "Maximum" }),
-          );
-          constraintRows.push(
-            this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.stepValue], { title: "Step" }),
-          );
-        }
-        // node
-        if (isNodeType(node.benchType) && SOURCE_NODE_TYPES.includes(node.benchType)) {
-          const nodeProperties = PROPERTY_INFOS_BY_TYPE[node.benchType as unknown as NodeType];
-          const nodePropertiesEnum = PROPERTY_ENUM_BY_TYPE[node.benchType as unknown as NodeType];
-          const subtypeProperty = nodeProperties[(nodePropertiesEnum as any)?.["type"]!];
-          if (subtypeProperty?.enumType != null) {
-            constraintRows.push(
-              this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeSubtypes], {
-                title: `${toCamelName(BenchType, node.benchType)} Type`,
-                props: {
-                  valueType: makeType({
-                    kind: TypeKind.ENUM,
-                    benchType: subtypeProperty.enumType as unknown as BenchType,
-                    isList: true,
-                  }),
-                },
-              }),
-            );
-          }
-          constraintRows.push(
-            this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeScopePtr], {
-              title: "Scope",
+            this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeSubtypes], {
+              title: `${toCamelName(BenchType, node.benchType)} Type`,
               props: {
-                valueType: makeType({ kind: TypeKind.NODE, benchType: BenchType.BLOCK, isList: true }),
+                valueType: makeType({
+                  kind: TypeKind.ENUM,
+                  benchType: subtypeProperty.enumType as unknown as BenchType,
+                  isList: true,
+                }),
               },
             }),
           );
         }
-
-        if (constraintRows.length > 0) {
-          this.section("Constraint", constraintRows, { isDefaultCollapsed: true });
-        }
-      }
-    }
-
-    //
-    // Actions
-    //
-    else if (isNode(node, NodeType.ACTION)) {
-      const commonRows: DetailRow[] = [];
-      this.section(undefined, commonRows);
-      commonRows.push(this.rowProperty(ActionProperty.text, { title: false, props: { placeholder: "Text..." } }));
-
-      // common rows
-      if (node.type == ActionType.CODE) {
-        commonRows.push(this.rowProperty(ActionProperty.code, { isFullWidth: true, isComputable: true }));
-      } else if (node.type == ActionType.TOOL) {
-        commonRows.push(
-          this.rowProperty(ActionProperty.toolPtr, {
-            isComputable: true,
-            isFullWidth: false,
-            extendUpdate: (newValue) => {
-              // also update node name if tool changes
-              const tool = newValue != null ? this.graph.get(newValue) : null;
-              const name = tool != null ? getNodeName(tool) : null;
-              return name != null ? { [ActionProperty.name]: name } : {};
+        constraintRows.push(
+          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeScopePtr], {
+            title: "Scope",
+            props: {
+              valueType: makeType({ kind: TypeKind.NODE, benchType: BenchType.BLOCK, isList: true }),
             },
           }),
         );
-      } else if (node.type == ActionType.FAIL) {
-        commonRows.push(this.rowProperty(FailActionProperty.errorTitle, { title: "Title", isComputable: true }));
-        commonRows.push(this.rowProperty(FailActionProperty.errorText, { title: "Text", isComputable: true }));
-      } else {
-        // add all from subproperty enum
-        if (this.subpropertyEnum != null) {
-          Object.values(this.subpropertyEnum)
-            .filter((v) => typeof v == "number")
-            .forEach((subproperty) => {
-              const { prop } = this.getProperty(subproperty as any);
-              if (prop == null || prop.fieldType == FieldType.OUTPUT) return;
-
-              if (prop.valueIsPartial) {
-                commonRows.push(
-                  this.rowObject(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), { title: false }),
-                );
-              } else {
-                commonRows.push(this.rowProperty(subproperty, { isComputable: true }));
-              }
-            });
-        }
       }
 
-      // schema
-      let toolPtr: NodeReferenceData | undefined = undefined;
-      if (node.type == ActionType.START || node.type == ActionType.COMPLETE) {
-        toolPtr = node.parentPtr;
-      } else if (node.type == ActionType.TOOL) {
-        toolPtr = node.toolPtr;
+      if (constraintRows.length > 0) {
+        this.section("Constraint", constraintRows, { isDefaultCollapsed: true });
       }
-      if (node.type == ActionType.START) {
-        // flow inputs
-        this.section("Schema", [{ type: "fields-list", fieldType: FieldType.INPUT, toolPtr: node.parentPtr }], {
-          subtitle: "(Flow)",
-          actions: [
-            this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT], { toolPtr: node.parentPtr }),
-          ],
-        });
-      } else if (node.type == ActionType.COMPLETE) {
-        // ƒlow outputs as action inputs
-        this.section(
-          "Schema",
-          [
-            this.rowObject(
-              ActionProperty.inputsPacked,
-              makeType({
-                kind: TypeKind.CUSTOM_OBJECT,
-                baseFieldTypes: [FieldType.OUTPUT],
-                baseTypePtr: node.parentPtr,
-              }),
-              { title: false, isComputable: true },
-            ),
-          ],
-          {
-            subtitle: "(Flow)",
-            actions: [
-              this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT], {
-                toolPtr: node.parentPtr,
-              }),
-            ],
-          },
-        );
-      } else if (node.type == ActionType.TOOL && toolPtr != null) {
-        // own schema with tool schema
-        this.section(
-          "Schema",
-          [
-            // tool variables & inputs
-            this.rowObject(
-              ActionProperty.variablesPacked,
-              makeType({
-                kind: TypeKind.CUSTOM_OBJECT,
-                baseFieldTypes: [FieldType.VARIABLE],
-                baseTypePtr: toolPtr,
-              }),
-              { title: false, isComputable: true },
-            ),
-            this.rowObject(
-              ActionProperty.inputsPacked,
-              makeType({
-                kind: TypeKind.CUSTOM_OBJECT,
-                baseFieldTypes: [FieldType.INPUT],
-                baseTypePtr: toolPtr,
-              }),
-              { title: false, isComputable: true },
-            ),
-            // arrow
-            this.rowIcon("fas fa-arrow-down"),
-            // outputs
-            { type: "fields-list", fieldType: FieldType.OUTPUT, toolPtr },
-            this.rowLine("Self"),
-            { type: "fields-list", fieldType: FieldType.OUTPUT },
-          ],
-          {
-            subtitle: "(Tool)",
-            actions: [
-              this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
-              this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
-            ],
-          },
-        );
-      } else if (node.type != ActionType.FAIL) {
-        // own schema
-        this.section(
-          "Schema",
-          [
-            this.rowObject(
-              ActionProperty.inputsPacked,
-              makeType({
-                kind: TypeKind.CUSTOM_OBJECT,
-                baseFieldTypes: [FieldType.INPUT],
-                baseTypePtr: toolPtr ?? nodePtr ?? undefined,
-              }),
-              { title: false, isComputable: true },
-            ),
-            this.rowIcon("fas fa-arrow-down"),
-            { type: "fields-list", fieldType: FieldType.OUTPUT },
-          ],
-          {
-            actions: [
-              this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
-              this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
-            ],
-          },
-        );
-      }
-
-      // run options
-      if (!BOUNDARY_ACTION_TYPES.includes(node.type)) {
-        this.sectionRun(ActionProperty.runOptions);
-      }
-    }
-
-    //
-    // Pipes
-    //
-    else if (isNode(node, NodeType.PIPE)) {
-      this.section(undefined, [
-        this.rowProperty(PipeProperty.text, { title: false, props: { placeholder: "Text..." } }),
-        this.rowProperty(PipeProperty.type),
-        this.rowProperty(PipeProperty.color),
-        this.rowProperty(PipeProperty.delay),
-      ]);
-    }
-
-    //
-    // Records
-    //
-    else if (isNode(node, NodeType.RECORD)) {
-      this.section(undefined, [
-        this.rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }),
-        this.rowObject(
-          RecordProperty.valuePacked,
-          makeType({ kind: TypeKind.CUSTOM_OBJECT, baseFieldTypes: [FieldType.MEMBER], baseTypePtr: node.blockPtr }),
-          { title: false },
-        ),
-      ]);
     }
   }
+}
+
+export class ActionLayout extends NodeLayout<NodeType.ACTION> {
+  build() {
+    const node = this.node!;
+    const nodePtr = toNodeRef(node);
+
+    const commonRows: DetailRow[] = [];
+    this.section(undefined, commonRows);
+    commonRows.push(this.rowProperty(ActionProperty.text, { title: false, props: { placeholder: "Text..." } }));
+
+    // common rows
+    if (node.type == ActionType.CODE) {
+      commonRows.push(this.rowProperty(ActionProperty.code, { isFullWidth: true, isComputable: true }));
+    } else if (node.type == ActionType.TOOL) {
+      commonRows.push(
+        this.rowProperty(ActionProperty.toolPtr, {
+          isComputable: true,
+          isFullWidth: false,
+          extendUpdate: (newValue) => {
+            // also update node name if tool changes
+            const tool = newValue != null ? this.graph.get(newValue) : null;
+            const name = tool != null ? getNodeName(tool) : null;
+            return name != null ? { [ActionProperty.name]: name } : {};
+          },
+        }),
+      );
+    } else if (node.type == ActionType.FAIL) {
+      commonRows.push(this.rowProperty(FailActionProperty.errorTitle, { title: "Title", isComputable: true }));
+      commonRows.push(this.rowProperty(FailActionProperty.errorText, { title: "Text", isComputable: true }));
+    } else {
+      // add all from subproperty enum
+      if (this.subpropertyEnum != null) {
+        Object.values(this.subpropertyEnum)
+          .filter((v) => typeof v == "number")
+          .forEach((subproperty) => {
+            const { prop } = this.getProperty(subproperty as any);
+            if (prop == null || prop.fieldType == FieldType.OUTPUT) return;
+
+            if (prop.valueIsPartial) {
+              commonRows.push(
+                this.rowObject(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), { title: false }),
+              );
+            } else {
+              commonRows.push(this.rowProperty(subproperty, { isComputable: true }));
+            }
+          });
+      }
+    }
+
+    // schema
+    let toolPtr: NodeReferenceData | undefined = undefined;
+    if (node.type == ActionType.START || node.type == ActionType.COMPLETE) {
+      toolPtr = node.parentPtr;
+    } else if (node.type == ActionType.TOOL) {
+      toolPtr = node.toolPtr;
+    }
+    if (node.type == ActionType.START) {
+      // flow inputs
+      this.section("Schema", [{ type: "fields-list", fieldType: FieldType.INPUT, toolPtr: node.parentPtr }], {
+        subtitle: "(Flow)",
+        actions: [
+          this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT], { toolPtr: node.parentPtr }),
+        ],
+      });
+    } else if (node.type == ActionType.COMPLETE) {
+      // ƒlow outputs as action inputs
+      this.section(
+        "Schema",
+        [
+          this.rowObject(
+            ActionProperty.inputsPacked,
+            makeType({
+              kind: TypeKind.CUSTOM_OBJECT,
+              baseFieldTypes: [FieldType.OUTPUT],
+              baseTypePtr: node.parentPtr,
+            }),
+            { title: false, isComputable: true },
+          ),
+        ],
+        {
+          subtitle: "(Flow)",
+          actions: [
+            this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT], {
+              toolPtr: node.parentPtr,
+            }),
+          ],
+        },
+      );
+    } else if (node.type == ActionType.TOOL && toolPtr != null) {
+      // own schema with tool schema
+      this.section(
+        "Schema",
+        [
+          // tool variables & inputs
+          this.rowObject(
+            ActionProperty.variablesPacked,
+            makeType({
+              kind: TypeKind.CUSTOM_OBJECT,
+              baseFieldTypes: [FieldType.VARIABLE],
+              baseTypePtr: toolPtr,
+            }),
+            { title: false, isComputable: true },
+          ),
+          this.rowObject(
+            ActionProperty.inputsPacked,
+            makeType({
+              kind: TypeKind.CUSTOM_OBJECT,
+              baseFieldTypes: [FieldType.INPUT],
+              baseTypePtr: toolPtr,
+            }),
+            { title: false, isComputable: true },
+          ),
+          // arrow
+          this.rowIcon("fas fa-arrow-down"),
+          // outputs
+          { type: "fields-list", fieldType: FieldType.OUTPUT, toolPtr },
+          this.rowLine("Self"),
+          { type: "fields-list", fieldType: FieldType.OUTPUT },
+        ],
+        {
+          subtitle: "(Tool)",
+          actions: [
+            this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
+            this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
+          ],
+        },
+      );
+    } else if (node.type != ActionType.FAIL) {
+      // own schema
+      this.section(
+        "Schema",
+        [
+          this.rowObject(
+            ActionProperty.inputsPacked,
+            makeType({
+              kind: TypeKind.CUSTOM_OBJECT,
+              baseFieldTypes: [FieldType.INPUT],
+              baseTypePtr: toolPtr ?? nodePtr ?? undefined,
+            }),
+            { title: false, isComputable: true },
+          ),
+          this.rowIcon("fas fa-arrow-down"),
+          { type: "fields-list", fieldType: FieldType.OUTPUT },
+        ],
+        {
+          actions: [
+            this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
+            this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
+          ],
+        },
+      );
+    }
+
+    // run options
+    if (!BOUNDARY_ACTION_TYPES.includes(node.type)) {
+      this.sectionRunOptions(ActionProperty.runOptions);
+    }
+  }
+}
+
+export class PipeLayout extends NodeLayout<NodeType.PIPE> {
+  build() {
+    const node = this.node!;
+    this.section(undefined, [
+      this.rowProperty(PipeProperty.text, { title: false, props: { placeholder: "Text..." } }),
+      this.rowProperty(PipeProperty.type),
+      this.rowProperty(PipeProperty.color),
+      this.rowProperty(PipeProperty.delay),
+    ]);
+  }
+}
+
+export class RecordLayout extends NodeLayout<NodeType.RECORD> {
+  build() {
+    const node = this.node!;
+    this.section(undefined, [
+      this.rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }),
+      this.rowObject(
+        RecordProperty.valuePacked,
+        makeType({ kind: TypeKind.CUSTOM_OBJECT, baseFieldTypes: [FieldType.MEMBER], baseTypePtr: node.blockPtr }),
+        { title: false },
+      ),
+    ]);
+  }
+}
+
+export class CustomLayout extends BaseObjectLayout {
+  build() {
+    // nocheckin
+  }
+}
+
+export class PartialStubLayout extends BaseObjectLayout {
+  build() {
+    // nocheckin
+  }
+}
+
+export class EmptyLayout extends BaseObjectLayout {
+  build() {
+    // deliberately empty
+  }
+}
+
+const NODE_LAYOUT_BY_TYPE = {
+  [NodeType.BLOCK]: BlockLayout,
+  [NodeType.ACTION]: ActionLayout,
+  [NodeType.PIPE]: PipeLayout,
+  [NodeType.RECORD]: RecordLayout,
+  [NodeType.FIELD]: FieldLayout,
+};
+
+/** Build a layout for an object */
+export function makeObjectLayout(info: ObjectInfo): BaseObjectLayout | null {
+  let layoutCls: typeof BaseObjectLayout | null = null;
+  if (info.kind == "node") {
+    if (info.node == null) throw new Error("node is null");
+    layoutCls = NODE_LAYOUT_BY_TYPE[info.nodeType as keyof typeof NODE_LAYOUT_BY_TYPE];
+  } else if (info.kind == "partial") {
+    if (info.valueType == null) throw new Error("valueType is null");
+    if (info.subtype != null) {
+      layoutCls = NODE_LAYOUT_BY_TYPE[info.subtype as keyof typeof NODE_LAYOUT_BY_TYPE];
+    } else {
+      layoutCls = PartialStubLayout;
+    }
+  } else if (info.kind == "custom") {
+    layoutCls = CustomLayout;
+  } else {
+    assertNever(info);
+  }
+  if (layoutCls != null) {
+    // @ts-expect-error this is never an abstract class
+    const layout = new layoutCls(info as any);
+    layout.build();
+    return layout;
+  }
+  return null;
 }
 
 /** Handle an 'add Field' button (either directly or by spawning a Popover) */

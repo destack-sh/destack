@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import { isSourceNode, toCamelName } from "@/language/const";
 import { useComputedValues } from "@/language/expression";
-import { makeTypeConstraint, makeType } from "@/language/field";
-import { useSubnodeProperty } from "@/language/node";
+import { makeType, makeTypeConstraint } from "@/language/field";
+import { unpackSubnode, useSubnodeProperty } from "@/language/node";
+import { getCustomObjectNodeType, getCustomObjectSubtype } from "@/language/value";
 import {
   BenchType,
   ComputedValueData,
@@ -17,7 +18,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph, useExistingConnection } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
 import { IconInline } from "@/ui/icon";
-import { ObjectSection, ObjectLayout } from "@/ui/object";
+import { ObjectSection, makeObjectLayout } from "@/ui/object";
 import { computedValue } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import ComputedValue from "@/views/objects/ComputedValue.vue";
@@ -64,6 +65,7 @@ const computer = useComputedValues({
   },
 });
 const computedType = computed<TypeData | undefined>(() => {
+  if (props.computedType != null) return props.computedType;
   if (node.value == null) return undefined;
   const type = makeType({
     benchType: BenchType.COMPUTED_VALUE,
@@ -73,24 +75,67 @@ const computedType = computed<TypeData | undefined>(() => {
   return type;
 });
 const layout = computed(() => {
-  if (node.value == null) return null;
-  const layout = new ObjectLayout({
-    kind: kind.value,
-    node: node.value,
-    base: base.value,
-    baseFields: baseFields.value,
-    graph: graph.value!,
-    update: (update, options) => {
-      if (node.value != null) {
-        connection.value?.tx.update(node.value, update, options);
-      }
-    },
-    txFactory: () => (connection.value ?? pkgConnection).tx,
-    valuePacked: modelValue.value,
-    computedType: computedType.value,
-  });
-  layout.build();
-  return layout;
+  if (kind.value == "node") {
+    if (node.value == null) return null;
+    const nodeType = node.value.metatype as unknown as NodeType;
+    const subtype = (node as any).type;
+    const subnode =
+      (node.value.subnodePacked as any)?.[subtype?.toString()!] != null
+        ? (unpackSubnode(nodeType, subtype as never, node.value.subnodePacked) as any)
+        : null;
+    return makeObjectLayout({
+      kind: "node",
+      node: node.value,
+      nodeType: node.value.metatype,
+      subtype: subtype,
+      subnode: subnode,
+      base: base.value,
+      baseFields: baseFields.value,
+      graph: graph.value!,
+      update: (update, options) => {
+        if (node.value != null) {
+          connection.value?.tx.update(node.value, update, options);
+        }
+      },
+      txFactory: () => (connection.value ?? pkgConnection).tx,
+    });
+  } else if (kind.value == "partial") {
+    if (props.valueType == null) return null;
+    const nodeType = getCustomObjectNodeType(props.valueType, modelValue.value) as NodeType | null;
+    const subtype = getCustomObjectSubtype(props.valueType, modelValue.value);
+    return makeObjectLayout({
+      kind: "partial",
+      nodeType,
+      subtype,
+      node: null, // nocheckin,
+      subnode: null, // nocheckin,
+      valueType: props.valueType,
+      valuePacked: modelValue.value,
+      computedType: computedType.value,
+      base: base.value,
+      baseFields: baseFields.value,
+      graph: graph.value!,
+      update: (update, options) => {
+        // nocheckin
+      },
+      txFactory: () => (connection.value ?? pkgConnection).tx,
+    });
+  } else if (kind.value == "custom") {
+    return makeObjectLayout({
+      kind: "custom",
+      valueType: props.valueType!,
+      valuePacked: modelValue.value,
+      computedType: computedType.value,
+      base: base.value,
+      baseFields: baseFields.value,
+      graph: graph.value!,
+      update: (update, options) => {
+        // nocheckin
+      },
+      txFactory: () => (connection.value ?? pkgConnection).tx,
+    });
+  }
+  return null;
 });
 
 const isLayoutEmpty = computed(() => !layout.value?.sections.some((section) => section.rows.length > 0));
