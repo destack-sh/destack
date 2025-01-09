@@ -547,7 +547,7 @@ export function useValueSearch(options: {
         const filter = subtypes != null ? (node: AnyNodeData) => subtypes.includes((node as any).type) : undefined;
         return graphIndex({ id: "graph", graph, roots, metatypes, filter });
       }
-    } else if (options.valueType.value?.benchType == BenchType.TYPE_INFO) {
+    } else if (options.valueType.value?.benchType == BenchType.TYPE) {
       // some type
       return TYPE_INDEX;
     } else {

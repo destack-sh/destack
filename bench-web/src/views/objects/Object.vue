@@ -17,7 +17,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph, useExistingConnection } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
 import { IconInline } from "@/ui/icon";
-import { ObjectSection, makeObjectLayout } from "@/ui/object";
+import { ObjectSection, ObjectLayout } from "@/ui/object";
 import { computedValue } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import ComputedValue from "@/views/objects/ComputedValue.vue";
@@ -74,15 +74,22 @@ const computedType = computed<TypeData | undefined>(() => {
 });
 const layout = computed(() => {
   if (node.value == null) return null;
-  const layout = makeObjectLayout({
+  const layout = new ObjectLayout({
     kind: kind.value,
     node: node.value,
     base: base.value,
     baseFields: baseFields.value,
     graph: graph.value!,
+    update: (update, options) => {
+      if (node.value != null) {
+        connection.value?.tx.update(node.value, update, options);
+      }
+    },
     txFactory: () => (connection.value ?? pkgConnection).tx,
+    valuePacked: modelValue.value,
     computedType: computedType.value,
   });
+  layout.build();
   return layout;
 });
 
@@ -245,7 +252,7 @@ defineExpose<ViewExposed>({ self, id });
             :id="i + '.value'"
             :class="['ml-auto flex-shrink-0']"
             :style="{ width: '100%', minHeight: ROW_HEIGHT_MIN + 'px' }"
-            v-bind="(row.viewProps as any)"
+            v-bind="row.viewProps as any"
             :is-computable="row.isComputable"
             :computed-values="isSourceNode(node) ? node.computedValues : undefined"
             :computed-prefix="row.computedPath"
