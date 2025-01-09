@@ -202,7 +202,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
 export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeIcons<StructType>({
   // core
   [StructType.PATH]: "fas fa-road",
-  [StructType.TYPE_INFO]: "fas fa-tilde",
+  [StructType.TYPE]: "fas fa-tilde",
   [StructType.SCHEDULE]: "fas fa-calendar",
   [StructType.COMPUTED_VALUE]: "fas fa-divide",
   // files

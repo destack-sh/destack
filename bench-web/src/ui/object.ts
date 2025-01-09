@@ -10,7 +10,7 @@ import {
   createField,
   getPropertyType,
   getTypeName,
-  makeTypeInfo,
+  makeType,
   TypeIdentity,
   typeIsNumeric,
   updateFieldType,
@@ -151,7 +151,7 @@ export function makeObjectLayout(options: {
   baseFields: FieldData[];
   graph: ReadNodeGraph;
   txFactory: () => Transaction;
-  modelValue?: Record<string, any>;
+  valuePacked?: Record<string, any>;
   valueType?: TypeData;
   computedType?: TypeData;
 }): ObjectLayout {
@@ -350,7 +350,7 @@ export function makeObjectLayout(options: {
       title: options?.title ?? "Type",
       viewType: ViewType.TYPE,
       isFullWidth: false,
-      viewProps: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO, isRequired: true }), isInput: true },
+      viewProps: { valueType: makeType({ benchType: BenchType.TYPE_INFO, isRequired: true }), isInput: true },
       read: () => node,
       write: (newType) => {
         let tx = txFactory();
@@ -414,7 +414,7 @@ export function makeObjectLayout(options: {
       computedPath,
       computedPathKey,
       computedType,
-      viewProps: { valueType: makeTypeInfo(valueType), isInput: true, isInline: true, isMinimal: true },
+      viewProps: { valueType: makeType(valueType), isInput: true, isInline: true, isMinimal: true },
       isFullWidth: true,
       read: () => (node as any)[propName],
       write: (newValue, options?: ModelValueOptions) => {
@@ -598,7 +598,7 @@ export function makeObjectLayout(options: {
             rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeSubtypes], {
               title: `${toCamelName(BenchType, node.benchType)} Type`,
               props: {
-                valueType: makeTypeInfo({
+                valueType: makeType({
                   kind: TypeKind.ENUM,
                   benchType: subtypeProperty.enumType as unknown as BenchType,
                   isList: true,
@@ -611,7 +611,7 @@ export function makeObjectLayout(options: {
           rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeScopePtr], {
             title: "Scope",
             props: {
-              valueType: makeTypeInfo({ kind: TypeKind.NODE, benchType: BenchType.BLOCK, isList: true }),
+              valueType: makeType({ kind: TypeKind.NODE, benchType: BenchType.BLOCK, isList: true }),
             },
           }),
         );
@@ -663,7 +663,7 @@ export function makeObjectLayout(options: {
 
             if (prop.valueIsPartial) {
               commonRows.push(
-                rowObject(subproperty, makeTypeInfo({ kind: TypeKind.PARTIAL_OBJECT }), { title: false }),
+                rowObject(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), { title: false }),
               );
             } else {
               commonRows.push(rowProperty(subproperty, { isComputable: true }));
@@ -692,7 +692,7 @@ export function makeObjectLayout(options: {
         [
           rowObject(
             ActionProperty.inputsPacked,
-            makeTypeInfo({
+            makeType({
               kind: TypeKind.CUSTOM_OBJECT,
               baseFieldType: FieldType.OUTPUT,
               baseTypePtr: node.parentPtr,
@@ -715,7 +715,7 @@ export function makeObjectLayout(options: {
           // tool variables & inputs
           rowObject(
             ActionProperty.variablesPacked,
-            makeTypeInfo({
+            makeType({
               kind: TypeKind.CUSTOM_OBJECT,
               baseFieldTypes: [FieldType.VARIABLE],
               baseTypePtr: toolPtr,
@@ -724,7 +724,7 @@ export function makeObjectLayout(options: {
           ),
           rowObject(
             ActionProperty.inputsPacked,
-            makeTypeInfo({
+            makeType({
               kind: TypeKind.CUSTOM_OBJECT,
               baseFieldTypes: [FieldType.INPUT],
               baseTypePtr: toolPtr,
@@ -753,7 +753,7 @@ export function makeObjectLayout(options: {
         [
           rowObject(
             ActionProperty.inputsPacked,
-            makeTypeInfo({
+            makeType({
               kind: TypeKind.CUSTOM_OBJECT,
               baseFieldTypes: [FieldType.INPUT],
               baseTypePtr: toolPtr ?? nodePtr,
@@ -798,7 +798,7 @@ export function makeObjectLayout(options: {
       rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }),
       rowObject(
         RecordProperty.valuePacked,
-        makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldTypes: [FieldType.MEMBER], baseTypePtr: node.blockPtr }),
+        makeType({ kind: TypeKind.CUSTOM_OBJECT, baseFieldTypes: [FieldType.MEMBER], baseTypePtr: node.blockPtr }),
         { title: false },
       ),
     ]);
@@ -835,7 +835,7 @@ export function onAddFieldAction(
       placement: "bottom-left",
       offset: "referenceWidth",
       props: {
-        valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }),
+        valueType: makeType({ benchType: BenchType.TYPE_INFO }),
         subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
       },
       onApply: (typeInfo: TypeIdentity) => {

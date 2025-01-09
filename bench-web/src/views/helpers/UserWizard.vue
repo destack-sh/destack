@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { makeTypeInfo } from "@/language/field";
+import { makeType } from "@/language/field";
 import { packSubnode, useSubnode } from "@/language/node";
 import { makeEdit } from "@/language/transaction";
 import {
@@ -170,7 +170,7 @@ defineExpose<ViewExposed>({ self, focus });
         name="Password"
         title="Password"
         is-input
-        :value-type="makeTypeInfo({ isSecret: true })"
+        :value-type="makeType({ isSecret: true })"
       />
       <Picker
         v-if="stage == UserWizardViewStage.SIGN_UP"
@@ -180,7 +180,7 @@ defineExpose<ViewExposed>({ self, focus });
         name="Region"
         title="Region"
         is-input
-        :value-type="makeTypeInfo({ benchType: BenchType.REGION, isList: false, isRequired: true })"
+        :value-type="makeType({ benchType: BenchType.REGION, isList: false, isRequired: true })"
       />
     </div>
     <!-- Actions -->

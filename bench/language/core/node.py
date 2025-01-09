@@ -2379,7 +2379,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     def _move_to_graph(self, graph: NodeGraph, force: bool = False):
         """Moves this Node and its descendants to a new graph."""
-        moved = self._graph.get_descendants(self, recursive=True)
+        moved = self._graph.get_descendants(self, recursive=True)  # type: ignore
         moved = (self, *moved)
         for n in moved:
             if force and graph.get(n.id) is not None:

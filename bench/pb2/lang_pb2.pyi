@@ -178,7 +178,7 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_ACCESS_MATRIX: _ClassVar[StructType]
     STRUCT_TYPE_ACCESS: _ClassVar[StructType]
     STRUCT_TYPE_MACHINE_IMAGE: _ClassVar[StructType]
-    STRUCT_TYPE_TYPE_INFO: _ClassVar[StructType]
+    STRUCT_TYPE_TYPE: _ClassVar[StructType]
     STRUCT_TYPE_TYPE_CONSTRAINT: _ClassVar[StructType]
     STRUCT_TYPE_SCHEDULE: _ClassVar[StructType]
     STRUCT_TYPE_FILE_INFO: _ClassVar[StructType]
@@ -272,7 +272,7 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_ACCESS_MATRIX: _ClassVar[ObjectType]
     OBJECT_TYPE_ACCESS: _ClassVar[ObjectType]
     OBJECT_TYPE_MACHINE_IMAGE: _ClassVar[ObjectType]
-    OBJECT_TYPE_TYPE_INFO: _ClassVar[ObjectType]
+    OBJECT_TYPE_TYPE: _ClassVar[ObjectType]
     OBJECT_TYPE_TYPE_CONSTRAINT: _ClassVar[ObjectType]
     OBJECT_TYPE_SCHEDULE: _ClassVar[ObjectType]
     OBJECT_TYPE_FILE_INFO: _ClassVar[ObjectType]
@@ -424,7 +424,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_ACCESS_MATRIX: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS: _ClassVar[BenchType]
     BENCH_TYPE_MACHINE_IMAGE: _ClassVar[BenchType]
-    BENCH_TYPE_TYPE_INFO: _ClassVar[BenchType]
+    BENCH_TYPE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_TYPE_CONSTRAINT: _ClassVar[BenchType]
     BENCH_TYPE_SCHEDULE: _ClassVar[BenchType]
     BENCH_TYPE_FILE_INFO: _ClassVar[BenchType]
@@ -1843,7 +1843,7 @@ STRUCT_TYPE_ACCESS_ZONE: StructType
 STRUCT_TYPE_ACCESS_MATRIX: StructType
 STRUCT_TYPE_ACCESS: StructType
 STRUCT_TYPE_MACHINE_IMAGE: StructType
-STRUCT_TYPE_TYPE_INFO: StructType
+STRUCT_TYPE_TYPE: StructType
 STRUCT_TYPE_TYPE_CONSTRAINT: StructType
 STRUCT_TYPE_SCHEDULE: StructType
 STRUCT_TYPE_FILE_INFO: StructType
@@ -1934,7 +1934,7 @@ OBJECT_TYPE_ACCESS_ZONE: ObjectType
 OBJECT_TYPE_ACCESS_MATRIX: ObjectType
 OBJECT_TYPE_ACCESS: ObjectType
 OBJECT_TYPE_MACHINE_IMAGE: ObjectType
-OBJECT_TYPE_TYPE_INFO: ObjectType
+OBJECT_TYPE_TYPE: ObjectType
 OBJECT_TYPE_TYPE_CONSTRAINT: ObjectType
 OBJECT_TYPE_SCHEDULE: ObjectType
 OBJECT_TYPE_FILE_INFO: ObjectType
@@ -2068,7 +2068,7 @@ BENCH_TYPE_ACCESS_ZONE: BenchType
 BENCH_TYPE_ACCESS_MATRIX: BenchType
 BENCH_TYPE_ACCESS: BenchType
 BENCH_TYPE_MACHINE_IMAGE: BenchType
-BENCH_TYPE_TYPE_INFO: BenchType
+BENCH_TYPE_TYPE: BenchType
 BENCH_TYPE_TYPE_CONSTRAINT: BenchType
 BENCH_TYPE_SCHEDULE: BenchType
 BENCH_TYPE_FILE_INFO: BenchType

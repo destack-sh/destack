@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { isSourceNode, toCamelName } from "@/language/const";
 import { useComputedValues } from "@/language/expression";
-import { makeTypeConstraint, makeTypeInfo } from "@/language/field";
+import { makeTypeConstraint, makeType } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
 import {
   BenchType,
@@ -65,7 +65,7 @@ const computer = useComputedValues({
 });
 const computedType = computed<TypeData | undefined>(() => {
   if (node.value == null) return undefined;
-  const type = makeTypeInfo({
+  const type = makeType({
     benchType: BenchType.COMPUTED_VALUE,
     isRequired: true,
     constraint: makeTypeConstraint({ nodeScopePtr: [node.value.parentPtr!] }), // NOTE: should really be the containing runnable

@@ -1,4 +1,4 @@
-import { makeTypeInfo } from "@/language/field";
+import { makeType } from "@/language/field";
 import { type ReadNodeGraph } from "@/language/graph";
 import { makeNodeName, NodeIn } from "@/language/node";
 import { getOrderKey } from "@/language/order";
@@ -50,7 +50,7 @@ export function createBlock(
 
   // add value type if not given
   if (options.block.type == BlockType.VARIABLE && (options.block.subnode as VariableBlockData).valueType == null) {
-    (options.block.subnode as VariableBlockData).valueType = makeTypeInfo({
+    (options.block.subnode as VariableBlockData).valueType = makeType({
       kind: TypeKind.STRUCT,
       benchType: BenchType.TEXT,
     });
@@ -90,7 +90,7 @@ export function blockToType(block: BlockData): TypeData {
   } else {
     throw new Error(`unsupported block type: ${block.type}`);
   }
-  const type = makeTypeInfo({ kind, benchType, baseFieldTypes });
+  const type = makeType({ kind, benchType, baseFieldTypes });
   type.baseTypePtr = toNodeRef(block);
   return type;
 }

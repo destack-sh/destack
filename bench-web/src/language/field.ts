@@ -112,17 +112,17 @@ export function makeTypeConstraint(partial: Partial<Omit<TypeConstraintData, "me
   return makeDefaultObject({ ...partial, metatype: ObjectType.TYPE_CONSTRAINT });
 }
 
-export function makeTypeInfo(partial: Partial<Omit<TypeData, "metatype">>): TypeData {
-  return makeDefaultObject({ ...partial, metatype: ObjectType.TYPE_INFO });
+export function makeType(partial: Partial<Omit<TypeData, "metatype">>): TypeData {
+  return makeDefaultObject({ ...partial, metatype: ObjectType.TYPE });
 }
 
-export const STRING_TYPE = makeTypeInfo({ kind: TypeKind.PRIMITIVE, primitiveType: PrimitiveType.STRING });
-export const NAME_TYPE = makeTypeInfo({
+export const STRING_TYPE = makeType({ kind: TypeKind.PRIMITIVE, primitiveType: PrimitiveType.STRING });
+export const NAME_TYPE = makeType({
   kind: TypeKind.PRIMITIVE,
   primitiveType: PrimitiveType.STRING,
   constraint: makeTypeConstraint(NAME_CONSTRAINT),
 });
-export const TITLE_TYPE = makeTypeInfo({
+export const TITLE_TYPE = makeType({
   kind: TypeKind.PRIMITIVE,
   primitiveType: PrimitiveType.STRING,
   constraint: makeTypeConstraint(TITLE_CONSTRAINT),

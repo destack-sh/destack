@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { getBaseFromNodeReference } from "@/language/const";
-import { makeTypeInfo } from "@/language/field";
+import { makeType } from "@/language/field";
 import { downloadFile, prefetchFile, uploadFile } from "@/language/file";
 import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/language/text";
 import {
@@ -133,7 +133,7 @@ function makeEditorView(): EditorView {
           referenceMargin: 2,
           offset: { x: 0, y: -8 }, // align query text with line
           placement: "inside-top-left",
-          props: { placeholder: "Mention Node", valueType: makeTypeInfo({ benchType: BenchType.BLOCK }) },
+          props: { placeholder: "Mention Node", valueType: makeType({ benchType: BenchType.BLOCK }) },
           onApply(node) {
             if (view == null) throw new Error("view no longer mounted");
             // replace @ with mention and focus there

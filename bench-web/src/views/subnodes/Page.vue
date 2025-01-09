@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { createBlock } from "@/language/block";
 import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/const";
-import { makeTypeInfo } from "@/language/field";
+import { makeType } from "@/language/field";
 import { uploadFile } from "@/language/file";
 import { isDescendantOf } from "@/language/graph";
 import { useNodeListActions } from "@/ui/list";
@@ -141,7 +141,7 @@ const { activeDropZone } = useMultiDropZone({
         if (bench.value == null) throw new Error("no current bench");
         const upload = uploadFile(() => connection.tx, file, { bench: bench.value });
         await upload.completion.wait();
-        const variableType = makeTypeInfo({ kind: TypeKind.NODE, benchType: BenchType.FILE });
+        const variableType = makeType({ kind: TypeKind.NODE, benchType: BenchType.FILE });
         const block = createBlock(connection.tx, graph, {
           block: {
             type: BlockType.VARIABLE,
@@ -310,7 +310,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   placement: 'bottom',
                   // TODO :Incomplete :UX: into-Node (partial?) Picker (for Action, Block, Resource, ...)
                   props: {
-                    valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }),
+                    valueType: makeType({ benchType: BenchType.BLOCK_TYPE, isRequired: true }),
                     subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
                   },
                   onApply: (blockType: BlockType) => createAndFocusBlock({ type: blockType }, 'after', block),

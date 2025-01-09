@@ -1,4 +1,4 @@
-import { FLOAT_EPSILON } from "@/language/const";
+import { FLOAT_EPSILON, isNodeType } from "@/language/const";
 import {
   describeTypeIdentity,
   encodeTypeIdentity,
@@ -10,9 +10,13 @@ import {
 import type { ReadNodeGraph } from "@/language/graph";
 import {
   DateTime,
+  NODE_PROPERTY_ENUM_BY_TYPE,
+  NODE_SUBTYPE_PROPERTY_ID,
   NodeReferenceData,
+  NodeType,
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
+  PROPERTY_INFOS_BY_SUBTYPE,
   PROPERTY_INFOS_BY_TYPE,
   PrimitiveType,
   PropertyInfo,
@@ -215,7 +219,96 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
   return value;
 }
 
-// TODO :Test!: figure out how to test value packing on bench-web properly (ensure it's in sync with bench)
+// def _get_custom_object_properties(
+//   typ: "TypeBase", value_packed: Mapping[str, JsonValue | SomeValue]
+// ) -> "Iterable[Property]":
+//   """Gets all the custom object properties available in this value."""
+//   if typ.kind == TypeKind.PARTIAL_OBJECT:
+//       # figure out actual node type
+//       if typ.bench_type is not None:
+//           bench_type = cast(NodeType, typ.bench_type)
+//           node_cls = NODE_CLASS_BY_TYPE[bench_type]
+//       elif "1" in value_packed:  # generic partial
+//           bench_type = cast(NodeType, int(value_packed["1"]))  # type: ignore
+//           node_cls = NODE_CLASS_BY_TYPE[bench_type]
+//       else:
+//           # no known node type, so we can't resolve subtype properties
+//           node_cls = Node
+
+//       # check subtype
+//       node_properties = node_cls.__original_properties__.values()
+//       subtype_properties = ()
+//       if node_cls.__subtype_base_property__ is not None:
+//           if typ.constraint is not None and typ.constraint.node_subtypes:
+//               subtype = typ.constraint.node_subtypes[0]
+//           else:
+//               subtype = value_packed.get(node_cls.__subtype_base_property__.key)
+//           if subtype is not None:
+//               subtype_cls = node_cls.__subclass_by_subtype__.get(cast(IdEnum, subtype))
+//               if subtype_cls is not None:
+//                   subtype_properties = subtype_cls.__subtype_extra_original_properties__.values()
+
+//       # assemble properties
+//       properties = chain(subtype_properties, node_properties)
+//       if typ.property_field_types:
+//           properties = tuple(p for p in properties if p.field_type in typ.property_field_types)
+//       return properties
+//   else:
+//       # nothing
+//       return ()
+
+export function getCustomObjectProperties(type: TypeIdentity, valuePacked: Record<string, JsonValue>): PropertyInfo[] {
+  if (type.kind == TypeKind.PARTIAL_OBJECT) {
+    let properties: PropertyInfo[] = [];
+
+    // figure out actual node type
+    let nodeType: NodeType;
+    if (type.benchType != null) {
+      if (!isNodeType(type.benchType)) {
+        throw new Error(`expected node type in ${describeTypeIdentity(type)}`);
+      }
+      nodeType = type.benchType;
+    } else if (valuePacked["1"] != null) {
+      nodeType = valuePacked["1"] as NodeType;
+      if (!isNodeType(nodeType)) {
+        throw new Error(`expected node type in ${describeTypeIdentity(type)}`);
+      }
+    } else {
+      throw new Error(`missing node type in ${describeTypeIdentity(type)}`);
+    }
+    const nodeProperties = PROPERTY_INFOS_BY_TYPE[nodeType]!;
+    for (const prop of Object.values(nodeProperties)) {
+      properties.push(prop);
+    }
+
+    // check subtype
+    const subtypePropertyId = NODE_SUBTYPE_PROPERTY_ID[nodeType];
+    if (subtypePropertyId != null) {
+      let subtype: number;
+      if (type.constraint != null && type.constraint.nodeSubtypes != null) {
+        subtype = type.constraint.nodeSubtypes[0];
+      } else {
+        subtype = valuePacked[subtypePropertyId.toString()] as number;
+      }
+      const subtypeProperties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[subtype];
+      if (subtypeProperties != null) {
+        for (const prop of Object.values(subtypeProperties)) {
+          properties.push(prop);
+        }
+      }
+    }
+
+    // assemble properties
+    if (type.propertyFieldTypes != null) {
+      properties = properties.filter((p) => type.propertyFieldTypes!.includes(p.fieldType!));
+    }
+    return properties;
+  } else {
+    return [];
+  }
+}
+
+// NOTE :Test: figure out how to test value packing on bench-web properly (ensure it's in sync with bench)
 
 /** Packs a single object value into a packed & secret packed value. */
 export function packCustomObject(
@@ -250,11 +343,10 @@ export function packCustomObject(
   }
 
   // properties
-  const propertiesInfos = CUSTOM_OBJECT_PROPERTY_INFOS_BY_KIND[kind];
-  const propertiesEnum = CUSTOM_OBJECT_PROPERTY_ENUM_BY_KIND[kind];
-  if (propertiesInfos != null && propertiesEnum != null) {
-    for (const prop of Object.values(propertiesInfos)) {
-      const propStorageKey = propertiesEnum[prop.id];
+  const properties = getCustomObjectProperties(type, value as any);
+  if (properties != null) {
+    for (const prop of Object.values(properties)) {
+      const propStorageKey = prop.id.toString();
       const propValue = (value as any)[propStorageKey];
       const propType = getPropertyType(prop);
       if (propValue == null) {
@@ -306,11 +398,10 @@ export function unpackCustomObject(
   }
 
   // properties
-  const propertiesInfos = CUSTOM_OBJECT_PROPERTY_INFOS_BY_KIND[kind];
-  const propertiesEnum = CUSTOM_OBJECT_PROPERTY_ENUM_BY_KIND[kind];
-  if (propertiesInfos != null && propertiesEnum != null) {
-    for (const prop of Object.values(propertiesInfos)) {
-      const propStorageKey = propertiesEnum[prop.id];
+  const properties = getCustomObjectProperties(type, value as any);
+  if (properties != null) {
+    for (const prop of properties) {
+      const propStorageKey = prop.id.toString();
       const propValue = (valuePacked as any)[propStorageKey];
       const propType = getPropertyType(prop);
       if (propValue == null) {

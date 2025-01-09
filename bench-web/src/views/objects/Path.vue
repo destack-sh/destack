@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { isSourceNode } from "@/language/const";
-import { makeTypeConstraint, makeTypeInfo } from "@/language/field";
+import { makeTypeConstraint, makeType } from "@/language/field";
 import { makePath } from "@/language/path";
 import { RUN_PROPERTY_BY_FIELD_TYPE } from "@/language/session";
 import {
@@ -36,7 +36,7 @@ const state = canvas.registerView(self, id);
 // NOTE :Incomplete: Path view just forwards to Picker for now with some wrapping :OverloadedPicker
 // (obviously we want a richer Path view that supports all sorts of Paths)
 const nodeValueType = computed(() =>
-  makeTypeInfo({
+  makeType({
     kind: TypeKind.NODE,
     benchType: BenchType.FIELD,
     constraint: makeTypeConstraint({

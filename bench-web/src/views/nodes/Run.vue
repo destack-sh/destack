@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { getBaseFromNode, toCamelName } from "@/language/const";
-import { makeTypeInfo } from "@/language/field";
+import { makeType } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
 import { getInterruptDurationString, isRunnable, RunnableNode } from "@/language/session";
 import { getTransactionOptionsForType } from "@/language/transaction";
@@ -72,7 +72,7 @@ const hasInputs = computed(() => fields.value.some((f) => f.type == FieldType.IN
 const hasOutputs = computed(() => fields.value.some((f) => f.type == FieldType.OUTPUT));
 const variableType = computed(() =>
   runBasePtr.value != null
-    ? makeTypeInfo({
+    ? makeType({
         kind: TypeKind.CUSTOM_OBJECT,
         baseTypePtr: runBasePtr.value,
         baseFieldTypes: [FieldType.VARIABLE],
@@ -81,12 +81,12 @@ const variableType = computed(() =>
 );
 const inputType = computed(() =>
   runBasePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldTypes: [FieldType.INPUT] })
+    ? makeType({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldTypes: [FieldType.INPUT] })
     : undefined,
 );
 const outputType = computed(() =>
   runBasePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldTypes: [FieldType.OUTPUT] })
+    ? makeType({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldTypes: [FieldType.OUTPUT] })
     : undefined,
 );
 function getRunObjectType(fieldType: FieldType) {
@@ -120,12 +120,12 @@ const interruptions = computed(() => {
   for (const interrupt of runTree.value.interruptions) {
     if (!INTERRUPT_TYPES.includes(interrupt.type)) continue;
     const base = runTree.value.getBase(getBaseFromNode(interrupt)!)!;
-    const inputType = makeTypeInfo({
+    const inputType = makeType({
       kind: TypeKind.CUSTOM_OBJECT,
       baseTypePtr: getBaseFromNode(interrupt)!,
       baseFieldTypes: [FieldType.INPUT],
     });
-    const outputType = makeTypeInfo({
+    const outputType = makeType({
       kind: TypeKind.CUSTOM_OBJECT,
       baseTypePtr: getBaseFromNode(interrupt)!,
       baseFieldTypes: [FieldType.OUTPUT],
