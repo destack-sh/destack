@@ -145,6 +145,7 @@ enum NodeType {
   NODE_TYPE_INTERRUPTION = 3602;
   NODE_TYPE_LOG = 3603;
   NODE_TYPE_SKIP = 9000;
+  NODE_TYPE_EMPTY = 9999;
 }
 
 enum StructType {
@@ -243,6 +244,7 @@ enum ObjectType {
   OBJECT_TYPE_INTERRUPTION = 3602;
   OBJECT_TYPE_LOG = 3603;
   OBJECT_TYPE_SKIP = 9000;
+  OBJECT_TYPE_EMPTY = 9999;
   OBJECT_TYPE_CONTEXT = 10001;
   OBJECT_TYPE_EDIT_CONTEXT = 10002;
   OBJECT_TYPE_EDIT = 10003;
@@ -395,6 +397,7 @@ enum BenchType {
   BENCH_TYPE_INTERRUPTION = 3602;
   BENCH_TYPE_LOG = 3603;
   BENCH_TYPE_SKIP = 9000;
+  BENCH_TYPE_EMPTY = 9999;
   BENCH_TYPE_CONTEXT = 10001;
   BENCH_TYPE_EDIT_CONTEXT = 10002;
   BENCH_TYPE_EDIT = 10003;
@@ -2291,6 +2294,18 @@ message SkipData {
   optional string order_key = 31;
 }
 
+message EmptyData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+}
+
 message UserData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3479,6 +3494,7 @@ message SomeNodeData {
     InterruptionData interruption = 27;
     LogData log = 28;
     SkipData skip = 29;
+    EmptyData empty = 30;
   };
 }
 

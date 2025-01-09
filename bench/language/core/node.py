@@ -2991,6 +2991,13 @@ class Skip(Node):
     order_key: str | None = p_internal(31, default=None)
 
 
+@node_(NodeType.EMPTY, stored=False)
+class Empty(Node):
+    """An empty node."""
+
+    parent: Node = p_node_parent(4, *NODE_TYPES.tuple)
+
+
 #
 # Utilities
 #

@@ -325,6 +325,7 @@ class NodeType(IdEnum):
     #
 
     SKIP = 9000
+    EMPTY = 9999
 
     @property
     def is_global(self) -> bool:
@@ -401,7 +402,7 @@ RUNTIME_NODE_TYPES = _get_node_types(3600, 3700)
 BASED_NODE_TYPES = bittuple(  # :HasBase
     NodeType.FIELD, NodeType.RUN, NodeType.INTERRUPTION, NodeType.MESSAGE, NodeType.RECORD
 )
-PACKAGE_NODE_TYPES = _get_node_types(3001, 3500, NodeType.SKIP)
+PACKAGE_NODE_TYPES = _get_node_types(3001, 3500, NodeType.SKIP, NodeType.EMPTY)
 BENCH_NODE_TYPES = _get_node_types(
     2000,
     10000,

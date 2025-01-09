@@ -50,6 +50,7 @@ AnyNodeData = Union[
     InterruptionData,
     LogData,
     SkipData,
+    EmptyData,
 ]
 AnyStructData = Union[
     ContextData,
