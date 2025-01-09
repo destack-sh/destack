@@ -13,8 +13,7 @@ import {
   getTypeName,
   makeType,
   TypeIdentity,
-  typeIsNumeric,
-  updateFieldType,
+  typeIsNumeric
 } from "@/language/field";
 import { ReadNodeGraph } from "@/language/graph";
 import { packSubnode, unpackSubnode } from "@/language/node";
@@ -22,9 +21,8 @@ import { getPathKey, makePath } from "@/language/path";
 import {
   getTransactionOptionsForType,
   makeEditFromSubnode,
-  newChangeId,
   Transaction,
-  TransactionOptions,
+  TransactionOptions
 } from "@/language/transaction";
 import { getCustomObjectNodeType, getCustomObjectSubtype, packValue, unpackValue } from "@/language/value";
 import {
@@ -65,7 +63,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
-import { canvas, supergraph } from "@/system/globals";
+import { canvas } from "@/system/globals";
 import { getNodeName, ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
 import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
@@ -139,6 +137,33 @@ export type TextRow = RowBase & {
   text: string;
 };
 export type DetailRow = FieldsListRow | ViewRow | PropertyRow | FieldRow | ObjectRow | IconRow | TextRow | LineRow;
+
+type BaseObjectInfo = {
+  base: AnyNodeData | null;
+  baseFields: FieldData[];
+  graph: ReadNodeGraph;
+  update: (update: Partial<AnyNodeData> | Record<string, any>, options?: TransactionOptions) => void;
+  txFactory: () => Transaction;
+};
+type NodeInfo = BaseObjectInfo & {
+  kind: "node";
+  node: AnyNodeData;
+};
+type PartialNodeInfo = BaseObjectInfo & {
+  kind: "partial";
+  node: AnyNodeData | null;
+  valuePacked: Record<string, any>;
+  valueType: TypeData;
+  computedType: TypeData;
+};
+type CustomObjectInfo = BaseObjectInfo & {
+  kind: "custom";
+  valuePacked: Record<string, any>;
+  valueType: TypeData;
+  computedType: TypeData;
+};
+type ObjectInfo = NodeInfo | PartialNodeInfo | CustomObjectInfo;
+
 
 /** Get the layout for a detailed view of a CustomObject or Node› */
 export class ObjectLayout {
@@ -437,58 +462,58 @@ export class ObjectLayout {
   }
 
   /** Nested object row */
-  // rowObject(
-  //   propertyId: number,
-  //   valueType: TypeIdentity,
-  //   options?: { title?: string | false; subtitle?: string; isComputable?: boolean },
-  // ): ObjectRow {
-  //   const { prop, propName } = this.getProperty(propertyId);
+  rowObject(
+    propertyId: number,
+    valueType: TypeIdentity,
+    options?: { title?: string | false; subtitle?: string; isComputable?: boolean },
+  ): ObjectRow {
+    const { prop, propName } = this.getProperty(propertyId);
 
-  //   // computed :RunComputedValue
-  //   let computedPath: PathData | undefined = undefined;
-  //   let computedPathKey: string | undefined = undefined;
-  //   if (options?.isComputable) {
-  //     computedPath = makePath(
-  //       PathElementType.RUN,
-  //       propertyReference(NodeType.RUN, RunProperty[propName as any as keyof typeof RunProperty]),
-  //     );
-  //     computedPathKey = getPathKey(computedPath);
-  //   }
+    // computed :RunComputedValue
+    let computedPath: PathData | undefined = undefined;
+    let computedPathKey: string | undefined = undefined;
+    if (options?.isComputable) {
+      computedPath = makePath(
+        PathElementType.RUN,
+        propertyReference(NodeType.RUN, RunProperty[propName as any as keyof typeof RunProperty]),
+      );
+      computedPathKey = getPathKey(computedPath);
+    }
 
-  //   // view
-  //   const title = options?.title ?? getPropertyTitle(prop);
-  //   const row: ObjectRow = {
-  //     type: "object",
-  //     title: title === false ? undefined : title,
-  //     subtitle: options?.subtitle,
-  //     isComputable: options?.isComputable ?? false,
-  //     prop,
-  //     viewType: ViewType.OBJECT,
-  //     computedPath,
-  //     computedPathKey,
-  //     computedType: this.computedType,
-  //     viewProps: { valueType: makeType(valueType), isInput: true, isInline: true, isMinimal: true },
-  //     isFullWidth: true,
-  //     read: () => (this.node as any)[propName],
-  //     write: (newValue, options?: ModelValueOptions) => {
-  //       if (options == null) {
-  //         this.update({ [propName]: newValue });
-  //       } else {
-  //         const operations: EditOperationData[] = [
-  //           {
-  //             metatype: ObjectType.EDIT_OPERATION,
-  //             type: newValue == null ? EditOperationType.CLEAR : EditOperationType.SET,
-  //             path: [propertyId.toString(), ...options.path],
-  //             newValuePacked: (newValue as any)?.[options.path[0]],
-  //             oldValuePacked: (this.node as any)?.[options.path[0]],
-  //           },
-  //         ];
-  //         this.update(operations, getTransactionOptionsForType(options.field));
-  //       }
-  //     },
-  //   };
-  //   return row;
-  // }
+    // view
+    const title = options?.title ?? getPropertyTitle(prop);
+    const row: ObjectRow = {
+      type: "object",
+      title: title === false ? undefined : title,
+      subtitle: options?.subtitle,
+      isComputable: options?.isComputable ?? false,
+      prop,
+      viewType: ViewType.OBJECT,
+      computedPath,
+      computedPathKey,
+      computedType: this.computedType,
+      viewProps: { valueType: makeType(valueType), isInput: true, isInline: true, isMinimal: true },
+      isFullWidth: true,
+      read: () => (this.node as any)[propName],
+      write: (newValue, options?: ModelValueOptions) => {
+        if (options == null) {
+          this.update({ [propName]: newValue });
+        } else {
+          const operations: EditOperationData[] = [
+            {
+              metatype: ObjectType.EDIT_OPERATION,
+              type: newValue == null ? EditOperationType.CLEAR : EditOperationType.SET,
+              path: [propertyId.toString(), ...options.path],
+              newValuePacked: (newValue as any)?.[options.path[0]],
+              oldValuePacked: (this.node as any)?.[options.path[0]],
+            },
+          ];
+          this.update(operations, getTransactionOptionsForType(options.field));
+        }
+      },
+    };
+    return row;
+  }
 
   /** Line row */
   rowLine(text?: string): LineRow {
@@ -531,9 +556,8 @@ export class ObjectLayout {
     );
   }
 
-  buildNode() {
-    const node = this.node;
-    if (node == null) return;
+  build() {
+    const node = this.node!;
     const nodePtr = toNodeRef(node);
     const graph = this.graph;
     const txFactory = this.txFactory;
@@ -866,11 +890,6 @@ export class ObjectLayout {
         ),
       ]);
     }
-  }
-
-  /** Builds the layout for this object. */
-  build() {
-    this.buildNode();
   }
 }
 
