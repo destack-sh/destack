@@ -707,7 +707,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   placement: 'bottom-left',
                   offset: 'referenceWidth',
                   props: {
-                    valueType: makeType({ benchType: BenchType.TYPE_INFO }),
+                    valueType: makeType({ benchType: BenchType.TYPE }),
                     subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
                   },
                   onApply: (typeInfo: TypeIdentity) => {

@@ -219,63 +219,39 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
   return value;
 }
 
-// def _get_custom_object_properties(
-//   typ: "TypeBase", value_packed: Mapping[str, JsonValue | SomeValue]
-// ) -> "Iterable[Property]":
-//   """Gets all the custom object properties available in this value."""
-//   if typ.kind == TypeKind.PARTIAL_OBJECT:
-//       # figure out actual node type
-//       if typ.bench_type is not None:
-//           bench_type = cast(NodeType, typ.bench_type)
-//           node_cls = NODE_CLASS_BY_TYPE[bench_type]
-//       elif "1" in value_packed:  # generic partial
-//           bench_type = cast(NodeType, int(value_packed["1"]))  # type: ignore
-//           node_cls = NODE_CLASS_BY_TYPE[bench_type]
-//       else:
-//           # no known node type, so we can't resolve subtype properties
-//           node_cls = Node
+/** Gets the node type for a custom object (from type or current value for partials). */
+export function getCustomObjectNodeType(type: TypeIdentity, valuePacked: Record<string, JsonValue>): NodeType | null {
+  if (type.kind == TypeKind.PARTIAL_OBJECT) {
+    let nodeType: NodeType;
+    if (type.benchType != null) {
+      nodeType = type.benchType as unknown as NodeType;
+    } else {
+      nodeType = valuePacked["1"] as NodeType;
+    }
+    if (isNodeType(nodeType)) {
+      return nodeType;
+    }
+  }
+  return null;
+}
 
-//       # check subtype
-//       node_properties = node_cls.__original_properties__.values()
-//       subtype_properties = ()
-//       if node_cls.__subtype_base_property__ is not None:
-//           if typ.constraint is not None and typ.constraint.node_subtypes:
-//               subtype = typ.constraint.node_subtypes[0]
-//           else:
-//               subtype = value_packed.get(node_cls.__subtype_base_property__.key)
-//           if subtype is not None:
-//               subtype_cls = node_cls.__subclass_by_subtype__.get(cast(IdEnum, subtype))
-//               if subtype_cls is not None:
-//                   subtype_properties = subtype_cls.__subtype_extra_original_properties__.values()
+/** Gets the subtype for a custom object (from type or current value for partials). */
+export function getCustomObjectSubtype(type: TypeIdentity, valuePacked: Record<string, JsonValue>): number | null {
+  const nodeType = getCustomObjectNodeType(type, valuePacked);
+  if (nodeType == null) return null;
+  const subtypePropertyId = NODE_SUBTYPE_PROPERTY_ID[nodeType];
+  if (subtypePropertyId == null) return null;
+  return valuePacked[subtypePropertyId.toString()] as number;
+}
 
-//       # assemble properties
-//       properties = chain(subtype_properties, node_properties)
-//       if typ.property_field_types:
-//           properties = tuple(p for p in properties if p.field_type in typ.property_field_types)
-//       return properties
-//   else:
-//       # nothing
-//       return ()
-
+/** Gets the properties for a custom object (from type or current value for partials). */
 export function getCustomObjectProperties(type: TypeIdentity, valuePacked: Record<string, JsonValue>): PropertyInfo[] {
   if (type.kind == TypeKind.PARTIAL_OBJECT) {
     let properties: PropertyInfo[] = [];
 
     // figure out actual node type
-    let nodeType: NodeType;
-    if (type.benchType != null) {
-      if (!isNodeType(type.benchType)) {
-        throw new Error(`expected node type in ${describeTypeIdentity(type)}`);
-      }
-      nodeType = type.benchType;
-    } else if (valuePacked["1"] != null) {
-      nodeType = valuePacked["1"] as NodeType;
-      if (!isNodeType(nodeType)) {
-        throw new Error(`expected node type in ${describeTypeIdentity(type)}`);
-      }
-    } else {
-      throw new Error(`missing node type in ${describeTypeIdentity(type)}`);
-    }
+    const nodeType = getCustomObjectNodeType(type, valuePacked);
+    if (nodeType == null) throw new Error(`missing node type in ${describeTypeIdentity(type)}`);
     const nodeProperties = PROPERTY_INFOS_BY_TYPE[nodeType]!;
     for (const prop of Object.values(nodeProperties)) {
       properties.push(prop);
@@ -284,16 +260,13 @@ export function getCustomObjectProperties(type: TypeIdentity, valuePacked: Recor
     // check subtype
     const subtypePropertyId = NODE_SUBTYPE_PROPERTY_ID[nodeType];
     if (subtypePropertyId != null) {
-      let subtype: number;
-      if (type.constraint != null && type.constraint.nodeSubtypes != null) {
-        subtype = type.constraint.nodeSubtypes[0];
-      } else {
-        subtype = valuePacked[subtypePropertyId.toString()] as number;
-      }
-      const subtypeProperties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[subtype];
-      if (subtypeProperties != null) {
-        for (const prop of Object.values(subtypeProperties)) {
-          properties.push(prop);
+      const subtype = getCustomObjectSubtype(type, valuePacked);
+      if (subtype != null) {
+        const subtypeProperties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[subtype];
+        if (subtypeProperties != null) {
+          for (const prop of Object.values(subtypeProperties)) {
+            properties.push(prop);
+          }
         }
       }
     }

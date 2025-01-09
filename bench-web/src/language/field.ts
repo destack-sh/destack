@@ -527,8 +527,12 @@ export function createField(
   return field;
 }
 
-/** Updates the field type to a new type identity. */
-export function updateFieldType(tx: Transaction, graph: ReadNodeGraph, field: FieldData, type: TypeIdentity | null) {
+/** Gets the update that would be applied to a field to update its type. */
+export function getFieldTypeUpdate(
+  graph: ReadNodeGraph,
+  field: FieldData,
+  type: TypeIdentity | null,
+): Partial<FieldData> {
   const update: Partial<FieldData> = {};
   // update changed properties
   for (const key of [
@@ -561,6 +565,12 @@ export function updateFieldType(tx: Transaction, graph: ReadNodeGraph, field: Fi
     }
   }
 
+  return update;
+}
+
+/** Updates the field type to a new type identity. */
+export function updateFieldType(tx: Transaction, graph: ReadNodeGraph, field: FieldData, type: TypeIdentity | null) {
+  const update = getFieldTypeUpdate(graph, field, type);
   tx.update(field, update, { debounce: "tick" });
 }
 
