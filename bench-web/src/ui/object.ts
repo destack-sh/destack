@@ -103,7 +103,7 @@ export type ViewRow = RowBase & {
   viewType: ViewType;
   viewProps: ViewProps;
   read: () => any;
-  write: (value: any, path?: any) => void;
+  write: (value: any, options?: any) => void;
 };
 export type ObjectRow = Omit<ViewRow, "type"> & {
   type: "object";
@@ -126,6 +126,7 @@ export type FieldRow = Omit<ViewRow, "type"> & {
   computedPath?: PathData;
   computedPathKey?: string;
   field: FieldData;
+  options: ModelValueOptions;
 };
 export type IconRow = RowBase & {
   type: "icon";
@@ -148,7 +149,7 @@ export type BaseObjectInfo = {
   graph: ReadNodeGraph;
   update: (
     update: Partial<AnyNodeData> | Record<string, any> | EditOperationData[],
-    options?: TransactionOptions,
+    options?: Partial<ModelValueOptions> & Partial<TransactionOptions>,
   ) => void;
   txFactory: () => Transaction;
 };
@@ -168,12 +169,14 @@ type PartialNodeInfo = BaseObjectInfo & {
   valuePacked: Record<string, any>;
   valueType: TypeData;
   computedType: TypeData | null | undefined;
+  computedPath?: PathData;
 };
 type CustomObjectInfo = BaseObjectInfo & {
   kind: "custom";
   valuePacked: Record<string, any>;
   valueType: TypeData;
   computedType: TypeData | null | undefined;
+  computedPath?: PathData;
 };
 type ObjectInfo = NodeInfo<any> | PartialNodeInfo | CustomObjectInfo;
 
@@ -186,7 +189,10 @@ export abstract class BaseObjectLayout {
   delegate: AnyNodeData | null;
   delegateFields: FieldData[];
   graph: ReadNodeGraph;
-  update: (update: Partial<AnyNodeData> | Record<string, any>, options?: TransactionOptions) => void;
+  update: (
+    update: Partial<AnyNodeData> | Record<string, any>,
+    options?: Partial<ModelValueOptions> & Partial<TransactionOptions>,
+  ) => void;
   txFactory: () => Transaction;
 
   // layout
@@ -242,6 +248,56 @@ export abstract class BaseObjectLayout {
     return { type: "text", text };
   }
 
+  /** Inline object row */
+  rowFieldsInline(
+    valuePacked: Record<string, any>,
+    fields: FieldData[],
+    computedPrefix: PathData | undefined,
+    write: (field: FieldData, value: any, options?: ModelValueOptions) => void,
+    options?: { title?: string | false; subtitle?: string; isComputable?: boolean; isFullWidth?: boolean },
+  ): Row[] {
+    const rows: (PropertyRow | FieldRow)[] = [];
+
+    // fields
+    for (const field of fields) {
+      // content
+      const title = options?.title ?? getNodeName(field);
+      const fieldKey = getStorageKey(field);
+      const view = getViewForType(field, { forcePickerDropdown: true });
+      if (view == null) continue;
+      const fieldValuePacked = valuePacked[fieldKey];
+      const fieldValue = unpackValue(fieldValuePacked, field, { graph: this.graph, wrapScalar: false });
+
+      // computable
+      let computedPath: PathData | undefined = undefined;
+      let computedPathKey: string | undefined = undefined;
+      if (options?.isComputable) {
+        computedPath = makePath(...(computedPrefix?.elements ?? []), field);
+        computedPathKey = getPathKey(computedPath);
+      }
+
+      // row
+      const row: FieldRow = {
+        type: "field",
+        field,
+        title: title === false ? undefined : title,
+        isComputable: options?.isComputable ?? false,
+        computedPath,
+        computedPathKey,
+        viewType: view.type!,
+        viewProps: { ...view, isInput: true },
+        isFullWidth: options?.isFullWidth || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
+        options: { field, path: [fieldKey] },
+        read: () => fieldValue,
+        write: (newValue, options) => write(field, newValue, options),
+      };
+
+      rows.push(row);
+    }
+
+    return rows;
+  }
+
   abstract build(): void;
 }
 
@@ -263,6 +319,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
   protected valuePacked?: Record<string, any>;
   protected valueType?: TypeData;
   protected computedType?: TypeData;
+  protected computedPath?: PathData;
 
   constructor(options: NodeInfo<T> | PartialNodeInfo) {
     super(options);
@@ -534,8 +591,8 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     options?: { title?: string | false; subtitle?: string; isComputable?: boolean; isFullWidth?: boolean },
   ): Row[] {
     const { prop, propName } = this.getProperty(propertyId);
-    const rows: (PropertyRow | FieldRow)[] = [];
 
+    // fields
     let fields: FieldData[];
     if (valueType?.baseTypePtr == null || valueType?.baseTypePtr?.id == this.node?.id) {
       fields = this.fields;
@@ -544,74 +601,54 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     } else {
       throw new Error(`unexpected base: ${describeTypeIdentity(valueType)} for ${describeNode(this.node)}`);
     }
+    fields = fields.filter((field) => {
+      if (valueType.baseFieldTypes != null && !valueType.baseFieldTypes.includes(field.type)) return false;
+      if (field.type == FieldType.OPTION) return false;
+      return true;
+    });
 
-    // fields
-    for (const field of fields) {
-      if (
-        (valueType.baseFieldTypes != null && !valueType.baseFieldTypes.includes(field.type)) ||
-        field.type == FieldType.OPTION
-      ) {
-        continue;
-      }
-
-      // content
-      const title = options?.title ?? getNodeName(field);
-      const fieldKey = getStorageKey(field);
-      const view = getViewForType(field, { forcePickerDropdown: true });
-      if (view == null) continue;
-      const fieldValuePacked = this.isPartial
-        ? this.valuePacked?.[fieldKey]
-        : (this.node as any)?.[propName]?.[fieldKey];
-      const fieldValue = unpackValue(fieldValuePacked, field, { graph: this.graph, wrapScalar: false });
-
-      // computable
-      let computedPath: PathData | undefined = undefined;
-      let computedPathKey: string | undefined = undefined;
-      if (options?.isComputable) {
-        computedPath = makePath(
-          PathElementType.RUN, // :RunComputedValue
-          propertyReference(NodeType.RUN, RunProperty[propName as any as keyof typeof RunProperty]),
-          field,
-        );
-        computedPathKey = getPathKey(computedPath);
-      }
-
-      // row
-      const row: FieldRow = {
-        type: "field",
-        field,
-        title: title === false ? undefined : title,
-        isComputable: options?.isComputable ?? false,
-        computedPath,
-        computedPathKey,
-        viewType: view.type!,
-        viewProps: { ...view, isInput: true },
-        isFullWidth: options?.isFullWidth || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
-        read: () => fieldValue,
-        write: (newValue) => {
-          const newFieldValuePacked = packValue(newValue, field, { graph: this.graph, wrapScalar: false });
-          if (this.isPartial) {
-            this.update({ [fieldKey]: newFieldValuePacked }, getTransactionOptionsForType(field));
-          } else {
-            const operations: EditOperationData[] = [
-              {
-                metatype: ObjectType.EDIT_OPERATION,
-                type: newValue == null ? EditOperationType.CLEAR : EditOperationType.SET,
-                path: [propertyId.toString(), fieldKey],
-                newValuePacked: newFieldValuePacked,
-                oldValuePacked: fieldValuePacked,
-              },
-            ];
-            this.update(operations, getTransactionOptionsForType(field));
-          }
-        },
-      };
-
-      rows.push(row);
+    // computed
+    let computedPrefix: PathData | undefined;
+    if (options?.isComputable && this.computedType) {
+      computedPrefix = makePath(
+        PathElementType.RUN, // :RunComputedValue
+        propertyReference(NodeType.RUN, RunProperty[propName as any as keyof typeof RunProperty]),
+      );
     }
 
+    // rows
+    const valuePacked = this.isPartial ? this.valuePacked : (this.node as any)?.[propName];
+    const rows = this.rowFieldsInline(
+      valuePacked ?? {},
+      fields,
+      computedPrefix,
+      (field, newValue) => {
+        const fieldKey = getStorageKey(field);
+        const newFieldValuePacked = packValue(newValue, field, { graph: this.graph, wrapScalar: false });
+        const fieldValuePacked = this.isPartial
+          ? this.valuePacked?.[fieldKey]
+          : (this.node as any)?.[propName]?.[fieldKey];
+
+        if (this.isPartial) {
+          this.update({ [fieldKey]: newFieldValuePacked }, getTransactionOptionsForType(field));
+        } else {
+          const operations: EditOperationData[] = [
+            {
+              metatype: ObjectType.EDIT_OPERATION,
+              type: newValue == null ? EditOperationType.CLEAR : EditOperationType.SET,
+              path: [propertyId.toString(), fieldKey],
+              newValuePacked: newFieldValuePacked,
+              oldValuePacked: fieldValuePacked,
+            },
+          ];
+          this.update(operations, getTransactionOptionsForType(field));
+        }
+      },
+      options,
+    );
+
+    // default to fields list
     if (rows.length == 0) {
-      // default to fields list
       return [{ type: "fields-list", fieldType: valueType.baseFieldTypes?.[0] ?? FieldType.MEMBER }];
     }
 
@@ -820,15 +857,21 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
       commonRows.push(this.rowProperty(FailActionProperty.errorText, { title: "Text", isComputable: true }));
     } else {
       // add all from subproperty enum
+      console.log("this.subpropertyEnum", this.subpropertyEnum, this);
       if (this.subpropertyEnum != null) {
         Object.values(this.subpropertyEnum)
           .filter((v) => typeof v == "number")
           .forEach((subproperty) => {
             const { prop } = this.getProperty(subproperty as any);
             if (prop == null || prop.fieldType == FieldType.OUTPUT) return;
+            console.log("subproperty", subproperty);
 
             if (prop.valueIsPartial) {
-              this.rowObjectNested(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), { isComputable: true });
+              commonRows.push(
+                this.rowObjectNested(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), {
+                  isComputable: true,
+                }),
+              );
             } else {
               commonRows.push(this.rowProperty(subproperty, { isComputable: true }));
             }
@@ -952,7 +995,6 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
 
 export class PipeLayout extends NodeLayout<NodeType.PIPE> {
   build() {
-    const node = this.node!;
     this.section(undefined, [
       this.rowProperty(PipeProperty.text, { title: false, props: { placeholder: "Text..." } }),
       this.rowProperty(PipeProperty.type),
@@ -964,26 +1006,50 @@ export class PipeLayout extends NodeLayout<NodeType.PIPE> {
 
 export class RecordLayout extends NodeLayout<NodeType.RECORD> {
   build() {
-    const node = this.node!;
-    this.section(undefined, [
+    const commonRows: Row[] = [
       this.rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }),
-      ...this.rowObjectInline(
-        RecordProperty.valuePacked,
-        makeType({ kind: TypeKind.CUSTOM_OBJECT, baseFieldTypes: [FieldType.MEMBER], baseTypePtr: node.blockPtr }),
-      ),
-    ]);
+    ];
+    if (this.node.blockPtr != null) {
+      commonRows.push(
+        ...this.rowObjectInline(
+          RecordProperty.valuePacked,
+          makeType({
+            kind: TypeKind.CUSTOM_OBJECT,
+            baseFieldTypes: [FieldType.MEMBER],
+            baseTypePtr: this.node.blockPtr,
+          }),
+        ),
+      );
+    }
+    this.section(undefined, commonRows);
   }
 }
 
 export class CustomLayout extends BaseObjectLayout {
+  valuePacked: Record<string, any>;
+  computedPath: PathData | undefined;
+
+  constructor(info: CustomObjectInfo) {
+    super(info);
+    this.valuePacked = info.valuePacked;
+    this.delegateFields = info.delegateFields;
+    this.computedPath = info.computedPath;
+  }
+
   build() {
-    this.rowText("nocheckin: custom");
+    this.section(undefined, [
+      ...this.rowFieldsInline(this.valuePacked, this.delegateFields, this.computedPath, (field, newValue, options) => {
+        const fieldKey = getStorageKey(field);
+        const newFieldValuePacked = packValue(newValue, field, { graph: this.graph, wrapScalar: false });
+        this.update({ [fieldKey]: newFieldValuePacked }, { ...getTransactionOptionsForType(field), ...options });
+      }),
+    ]);
   }
 }
 
 export class PartialStubLayout extends BaseObjectLayout {
   build() {
-    // nocheckin
+    this.section(undefined, [this.rowText("nocheckin: partial")]);
   }
 }
 
