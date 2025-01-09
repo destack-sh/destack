@@ -330,14 +330,14 @@ class Renderer:
         assert typ.base_type is not None, f"{value!r} has no base type"
         kwargs: dict[str, str] = {}
         for field in typ._base_fields:
-            if typ.base_field_type is not None and field.type != typ.base_field_type:
+            if typ.base_field_types and field.type not in typ.base_field_types:
                 continue
             field_value = cast(SomeValue, getattr(value, field.name, None))
             field_value_repr = self.render_value_expr(field_value, field)
             field_code_name = field.code_name
             assert field_code_name, f"{field!r} has no code name"
             kwargs[field_code_name] = field_value_repr
-        if typ.base_field_type == FieldType.MEMBER:
+        if typ.base_field_types and FieldType.MEMBER in typ.base_field_types:
             kwargs_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())
             kwargs_str = f"{typ.base_type.code_name}({kwargs_str})"
             return kwargs_str
@@ -654,7 +654,7 @@ class FieldRenderer(BuiltinObjectRenderer[Field]):
         return f"Field.{constructor_name}({field_args})"
 
 
-@_renderer(StructType.TYPE_INFO)
+@_renderer(StructType.TYPE)
 class TypeInfoRenderer(BuiltinObjectRenderer[TypeBase]):
     @override
     def map_kwargs(self, renderer: "Renderer", obj: TypeBase, kwargs: dict[str, Any]):

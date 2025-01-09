@@ -14,7 +14,7 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import SomeObject from "@/views/helpers/Detail.vue";
+import SomeObject from "@/views/objects/Object.vue";
 import Start from "@/views/nodes/Run.vue";
 import { computed, nextTick, ref, Ref, toRef } from "vue";
 

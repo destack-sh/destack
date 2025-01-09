@@ -255,7 +255,7 @@ def from_object_type(
     **custom_strategies: st.SearchStrategy,
 ) -> st.SearchStrategy[BuiltinObject]:
     # special case some types
-    if object_type == StructType.TYPE_INFO:
+    if object_type == StructType.TYPE:
         return cast(st.SearchStrategy[BuiltinObject], type_infos(SIMPLE_TYPE_KINDS))
     elif object_type == StructType.PROPERTY_REFERENCE:
         return cast(
@@ -367,7 +367,8 @@ def draw_type_info_base_dict(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]
         "primitive_type": primitive_type,
         "bench_type": bench_type,
         "base_type": base_type,
-        "base_field_type": None,  # NOTE :Incomplete: base_field_type is not rendered properly
+        "base_field_types": [],  # NOTE :Incomplete: base_field_type is not rendered properly
+        "property_field_types": [],
         "format": None,
     }
 

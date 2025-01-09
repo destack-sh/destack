@@ -32,7 +32,6 @@ from bench.language import (
     LogInfo,
     Node,
     NodeMode,
-    ObjectKind,
     Pipe,
     Resource,
     ResourceStatus,
@@ -499,14 +498,14 @@ def create_run_from_node(
     if variables is None:
         variables = {}
     if run.variable_type is not None:
-        variables = coerce_custom_object_scalar(ObjectKind.VARIABLE, variables, run.variable_type)
+        variables = coerce_custom_object_scalar(variables, run.variable_type)
         run.variables = variables
 
     # inputs
     if inputs is None:
         inputs = {}
     if run.input_type is not None:
-        inputs = coerce_custom_object_scalar(ObjectKind.INPUT, inputs, run.input_type)
+        inputs = coerce_custom_object_scalar(inputs, run.input_type)
         run.inputs = inputs
 
     # options
@@ -533,16 +532,14 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
     # variables
     if run.variables is None and run.variable_type is not None:
         variables = CustomObject.new(
-            ObjectKind.VARIABLE, {}, typ=run.variable_type, supergraph=runtime.session._supergraph
+            {}, typ=run.variable_type, supergraph=runtime.session._supergraph
         )
     else:
         variables = run.variables
 
     # inputs
     if run.inputs is None and run.input_type is not None:
-        inputs = CustomObject.new(
-            ObjectKind.INPUT, {}, typ=run.input_type, supergraph=runtime.session._supergraph
-        )
+        inputs = CustomObject.new({}, typ=run.input_type, supergraph=runtime.session._supergraph)
     else:
         inputs = run.inputs
 
@@ -580,16 +577,12 @@ def make_runner(
     # variables
     variable_type = node.variable_type
     if variables is None and variable_type is not None:
-        variables = CustomObject.new(
-            ObjectKind.VARIABLE, {}, typ=variable_type, supergraph=runtime.session._supergraph
-        )
+        variables = CustomObject.new({}, typ=variable_type, supergraph=runtime.session._supergraph)
 
     # inputs
     input_type = node.input_type
     if inputs is None and input_type is not None:
-        inputs = CustomObject.new(
-            ObjectKind.INPUT, {}, typ=input_type, supergraph=runtime.session._supergraph
-        )
+        inputs = CustomObject.new({}, typ=input_type, supergraph=runtime.session._supergraph)
 
     # options
     if options is None:

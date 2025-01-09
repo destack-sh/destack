@@ -22,7 +22,6 @@ from .const import (
     ExpressionType,
     FieldType,
     NodeType,
-    ObjectKind,
     PrimitiveType,
     SortMode,
     SortType,
@@ -125,9 +124,7 @@ class Expression(Struct):
     # content
     clauses: list["Expression"] | None = p_regular(40, array=True, struct=StructType.EXPRESSION)
     value_packed: Any = p_value_packed(46)
-    value: Any = p_value_runtime(
-        46, kind=ObjectKind.MEMBER, typ=lambda self: cast(Expression, self).value_type
-    )
+    value: Any = p_value_runtime(46, typ=lambda self: cast(Expression, self).value_type)
     sort_mode: Optional[SortMode] = p_regular(48, default=None)
     tolerance: Optional[float] = p_regular(49, default=None)
 
@@ -900,11 +897,9 @@ class Value(Struct):
     text: Optional["Text"] = p_regular(
         33, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    value_type: "Type" = p_regular(35, struct=StructType.TYPE_INFO)
+    value_type: "Type" = p_regular(35, struct=StructType.TYPE)
     value_packed: Any = p_value_packed(36)
-    value: Any = p_value_runtime(
-        36, kind=ObjectKind.MEMBER, typ=lambda self: cast("Value", self).value_type
-    )
+    value: Any = p_value_runtime(36, typ=lambda self: cast("Value", self).value_type)
 
 
 @enum_(EnumType.COMPUTED_VALUE_KIND)

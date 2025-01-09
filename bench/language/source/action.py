@@ -1,4 +1,5 @@
 from datetime import timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, assert_never, cast
 
 import cachetools
@@ -14,7 +15,6 @@ from bench.language.core import (
     NodeReference,
     NodeSubtypeStub,
     NodeType,
-    ObjectKind,
     RunType,
     SourceNode,
     Struct,
@@ -202,11 +202,11 @@ class Action(SourceNode[ActionData]):
     )
     variables_packed: Any = p_value_packed(56)
     variables: Any = p_value_runtime(
-        56, kind=ObjectKind.VARIABLE, typ=lambda self: cast("Action", self).variable_type
+        56, type=FieldType.VARIABLE, typ=lambda self: cast("Action", self).variable_type
     )
     inputs_packed: Any = p_value_packed(57)
     inputs: Any = p_value_runtime(
-        57, kind=ObjectKind.INPUT, typ=lambda self: cast("Action", self).input_type
+        57, type=FieldType.INPUT, typ=lambda self: cast("Action", self).input_type
     )
 
     # flow
@@ -270,11 +270,10 @@ class Action(SourceNode[ActionData]):
         parent.pipes.append(pipe)
         return pipe
 
-    @cachetools.cached({})  # :CachedTypeInfo
     def to_type_maybe(
         self,
         of: Literal["instance", "value"] = "instance",
-        field_type: FieldType | None = None,
+        field_types: list[FieldType] | None = None,
     ) -> "TypeBase | None":
         """Gets a type represented by this Action (if any)"""
         from bench.language import Type
@@ -296,40 +295,45 @@ class Action(SourceNode[ActionData]):
 
             # actions also have their subtype as input & output type
             #  (to enable dynamically setting action properties as inputs)
-            if field_type == FieldType.INPUT or field_type == FieldType.OUTPUT:
+            if field_types and (FieldType.INPUT in field_types or FieldType.OUTPUT in field_types):
                 typ = Type(
                     kind=TypeKind.PARTIAL_OBJECT,
                     base_type=base,
                     bench_type=NodeType.ACTION,
-                    base_field_type=field_type,
-                    property_field_type=field_type,
+                    base_field_types=field_types,
+                    property_field_types=field_types,
                     constraint=TypeConstraint(node_subtypes=[self.type]),
                 )
             else:
-                typ = Type(kind=TypeKind.CUSTOM_OBJECT, base_type=base, base_field_type=field_type)
+                typ = Type(
+                    kind=TypeKind.CUSTOM_OBJECT, base_type=base, base_field_types=field_types or []
+                )
             return typ
         else:
             assert_never(of)
 
     def to_type(
-        self, *, of: Literal["instance", "value"] = "instance", field_type: FieldType | None = None
+        self,
+        *,
+        of: Literal["instance", "value"] = "instance",
+        field_types: list[FieldType] | None = None,
     ) -> "TypeBase":
-        typ = self.to_type_maybe(of=of, field_type=field_type)
+        typ = self.to_type_maybe(of=of, field_types=field_types)
         if typ is None:
             raise ValueError(f"{self!r} does not have a type")
         return typ
 
-    @property
+    @cached_property  # :CachedTypeInfo
     def variable_type(self) -> "TypeBase | None":
         return None  # Actions don't have variables?
 
-    @property
+    @cached_property  # :CachedTypeInfo
     def input_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_type=FieldType.INPUT)
+        return self.to_type_maybe(of="value", field_types=[FieldType.INPUT])
 
-    @property
+    @cached_property  # :CachedTypeInfo
     def output_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_type=FieldType.OUTPUT)
+        return self.to_type_maybe(of="value", field_types=[FieldType.OUTPUT])
 
     @staticmethod
     def new[ActionT: "Action" = "Action"](
@@ -348,13 +352,11 @@ class Action(SourceNode[ActionData]):
         if variables is not None:
             variable_type = action.variable_type
             assert variable_type is not None, f"no variable_type for {action!r}"
-            action.variables = coerce_custom_object_scalar(
-                ObjectKind.VARIABLE, variables, variable_type
-            )
+            action.variables = coerce_custom_object_scalar(variables, variable_type)
         if inputs is not None:
             input_type = action.input_type
             assert input_type is not None, f"no input_type for {action!r}"
-            action.inputs = coerce_custom_object_scalar(ObjectKind.INPUT, inputs, input_type)
+            action.inputs = coerce_custom_object_scalar(inputs, input_type)
         return cast(ActionT, action)
 
 
@@ -412,7 +414,6 @@ class CreateAction(Action):
     node_partial_packed: Any = p_value_packed(100, field_type=FieldType.INPUT, partial=True)
     node_partial: Any = p_value_runtime(
         100,
-        kind=ObjectKind.BUILTIN,
         typ=lambda self: CreateAction._node_partial_type(),
         field_type=FieldType.INPUT,
         partial=True,
@@ -432,7 +433,6 @@ class DuplicateAction(Action):
     node_partial_packed: Any = p_value_packed(101, field_type=FieldType.INPUT, partial=True)
     node_partial: Any = p_value_runtime(
         101,
-        kind=ObjectKind.BUILTIN,
         typ=lambda self: DuplicateAction._node_partial_type(),
         field_type=FieldType.INPUT,
         partial=True,
@@ -453,7 +453,6 @@ class UpdateAction(Action):
     node_partial_packed: Any = p_value_packed(101, field_type=FieldType.INPUT, partial=True)
     node_partial: Any = p_value_runtime(
         101,
-        kind=ObjectKind.BUILTIN,
         typ=lambda self: UpdateAction._node_partial_type(),
         field_type=FieldType.INPUT,
         partial=True,
@@ -666,7 +665,7 @@ class Call(Struct):
     action_type: ActionType | None = p_regular(32, default=None)
     inputs_packed: Any = p_value_packed(35)
     inputs: Any = p_value_runtime(
-        35, kind=ObjectKind.INPUT, typ=lambda self: cast(Call, self).input_type
+        35, type=FieldType.INPUT, typ=lambda self: cast(Call, self).input_type
     )
     mapping: Optional["ObjectMapping"] = p_regular(
         50,
@@ -690,7 +689,7 @@ class Call(Struct):
         assert input_type is not None, f"no input type for {node!r}"
         return Call(
             node=node,
-            inputs=coerce_custom_object_scalar(ObjectKind.INPUT, inputs or {}, input_type),
+            inputs=coerce_custom_object_scalar(inputs or {}, input_type),
             **kwargs,
         )
 

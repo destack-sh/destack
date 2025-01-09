@@ -53,7 +53,6 @@ enum EnumType {
   ENUM_TYPE_FIELD_ZONE = 21002;
   ENUM_TYPE_TYPE_KIND = 21003;
   ENUM_TYPE_TYPE_FORMAT = 21004;
-  ENUM_TYPE_OBJECT_KIND = 21005;
   ENUM_TYPE_BLOCK_TYPE = 21006;
   ENUM_TYPE_TEXT_LINE_TYPE = 21010;
   ENUM_TYPE_EXPRESSION_KIND = 21501;
@@ -169,10 +168,6 @@ enum StructType {
   STRUCT_TYPE_MACHINE_IMAGE = 11000;
   STRUCT_TYPE_TYPE_INFO = 11500;
   STRUCT_TYPE_TYPE_CONSTRAINT = 11501;
-  STRUCT_TYPE_VARIABLE_OBJECT = 11502;
-  STRUCT_TYPE_MEMBER_OBJECT = 11503;
-  STRUCT_TYPE_INPUT_OBJECT = 11504;
-  STRUCT_TYPE_OUTPUT_OBJECT = 11505;
   STRUCT_TYPE_SCHEDULE = 11506;
   STRUCT_TYPE_FILE_INFO = 11507;
   STRUCT_TYPE_ICON = 11509;
@@ -267,10 +262,6 @@ enum ObjectType {
   OBJECT_TYPE_MACHINE_IMAGE = 11000;
   OBJECT_TYPE_TYPE_INFO = 11500;
   OBJECT_TYPE_TYPE_CONSTRAINT = 11501;
-  OBJECT_TYPE_VARIABLE_OBJECT = 11502;
-  OBJECT_TYPE_MEMBER_OBJECT = 11503;
-  OBJECT_TYPE_INPUT_OBJECT = 11504;
-  OBJECT_TYPE_OUTPUT_OBJECT = 11505;
   OBJECT_TYPE_SCHEDULE = 11506;
   OBJECT_TYPE_FILE_INFO = 11507;
   OBJECT_TYPE_ICON = 11509;
@@ -423,10 +414,6 @@ enum BenchType {
   BENCH_TYPE_MACHINE_IMAGE = 11000;
   BENCH_TYPE_TYPE_INFO = 11500;
   BENCH_TYPE_TYPE_CONSTRAINT = 11501;
-  BENCH_TYPE_VARIABLE_OBJECT = 11502;
-  BENCH_TYPE_MEMBER_OBJECT = 11503;
-  BENCH_TYPE_INPUT_OBJECT = 11504;
-  BENCH_TYPE_OUTPUT_OBJECT = 11505;
   BENCH_TYPE_SCHEDULE = 11506;
   BENCH_TYPE_FILE_INFO = 11507;
   BENCH_TYPE_ICON = 11509;
@@ -511,7 +498,6 @@ enum BenchType {
   BENCH_TYPE_FIELD_ZONE = 21002;
   BENCH_TYPE_TYPE_KIND = 21003;
   BENCH_TYPE_TYPE_FORMAT = 21004;
-  BENCH_TYPE_OBJECT_KIND = 21005;
   BENCH_TYPE_BLOCK_TYPE = 21006;
   BENCH_TYPE_TEXT_LINE_TYPE = 21010;
   BENCH_TYPE_EXPRESSION_KIND = 21501;
@@ -969,16 +955,6 @@ enum TypeFormat {
   TYPE_FORMAT_SLUG = 2004;
 }
 
-// The type of an Object. Overlaps with FieldType.
-enum ObjectKind {
-  OBJECT_KIND_UNSPECIFIED = 0;
-  OBJECT_KIND_VARIABLE = 1;
-  OBJECT_KIND_MEMBER = 2;
-  OBJECT_KIND_INPUT = 3;
-  OBJECT_KIND_OUTPUT = 4;
-  OBJECT_KIND_BUILTIN = 10;
-}
-
 enum BlockType {
   BLOCK_TYPE_UNSPECIFIED = 0;
   BLOCK_TYPE_PAGE = 1;
@@ -1433,7 +1409,6 @@ enum ViewType {
   VIEW_TYPE_USER_WIZARD = 30001;
   VIEW_TYPE_BENCH_WIZARD = 30002;
   VIEW_TYPE_EMPTY = 30100;
-  VIEW_TYPE_DETAIL = 30200;
   VIEW_TYPE_CREATE = 30201;
   VIEW_TYPE_CHAT = 30202;
   VIEW_TYPE_TIMELINE = 30204;
@@ -1751,24 +1726,6 @@ message PropertyReferenceData {
   optional PropertyReferenceType references_meta = 36;
 }
 
-message VariableObjectData {
-  ObjectType metatype = 1;
-}
-
-message MemberObjectData {
-  ObjectType metatype = 1;
-}
-
-message InputObjectData {
-  ObjectType metatype = 1;
-  optional TextData text = 900;
-}
-
-message OutputObjectData {
-  ObjectType metatype = 1;
-  optional TextData text = 900;
-}
-
 message TextSpanData {
   ObjectType metatype = 1;
   optional string content = 33;
@@ -2043,7 +2000,6 @@ message LogInfoData {
   LogLevel level = 31;
   optional TextData text = 61;
   optional string text_plain = 62;
-  optional google.protobuf.Value value_packed = 65;
 }
 
 message TextOptionsData {
@@ -2100,7 +2056,6 @@ message RunAttemptData {
   optional google.protobuf.Timestamp interrupted_at = 47;
   optional NodeReferenceData interruption_ptr = 50;
   optional RunErrorData error = 51;
-  optional google.protobuf.Value intermediates_packed = 54;
 }
 
 message RunTraceData {
@@ -2192,8 +2147,8 @@ message TypeData {
   optional PrimitiveType primitive_type = 41;
   optional BenchType bench_type = 42;
   optional NodeReferenceData base_type_ptr = 43;
-  optional FieldType base_field_type = 44;
-  optional FieldType property_field_type = 45;
+  repeated FieldType base_field_types = 44;
+  repeated FieldType property_field_types = 45;
   optional NodeReferenceData oneof_ptr = 49;
   optional google.protobuf.Value default_packed = 50;
   optional TypeFormat format = 53;
@@ -2966,8 +2921,8 @@ message FieldData {
   optional PrimitiveType primitive_type = 41;
   optional BenchType bench_type = 42;
   optional NodeReferenceData base_type_ptr = 43;
-  optional FieldType base_field_type = 44;
-  optional FieldType property_field_type = 45;
+  repeated FieldType base_field_types = 44;
+  repeated FieldType property_field_types = 45;
   optional NodeReferenceData oneof_ptr = 49;
   optional google.protobuf.Value default_packed = 50;
   optional TypeFormat format = 53;
@@ -3332,7 +3287,7 @@ message RunViewData {
 }
 
 // A view of a user interface in a Bench.
-message DetailViewData {
+message ObjectViewData {
   repeated string expanded_sections = 100;
   repeated string collapsed_sections = 101;
 }

@@ -9,11 +9,12 @@ import {
   NodeType,
   Orientation,
   TypeData,
+  TypeKind,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { supergraph } from "@/system/connection";
+import { supergraph, useExistingConnection } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import { ObjectSection, makeObjectLayout } from "@/ui/object";
@@ -31,16 +32,29 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
+    computedType?: TypeData;
   } & Pick<ViewData, "icon" | "size" | "nodePtr" | "subnodePacked" | "valueType">
 >();
+const modelValue = defineModel<any>("modelValue");
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 const subnodePacked = toRef(props, "subnodePacked");
 
+const kind = computed(() => {
+  if (props.valueType?.kind == TypeKind.PARTIAL_OBJECT) return "partial";
+  else if (props.valueType?.kind == TypeKind.CUSTOM_OBJECT) return "custom";
+  else return "node";
+});
 const nodePtr = computedValue(() => props.nodePtr);
 const { node, graph, connection } = supergraph.getLinkRef(nodePtr);
+const basePtr = computed(
+  () => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.ACTION> | undefined,
+);
+const { graph: baseGraph, connection: baseConnection } = useExistingConnection(basePtr);
+const base = baseGraph.getRef(basePtr);
+const baseFields = baseGraph.getChildrenRef(base, NodeType.FIELD);
 const computer = useComputedValues({
   computedValues: computed(() => (isSourceNode(node.value) ? node.value.computedValues : [])),
   update: (computedValues) => {
@@ -61,7 +75,10 @@ const computedType = computed<TypeData | undefined>(() => {
 const layout = computed(() => {
   if (node.value == null) return null;
   const layout = makeObjectLayout({
+    kind: kind.value,
     node: node.value,
+    base: base.value,
+    baseFields: baseFields.value,
     graph: graph.value!,
     txFactory: () => (connection.value ?? pkgConnection).tx,
     computedType: computedType.value,
@@ -70,8 +87,8 @@ const layout = computed(() => {
 });
 
 const isLayoutEmpty = computed(() => !layout.value?.sections.some((section) => section.rows.length > 0));
-const expandedSections = useSubnodeProperty(NodeType.VIEW, ViewType.DETAIL, subnodePacked, "expandedSections");
-const collapsedSections = useSubnodeProperty(NodeType.VIEW, ViewType.DETAIL, subnodePacked, "collapsedSections");
+const expandedSections = useSubnodeProperty(NodeType.VIEW, ViewType.OBJECT, subnodePacked, "expandedSections");
+const collapsedSections = useSubnodeProperty(NodeType.VIEW, ViewType.OBJECT, subnodePacked, "collapsedSections");
 function isSectionExpanded(section: ObjectSection) {
   if (section.key == null) return true;
   if (section.isDefaultCollapsed) return expandedSections.value?.includes(section.key);
@@ -189,7 +206,7 @@ defineExpose<ViewExposed>({ self, id });
 
           <!-- Body -->
           <!-- Fields -->
-          <div v-if="row.type == 'fields'" class="rounded border border-gray-200">
+          <div v-if="row.type == 'fields-list'" class="rounded border border-gray-200">
             <FieldList
               :id="row.title ?? `type-${i}`"
               :orientation="Orientation.VERTICAL"
@@ -200,7 +217,7 @@ defineExpose<ViewExposed>({ self, id });
           </div>
           <!-- Computed View :ComputedView -->
           <ComputedValue
-            v-else-if="row.type == 'property' && computer.has(row.computedPathKey)"
+            v-else-if="(row.type == 'property' || row.type == 'field') && computer.has(row.computedPathKey)"
             :id="i + '.value'"
             class="w-full"
             is-input
@@ -208,20 +225,31 @@ defineExpose<ViewExposed>({ self, id });
             :value-type="computedType"
             @update:model-value="(value) => computer.set(row.computedPath!, value)"
           />
-          <!-- Actual View -->
+          <!-- Dynamic View -->
           <component
             :is="getViewComponent(row.viewType)"
             v-else-if="
-              (row.type == 'view' || row.type == 'property' || row.type == 'object') && hasViewComponent(row.viewType)
+              (row.type == 'view' || row.type == 'property' || row.type == 'field') && hasViewComponent(row.viewType)
             "
             :id="i + '.value'"
-            :class="['ml-auto flex-shrink-0', row.isFullWidth ? '' : 'text-right', row.type == 'object' ? '' : '']"
+            :class="['ml-auto flex-shrink-0', row.isFullWidth ? '' : 'text-right']"
             :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
             v-bind="row.viewProps"
-            :is-computable="(row.type == 'property' || row.type == 'object') && row.isComputable"
-            :computed-values="row.type == 'object' && isSourceNode(node) ? node.computedValues : undefined"
-            :computed-prefix="row.type == 'object' ? row.computedPath : undefined"
-            :computed-type="row.type == 'object' ? computedType : undefined"
+            :is-computable="(row.type == 'property' || row.type == 'field') && row.isComputable"
+            :model-value="row.read()"
+            @update:model-value="(value: any, path?: any) => row.write(value, path)"
+          />
+          <!-- Object -->
+          <Object
+            v-else-if="row.type == 'object'"
+            :id="i + '.value'"
+            :class="['ml-auto flex-shrink-0']"
+            :style="{ width: '100%', minHeight: ROW_HEIGHT_MIN + 'px' }"
+            v-bind="(row.viewProps as any)"
+            :is-computable="row.isComputable"
+            :computed-values="isSourceNode(node) ? node.computedValues : undefined"
+            :computed-prefix="row.computedPath"
+            :computed-type="computedType"
             :model-value="row.read()"
             @update:model-value="(value: any, path?: any) => row.write(value, path)"
             @update:computed-values="

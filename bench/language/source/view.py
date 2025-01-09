@@ -78,7 +78,6 @@ class ViewType(IdEnum):
     USER_WIZARD = 30001
     BENCH_WIZARD = 30002
     EMPTY = 30100
-    DETAIL = 30200
     CREATE = 30201
     CHAT = 30202
     TIMELINE = 30204
@@ -492,7 +491,7 @@ class View(SourceNode[ViewData]):
 
     # content
     value_type: Optional["Type"] = p_regular(
-        40, default=None, require=False, struct=StructType.TYPE_INFO
+        40, default=None, require=False, struct=StructType.TYPE
     )
     node: Optional["Node"] = p_regular(
         42, default=None, require=False, array=False, references="any"
@@ -569,13 +568,13 @@ class RunView(View):
 # objects (20000-30000)
 
 
-# helpers (30000-40000)
-
-
-@node_subtype_(ViewType.DETAIL)
-class DetailView(View):
+@node_subtype_(ViewType.OBJECT)
+class ObjectView(View):
     expanded_sections: list[str] = p_regular(100, array=True)
     collapsed_sections: list[str] = p_regular(101, array=True)
+
+
+# helpers (30000-40000)
 
 
 @enum_(EnumType.USER_WIZARD_STAGE)

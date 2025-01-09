@@ -26,7 +26,6 @@ from bench.language.core import (
     Node,
     NodeReference,
     NodeType,
-    ObjectKind,
     PrimitiveType,
     PrimitiveValue,
     Property,
@@ -250,8 +249,8 @@ class TypeBase(BuiltinObject):
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
         base_type_ptr: Optional["NodeReference"] = None
-    base_field_type: Optional["FieldType"] = p_internal(44, require=False, default=None)
-    property_field_type: Optional["FieldType"] = p_internal(45, require=False, default=None)
+    base_field_types: list["FieldType"] = p_internal(44, require=False, array=True)
+    property_field_types: list["FieldType"] = p_internal(45, require=False, array=True)
     oneof: Union["Field", "Block", None] = p_regular(
         49,
         require=False,
@@ -263,9 +262,7 @@ class TypeBase(BuiltinObject):
 
     # metadata
     default_packed: Optional[Any] = p_value_packed(50)
-    default = p_value_runtime(
-        packed=50, kind=ObjectKind.VARIABLE, typ=lambda self: cast("TypeBase", self)
-    )
+    default = p_value_runtime(packed=50, typ=lambda self: cast("TypeBase", self))
     format: Optional["TypeFormat"] = p_regular(53, default=None)
     condition: Optional["Expression"] = p_regular(
         54, require=False, array=False, default=None, struct=StructType.EXPRESSION
@@ -299,8 +296,10 @@ class TypeBase(BuiltinObject):
         if self.kind == TypeKind.PARTIAL_OBJECT:
             if not info_str.startswith("Partial"):
                 info_str = f"Partial{info_str}"
-            if self.property_field_type is not None:
-                clauses.append(f"Property={self.property_field_type.bench_name}")
+            if self.property_field_types:
+                clauses.append(
+                    f"Property={'|'.join(f.bench_name for f in self.property_field_types)}"
+                )
         if self.condition is not None:
             clauses.append(repr(self.condition))
         if self.is_list:
@@ -309,8 +308,8 @@ class TypeBase(BuiltinObject):
             clauses.append("is_required")
         if self.is_secret:
             clauses.append("is_secret")
-        if self.base_field_type:
-            clauses.append(f"Field={self.base_field_type.bench_name}")
+        if self.base_field_types:
+            clauses.append(f"Field={'|'.join(f.bench_name for f in self.base_field_types)}")
         if self.constraint is not None:
             constraint_str = self.constraint.__content_str__()
             if constraint_str:
@@ -327,7 +326,7 @@ class TypeBase(BuiltinObject):
         self,
         typ: "TypeIn",
         of: Literal["instance", "value"] = "instance",
-        field_type: FieldType | None = None,
+        field_types: list[FieldType] | None = None,
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         is_required: bool = False,
         is_list: bool = False,
@@ -336,7 +335,7 @@ class TypeBase(BuiltinObject):
         typ = to_type(
             typ,
             of=of,
-            field_type=field_type,
+            field_types=field_types,
             constraint=constraint,
             is_required=is_required,
             is_list=is_list,
@@ -363,11 +362,7 @@ class TypeBase(BuiltinObject):
                     raise ValueError(f"no field {args!r} in {self.base_type!r}")
                 return field
         elif self.kind == TypeKind.CUSTOM_OBJECT or self.kind == TypeKind.PARTIAL_OBJECT:
-            if self.base_field_type is not None:
-                object_kind = ObjectKind(self.base_field_type)
-            else:
-                object_kind = ObjectKind.BUILTIN
-            return coerce_custom_object_scalar(object_kind, kwargs, self, as_packed=True)
+            return coerce_custom_object_scalar(kwargs, self, as_packed=True)
 
         raise ValueError(f"cannot create {self!r} (resolved={self!r}) directly")
 
@@ -419,16 +414,16 @@ class TypeBase(BuiltinObject):
 
     @property
     def _fields(self) -> Sequence["Field"]:
-        if self.base_field_type is None:
+        if not self.base_field_types:
             return self._base_fields
         else:
-            return tuple(f for f in self._base_fields if f.type == self.base_field_type)
+            return tuple(f for f in self._base_fields if f.type in self.base_field_types)
 
     def _get_field(self, ident: str) -> Optional["Field"]:
         """Resolves a field in this type by an identifier (name or py_name)"""
         for field in self._base_fields:
             if (field.code_name == ident or field.name == ident) and (
-                self.base_field_type is None or field.type == self.base_field_type
+                not self.base_field_types or field.type in self.base_field_types
             ):
                 return field
         return None
@@ -441,7 +436,7 @@ class TypeBase(BuiltinObject):
         return None
 
 
-@struct_(StructType.TYPE_INFO)
+@struct_(StructType.TYPE)
 class Type(Struct, TypeBase):
     """A Type in the type system."""
 
@@ -483,7 +478,7 @@ def to_type_scalar(
     typ: TypeIn,
     *,
     of: Literal["instance", "value"] = "instance",
-    field_type: FieldType | None = None,
+    field_types: list[FieldType] | None = None,
 ) -> "Type":
     """Converts a type-like object to a TypeInfo."""
     from bench.language.resource.file import FileType
@@ -491,7 +486,7 @@ def to_type_scalar(
     if isinstance(typ, TypeBase):
         return cast("Type", typ)
     elif isinstance(typ, Node) and typ.metatype in (NodeType.BLOCK, NodeType.ACTION):
-        type_info = cast("Block|Action", typ).to_type_maybe(of=of, field_type=field_type)
+        type_info = cast("Block|Action", typ).to_type_maybe(of=of, field_types=field_types)
         if type_info is not None:
             assert isinstance(type_info, Type), f"expected TypeInfo, got {type_info!r}"
             return type_info
@@ -534,13 +529,13 @@ def to_type(
     typ: TypeIn,
     *,
     of: Literal["instance", "value"] = "instance",
-    field_type: FieldType | None = None,
+    field_types: list[FieldType] | None = None,
     constraint: TypeConstraintIn | TypeConstraint | None = None,
     is_required: bool = False,
     is_list: bool = False,
 ) -> Type:
     """Converts a TypeIn into a TypeBase."""
-    type_scalar = to_type_scalar(typ, of=of, field_type=field_type)
+    type_scalar = to_type_scalar(typ, of=of, field_types=field_types)
     if isinstance(constraint, TypeConstraintIn):
         constraint = constraint.into()
     type_scalar.constraint = constraint

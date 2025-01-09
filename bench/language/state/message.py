@@ -9,10 +9,10 @@ from bench.language.core import (
     BenchNode,
     BlockType,
     EnumType,
+    FieldType,
     HasNodeBase,
     HasTimeIdentity,
     NodeType,
-    ObjectKind,
     StateNode,
     StructType,
     enum_,
@@ -85,7 +85,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     text: Optional["Text"] = p_regular(41, require=False, default=None, struct=StructType.TEXT)
     value_packed: Any = p_value_packed(42)
     value: Any = p_value_runtime(
-        42, kind=ObjectKind.MEMBER, typ=lambda self: cast("Message", self).value_type
+        42, type=FieldType.MEMBER, typ=lambda self: cast("Message", self).value_type
     )
     expires_at: Optional[datetime] = p_internal(44, default=None)
     read_at: Optional[datetime] = p_internal(45, default=None)

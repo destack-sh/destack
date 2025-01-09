@@ -1,3 +1,4 @@
+from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -8,8 +9,6 @@ from typing import (
     cast,
 )
 
-import cachetools
-
 from bench.language.core import (
     NAME_CONSTRAINT,
     BenchError,
@@ -18,7 +17,6 @@ from bench.language.core import (
     LocalNodeList,
     NodeSubtypeStub,
     NodeType,
-    ObjectKind,
     RemoteNodeList,
     RunType,
     SourceNode,
@@ -81,7 +79,7 @@ class Block(SourceNode[BlockData]):
 
     variables_packed: Any = p_value_packed(40)
     variables: Any = p_value_runtime(
-        packed=40, kind=ObjectKind.VARIABLE, typ=lambda self: cast("Block", self).variable_type
+        packed=40, type=FieldType.VARIABLE, typ=lambda self: cast("Block", self).variable_type
     )
 
     run_options: Optional["RunOptions"] = p_regular(
@@ -155,9 +153,11 @@ class Block(SourceNode[BlockData]):
         else:
             raise BenchError(f"{self!r} is not callable")
 
-    @cachetools.cached({})  # :CachedTypeInfo
     def to_type_maybe(
-        self, *, of: Literal["instance", "value"] = "instance", field_type: FieldType | None = None
+        self,
+        *,
+        of: Literal["instance", "value"] = "instance",
+        field_types: list[FieldType] | None = None,
     ) -> "TypeBase | None":
         """Get a type represented by this Block (if any)"""
         from bench.language.source.field import Type
@@ -178,30 +178,33 @@ class Block(SourceNode[BlockData]):
             return Type(
                 kind=TypeKind.CUSTOM_OBJECT,
                 base_type=self,
-                base_field_type=field_type or FieldType.MEMBER,
+                base_field_types=field_types or [FieldType.MEMBER],
             )
         else:
             assert_never(of)
 
     def to_type(
-        self, *, of: Literal["instance", "value"] = "instance", field_type: FieldType | None = None
+        self,
+        *,
+        of: Literal["instance", "value"] = "instance",
+        field_types: list[FieldType] | None = None,
     ) -> "TypeBase":
-        typ = self.to_type_maybe(of=of, field_type=field_type)
+        typ = self.to_type_maybe(of=of, field_types=field_types)
         if typ is None:
             raise ValueError(f"{self!r} does not have a type")
         return typ
 
-    @property
+    @cached_property  # :CachedTypeInfo
     def variable_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_type=FieldType.VARIABLE)
+        return self.to_type_maybe(of="value", field_types=[FieldType.VARIABLE])
 
-    @property
+    @cached_property  # :CachedTypeInfo
     def input_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_type=FieldType.INPUT)
+        return self.to_type_maybe(of="value", field_types=[FieldType.INPUT])
 
-    @property
+    @cached_property  # :CachedTypeInfo
     def output_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_type=FieldType.OUTPUT)
+        return self.to_type_maybe(of="value", field_types=[FieldType.OUTPUT])
 
     @staticmethod
     def new[BlockT: "Block" = "Block"](
@@ -216,10 +219,10 @@ class Block(SourceNode[BlockData]):
 
 @node_subtype_(BlockType.VARIABLE, passthrough_get=("value",), passthrough_set=("value",))
 class VariableBlock(Block):
-    value_type: Optional["Type"] = p_regular(100, default=None, struct=StructType.TYPE_INFO)
+    value_type: Optional["Type"] = p_regular(100, default=None, struct=StructType.TYPE)
     value_packed: Any = p_value_packed(101)
     value: Any = p_value_runtime(
-        101, kind=ObjectKind.MEMBER, typ=lambda self: cast("VariableBlock", self).value_type
+        101, type=FieldType.MEMBER, typ=lambda self: cast("VariableBlock", self).value_type
     )
 
 
