@@ -8,12 +8,12 @@ from bench.language.core import (
     TITLE_CONSTRAINT,
     BenchError,
     EnumType,
+    FieldType,
     HasNodeBase,
     LocalNodeList,
     LogLevel,
     Node,
     NodeType,
-    ObjectKind,
     RunErrorKind,
     RunSpanType,
     RunStatus,
@@ -171,8 +171,6 @@ class RunAttempt(Struct):
     error: Optional["RunError"] = p_internal(
         51, require=False, array=False, struct=StructType.RUN_ERROR
     )
-    intermediates_packed: Any = p_value_packed(54)
-    intermediates: "CustomObject | None" = p_value_runtime(54, kind=ObjectKind.OUTPUT, typ=None)
 
     def __content_str__(self) -> str:
         if self.duration is not None:
@@ -389,15 +387,15 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     # content
     variables_packed: Any = p_value_packed(60)
     variables: "CustomObject | None" = p_value_runtime(
-        60, kind=ObjectKind.VARIABLE, typ=lambda self: cast("Run", self).variable_type
+        60, type=FieldType.VARIABLE, typ=lambda self: cast("Run", self).variable_type
     )
     inputs_packed: Any = p_value_packed(61)
     inputs: "CustomObject | None" = p_value_runtime(
-        61, kind=ObjectKind.INPUT, typ=lambda self: cast("Run", self).input_type
+        61, type=FieldType.INPUT, typ=lambda self: cast("Run", self).input_type
     )
     outputs_packed: Any = p_value_packed(63)
     outputs: "CustomObject | None" = p_value_runtime(
-        63, kind=ObjectKind.OUTPUT, typ=lambda self: cast("Run", self).output_type
+        63, type=FieldType.OUTPUT, typ=lambda self: cast("Run", self).output_type
     )
     logs: list["LogInfo"] = p_internal(65, array=True, struct=StructType.LOG_INFO)
     spans: list["RunSpan"] = p_internal(66, array=True, struct=StructType.RUN_SPAN)

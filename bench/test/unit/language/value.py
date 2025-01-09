@@ -21,7 +21,6 @@ from bench.language import (
     MessageType,
     Node,
     NodeType,
-    ObjectKind,
     Package,
     PrimitiveType,
     Record,
@@ -63,28 +62,19 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
     )
 
     # coerce
-    Flow1Output = Flow1.to_type_maybe(of="value", field_type=FieldType.OUTPUT)
+    Flow1Output = Flow1.to_type_maybe(of="value", field_types=[FieldType.OUTPUT])
     assert Flow1Output is not None
     obj = coerce_custom_object_scalar(
-        ObjectKind.OUTPUT,
         {
             "Output1": 42,
             "Output 2 with a Space": Text.plain("hello bench!"),
-            "text": Text.plain("default output text!"),
         },
         Flow1Output,
     )
-    assert obj.text == Text.plain("default output text!")
-
-    # get/set
-    obj.text = None
-    assert obj.text is None
 
     # pack/unpack
     obj_packed = pack_custom_object(obj, Flow1Output)
-    obj_unpacked = unpack_custom_object(
-        ObjectKind.OUTPUT, obj_packed, Flow1Output, supergraph=session._supergraph
-    )
+    obj_unpacked = unpack_custom_object(obj_packed, Flow1Output, supergraph=session._supergraph)
     assert obj_unpacked.equals(obj)
 
 
@@ -101,7 +91,7 @@ def test_partial_node_message(session: Session, package: Package) -> None:
         ),
     )
     typ = Type(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.MESSAGE, base_type=message_type)
-    obj = CustomObject.new(ObjectKind.BUILTIN, {}, typ)
+    obj = CustomObject.new({}, typ)
 
     # should be init to empty/default values for Message
     assert obj.id is None
@@ -121,9 +111,7 @@ def test_partial_node_message(session: Session, package: Package) -> None:
 
     # pack/unpack
     obj_packed = pack_custom_object(obj, typ)
-    obj_unpacked = unpack_custom_object(
-        ObjectKind.BUILTIN, obj_packed, typ, supergraph=session._supergraph
-    )
+    obj_unpacked = unpack_custom_object(obj_packed, typ, supergraph=session._supergraph)
     assert obj_unpacked.equals(obj)
 
     # turn into full node
@@ -156,9 +144,7 @@ def test_partial_node_block(session: Session, package: Package) -> None:
 
     # pack/unpack
     obj_packed = pack_custom_object(obj, typ)
-    obj_unpacked = unpack_custom_object(
-        ObjectKind.BUILTIN, obj_packed, typ, supergraph=session._supergraph
-    )
+    obj_unpacked = unpack_custom_object(obj_packed, typ, supergraph=session._supergraph)
     assert obj_unpacked.equals(obj)
 
     # turn into full node
@@ -173,7 +159,7 @@ def test_partial_node_block(session: Session, package: Package) -> None:
 def test_partial_node_generic(session: Session, package: Package) -> None:
     """Create, update, pack/unpack a partial generic node."""
     typ = Type(kind=TypeKind.PARTIAL_OBJECT)
-    obj = CustomObject.new(ObjectKind.BUILTIN, {}, typ)
+    obj = CustomObject.new({}, typ)
 
     # should be init to empty/default values for Node
     assert obj.id is None
@@ -191,9 +177,7 @@ def test_partial_node_generic(session: Session, package: Package) -> None:
 
     # pack/unpack
     obj_packed = pack_custom_object(obj, typ)
-    obj_unpacked = unpack_custom_object(
-        ObjectKind.BUILTIN, obj_packed, typ, supergraph=session._supergraph
-    )
+    obj_unpacked = unpack_custom_object(obj_packed, typ, supergraph=session._supergraph)
     assert obj_unpacked.equals(obj)
 
     # turn into full node
@@ -220,9 +204,7 @@ def test_partial_node_with_nested_value_packed(session: Session, package: Packag
 
     # pack/unpack
     obj_packed = pack_custom_object(obj, typ)
-    obj_unpacked = unpack_custom_object(
-        ObjectKind.BUILTIN, obj_packed, typ, supergraph=session._supergraph
-    )
+    obj_unpacked = unpack_custom_object(obj_packed, typ, supergraph=session._supergraph)
     assert obj.equals(obj_unpacked)
     assert obj_unpacked.node_partial is not node_partial  # should be a different object instance
 
@@ -292,17 +274,17 @@ def test_roundtrip_nested_value(session: Session, package: Package):
         type=FieldType.MEMBER,
         name="Field4",
         base_type=message2,
-        base_field_type=FieldType.MEMBER,
+        base_field_types=[FieldType.MEMBER],
         kind=TypeKind.CUSTOM_OBJECT,
     )
 
     # outer value
-    value = CustomObject.new(ObjectKind.MEMBER, {}, message1.to_type(of="value"))
+    value = CustomObject.new({}, message1.to_type(of="value"))
     value.Field1 = choice1.fields.Option1
     assert value.Field1 is choice1.fields.Option1
     value.Field2 = [24]
     value.Field3 = Text.plain("hello bench!")
-    value.Field4 = CustomObject.new(ObjectKind.MEMBER, {}, message2.to_type(of="value"))
+    value.Field4 = CustomObject.new({}, message2.to_type(of="value"))
 
     value_packed = pack_value(value, message1.to_type(of="value"), wrap_scalar=True)
     unpacked_value = unpack_value(value_packed, message1.to_type(of="value"), wrap_scalar=True)
@@ -349,11 +331,6 @@ UNGENERATABLE_STRUCT_TYPES = [
     StructType.EDIT,
     StructType.EDIT_OPERATION,
     StructType.CHANGE,
-    # custom objects are never instantiated
-    StructType.VARIABLE_OBJECT,
-    StructType.MEMBER_OBJECT,
-    StructType.INPUT_OBJECT,
-    StructType.OUTPUT_OBJECT,
     # nodes have special handling
     StructType.NODE_REFERENCE,
     StructType.PROPERTY_REFERENCE,

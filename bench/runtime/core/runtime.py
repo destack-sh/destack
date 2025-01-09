@@ -27,7 +27,6 @@ from bench.language import (
     NodeGraph,
     NodeMode,
     NodeType,
-    ObjectKind,
     PathElementType,
     PathError,
     PathOptions,
@@ -404,7 +403,6 @@ class Runtime:
                 with tracer.start_as_current_span("runtime.check_outputs"):
                     if runner.outputs is None:
                         runner.outputs = CustomObject.new(
-                            ObjectKind.OUTPUT,
                             {},
                             runner.output_type,
                             supergraph=self.session._supergraph,
@@ -531,7 +529,7 @@ class Runtime:
         if runner.input_type is not None:
             with tracer.start_as_current_span("runtime.check_inputs"):
                 inputs = runner.inputs or CustomObject.new(
-                    ObjectKind.INPUT, {}, runner.input_type, supergraph=self.session._supergraph
+                    {}, runner.input_type, supergraph=self.session._supergraph
                 )
                 try:
                     check_value(

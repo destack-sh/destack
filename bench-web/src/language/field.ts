@@ -62,14 +62,14 @@ export type TypeIdentity = Pick<
   | "primitiveType"
   | "benchType"
   | "baseTypePtr"
-  | "baseFieldType"
   | "isRequired"
   | "isList"
   | "isSecret"
   | "format"
   | "condition"
   | "constraint"
-> & { id?: any; ck?: string };
+> &
+  Partial<Pick<TypeData, "baseFieldTypes" | "propertyFieldTypes">> & { id?: any; ck?: string };
 
 export function describeTypeIdentity(type: TypeIdentity & Partial<AnyNodeData>): string {
   if (type.kind == null) return "<empty>";
@@ -192,7 +192,7 @@ export function getPropertyType(prop: PropertyInfo | PropertyReferenceData): Typ
     };
     _propertyTypeInfos[cacheKey] = type;
   }
-  
+
   return _propertyTypeInfos[cacheKey]!;
 }
 
@@ -342,8 +342,11 @@ export function typeIsNumeric(type: { kind: TypeKind } & Partial<TypeData>): boo
 export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldData[] {
   if (type.baseTypePtr == null) return [];
   const fields = graph.getChildren(type.baseTypePtr, NodeType.FIELD);
-  if (type.baseFieldType == null) return fields.filter((f) => f.type != FieldType.OPTION);
-  else return fields.filter((f) => f.type == type.baseFieldType);
+  if (type.baseFieldTypes == null || type.baseFieldTypes.length == 0) {
+    return fields.filter((f) => f.type != FieldType.OPTION);
+  } else {
+    return fields.filter((f) => type.baseFieldTypes!.includes(f.type));
+  }
 }
 
 /** Gets the Node.type enum type */

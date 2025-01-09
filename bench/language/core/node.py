@@ -77,7 +77,6 @@ from .const import (
     NodeArea,
     NodeMode,
     NodeType,
-    ObjectKind,
     ObjectType,
     PrimitiveType,
     QueryType,
@@ -1480,12 +1479,16 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
 
     @classmethod
     def get_value_property(
-        cls, object_kind: ObjectKind | None = None, kind: Literal["runtime", "packed"] = "runtime"
+        cls,
+        field_types: Sequence[FieldType] | None = None,
+        kind: Literal["runtime", "packed"] = "runtime",
     ) -> Property:
         """Gets the value property for the given object kind."""
         for prop in cls.__properties__.values():
             if prop.is_value_runtime and (
-                object_kind is None or prop.value_object_kind == object_kind
+                not field_types
+                or prop.value_field_type is None
+                or (prop.value_field_type in field_types)
             ):
                 if kind == "runtime":
                     return prop
@@ -1494,7 +1497,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                     return prop.value_packed_ptr
         else:
             raise ValueError(
-                f"no value property for {object_kind.bench_name if object_kind else 'any'} object kind in {cls.__name__}"
+                f"no value property for {'|'.join(f.bench_name for f in field_types) if field_types else 'any'} field type in {cls.__name__}"
             )
 
     @classmethod
@@ -2432,13 +2435,13 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             typ = Type(
                 kind=TypeKind.PARTIAL_OBJECT,
                 base_type=block,
-                base_field_type=FieldType.MEMBER,
+                base_field_types=[FieldType.MEMBER],
                 bench_type=cls.metatype,
                 constraint=constraint,
             )
         else:
             typ = Type(kind=TypeKind.PARTIAL_OBJECT, bench_type=cls.metatype, constraint=constraint)
-        return coerce_custom_object_scalar(ObjectKind.BUILTIN, kwargs, typ)
+        return coerce_custom_object_scalar(kwargs, typ)
 
     @classmethod
     def from_partial(cls, partial: "CustomObject", **kwargs) -> Self:

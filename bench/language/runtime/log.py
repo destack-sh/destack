@@ -9,7 +9,6 @@ from bench.language.core import (
     LogLevel,
     Node,
     NodeType,
-    ObjectKind,
     PrimitiveType,
     RuntimeNode,
     Struct,
@@ -18,8 +17,6 @@ from bench.language.core import (
     p_internal,
     p_node_parent,
     p_system,
-    p_value_packed,
-    p_value_runtime,
     struct_,
     timed_node_,
 )
@@ -58,8 +55,6 @@ class LogInfo(Struct):
 
     text: "Text | None" = p_internal(61, require=False, array=False, struct=StructType.TEXT)
     text_plain: str | None = p_internal(62)  # small optimization to avoid large Text instances
-    value_packed: Any | None = p_value_packed(65)
-    value: Any = p_value_runtime(65, kind=ObjectKind.MEMBER, typ=None)  # freeform value only
 
 
 @timed_node_(NodeType.LOG)

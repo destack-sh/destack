@@ -24,7 +24,7 @@ import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
 import { ModelValueOptions, viewEmits, type ViewExposed } from "@/views/common";
-import SomeObject from "@/views/helpers/Detail.vue";
+import SomeObject from "@/views/objects/Object.vue";
 import { computed, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = 32;
@@ -72,17 +72,21 @@ const hasInputs = computed(() => fields.value.some((f) => f.type == FieldType.IN
 const hasOutputs = computed(() => fields.value.some((f) => f.type == FieldType.OUTPUT));
 const variableType = computed(() =>
   runBasePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldType: FieldType.VARIABLE })
+    ? makeTypeInfo({
+        kind: TypeKind.CUSTOM_OBJECT,
+        baseTypePtr: runBasePtr.value,
+        baseFieldTypes: [FieldType.VARIABLE],
+      })
     : undefined,
 );
 const inputType = computed(() =>
   runBasePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldType: FieldType.INPUT })
+    ? makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldTypes: [FieldType.INPUT] })
     : undefined,
 );
 const outputType = computed(() =>
   runBasePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldType: FieldType.OUTPUT })
+    ? makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldTypes: [FieldType.OUTPUT] })
     : undefined,
 );
 function getRunObjectType(fieldType: FieldType) {
@@ -119,12 +123,12 @@ const interruptions = computed(() => {
     const inputType = makeTypeInfo({
       kind: TypeKind.CUSTOM_OBJECT,
       baseTypePtr: getBaseFromNode(interrupt)!,
-      baseFieldType: FieldType.INPUT,
+      baseFieldTypes: [FieldType.INPUT],
     });
     const outputType = makeTypeInfo({
       kind: TypeKind.CUSTOM_OBJECT,
       baseTypePtr: getBaseFromNode(interrupt)!,
-      baseFieldType: FieldType.OUTPUT,
+      baseFieldTypes: [FieldType.OUTPUT],
     });
 
     interruptions.push({ base, interruption: interrupt, inputType, outputType });

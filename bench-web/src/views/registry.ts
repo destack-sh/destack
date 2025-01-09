@@ -27,12 +27,11 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.FLOW]: () => import("@/views/subnodes/Flow.vue"),
   // structs
   [ViewType.TYPE]: () => import("@/views/objects/Type.vue"),
-  [ViewType.OBJECT]: () => import("@/views/objects/CustomObject.vue"),
+  [ViewType.OBJECT]: () => import("@/views/objects/Object.vue"),
   [ViewType.FIELD_LIST]: () => import("@/views/objects/FieldList.vue"),
   [ViewType.COMPUTED_VALUE]: () => import("@/views/objects/ComputedValue.vue"),
   [ViewType.PATH]: () => import("@/views/objects/Path.vue"),
   // helpers
-  [ViewType.DETAIL]: () => import("@/views/helpers/Detail.vue"),
   [ViewType.USER_WIZARD]: () => import("@/views/helpers/UserWizard.vue"),
   [ViewType.BENCH_WIZARD]: () => import("@/views/helpers/BenchWizard.vue"),
   [ViewType.EMPTY]: () => import("@/views/helpers/Empty.vue"),

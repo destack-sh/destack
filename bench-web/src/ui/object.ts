@@ -94,8 +94,8 @@ type RowBase = {
   title?: string;
   subtitle?: string;
 };
-export type FieldsRow = RowBase & {
-  type: "fields";
+export type FieldsListRow = RowBase & {
+  type: "fields-list";
   fieldType: FieldType;
   toolPtr?: NodeReferenceData;
 };
@@ -122,6 +122,13 @@ export type PropertyRow = Omit<ViewRow, "type"> & {
   computedPathKey?: string;
   prop: PropertyInfo;
 };
+export type FieldRow = Omit<ViewRow, "type"> & {
+  type: "field";
+  isComputable: boolean;
+  computedPath?: PathData;
+  computedPathKey?: string;
+  field: FieldType;
+};
 export type IconRow = RowBase & {
   type: "icon";
   icon: IconData;
@@ -134,13 +141,18 @@ export type TextRow = RowBase & {
   type: "text";
   text: string;
 };
-export type DetailRow = FieldsRow | ViewRow | PropertyRow | ObjectRow | IconRow | TextRow | LineRow;
+export type DetailRow = FieldsListRow | ViewRow | PropertyRow | FieldRow | ObjectRow | IconRow | TextRow | LineRow;
 
 /** Get the layout for a detailed view of a CustomObject or Node› */
 export function makeObjectLayout(options: {
-  node: AnyNodeData;
+  kind: "node" | "partial" | "custom";
+  node: AnyNodeData | null;
+  base: AnyNodeData | null;
+  baseFields: FieldData[];
   graph: ReadNodeGraph;
   txFactory: () => Transaction;
+  modelValue?: Record<string, any>;
+  valueType?: TypeData;
   computedType?: TypeData;
 }): ObjectLayout {
   // nocheckin: edit node partials in Detail layout (incl. as computed)
@@ -439,9 +451,9 @@ export function makeObjectLayout(options: {
     return section(
       options?.title ?? "Schema",
       [
-        { type: "fields", fieldType: FieldType.INPUT, toolPtr: options?.toolPtr },
+        { type: "fields-list", fieldType: FieldType.INPUT, toolPtr: options?.toolPtr },
         { type: "icon", icon: makeIcon("fas fa-arrow-down") },
-        { type: "fields", fieldType: FieldType.OUTPUT, toolPtr: options?.toolPtr },
+        { type: "fields-list", fieldType: FieldType.OUTPUT, toolPtr: options?.toolPtr },
       ],
       {
         actions: [
@@ -477,15 +489,15 @@ export function makeObjectLayout(options: {
     }
 
     if (node.type == BlockType.CHOICE) {
-      section("Options", [{ type: "fields", fieldType: FieldType.OPTION }], {
+      section("Options", [{ type: "fields-list", fieldType: FieldType.OPTION }], {
         actions: [actionAddField(FieldType.OPTION)],
       });
     } else if (node.type == BlockType.DATABASE || node.type == BlockType.MESSAGE) {
-      section("Members", [{ type: "fields", fieldType: FieldType.MEMBER }], {
+      section("Members", [{ type: "fields-list", fieldType: FieldType.MEMBER }], {
         actions: [actionAddField(FieldType.MEMBER)],
       });
     } else if (RUNNABLE_BLOCK_TYPES.includes(node.type)) {
-      section("Variables", [{ type: "fields", fieldType: FieldType.VARIABLE }], {
+      section("Variables", [{ type: "fields-list", fieldType: FieldType.VARIABLE }], {
         actions: [actionAddField(FieldType.VARIABLE)],
       });
       sectionSchema();
@@ -669,12 +681,12 @@ export function makeObjectLayout(options: {
     }
     if (node.type == ActionType.START) {
       // flow inputs
-      section("Schema", [{ type: "fields", fieldType: FieldType.INPUT, toolPtr: node.parentPtr }], {
+      section("Schema", [{ type: "fields-list", fieldType: FieldType.INPUT, toolPtr: node.parentPtr }], {
         subtitle: "(Flow)",
         actions: [actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT], { toolPtr: node.parentPtr })],
       });
     } else if (node.type == ActionType.COMPLETE) {
-      // ƒlow outputs as inputs
+      // ƒlow outputs as action inputs
       section(
         "Schema",
         [
@@ -703,20 +715,28 @@ export function makeObjectLayout(options: {
           // tool variables & inputs
           rowObject(
             ActionProperty.variablesPacked,
-            makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.VARIABLE, baseTypePtr: toolPtr }),
+            makeTypeInfo({
+              kind: TypeKind.CUSTOM_OBJECT,
+              baseFieldTypes: [FieldType.VARIABLE],
+              baseTypePtr: toolPtr,
+            }),
             { title: false, isComputable: true },
           ),
           rowObject(
             ActionProperty.inputsPacked,
-            makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.INPUT, baseTypePtr: toolPtr }),
+            makeTypeInfo({
+              kind: TypeKind.CUSTOM_OBJECT,
+              baseFieldTypes: [FieldType.INPUT],
+              baseTypePtr: toolPtr,
+            }),
             { title: false, isComputable: true },
           ),
           // arrow
           rowIcon("fas fa-arrow-down"),
           // outputs
-          { type: "fields", fieldType: FieldType.OUTPUT, toolPtr },
+          { type: "fields-list", fieldType: FieldType.OUTPUT, toolPtr },
           rowLine("Self"),
-          { type: "fields", fieldType: FieldType.OUTPUT },
+          { type: "fields-list", fieldType: FieldType.OUTPUT },
         ],
         {
           subtitle: "(Tool)",
@@ -735,13 +755,13 @@ export function makeObjectLayout(options: {
             ActionProperty.inputsPacked,
             makeTypeInfo({
               kind: TypeKind.CUSTOM_OBJECT,
-              baseFieldType: FieldType.INPUT,
+              baseFieldTypes: [FieldType.INPUT],
               baseTypePtr: toolPtr ?? nodePtr,
             }),
             { title: false, isComputable: true },
           ),
           rowIcon("fas fa-arrow-down"),
-          { type: "fields", fieldType: FieldType.OUTPUT },
+          { type: "fields-list", fieldType: FieldType.OUTPUT },
         ],
         {
           actions: [
@@ -778,7 +798,7 @@ export function makeObjectLayout(options: {
       rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }),
       rowObject(
         RecordProperty.valuePacked,
-        makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldType: FieldType.MEMBER, baseTypePtr: node.blockPtr }),
+        makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseFieldTypes: [FieldType.MEMBER], baseTypePtr: node.blockPtr }),
         { title: false },
       ),
     ]);

@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.08.3"
+VERSION = "2025.01.09.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -145,7 +145,6 @@ class EnumType(IdEnum):
     FIELD_ZONE = 21002
     TYPE_KIND = 21003
     TYPE_FORMAT = 21004
-    OBJECT_KIND = 21005
     BLOCK_TYPE = 21006
     TEXT_LINE_TYPE = 21010
 
@@ -448,12 +447,8 @@ class StructType(IdEnum):
     MACHINE_IMAGE = 11000
 
     # type (11500-11999)
-    TYPE_INFO = 11500
+    TYPE = 11500
     TYPE_CONSTRAINT = 11501
-    VARIABLE_OBJECT = 11502
-    MEMBER_OBJECT = 11503
-    INPUT_OBJECT = 11504
-    OUTPUT_OBJECT = 11505
     SCHEDULE = 11506
     FILE_INFO = 11507
     ICON = 11509
@@ -1068,17 +1063,6 @@ class FieldType(IdEnum):
     INPUT = 3
     OUTPUT = 4
     OPTION = 5
-
-
-@enum_(EnumType.OBJECT_KIND)
-class ObjectKind(IdEnum):
-    """The type of an Object. Overlaps with FieldType."""
-
-    VARIABLE = 1
-    MEMBER = 2
-    INPUT = 3
-    OUTPUT = 4
-    BUILTIN = 10
 
 
 @enum_(EnumType.TRIGGER_TYPE)

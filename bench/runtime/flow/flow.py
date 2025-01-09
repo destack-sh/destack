@@ -11,10 +11,10 @@ from bench.language import (
     Action,
     ActionType,
     CustomObject,
+    FieldType,
     FlowBlock,
     HasContext,
     Interruption,
-    ObjectKind,
     Pipe,
     PipeType,
     Run,
@@ -111,9 +111,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             return  # already stopped
         if outputs is not None:
             assert self.output_type is not None, f"{self!r} has no output type"
-            self._stop_result = coerce_custom_object_scalar(
-                ObjectKind.OUTPUT, outputs, self.output_type
-            )
+            self._stop_result = coerce_custom_object_scalar(outputs, self.output_type)
         else:
             self._stop_result = "completed"
         self._abort()  # cancel all active actions
@@ -197,7 +195,11 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             # feed forward connected Pipes/Actions
             outgoing: list[Run] = []
             if isinstance(runner.node, Action):
-                if runner.outputs is not None and runner.outputs._kind == ObjectKind.OUTPUT:
+                if (
+                    runner.outputs is not None
+                    and FieldType.OUTPUT in runner.outputs._type.base_field_types
+                    and runner.node.type != ActionType.COMPLETE
+                ):
                     calls = cast(Action, runner.outputs).calls or ()
                 else:
                     calls = ()

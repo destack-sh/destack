@@ -6,10 +6,10 @@ from git import TYPE_CHECKING
 from bench.language.core import (
     CustomObject,
     EnumType,
+    FieldType,
     HasNodeBase,
     NodeReference,
     NodeType,
-    ObjectKind,
     RunStatus,
     RuntimeNode,
     Struct,
@@ -167,10 +167,10 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
 
     # content
     inputs_packed: Any = p_value_packed(51)
-    inputs: Any = p_value_runtime(51, kind=ObjectKind.INPUT, typ=None)
+    inputs: Any = p_value_runtime(51, type=FieldType.INPUT, typ=None)
     outputs_packed: Any = p_value_packed(52)
     outputs: Any = p_value_runtime(
-        52, kind=ObjectKind.OUTPUT, typ=lambda self: cast("Interruption", self).output_type
+        52, type=FieldType.OUTPUT, typ=lambda self: cast("Interruption", self).output_type
     )
 
     # context

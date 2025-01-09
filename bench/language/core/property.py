@@ -29,7 +29,6 @@ from .const import (
     EnumType,
     FieldType,
     NodeType,
-    ObjectKind,
     ObjectType,
     PrimitiveType,
     ReferenceKind,
@@ -123,7 +122,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     value_packed_ptr: Union[int, "Property", None] = None  # the packed value
     value_runtime_ptr: Union["Property", None] = None  # the runtime value
     value_type_info_getter: Callable[["BuiltinObject"], "TypeBase | None"] | None = None
-    value_object_kind: ObjectKind | None = None
+    value_field_type: FieldType | None = None
     value_is_partial: bool = False
 
     # subtype
@@ -982,7 +981,7 @@ def p_struct_parent(id: int) -> Any:
 def p_value_runtime(
     packed: int,
     *,
-    kind: ObjectKind,
+    type: FieldType | None = None,
     typ: Callable[["BuiltinObject"], "TypeBase | None"] | None,
     field_type: FieldType | None = None,
     partial: bool = False,
@@ -999,16 +998,20 @@ def p_value_runtime(
         is_value_runtime=True,
         is_list=False,
         default=None,
+        field_type=field_type,
         value_packed_ptr=packed,
         value_type_info_getter=typ,
-        value_object_kind=kind,
-        field_type=field_type,
+        value_field_type=type,
         value_is_partial=partial,
     )
 
 
 def p_value_packed(
-    id: int, *, secret: bool = False, field_type: FieldType | None = None, partial: bool = False
+    id: int,
+    *,
+    secret: bool = False,
+    field_type: FieldType | None = None,
+    partial: bool = False,
 ) -> Any:
     """Packed value property."""
     return Property(

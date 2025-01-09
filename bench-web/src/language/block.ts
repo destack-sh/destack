@@ -14,11 +14,10 @@ import {
   PackageData,
   TypeData,
   TypeKind,
-  VariableBlockData
+  VariableBlockData,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { generateOrderKey } from "@/utils/fractional";
-
 
 /** Create a Block relative to another. */
 export function createBlock(
@@ -75,21 +74,23 @@ export function blockToType(block: BlockData): TypeData {
   //  (for instance Signal blocks could map to both Signal nodes based in that block or Values of that Signal type)
   let kind: TypeKind;
   let benchType: BenchType | undefined;
-  let baseFieldType: FieldType | undefined;
+  let baseFieldTypes: FieldType[] | undefined;
   if (block.type == BlockType.CHOICE) {
     benchType = BenchType.FIELD;
     kind = TypeKind.BASED_NODE;
-    baseFieldType = FieldType.OPTION;
+    baseFieldTypes = [FieldType.OPTION];
   } else if (block.type == BlockType.MESSAGE) {
     benchType = BenchType.MESSAGE;
     kind = TypeKind.BASED_NODE;
+    baseFieldTypes = [FieldType.MEMBER];
   } else if (block.type == BlockType.DATABASE) {
     benchType = BenchType.RECORD;
     kind = TypeKind.BASED_NODE;
+    baseFieldTypes = [FieldType.MEMBER];
   } else {
     throw new Error(`unsupported block type: ${block.type}`);
   }
-  const type = makeTypeInfo({ kind, benchType, baseFieldType });
+  const type = makeTypeInfo({ kind, benchType, baseFieldTypes });
   type.baseTypePtr = toNodeRef(block);
   return type;
 }

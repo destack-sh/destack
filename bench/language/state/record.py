@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Any, Optional, cast, final
 import structlog
 
 from bench.language.core import (
+    FieldType,
     HasNodeBase,
     NodeType,
-    ObjectKind,
     StateNode,
     StructType,
     node_,
@@ -50,7 +50,7 @@ class Record(StateNode[RecordData], HasNodeBase):
     # value
     value_packed: Any = p_value_packed(40)
     value: "CustomObject | None" = p_value_runtime(
-        40, kind=ObjectKind.MEMBER, typ=lambda self: cast("Record", self).value_type
+        40, type=FieldType.MEMBER, typ=lambda self: cast("Record", self).value_type
     )
 
     @final

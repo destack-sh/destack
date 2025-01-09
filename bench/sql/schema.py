@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.08.3"
+VERSION = "2025.01.09.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -837,8 +837,8 @@ FIELD_TABLE = Table(
         Column("base_type_ck", PrimitiveType.UUID, is_nullable=True),
         Column("base_type_type", PrimitiveType.INT16, is_nullable=True),
         Column("base_type_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("base_field_type", PrimitiveType.INT16, is_nullable=True),
-        Column("property_field_type", PrimitiveType.INT16, is_nullable=True),
+        Column("base_field_types", PrimitiveType.INT16, is_array=True, is_nullable=True),
+        Column("property_field_types", PrimitiveType.INT16, is_array=True, is_nullable=True),
         Column("oneof_id", PrimitiveType.UUID, is_nullable=True),
         Column("oneof_ck", PrimitiveType.UUID, is_nullable=True),
         Column("oneof_type", PrimitiveType.INT16, is_nullable=True),

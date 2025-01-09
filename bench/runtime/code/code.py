@@ -11,7 +11,6 @@ from bench.language import (
     CustomObject,
     Field,
     HasContext,
-    ObjectKind,
     RenderOptions,
     Run,
     RunnableNode,
@@ -118,8 +117,8 @@ class CodeRunnerBase(Runner):
 
         # assemble globals
         assert self.node is not None, f"no node scope for {self!r}"
-        _get_node = functools.partial(get_node, self.node)
-        _get_node_or_error = functools.partial(get_node_or_error, self.node)
+        _get_node = functools.partial(get_node, self.node, self.context)
+        _get_node_or_error = functools.partial(get_node_or_error, self.node, self.context)
         _get_path = functools.partial(get_path, self.node)
         _render = functools.partial(render, options=RenderOptions(scope=self.node))
         _upload = functools.partial(upload_file)
@@ -167,7 +166,7 @@ class CodeRunnerBase(Runner):
     def _coerce_outputs(self, outputs_raw: Any) -> CustomObject:
         """Coerves raw outputs into the output type for this run."""
         assert self.output_type, f"no output type for {self!r}"
-        outputs = coerce_custom_object_scalar(ObjectKind.OUTPUT, outputs_raw, self.output_type)
+        outputs = coerce_custom_object_scalar(outputs_raw, self.output_type)
         return outputs
 
 

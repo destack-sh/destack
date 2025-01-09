@@ -30,7 +30,6 @@ from bench.language import (
     HasNodeBase,
     InterruptionType,
     NodeType,
-    ObjectKind,
     ObserveAction,
     PressAction,
     ProxyReadObject,
@@ -232,7 +231,7 @@ class CreateActionRunner(ActionRunnerBase[CreateAction]):
         logger.debug("action.create", action=self.node, node=node)
 
         assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
+        self.outputs = CustomObject.new({"node": node}, self.output_type)
 
 
 class DuplicateActionRunner(ActionRunnerBase[DuplicateAction]):
@@ -252,7 +251,7 @@ class DuplicateActionRunner(ActionRunnerBase[DuplicateAction]):
         logger.debug("action.clone", action=self.node, node=cloned_node, partial=node_partial)
 
         assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": cloned_node}, self.output_type)
+        self.outputs = CustomObject.new({"node": cloned_node}, self.output_type)
 
 
 class UpdateActionRunner(ActionRunnerBase[UpdateAction]):
@@ -268,7 +267,7 @@ class UpdateActionRunner(ActionRunnerBase[UpdateAction]):
         logger.debug("action.update", action=self.node, node=node, partial=node_partial)
 
         assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
+        self.outputs = CustomObject.new({"node": node}, self.output_type)
 
 
 class DeleteActionRunner(ActionRunnerBase[DeleteAction]):
@@ -282,7 +281,7 @@ class DeleteActionRunner(ActionRunnerBase[DeleteAction]):
         logger.debug("action.delete", action=self.node, node=node)
 
         assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
+        self.outputs = CustomObject.new({"node": node}, self.output_type)
 
 
 #
@@ -404,7 +403,7 @@ class ObserveActionRunner(ActionRunnerBase[ObserveAction]):
         )
         assert self.output_type is not None, f"no output type for {self!r}"
         self.outputs = coerce_custom_object_scalar(
-            ObjectKind.OUTPUT, {"dom": dom_tree, "screenshot": screenshot}, self.output_type
+            {"dom": dom_tree, "screenshot": screenshot}, self.output_type
         )
 
 
