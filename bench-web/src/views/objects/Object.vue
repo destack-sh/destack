@@ -21,7 +21,7 @@ import { canvas, pkgConnection } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import { ObjectSection, makeObjectLayout } from "@/ui/object";
 import { computedValue } from "@/utils/ref";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { ModelValueOptions, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
 import ComputedValue from "@/views/objects/ComputedValue.vue";
 import FieldList from "@/views/objects/FieldList.vue";
@@ -36,7 +36,7 @@ const props = defineProps<
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     computedType?: TypeData;
-  } & Pick<ViewData, "icon" | "size" | "nodePtr" | "subnodePacked" | "valueType">
+  } & Partial<Pick<ViewData, "icon" | "size" | "nodePtr" | "subnodePacked" | "valueType" | "isMinimal">>
 >();
 const modelValue = defineModel<any>("modelValue");
 const emit = defineEmits(viewEmits());
@@ -52,14 +52,12 @@ const { graph } = useExistingConnection(nodePtr);
 const fields = graph.getChildrenRef(node, NodeType.FIELD);
 
 // delegate (base or some other delegate)
-const delegatePtr = computed(
-  () => {
-    if (props.valueType?.baseTypePtr != null) return props.valueType.baseTypePtr;
-    else if (isNode(node.value, NodeType.ACTION) && node.value.type == ActionType.TOOL) return node.value.toolPtr;
-    else if (node.value != null) return getBaseFromNode(node.value);
-    else return null;
-  },
-);
+const delegatePtr = computed(() => {
+  if (props.valueType?.baseTypePtr != null) return props.valueType.baseTypePtr;
+  else if (isNode(node.value, NodeType.ACTION) && node.value.type == ActionType.TOOL) return node.value.toolPtr;
+  else if (node.value != null) return getBaseFromNode(node.value);
+  else return null;
+});
 const { graph: delegateGraph, connection: delegateConnection } = useExistingConnection(delegatePtr);
 const delegate = delegateGraph.getRef(delegatePtr);
 const delegateFields = delegateGraph.getChildrenRef(delegate, NodeType.FIELD);
@@ -94,7 +92,7 @@ const layout = computed(() => {
   if (kind.value == "node") {
     if (node.value == null) return null;
     const nodeType = node.value.metatype as unknown as NodeType;
-    const subtype = (node as any).type;
+    const subtype = (node.value as any).type;
     const subnode =
       (node.value.subnodePacked as any)?.[subtype?.toString()!] != null
         ? (unpackSubnode(nodeType, subtype as never, node.value.subnodePacked) as any)
@@ -118,8 +116,9 @@ const layout = computed(() => {
     });
   } else if (kind.value == "partial") {
     if (props.valueType == null) return null;
-    const nodeType = getCustomObjectNodeType(props.valueType, modelValue.value) as NodeType | null;
-    const subtype = getCustomObjectSubtype(props.valueType, modelValue.value);
+    const valuePacked = modelValue.value ?? {};
+    const nodeType = getCustomObjectNodeType(props.valueType, valuePacked) as NodeType | null;
+    const subtype = getCustomObjectSubtype(props.valueType, valuePacked);
     return makeObjectLayout({
       kind: "partial",
       nodeType,
@@ -127,14 +126,14 @@ const layout = computed(() => {
       node: null, // nocheckin,
       subnode: null, // nocheckin,
       valueType: props.valueType,
-      valuePacked: modelValue.value,
+      valuePacked: valuePacked,
       computedType: computedType.value,
       fields: fields.value,
       delegate: delegate.value,
       delegateFields: delegateFields.value,
       graph,
       update: (update, options) => {
-        emit("update:modelValue", { ...modelValue.value, ...update });
+        emit("update:modelValue", { ...valuePacked, ...update }, options);
       },
       txFactory: () => (connection.value ?? pkgConnection).tx,
     });
@@ -142,14 +141,14 @@ const layout = computed(() => {
     return makeObjectLayout({
       kind: "custom",
       valueType: props.valueType!,
-      valuePacked: modelValue.value,
+      valuePacked: modelValue.value ?? {},
       computedType: computedType.value,
       fields: fields.value,
       delegate: delegate.value,
       delegateFields: delegateFields.value,
       graph,
       update: (update, options) => {
-        emit("update:modelValue", { ...modelValue.value, ...update });
+        emit("update:modelValue", { ...modelValue.value, ...update }, options);
       },
       txFactory: () => (connection.value ?? pkgConnection).tx,
     });
@@ -195,7 +194,7 @@ function toggleSection(section: ObjectSection) {
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <div v-if="node && layout" class="flex flex-col gap-y-2">
+  <div v-if="layout" class="flex flex-col gap-y-2">
     <!-- Sections -->
     <div v-for="(section, i) in layout.sections" :key="section.title ?? i" class="group/section">
       <!-- Section header -->
@@ -243,8 +242,9 @@ defineExpose<ViewExposed>({ self, id });
         <div
           v-for="(row, i) in section.rows"
           :key="row.title ?? i"
-          class="group/row mx-4"
+          class="group/row"
           :class="[
+            !isMinimal ? 'mx-4' : '',
             row.type == 'view' || row.type == 'property' || row.type == 'object' || row.type == 'field'
               ? row.isFullWidth ||
                 ((row.type == 'property' || row.type == 'field') && computer.has(row.computedPathKey))
@@ -311,7 +311,11 @@ defineExpose<ViewExposed>({ self, id });
             v-bind="row.viewProps"
             :is-computable="(row.type == 'property' || row.type == 'field') && row.isComputable"
             :model-value="row.read()"
-            @update:model-value="(value: any, path?: any) => row.write(value, path)"
+            @update:model-value="
+              (value: any) => {
+                row.write(value, row.type == 'field' ? row.options : undefined);
+              }
+            "
           />
           <!-- Object -->
           <Object
@@ -325,7 +329,7 @@ defineExpose<ViewExposed>({ self, id });
             :computed-prefix="row.computedPath"
             :computed-type="computedType"
             :model-value="row.read()"
-            @update:model-value="(value: any, path?: any) => row.write(value, path)"
+            @update:model-value="(value: any, path?: ModelValueOptions) => row.write(value, path)"
             @update:computed-values="
               (computedValues: ComputedValueData[]) => {
                 if (isSourceNode(node)) {
@@ -357,7 +361,7 @@ defineExpose<ViewExposed>({ self, id });
         </div>
       </div>
     </div>
-    <div v-if="layout.sections.length == 0" class="mx-4">
+    <div v-if="node != null && layout.sections.length == 0" class="mx-4">
       <!-- Empty state -->
       <span class="text-gray-400">Just a {{ toCamelName(NodeType, node.metatype) }}.</span>
     </div>
