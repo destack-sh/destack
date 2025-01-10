@@ -1,14 +1,7 @@
 <script lang="ts" setup>
 import { isSourceNode, toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
-import {
-  ComputedValueData,
-  NodeType,
-  Orientation,
-  TypeData,
-  ViewData,
-  ViewType
-} from "@/proto/wire";
+import { ComputedValueData, NodeType, Orientation, TypeData, ViewData, ViewType } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
@@ -29,7 +22,9 @@ const props = defineProps<
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     computedType?: TypeData;
-  } & Partial<Pick<ViewData, "icon" | "size" | "nodePtr" | "subnodePacked" | "valueType" | "isMinimal">>
+  } & Partial<
+    Pick<ViewData, "icon" | "size" | "nodePtr" | "subnodePacked" | "valueType" | "isMinimal" | "isInput" | "isDisabled">
+  >
 >();
 const modelValue = defineModel<any>("modelValue");
 const emit = defineEmits(viewEmits());
@@ -41,6 +36,7 @@ const subnodePacked = toRef(props, "subnodePacked");
 // node / layout
 const nodePtr = computedValue(() => props.nodePtr);
 const { node, connection, layout, computer, computedType } = useObjectLayout({
+  isInput: toRef(props, "isInput"),
   nodePtr: toRef(props, "nodePtr"),
   valueType: toRef(props, "valueType"),
   valuePacked: modelValue,

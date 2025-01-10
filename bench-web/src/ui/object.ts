@@ -150,6 +150,7 @@ export type TextRow = RowBase & {
 export type Row = FieldsListRow | ViewRow | PropertyRow | FieldRow | ObjectRow | IconRow | TextRow | LineRow;
 
 export type BaseObjectInfo = {
+  isInput: boolean;
   fields: FieldData[];
   delegate: AnyNodeData | null;
   delegateFields: FieldData[];
@@ -192,6 +193,7 @@ export abstract class BaseObjectLayout {
   kind: "node" | "partial" | "custom";
 
   // common
+  isInput: boolean;
   fields: FieldData[];
   delegate: AnyNodeData | null;
   delegateFields: FieldData[];
@@ -208,6 +210,7 @@ export abstract class BaseObjectLayout {
   constructor(options: ObjectInfo) {
     this.kind = options.kind;
     this.fields = options.fields;
+    this.isInput = options.isInput;
     this.delegate = options.delegate;
     this.delegateFields = options.delegateFields;
     this.graph = options.graph;
@@ -292,7 +295,7 @@ export abstract class BaseObjectLayout {
         computedPath,
         computedPathKey,
         viewType: view.type!,
-        viewProps: { ...view, isInput: true },
+        viewProps: { ...view, isInput: this.isInput },
         isFullWidth: options?.isFullWidth || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
         options: { field, path: [fieldKey] },
         read: () => fieldValue,
@@ -438,7 +441,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       computedPathKey,
       isFullWidth: options?.isFullWidth || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
       viewType: view.type!,
-      viewProps: { ...view, ...options?.props, isInput: !options?.isDisabled },
+      viewProps: { ...view, ...options?.props, isInput: this.isInput && !options?.isDisabled },
       read: () => {
         let val;
         if (path.length == 1) {
@@ -1121,6 +1124,7 @@ export function makeObjectLayout(info: ObjectInfo): BaseObjectLayout | null {
 
 /** Use the object layout for a node, partial or custom object */
 export function useObjectLayout(options: {
+  isInput: Ref<boolean>;
   nodePtr: Ref<NodeReferenceData | undefined>;
   valueType: Ref<TypeData | undefined>;
   valuePacked: Ref<any>;
@@ -1194,6 +1198,7 @@ export function useObjectLayout(options: {
           : null;
       return makeObjectLayout({
         kind: "node",
+        isInput: options.isInput.value,
         node: node.value,
         fields: fields.value,
         nodeType: node.value.metatype,
@@ -1217,6 +1222,7 @@ export function useObjectLayout(options: {
       const subtype = getCustomObjectSubtype(options.valueType.value, valuePacked);
       return makeObjectLayout({
         kind: "partial",
+        isInput: options.isInput.value,
         nodeType,
         subtype,
         node: null, // nocheckin,
@@ -1238,6 +1244,7 @@ export function useObjectLayout(options: {
       const valuePacked = options.valuePacked.value ?? {};
       return makeObjectLayout({
         kind: "custom",
+        isInput: options.isInput.value,
         valueType: options.valueType.value!,
         valuePacked: valuePacked,
         computedType: computedType.value,
