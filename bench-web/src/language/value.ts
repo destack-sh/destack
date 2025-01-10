@@ -10,7 +10,7 @@ import {
 import type { ReadNodeGraph } from "@/language/graph";
 import {
   DateTime,
-  NODE_PROPERTY_ENUM_BY_TYPE,
+  FieldData,
   NODE_SUBTYPE_PROPERTY_ID,
   NodeReferenceData,
   NodeType,
@@ -142,10 +142,8 @@ export function packBuiltinObjectProperty(propValue: any, prop: PropertyInfo) {
   const propType = getPropertyType(prop);
   if (propValue == null || (prop.isList && propValue.length == 0)) {
     return undefined;
-  } else if (prop.isList) {
-    return propValue.map((v: any) => packValueScalar(v, propType));
   } else {
-    return packValueScalar(propValue, propType);
+    return packValue(propValue, propType);
   }
 }
 
@@ -171,23 +169,9 @@ export function packBuiltinObject(value: AnyStructData | AnyNodeData): Record<st
 /** Unpacks a builtin object property */
 export function unpackBuiltinObjectProperty(propValuePacked: any, prop: PropertyInfo) {
   const propType = getPropertyType(prop);
-  let propValue;
-  if (prop.isList) {
-    if (propValuePacked == null) {
-      propValue = [];
-    } else {
-      propValue = propValuePacked.map((v: any) => unpackValueScalar(v, propType));
-    }
-  } else {
-    if (propValuePacked == null) {
-      if (!prop.isRequired) {
-        return undefined;
-      } else {
-        propValue = null;
-      }
-    } else {
-      propValue = unpackValueScalar(propValuePacked, propType);
-    }
+  let propValue = unpackValue(propValuePacked, propType);
+  if (propValue == null && prop.isList) {
+    propValue = [];
   }
   return propValue;
 }
@@ -220,7 +204,7 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
 }
 
 /** Gets the node type for a custom object (from type or current value for partials). */
-export function getCustomObjectNodeType(type: TypeIdentity, valuePacked: Record<string, JsonValue>): NodeType | null {
+export function getPartialObjectNodeType(type: TypeIdentity, valuePacked: Record<string, JsonValue>): NodeType | null {
   if (type.kind == TypeKind.PARTIAL_OBJECT) {
     let nodeType: NodeType;
     if (type.benchType != null) {
@@ -236,8 +220,8 @@ export function getCustomObjectNodeType(type: TypeIdentity, valuePacked: Record<
 }
 
 /** Gets the subtype for a custom object (from type or current value for partials). */
-export function getCustomObjectSubtype(type: TypeIdentity, valuePacked: Record<string, JsonValue>): number | null {
-  const nodeType = getCustomObjectNodeType(type, valuePacked);
+export function getPartialObjectSubtype(type: TypeIdentity, valuePacked: Record<string, JsonValue>): number | null {
+  const nodeType = getPartialObjectNodeType(type, valuePacked);
   if (nodeType == null) return null;
   const subtypePropertyId = NODE_SUBTYPE_PROPERTY_ID[nodeType];
   if (subtypePropertyId == null) return null;
@@ -250,8 +234,8 @@ export function getCustomObjectProperties(type: TypeIdentity, valuePacked: Recor
     let properties: PropertyInfo[] = [];
 
     // figure out actual node type
-    const nodeType = getCustomObjectNodeType(type, valuePacked);
-    if (nodeType == null) throw new Error(`missing node type in ${describeTypeIdentity(type)}`);
+    const nodeType = getPartialObjectNodeType(type, valuePacked);
+    if (nodeType == null) return [];
     const nodeProperties = PROPERTY_INFOS_BY_TYPE[nodeType]!;
     for (const prop of Object.values(nodeProperties)) {
       properties.push(prop);
@@ -260,7 +244,7 @@ export function getCustomObjectProperties(type: TypeIdentity, valuePacked: Recor
     // check subtype
     const subtypePropertyId = NODE_SUBTYPE_PROPERTY_ID[nodeType];
     if (subtypePropertyId != null) {
-      const subtype = getCustomObjectSubtype(type, valuePacked);
+      const subtype = getPartialObjectSubtype(type, valuePacked);
       if (subtype != null) {
         const subtypeProperties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[subtype];
         if (subtypeProperties != null) {
@@ -287,9 +271,15 @@ export function getCustomObjectProperties(type: TypeIdentity, valuePacked: Recor
 export function packCustomObject(
   value: ScalarValue,
   type: TypeIdentity,
-  options: { graph: ReadNodeGraph; recurseCustomObject?: boolean },
+  options: { graph?: ReadNodeGraph; recurseCustomObject?: boolean },
 ): JsonValue {
-  const fields = resolveFields(type, options.graph);
+  let fields: FieldData[];
+  if (type.kind == TypeKind.CUSTOM_OBJECT) {
+    if (options.graph == null) throw new Error(`missing graph to pack object type ${describeTypeIdentity(type)}`);
+    fields = resolveFields(type, options.graph);
+  } else {
+    fields = [];
+  }
   const valuePacked: { [key: string]: JsonValue } = {};
 
   // fields
@@ -302,16 +292,13 @@ export function packCustomObject(
       if (options.recurseCustomObject) {
         valuePacked[fieldStorageKey] = packValue(fieldValue, field, {
           graph: options.graph,
-          wrapScalar: false,
           recurseCustomObject: options.recurseCustomObject,
         });
       } else {
         valuePacked[fieldStorageKey] = fieldValue; // keep packed as is
       }
-    } else if (!field.isList) {
-      valuePacked[fieldStorageKey] = packValueScalar(fieldValue, field);
     } else {
-      valuePacked[fieldStorageKey] = fieldValue.map((v: any) => packValueScalar(v, field));
+      valuePacked[fieldStorageKey] = packValue(fieldValue, field);
     }
   }
 
@@ -324,10 +311,8 @@ export function packCustomObject(
       const propType = getPropertyType(prop);
       if (propValue == null) {
         continue;
-      } else if (!prop.isList) {
-        valuePacked[propStorageKey] = packValueScalar(propValue, propType);
       } else {
-        valuePacked[propStorageKey] = propValue.map((v: any) => packValueScalar(v, propType));
+        valuePacked[propStorageKey] = packValue(propValue, propType);
       }
     }
   }
@@ -339,9 +324,15 @@ export function packCustomObject(
 export function unpackCustomObject(
   valuePacked: JsonValue,
   type: TypeIdentity,
-  options: { graph: ReadNodeGraph; recurseCustomObject?: boolean },
+  options: { graph?: ReadNodeGraph; recurseCustomObject?: boolean },
 ): SomeValue {
-  const fields = resolveFields(type, options.graph);
+  let fields: FieldData[];
+  if (type.kind == TypeKind.CUSTOM_OBJECT) {
+    if (options.graph == null) throw new Error(`missing graph to unpack object type ${describeTypeIdentity(type)}`);
+    fields = resolveFields(type, options.graph);
+  } else {
+    fields = [];
+  }
   const value: { [key: string]: SomeValue } = {};
 
   // fields
@@ -354,7 +345,6 @@ export function unpackCustomObject(
       if (options.recurseCustomObject) {
         const fieldValue = unpackValue(fieldValuePacked, field, {
           graph: options.graph,
-          wrapScalar: false,
           recurseCustomObject: options.recurseCustomObject,
         });
         if (fieldValue != null) {
@@ -363,15 +353,13 @@ export function unpackCustomObject(
       } else {
         value[fieldStorageKey] = fieldValuePacked; // keep packed as is
       }
-    } else if (!field.isList) {
-      value[fieldStorageKey] = unpackValueScalar(fieldValuePacked, field);
     } else {
-      value[fieldStorageKey] = fieldValuePacked.map((v: any) => unpackValueScalar(v, field));
+      value[fieldStorageKey] = unpackValue(fieldValuePacked, field);
     }
   }
 
   // properties
-  const properties = getCustomObjectProperties(type, value as any);
+  const properties = getCustomObjectProperties(type, valuePacked as any);
   if (properties != null) {
     for (const prop of properties) {
       const propStorageKey = prop.id.toString();
@@ -379,10 +367,8 @@ export function unpackCustomObject(
       const propType = getPropertyType(prop);
       if (propValue == null) {
         continue;
-      } else if (!prop.isList) {
-        value[propStorageKey] = unpackValueScalar(propValue, propType);
       } else {
-        value[propStorageKey] = propValue.map((v: any) => unpackValueScalar(v, propType));
+        value[propStorageKey] = unpackValue(propValue, propType);
       }
     }
   }
@@ -398,13 +384,12 @@ export function packValue(
   value: any,
   type: TypeIdentity,
   options: { graph?: ReadNodeGraph; wrapScalar?: boolean; recurseCustomObject?: boolean } = {
-    wrapScalar: true,
-    recurseCustomObject: true,
+    wrapScalar: false,
+    recurseCustomObject: false,
   },
 ): JsonValue {
   if (type.kind == TypeKind.CUSTOM_OBJECT || type.kind == TypeKind.PARTIAL_OBJECT) {
     // nested custom object
-    if (options.graph == null) throw new Error(`missing graph to pack object type ${describeTypeIdentity(type)}`);
     if (value == null) {
       return null;
     } else if (!type.isList) {
@@ -445,17 +430,12 @@ export function unpackValue(
   valuePacked: JsonValue,
   type: TypeIdentity,
   options: { graph?: ReadNodeGraph; wrapScalar?: boolean; recurseCustomObject?: boolean } = {
-    wrapScalar: true,
-    recurseCustomObject: true,
+    wrapScalar: false,
+    recurseCustomObject: false,
   },
 ): any {
   if (type.kind == TypeKind.CUSTOM_OBJECT || type.kind == TypeKind.PARTIAL_OBJECT) {
     // nested custom object
-    if (options.graph == null) {
-      throw new Error(
-        `missing graph to unpack object type ${describeTypeIdentity(type)}: ${JSON.stringify(valuePacked)}`,
-      );
-    }
     if (valuePacked == null) {
       return null;
     } else if (!type.isList) {

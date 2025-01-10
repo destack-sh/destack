@@ -118,8 +118,6 @@ export function makeColor(type: ColorType, shade?: ColorShade): ColorData {
 //
 
 export const COLOR_BY_NODE_TYPE: Partial<Record<NodeType, ColorType>> = {
-  [NodeType.FIELD]: ColorType.GREEN,
-  [NodeType.RECORD]: ColorType.SKY,
 };
 
 export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {

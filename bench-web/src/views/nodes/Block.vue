@@ -13,7 +13,7 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Text from "@/views/content/Text.vue";
-import Value from "@/views/content/Value.vue";
+import GenericValue from "@/views/builtins/GenericValue.vue";
 import Database from "@/views/subnodes/Database.vue";
 import Flow from "@/views/subnodes/Flow.vue";
 import FieldList from "@/views/objects/FieldList.vue";
@@ -217,7 +217,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         />
       </template>
       <!-- State -->
-      <Value
+      <GenericValue
         v-if="block.type == BlockType.VARIABLE"
         id="value"
         class="max-h-[320px]"

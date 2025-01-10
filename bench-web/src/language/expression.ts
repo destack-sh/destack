@@ -26,7 +26,7 @@ export function makeExpression(
     if (options.type == ExpressionType.IN || options.type == ExpressionType.NOT_IN) {
       propertyType = { ...propertyType, isList: true }; // coerce type to list
     }
-    valuePacked = packValue(options.value, propertyType);
+    valuePacked = packValue(options.value, propertyType, { wrapScalar: true });
   } else {
     valuePacked = options.valuePacked;
   }
