@@ -461,7 +461,7 @@ defineExpose<ViewExposed>({
                 backgroundColor: item.color != null ? getColorHex(item.color, ColorShade.S300) : undefined,
               }"
             />
-            <span v-else class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
+            <span v-else class="mr-1.5 w-6 flex-shrink-0 text-gray-700" />
             <span class="max-w-full select-none truncate">
               <span class="truncate" v-html="item.titleMarked ?? item.title" />
               <!-- Checked -->

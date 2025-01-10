@@ -181,7 +181,6 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.PACKAGE]: "fas fa-box-open",
   [NodeType.DEPENDENCY]: "fas fa-turn-down-right",
   [NodeType.SPACE]: "fas fa-galaxy",
-  [NodeType.SKIP]: "fas fa-ban",
   [NodeType.BLOCK]: "fas fa-cube",
   [NodeType.FIELD]: "fas fa-triangle",
   [NodeType.VIEW]: "fas fa-window-frame",
@@ -197,6 +196,10 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.RUN]: "fas fa-play",
   [NodeType.LOG]: "fas fa-file-alt",
   [NodeType.INTERRUPTION]: "fas fa-hand",
+
+  // misc
+  [NodeType.SKIP]: "fas fa-ban",
+  [NodeType.EMPTY]: "fas fa-empty-set",
 });
 
 export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeIcons<StructType>({

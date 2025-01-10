@@ -453,7 +453,7 @@ export function makeEditFromRoot<T extends AnyNodeData>(node: T, update: Partial
     const propType = getPropertyType(prop);
     const newValue = (update as any)[key];
     let operation: EditOperationData;
-    const oldValuePacked = packValue((node as any)[key], propType, { wrapScalar: false });
+    const oldValuePacked = packValue((node as any)[key], propType);
     if (newValue == null) {
       operation = {
         metatype: ObjectType.EDIT_OPERATION,
@@ -462,7 +462,7 @@ export function makeEditFromRoot<T extends AnyNodeData>(node: T, update: Partial
         oldValuePacked,
       };
     } else {
-      const newValuePacked = packValue(newValue, propType, { wrapScalar: false });
+      const newValuePacked = packValue(newValue, propType);
       operation = {
         metatype: ObjectType.EDIT_OPERATION,
         type: EditOperationType.SET,
@@ -505,7 +505,7 @@ export function makeEditFromSubnode<T extends NodeType>(
     const propType = getPropertyType(prop);
     const newValue = (update.subnode as any)[key];
     let operation: EditOperationData;
-    const oldValuePacked = packValue((node as any)[key], propType, { wrapScalar: false });
+    const oldValuePacked = packValue((node as any)[key], propType);
     if (newValue == null) {
       operation = {
         metatype: ObjectType.EDIT_OPERATION,
@@ -514,7 +514,7 @@ export function makeEditFromSubnode<T extends NodeType>(
         oldValuePacked,
       };
     } else {
-      const newValuePacked = packValue(newValue, propType, { wrapScalar: false });
+      const newValuePacked = packValue(newValue, propType);
       operation = {
         metatype: ObjectType.EDIT_OPERATION,
         type: EditOperationType.SET,
@@ -565,7 +565,7 @@ export function applyEditOperation(operation: EditOperationData, node: AnyNodeDa
         const objProperties = PROPERTY_INFOS_BY_TYPE[obj.metatype as ObjectType];
         const prop = objProperties[propId];
         const valueType = getPropertyType(prop);
-        newValue = unpackValue(operation.newValuePacked!, valueType, { wrapScalar: false });
+        newValue = unpackValue(operation.newValuePacked!, valueType);
       } else {
         // custom object field (packed by default)
         newValue = operation.newValuePacked;

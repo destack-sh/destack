@@ -383,7 +383,7 @@ function readColumnValue(record: RecordData, column: ColumnView) {
     return (record as any)[column.propertyName];
   } else if (column.kind === "field") {
     const valuePacked = (record.valuePacked as any)?.[column.storageKey];
-    return unpackValue(valuePacked, column.type, { wrapScalar: false });
+    return unpackValue(valuePacked, column.type);
   } else {
     assertNever(column);
   }
@@ -401,8 +401,8 @@ function writeColumnValue(
     tx.update(record, { [column.propertyName]: newValue }, options);
   } else if (column.kind == "field") {
     const oldValue = readColumnValue(record, column);
-    const newValuePacked = packValue(newValue, column.type, { wrapScalar: false });
-    const oldValuePacked = packValue(oldValue, column.type, { wrapScalar: false });
+    const newValuePacked = packValue(newValue, column.type);
+    const oldValuePacked = packValue(oldValue, column.type);
     const operations: EditOperationData[] = [
       {
         metatype: ObjectType.EDIT_OPERATION,

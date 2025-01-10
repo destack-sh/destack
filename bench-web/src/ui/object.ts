@@ -30,7 +30,7 @@ import {
   Transaction,
   TransactionOptions,
 } from "@/language/transaction";
-import { getCustomObjectNodeType, getCustomObjectSubtype, packValue, unpackValue } from "@/language/value";
+import { getPartialObjectNodeType, getPartialObjectSubtype, packValue, unpackValue } from "@/language/value";
 import {
   ActionData,
   ActionProperty,
@@ -48,7 +48,6 @@ import {
   FieldProperty,
   FieldType,
   IconData,
-  NODE_SUBTYPE_PROPERTY_ID,
   NodeReferenceData,
   NodeType,
   NodeTypeMapping,
@@ -278,7 +277,7 @@ export abstract class BaseObjectLayout {
       const view = getViewForType(field, { forcePickerDropdown: true });
       if (view == null) continue;
       const fieldValuePacked = valuePacked[fieldKey];
-      const fieldValue = unpackValue(fieldValuePacked, field, { graph: this.graph, wrapScalar: false });
+      const fieldValue = unpackValue(fieldValuePacked, field, { graph: this.graph });
 
       // computable
       let computedPath: PathData | undefined = undefined;
@@ -356,20 +355,20 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
   }
 
   /** Get the property info for a property */
-  getProperty(property: number): { prop: PropertyInfo; propName: string; isSubnode: boolean; path: string[] } {
+  getProperty(property: number): { prop: PropertyInfo; propName: string; isSubnode: boolean; path: number[] } {
     let prop: PropertyInfo;
     let propName: string;
     if (this.propertyInfos[property] != null) {
       prop = this.propertyInfos[property];
       propName = this.propertyEnum[property];
       if (prop == null) throw new Error(`no property info for: ${property}`);
-      const path = [property.toString()];
+      const path = [property];
       return { prop, propName, isSubnode: false, path };
     } else if (this.subpropertyInfos?.[property] != null) {
       prop = this.subpropertyInfos[property];
       propName = this.subpropertyEnum![property];
       if (prop == null) throw new Error(`no property info for: ${property} ${propName}`);
-      const path = [EmptyProperty.subnodePacked.toString(), this.subtype!.toString(), property.toString()];
+      const path = [EmptyProperty.subnodePacked, this.subtype!, property];
       return { prop, propName, isSubnode: true, path };
     } else {
       throw new Error(`no property info for: ${property}`);
@@ -377,26 +376,55 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
   }
 
   /** Get property path */
-  getPropertyPath(path: number | [number] | [number, number]) {
-    if (typeof path == "number") path = [path];
-    const { prop: rootProp, propName: rootPropName, isSubnode } = this.getProperty(path[0]);
+  getPropertyPath(pathIn: number | [number] | [number, number]) {
+    if (typeof pathIn == "number") pathIn = [pathIn];
+    const {
+      prop: rootProp,
+      propName: rootPropName,
+      path: rootPath,
+      isSubnode: isRootSubnode,
+    } = this.getProperty(pathIn[0]);
     let prop: PropertyInfo;
-    let propNames: string[];
-    if (path.length == 1) {
+    let propNames: [string] | [string, string];
+    let path: number[];
+    if (pathIn.length == 1) {
       prop = rootProp;
       propNames = [rootPropName];
-    } else if (path.length == 2) {
+      path = rootPath;
+    } else if (pathIn.length == 2) {
       const rootPropType = getPropertyType(rootProp);
       const rootPropTypeInfos = PROPERTY_INFOS_BY_TYPE[rootPropType?.benchType as unknown as ObjectType];
       const rootPropEnum = PROPERTY_ENUM_BY_TYPE[rootPropType?.benchType as unknown as ObjectType];
-      prop = rootPropTypeInfos?.[path[1]];
-      const propName = rootPropEnum?.[path[1]];
-      if (prop == null || propName == null) throw new Error(`no nested object at: ${path.join(".")}`);
+      prop = rootPropTypeInfos?.[pathIn[1]];
+      const propName = rootPropEnum?.[pathIn[1]];
+      if (prop == null || propName == null) throw new Error(`no nested object at: ${pathIn.join(".")}`);
       propNames = [rootPropName, propName];
+      path = [...rootPath, pathIn[1]];
     } else {
-      assertNever(path);
+      assertNever(pathIn);
     }
-    return { path, prop, propNames, rootProp, rootPropName, isSubnode };
+    return { prop, propNames, path, rootProp, rootPropName, isSubnode: isRootSubnode };
+  }
+
+  /** Read a node proeprty */
+  readProperty(propNames: [string] | [string, string], isSubnode: boolean) {
+    let val;
+    if (propNames.length == 1) {
+      if (!isSubnode) {
+        val = (this.node as any)?.[propNames[0]];
+      } else {
+        val = (this.subnode as any)?.[propNames[0]];
+      }
+    } else if (propNames.length == 2) {
+      if (!isSubnode) {
+        val = (this.node as any)[propNames[0]]?.[propNames[1]];
+      } else {
+        val = (this.subnode as any)[propNames[0]]?.[propNames[1]];
+      }
+    } else {
+      assertNever(propNames);
+    }
+    return val;
   }
 
   /** Property row for node or partial node */
@@ -446,28 +474,13 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       viewType: view.type!,
       viewProps: { ...view, ...options?.props, isInput: this.isInput && !options?.isDisabled },
       read: () => {
-        let val;
-        if (path.length == 1) {
-          if (!isSubnode) {
-            val = (this.node as any)?.[rootPropName];
-          } else {
-            val = (this.subnode as any)?.[rootPropName];
-          }
-        } else if (path.length == 2) {
-          if (!isSubnode) {
-            val = (this.node as any)[rootPropName]?.[propNames[1]];
-          } else {
-            val = (this.subnode as any)[rootPropName]?.[propNames[1]];
-          }
-        } else {
-          assertNever(path);
-        }
+        const val = this.readProperty(propNames, isSubnode);
         return val ?? options?.default ?? prop.default;
       },
       write: (newValue) => {
         const txOptions: TransactionOptions = getTransactionOptionsForType(propType);
         let update: Record<string, any>;
-        if (path.length == 1) {
+        if (propNames.length == 1) {
           if (!isSubnode) {
             if (!this.isPartial) {
               update = { [rootPropName]: newValue };
@@ -481,7 +494,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
               subnode: { [rootPropName]: newValue },
             });
           }
-        } else if (path.length == 2) {
+        } else if (propNames.length == 2) {
           if (!isSubnode) {
             const newRootValue = makeStruct({
               metatype: rootProp.referenceStruct,
@@ -497,7 +510,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
             throw new Error(`nested subnode property edit not yet implemented`);
           }
         } else {
-          assertNever(path);
+          assertNever(propNames);
         }
 
         if (options?.extendUpdate != null) {
@@ -554,7 +567,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     valueType: TypeIdentity,
     options?: { title?: string | false; subtitle?: string; isComputable?: boolean },
   ): ObjectRow {
-    const { prop, propName, path } = this.getProperty(propertyId);
+    const { prop, path, propNames, isSubnode } = this.getPropertyPath(propertyId);
 
     // computed
     let computedPath: PathData | undefined = undefined;
@@ -562,14 +575,14 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     if (options?.isComputable) {
       computedPath = makePath(
         PathElementType.RUN, // :RunComputedValue
-        propertyReference(NodeType.RUN, RunProperty[propName as any as keyof typeof RunProperty]),
+        propertyReference(NodeType.RUN, RunProperty[propNames[0] as any as keyof typeof RunProperty]),
       );
       computedPathKey = getPathKey(computedPath);
     }
 
     // content
     const title = options?.title ?? getPropertyTitle(prop);
-    const valuePacked = this.isPartial ? this.valuePacked?.[prop.id.toString()] : (this.node as any)?.[propName];
+    const valuePacked = this.readProperty(propNames, isSubnode);
 
     // view
     const row: ObjectRow = {
@@ -587,21 +600,22 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       read: () => valuePacked,
       write: (newValue, options?: ModelValueOptions) => {
         if (this.isPartial) {
-          this.update({ [propertyId.toString()]: newValue });
+          this.update({ [propertyId.toString()]: { ...valuePacked, ...newValue } });
         } else {
           const operations: EditOperationData[] = [
             {
               metatype: ObjectType.EDIT_OPERATION,
               type: newValue == null ? EditOperationType.CLEAR : EditOperationType.SET,
-              path: [...path, ...(options?.path ?? [])],
-              newValuePacked: newValue,
+              path: [...path.map((p) => p.toString())],
+              newValuePacked: { ...valuePacked, ...newValue },
             },
           ];
-          console.log("write", propertyId, path, newValue, options?.path, operations);
+          console.log("rowObjectNested.write", { row, path, options, operations, newValue, valueType });
           this.update(operations, getTransactionOptionsForType(valueType));
         }
       },
     };
+    console.log("rowObjectNested", { title, valuePacked, prop, propNames, path, row, node: this.node });
     return row;
   }
 
@@ -645,7 +659,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       computedPrefix,
       (field, newValue) => {
         const fieldKey = getStorageKey(field);
-        const newFieldValuePacked = packValue(newValue, field, { graph: this.graph, wrapScalar: false });
+        const newFieldValuePacked = packValue(newValue, field, { graph: this.graph });
         const fieldValuePacked = this.isPartial
           ? this.valuePacked?.[fieldKey]
           : (this.node as any)?.[propName]?.[fieldKey];
@@ -657,7 +671,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
             {
               metatype: ObjectType.EDIT_OPERATION,
               type: newValue == null ? EditOperationType.CLEAR : EditOperationType.SET,
-              path: [...path, fieldKey],
+              path: [...path.map((p) => p.toString()), fieldKey],
               newValuePacked: newFieldValuePacked,
               oldValuePacked: fieldValuePacked,
             },
@@ -1067,7 +1081,7 @@ export class CustomLayout extends BaseObjectLayout {
     this.section(undefined, [
       ...this.rowFieldsInline(this.valuePacked, fields, this.computedPath, (field, newValue, options) => {
         const fieldKey = getStorageKey(field);
-        const newFieldValuePacked = packValue(newValue, field, { graph: this.graph, wrapScalar: false });
+        const newFieldValuePacked = packValue(newValue, field, { graph: this.graph });
         this.update({ [fieldKey]: newFieldValuePacked }, { ...getTransactionOptionsForType(field), ...options });
       }),
     ]);
@@ -1082,7 +1096,7 @@ export class PartialStubLayout extends BaseObjectLayout {
         isFullWidth: false,
         read: () => undefined,
         write: (value: any) => {
-          this.update(value, { path: ["1"] });
+          this.update({ "1": value }, { path: ["1"] });
         },
         title: "Node Type",
         viewType: ViewType.PICKER,
@@ -1117,8 +1131,8 @@ export function makeObjectLayout(info: ObjectInfo): BaseObjectLayout | null {
     layoutCls = NODE_LAYOUT_BY_TYPE[info.nodeType as keyof typeof NODE_LAYOUT_BY_TYPE];
   } else if (info.kind == "partial") {
     if (info.valueType == null) throw new Error("valueType is null");
-    if (info.subtype != null) {
-      layoutCls = NODE_LAYOUT_BY_TYPE[info.subtype as keyof typeof NODE_LAYOUT_BY_TYPE];
+    if (info.nodeType != null) {
+      layoutCls = NODE_LAYOUT_BY_TYPE[info.nodeType as keyof typeof NODE_LAYOUT_BY_TYPE];
     } else {
       layoutCls = PartialStubLayout;
     }
@@ -1223,17 +1237,15 @@ export function useObjectLayout(options: {
         graph,
         update: (update, options) => {
           if (node.value == null) return;
-          if (node.value != null) {
-            connection.value?.tx.update(node.value, update, options);
-          }
+          connection.value?.tx.update(node.value, update, options);
         },
         txFactory,
       });
     } else if (kind.value == "partial") {
       if (options.valueType.value == null) return null;
       const valuePacked = options.valuePacked.value ?? {};
-      const nodeType = getCustomObjectNodeType(options.valueType.value, valuePacked) as NodeType | null;
-      const subtype = getCustomObjectSubtype(options.valueType.value, valuePacked);
+      const nodeType = getPartialObjectNodeType(options.valueType.value, valuePacked);
+      const subtype = getPartialObjectSubtype(options.valueType.value, valuePacked);
       return makeObjectLayout({
         kind: "partial",
         isInput: options.isInput.value,
