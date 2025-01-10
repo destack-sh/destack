@@ -1,32 +1,25 @@
 <script lang="ts" setup>
-import { getBaseFromNode, isSourceNode, toCamelName } from "@/language/const";
-import { useComputedValues } from "@/language/expression";
-import { makeType, makeTypeConstraint } from "@/language/field";
-import { unpackSubnode, useSubnodeProperty } from "@/language/node";
-import { getCustomObjectNodeType, getCustomObjectSubtype } from "@/language/value";
+import { isSourceNode, toCamelName } from "@/language/const";
+import { useSubnodeProperty } from "@/language/node";
 import {
-  ActionType,
-  BenchType,
   ComputedValueData,
   NodeType,
   Orientation,
   TypeData,
-  TypeKind,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
-import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { supergraph, useExistingConnection } from "@/system/connection";
-import { canvas, pkgConnection } from "@/system/space";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
-import { ObjectSection, makeObjectLayout } from "@/ui/object";
+import { ObjectSection, useObjectLayout } from "@/ui/object";
 import { computedValue } from "@/utils/ref";
 import { ModelValueOptions, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
 import ComputedValue from "@/views/objects/ComputedValue.vue";
 import FieldList from "@/views/objects/FieldList.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
-import { computed, toRef } from "vue";
+import { toRef } from "vue";
 
 const SECTION_HEADER_HEIGHT = 32;
 const ROW_HEIGHT_MIN = 28;
@@ -45,115 +38,16 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 const subnodePacked = toRef(props, "subnodePacked");
 
-// node
+// node / layout
 const nodePtr = computedValue(() => props.nodePtr);
-const { node, connection } = supergraph.getLinkRef(nodePtr);
-const { graph } = useExistingConnection(nodePtr);
-const fields = graph.getChildrenRef(node, NodeType.FIELD);
-
-// delegate (base or some other delegate)
-const delegatePtr = computed(() => {
-  if (props.valueType?.baseTypePtr != null) return props.valueType.baseTypePtr;
-  else if (isNode(node.value, NodeType.ACTION) && node.value.type == ActionType.TOOL) return node.value.toolPtr;
-  else if (node.value != null) return getBaseFromNode(node.value);
-  else return null;
-});
-const { graph: delegateGraph, connection: delegateConnection } = useExistingConnection(delegatePtr);
-const delegate = delegateGraph.getRef(delegatePtr);
-const delegateFields = delegateGraph.getChildrenRef(delegate, NodeType.FIELD);
-
-// computed
-const computer = useComputedValues({
-  computedValues: computed(() => (isSourceNode(node.value) ? node.value.computedValues : [])),
-  update: (computedValues) => {
-    if (isSourceNode(node.value)) {
-      connection.value?.tx.update(node.value, { computedValues });
-    }
+const { node, connection, layout, computer, computedType } = useObjectLayout({
+  nodePtr: toRef(props, "nodePtr"),
+  valueType: toRef(props, "valueType"),
+  valuePacked: modelValue,
+  computedType: toRef(props, "computedType"),
+  updateValuePacked: (update: any, options: any) => {
+    emit("update:modelValue", { ...modelValue.value, ...update }, options);
   },
-});
-const computedType = computed<TypeData | undefined>(() => {
-  if (props.computedType != null) return props.computedType;
-  if (node.value == null) return undefined;
-  const type = makeType({
-    benchType: BenchType.COMPUTED_VALUE,
-    isRequired: true,
-    constraint: makeTypeConstraint({ nodeScopePtr: [node.value.parentPtr!] }), // NOTE: should really be the containing runnable
-  });
-  return type;
-});
-
-// layout
-const kind = computed(() => {
-  if (props.valueType?.kind == TypeKind.PARTIAL_OBJECT) return "partial";
-  else if (props.valueType?.kind == TypeKind.CUSTOM_OBJECT) return "custom";
-  else return "node";
-});
-const layout = computed(() => {
-  if (kind.value == "node") {
-    if (node.value == null) return null;
-    const nodeType = node.value.metatype as unknown as NodeType;
-    const subtype = (node.value as any).type;
-    const subnode =
-      (node.value.subnodePacked as any)?.[subtype?.toString()!] != null
-        ? (unpackSubnode(nodeType, subtype as never, node.value.subnodePacked) as any)
-        : null;
-    return makeObjectLayout({
-      kind: "node",
-      node: node.value,
-      fields: fields.value,
-      nodeType: node.value.metatype,
-      subtype: subtype,
-      subnode: subnode,
-      delegate: delegate.value,
-      delegateFields: delegateFields.value,
-      graph,
-      update: (update, options) => {
-        if (node.value != null) {
-          connection.value?.tx.update(node.value, update, options);
-        }
-      },
-      txFactory: () => (connection.value ?? pkgConnection).tx,
-    });
-  } else if (kind.value == "partial") {
-    if (props.valueType == null) return null;
-    const valuePacked = modelValue.value ?? {};
-    const nodeType = getCustomObjectNodeType(props.valueType, valuePacked) as NodeType | null;
-    const subtype = getCustomObjectSubtype(props.valueType, valuePacked);
-    return makeObjectLayout({
-      kind: "partial",
-      nodeType,
-      subtype,
-      node: null, // nocheckin,
-      subnode: null, // nocheckin,
-      valueType: props.valueType,
-      valuePacked: valuePacked,
-      computedType: computedType.value,
-      fields: fields.value,
-      delegate: delegate.value,
-      delegateFields: delegateFields.value,
-      graph,
-      update: (update, options) => {
-        emit("update:modelValue", { ...valuePacked, ...update }, options);
-      },
-      txFactory: () => (connection.value ?? pkgConnection).tx,
-    });
-  } else if (kind.value == "custom") {
-    return makeObjectLayout({
-      kind: "custom",
-      valueType: props.valueType!,
-      valuePacked: modelValue.value ?? {},
-      computedType: computedType.value,
-      fields: fields.value,
-      delegate: delegate.value,
-      delegateFields: delegateFields.value,
-      graph,
-      update: (update, options) => {
-        emit("update:modelValue", { ...modelValue.value, ...update }, options);
-      },
-      txFactory: () => (connection.value ?? pkgConnection).tx,
-    });
-  }
-  return null;
 });
 
 // sections
@@ -321,7 +215,7 @@ defineExpose<ViewExposed>({ self, id });
           <Object
             v-else-if="row.type == 'object'"
             :id="i + '.value'"
-            :class="['ml-auto flex-shrink-0']"
+            class=""
             :style="{ width: '100%', minHeight: ROW_HEIGHT_MIN + 'px' }"
             v-bind="row.viewProps as any"
             :is-computable="row.isComputable"

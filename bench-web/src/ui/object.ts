@@ -1,11 +1,14 @@
 import {
   BOUNDARY_ACTION_TYPES,
+  getBaseFromNode,
   getPropertyTitle,
   isNodeType,
+  isSourceNode,
   RUNNABLE_BLOCK_TYPES,
   SOURCE_NODE_TYPES,
   toCamelName,
 } from "@/language/const";
+import { useComputedValues } from "@/language/expression";
 import {
   createField,
   describeTypeIdentity,
@@ -14,11 +17,12 @@ import {
   getStorageKey,
   getTypeName,
   makeType,
+  makeTypeConstraint,
   TypeIdentity,
   typeIsNumeric,
 } from "@/language/field";
 import { ReadNodeGraph } from "@/language/graph";
-import { packSubnode } from "@/language/node";
+import { packSubnode, unpackSubnode } from "@/language/node";
 import { getPathKey, makePath } from "@/language/path";
 import {
   getTransactionOptionsForType,
@@ -26,7 +30,7 @@ import {
   Transaction,
   TransactionOptions,
 } from "@/language/transaction";
-import { packValue, unpackValue } from "@/language/value";
+import { getCustomObjectNodeType, getCustomObjectSubtype, packValue, unpackValue } from "@/language/value";
 import {
   ActionData,
   ActionProperty,
@@ -65,13 +69,16 @@ import {
   TypeKind,
   ViewType,
 } from "@/proto/wire";
-import { describeNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
-import { canvas } from "@/system/globals";
+import { describeNode, isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
+import { useExistingConnection } from "@/system/connection";
+import { canvas, supergraph } from "@/system/globals";
 import { getNodeName, ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
 import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
+import { computedValue } from "@/utils/ref";
 import { ModelValueOptions, ViewProps } from "@/views/common";
+import { computed, Ref } from "vue";
 
 export type ObjectAction = {
   title: string;
@@ -857,14 +864,12 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
       commonRows.push(this.rowProperty(FailActionProperty.errorText, { title: "Text", isComputable: true }));
     } else {
       // add all from subproperty enum
-      console.log("this.subpropertyEnum", this.subpropertyEnum, this);
       if (this.subpropertyEnum != null) {
         Object.values(this.subpropertyEnum)
           .filter((v) => typeof v == "number")
           .forEach((subproperty) => {
             const { prop } = this.getProperty(subproperty as any);
             if (prop == null || prop.fieldType == FieldType.OUTPUT) return;
-            console.log("subproperty", subproperty);
 
             if (prop.valueIsPartial) {
               commonRows.push(
@@ -1027,18 +1032,25 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
 
 export class CustomLayout extends BaseObjectLayout {
   valuePacked: Record<string, any>;
+  valueType: TypeData;
   computedPath: PathData | undefined;
 
   constructor(info: CustomObjectInfo) {
     super(info);
     this.valuePacked = info.valuePacked;
+    this.valueType = info.valueType;
     this.delegateFields = info.delegateFields;
     this.computedPath = info.computedPath;
   }
 
   build() {
+    const fields = this.delegateFields.filter((field) => {
+      if (this.valueType.baseFieldTypes != null && !this.valueType.baseFieldTypes.includes(field.type)) return false;
+      if (field.type == FieldType.OPTION) return false;
+      return true;
+    });
     this.section(undefined, [
-      ...this.rowFieldsInline(this.valuePacked, this.delegateFields, this.computedPath, (field, newValue, options) => {
+      ...this.rowFieldsInline(this.valuePacked, fields, this.computedPath, (field, newValue, options) => {
         const fieldKey = getStorageKey(field);
         const newFieldValuePacked = packValue(newValue, field, { graph: this.graph, wrapScalar: false });
         this.update({ [fieldKey]: newFieldValuePacked }, { ...getTransactionOptionsForType(field), ...options });
@@ -1049,7 +1061,20 @@ export class CustomLayout extends BaseObjectLayout {
 
 export class PartialStubLayout extends BaseObjectLayout {
   build() {
-    this.section(undefined, [this.rowText("nocheckin: partial")]);
+    this.section(undefined, [
+      {
+        type: "view",
+        isFullWidth: false,
+        read: () => undefined,
+        write: () => {},
+        title: "Node Type",
+        viewType: ViewType.PICKER,
+        viewProps: {
+          valueType: makeType({ kind: TypeKind.ENUM, benchType: BenchType.NODE_TYPE, isRequired: true }),
+          isInput: true,
+        },
+      },
+    ]);
   }
 }
 
@@ -1092,6 +1117,144 @@ export function makeObjectLayout(info: ObjectInfo): BaseObjectLayout | null {
     return layout;
   }
   return null;
+}
+
+/** Use the object layout for a node, partial or custom object */
+export function useObjectLayout(options: {
+  nodePtr: Ref<NodeReferenceData | undefined>;
+  valueType: Ref<TypeData | undefined>;
+  valuePacked: Ref<any>;
+  computedType?: Ref<TypeData | undefined>;
+  updateValuePacked: (update: any, options: any) => void;
+}) {
+  const { valueType, valuePacked, updateValuePacked } = options;
+
+  // node
+  const nodePtr = computedValue(() => options.nodePtr.value);
+  const { node, connection } = supergraph.getLinkRef(nodePtr);
+  const { graph } = useExistingConnection(nodePtr);
+  const fields = graph.getChildrenRef(node, NodeType.FIELD);
+
+  // delegate (base or some other delegate)
+  const delegatePtr = computed(() => {
+    if (valueType.value?.baseTypePtr != null) return valueType.value.baseTypePtr;
+    else if (isNode(node.value, NodeType.ACTION) && node.value.type == ActionType.TOOL) return node.value.toolPtr;
+    else if (
+      isNode(node.value, NodeType.ACTION) &&
+      (node.value.type == ActionType.START || node.value.type == ActionType.COMPLETE)
+    )
+      return node.value.parentPtr;
+    else if (node.value != null) return getBaseFromNode(node.value);
+    else return null;
+  });
+  const { graph: delegateGraph, connection: delegateConnection } = useExistingConnection(delegatePtr);
+  const delegate = delegateGraph.getRef(delegatePtr);
+  const delegateFields = delegateGraph.getChildrenRef(delegate, NodeType.FIELD);
+
+  // tx from either node connection or delegate connection
+  function txFactory() {
+    if (connection.value != null) return connection.value.tx;
+    else return delegateConnection.tx;
+  }
+
+  // computed
+  const computer = useComputedValues({
+    computedValues: computed(() => (isSourceNode(node.value) ? node.value.computedValues : [])),
+    update: (computedValues) => {
+      if (isSourceNode(node.value)) {
+        connection.value?.tx.update(node.value, { computedValues });
+      }
+    },
+  });
+  const computedType = computed<TypeData | undefined>(() => {
+    if (options.computedType?.value != null) return options.computedType.value;
+    if (node.value == null) return undefined;
+    const type = makeType({
+      benchType: BenchType.COMPUTED_VALUE,
+      isRequired: true,
+      constraint: makeTypeConstraint({ nodeScopePtr: [node.value.parentPtr!] }), // NOTE: should really be the containing runnable
+    });
+    return type;
+  });
+
+  // layout
+  const kind = computed(() => {
+    if (valueType.value?.kind == TypeKind.PARTIAL_OBJECT) return "partial";
+    else if (valueType.value?.kind == TypeKind.CUSTOM_OBJECT) return "custom";
+    else return "node";
+  });
+  const layout = computed(() => {
+    if (kind.value == "node") {
+      if (node.value == null) return null;
+      const nodeType = node.value.metatype as unknown as NodeType;
+      const subtype = (node.value as any).type;
+      const subnode =
+        (node.value.subnodePacked as any)?.[subtype?.toString()!] != null
+          ? (unpackSubnode(nodeType, subtype as never, node.value.subnodePacked) as any)
+          : null;
+      return makeObjectLayout({
+        kind: "node",
+        node: node.value,
+        fields: fields.value,
+        nodeType: node.value.metatype,
+        subtype: subtype,
+        subnode: subnode,
+        delegate: delegate.value,
+        delegateFields: delegateFields.value,
+        graph,
+        update: (update, options) => {
+          if (node.value == null) return;
+          if (node.value != null) {
+            connection.value?.tx.update(node.value, update, options);
+          }
+        },
+        txFactory,
+      });
+    } else if (kind.value == "partial") {
+      if (options.valueType.value == null) return null;
+      const valuePacked = options.valuePacked.value ?? {};
+      const nodeType = getCustomObjectNodeType(options.valueType.value, valuePacked) as NodeType | null;
+      const subtype = getCustomObjectSubtype(options.valueType.value, valuePacked);
+      return makeObjectLayout({
+        kind: "partial",
+        nodeType,
+        subtype,
+        node: null, // nocheckin,
+        subnode: null, // nocheckin,
+        valueType: options.valueType.value!,
+        valuePacked: valuePacked,
+        computedType: computedType.value,
+        fields: fields.value,
+        delegate: delegate.value,
+        delegateFields: delegateFields.value,
+        graph,
+        update: (update, options) => {
+          updateValuePacked({ ...valuePacked, ...update }, options);
+        },
+        txFactory,
+      });
+    } else if (kind.value == "custom") {
+      if (options.valueType.value == null) return null;
+      const valuePacked = options.valuePacked.value ?? {};
+      return makeObjectLayout({
+        kind: "custom",
+        valueType: options.valueType.value!,
+        valuePacked: valuePacked,
+        computedType: computedType.value,
+        fields: fields.value,
+        delegate: delegate.value,
+        delegateFields: delegateFields.value,
+        graph,
+        update: (update, options) => {
+          updateValuePacked({ ...valuePacked, ...update }, options);
+        },
+        txFactory,
+      });
+    }
+    return null;
+  });
+
+  return { layout, node, computer, connection, computedType };
 }
 
 /** Handle an 'add Field' button (either directly or by spawning a Popover) */
