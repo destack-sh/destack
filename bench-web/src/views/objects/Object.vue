@@ -212,7 +212,7 @@ defineExpose<ViewExposed>({ self, id });
           <Object
             v-else-if="row.type == 'object'"
             :id="i + '.value'"
-            class=""
+            class="rounded border border-gray-200 px-3 py-1"
             :style="{ width: '100%', minHeight: ROW_HEIGHT_MIN + 'px' }"
             v-bind="row.viewProps as any"
             :is-computable="row.isComputable"

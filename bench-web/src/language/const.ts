@@ -1,40 +1,40 @@
 import {
+  ActionType,
   Anchor,
   BlockDataInfo,
   BlockProperty,
   BlockType,
+  DynamicResourceNodeData,
   EditType,
+  EmptyProperty,
   EnumType,
   FieldData,
   MessageData,
+  ModelFamily,
   ModelProvider,
   ModelType,
   NodeReferenceData,
   NodeType,
   ObjectType,
-  PipeType,
   PrimitiveType,
   PROPERTY_ENUM_BY_TYPE,
   PropertyInfo,
   PropertyReferenceData,
   RecordData,
   Region,
+  ResourceNodeData,
   RunData,
   RunStatus,
-  ActionType,
+  RuntimeNodeData,
+  SourceNodeData,
+  StateNodeData,
+  StaticResourceNodeData,
   StructType,
   TypeFormat,
   ViewDataInfo,
   ViewProperty,
   ViewType,
-  type AnyNodeData,
-  ModelFamily,
-  SourceNodeData,
-  StateNodeData,
-  RuntimeNodeData,
-  ResourceNodeData,
-  StaticResourceNodeData,
-  DynamicResourceNodeData,
+  type AnyNodeData
 } from "@/proto/wire";
 import { describeNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -125,14 +125,15 @@ export function isLocalNodeType(nodeType: any): boolean {
 }
 
 export function isBenchNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && (
-    (nodeType >= 2000 && nodeType < 10000) ||
-    nodeType == NodeType.BENCH ||
-    nodeType == NodeType.PACKAGE ||
-    nodeType == NodeType.HANDLE ||
-    nodeType == NodeType.MEMBERSHIP ||
-    nodeType == NodeType.INVITE ||
-    nodeType == NodeType.CLIENT
+  return (
+    typeof nodeType == "number" &&
+    ((nodeType >= 2000 && nodeType < 10000) ||
+      nodeType == NodeType.BENCH ||
+      nodeType == NodeType.PACKAGE ||
+      nodeType == NodeType.HANDLE ||
+      nodeType == NodeType.MEMBERSHIP ||
+      nodeType == NodeType.INVITE ||
+      nodeType == NodeType.CLIENT)
   );
 }
 
@@ -303,6 +304,9 @@ export function toCamelName<T extends object>(cls: T, key: any) {
   if (name == null) throw new Error(`invalid key into ${cls}: ${key}`);
   return toCasing(name, Casing.CAMEL, true);
 }
+
+export const NODE_SUBTYPE_PACKED_ID = EmptyProperty.subnodePacked;
+export const NODE_SUBTYPE_PACKED_KEY = NODE_SUBTYPE_PACKED_ID.toString(); // it's the same property id for all nodes
 
 //
 // Enums
