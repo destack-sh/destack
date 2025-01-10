@@ -1,4 +1,4 @@
-import { FLOAT_EPSILON, isNodeType } from "@/language/const";
+import { FLOAT_EPSILON, isNodeType, NODE_SUBTYPE_PACKED_KEY } from "@/language/const";
 import {
   describeTypeIdentity,
   encodeTypeIdentity,
@@ -10,11 +10,13 @@ import {
 import type { ReadNodeGraph } from "@/language/graph";
 import {
   DateTime,
+  EmptyData,
   FieldData,
   NODE_SUBTYPE_PROPERTY_ID,
   NodeReferenceData,
   NodeType,
   ObjectType,
+  PROPERTY_ENUM_BY_SUBTYPE,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_SUBTYPE,
   PROPERTY_INFOS_BY_TYPE,
@@ -382,7 +384,7 @@ export function unpackCustomObject(
 
 /** Builds a partial node from a packed partial node value. */
 export function unpackPartialNode(
-  valuePacked: JsonValue,
+  valuePacked: any,
   nodeType: NodeType,
   subtype: number | null | undefined,
 ): Partial<AnyNodeData> {
@@ -391,6 +393,33 @@ export function unpackPartialNode(
     (node as any).type = subtype;
   }
   // nocheckin: unpackPartialNode
+  const properties = PROPERTY_INFOS_BY_TYPE[nodeType]!;
+  const propertiesEnum = PROPERTY_ENUM_BY_TYPE[nodeType]!;
+  const subtypeProperties = subtype != null ? PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[subtype] : null;
+  const subtypePropertiesEnum =
+    subtype != null && subtypeProperties != null ? PROPERTY_ENUM_BY_SUBTYPE[nodeType]?.[subtype]! : null;
+  for (const key in valuePacked) {
+    const keyParts = key.split(".");
+    if (keyParts.length == 1) {
+      // regular node property
+      const prop = properties[Number(keyParts[0])];
+      const propName = propertiesEnum[prop.id];
+      const propType = getPropertyType(prop);
+      (node as any)[propName] = unpackValue(valuePacked[key], propType);
+    } else if (keyParts.length == 2) {
+      // subtype property
+      if (subtype == null || subtypeProperties == null || keyParts[0] != subtype.toString()) {
+        continue; // ignore irrelevant subtype
+      }
+      const prop = subtypeProperties[Number(keyParts[1])];
+      const propName = subtypePropertiesEnum[prop.id];
+      const propType = getPropertyType(prop);
+      if ((node as EmptyData).subnodePacked == null) {
+        (node as any).subnodePacked = {};
+      }
+      (node as any)[propName] = unpackValue(valuePacked[key], propType);
+    }
+  }
   return node;
 }
 
@@ -408,7 +437,9 @@ export function packValue(
 ): JsonValue {
   if (type.kind == TypeKind.CUSTOM_OBJECT || type.kind == TypeKind.PARTIAL_OBJECT) {
     // nested custom object
-    if (value == null) {
+    if (!options.recurseCustomObject) {
+      return value; // as is
+    } else if (value == null) {
       return null;
     } else if (!type.isList) {
       return packCustomObject(value, type, { graph: options.graph, recurseCustomObject: options.recurseCustomObject });
@@ -454,7 +485,9 @@ export function unpackValue(
 ): any {
   if (type.kind == TypeKind.CUSTOM_OBJECT || type.kind == TypeKind.PARTIAL_OBJECT) {
     // nested custom object
-    if (valuePacked == null) {
+    if (!options.recurseCustomObject) {
+      return valuePacked; // as is
+    } else if (valuePacked == null) {
       return null;
     } else if (!type.isList) {
       return unpackCustomObject(valuePacked, type, {

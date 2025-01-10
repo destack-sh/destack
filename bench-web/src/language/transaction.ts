@@ -1,3 +1,4 @@
+import { NODE_SUBTYPE_PACKED_KEY } from "@/language/const";
 import { getPropertyType, TypeIdentity } from "@/language/field";
 import { PartialNode, type ReadNodeGraph, type WriteNodeGraph } from "@/language/graph";
 import { makeNode, NodeIn } from "@/language/node";
@@ -475,9 +476,6 @@ export function makeEditFromRoot<T extends AnyNodeData>(node: T, update: Partial
   }
   return operations;
 }
-
-const NODE_SUBTYPE_PACKED_ID = BlockProperty.subnodePacked;
-const NODE_SUBTYPE_PACKED_KEY = NODE_SUBTYPE_PACKED_ID.toString(); // it's the same property id for all nodes
 
 /** Turns a top level subnode edit into corresponding edit operations (only for that subnode) */
 export function makeEditFromSubnode<T extends NodeType>(
