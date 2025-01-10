@@ -675,6 +675,11 @@ def node_subtype_(
             {p.name: p for p in subtype_extra_properties.values() if p.reference_source is None}
         )
 
+        # add subtype key to properties
+        for prop in cls.__properties__.values():
+            if prop.subtype_key is None:
+                prop.subtype_key = f"{subtype.value}.{prop.name}"
+
         return cls
 
     return decorate
@@ -1738,7 +1743,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
 
-    # computed_properties: list["ComputedValue"] = p_internal(28, array=True, store=False)
     # NOTE :Architecture: obviously, a better system would store subnode directly
     #  (but we can't do that yet because we're tying top-level properties to Postgres columns,
     #   so we can't have crazy numbers of subtype-properties unless we pack them like this)

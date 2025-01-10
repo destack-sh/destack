@@ -480,10 +480,15 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       viewType: view.type!,
       viewProps: { ...view, ...options?.props, isInput: this.isInput && !options?.isDisabled },
       read: () => {
+        // no need to unpack partial node here (because we're always reading from unpacked node)
         const val = this.readProperty(propNames, isSubnode);
         return val ?? options?.default ?? prop.default;
       },
       write: (newValue) => {
+        // pack value if partial
+        if (this.isPartial) {
+          newValue = packValue(newValue, propType, { graph: this.graph });
+        }
         const txOptions: TransactionOptions = getTransactionOptionsForType(propType);
         let update: Record<string, any>;
         if (propNames.length == 1) {
@@ -518,11 +523,9 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
         } else {
           assertNever(propNames);
         }
-
-        if (options?.extendUpdate != null) {
+        if (!this.isPartial && options?.extendUpdate != null) {
           update = { ...update, ...options.extendUpdate(newValue, txOptions) };
         }
-
         this.update(update, txOptions);
       },
     };
@@ -1281,14 +1284,11 @@ export function useObjectLayout(options: {
         return layout;
       } else {
         const layout = new nodeLayout(partialInfo as any);
-
-        // add partial stuff
-        // nocheckin: parentPtr/blockPtr/...?
+        // partial stuff
         layout.section(undefined, [layout.rowProperty(EmptyProperty.metatype, { title: "Node Type" })]);
-
+        // nocheckin: parentPtr/blockPtr/...?
         // specific node layout
         layout.make();
-
         return layout;
       }
     } else if (kind.value == "custom") {

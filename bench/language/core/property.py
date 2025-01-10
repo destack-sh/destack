@@ -126,6 +126,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     value_is_partial: bool = False
 
     # subtype
+    subtype_key: str | None = None  # :PropertySubtypeKey
     is_subnode_packed: bool = False  # for packed subtype properties
 
     # references to nodes or structs

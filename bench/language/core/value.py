@@ -113,6 +113,8 @@ class CustomObject(Mapping[str, Any]):
       (e.g., Block variable, Run inputs, Class instance).
     Partial Nodes are a CustomObject + a partial Node, they include the Node, its subtype (if any),
       and values for a specific subset of its value Fields (if any).
+      Subtype properties are stored under a prefixed subtype key to support morphing types
+       (similar to Node, but here we flatten the keys to avoid nested dicts).
       (e.g., CreateAction input, Action inputs/outputs in general, partial Record, ...)
     """
 
@@ -227,7 +229,10 @@ class CustomObject(Mapping[str, Any]):
                     key.value_packed_ptr, Property
                 ), f"unexpected {key.value_packed_ptr!r} for {key!r} in {self!r}"
                 key = key.value_packed_ptr
-        value = self._value.get(key.key)
+            storage_key = key.subtype_key or key.key  # :PropertySubtypeKey
+        else:
+            storage_key = key.key
+        value = self._value.get(storage_key)
         if value is None:
             default = key.default
             if default is not UNSET:  # may be unset in Property.default
@@ -272,8 +277,12 @@ class CustomObject(Mapping[str, Any]):
                 ), f"unexpected {key.value_packed_ptr!r} for {key!r} in {self!r}"
                 key = key.value_packed_ptr
                 coerce = False
+            key_typ = key.type_info
+            storage_key = key.subtype_key or key.key  # :PropertySubtypeKey
+        else:
+            key_typ = key
+            storage_key = key.key
         if coerce:
-            key_typ = key.type_info if isinstance(key, Property) else key
             new_value = coerce_value(
                 new_value, key_typ, as_packed=True, parent=self, parent_key=key
             )
@@ -283,7 +292,6 @@ class CustomObject(Mapping[str, Any]):
                 )
 
         # set/track
-        storage_key = key.key
         if track:
             from .node import _trace_edit_operation
 
@@ -1478,7 +1486,7 @@ def pack_custom_object(value: CustomObject, typ: "TypeBase") -> dict[str, JsonVa
 
     # properties
     for prop in _get_custom_object_properties(typ, _value):
-        storage_key = prop.key
+        storage_key = prop.subtype_key or prop.key
         prop_value = cast(SomeValue, _value.get(storage_key))
         if prop_value is None:
             continue
@@ -1538,7 +1546,7 @@ def unpack_custom_object(
 
     # properties
     for prop in _get_custom_object_properties(typ, value_packed):
-        storage_key = prop.key
+        storage_key = prop.subtype_key or prop.key
         prop_value_packed = value_packed.get(storage_key)
         if prop_value_packed is None:
             continue

@@ -123,8 +123,8 @@ def test_partial_node_message(session: Session, package: Package) -> None:
     assert full_obj.value.Field1 == 42
 
 
-def test_partial_node_block(session: Session, package: Package) -> None:
-    """Create, update, pack/unpack a partial Block node with subtypes."""
+def test_partial_node_action(session: Session, package: Package) -> None:
+    """Create, update, pack/unpack a partial Action node with subtypes."""
     typ = Type(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.ACTION)
     obj = Action.partial(type=ActionType.DUPLICATE, name="Action1")
 
