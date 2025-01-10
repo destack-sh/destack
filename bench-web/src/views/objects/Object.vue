@@ -21,7 +21,9 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
+    isComputable?: boolean;
     computedType?: TypeData;
+    computedValues?: ComputedValueData[];
   } & Partial<
     Pick<ViewData, "icon" | "size" | "nodePtr" | "subnodePacked" | "valueType" | "isMinimal" | "isInput" | "isDisabled">
   >
@@ -199,7 +201,6 @@ defineExpose<ViewExposed>({ self, id });
             :class="['ml-auto flex-shrink-0', row.isFullWidth ? '' : 'text-right']"
             :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
             v-bind="row.viewProps"
-            :is-computable="(row.type == 'property' || row.type == 'field') && row.isComputable"
             :model-value="row.read()"
             @update:model-value="
               (value: any) => {

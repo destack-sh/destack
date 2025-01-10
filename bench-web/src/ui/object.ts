@@ -42,11 +42,13 @@ import {
   BlockType,
   EditOperationData,
   EditOperationType,
+  EmptyProperty,
   FailActionProperty,
   FieldData,
   FieldProperty,
   FieldType,
   IconData,
+  NODE_SUBTYPE_PROPERTY_ID,
   NodeReferenceData,
   NodeType,
   NodeTypeMapping,
@@ -324,7 +326,6 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
   protected propertyInfos: Record<number, PropertyInfo>;
   protected subpropertyEnum?: Record<number, string>;
   protected subpropertyInfos?: Record<number, PropertyInfo>;
-
   // value
   protected valuePacked?: Record<string, any>;
   protected valueType?: TypeData;
@@ -355,19 +356,21 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
   }
 
   /** Get the property info for a property */
-  getProperty(property: number): { prop: PropertyInfo; propName: string; isSubnode: boolean } {
+  getProperty(property: number): { prop: PropertyInfo; propName: string; isSubnode: boolean; path: string[] } {
     let prop: PropertyInfo;
     let propName: string;
     if (this.propertyInfos[property] != null) {
       prop = this.propertyInfos[property];
       propName = this.propertyEnum[property];
       if (prop == null) throw new Error(`no property info for: ${property}`);
-      return { prop, propName, isSubnode: false };
+      const path = [property.toString()];
+      return { prop, propName, isSubnode: false, path };
     } else if (this.subpropertyInfos?.[property] != null) {
       prop = this.subpropertyInfos[property];
       propName = this.subpropertyEnum![property];
       if (prop == null) throw new Error(`no property info for: ${property} ${propName}`);
-      return { prop, propName, isSubnode: true };
+      const path = [EmptyProperty.subnodePacked.toString(), this.subtype!.toString(), property.toString()];
+      return { prop, propName, isSubnode: true, path };
     } else {
       throw new Error(`no property info for: ${property}`);
     }
@@ -551,7 +554,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     valueType: TypeIdentity,
     options?: { title?: string | false; subtitle?: string; isComputable?: boolean },
   ): ObjectRow {
-    const { prop, propName } = this.getProperty(propertyId);
+    const { prop, propName, path } = this.getProperty(propertyId);
 
     // computed
     let computedPath: PathData | undefined = undefined;
@@ -583,11 +586,19 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       isFullWidth: true,
       read: () => valuePacked,
       write: (newValue, options?: ModelValueOptions) => {
-        if (options == null) throw new Error("missing update options");
         if (this.isPartial) {
-          this.update({ [options.path[0]]: newValue?.[options.path[1]] });
+          this.update({ [propertyId.toString()]: newValue });
         } else {
-          this.update({ [propName]: newValue?.[options.path[1]] });
+          const operations: EditOperationData[] = [
+            {
+              metatype: ObjectType.EDIT_OPERATION,
+              type: newValue == null ? EditOperationType.CLEAR : EditOperationType.SET,
+              path: [...path, ...(options?.path ?? [])],
+              newValuePacked: newValue,
+            },
+          ];
+          console.log("write", propertyId, path, newValue, options?.path, operations);
+          this.update(operations, getTransactionOptionsForType(valueType));
         }
       },
     };
@@ -600,7 +611,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     valueType: TypeIdentity,
     options?: { title?: string | false; subtitle?: string; isComputable?: boolean; isFullWidth?: boolean },
   ): Row[] {
-    const { prop, propName } = this.getProperty(propertyId);
+    const { prop, propName, path } = this.getProperty(propertyId);
 
     // fields
     let fields: FieldData[];
@@ -646,7 +657,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
             {
               metatype: ObjectType.EDIT_OPERATION,
               type: newValue == null ? EditOperationType.CLEAR : EditOperationType.SET,
-              path: [propertyId.toString(), fieldKey],
+              path: [...path, fieldKey],
               newValuePacked: newFieldValuePacked,
               oldValuePacked: fieldValuePacked,
             },
@@ -877,6 +888,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
             if (prop.valueIsPartial) {
               commonRows.push(
                 this.rowObjectNested(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), {
+                  title: false,
                   isComputable: true,
                 }),
               );
@@ -1069,7 +1081,9 @@ export class PartialStubLayout extends BaseObjectLayout {
         type: "view",
         isFullWidth: false,
         read: () => undefined,
-        write: () => {},
+        write: (value: any) => {
+          this.update(value, { path: ["1"] });
+        },
         title: "Node Type",
         viewType: ViewType.PICKER,
         viewProps: {
