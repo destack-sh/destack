@@ -179,12 +179,16 @@ export function unpackBuiltinObjectProperty(propValuePacked: any, prop: Property
 /** Unpacks proto value representation of a struct. See encode. */
 export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, objectType?: T): AnyTypeMapping[T] {
   if (objectType == null) {
-    if (valuePacked["1"] == null) throw new Error(`missing object type in ${JSON.stringify(valuePacked)}`);
+    if (valuePacked["1"] == null) {
+      throw new Error(`missing object type in ${JSON.stringify(valuePacked)}`);
+    }
     objectType = valuePacked["1"] as T;
   }
   const propertyEnum = PROPERTY_ENUM_BY_TYPE[objectType];
   const properties = PROPERTY_INFOS_BY_TYPE[objectType];
-  if (propertyEnum == null || properties == null) throw new Error(`unexpected object type ${objectType}`);
+  if (propertyEnum == null || properties == null) {
+    throw new Error(`unexpected object type ${objectType}`);
+  }
 
   const value = {} as AnyTypeMapping[T];
   for (const prop of Object.values(properties)) {
@@ -374,6 +378,20 @@ export function unpackCustomObject(
   }
 
   return value;
+}
+
+/** Builds a partial node from a packed partial node value. */
+export function unpackPartialNode(
+  valuePacked: JsonValue,
+  nodeType: NodeType,
+  subtype: number | null | undefined,
+): Partial<AnyNodeData> {
+  const node = { metatype: nodeType as unknown as ObjectType } as Partial<AnyNodeData>;
+  if (subtype != null) {
+    (node as any).type = subtype;
+  }
+  // nocheckin: unpackPartialNode
+  return node;
 }
 
 /**

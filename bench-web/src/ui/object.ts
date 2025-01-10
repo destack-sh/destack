@@ -21,16 +21,22 @@ import {
   TypeIdentity,
   typeIsNumeric,
 } from "@/language/field";
-import { ReadNodeGraph } from "@/language/graph";
 import { packSubnode, unpackSubnode } from "@/language/node";
 import { getPathKey, makePath } from "@/language/path";
+import { ReadNodeGraph } from "@/language/graph";
 import {
   getTransactionOptionsForType,
   makeEditFromSubnode,
   Transaction,
   TransactionOptions,
 } from "@/language/transaction";
-import { getPartialObjectNodeType, getPartialObjectSubtype, packValue, unpackValue } from "@/language/value";
+import {
+  getPartialObjectNodeType,
+  getPartialObjectSubtype,
+  packValue,
+  unpackPartialNode,
+  unpackValue,
+} from "@/language/value";
 import {
   ActionData,
   ActionProperty,
@@ -167,13 +173,13 @@ type NodeInfo<T extends NodeType> = BaseObjectInfo & {
   nodeType: T;
   subtype: number | null;
   node: NodeTypeMapping[T];
-  subnode: any;
+  subnode: any | null;
 };
 type PartialNodeInfo = BaseObjectInfo & {
   kind: "partial";
   nodeType: NodeType | null;
   subtype: number | null;
-  node: AnyNodeData | null;
+  node: Partial<AnyNodeData> | null;
   subnode: any | null;
   valuePacked: Record<string, any>;
   valueType: TypeData;
@@ -309,7 +315,7 @@ export abstract class BaseObjectLayout {
     return rows;
   }
 
-  abstract build(): void;
+  abstract make(): void;
 }
 
 export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
@@ -320,7 +326,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
   protected nodeType: T | null;
   protected subtype: number | null;
   protected node: Partial<NodeTypeMapping[T]>;
-  protected subnode: any;
+  protected subnode: any | null;
   protected propertyEnum: Record<number, string>;
   protected propertyInfos: Record<number, PropertyInfo>;
   protected subpropertyEnum?: Record<number, string>;
@@ -705,7 +711,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
 }
 
 export class BlockLayout extends NodeLayout<NodeType.BLOCK> {
-  build() {
+  make() {
     const commonRows: Row[] = [];
     this.section(undefined, commonRows);
     if (this.subtype != BlockType.TEXT) {
@@ -748,7 +754,7 @@ export class BlockLayout extends NodeLayout<NodeType.BLOCK> {
 }
 
 export class FieldLayout extends NodeLayout<NodeType.FIELD> {
-  build() {
+  make() {
     const node = this.node!;
     const graph = this.graph;
     const commonRows: Row[] = [
@@ -864,7 +870,7 @@ export class FieldLayout extends NodeLayout<NodeType.FIELD> {
 }
 
 export class ActionLayout extends NodeLayout<NodeType.ACTION> {
-  build() {
+  make() {
     const node = this.node!;
 
     const commonRows: Row[] = [];
@@ -900,6 +906,9 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
             if (prop == null || prop.fieldType == FieldType.OUTPUT) return;
 
             if (prop.valueIsPartial) {
+              if (this.isPartial) {
+                return;
+              }
               commonRows.push(
                 this.rowObjectNested(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), {
                   title: false,
@@ -1028,7 +1037,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
 }
 
 export class PipeLayout extends NodeLayout<NodeType.PIPE> {
-  build() {
+  make() {
     this.section(undefined, [
       this.rowProperty(PipeProperty.text, { title: false, props: { placeholder: "Text..." } }),
       this.rowProperty(PipeProperty.type),
@@ -1039,7 +1048,7 @@ export class PipeLayout extends NodeLayout<NodeType.PIPE> {
 }
 
 export class RecordLayout extends NodeLayout<NodeType.RECORD> {
-  build() {
+  make() {
     const commonRows: Row[] = [
       this.rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }),
     ];
@@ -1072,7 +1081,7 @@ export class CustomLayout extends BaseObjectLayout {
     this.computedPath = info.computedPath;
   }
 
-  build() {
+  make() {
     const fields = this.delegateFields.filter((field) => {
       if (this.valueType.baseFieldTypes != null && !this.valueType.baseFieldTypes.includes(field.type)) return false;
       if (field.type == FieldType.OPTION) return false;
@@ -1089,7 +1098,7 @@ export class CustomLayout extends BaseObjectLayout {
 }
 
 export class PartialStubLayout extends BaseObjectLayout {
-  build() {
+  make() {
     this.section(undefined, [
       {
         type: "view",
@@ -1110,7 +1119,7 @@ export class PartialStubLayout extends BaseObjectLayout {
 }
 
 export class EmptyLayout extends BaseObjectLayout {
-  build() {
+  make() {
     // deliberately empty
   }
 }
@@ -1123,33 +1132,6 @@ const NODE_LAYOUT_BY_TYPE = {
   [NodeType.FIELD]: FieldLayout,
 };
 
-/** Build a layout for an object */
-export function makeObjectLayout(info: ObjectInfo): BaseObjectLayout | null {
-  let layoutCls: typeof BaseObjectLayout | null = null;
-  if (info.kind == "node") {
-    if (info.node == null) throw new Error("node is null");
-    layoutCls = NODE_LAYOUT_BY_TYPE[info.nodeType as keyof typeof NODE_LAYOUT_BY_TYPE];
-  } else if (info.kind == "partial") {
-    if (info.valueType == null) throw new Error("valueType is null");
-    if (info.nodeType != null) {
-      layoutCls = NODE_LAYOUT_BY_TYPE[info.nodeType as keyof typeof NODE_LAYOUT_BY_TYPE];
-    } else {
-      layoutCls = PartialStubLayout;
-    }
-  } else if (info.kind == "custom") {
-    layoutCls = CustomLayout;
-  } else {
-    assertNever(info);
-  }
-  if (layoutCls != null) {
-    // @ts-expect-error this is never an abstract class
-    const layout = new layoutCls(info as any);
-    layout.build();
-    return layout;
-  }
-  return null;
-}
-
 /** Use the object layout for a node, partial or custom object */
 export function useObjectLayout(options: {
   isInput: Ref<boolean>;
@@ -1158,6 +1140,8 @@ export function useObjectLayout(options: {
   valuePacked: Ref<any>;
   computedType?: Ref<TypeData | undefined>;
   updateValuePacked: (update: any, options: any) => void;
+  /** Optionally extend or modify partial node layouts after they're built */
+  extendPartialLayout?: (layout: BaseObjectLayout, info: ObjectInfo) => BaseObjectLayout;
 }) {
   const { valueType, valuePacked, updateValuePacked } = options;
 
@@ -1167,26 +1151,31 @@ export function useObjectLayout(options: {
   const { graph } = useExistingConnection(nodePtr);
   const fields = graph.getChildrenRef(node, NodeType.FIELD);
 
-  // delegate (base or some other delegate)
+  // delegate
   const delegatePtr = computed(() => {
-    if (valueType.value?.baseTypePtr != null) return valueType.value.baseTypePtr;
-    else if (isNode(node.value, NodeType.ACTION) && node.value.type == ActionType.TOOL) return node.value.toolPtr;
-    else if (
+    if (valueType.value?.baseTypePtr != null) {
+      return valueType.value.baseTypePtr;
+    } else if (isNode(node.value, NodeType.ACTION) && node.value.type == ActionType.TOOL) {
+      return node.value.toolPtr;
+    } else if (
       isNode(node.value, NodeType.ACTION) &&
       (node.value.type == ActionType.START || node.value.type == ActionType.COMPLETE)
-    )
+    ) {
       return node.value.parentPtr;
-    else if (node.value != null) return getBaseFromNode(node.value);
-    else return null;
+    } else if (node.value != null) {
+      return getBaseFromNode(node.value);
+    } else {
+      return null;
+    }
   });
   const { graph: delegateGraph, connection: delegateConnection } = useExistingConnection(delegatePtr);
   const delegate = delegateGraph.getRef(delegatePtr);
   const delegateFields = delegateGraph.getChildrenRef(delegate, NodeType.FIELD);
 
-  // tx from either node connection or delegate connection
+  // tx
   function txFactory() {
     if (connection.value != null) return connection.value.tx;
-    else return delegateConnection.tx;
+    return delegateConnection.tx;
   }
 
   // computed
@@ -1201,58 +1190,77 @@ export function useObjectLayout(options: {
   const computedType = computed<TypeData | undefined>(() => {
     if (options.computedType?.value != null) return options.computedType.value;
     if (node.value == null) return undefined;
-    const type = makeType({
+    return makeType({
       benchType: BenchType.COMPUTED_VALUE,
       isRequired: true,
-      constraint: makeTypeConstraint({ nodeScopePtr: [node.value.parentPtr!] }), // NOTE: should really be the containing runnable
+      constraint: makeTypeConstraint({ nodeScopePtr: [node.value.parentPtr!] }),
     });
-    return type;
+  });
+
+  // layout kind
+  const kind = computed(() => {
+    if (valueType.value?.kind == TypeKind.PARTIAL_OBJECT) return "partial";
+    if (valueType.value?.kind == TypeKind.CUSTOM_OBJECT) return "custom";
+    return "node";
   });
 
   // layout
-  const kind = computed(() => {
-    if (valueType.value?.kind == TypeKind.PARTIAL_OBJECT) return "partial";
-    else if (valueType.value?.kind == TypeKind.CUSTOM_OBJECT) return "custom";
-    else return "node";
-  });
   const layout = computed(() => {
     if (kind.value == "node") {
       if (node.value == null) return null;
-      const nodeType = node.value.metatype as unknown as NodeType;
       const subtype = (node.value as any).type;
       const subnode =
         (node.value.subnodePacked as any)?.[subtype?.toString()!] != null
-          ? (unpackSubnode(nodeType, subtype as never, node.value.subnodePacked) as any)
+          ? (unpackSubnode(node.value.metatype as any, subtype as never, node.value.subnodePacked) as any)
           : null;
-      return makeObjectLayout({
+
+      const layoutCls = NODE_LAYOUT_BY_TYPE[node.value.metatype as any as keyof typeof NODE_LAYOUT_BY_TYPE];
+      if (!layoutCls) return null;
+
+      const info: NodeInfo<any> = {
         kind: "node",
         isInput: options.isInput.value,
         node: node.value,
+        subnode,
         fields: fields.value,
-        nodeType: node.value.metatype,
-        subtype: subtype,
-        subnode: subnode,
+        nodeType: node.value.metatype as unknown as NodeType,
+        subtype,
         delegate: delegate.value,
         delegateFields: delegateFields.value,
         graph,
-        update: (update, options) => {
-          if (node.value == null) return;
-          connection.value?.tx.update(node.value, update, options);
+        update: (update: any, options?: Partial<ModelValueOptions> & Partial<TransactionOptions>) => {
+          if (node.value) {
+            connection.value?.tx.update(node.value, update, options);
+          }
         },
         txFactory,
-      });
+      };
+      const layout = new layoutCls(info as any);
+      layout.make();
+      return layout;
     } else if (kind.value == "partial") {
       if (options.valueType.value == null) return null;
       const valuePacked = options.valuePacked.value ?? {};
       const nodeType = getPartialObjectNodeType(options.valueType.value, valuePacked);
       const subtype = getPartialObjectSubtype(options.valueType.value, valuePacked);
-      return makeObjectLayout({
+
+      let partialNode: Partial<AnyNodeData> | null = null;
+      let subnode: any | null = null;
+      if (nodeType != null) {
+        partialNode = unpackPartialNode(valuePacked, nodeType, subtype);
+        subnode =
+          (partialNode.subnodePacked as any)?.[subtype?.toString()!] != null
+            ? (unpackSubnode(nodeType, subtype as never, partialNode.subnodePacked) as any)
+            : null;
+      }
+
+      const partialInfo: PartialNodeInfo = {
         kind: "partial",
         isInput: options.isInput.value,
         nodeType,
         subtype,
-        node: null, // nocheckin,
-        subnode: null, // nocheckin,
+        node: partialNode,
+        subnode,
         valueType: options.valueType.value!,
         valuePacked: valuePacked,
         computedType: computedType.value,
@@ -1260,15 +1268,34 @@ export function useObjectLayout(options: {
         delegate: delegate.value,
         delegateFields: delegateFields.value,
         graph,
-        update: (update, options) => {
+        update: (update: any, options?: Partial<ModelValueOptions> & Partial<TransactionOptions>) => {
           updateValuePacked({ ...valuePacked, ...update }, options);
         },
         txFactory,
-      });
+      };
+      const nodeLayout = NODE_LAYOUT_BY_TYPE[nodeType as keyof typeof NODE_LAYOUT_BY_TYPE];
+      if (nodeLayout == null) {
+        // no specific layout (yet)
+        const layout = new PartialStubLayout(partialInfo as any);
+        layout.make();
+        return layout;
+      } else {
+        const layout = new nodeLayout(partialInfo as any);
+
+        // add partial stuff
+        // nocheckin: parentPtr/blockPtr/...?
+        layout.section(undefined, [layout.rowProperty(EmptyProperty.metatype, { title: "Node Type" })]);
+
+        // specific node layout
+        layout.make();
+
+        return layout;
+      }
     } else if (kind.value == "custom") {
       if (options.valueType.value == null) return null;
       const valuePacked = options.valuePacked.value ?? {};
-      return makeObjectLayout({
+
+      const layout = new CustomLayout({
         kind: "custom",
         isInput: options.isInput.value,
         valueType: options.valueType.value!,
@@ -1278,12 +1305,15 @@ export function useObjectLayout(options: {
         delegate: delegate.value,
         delegateFields: delegateFields.value,
         graph,
-        update: (update, options) => {
-          updateValuePacked({ ...valuePacked, ...update }, options);
+        update: (update, opts) => {
+          updateValuePacked({ ...valuePacked, ...update }, opts);
         },
         txFactory,
       });
+      layout.make();
+      return layout;
     }
+
     return null;
   });
 
