@@ -634,7 +634,7 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
                 )
             else:
                 # custom object field
-                value_type = decode_type_identity(key[TK_LENGTH_B64:])
+                value_type = decode_type_identity(key[TK_LENGTH_B64 + 1 :])
                 new_value_packed = unpack_proto_json(op.new_value_packed)
                 new_value = unpack_value(new_value_packed, value_type, wrap_scalar=False)
                 field = cast(CustomObject, obj)._type._get_field_by_key(key)

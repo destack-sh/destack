@@ -180,9 +180,27 @@ def decode_type_identity(key: str) -> "TypeBase":
     raise ValueError(f"unsupported type kind {kind}")
 
 
+LETTER_BY_FIELD_TYPE: dict[FieldType, str] = {
+    FieldType.INPUT: "I",
+    FieldType.OUTPUT: "O",
+    FieldType.VARIABLE: "V",
+    FieldType.MEMBER: "M",
+}
+FIELD_TYPE_BY_LETTER: dict[str, FieldType] = {
+    "I": FieldType.INPUT,
+    "O": FieldType.OUTPUT,
+    "V": FieldType.VARIABLE,
+    "M": FieldType.MEMBER,
+}
+
+
 def encode_storage_key(field: "Field") -> str:
     """Gets the key used to identify values of this field in storage. :FieldStorageKey"""
-    return f"{get_tk_b64_from_ck(field.ck)}{field.identity_key}"
+    return f"{LETTER_BY_FIELD_TYPE[field.type]}{get_tk_b64_from_ck(field.ck)}{field.identity_key}"
+
+
+def get_field_type(storage_key: str) -> FieldType:
+    return FIELD_TYPE_BY_LETTER[storage_key[0]]
 
 
 @struct_(StructType.TYPE_CONSTRAINT)
