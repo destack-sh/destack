@@ -1,4 +1,4 @@
-import { ACTIVE_RUN_STATUSES, getBaseFromNode, isResourceNodeType } from "@/language/const";
+import { ACTIVE_RUN_STATUSES, getBaseFromNode, isResourceNodeType, TK_LENGTH_B64 } from "@/language/const";
 import { makeExpression } from "@/language/expression";
 import { decodeTypeIdentity } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
@@ -260,7 +260,7 @@ export class Runtime {
     if (!isRunnable(node)) throw new Error(`no node for base ${describeNode(basePtr)} of ${describeNode(run)}`);
     let variablesPacked: Record<string, any> | undefined = undefined;
     for (const [key, value] of Object.entries(run.variablesPacked ?? {})) {
-      const type = decodeTypeIdentity(key);
+      const type = decodeTypeIdentity(key.slice(TK_LENGTH_B64 + 1));
       if (!isResourceNodeType(type)) {
         // ignore resources?
         if (variablesPacked == null) variablesPacked = {};

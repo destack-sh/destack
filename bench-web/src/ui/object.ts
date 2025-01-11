@@ -641,7 +641,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     } else if (valueType?.baseTypePtr?.id == this.delegate?.id) {
       fields = this.delegateFields;
     } else {
-      throw new Error(`unexpected base: ${describeTypeIdentity(valueType)} for ${describeNode(this.node)}`);
+      fields = []; // missing delegate, just ignore (probably waiting)
     }
     fields = fields.filter((field) => {
       if (valueType.baseFieldTypes != null && !valueType.baseFieldTypes.includes(field.type)) return false;
@@ -1051,10 +1051,16 @@ export class PipeLayout extends NodeLayout<NodeType.PIPE> {
 
 export class RecordLayout extends NodeLayout<NodeType.RECORD> {
   make() {
-    const commonRows: Row[] = [
-      this.rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }),
-    ];
+    const commonRows: Row[] = [];
+    if (this.isPartial) {
+      // select block
+      commonRows.push(this.rowProperty(RecordProperty.blockPtr, { title: "Database" }));
+      // nocheckin: general SourceNode partial properties?
+      commonRows.push(this.rowProperty(RecordProperty.name));
+    }
+    commonRows.push(this.rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }));
     if (this.node.blockPtr != null) {
+      // value
       commonRows.push(
         ...this.rowObjectInline(
           RecordProperty.valuePacked,
@@ -1066,12 +1072,6 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
         ),
       );
     }
-
-    if (this.isPartial) {
-      // select block
-      commonRows.push(this.rowProperty(RecordProperty.blockPtr, { title: "Database" }));
-    }
-
     this.section(undefined, commonRows);
   }
 }
