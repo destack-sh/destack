@@ -292,11 +292,24 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
   }
 }
 
+export const LETTER_BY_FIELD_TYPE: Partial<Record<FieldType, string>> = {
+  [FieldType.INPUT]: "I",
+  [FieldType.OUTPUT]: "O",
+  [FieldType.VARIABLE]: "V",
+  [FieldType.MEMBER]: "M",
+};
+export const FIELD_TYPE_BY_LETTER: Record<string, FieldType> = {
+  I: FieldType.INPUT,
+  O: FieldType.OUTPUT,
+  V: FieldType.VARIABLE,
+  M: FieldType.MEMBER,
+};
+
 /** Gets the eternal storage key for values of this type identity. :FieldStorageKey */
 export function getStorageKey(field: FieldData, fieldType?: TypeIdentity): string {
   fieldType = fieldType ?? field;
   if (field.ck == null) throw new Error(`missing ck for type ${describeTypeIdentity(field)}`);
-  return `${getTkB64FromCk(field.ck)}${encodeTypeIdentity(fieldType)}`;
+  return `${LETTER_BY_FIELD_TYPE[field.type]}${getTkB64FromCk(field.ck)}${encodeTypeIdentity(fieldType)}`;
 }
 
 /** Whether the value meets the type constraints */
