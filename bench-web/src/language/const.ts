@@ -34,9 +34,9 @@ import {
   ViewDataInfo,
   ViewProperty,
   ViewType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire";
-import { describeNode, isStruct, propertyInfo } from "@/proto/wiring";
+import { describeNode, isNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
 
 export const FLOAT_EPSILON = 1e-6;
@@ -206,15 +206,15 @@ export const BASE_TYPE_BY_NODE_TYPE: Partial<Record<NodeType, NodeType>> = {
 /**
  * Gets the 'base' node defining a certain node. See :HasBase.
  */
-export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
-  if (node.metatype == ObjectType.RECORD) {
-    return (node as RecordData).blockPtr ?? null;
-  } else if (node.metatype == ObjectType.FIELD) {
-    return (node as FieldData).parentPtr ?? null;
-  } else if (node.metatype == ObjectType.RUN || node.metatype == ObjectType.INTERRUPTION) {
-    return (node as RunData).pipePtr ?? (node as RunData).actionPtr ?? (node as RunData).blockPtr ?? null;
-  } else if (node.metatype == ObjectType.MESSAGE) {
-    return (node as MessageData).blockPtr ?? null;
+export function getBaseFromNode(node: Partial<AnyNodeData>): NodeReferenceData | null {
+  if (isNode(node, NodeType.RECORD)) {
+    return node.blockPtr ?? null;
+  } else if (isNode(node, NodeType.FIELD)) {
+    return node.parentPtr ?? null;
+  } else if (isNode(node, NodeType.RUN) || isNode(node, NodeType.INTERRUPTION)) {
+    return node.pipePtr ?? node.actionPtr ?? node.blockPtr ?? null;
+  } else if (isNode(node, NodeType.MESSAGE)) {
+    return node.blockPtr ?? null;
   } else {
     return null;
   }

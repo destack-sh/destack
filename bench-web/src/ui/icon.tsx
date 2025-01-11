@@ -52,6 +52,8 @@ import { getColorHex, makeColor } from "@/ui/style";
 import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 import { BASED_NODE_TYPES, getBaseFromNode } from "@/language/const";
 import { supergraph } from "@/system/globals";
+import { unpackSubnodeProperty } from "@/language/node";
+import { unpackPartialNode } from "@/language/value";
 
 export type IconMetadata = {
   id: string;
@@ -744,10 +746,27 @@ export function getNodeIcon(
       if (icon != null) return icon;
     }
   } else if (isNode(node, NodeType.ACTION) && node.toolPtr != null && node.type == ActionType.TOOL) {
+    // tool node (delegate)
     const tool = supergraph.get(node.toolPtr);
     if (tool != null) {
       const icon = getNodeIcon(tool, options);
       if (icon != null) return icon;
+    }
+  } else if (isNode(node, NodeType.ACTION) && node.type == ActionType.CREATE && node.subnodePacked != null) {
+    // create action
+    const nodePartialPacked = unpackSubnodeProperty(
+      NodeType.ACTION,
+      ActionType.CREATE,
+      node.subnodePacked,
+      "nodePartialPacked",
+    );
+    const nodePartialType = (nodePartialPacked as any)?.["1"] as NodeType | undefined;
+    if (nodePartialType != null) {
+      const nodePartial = unpackPartialNode(nodePartialPacked, nodePartialType, 0);
+      if (isNode(nodePartial, nodePartialType)) {
+        const icon = getNodeIcon(nodePartial, options);
+        if (icon != null) return icon;
+      }
     }
   }
 

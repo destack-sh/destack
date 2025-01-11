@@ -174,7 +174,7 @@ class RunAttempt(Struct):
 
     @property
     def is_retryable(self) -> bool:
-        return self.error is not None and self.error.is_retryable
+        return self.error is None or self.error.is_retryable
 
     def __content_str__(self) -> str:
         if self.duration is not None:

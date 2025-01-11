@@ -204,6 +204,8 @@ class Action(SourceNode[ActionData]):
     variables: Any = p_value_runtime(
         56, type=FieldType.VARIABLE, typ=lambda self: cast("Action", self).variable_type
     )
+    # NOTE :Architecture: handle node_partials and partial overrides from Action inputs?
+    # (also in other Actions that use value_packed - maybe nested proxy in ProxyReadObject?)
     inputs_packed: Any = p_value_packed(57)
     inputs: Any = p_value_runtime(
         57, type=FieldType.INPUT, typ=lambda self: cast("Action", self).input_type

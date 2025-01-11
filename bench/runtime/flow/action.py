@@ -325,8 +325,6 @@ class ToolActionRunner(ActionRunnerBase[ToolAction]):
         tool = self.action_inputs.tool
         if not tool:
             raise RunImpossibleError("no tool")
-        # nocheckin: handle node_partials and partial overrides from Action inputs
-        # (also in other Actions that use value_packed - maybe nested proxy in ProxyReadObject?)
         tool_runner = self._get_resumable_subrunner(
             node=tool,
             variables=self.action_inputs.variables,

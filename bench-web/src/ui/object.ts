@@ -719,7 +719,8 @@ export class BlockLayout extends NodeLayout<NodeType.BLOCK> {
       commonRows.push(this.rowProperty(BlockProperty.text, { title: false, props: { placeholder: "Text..." } }));
     }
 
-    if (this.kind == "node") {
+    // schema
+    if (!this.isPartial) {
       if (this.subtype == BlockType.CHOICE) {
         this.section("Options", [{ type: "fields-list", fieldType: FieldType.OPTION }], {
           actions: [this.actionAddField(FieldType.OPTION)],
@@ -1065,6 +1066,12 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
         ),
       );
     }
+
+    if (this.isPartial) {
+      // select block
+      commonRows.push(this.rowProperty(RecordProperty.blockPtr, { title: "Database" }));
+    }
+
     this.section(undefined, commonRows);
   }
 }
@@ -1146,32 +1153,18 @@ export function useObjectLayout(options: {
 }) {
   const { valueType, valuePacked, updateValuePacked } = options;
 
+  // kind
+  const kind = computed(() => {
+    if (valueType.value?.kind == TypeKind.PARTIAL_OBJECT) return "partial";
+    if (valueType.value?.kind == TypeKind.CUSTOM_OBJECT) return "custom";
+    return "node";
+  });
+
   // node
   const nodePtr = computedValue(() => options.nodePtr.value);
   const { node, connection } = supergraph.getLinkRef(nodePtr);
   const { graph } = useExistingConnection(nodePtr);
   const fields = graph.getChildrenRef(node, NodeType.FIELD);
-
-  // delegate
-  const delegatePtr = computed(() => {
-    if (valueType.value?.baseTypePtr != null) {
-      return valueType.value.baseTypePtr;
-    } else if (isNode(node.value, NodeType.ACTION) && node.value.type == ActionType.TOOL) {
-      return node.value.toolPtr;
-    } else if (
-      isNode(node.value, NodeType.ACTION) &&
-      (node.value.type == ActionType.START || node.value.type == ActionType.COMPLETE)
-    ) {
-      return node.value.parentPtr;
-    } else if (node.value != null) {
-      return getBaseFromNode(node.value);
-    } else {
-      return null;
-    }
-  });
-  const { graph: delegateGraph, connection: delegateConnection } = useExistingConnection(delegatePtr);
-  const delegate = delegateGraph.getRef(delegatePtr);
-  const delegateFields = delegateGraph.getChildrenRef(delegate, NodeType.FIELD);
 
   // tx
   function txFactory() {
@@ -1179,34 +1172,8 @@ export function useObjectLayout(options: {
     return delegateConnection.tx;
   }
 
-  // computed
-  const computer = useComputedValues({
-    computedValues: computed(() => (isSourceNode(node.value) ? node.value.computedValues : [])),
-    update: (computedValues) => {
-      if (isSourceNode(node.value)) {
-        connection.value?.tx.update(node.value, { computedValues });
-      }
-    },
-  });
-  const computedType = computed<TypeData | undefined>(() => {
-    if (options.computedType?.value != null) return options.computedType.value;
-    if (node.value == null) return undefined;
-    return makeType({
-      benchType: BenchType.COMPUTED_VALUE,
-      isRequired: true,
-      constraint: makeTypeConstraint({ nodeScopePtr: [node.value.parentPtr!] }),
-    });
-  });
-
-  // layout kind
-  const kind = computed(() => {
-    if (valueType.value?.kind == TypeKind.PARTIAL_OBJECT) return "partial";
-    if (valueType.value?.kind == TypeKind.CUSTOM_OBJECT) return "custom";
-    return "node";
-  });
-
-  // layout
-  const layout = computed(() => {
+  // node info
+  const nodeInfo = computed(() => {
     if (kind.value == "node") {
       if (node.value == null) return null;
       const subtype = (node.value as any).type;
@@ -1214,31 +1181,12 @@ export function useObjectLayout(options: {
         (node.value.subnodePacked as any)?.[subtype?.toString()!] != null
           ? (unpackSubnode(node.value.metatype as any, subtype as never, node.value.subnodePacked) as any)
           : null;
-
-      const layoutCls = NODE_LAYOUT_BY_TYPE[node.value.metatype as any as keyof typeof NODE_LAYOUT_BY_TYPE];
-      if (!layoutCls) return null;
-
-      const info: NodeInfo<any> = {
-        kind: "node",
-        isInput: options.isInput.value,
+      return {
         node: node.value,
         subnode,
-        fields: fields.value,
         nodeType: node.value.metatype as unknown as NodeType,
         subtype,
-        delegate: delegate.value,
-        delegateFields: delegateFields.value,
-        graph,
-        update: (update: any, options?: Partial<ModelValueOptions> & Partial<TransactionOptions>) => {
-          if (node.value) {
-            connection.value?.tx.update(node.value, update, options);
-          }
-        },
-        txFactory,
       };
-      const layout = new layoutCls(info as any);
-      layout.make();
-      return layout;
     } else if (kind.value == "partial") {
       if (options.valueType.value == null) return null;
       const valuePacked = options.valuePacked.value ?? {};
@@ -1254,14 +1202,77 @@ export function useObjectLayout(options: {
             ? (unpackSubnode(nodeType, subtype as never, partialNode.subnodePacked) as any)
             : null;
       }
+      return {
+        node: partialNode,
+        subnode,
+        nodeType,
+        subtype,
+      };
+    }
+    return null;
+  });
+
+  // delegate
+  const delegatePtr = computed(() => {
+    if (valueType.value?.baseTypePtr != null) {
+      return valueType.value.baseTypePtr;
+    }
+    const node = nodeInfo.value?.node;
+    if (node == null) return null;
+    if (isNode(node, NodeType.ACTION) && node.type == ActionType.TOOL) {
+      return node.toolPtr;
+    } else if (isNode(node, NodeType.ACTION) && (node.type == ActionType.START || node.type == ActionType.COMPLETE)) {
+      return node.parentPtr;
+    } else if (node != null) {
+      return getBaseFromNode(node);
+    } else {
+      return null;
+    }
+  });
+  const { graph: delegateGraph, connection: delegateConnection } = useExistingConnection(delegatePtr);
+  const delegate = delegateGraph.getRef(delegatePtr);
+  const delegateFields = delegateGraph.getChildrenRef(delegate, NodeType.FIELD);
+
+  // layout
+  const layout = computed(() => {
+    if (kind.value == "node") {
+      if (nodeInfo.value == null) return null;
+
+      const layoutCls = NODE_LAYOUT_BY_TYPE[nodeInfo.value.nodeType as keyof typeof NODE_LAYOUT_BY_TYPE];
+      if (!layoutCls) return null;
+
+      const info: NodeInfo<any> = {
+        kind: "node",
+        isInput: options.isInput.value,
+        node: nodeInfo.value.node,
+        subnode: nodeInfo.value.subnode,
+        fields: fields.value,
+        nodeType: nodeInfo.value.nodeType,
+        subtype: nodeInfo.value.subtype,
+        delegate: delegate.value,
+        delegateFields: delegateFields.value,
+        graph,
+        update: (update: any, options?: Partial<ModelValueOptions> & Partial<TransactionOptions>) => {
+          if (node.value) {
+            connection.value?.tx.update(node.value, update, options);
+          }
+        },
+        txFactory,
+      };
+      const layout = new layoutCls(info as any);
+      layout.make();
+      return layout;
+    } else if (kind.value == "partial") {
+      if (nodeInfo.value == null) return null;
+      const valuePacked = options.valuePacked.value ?? {};
 
       const partialInfo: PartialNodeInfo = {
         kind: "partial",
         isInput: options.isInput.value,
-        nodeType,
-        subtype,
-        node: partialNode,
-        subnode,
+        nodeType: nodeInfo.value.nodeType,
+        subtype: nodeInfo.value.subtype,
+        node: nodeInfo.value.node,
+        subnode: nodeInfo.value.subnode,
         valueType: options.valueType.value!,
         valuePacked: valuePacked,
         computedType: computedType.value,
@@ -1274,7 +1285,7 @@ export function useObjectLayout(options: {
         },
         txFactory,
       };
-      const nodeLayout = NODE_LAYOUT_BY_TYPE[nodeType as keyof typeof NODE_LAYOUT_BY_TYPE];
+      const nodeLayout = NODE_LAYOUT_BY_TYPE[nodeInfo.value.nodeType as keyof typeof NODE_LAYOUT_BY_TYPE];
       if (nodeLayout == null) {
         // no specific layout (yet)
         const layout = new PartialStubLayout(partialInfo as any);
@@ -1284,7 +1295,6 @@ export function useObjectLayout(options: {
         const layout = new nodeLayout(partialInfo as any);
         // partial stuff
         layout.section(undefined, [layout.rowProperty(EmptyProperty.metatype, { title: "Node Type" })]);
-        // nocheckin: parentPtr/blockPtr/...?
         // specific node layout
         layout.make();
         return layout;
@@ -1313,6 +1323,25 @@ export function useObjectLayout(options: {
     }
 
     return null;
+  });
+
+  // computed
+  const computer = useComputedValues({
+    computedValues: computed(() => (isSourceNode(node.value) ? node.value.computedValues : [])),
+    update: (computedValues) => {
+      if (isSourceNode(node.value)) {
+        connection.value?.tx.update(node.value, { computedValues });
+      }
+    },
+  });
+  const computedType = computed<TypeData | undefined>(() => {
+    if (options.computedType?.value != null) return options.computedType.value;
+    if (node.value == null) return undefined;
+    return makeType({
+      benchType: BenchType.COMPUTED_VALUE,
+      isRequired: true,
+      constraint: makeTypeConstraint({ nodeScopePtr: [node.value.parentPtr!] }),
+    });
   });
 
   return { layout, node, computer, connection, computedType };
