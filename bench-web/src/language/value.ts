@@ -392,7 +392,6 @@ export function unpackPartialNode(
   if (subtype != null) {
     (node as any).type = subtype;
   }
-  // nocheckin: unpackPartialNode
   const properties = PROPERTY_INFOS_BY_TYPE[nodeType]!;
   const propertiesEnum = PROPERTY_ENUM_BY_TYPE[nodeType]!;
   const subtypeProperties = subtype != null ? PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[subtype] : null;
