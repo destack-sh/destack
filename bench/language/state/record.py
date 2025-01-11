@@ -3,11 +3,13 @@ from typing import TYPE_CHECKING, Any, Optional, cast, final
 import structlog
 
 from bench.language.core import (
+    BlockType,
     FieldType,
     HasNodeBase,
     NodeType,
     StateNode,
     StructType,
+    constraint,
     node_,
     p_internal,
     p_regular,
@@ -45,7 +47,12 @@ class Record(StateNode[RecordData], HasNodeBase):
     text: Optional["Text"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    block: "Block" = p_system(36, require=True, references=NodeType.BLOCK)
+    block: "Block" = p_system(
+        36,
+        require=True,
+        references=NodeType.BLOCK,
+        constraint=constraint(node_subtypes=[BlockType.DATABASE]),
+    )
 
     # value
     value_packed: Any = p_value_packed(40)

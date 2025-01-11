@@ -397,6 +397,8 @@ export function unpackPartialNode(
   const subtypeProperties = subtype != null ? PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[subtype] : null;
   const subtypePropertiesEnum =
     subtype != null && subtypeProperties != null ? PROPERTY_ENUM_BY_SUBTYPE[nodeType]?.[subtype]! : null;
+  // nocheckin: unpackPartialNode field values (prefixed with field type)
+  console.log("unpackPartialNode", nodeType, subtype, valuePacked);
   for (const key in valuePacked) {
     const keyParts = key.split(".");
     if (keyParts.length == 1) {
