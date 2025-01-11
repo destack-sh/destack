@@ -565,7 +565,8 @@ class Runtime:
         try:
             # make new attempts if we can/should
             while retry.should_retry and not (
-                last_attempt is not None and last_attempt.status == RunStatus.COMPLETED
+                last_attempt is not None
+                and (last_attempt.status == RunStatus.COMPLETED or not last_attempt.is_retryable)
             ):
                 retry.on_attempt()
                 if last_attempt is not None and last_attempt.status.is_interrupted:
