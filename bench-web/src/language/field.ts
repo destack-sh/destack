@@ -312,6 +312,12 @@ export function getStorageKey(field: FieldData, fieldType?: TypeIdentity): strin
   return `${LETTER_BY_FIELD_TYPE[field.type]}${getTkB64FromCk(field.ck)}${encodeTypeIdentity(fieldType)}`;
 }
 
+export function getFieldType(storageKey: string): FieldType | null {
+  const fieldType = FIELD_TYPE_BY_LETTER[storageKey[0]];
+  if (fieldType == null) throw new Error(`invalid storage key: '${storageKey}'`);
+  return fieldType;
+}
+
 /** Whether the value meets the type constraints */
 export function nodeMatchesConstraint(node: AnyNodeData, constraint: TypeConstraintData): boolean {
   if (constraint.nodeSubtypes.length > 0) {
@@ -327,9 +333,9 @@ export function typeSupportsList(type: { kind: TypeKind } & Partial<TypeData>): 
     [TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.ENUM, TypeKind.CUSTOM_OBJECT, TypeKind.PARTIAL_OBJECT].includes(
       type.kind,
     )
-  )
+  ) {
     return true;
-  else if (
+  } else if (
     [
       PrimitiveType.INT32,
       PrimitiveType.INT64,
@@ -339,9 +345,11 @@ export function typeSupportsList(type: { kind: TypeKind } & Partial<TypeData>): 
       PrimitiveType.UUID,
       PrimitiveType.DATETIME,
     ].includes(type.primitiveType!)
-  )
+  ) {
     return true;
-  else return false;
+  } else {
+    return false;
+  }
 }
 
 /** Whether the type is some numeric type (int, float, etc.) */
