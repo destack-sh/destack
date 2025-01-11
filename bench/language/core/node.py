@@ -1380,6 +1380,18 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         __getattr__ = _do_get
         __setattr__ = _do_set
 
+    def is_set(self, prop: Property, value: Any = UNSET) -> bool:
+        """Whether a property is set."""
+        if value is UNSET:
+            value = getattr(self, prop.name)
+        if not prop.is_list:
+            if value is not None and (prop.default is None or value != prop.default):
+                return True
+        else:
+            if len(value) > 0:
+                return True
+        return False
+
     def clone(self, *, reset: bool = True) -> Self:
         """
         Create a clone of this object and its descendants (structs/nodes) with the same content.
@@ -1581,31 +1593,25 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
         return copy
 
     def override(self, override: "Self | None" = None, copy: bool = True, **kwargs) -> Self:
-        """Overrides this struct with set properties from another struct (in a copy)."""
+        """Overrides this Struct with set properties from another struct (in a copy)."""
         if override is None and len(kwargs) == 0:
             return self
         clone = self.clone() if copy else self
         if override is not None:
             for prop in self.__declared_properties__.values():
                 override_value = getattr(override, prop.name)
-                if (not prop.is_list and override_value is not None) or (
-                    prop.is_list and override_value
-                ):
+                if clone.is_set(prop, override_value):
                     setattr(clone, prop.name, override_value)
         for key, value in kwargs.items():
             setattr(clone, key, value)
         return clone
 
     def set_default(self, override: "Self", copy: bool = True, **kwargs) -> Self:
-        """Sets default values from another struct. Like override but only sets if unset."""
+        """Sets default values from another Struct. Like override but only sets if unset."""
         clone = self.clone() if copy else self
         for prop in override.__declared_properties__.values():
             override_value = getattr(override, prop.name)
-            if (
-                not prop.is_list
-                and override_value is not None
-                and (prop.default is None or override_value != prop.default)
-            ) or (prop.is_list and override_value):
+            if clone.is_set(prop, override_value) and not self.is_set(prop):
                 setattr(clone, prop.name, override_value)
         return clone
 
@@ -1614,7 +1620,7 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
         parent: StructParent,
         parent_key: StructParentKey,
     ) -> Self:
-        """Move or copy this struct into given parent/prop."""
+        """Move or copy this Struct into given parent/prop."""
         assert self.__is_struct__, f"cannot copy non-struct {self!r}"  # this is overriden by Node
         if self.parent is None:  # detached
             self._do_set("parent", parent, track=False)
@@ -1625,7 +1631,7 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
             return copy
 
     def _copy_to(self, parent: StructParent, parent_key: StructParentKey) -> Self:
-        """Create a copy of this struct for the given parent/prop."""
+        """Create a copy of this Struct for the given parent/prop."""
         kwargs = {p.name: getattr(self, p.name) for p in self.__wired_properties__.values()}
         kwargs["parent"] = parent
         kwargs["parent_key"] = parent_key

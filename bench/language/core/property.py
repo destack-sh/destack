@@ -758,15 +758,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             if self.is_encrypted and not self.is_deferred:
                 raise ValueError(f"encrypted properties should be deferred {self!r}")
 
-    def new(self) -> Any:
-        """Gets a new default value for this property"""
-        if self.default is not UNSET:
-            return self.default
-        elif self.default_factory is not None:
-            return self.default_factory()
-        else:
-            raise ValueError(f"no default for {self!r}")
-
 
 @_on_completing_setup
 def _add_property_expression_base():

@@ -619,12 +619,10 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
               newValuePacked: { ...valuePacked, ...newValue },
             },
           ];
-          console.log("rowObjectNested.write", { row, path, options, operations, newValue, valueType });
           this.update(operations, getTransactionOptionsForType(valueType));
         }
       },
     };
-    console.log("rowObjectNested", { title, valuePacked, prop, propNames, path, row, node: this.node });
     return row;
   }
 
@@ -914,7 +912,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
               }
               commonRows.push(
                 this.rowObjectNested(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), {
-                  title: false,
+                  title: "Node",
                   isComputable: true,
                 }),
               );
