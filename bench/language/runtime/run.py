@@ -172,6 +172,10 @@ class RunAttempt(Struct):
         51, require=False, array=False, struct=StructType.RUN_ERROR
     )
 
+    @property
+    def is_retryable(self) -> bool:
+        return self.error is not None and self.error.is_retryable
+
     def __content_str__(self) -> str:
         if self.duration is not None:
             duration_str = f"{self.duration.total_seconds():.3f}s"
