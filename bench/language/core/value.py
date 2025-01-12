@@ -630,8 +630,8 @@ def _object_value_runtime(prop: Property) -> property:
     """The computed get/set property for a runtime value property."""
 
     assert not prop.is_list, f"runtime value cannot be list {prop!r}"
-
-    cache_key = f"_{prop.name}_cached"
+    cache_key = prop.cache_key
+    assert cache_key is not None, f"no cache key for {prop!r}"
 
     def _get_value_runtime(self: "Struct | Node") -> Optional[SomeValue]:
         """Gets the runtime value for this property (with auto resolving)."""

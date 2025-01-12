@@ -592,7 +592,7 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
             prop = obj.__properties_by_id__.get(prop_id)
             if prop is None:
                 return  # invalid path
-            if prop.reference_wired_ptr:
+            if prop.reference_wired_ptr is not None:
                 prop = prop.reference_wired_ptr
             key = cast(str, prop.name)
         else:
@@ -623,12 +623,19 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
                 if prop.is_subnode_packed and new_value_packed:
                     from bench.proto.wiring import unpack_subnode
 
+                    assert isinstance(obj, Node), f"unexpected object: {obj!r} for {op!r}"
                     assert (
                         type(new_value_packed) is dict
                     ), f"unexpected {new_value_packed!r} for {prop!r}"
                     new_value = unpack_subnode(type(node), new_value_packed)
+                    node_cls = obj._get_effective_cls()
+                    for subprop in node_cls.__subtype_extra_properties__.values():  # wipe subcache
+                        if subprop.cache_key is not None and subprop.cache_key in obj.__dict__:
+                            del obj.__dict__[subprop.cache_key]
                 else:
                     new_value = unpack_value(new_value_packed, value_type)
+                if prop.cache_key is not None and prop.cache_key in obj.__dict__:  # wipe cache
+                    del obj.__dict__[prop.cache_key]
                 cast(BuiltinObject, obj)._do_set(
                     prop.name, new_value, track=False, validate=validate
                 )
@@ -668,7 +675,7 @@ def apply_edit_operation_data(
             prop = obj_type.__properties_by_id__.get(prop_id)
             if prop is None:
                 return  # invalid path
-            if prop.reference_wired_ptr:
+            if prop.reference_wired_ptr is not None:
                 prop = prop.reference_wired_ptr
             key = cast(str, prop.name)
         else:

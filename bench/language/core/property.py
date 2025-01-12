@@ -83,6 +83,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     # stable id for wiring properties, must be unique per final struct/node
     id: int = cast(int, None)  # noqa: RUF009
     key: str = UNSET  # str(id)
+    cache_key: str | None = None  # for runtime value caching
     # unstable ordinal for bit-packing
     ord: int = cast(int, None)  # noqa: RUF009
     name: str = UNSET  # name from LHS of assignment
@@ -690,6 +691,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             assert self.value_packed_ptr is not None, f"{self!r} is missing value_packed_ptr"
             if isinstance(self.value_packed_ptr, int):
                 self.value_packed_ptr = self.component.__properties_by_id__[self.value_packed_ptr]
+                self.value_packed_ptr.cache_key = self.cache_key
             self.value_packed_ptr.value_runtime_ptr = self
             self.value_packed_ptr.value_type_info_getter = self.value_type_info_getter
 
