@@ -3400,9 +3400,10 @@ class ValueData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., value_type: _Optional[_Union[TypeData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class ComputedValueData(_message.Message):
-    __slots__ = ("metatype", "kind", "target_path", "source_path", "source_expression", "source_code", "is_active")
+    __slots__ = ("metatype", "kind", "name", "target_path", "source_path", "source_expression", "source_code", "is_active")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
     TARGET_PATH_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
     SOURCE_EXPRESSION_FIELD_NUMBER: _ClassVar[int]
@@ -3410,12 +3411,13 @@ class ComputedValueData(_message.Message):
     IS_ACTIVE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     kind: ComputedValueKind
+    name: str
     target_path: PathData
     source_path: PathData
     source_expression: ExpressionData
     source_code: CodeData
     is_active: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[ComputedValueKind, str]] = ..., target_path: _Optional[_Union[PathData, _Mapping]] = ..., source_path: _Optional[_Union[PathData, _Mapping]] = ..., source_expression: _Optional[_Union[ExpressionData, _Mapping]] = ..., source_code: _Optional[_Union[CodeData, _Mapping]] = ..., is_active: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[ComputedValueKind, str]] = ..., name: _Optional[str] = ..., target_path: _Optional[_Union[PathData, _Mapping]] = ..., source_path: _Optional[_Union[PathData, _Mapping]] = ..., source_expression: _Optional[_Union[ExpressionData, _Mapping]] = ..., source_code: _Optional[_Union[CodeData, _Mapping]] = ..., is_active: bool = ...) -> None: ...
 
 class ObjectMappingData(_message.Message):
     __slots__ = ("metatype", "mappings")

@@ -339,7 +339,7 @@ class ToolActionRunner(ActionRunnerBase[ToolAction]):
 class WaitActionRunner(ActionRunnerBase[WaitAction]):
     @override
     async def run(self) -> None:
-        # NOTE: obviously WaitStep should be Interrupt/Trigger-driven
+        # NOTE: obviously WaitStep should be Interruption/Trigger-driven
         if self.action_inputs.delay is not None:
             await asyncio.sleep(self.action_inputs.delay.total_seconds())
 

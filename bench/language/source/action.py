@@ -93,7 +93,7 @@ class ActionType(IdEnum):
     # static
     CODE = 100, "Run arbitrary Python code"
     TOOL = 101, "Delegate to another Block"
-    WAIT = 110, "Wait for a Trigger"
+    WAIT = 110, "Wait for something"
     YIELD = 111, "Defer to the User"
     # dynamic
     GENERATE = 200, "Generate something"

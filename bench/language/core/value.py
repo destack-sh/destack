@@ -843,11 +843,10 @@ class ProxyReadObject:
     A proxy for a CustomObject that defaults to a sequence of objects if the value is not set.
     """
 
-    __slots__ = ("last_idx", "objects")
+    __slots__ = ("objects",)
 
     def __init__(self, *objects: Any):
         self.objects = objects
-        self.last_idx = len(objects) - 1
 
     def __getattr__(self, name: str) -> Any:
         for i, obj in enumerate(self.objects):
@@ -855,7 +854,7 @@ class ProxyReadObject:
                 if (value := getattr(obj, name)) is not None and value != ():
                     return value
             except AttributeError as e:
-                if i == self.last_idx:
+                if i == len(self.objects) - 1:
                     raise e from None
 
 

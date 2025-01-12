@@ -1888,6 +1888,7 @@ message ValueData {
 message ComputedValueData {
   ObjectType metatype = 1;
   ComputedValueKind kind = 30;
+  optional string name = 32;
   optional PathData target_path = 41;
   optional PathData source_path = 51;
   optional ExpressionData source_expression = 52;

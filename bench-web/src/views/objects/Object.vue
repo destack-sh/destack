@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { isSourceNode, toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
-import { ComputedValueData, NodeType, Orientation, TypeData, ViewData, ViewType } from "@/proto/wire";
+import { ComputedValueData, NodeType, Orientation, PathData, TypeData, ViewData, ViewType } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
@@ -23,12 +23,13 @@ const props = defineProps<
     id: string;
     isComputable?: boolean;
     computedType?: TypeData;
-    computedValues?: ComputedValueData[];
+    computedPrefix?: PathData;
   } & Partial<
     Pick<ViewData, "icon" | "size" | "nodePtr" | "subnodePacked" | "valueType" | "isMinimal" | "isInput" | "isDisabled">
   >
 >();
 const modelValue = defineModel<any>("modelValue");
+const computedValues = defineModel<ComputedValueData[] | undefined>("computedValues");
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
@@ -42,9 +43,14 @@ const { node, connection, layout, computer, computedType } = useObjectLayout({
   nodePtr: toRef(props, "nodePtr"),
   valueType: toRef(props, "valueType"),
   valuePacked: modelValue,
+  computedPrefix: toRef(props, "computedPrefix"),
+  computedValues,
   computedType: toRef(props, "computedType"),
   updateValuePacked: (update: any, options: any) => {
     emit("update:modelValue", { ...modelValue.value, ...update }, options);
+  },
+  updateComputedValues: (computedValues: ComputedValueData[] | undefined) => {
+    emit("update:computed-values", computedValues);
   },
 });
 
@@ -222,9 +228,11 @@ defineExpose<ViewExposed>({ self, id });
             :model-value="row.read()"
             @update:model-value="(value: any, path?: ModelValueOptions) => row.write(value, path)"
             @update:computed-values="
-              (computedValues: ComputedValueData[]) => {
-                if (isSourceNode(node)) {
+              (computedValues: ComputedValueData[] | undefined) => {
+                if (isSourceNode(node) && layout?.kind != 'partial') {
                   connection?.tx.update(node, { computedValues });
+                } else {
+                  emit('update:computedValues', computedValues);
                 }
               }
             "

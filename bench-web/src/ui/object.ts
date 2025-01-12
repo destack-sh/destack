@@ -18,7 +18,7 @@ import {
   makeType,
   makeTypeConstraint,
   TypeIdentity,
-  typeIsNumeric
+  typeIsNumeric,
 } from "@/language/field";
 import { ReadNodeGraph } from "@/language/graph";
 import { packSubnode, unpackSubnode } from "@/language/node";
@@ -45,6 +45,7 @@ import {
   BlockData,
   BlockProperty,
   BlockType,
+  ComputedValueData,
   EditOperationData,
   EditOperationType,
   EmptyProperty,
@@ -1071,11 +1072,12 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
     const commonRows: Row[] = [];
     if (this.isPartial) {
       // select block
-      commonRows.push(this.rowProperty(RecordProperty.blockPtr, { title: "Database" }));
-      // nocheckin: general SourceNode partial properties?
-      commonRows.push(this.rowProperty(RecordProperty.name));
+      commonRows.push(this.rowProperty(RecordProperty.blockPtr, { title: "Database", isComputable: true }));
+      // TODO :Incomplete: generalize SourceNode partial NodeLayout properties?
+      commonRows.push(this.rowProperty(RecordProperty.name, { isComputable: true }));
+    } else {
+      commonRows.push(this.rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }));
     }
-    commonRows.push(this.rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }));
     if (this.node.blockPtr != null) {
       // value
       commonRows.push(
@@ -1086,6 +1088,7 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
             baseFieldTypes: [FieldType.MEMBER],
             baseTypePtr: this.node.blockPtr,
           }),
+          { isComputable: this.isPartial },
         ),
       );
     }
@@ -1173,7 +1176,10 @@ export function useObjectLayout(options: {
   valueType: Ref<TypeData | undefined>;
   valuePacked: Ref<any>;
   computedType?: Ref<TypeData | undefined>;
+  computedPrefix?: Ref<PathData | undefined>;
+  computedValues?: Ref<ComputedValueData[] | undefined>;
   updateValuePacked: (update: any, options: any) => void;
+  updateComputedValues: (computedValues: ComputedValueData[] | undefined) => void;
   /** Optionally extend or modify partial node layouts after they're built */
   extendPartialLayout?: (layout: BaseObjectLayout, info: ObjectInfo) => BaseObjectLayout;
 }) {
@@ -1354,10 +1360,15 @@ export function useObjectLayout(options: {
 
   // computed
   const computer = useComputedValues({
-    computedValues: computed(() => (isSourceNode(node.value) ? node.value.computedValues : [])),
+    computedPrefix: options.computedPrefix,
+    computedValues: computed(() =>
+      isSourceNode(node.value) ? node.value.computedValues : (options.computedValues?.value ?? []),
+    ),
     update: (computedValues) => {
-      if (isSourceNode(node.value)) {
+      if (isSourceNode(node.value) && kind.value != "partial") {
         connection.value?.tx.update(node.value, { computedValues });
+      } else {
+        options.updateComputedValues(computedValues);
       }
     },
   });
