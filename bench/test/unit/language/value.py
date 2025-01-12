@@ -1,6 +1,8 @@
+from datetime import datetime
 from typing import cast
 
 import pytest
+import pytz
 from hypothesis import HealthCheck, given, settings
 
 from bench.language import (
@@ -86,6 +88,7 @@ def test_partial_node_message(session: Session, package: Package) -> None:
             Field.member("Field1", int),
             Field.member("Field2", Block),
             Field.member("Field3", bool),
+            Field.member("Field4", datetime),
             Field.member("title", Text),
         ),
     )
@@ -97,16 +100,19 @@ def test_partial_node_message(session: Session, package: Package) -> None:
     assert obj.type is Message.get_property("type").default
     assert obj.block is None
     assert obj.Field1 is None
+    assert obj.Field4 is None
 
     # set/get values on value and properties
     obj.Field1 = 42
     obj.type = MessageType.INTERNAL
     obj.title = "My New Message"
     obj.block = message_type
+    obj.Field4 = datetime(2024, 1, 1, tzinfo=pytz.utc)
     assert obj.Field1 == 42
     assert obj.type == MessageType.INTERNAL
     assert obj.block == message_type
     assert obj.title == "My New Message"
+    assert obj.Field4 == datetime(2024, 1, 1, tzinfo=pytz.utc)
 
     # pack/unpack
     obj_packed = pack_custom_object(obj, typ)
@@ -120,6 +126,7 @@ def test_partial_node_message(session: Session, package: Package) -> None:
     assert full_obj.title == "My New Message"
     assert full_obj.value
     assert full_obj.value.Field1 == 42
+    assert full_obj.value.Field4 == datetime(2024, 1, 1, tzinfo=pytz.utc)
 
 
 def test_partial_node_action(session: Session, package: Package) -> None:

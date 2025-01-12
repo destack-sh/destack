@@ -628,7 +628,7 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
                     ), f"unexpected {new_value_packed!r} for {prop!r}"
                     new_value = unpack_subnode(type(node), new_value_packed)
                 else:
-                    new_value = unpack_value(new_value_packed, value_type, wrap_scalar=False)
+                    new_value = unpack_value(new_value_packed, value_type)
                 cast(BuiltinObject, obj)._do_set(
                     prop.name, new_value, track=False, validate=validate
                 )
@@ -636,7 +636,7 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
                 # custom object field
                 value_type = decode_type_identity(key[TK_LENGTH_B64 + 1 :])
                 new_value_packed = unpack_proto_json(op.new_value_packed)
-                new_value = unpack_value(new_value_packed, value_type, wrap_scalar=False)
+                new_value = unpack_value(new_value_packed, value_type)
                 field = cast(CustomObject, obj)._type._get_field_by_key(key)
                 if field is None:
                     return  # invalid path
@@ -696,7 +696,7 @@ def apply_edit_operation_data(
                 assert obj_type is not None, f"missing object type for {op!r}"
                 value_type = obj_type.__properties__[key].type_info
                 new_value_packed = unpack_proto_json(op.new_value_packed)
-                new_value = unpack_value_data(new_value_packed, value_type, wrap_scalar=False)
+                new_value = unpack_value_data(new_value_packed, value_type)
                 if is_prepass:
                     if prop.is_optional_scalar and not (
                         cast(AnyObjectData, obj).HasField(prop.name)
@@ -704,7 +704,7 @@ def apply_edit_operation_data(
                         old_value = None
                     else:
                         old_value = getattr(cast(AnyObjectData, obj), prop.name)
-                    old_value_packed = pack_value_data(old_value, value_type, wrap_scalar=False)
+                    old_value_packed = pack_value_data(old_value, value_type)
                     wiring.set_builtin_object_prop(
                         op,
                         EditOperation.get_property("old_value_packed"),
@@ -906,9 +906,7 @@ def edit_data_graph(
                             op_type = pb2.EDIT_OPERATION_TYPE_CLEAR
                         else:
                             new_value = getattr(node, prop.name)
-                            new_value_packed = pack_value_data(
-                                new_value, prop.type_info, wrap_scalar=False
-                            )
+                            new_value_packed = pack_value_data(new_value, prop.type_info)
                             op_type = pb2.EDIT_OPERATION_TYPE_SET
                         flat_op = EditOperationData(
                             metatype=pb2.OBJECT_TYPE_EDIT_OPERATION,

@@ -620,7 +620,7 @@ def _pack_field_value(field: Field, value: JsonValue) -> SqlPrimitive:
         else:
             return Jsonb(value)
     elif field.kind == TypeKind.PRIMITIVE or field.kind == TypeKind.ENUM:
-        return cast(PrimitiveValue, unpack_value(value, field, wrap_scalar=False))
+        return cast(PrimitiveValue, unpack_value(value, field))
     else:
         raise RuntimeError(f"unexpected field kind: {field!r}")
 
@@ -638,7 +638,7 @@ def _unpack_field_value(field: Field, value_packed: Any) -> JsonValue:
     ):
         return value_packed
     elif field.kind == TypeKind.PRIMITIVE or field.kind == TypeKind.ENUM:
-        return pack_value(value_packed, field, wrap_scalar=False)
+        return pack_value(value_packed, field)
     else:
         raise RuntimeError(f"unexpected field kind: {field!r}")
 
@@ -1583,9 +1583,7 @@ async def _pg_edit_batch(
                     if new_value_packed is None:
                         _pg_pack_node_reference_into_row(prop, row, None)
                     else:
-                        new_value = unpack_value_data(
-                            new_value_packed, prop.type_info, wrap_scalar=False
-                        )
+                        new_value = unpack_value_data(new_value_packed, prop.type_info)
                         _pg_pack_node_reference_into_row(prop, row, new_value)  # type: ignore
 
             # implicit properties

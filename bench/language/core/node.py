@@ -950,14 +950,8 @@ def _trace_edit_operation(
         assert typ is not None, f"{key!r} in {obj!r} has no type info"
     else:
         typ = cast("Field", key)
-    if old_value is None:
-        old_value_packed = None
-    else:
-        old_value_packed = pack_value_data(old_value, typ, wrap_scalar=False)
-    if new_value is None:
-        new_value_packed = None
-    else:
-        new_value_packed = pack_value_data(new_value, typ, wrap_scalar=False)
+    old_value_packed = None if old_value is None else pack_value_data(old_value, typ)
+    new_value_packed = None if new_value is None else pack_value_data(new_value, typ)
 
     operation = EditOperationData(
         metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
@@ -1497,15 +1491,13 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     @classmethod
     def get_value_property(
         cls,
-        field_types: Sequence[FieldType] | None = None,
+        field_type: FieldType,
         kind: Literal["runtime", "packed"] = "runtime",
     ) -> Property:
         """Gets the value property for the given object kind."""
         for prop in cls.__properties__.values():
             if prop.is_value_runtime and (
-                not field_types
-                or prop.value_field_type is None
-                or (prop.value_field_type in field_types)
+                prop.value_field_type is None or prop.value_field_type == field_type
             ):
                 if kind == "runtime":
                     return prop
@@ -1514,7 +1506,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                     return prop.value_packed_ptr
         else:
             raise ValueError(
-                f"no value property for {'|'.join(f.bench_name for f in field_types) if field_types else 'any'} field type in {cls.__name__}"
+                f"no value property for {field_type.bench_name} field type in {cls.__name__}"
             )
 
     @classmethod
