@@ -282,32 +282,27 @@ export function packCustomObject(
   type: TypeIdentity,
   options: { graph?: ReadNodeGraph; recurseCustomObject?: boolean },
 ): JsonValue {
-  let fields: FieldData[];
-  if (type.kind == TypeKind.CUSTOM_OBJECT) {
-    if (options.graph == null) throw new Error(`missing graph to pack object type ${describeTypeIdentity(type)}`);
-    fields = resolveFields(type, options.graph);
-  } else {
-    fields = [];
-  }
   const valuePacked: { [key: string]: JsonValue } = {};
 
   // fields
-  for (const field of fields) {
-    const fieldStorageKey = getStorageKey(field, field);
-    const fieldValue = (value as any)[fieldStorageKey];
+  for (const [storageKey, fieldValue] of Object.entries(value as any)) {
+    if (!isNaN(parseInt(storageKey[0]))) {
+      continue; // property
+    }
+    const typeIdentity = decodeTypeIdentity(storageKey.slice(TK_LENGTH_B64 + 1));
     if (fieldValue == null) {
       continue;
-    } else if (field.kind == TypeKind.CUSTOM_OBJECT || field.kind == TypeKind.PARTIAL_OBJECT) {
+    } else if (typeIdentity.kind == TypeKind.CUSTOM_OBJECT || typeIdentity.kind == TypeKind.PARTIAL_OBJECT) {
       if (options.recurseCustomObject) {
-        valuePacked[fieldStorageKey] = packValue(fieldValue, field, {
+        valuePacked[storageKey] = packValue(fieldValue, typeIdentity, {
           graph: options.graph,
           recurseCustomObject: options.recurseCustomObject,
         });
       } else {
-        valuePacked[fieldStorageKey] = fieldValue; // keep packed as is
+        valuePacked[storageKey] = fieldValue as JsonValue; // keep packed as is
       }
     } else {
-      valuePacked[fieldStorageKey] = packValue(fieldValue, field);
+      valuePacked[storageKey] = packValue(fieldValue, typeIdentity);
     }
   }
 
@@ -333,37 +328,31 @@ export function packCustomObject(
 export function unpackCustomObject(
   valuePacked: JsonValue,
   type: TypeIdentity,
-  options: { graph?: ReadNodeGraph; recurseCustomObject?: boolean },
+  options: { recurseCustomObject?: boolean },
 ): SomeValue {
-  let fields: FieldData[];
-  if (type.kind == TypeKind.CUSTOM_OBJECT) {
-    if (options.graph == null) throw new Error(`missing graph to unpack object type ${describeTypeIdentity(type)}`);
-    fields = resolveFields(type, options.graph);
-  } else {
-    fields = [];
-  }
   const value: { [key: string]: SomeValue } = {};
 
   // fields
-  for (const field of fields) {
-    const fieldStorageKey = getStorageKey(field, field);
-    const fieldValuePacked = (valuePacked as any)[fieldStorageKey];
+  for (const [storageKey, fieldValuePacked] of Object.entries(valuePacked as any)) {
+    if (!isNaN(parseInt(storageKey[0]))) {
+      continue; // property
+    }
+    const typeIdentity = decodeTypeIdentity(storageKey.slice(TK_LENGTH_B64 + 1));
     if (fieldValuePacked == null) {
       continue;
-    } else if (field.kind == TypeKind.CUSTOM_OBJECT || field.kind == TypeKind.PARTIAL_OBJECT) {
+    } else if (typeIdentity.kind == TypeKind.CUSTOM_OBJECT || typeIdentity.kind == TypeKind.PARTIAL_OBJECT) {
       if (options.recurseCustomObject) {
-        const fieldValue = unpackValue(fieldValuePacked, field, {
-          graph: options.graph,
+        const fieldValue = unpackValue(fieldValuePacked as JsonValue, typeIdentity, {
           recurseCustomObject: options.recurseCustomObject,
         });
         if (fieldValue != null) {
-          value[fieldStorageKey] = fieldValue;
+          value[storageKey] = fieldValue;
         }
       } else {
-        value[fieldStorageKey] = fieldValuePacked; // keep packed as is
+        value[storageKey] = fieldValuePacked as JsonValue; // keep packed as is
       }
     } else {
-      value[fieldStorageKey] = unpackValue(fieldValuePacked, field);
+      value[storageKey] = unpackValue(fieldValuePacked as JsonValue, typeIdentity);
     }
   }
 
@@ -389,7 +378,7 @@ const PROPERTY_NAME_BY_FIELD_TYPE: Partial<Record<FieldType, string>> = {
   [FieldType.INPUT]: "inputsPacked",
   [FieldType.OUTPUT]: "outputsPacked",
   [FieldType.VARIABLE]: "variablesPacked",
-  [FieldType.MEMBER]: "membersPacked",
+  [FieldType.MEMBER]: "valuePacked",
 };
 
 /** Builds a partial node from a packed partial node value. */
@@ -510,7 +499,7 @@ export function packValue(
 export function unpackValue(
   valuePacked: JsonValue,
   type: TypeIdentity,
-  options: { graph?: ReadNodeGraph; wrapScalar?: boolean; recurseCustomObject?: boolean } = {
+  options: { wrapScalar?: boolean; recurseCustomObject?: boolean } = {
     wrapScalar: false,
     recurseCustomObject: false,
   },
@@ -523,7 +512,6 @@ export function unpackValue(
       return null;
     } else if (!type.isList) {
       return unpackCustomObject(valuePacked, type, {
-        graph: options.graph,
         recurseCustomObject: options.recurseCustomObject,
       });
     } else {
@@ -532,7 +520,6 @@ export function unpackValue(
       }
       return valuePacked!.map((v: any, i: number) =>
         unpackCustomObject(v, type, {
-          graph: options.graph!,
           recurseCustomObject: options.recurseCustomObject,
         }),
       );

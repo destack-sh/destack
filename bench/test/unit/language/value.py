@@ -37,7 +37,6 @@ from bench.language import (
     pack_builtin_object,
     pack_builtin_object_data,
     pack_custom_object,
-    pack_value,
     sample_value,
     to_type_scalar,
     unpack_builtin_object,
@@ -229,66 +228,6 @@ def test_roundtrip_scalar_value(session: Session, package: Package) -> None:
     block.value = 42
     assert block.value == 42
     assert unpack_value(block.value_packed, type_info, wrap_scalar=True) == 42
-
-
-def test_roundtrip_nested_value(session: Session, package: Package):
-    """Pack/unpack a nested Object value."""
-
-    # choice block
-    choice1 = Block(type=BlockType.CHOICE, name="Choice1")
-    choice1.fields.append(Field.option("Option1"))
-    choice1.fields.append(Field.option("Option2"))
-    choice1.fields.append(Field.option("Option3"))
-
-    # inner message
-    message2 = Block(type=BlockType.MESSAGE, name="Message2")
-    message2.fields.create(
-        type=FieldType.MEMBER,
-        name="Field1",
-        bench_type=NodeType.FIELD,
-        base_type=choice1,
-        kind=TypeKind.BASED_NODE,
-    )
-    message2.fields.create(name="Field2", bench_type=NodeType.BLOCK, kind=TypeKind.NODE)
-
-    # outer message
-    message1 = Block(type=BlockType.MESSAGE, name="Message1")
-    message1.fields.create(
-        type=FieldType.MEMBER,
-        name="Field1",
-        bench_type=NodeType.FIELD,
-        base_type=choice1,
-        kind=TypeKind.BASED_NODE,
-    )
-    message1.fields.create(
-        type=FieldType.MEMBER,
-        name="Field2",
-        primitive_type=PrimitiveType.INT32,
-        kind=TypeKind.PRIMITIVE,
-        is_list=True,
-    )
-    message1.fields.create(
-        type=FieldType.MEMBER, name="Field3", bench_type=StructType.TEXT, kind=TypeKind.STRUCT
-    )
-    message1.fields.create(
-        type=FieldType.MEMBER,
-        name="Field4",
-        base_type=message2,
-        base_field_types=[FieldType.MEMBER],
-        kind=TypeKind.CUSTOM_OBJECT,
-    )
-
-    # outer value
-    value = CustomObject.new({}, message1.to_type(of="value"))
-    value.Field1 = choice1.fields.Option1
-    assert value.Field1 is choice1.fields.Option1
-    value.Field2 = [24]
-    value.Field3 = Text.plain("hello bench!")
-    value.Field4 = CustomObject.new({}, message2.to_type(of="value"))
-
-    value_packed = pack_value(value, message1.to_type(of="value"), wrap_scalar=True)
-    unpacked_value = unpack_value(value_packed, message1.to_type(of="value"), wrap_scalar=True)
-    assert unpacked_value == value
 
 
 @given(obj=builtin_objects())

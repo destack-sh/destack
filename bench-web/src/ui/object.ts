@@ -283,7 +283,7 @@ export abstract class BaseObjectLayout {
       const view = getViewForType(field, { forcePickerDropdown: true });
       if (view == null) continue;
       const fieldValuePacked = valuePacked[fieldKey];
-      const fieldValue = unpackValue(fieldValuePacked, field, { graph: this.graph });
+      const fieldValue = unpackValue(fieldValuePacked, field);
 
       // computable
       let computedPath: PathData | undefined = undefined;
@@ -329,19 +329,20 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
   protected subnode: any | null;
   protected propertyEnum: Record<number, string>;
   protected propertyInfos: Record<number, PropertyInfo>;
-  protected subpropertyEnum?: Record<number, string>;
-  protected subpropertyInfos?: Record<number, PropertyInfo>;
+  protected subpropertyEnum: Record<number, string> | null;
+  protected subpropertyInfos: Record<number, PropertyInfo> | null;
   // value
-  protected valuePacked?: Record<string, any>;
-  protected valueType?: TypeData;
-  protected computedType?: TypeData;
-  protected computedPath?: PathData;
+  protected valuePacked: Record<string, any> | null;
+  protected valueType: TypeData | null;
+  protected computedType: TypeData | null;
+  protected computedPath: PathData | null;
 
   constructor(options: NodeInfo<T> | PartialNodeInfo) {
     super(options);
     this.kind = options.kind;
     this.isPartial = options.kind == "partial";
 
+    // node
     this.node = options.node as NodeTypeMapping[T];
     this.subnode = options.subnode;
     this.nodeType = options.nodeType as T;
@@ -351,12 +352,26 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       this.propertyInfos = PROPERTY_INFOS_BY_TYPE[this.nodeType as any as ObjectType]!;
       this.subpropertyEnum =
         this.subtype != null ? PROPERTY_ENUM_BY_SUBTYPE[this.nodeType!]?.[this.subtype] : undefined;
-      this.subpropertyInfos = this.subtype != null ? PROPERTY_INFOS_BY_SUBTYPE[this.nodeType!]?.[this.subtype] : {};
+      this.subpropertyInfos =
+        this.subtype != null ? (PROPERTY_INFOS_BY_SUBTYPE[this.nodeType!]?.[this.subtype] ?? null) : null;
     } else {
       this.propertyEnum = PROPERTY_ENUM_BY_TYPE[ObjectType.EMPTY]!;
       this.propertyInfos = PROPERTY_INFOS_BY_TYPE[ObjectType.EMPTY]!;
-      this.subpropertyEnum = undefined;
-      this.subpropertyInfos = undefined;
+      this.subpropertyEnum = null;
+      this.subpropertyInfos = null;
+    }
+
+    // value
+    if (options.kind == "partial") {
+      this.valuePacked = options.valuePacked;
+      this.valueType = options.valueType;
+      this.computedType = options.computedType ?? null;
+      this.computedPath = options.computedPath ?? null;
+    } else {
+      this.valuePacked = null;
+      this.valueType = null;
+      this.computedType = null;
+      this.computedPath = null;
     }
   }
 
@@ -603,7 +618,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       viewType: ViewType.OBJECT,
       computedPath,
       computedPathKey,
-      computedType: this.computedType,
+      computedType: this.computedType ?? undefined,
       viewProps: { valueType: makeType(valueType), isInput: true, isInline: true, isMinimal: true },
       isFullWidth: true,
       read: () => valuePacked,
@@ -672,7 +687,10 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
           : (this.node as any)?.[propName]?.[fieldKey];
 
         if (this.isPartial) {
-          this.update({ [fieldKey]: newFieldValuePacked }, getTransactionOptionsForType(field));
+          this.update(
+            { [fieldKey]: newFieldValuePacked },
+            { ...getTransactionOptionsForType(field), path: [fieldKey] },
+          );
         } else {
           const operations: EditOperationData[] = [
             {
@@ -690,7 +708,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     );
 
     // default to fields list
-    if (rows.length == 0) {
+    if (!this.isPartial && rows.length == 0) {
       return [{ type: "fields-list", fieldType: valueType.baseFieldTypes?.[0] ?? FieldType.MEMBER }];
     }
 
@@ -788,12 +806,12 @@ export class FieldLayout extends NodeLayout<NodeType.FIELD> {
             viewProps: { ...defaultView, isInput: true },
             read() {
               if (node.defaultPacked == null) return null;
-              const defaultUnpacked = unpackValue(node.defaultPacked, node as FieldData, { graph, wrapScalar: true });
+              const defaultUnpacked = unpackValue(node.defaultPacked, node as FieldData, { wrapScalar: true });
               return defaultUnpacked;
             },
             write: (newValue) => {
               this.update(
-                { defaultPacked: packValue(newValue, node as FieldData, { graph: this.graph, wrapScalar: true }) },
+                { defaultPacked: packValue(newValue, node as FieldData, { wrapScalar: true }) },
                 getTransactionOptionsForType(node as FieldData),
               );
             },
@@ -1106,6 +1124,15 @@ export class CustomLayout extends BaseObjectLayout {
 }
 
 export class PartialStubLayout extends BaseObjectLayout {
+  nodeType: NodeType | null;
+  subtype: number | null;
+
+  constructor(info: PartialNodeInfo) {
+    super(info);
+    this.nodeType = info.nodeType;
+    this.subtype = info.subtype;
+  }
+
   make() {
     this.section(undefined, [
       {

@@ -9,14 +9,14 @@ import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
+import GenericValue from "@/views/builtins/GenericValue.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Text from "@/views/content/Text.vue";
-import GenericValue from "@/views/builtins/GenericValue.vue";
+import FieldList from "@/views/objects/FieldList.vue";
 import Database from "@/views/subnodes/Database.vue";
 import Flow from "@/views/subnodes/Flow.vue";
-import FieldList from "@/views/objects/FieldList.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -62,17 +62,18 @@ const value = computed(() => {
   if (block.value?.type != BlockType.VARIABLE || valueType.value == null) {
     return undefined;
   }
-  const valuePacked = unpackSubnodeProperty(NodeType.BLOCK, BlockType.VARIABLE, block.value.subnodePacked, "valuePacked");
+  const valuePacked = unpackSubnodeProperty(
+    NodeType.BLOCK,
+    BlockType.VARIABLE,
+    block.value.subnodePacked,
+    "valuePacked",
+  );
   if (valueType == null) {
     return undefined;
   } else if (valueType.value.kind == TypeKind.CUSTOM_OBJECT || valueType.value.kind == TypeKind.PARTIAL_OBJECT) {
     return valuePacked;
   } else {
-    return unpackValue(valuePacked!, valueType.value, {
-      graph: graph,
-      wrapScalar: true,
-      recurseCustomObject: false,
-    });
+    return unpackValue(valuePacked!, valueType.value, { wrapScalar: true, recurseCustomObject: false });
   }
 });
 function updateValue(value: any) {
@@ -81,7 +82,7 @@ function updateValue(value: any) {
   const valuePacked =
     valueType?.kind == TypeKind.CUSTOM_OBJECT || valueType?.kind == TypeKind.PARTIAL_OBJECT
       ? value
-      : packValue(value, valueType!, { graph: graph, wrapScalar: true, recurseCustomObject: false });
+      : packValue(value, valueType!, { wrapScalar: true, recurseCustomObject: false });
   if (valuePacked != null) {
     connection.tx.update(
       block.value,
@@ -91,7 +92,11 @@ function updateValue(value: any) {
   } else {
     connection.tx.update(
       block.value,
-      makeEdit(block.value, { metatype: NodeType.BLOCK, type: BlockType.VARIABLE, subnode: { valuePacked: undefined } }),
+      makeEdit(block.value, {
+        metatype: NodeType.BLOCK,
+        type: BlockType.VARIABLE,
+        subnode: { valuePacked: undefined },
+      }),
       valueType != null ? getTransactionOptionsForType(valueType) : { debounce: "short" },
     );
   }

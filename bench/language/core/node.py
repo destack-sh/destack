@@ -1321,9 +1321,9 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                         new_value = coerce_value(
                             new_value,
                             prop._type_info,
-                            as_packed=False,
                             parent=cast("Struct | Node", self),
                             parent_key=prop,
+                            supergraph=self._supergraph,
                         )
                         check_value(
                             new_value,
@@ -2126,7 +2126,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                             new_value = coerce_value(
                                 new_value,
                                 prop._type_info,
-                                as_packed=False,
                                 parent=self,
                                 parent_key=prop,
                             )
