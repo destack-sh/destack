@@ -430,6 +430,12 @@ class CustomObject(Mapping[str, Any]):
 
 def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":
     """Converts the partial Node into a full Node."""
+    from bench.language.source import (
+        STORAGE_KEY_PREFIX_LENGTH,
+        decode_type_identity,
+        get_field_type,
+    )
+
     # figure out node type
     partial_type = partial_node._type
     if partial_node._type.bench_type is not None:
@@ -450,15 +456,16 @@ def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":
 
     # assemble value
     if node_cls.__value_runtime_properties__:
-        value_packed: dict[str, SomeValue] = {}
-        for field in partial_type._base_fields:
-            key = field.storage_key
-            field_value = partial_node._value.get(key)
-            if field_value is not None:
-                value_packed[key] = field_value
-        if value_packed:
-            value_prop = node_cls.get_value_property(partial_type.base_field_types, "packed")
-            node_kwargs[value_prop.name] = value_packed
+        for storage_key, field_value in partial_node._value.items():
+            if storage_key[0].isnumeric():
+                continue  # property
+            field_type = get_field_type(storage_key)
+            type_identity = decode_type_identity(storage_key[STORAGE_KEY_PREFIX_LENGTH:])
+            value_prop = node_cls.get_value_property(field_type, "packed")
+            if value_prop.name not in node_kwargs:
+                node_kwargs[value_prop.name] = {}
+            field_value_packed = pack_value(field_value, type_identity)
+            node_kwargs[value_prop.name][storage_key] = field_value_packed
 
     # make node
     node = node_cls(**node_kwargs)
@@ -483,10 +490,12 @@ def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
 
     # apply value
     if node.__value_runtime_properties__:
-        value_prop = node.get_value_property(partial_node._type.base_field_types, "runtime")
-        value = getattr(node, value_prop.name)
-        assert type(value) is CustomObject, f"unexpected {value!r} for {value_prop!r} in {node!r}"
         for field in partial_node._type._base_fields:
+            value_prop = node.get_value_property(field.type, "runtime")
+            value = getattr(node, value_prop.name)
+            assert (
+                type(value) is CustomObject
+            ), f"unexpected {value!r} for {value_prop!r} in {node!r}"
             new_field_value = partial_node._do_get(field)
             if new_field_value is not None:
                 value._do_set(field, new_field_value, track=True, validate=False)
@@ -595,7 +604,6 @@ def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
                 value_type,
                 parent=obj,
                 parent_key=wired_prop,
-                wrap_scalar=False,
                 supergraph=obj._supergraph,
             )
     elif (
@@ -1497,7 +1505,7 @@ def pack_custom_object(value: CustomObject, typ: "TypeBase | TypeIdentity") -> d
             type_identity.kind == TypeKind.CUSTOM_OBJECT
             or type_identity.kind == TypeKind.PARTIAL_OBJECT
         ):
-            value_packed[storage_key] = pack_value(field_value, type_identity, wrap_scalar=False)
+            value_packed[storage_key] = pack_value(field_value, type_identity)
         elif not type_identity.is_list:
             value_packed[storage_key] = pack_value_scalar(
                 cast(ScalarValue, field_value), type_identity
@@ -1559,7 +1567,7 @@ def unpack_custom_object(
             type_identity.kind == TypeKind.CUSTOM_OBJECT
             or type_identity.kind == TypeKind.PARTIAL_OBJECT
         ):
-            field_value = unpack_value(field_value_packed, type_identity, wrap_scalar=False)
+            field_value = unpack_value(field_value_packed, type_identity)
             if field_value is None:
                 continue
         elif not type_identity.is_list:
@@ -1619,7 +1627,7 @@ def unpack_custom_object(
 
 
 def pack_value(
-    value: SomeValue | None, typ: "TypeBase | TypeIdentity", *, wrap_scalar: bool
+    value: SomeValue | None, typ: "TypeBase | TypeIdentity", *, wrap_scalar: bool = False
 ) -> JsonValue:
     """
     Packs a value into a JSON representation.
@@ -1657,7 +1665,7 @@ def pack_value(
 
 
 def pack_value_data(
-    value: SomeValueData, typ: "TypeBase | TypeIdentity", wrap_scalar: bool = True
+    value: SomeValueData, typ: "TypeBase | TypeIdentity", wrap_scalar: bool = False
 ) -> JsonValue:
     """Packs a data value into a JSON representation. See above."""
     assert typ.kind not in (
@@ -1687,7 +1695,7 @@ def unpack_value(
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
     supergraph: NodeSuperGraph | None = None,
-    wrap_scalar: bool,
+    wrap_scalar: bool = False,
 ) -> SomeValue | None:
     """
     Unpacks a value from its JSON representation.
@@ -1740,7 +1748,7 @@ def unpack_value(
 
 
 def unpack_value_data(
-    value_packed: JsonValue, typ: "TypeBase | TypeIdentity", wrap_scalar: bool
+    value_packed: JsonValue, typ: "TypeBase | TypeIdentity", wrap_scalar: bool = False
 ) -> SomeValueData | JsonValue | None:
     """
     Unpacks a value from its JSON representation. Return nested objects as JSON (as is).

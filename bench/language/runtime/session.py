@@ -540,8 +540,8 @@ class Session(RuntimeNode[SessionData]):
             assert parent_typ is not None, f"{parent_property!r} has no type info"
 
             self._pending_nodes_by_id[node.id] = node
-            old_value_packed = pack_value(old_parent.to_ref(), parent_typ, wrap_scalar=False)
-            new_value_packed = pack_value(new_parent.to_ref(), parent_typ, wrap_scalar=False)
+            old_value_packed = pack_value(old_parent.to_ref(), parent_typ)
+            new_value_packed = pack_value(new_parent.to_ref(), parent_typ)
             operation = EditOperationData(
                 metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
                 type=lang_pb2.EDIT_OPERATION_TYPE_SET,  # type: ignore

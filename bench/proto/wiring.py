@@ -88,7 +88,7 @@ def pack_subnode(node_cls: type[Node], subnode: dict[str, Any]):
         for p in subtype_cls.__subtype_extra_properties__.values():
             if p.key in subnode[subnode_key] and p._type_info is not None:
                 subnode_packed[subnode_key][p.key] = pack_value(
-                    subnode[subnode_key][p.key], p._type_info, wrap_scalar=False
+                    subnode[subnode_key][p.key], p._type_info
                 )
     return subnode_packed
 
@@ -103,7 +103,7 @@ def unpack_subnode(node_cls: type[Node], subnode_packed: dict) -> dict[str, Any]
             assert (
                 p is not None and p._type_info is not None
             ), f"bad {p_key} for {node_cls.subnode_packed!r}"
-            prop_value = unpack_value(prop_value_packed, p._type_info, wrap_scalar=False)
+            prop_value = unpack_value(prop_value_packed, p._type_info)
             subnode_unpacked[subnode_key][p.key] = prop_value
     return subnode_unpacked
 

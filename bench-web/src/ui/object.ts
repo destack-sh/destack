@@ -1215,6 +1215,7 @@ export function useObjectLayout(options: {
         subtype,
       };
     } else if (kind.value == "partial") {
+      // nocheckin: partial computed values
       if (options.valueType.value == null) return null;
       const valuePacked = options.valuePacked.value ?? {};
       const nodeType = getPartialObjectNodeType(options.valueType.value, valuePacked);

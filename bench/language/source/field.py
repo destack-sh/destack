@@ -101,7 +101,6 @@ class TypeIdentity(NamedTuple):
     primitive_type: Optional[PrimitiveType] = None
     bench_type: Optional[BenchType] = None
     base_type_ptr: Optional[NodeReference] = None
-    bench_type_id: Optional[UUID] = None
     base_field_types: list["FieldType"] | None = None
     property_field_types: list["FieldType"] | None = None
     is_required: bool = False
@@ -173,9 +172,7 @@ def decode_type_identity(key: str) -> "TypeIdentity":
             kind=TypeKind(kind), bench_type=bench_type, is_list=is_list, is_secret=is_secret
         )
     elif kind == TypeKind.NODE or kind == TypeKind.BASED_NODE.value:
-        return TypeIdentity(
-            kind=TypeKind(kind), is_list=is_list, is_secret=is_secret, bench_type_id=None
-        )
+        return TypeIdentity(kind=TypeKind(kind), is_list=is_list, is_secret=is_secret)
     elif kind == TypeKind.CUSTOM_OBJECT.value:
         base_type_ptr = NodeReference(
             node_type=NodeType.BLOCK,
