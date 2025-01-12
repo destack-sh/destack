@@ -277,7 +277,7 @@ async def test_run_flow_invalid_computed_target(local_runtime: RuntimeHandle):
 
 
 async def test_run_flow_code_dynamic(local_runtime: RuntimeHandle):
-    """Run a Code action with Action.code set by dynamically in a Variable."""
+    """Run a Code action with Action.code set dynamically in a Variable."""
     Flow1 = Block.new(
         BlockType.FLOW, "Flow1", fields=(Field.variable("Code", Code), Field.output("Output", int))
     )

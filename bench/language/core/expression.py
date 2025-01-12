@@ -907,6 +907,7 @@ class ComputedValueKind(IdEnum):
     PATH = 1
     EXPRESSION = 2
     CODE = 3
+    # GENERATE = 4
 
 
 ComputedSourceIn = Union[PathIn, Expression, "Code"]
@@ -923,6 +924,7 @@ class ComputedValue(Struct):
 
     # meta
     kind: ComputedValueKind = p_regular(30)
+    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
     # scope...?
 
     # path to set at
@@ -948,7 +950,8 @@ class ComputedValue(Struct):
         else:
             assert_never(self.kind)
         if self.target_path is not None:
-            return f"{self.target_path} <- {source_str}"
+            flags_str = " [inactive]" if not self.is_active else ""
+            return f"{self.target_path} <- {source_str}{flags_str}"
         else:
             return source_str
 

@@ -55,7 +55,7 @@ export type EditSubject = UserData | RunData | BlockData | ActionData;
 /** Controls a SourceNode.computedValues */
 export function useComputedValues(options: {
   computedValues: Readonly<Ref<ComputedValueData[]>>;
-  computedPrefix?: Readonly<Ref<PathData>>;
+  computedPrefix?: Readonly<Ref<PathData | undefined>>;
   update: (computedValues: ComputedValueData[]) => void;
 }) {
   const computedValuesByKey: Ref<Record<string, ComputedValueData>> = computed(() => {

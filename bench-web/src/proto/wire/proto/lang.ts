@@ -633,6 +633,10 @@ export interface ComputedValueData {
      */
     kind: ComputedValueKind;
     /**
+     * @generated from protobuf field: optional string name = 32;
+     */
+    name?: string;
+    /**
      * @generated from protobuf field: optional symbolx.bench.PathData target_path = 41;
      */
     targetPath?: PathData;
@@ -13938,6 +13942,7 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
         super("symbolx.bench.ComputedValueData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.ComputedValueKind", ComputedValueKind, "COMPUTED_VALUE_KIND_"] },
+            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "target_path", kind: "message", T: () => PathData },
             { no: 51, name: "source_path", kind: "message", T: () => PathData },
             { no: 52, name: "source_expression", kind: "message", T: () => ExpressionData },
@@ -13964,6 +13969,9 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
                     break;
                 case /* symbolx.bench.ComputedValueKind kind */ 30:
                     message.kind = reader.int32();
+                    break;
+                case /* optional string name */ 32:
+                    message.name = reader.string();
                     break;
                 case /* optional symbolx.bench.PathData target_path */ 41:
                     message.targetPath = PathData.internalBinaryRead(reader, reader.uint32(), options, message.targetPath);
@@ -13998,6 +14006,9 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
         /* symbolx.bench.ComputedValueKind kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
+        /* optional string name = 32; */
+        if (message.name !== undefined)
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* optional symbolx.bench.PathData target_path = 41; */
         if (message.targetPath)
             PathData.internalBinaryWrite(message.targetPath, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
@@ -29538,6 +29549,7 @@ export enum ValueProperty {
 export enum ComputedValueProperty {
   metatype = 1,
   kind = 30,
+  name = 32,
   targetPath = 41,
   sourcePath = 51,
   sourceExpression = 52,
@@ -30288,8 +30300,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.12.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.12.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30322,8 +30334,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.11.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.12.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.12.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31447,6 +31459,7 @@ export const ValueDataInfo: Record<ValueProperty, PropertyInfo> = {
 export const ComputedValueDataInfo: Record<ComputedValueProperty, PropertyInfo> = {
   [ComputedValueProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COMPUTED_VALUE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ComputedValueProperty.kind]: { id: 30, name: 'kind', component: ObjectType.COMPUTED_VALUE, enumType: EnumType.COMPUTED_VALUE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputedValueProperty.name]: { id: 32, name: 'name', component: ObjectType.COMPUTED_VALUE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ComputedValueProperty.targetPath]: { id: 41, name: 'target_path', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
   [ComputedValueProperty.sourcePath]: { id: 51, name: 'source_path', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
   [ComputedValueProperty.sourceExpression]: { id: 52, name: 'source_expression', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
@@ -31859,7 +31872,7 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
   [ActionType.PASTE]: { id: 70, name: 'PASTE', text: 'Paste a Node' },
   [ActionType.CODE]: { id: 100, name: 'CODE', text: 'Run arbitrary Python code' },
   [ActionType.TOOL]: { id: 101, name: 'TOOL', text: 'Delegate to another Block' },
-  [ActionType.WAIT]: { id: 110, name: 'WAIT', text: 'Wait for a Trigger' },
+  [ActionType.WAIT]: { id: 110, name: 'WAIT', text: 'Wait for something' },
   [ActionType.YIELD]: { id: 111, name: 'YIELD', text: 'Defer to the User' },
   [ActionType.GENERATE]: { id: 200, name: 'GENERATE', text: 'Generate something' },
   [ActionType.TRANSFORM]: { id: 201, name: 'TRANSFORM', text: 'Transform something' },
