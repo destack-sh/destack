@@ -231,7 +231,7 @@ class CreateActionRunner(ActionRunnerBase[CreateAction]):
         logger.debug("action.create", action=self.node, node=node)
 
         assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = CustomObject.new({"node": node}, self.output_type)
+        self.outputs = coerce_custom_object_scalar({"node": node}, self.output_type, as_packed=True)
 
 
 class DuplicateActionRunner(ActionRunnerBase[DuplicateAction]):
@@ -251,7 +251,9 @@ class DuplicateActionRunner(ActionRunnerBase[DuplicateAction]):
         logger.debug("action.clone", action=self.node, node=cloned_node, partial=node_partial)
 
         assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = CustomObject.new({"node": cloned_node}, self.output_type)
+        self.outputs = coerce_custom_object_scalar(
+            {"node": cloned_node}, self.output_type, as_packed=True
+        )
 
 
 class UpdateActionRunner(ActionRunnerBase[UpdateAction]):
@@ -267,7 +269,7 @@ class UpdateActionRunner(ActionRunnerBase[UpdateAction]):
         logger.debug("action.update", action=self.node, node=node, partial=node_partial)
 
         assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = CustomObject.new({"node": node}, self.output_type)
+        self.outputs = coerce_custom_object_scalar({"node": node}, self.output_type, as_packed=True)
 
 
 class DeleteActionRunner(ActionRunnerBase[DeleteAction]):
@@ -281,7 +283,7 @@ class DeleteActionRunner(ActionRunnerBase[DeleteAction]):
         logger.debug("action.delete", action=self.node, node=node)
 
         assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = CustomObject.new({"node": node}, self.output_type)
+        self.outputs = coerce_custom_object_scalar({"node": node}, self.output_type, as_packed=True)
 
 
 #

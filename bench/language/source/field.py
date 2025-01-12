@@ -3,6 +3,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
+    NamedTuple,
     Optional,
     Sequence,
     Union,
@@ -95,7 +96,22 @@ TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {
 }
 
 
-def encode_type_identity(typ: "TypeBase") -> str:
+class TypeIdentity(NamedTuple):
+    kind: TypeKind
+    primitive_type: Optional[PrimitiveType] = None
+    bench_type: Optional[BenchType] = None
+    base_type_ptr: Optional[NodeReference] = None
+    bench_type_id: Optional[UUID] = None
+    base_field_types: list["FieldType"] | None = None
+    property_field_types: list["FieldType"] | None = None
+    is_required: bool = False
+    is_list: bool = False
+    is_secret: bool = False
+    format: Optional[TypeFormat] = None
+    constraint: Optional["TypeConstraint"] = None
+
+
+def encode_type_identity(typ: "TypeBase | TypeIdentity") -> str:
     """
     Encodes the type identity into a key for storage & implicit typing.
     Format is <kind>[id] (with id encoded as base64).
@@ -126,7 +142,7 @@ def encode_type_identity(typ: "TypeBase") -> str:
     return f"{prefix}{value}"
 
 
-def decode_type_identity(key: str) -> "TypeBase":
+def decode_type_identity(key: str) -> "TypeIdentity":
     """Decodes the type-related info back from the identity key. See encode. :TypeInfoEncoding"""
     # prefix
     if key[0] == "!":
@@ -145,7 +161,7 @@ def decode_type_identity(key: str) -> "TypeBase":
     # value
     if kind == TypeKind.PRIMITIVE.value:
         primitive_type = PrimitiveType(decode_b64vlq(value))
-        return Type(
+        return TypeIdentity(
             kind=TypeKind.PRIMITIVE,
             primitive_type=primitive_type,
             is_list=is_list,
@@ -153,16 +169,20 @@ def decode_type_identity(key: str) -> "TypeBase":
         )
     elif kind == TypeKind.STRUCT.value or kind == TypeKind.ENUM.value:
         bench_type = BenchType(decode_b64vlq(value))  # type: ignore
-        return Type(
+        return TypeIdentity(
             kind=TypeKind(kind), bench_type=bench_type, is_list=is_list, is_secret=is_secret
         )
     elif kind == TypeKind.NODE or kind == TypeKind.BASED_NODE.value:
-        return Type(kind=TypeKind(kind), is_list=is_list, is_secret=is_secret)
+        return TypeIdentity(
+            kind=TypeKind(kind), is_list=is_list, is_secret=is_secret, bench_type_id=None
+        )
     elif kind == TypeKind.CUSTOM_OBJECT.value:
         base_type_ptr = NodeReference(
-            node_type=NodeType.BLOCK, ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64])
+            node_type=NodeType.BLOCK,
+            ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64]),
+            _skip_validate_self=True,
         )
-        return Type(
+        return TypeIdentity(
             kind=TypeKind.CUSTOM_OBJECT,
             base_type_ptr=base_type_ptr,
             is_list=is_list,
@@ -170,14 +190,14 @@ def decode_type_identity(key: str) -> "TypeBase":
         )
     elif kind == TypeKind.PARTIAL_OBJECT.value:
         bench_type = BenchType(decode_b64vlq(value)) if value else None  # type: ignore
-        return Type(
+        return TypeIdentity(
             kind=TypeKind.PARTIAL_OBJECT,
             bench_type=bench_type,
             is_list=is_list,
             is_secret=is_secret,
         )
 
-    raise ValueError(f"unsupported type kind {kind}")
+    raise ValueError(f"unsupported type kind {kind} for {key!r}")
 
 
 LETTER_BY_FIELD_TYPE: dict[FieldType, str] = {
@@ -192,6 +212,8 @@ FIELD_TYPE_BY_LETTER: dict[str, FieldType] = {
     "V": FieldType.VARIABLE,
     "M": FieldType.MEMBER,
 }
+
+STORAGE_KEY_PREFIX_LENGTH = TK_LENGTH_B64 + 1
 
 
 def encode_storage_key(field: "Field") -> str:
@@ -499,7 +521,7 @@ def to_type_scalar(
     field_types: list[FieldType] | None = None,
 ) -> "Type":
     """Converts a type-like object to a TypeInfo."""
-    from bench.language.resource.file import FileType
+    from bench.language.resource import FileType
 
     if isinstance(typ, TypeBase):
         return cast("Type", typ)
