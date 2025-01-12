@@ -11,7 +11,6 @@ import {
 import { useComputedValues } from "@/language/expression";
 import {
   createField,
-  describeTypeIdentity,
   getFieldTypeUpdate,
   getPropertyType,
   getStorageKey,
@@ -19,11 +18,11 @@ import {
   makeType,
   makeTypeConstraint,
   TypeIdentity,
-  typeIsNumeric,
+  typeIsNumeric
 } from "@/language/field";
+import { ReadNodeGraph } from "@/language/graph";
 import { packSubnode, unpackSubnode } from "@/language/node";
 import { getPathKey, makePath } from "@/language/path";
-import { ReadNodeGraph } from "@/language/graph";
 import {
   getTransactionOptionsForType,
   makeEditFromSubnode,
@@ -76,7 +75,7 @@ import {
   TypeKind,
   ViewType,
 } from "@/proto/wire";
-import { describeNode, isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
+import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, supergraph } from "@/system/globals";
 import { getNodeName, ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
@@ -502,7 +501,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       write: (newValue) => {
         // pack value if partial
         if (this.isPartial) {
-          newValue = packValue(newValue, propType, { graph: this.graph });
+          newValue = packValue(newValue, propType);
         }
         const txOptions: TransactionOptions = getTransactionOptionsForType(propType);
         let update: Record<string, any>;
@@ -681,7 +680,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       computedPrefix,
       (field, newValue) => {
         const fieldKey = getStorageKey(field);
-        const newFieldValuePacked = packValue(newValue, field, { graph: this.graph });
+        const newFieldValuePacked = packValue(newValue, field);
         const fieldValuePacked = this.isPartial
           ? this.valuePacked?.[fieldKey]
           : (this.node as any)?.[propName]?.[fieldKey];
@@ -1116,7 +1115,7 @@ export class CustomLayout extends BaseObjectLayout {
     this.section(undefined, [
       ...this.rowFieldsInline(this.valuePacked, fields, this.computedPath, (field, newValue, options) => {
         const fieldKey = getStorageKey(field);
-        const newFieldValuePacked = packValue(newValue, field, { graph: this.graph });
+        const newFieldValuePacked = packValue(newValue, field);
         this.update({ [fieldKey]: newFieldValuePacked }, { ...getTransactionOptionsForType(field), ...options });
       }),
     ]);
