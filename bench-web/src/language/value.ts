@@ -1,19 +1,15 @@
-import { FLOAT_EPSILON, isNodeType, NODE_SUBTYPE_PACKED_KEY, TK_LENGTH_B64 } from "@/language/const";
+import { FLOAT_EPSILON, TK_LENGTH_B64, isNodeType } from "@/language/const";
 import {
   decodeTypeIdentity,
   describeTypeIdentity,
   encodeTypeIdentity,
   getFieldType,
   getPropertyType,
-  getStorageKey,
-  resolveFields,
   type TypeIdentity,
 } from "@/language/field";
-import type { ReadNodeGraph } from "@/language/graph";
 import {
   DateTime,
   EmptyData,
-  FieldData,
   FieldType,
   NODE_SUBTYPE_PROPERTY_ID,
   NodeReferenceData,
@@ -280,7 +276,7 @@ export function getCustomObjectProperties(type: TypeIdentity, valuePacked: Recor
 export function packCustomObject(
   value: ScalarValue,
   type: TypeIdentity,
-  options: { graph?: ReadNodeGraph; recurseCustomObject?: boolean },
+  options: { recurseCustomObject?: boolean },
 ): JsonValue {
   const valuePacked: { [key: string]: JsonValue } = {};
 
@@ -288,14 +284,13 @@ export function packCustomObject(
   for (const [storageKey, fieldValue] of Object.entries(value as any)) {
     if (!isNaN(parseInt(storageKey[0]))) {
       continue; // property
+    } else if (fieldValue == null) {
+      continue;
     }
     const typeIdentity = decodeTypeIdentity(storageKey.slice(TK_LENGTH_B64 + 1));
-    if (fieldValue == null) {
-      continue;
-    } else if (typeIdentity.kind == TypeKind.CUSTOM_OBJECT || typeIdentity.kind == TypeKind.PARTIAL_OBJECT) {
+    if (typeIdentity.kind == TypeKind.CUSTOM_OBJECT || typeIdentity.kind == TypeKind.PARTIAL_OBJECT) {
       if (options.recurseCustomObject) {
         valuePacked[storageKey] = packValue(fieldValue, typeIdentity, {
-          graph: options.graph,
           recurseCustomObject: options.recurseCustomObject,
         });
       } else {
@@ -336,11 +331,11 @@ export function unpackCustomObject(
   for (const [storageKey, fieldValuePacked] of Object.entries(valuePacked as any)) {
     if (!isNaN(parseInt(storageKey[0]))) {
       continue; // property
+    } else if (fieldValuePacked == null) {
+      continue;
     }
     const typeIdentity = decodeTypeIdentity(storageKey.slice(TK_LENGTH_B64 + 1));
-    if (fieldValuePacked == null) {
-      continue;
-    } else if (typeIdentity.kind == TypeKind.CUSTOM_OBJECT || typeIdentity.kind == TypeKind.PARTIAL_OBJECT) {
+    if (typeIdentity.kind == TypeKind.CUSTOM_OBJECT || typeIdentity.kind == TypeKind.PARTIAL_OBJECT) {
       if (options.recurseCustomObject) {
         const fieldValue = unpackValue(fieldValuePacked as JsonValue, typeIdentity, {
           recurseCustomObject: options.recurseCustomObject,
@@ -451,7 +446,7 @@ export function unpackPartialNode(
 export function packValue(
   value: any,
   type: TypeIdentity,
-  options: { graph?: ReadNodeGraph; wrapScalar?: boolean; recurseCustomObject?: boolean } = {
+  options: { wrapScalar?: boolean; recurseCustomObject?: boolean } = {
     wrapScalar: false,
     recurseCustomObject: false,
   },
@@ -463,14 +458,11 @@ export function packValue(
     } else if (value == null) {
       return null;
     } else if (!type.isList) {
-      return packCustomObject(value, type, { graph: options.graph, recurseCustomObject: options.recurseCustomObject });
+      return packCustomObject(value, type, { recurseCustomObject: options.recurseCustomObject });
     } else {
       const valuePacked: JsonValue[] = [];
       for (let i = 0; i < value.length; i++) {
-        const packed = packCustomObject(value[i], type, {
-          graph: options.graph,
-          recurseCustomObject: options.recurseCustomObject,
-        });
+        const packed = packCustomObject(value[i], type, { recurseCustomObject: options.recurseCustomObject });
         valuePacked.push(packed);
       }
       return valuePacked;

@@ -459,6 +459,8 @@ def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":
         for storage_key, field_value in partial_node._value.items():
             if storage_key[0].isnumeric():
                 continue  # property
+            elif field_value is None:
+                continue
             field_type = get_field_type(storage_key)
             type_identity = decode_type_identity(storage_key[STORAGE_KEY_PREFIX_LENGTH:])
             value_prop = node_cls.get_value_property(field_type, "packed")
@@ -1500,6 +1502,8 @@ def pack_custom_object(value: CustomObject, typ: "TypeBase | TypeIdentity") -> d
     for storage_key, field_value in _value.items():
         if storage_key[0].isnumeric():
             continue  # property
+        elif field_value is None:
+            continue
         type_identity = decode_type_identity(storage_key[STORAGE_KEY_PREFIX_LENGTH:])
         if (
             type_identity.kind == TypeKind.CUSTOM_OBJECT
@@ -1562,6 +1566,8 @@ def unpack_custom_object(
     for storage_key, field_value_packed in value_packed.items():
         if storage_key[0].isnumeric():
             continue  # property
+        elif field_value_packed is None:
+            continue
         type_identity = decode_type_identity(storage_key[STORAGE_KEY_PREFIX_LENGTH:])
         if (
             type_identity.kind == TypeKind.CUSTOM_OBJECT
