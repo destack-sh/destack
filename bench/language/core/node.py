@@ -362,10 +362,11 @@ def _process_object_cls[ObjectT: BuiltinObject](
                             f"{prop.name}_{obj_key}", _object_node_ref_attr(ptr_key, prop)
                         )
 
-            # computed runtime value
-            if prop.is_value_runtime:
+            # computed runtime value (with cache key)
+            if prop.is_value_runtime or prop.is_subnode_packed:
                 from .value import _object_value_runtime
 
+                prop.cache_key = intern(f"_{prop.name}_cached")
                 setattr(cls, prop.name, _object_value_runtime(prop))
 
     # finalize props & update reference to transformed class
