@@ -209,14 +209,12 @@ class Action(SourceNode[ActionData]):
     variables: Any = p_value_runtime(
         56,
         type=FieldType.VARIABLE,
-        field_type=FieldType.INPUT,
         typ=lambda self: cast("Action", self).variable_type_field_only,
     )
     inputs_packed: Any = p_value_packed(57)
     inputs: Any = p_value_runtime(
         57,
         type=FieldType.INPUT,
-        field_type=FieldType.INPUT,
         typ=lambda self: cast("Action", self).input_type_field_only,
     )
 
@@ -296,10 +294,16 @@ class Action(SourceNode[ActionData]):
         elif of == "value":
             if self.type == ActionType.START:
                 parent = self.parent
-                return parent.input_type if parent is not None else None
+                if parent is not None and (not field_types or FieldType.OUTPUT in field_types):
+                    return parent.input_type
+                else:
+                    return None
             elif self.type == ActionType.COMPLETE:
                 parent = self.parent
-                return parent.output_type if parent is not None else None
+                if parent is not None and (not field_types or FieldType.INPUT in field_types):
+                    return parent.output_type
+                else:
+                    return None
 
             base = self
             if self.type == ActionType.TOOL:
@@ -442,6 +446,7 @@ class CreateAction(Action):
         field_type=FieldType.INPUT,
         partial=True,
     )
+    node: Node | None = p_regular(200, require=False, references="any", field_type=FieldType.OUTPUT)
 
     @classmethod
     @cachetools.cached({})  # :CachedTypeInfo
@@ -586,14 +591,14 @@ class HasApplicationContext(BuiltinObject):
 class ObserveAction(Action):
     exclude_image: bool | None = p_regular(100, default=False, field_type=FieldType.INPUT)
     screenshot: Optional["File"] = p_regular(
-        150,
+        200,
         require=False,
         array=False,
         references=NodeType.FILE,
         field_type=FieldType.OUTPUT,
     )
     dom: Optional["DomNode"] = p_regular(
-        151,
+        201,
         require=False,
         array=False,
         struct=StructType.DOM_NODE,

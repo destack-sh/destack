@@ -36,11 +36,11 @@ logger = structlog.get_logger(__name__)
 
 @enum_(EnumType.MESSAGE_TYPE)
 class MessageType(IdEnum):
-    INTERNAL = 1  # within Bench
+    LOCAL = 1  # within Bench
     FEDERATED = 2  # from/to another Bench
     EMAIL = 10
     SMS = 11
-    # WHATSAPP, TELEGRAM, ...?
+    # WHATSAPP, TELEGRAM, SLACK, ...?
 
 
 @enum_(EnumType.MESSAGE_STATUS)
@@ -62,7 +62,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     If the parent is also a Message, then this Message is part of a Message thread.
     """
 
-    type: MessageType = p_regular(30, require=True, default=MessageType.INTERNAL)
+    type: MessageType = p_regular(30, require=True, default=MessageType.LOCAL)
     status: MessageStatus = p_internal(31, default=MessageStatus.SENT)
     name: str | None = p_regular(32, require=False, constraint=NAME_CONSTRAINT)
     origin: BenchNode | None = p_regular(35, require=False, references="any")

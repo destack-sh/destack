@@ -937,6 +937,7 @@ class ComputedValue(Struct):
 
     # flags
     is_active: bool = p_regular(60, default=True)
+    is_required: bool | None = p_regular(61, default=None)
 
     def __content_str__(self) -> str:
         if self.kind == ComputedValueKind.PATH:
@@ -961,6 +962,7 @@ class ComputedValue(Struct):
         *,
         source: ComputedSourceIn,
         is_active: bool = True,
+        is_required: bool = False,
     ) -> "ComputedValue":
         from .code import Code
 
@@ -971,6 +973,7 @@ class ComputedValue(Struct):
                 target_path=target,
                 source_code=source,
                 is_active=is_active,
+                is_required=is_required,
             )
         elif isinstance(source, Expression):
             return ComputedValue(
@@ -978,6 +981,7 @@ class ComputedValue(Struct):
                 target_path=target,
                 source_expression=source,
                 is_active=is_active,
+                is_required=is_required,
             )
         else:
             source = to_path(source)
@@ -986,6 +990,7 @@ class ComputedValue(Struct):
                 target_path=target,
                 source_path=source,
                 is_active=is_active,
+                is_required=is_required,
             )
 
 

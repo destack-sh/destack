@@ -249,11 +249,6 @@ class DuplicateActionRunner(ActionRunnerBase[DuplicateAction]):
         cloned_node_parent.append(cloned_node)
         logger.debug("action.clone", action=self.node, node=cloned_node, partial=node_partial)
 
-        assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = coerce_custom_object_scalar(
-            {"node": cloned_node}, self.output_type, as_packed=True
-        )
-
 
 class UpdateActionRunner(ActionRunnerBase[UpdateAction]):
     @override
@@ -267,9 +262,6 @@ class UpdateActionRunner(ActionRunnerBase[UpdateAction]):
         patch_node_from_partial(node, node_partial)
         logger.debug("action.update", action=self.node, node=node, partial=node_partial)
 
-        assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = coerce_custom_object_scalar({"node": node}, self.output_type, as_packed=True)
-
 
 class DeleteActionRunner(ActionRunnerBase[DeleteAction]):
     @override
@@ -280,9 +272,6 @@ class DeleteActionRunner(ActionRunnerBase[DeleteAction]):
         # delete
         node.delete()
         logger.debug("action.delete", action=self.node, node=node)
-
-        assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = coerce_custom_object_scalar({"node": node}, self.output_type, as_packed=True)
 
 
 #

@@ -765,6 +765,7 @@ def coerce_custom_object_scalar(
             raise TypeError(f"{value!r} is a {type(value).__name__}, expected {typ!r}")
 
     # coerce
+    value = {**value}  # copy so we can pop and check extra keys cheaply
     obj = CustomObject.new(
         value={},
         typ=typ,
@@ -774,20 +775,24 @@ def coerce_custom_object_scalar(
     )
     properties = _get_custom_object_properties(typ, value)
     for prop in properties:
-        prop_value = value.get(prop.name)
+        prop_value = value.pop(prop.name, None)
         if prop_value is not None:
             obj._do_set(prop, prop_value, track=False)
     for field in typ._base_fields:
         # try getting value by storage key, name and ident
-        field_value = value.get(field.storage_key)
+        field_value = value.pop(field.storage_key, None)
         if field_value is None:
-            field_value = value.get(field.name)
+            field_value = value.pop(field.name, None)
         if field_value is None:
             code_name = field.code_name
             if code_name is not None:
-                field_value = value.get(code_name)
+                field_value = value.pop(code_name, None)
         if field_value is not None:
             obj._do_set(field, field_value, track=False)
+
+    # check for extra keys
+    if value:
+        raise ValueError(f"extraneous values {value!r} for {typ!r}")
 
     return obj
 

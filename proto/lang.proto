@@ -1681,7 +1681,7 @@ enum OrganizationStatus {
 
 enum MessageType {
   MESSAGE_TYPE_UNSPECIFIED = 0;
-  MESSAGE_TYPE_INTERNAL = 1;
+  MESSAGE_TYPE_LOCAL = 1;
   MESSAGE_TYPE_FEDERATED = 2;
   MESSAGE_TYPE_EMAIL = 10;
   MESSAGE_TYPE_SMS = 11;
@@ -1896,6 +1896,7 @@ message ComputedValueData {
   optional ExpressionData source_expression = 52;
   optional CodeData source_code = 53;
   bool is_active = 60;
+  optional bool is_required = 61;
 }
 
 message ObjectMappingData {
@@ -3025,6 +3026,7 @@ message SearchActionData {
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message CreateActionData {
   optional google.protobuf.Value node_partial_packed = 100;
+  optional NodeReferenceData node_ptr = 200;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -3084,8 +3086,8 @@ message ChangeActionData {
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ObserveActionData {
   optional bool exclude_image = 100;
-  optional NodeReferenceData screenshot_ptr = 150;
-  optional DomNodeData dom = 151;
+  optional NodeReferenceData screenshot_ptr = 200;
+  optional DomNodeData dom = 201;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
