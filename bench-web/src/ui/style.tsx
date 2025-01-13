@@ -117,8 +117,7 @@ export function makeColor(type: ColorType, shade?: ColorShade): ColorData {
 //
 //
 
-export const COLOR_BY_NODE_TYPE: Partial<Record<NodeType, ColorType>> = {
-};
+export const COLOR_BY_NODE_TYPE: Partial<Record<NodeType, ColorType>> = {};
 
 export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {
   [BlockType.PAGE]: ColorType.GRAY,
@@ -153,18 +152,21 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   [ActionType.UPDATE]: ColorType.SKY,
   [ActionType.DELETE]: ColorType.SKY,
   [ActionType.PASTE]: ColorType.SKY,
+  [ActionType.CHANGE]: ColorType.SKY,
   // session
   // ...
   // static
   [ActionType.CODE]: ColorType.ORANGE,
   [ActionType.TOOL]: ColorType.ORANGE,
-  [ActionType.WAIT]: ColorType.ORANGE,
-  [ActionType.YIELD]: ColorType.ORANGE,
+  // async
+  [ActionType.SEND]: ColorType.GREEN,
+  [ActionType.RECEIVE]: ColorType.GREEN,
+  [ActionType.WAIT]: ColorType.GREEN,
+  [ActionType.YIELD]: ColorType.GREEN,
   // dynamic
   [ActionType.GENERATE]: ColorType.TEAL,
   [ActionType.TRANSFORM]: ColorType.TEAL,
   [ActionType.ROUTE]: ColorType.TEAL,
-  [ActionType.CHANGE]: ColorType.TEAL,
   // application
   [ActionType.OBSERVE]: ColorType.INDIGO,
   [ActionType.CLICK]: ColorType.INDIGO,

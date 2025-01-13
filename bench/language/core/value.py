@@ -318,16 +318,6 @@ class CustomObject(Mapping[str, Any]):
         else:
             self.__setitem__(item, value)
 
-    def __delitem__(self, item: str) -> None:
-        # delete field value if it's not required
-        field = self._type._get_field(item)
-        if field is None:
-            raise AttributeError(f"{self!r} has no Field or Property with identifier '{item}'")
-        if field.is_required:
-            raise AttributeError(f"{field!r} is required")
-        if self._value is not None:
-            self._value.pop(field.storage_key, None)
-
     @property
     def fields(self):
         for field in self._type._base_fields:

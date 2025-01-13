@@ -189,6 +189,7 @@ export function propertyReference(
   id: number,
   nodeSubtype?: number,
 ): PropertyReferenceData {
+  if (typeof id != "number") throw new Error(`expected number, got ${typeof id}: ${id}`);
   return { metatype: ObjectType.PROPERTY_REFERENCE, objectType: metatype as unknown as ObjectType, id, nodeSubtype };
 }
 

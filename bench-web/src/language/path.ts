@@ -69,16 +69,18 @@ export function getPathKey(path: PathData): string {
   for (const element of path.elements) {
     const typeKey = element.type.toString();
     if (element.nodePtr != null) {
-      pathParts.push(`${typeKey}:${element.nodePtr.id!}`);
+      pathParts.push(`${typeKey}=${element.nodePtr.id!}`);
     } else if (element.propertyPtr != null) {
-      pathParts.push(`${typeKey}:${element.propertyPtr.id.toString()}`);
+      pathParts.push(
+        `${typeKey}=${(element.propertyPtr.objectType ?? 0).toString()}.${element.propertyPtr.id.toString()}`,
+      );
     } else if (element.name != null) {
-      pathParts.push(`${typeKey}:${element.name}`);
+      pathParts.push(`${typeKey}=${element.name}`);
     } else {
       pathParts.push(`${typeKey}`);
     }
   }
-  return pathParts.join(".");
+  return pathParts.join("/");
 }
 
 export type PathElementIn =
@@ -98,11 +100,7 @@ export function makePath(...elementsIn: PathElementIn[]): PathData {
     } else if (isStruct(elementIn, StructType.PROPERTY_REFERENCE)) {
       element = { metatype: ObjectType.PATH_ELEMENT, type: PathElementType.ATTRIBUTE, propertyPtr: elementIn };
     } else if (isNode(elementIn, NodeType.FIELD)) {
-      element = {
-        metatype: ObjectType.PATH_ELEMENT,
-        type: PathElementType.ATTRIBUTE,
-        nodePtr: toNodeRef(elementIn),
-      };
+      element = { metatype: ObjectType.PATH_ELEMENT, type: PathElementType.ATTRIBUTE, nodePtr: toNodeRef(elementIn) };
     } else if (isSourceNode(elementIn)) {
       element = { metatype: ObjectType.PATH_ELEMENT, type: PathElementType.NODE, nodePtr: toNodeRef(elementIn) };
     } else {

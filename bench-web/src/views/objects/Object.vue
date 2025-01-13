@@ -177,6 +177,7 @@ defineExpose<ViewExposed>({ self, id });
           </div>
 
           <!-- Body -->
+           {{ row.computedPathKey }}
           <!-- Fields -->
           <div v-if="row.type == 'fields-list'" class="rounded border border-gray-200">
             <FieldList
@@ -218,7 +219,7 @@ defineExpose<ViewExposed>({ self, id });
           <Object
             v-else-if="row.type == 'object'"
             :id="i + '.value'"
-            class="border-y py-1.5"
+            class=""
             :style="{ width: '100%', minHeight: ROW_HEIGHT_MIN + 'px' }"
             v-bind="row.viewProps as any"
             :is-computable="row.isComputable"
