@@ -50,7 +50,7 @@ const { node, connection, layout, computer, computedType } = useObjectLayout({
     emit("update:modelValue", { ...modelValue.value, ...update }, options);
   },
   updateComputedValues: (computedValues: ComputedValueData[] | undefined) => {
-    emit("update:computed-values", computedValues);
+    emit("update:computedValues", computedValues);
   },
 });
 
@@ -177,7 +177,6 @@ defineExpose<ViewExposed>({ self, id });
           </div>
 
           <!-- Body -->
-           {{ row.computedPathKey }}
           <!-- Fields -->
           <div v-if="row.type == 'fields-list'" class="rounded border border-gray-200">
             <FieldList
