@@ -1,10 +1,11 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, ComputedValueData, ObjectType } from "@/proto/wire";
+import { ViewData, NodeType, ComputedValueData, ObjectType, TypeKind, BenchType } from "@/proto/wire";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
 import { toRef } from "vue";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import Path from "@/views/objects/Path.vue";
+import { makeType } from "@/language/field";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
@@ -25,7 +26,14 @@ defineExpose<ViewExposed>({ self, id });
     <Path
       id="path"
       title="Source Path"
-      :value-type="valueType"
+      :value-type="
+        makeType({
+          kind: TypeKind.STRUCT,
+          benchType: BenchType.PATH,
+          isRequired: true,
+          constraint: props.valueType?.constraint,
+        })
+      "
       :is-input="isInput"
       :is-disabled="isDisabled"
       :is-minimal="isMinimal"

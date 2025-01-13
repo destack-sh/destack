@@ -98,7 +98,7 @@ class ActionType(IdEnum):
     SEND = 120, "Send a Message"
     RECEIVE = 121, "Receive a Message"
     WAIT = 122, "Wait for something"
-    YIELD = 123, "Defer to the User"
+    YIELD = 123, "Defer to someone"
 
     # dynamic
     GENERATE = 500, "Generate something"

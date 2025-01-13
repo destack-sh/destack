@@ -468,11 +468,15 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     let computedPath: PathData | undefined = undefined;
     let computedPathKey: string | undefined = undefined;
     if (options?.isComputable) {
-      computedPath = makePath(
-        PathElementType.RUN,
-        propertyReference(NodeType.RUN, RunProperty.inputsPacked),
-        toPropertyRef(prop),
-      );
+      if (this.computedPath != null) {
+        computedPath = makePath(...this.computedPath.elements, toPropertyRef(prop));
+      } else {
+        computedPath = makePath(
+          PathElementType.RUN, // :RunComputedValue
+          propertyReference(NodeType.RUN, RunProperty.inputsPacked),
+          toPropertyRef(prop),
+        );
+      }
       computedPathKey = getPathKey(computedPath);
     }
 
@@ -597,10 +601,15 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     let computedPath: PathData | undefined = undefined;
     let computedPathKey: string | undefined = undefined;
     if (options?.isComputable) {
-      computedPath = makePath(
-        PathElementType.RUN, // :RunComputedValue
-        propertyReference(NodeType.RUN, RunProperty[propNames[0] as any as keyof typeof RunProperty]),
-      );
+      if (this.computedPath != null) {
+        computedPath = makePath(...this.computedPath.elements, toPropertyRef(prop));
+      } else {
+        computedPath = makePath(
+          PathElementType.RUN, // :RunComputedValue
+          propertyReference(NodeType.RUN, RunProperty.inputsPacked),
+          toPropertyRef(prop),
+        );
+      }
       computedPathKey = getPathKey(computedPath);
     }
 
@@ -667,10 +676,14 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     // computed
     let computedPrefix: PathData | undefined;
     if (options?.isComputable && this.computedType) {
-      computedPrefix = makePath(
-        PathElementType.RUN, // :RunComputedValue
-        propertyReference(NodeType.RUN, RunProperty[propName as any as keyof typeof RunProperty]),
-      );
+      if (this.computedPath != null) {
+        computedPrefix = this.computedPath;
+      } else {
+        computedPrefix = makePath(
+          PathElementType.RUN, // :RunComputedValue
+          propertyReference(NodeType.RUN, RunProperty[propName as any as keyof typeof RunProperty]),
+        );
+      }
     }
 
     // rows
@@ -917,28 +930,27 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
       commonRows.push(this.rowProperty(FailActionProperty.errorTitle, { title: "Title", isComputable: true }));
       commonRows.push(this.rowProperty(FailActionProperty.errorText, { title: "Text", isComputable: true }));
     } else {
-      // add all from subproperty enum
-      if (this.subpropertyEnum != null) {
-        Object.values(this.subpropertyEnum)
-          .filter((v) => typeof v == "number")
-          .forEach((subproperty) => {
-            const { prop } = this.getProperty(subproperty as any);
-            if (prop == null || prop.fieldType == FieldType.OUTPUT) return;
+      // by default add all subproperties in default order
+      const subproperties = Object.values(this.subpropertyEnum ?? {});
+      for (let i = 0; i < subproperties.length; i++) {
+        const subproperty = subproperties[i];
+        if (typeof subproperty !== "number") continue;
+        const { prop } = this.getProperty(subproperty as any);
+        if (prop == null || prop.fieldType == FieldType.OUTPUT) continue;
 
-            if (prop.valueIsPartial) {
-              if (this.isPartial) {
-                return;
-              }
-              commonRows.push(
-                this.rowObjectNested(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), {
-                  title: "Node",
-                  isComputable: true,
-                }),
-              );
-            } else {
-              commonRows.push(this.rowProperty(subproperty, { isComputable: true }));
-            }
-          });
+        if (prop.valueIsPartial) {
+          if (!this.isPartial) {
+            // no nested partials
+            this.section("Node", [
+              this.rowObjectNested(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), {
+                title: false,
+                isComputable: true,
+              }),
+            ]);
+          }
+        } else {
+          commonRows.push(this.rowProperty(subproperty, { isComputable: true }));
+        }
       }
     }
 
@@ -1022,7 +1034,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
             ],
           },
         );
-      } else if (node.type != ActionType.FAIL) {
+      } else if (node.type == ActionType.CODE || node.type == ActionType.TOOL || node.type! > ActionType.GENERATE) {
         // own schema
         this.section(
           "Schema",
@@ -1308,6 +1320,7 @@ export function useObjectLayout(options: {
         valueType: options.valueType.value!,
         valuePacked: valuePacked,
         computedType: computedType.value,
+        computedPath: options.computedPrefix?.value,
         fields: fields.value,
         delegate: delegate.value,
         delegateFields: delegateFields.value,
@@ -1341,6 +1354,7 @@ export function useObjectLayout(options: {
         valueType: options.valueType.value!,
         valuePacked: valuePacked,
         computedType: computedType.value,
+        computedPath: options.computedPrefix?.value,
         fields: fields.value,
         delegate: delegate.value,
         delegateFields: delegateFields.value,

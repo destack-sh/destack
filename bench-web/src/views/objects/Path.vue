@@ -39,6 +39,7 @@ const nodeValueType = computed(() =>
   makeType({
     kind: TypeKind.NODE,
     benchType: BenchType.FIELD,
+    isRequired: props.valueType?.isRequired ?? false,
     constraint: makeTypeConstraint({
       nodeScopePtr: props.valueType?.constraint?.nodeScopePtr,
       nodeSubtypes: [FieldType.INPUT, FieldType.OUTPUT, FieldType.VARIABLE],
