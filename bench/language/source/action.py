@@ -67,9 +67,8 @@ _type = type
 
 @enum_(EnumType.ACTION_TYPE)
 class ActionType(IdEnum):
-    # start
+    # flow
     START = 1, "Begin the Flow"
-    # end
     COMPLETE = 10, "Complete the entire Flow"
     FAIL = 11, "Fail the entire Flow"
     # ABORT?
@@ -85,7 +84,8 @@ class ActionType(IdEnum):
     DUPLICATE = 61, "Duplicate some Nodes"
     UPDATE = 62, "Update a Node"
     DELETE = 63, "Delete a Node"
-    PASTE = 70, "Paste a Node"
+    PASTE = 65, "Paste a Node"
+    CHANGE = 70, "Edit relevant Nodes"
 
     # runtime
     # PAUSE, RESUME, STOP, ...
@@ -93,13 +93,17 @@ class ActionType(IdEnum):
     # static
     CODE = 100, "Run arbitrary Python code"
     TOOL = 101, "Delegate to another Block"
-    WAIT = 110, "Wait for something"
-    YIELD = 111, "Defer to the User"
+
+    # async
+    SEND = 120, "Send a Message"
+    RECEIVE = 121, "Receive a Message"
+    WAIT = 122, "Wait for something"
+    YIELD = 123, "Defer to the User"
+
     # dynamic
-    GENERATE = 200, "Generate something"
-    TRANSFORM = 201, "Transform something"
-    ROUTE = 210, "Route to other Actions"
-    CHANGE = 211, "Edit relevant Nodes"
+    GENERATE = 500, "Generate something"
+    TRANSFORM = 501, "Transform something"
+    ROUTE = 510, "Route to other Actions"
 
     # state
     # ...
@@ -200,15 +204,14 @@ class Action(SourceNode[ActionData]):
     calls: list["Call"] = p_regular(
         55, array=True, struct=StructType.CALL, field_type=FieldType.OUTPUT
     )
+    # set variables/inputs for delegates (tool)
     variables_packed: Any = p_value_packed(56)
     variables: Any = p_value_runtime(
-        56, type=FieldType.VARIABLE, typ=lambda self: cast("Action", self).variable_type
+        56, type=FieldType.VARIABLE, typ=lambda self: cast("Action", self).variable_type_field_only
     )
-    # NOTE :Architecture: handle node_partials and partial overrides from Action inputs?
-    # (also in other Actions that use value_packed - maybe nested proxy in ProxyReadObject?)
     inputs_packed: Any = p_value_packed(57)
     inputs: Any = p_value_runtime(
-        57, type=FieldType.INPUT, typ=lambda self: cast("Action", self).input_type
+        57, type=FieldType.INPUT, typ=lambda self: cast("Action", self).input_type_field_only
     )
 
     # flow
@@ -276,6 +279,7 @@ class Action(SourceNode[ActionData]):
         self,
         of: Literal["instance", "value"] = "instance",
         field_types: list[FieldType] | None = None,
+        field_only: bool | None = None,
     ) -> "TypeBase | None":
         """Gets a type represented by this Action (if any)"""
         from bench.language import Type
@@ -292,12 +296,16 @@ class Action(SourceNode[ActionData]):
                 return parent.output_type if parent is not None else None
 
             base = self
-            if self.type == ActionType.TOOL and self.tool_ptr is not None:
+            if self.type == ActionType.TOOL:
                 base = self.tool
 
             # actions also have their subtype as input & output type
             #  (to enable dynamically setting action properties as inputs)
-            if field_types and (FieldType.INPUT in field_types or FieldType.OUTPUT in field_types):
+            if (
+                field_types
+                and (FieldType.INPUT in field_types or FieldType.OUTPUT in field_types)
+                and not field_only
+            ):
                 typ = Type(
                     kind=TypeKind.PARTIAL_OBJECT,
                     base_type=base,
@@ -325,13 +333,21 @@ class Action(SourceNode[ActionData]):
             raise ValueError(f"{self!r} does not have a type")
         return typ
 
-    @cached_property  # :CachedTypeInfo
+    @property
     def variable_type(self) -> "TypeBase | None":
-        return None  # Actions don't have variables?
+        return None  # Actions don't have variables
+
+    @property
+    def variable_type_field_only(self) -> "TypeBase | None":
+        return None
 
     @cached_property  # :CachedTypeInfo
     def input_type(self) -> "TypeBase | None":
         return self.to_type_maybe(of="value", field_types=[FieldType.INPUT])
+
+    @cached_property  # :CachedTypeInfo
+    def input_type_field_only(self) -> "TypeBase | None":
+        return self.to_type_maybe(of="value", field_types=[FieldType.INPUT], field_only=True)
 
     @cached_property  # :CachedTypeInfo
     def output_type(self) -> "TypeBase | None":

@@ -401,11 +401,40 @@ class CustomObject(Mapping[str, Any]):
         for key, v in kwargs.items():
             self._do_set(key, v, validate=not _skip_validate)
 
-    def set_default(self, obj: "CustomObject", _skip_validate: bool = False):
-        """Updates this object with the given default object (setting *only* unset values)."""
-        for key, value in obj.items():
-            if self._value.get(key) is None:
-                self._do_set(key, value, validate=not _skip_validate)
+    def set_default(self, obj: "CustomObject | BuiltinObject", _skip_validate: bool = False):
+        """Updates this object with the given object (setting *only* unset values)."""
+        if isinstance(obj, CustomObject):
+            for key, value in obj.items():
+                if self._value.get(key) is None:
+                    self._do_set(key, value, validate=not _skip_validate)
+        else:
+            property_field_types = self._type.property_field_types
+            for prop in obj._get_effective_cls().__runtime_properties__.values():
+                # NOTE :Performance: all these Property iterations/filters seem inefficient
+                if (
+                    (
+                        property_field_types
+                        and prop.field_type is not None
+                        and prop.field_type not in property_field_types
+                    )
+                    or prop.id is None
+                    or prop.id < 30
+                    or prop.reference_source is not None
+                    or prop.is_autoset
+                ):
+                    continue  # ignore irrelevant properties
+                if prop.is_value_packed:
+                    prop_key = prop.subtype_key or prop.key
+                    assert (
+                        type(prop.value_runtime_ptr) is Property
+                    ), f"bad value_packed_ptr for {prop!r}: {prop.value_packed_ptr!r}"
+                    prop = prop.value_runtime_ptr
+                else:
+                    prop_key = prop.subtype_key or prop.key
+                if self._value.get(prop_key) is None:
+                    prop_value = getattr(obj, prop.name)
+                    if obj.is_set(prop, prop_value):
+                        self._do_set(prop, prop_value, validate=not _skip_validate)
 
     @staticmethod
     def new(
@@ -836,26 +865,6 @@ def coerce_value(
                 )
                 for element in value
             ]
-
-
-class ProxyReadObject:
-    """
-    A proxy for a CustomObject that defaults to a sequence of objects if the value is not set.
-    """
-
-    __slots__ = ("objects",)
-
-    def __init__(self, *objects: Any):
-        self.objects = objects
-
-    def __getattr__(self, name: str) -> Any:
-        for i, obj in enumerate(self.objects):
-            try:
-                if (value := getattr(obj, name)) is not None and value != ():
-                    return value
-            except AttributeError as e:
-                if i == len(self.objects) - 1:
-                    raise e from None
 
 
 #
@@ -1513,10 +1522,7 @@ def pack_custom_object(value: CustomObject, typ: "TypeBase | TypeIdentity") -> d
             value_packed[storage_key] = pack_value_scalar(
                 cast(ScalarValue, field_value), type_identity
             )
-        else:  # scalar list
-            assert isinstance(
-                field_value, list
-            ), f"{field_value!r} is not a list, expected {type_identity!r}"
+        elif isinstance(field_value, Sequence) and len(field_value) > 0:  # scalar list
             value_packed[storage_key] = [
                 pack_value_scalar(element, type_identity) for element in field_value
             ]

@@ -1331,14 +1331,16 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_UPDATE: _ClassVar[ActionType]
     ACTION_TYPE_DELETE: _ClassVar[ActionType]
     ACTION_TYPE_PASTE: _ClassVar[ActionType]
+    ACTION_TYPE_CHANGE: _ClassVar[ActionType]
     ACTION_TYPE_CODE: _ClassVar[ActionType]
     ACTION_TYPE_TOOL: _ClassVar[ActionType]
+    ACTION_TYPE_SEND: _ClassVar[ActionType]
+    ACTION_TYPE_RECEIVE: _ClassVar[ActionType]
     ACTION_TYPE_WAIT: _ClassVar[ActionType]
     ACTION_TYPE_YIELD: _ClassVar[ActionType]
     ACTION_TYPE_GENERATE: _ClassVar[ActionType]
     ACTION_TYPE_TRANSFORM: _ClassVar[ActionType]
     ACTION_TYPE_ROUTE: _ClassVar[ActionType]
-    ACTION_TYPE_CHANGE: _ClassVar[ActionType]
     ACTION_TYPE_OBSERVE: _ClassVar[ActionType]
     ACTION_TYPE_CLICK: _ClassVar[ActionType]
     ACTION_TYPE_PRESS: _ClassVar[ActionType]
@@ -2777,14 +2779,16 @@ ACTION_TYPE_DUPLICATE: ActionType
 ACTION_TYPE_UPDATE: ActionType
 ACTION_TYPE_DELETE: ActionType
 ACTION_TYPE_PASTE: ActionType
+ACTION_TYPE_CHANGE: ActionType
 ACTION_TYPE_CODE: ActionType
 ACTION_TYPE_TOOL: ActionType
+ACTION_TYPE_SEND: ActionType
+ACTION_TYPE_RECEIVE: ActionType
 ACTION_TYPE_WAIT: ActionType
 ACTION_TYPE_YIELD: ActionType
 ACTION_TYPE_GENERATE: ActionType
 ACTION_TYPE_TRANSFORM: ActionType
 ACTION_TYPE_ROUTE: ActionType
-ACTION_TYPE_CHANGE: ActionType
 ACTION_TYPE_OBSERVE: ActionType
 ACTION_TYPE_CLICK: ActionType
 ACTION_TYPE_PRESS: ActionType
