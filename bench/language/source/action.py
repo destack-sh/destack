@@ -207,11 +207,17 @@ class Action(SourceNode[ActionData]):
     # set variables/inputs for delegates (tool)
     variables_packed: Any = p_value_packed(56)
     variables: Any = p_value_runtime(
-        56, type=FieldType.VARIABLE, typ=lambda self: cast("Action", self).variable_type_field_only
+        56,
+        type=FieldType.VARIABLE,
+        field_type=FieldType.INPUT,
+        typ=lambda self: cast("Action", self).variable_type_field_only,
     )
     inputs_packed: Any = p_value_packed(57)
     inputs: Any = p_value_runtime(
-        57, type=FieldType.INPUT, typ=lambda self: cast("Action", self).input_type_field_only
+        57,
+        type=FieldType.INPUT,
+        field_type=FieldType.INPUT,
+        typ=lambda self: cast("Action", self).input_type_field_only,
     )
 
     # flow
@@ -333,13 +339,13 @@ class Action(SourceNode[ActionData]):
             raise ValueError(f"{self!r} does not have a type")
         return typ
 
-    @property
+    @cached_property  # :CachedTypeInfo
     def variable_type(self) -> "TypeBase | None":
-        return None  # Actions don't have variables
+        return self.to_type_maybe(of="value", field_types=[FieldType.VARIABLE])
 
-    @property
+    @cached_property
     def variable_type_field_only(self) -> "TypeBase | None":
-        return None
+        return self.to_type_maybe(of="value", field_types=[FieldType.VARIABLE], field_only=True)
 
     @cached_property  # :CachedTypeInfo
     def input_type(self) -> "TypeBase | None":

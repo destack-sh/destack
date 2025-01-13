@@ -100,7 +100,7 @@ class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
             run=run,
         )
         assert self.inputs is not None, f"no inputs for {self!r}"
-        self.action_inputs = cast(A, self.inputs)
+        self.action = cast(A, self.inputs)
         self.flow = flow
 
     @override
@@ -168,8 +168,8 @@ class CompleteActionRunner(ActionRunnerBase):
 class FailActionRunner(ActionRunnerBase[FailAction]):
     @override
     async def run(self) -> None:
-        title = self.action_inputs.error_title or "Flow failed"
-        text = self.action_inputs.error_text or Text.plain(f"Flow failed at {self.node!r}")
+        title = self.action.error_title or "Flow failed"
+        text = self.action.error_text or Text.plain(f"Flow failed at {self.node!r}")
         raise RetryableError(title=title, text=text)
 
 
@@ -204,7 +204,7 @@ class SearchActionRunner(ActionRunnerBase):
 class CreateActionRunner(ActionRunnerBase[CreateAction]):
     @override
     async def run(self) -> None:
-        node_partial = self.action_inputs.node_partial
+        node_partial = self.action.node_partial
         assert isinstance(node_partial, CustomObject), f"bad node_partial: {node_partial!r}"
 
         # create node from partial
@@ -236,13 +236,13 @@ class CreateActionRunner(ActionRunnerBase[CreateAction]):
 class DuplicateActionRunner(ActionRunnerBase[DuplicateAction]):
     @override
     async def run(self) -> None:
-        node = self.action_inputs.node
-        node_partial = self.action_inputs.node_partial
+        node = self.action.node
+        node_partial = self.action.node_partial
         assert node is not None, "no node to clone"
         assert isinstance(node_partial, CustomObject), f"bad node_partial: {node_partial!r}"
 
         # clone node with partial override
-        cloned_node = node.clone(recursive=not self.action_inputs.is_shallow, detach=True)
+        cloned_node = node.clone(recursive=not self.action.is_shallow, detach=True)
         patch_node_from_partial(cloned_node, node_partial)
         cloned_node_parent = cloned_node.parent or node.parent
         assert cloned_node_parent is not None, f"cloned node {cloned_node!r} must be attached"
@@ -258,9 +258,9 @@ class DuplicateActionRunner(ActionRunnerBase[DuplicateAction]):
 class UpdateActionRunner(ActionRunnerBase[UpdateAction]):
     @override
     async def run(self) -> None:
-        node = self.action_inputs.node
+        node = self.action.node
         assert node is not None, "no node to update"
-        node_partial = self.action_inputs.node_partial
+        node_partial = self.action.node_partial
         assert isinstance(node_partial, CustomObject), f"bad node_partial: {node_partial!r}"
 
         # update with partial patch
@@ -274,7 +274,7 @@ class UpdateActionRunner(ActionRunnerBase[UpdateAction]):
 class DeleteActionRunner(ActionRunnerBase[DeleteAction]):
     @override
     async def run(self) -> None:
-        node = self.action_inputs.node
+        node = self.action.node
         assert node is not None, "no node to delete"
 
         # delete
@@ -308,7 +308,7 @@ class CodeActionRunner(ActionRunnerBase[CodeAction]):
         code_runner = CodeFunctionRunner(
             runtime=self.runtime,
             node=self.node,
-            code=self.action_inputs.code or CODE_PASS,
+            code=self.action.code or CODE_PASS,
             variables=self.variables,
             inputs=self.inputs,
             output_type=self.output_type,
@@ -323,13 +323,13 @@ class CodeActionRunner(ActionRunnerBase[CodeAction]):
 class ToolActionRunner(ActionRunnerBase[ToolAction]):
     @override
     async def run(self) -> None:
-        tool = self.action_inputs.tool
+        tool = self.action.tool
         if not tool:
             raise RunImpossibleError("no tool")
         tool_runner = self._get_resumable_subrunner(
             node=tool,
-            variables=self.action_inputs.variables,
-            inputs=self.action_inputs.inputs,
+            variables=self.action.variables,
+            inputs=self.action.inputs,
             output_type=self.output_type,
         )
         await self.runtime.run_runner(tool_runner)
@@ -339,8 +339,8 @@ class WaitActionRunner(ActionRunnerBase[WaitAction]):
     @override
     async def run(self) -> None:
         # NOTE: obviously WaitStep should be Interruption/Trigger-driven
-        if self.action_inputs.delay is not None:
-            await asyncio.sleep(self.action_inputs.delay.total_seconds())
+        if self.action.delay is not None:
+            await asyncio.sleep(self.action.delay.total_seconds())
 
 
 #
@@ -409,7 +409,7 @@ class ObserveActionRunner(ActionRunnerBase[ObserveAction]):
 class ClickActionRunner(ApplicationActionRunnerBase[ClickAction]):
     @override
     async def run(self) -> None:
-        selector = await self._get_element_selector(self.action_inputs)
+        selector = await self._get_element_selector(self.action)
         if selector is None:
             raise ValidationError(None, "no element selector to click")
         browser = self._get_ready_resource_or_error(Browser)
@@ -421,39 +421,39 @@ class ClickActionRunner(ApplicationActionRunnerBase[ClickAction]):
 class PressActionRunner(ApplicationActionRunnerBase[PressAction]):
     @override
     async def run(self) -> None:
-        keys = self.action_inputs.keys
+        keys = self.action.keys
         if keys is None:
             raise ValidationError(None, "no keys to press")
         browser = self._get_ready_resource_or_error(Browser)
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
-        await self._focus_element(self.action_inputs, pw_page)
-        await pw_page.keyboard.press(keys, delay=self.action_inputs.delay)
+        await self._focus_element(self.action, pw_page)
+        await pw_page.keyboard.press(keys, delay=self.action.delay)
 
 
 class TypeActionRunner(ApplicationActionRunnerBase[TypeAction]):
     @override
     async def run(self) -> None:
-        string = self.action_inputs.string
+        string = self.action.string
         if string is None:
             raise ValidationError(None, "no string to type")
         browser = self._get_ready_resource_or_error(Browser)
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
-        await self._focus_element(self.action_inputs, pw_page)
-        await pw_page.keyboard.type(string, delay=self.action_inputs.delay)
+        await self._focus_element(self.action, pw_page)
+        await pw_page.keyboard.type(string, delay=self.action.delay)
 
 
 class ScrollActionRunner(ApplicationActionRunnerBase[ScrollAction]):
     @override
     async def run(self) -> None:
-        amount = self.action_inputs.amount
+        amount = self.action.amount
         if amount is None:
             raise ValidationError(None, "no amount to scroll")
         browser = self._get_ready_resource_or_error(Browser)
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
-        await self._focus_element(self.action_inputs, pw_page)
+        await self._focus_element(self.action, pw_page)
         await pw_page.mouse.wheel(delta_x=amount.x, delta_y=amount.y)
 
 
@@ -489,7 +489,7 @@ class GoForwardActionRunner(ApplicationActionRunnerBase[GoForwardAction]):
 class GoToUrlActionRunner(ApplicationActionRunnerBase[GoToUrlAction]):
     @override
     async def run(self) -> None:
-        url = self.action_inputs.url
+        url = self.action.url
         if url is None:
             raise ValidationError(None, "no url to go to")
         browser = self._get_ready_resource_or_error(Browser)
@@ -502,7 +502,7 @@ class GoToUrlActionRunner(ApplicationActionRunnerBase[GoToUrlAction]):
 class GoToTabActionRunner(ApplicationActionRunnerBase[GoToTabAction]):
     @override
     async def run(self) -> None:
-        tab_index = self.action_inputs.tab_index
+        tab_index = self.action.tab_index
         if tab_index is None:
             raise ValidationError(None, "no tab index to go to")
         browser = self._get_ready_resource_or_error(Browser)

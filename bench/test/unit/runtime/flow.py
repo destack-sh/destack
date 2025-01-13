@@ -560,7 +560,9 @@ async def test_run_flow_create_action_dynamic(hosted_runtime: RuntimeHandle):
             Field.member("Rating", int),
         ),
     )
-    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Flow1 = Block.new(
+        BlockType.FLOW, "Flow1", fields=(Field.input("Name", str), Field.input("Rating", int))
+    )
     Start = Action.new(ActionType.START, "Start")
     Create = Action.new(
         ActionType.CREATE, "Create", node_partial=Record.partial(block=Database1, Rating=1)
@@ -572,12 +574,7 @@ async def test_run_flow_create_action_dynamic(hosted_runtime: RuntimeHandle):
             Create.get_property("node_partial"),
             Record.get_property("name"),
         ),
-        source=(
-            Flow1,
-            PathElement.run_(),
-            Run.get_property("inputs"),
-            Database1.fields.Name,
-        ),
+        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Name),
     )
     Create.set_computed(
         target=(
@@ -586,12 +583,7 @@ async def test_run_flow_create_action_dynamic(hosted_runtime: RuntimeHandle):
             Create.get_property("node_partial"),
             Database1.fields.Rating,
         ),
-        source=(
-            Flow1,
-            PathElement.run_(),
-            Run.get_property("inputs"),
-            Database1.fields.Rating,
-        ),
+        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Rating),
     )
     Flow1.actions.extend(Start, Create)
     Start.connect(PipeType.FORWARD, Create)
@@ -694,7 +686,7 @@ async def test_run_flow_race(hosted_runtime: RuntimeHandle):
     assert len(runner.tracked_run.runs) == 9  # all actions & pipes should run exactly once
 
 
-async def test_run_flow_infinite_loop(hosted_runtime: RuntimeHandle):
+async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
     """Runs an infinite loop that's not infinite because it also completes immediately."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -704,10 +696,10 @@ async def test_run_flow_infinite_loop(hosted_runtime: RuntimeHandle):
     Start.connect(PipeType.FORWARD, Loop)
     Loop.connect(PipeType.FORWARD, Loop)  # infinite!
     Loop.connect(PipeType.FORWARD, Complete)
-    hosted_runtime.page().blocks.append(Flow1)
-    await hosted_runtime.commit()
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
 
-    runner = await hosted_runtime.run(Flow1)
+    runner = await local_runtime.run(Flow1)
     assert runner.tracked_run and len(runner.tracked_run.runs) <= 10  # should complete quickly
 
 
@@ -871,7 +863,7 @@ async def test_run_flow_yield(hosted_runtime: RuntimeHandle):
     assert len(runner.attempts) == 1
 
 
-async def test_run_flow_yield_nested(hosted_runtime: RuntimeHandle):
+async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
     """Run a FLow inside another Flow and yield from there. Should propagate and resume properly."""
     # inner flow
     FlowInner = Block.new(BlockType.FLOW, "FlowInner")
@@ -891,16 +883,16 @@ async def test_run_flow_yield_nested(hosted_runtime: RuntimeHandle):
     StartOuter.connect(PipeType.FORWARD, ActionOuter)
     ActionOuter.connect(PipeType.FORWARD, CompleteOuter)
 
-    hosted_runtime.page().blocks.extend(FlowInner, FlowOuter)
-    await hosted_runtime.commit()
+    local_runtime.page().blocks.extend(FlowInner, FlowOuter)
+    await local_runtime.commit()
 
     # run up to yield
-    runner = await hosted_runtime.run(FlowOuter)
+    runner = await local_runtime.run(FlowOuter)
     assert runner.status == RunStatus.YIELDED
     assert runner.tracked_run
 
     # resume run (without handling Interruption)
-    runner = await hosted_runtime.run(runner.tracked_run)
+    runner = await local_runtime.run(runner.tracked_run)
     assert runner.status == RunStatus.YIELDED
     assert runner.tracked_run
     assert runner.tracked_run.interrupted_at and runner.tracked_run.interruption
@@ -909,11 +901,11 @@ async def test_run_flow_yield_nested(hosted_runtime: RuntimeHandle):
     runner.tracked_run.interruption.complete()
 
     # resume run (after handling Interruption)
-    runner = await hosted_runtime.run(runner.tracked_run)
+    runner = await local_runtime.run(runner.tracked_run)
     assert runner.status == RunStatus.COMPLETED
 
 
-async def test_run_flow_yield_cancelled(hosted_runtime: RuntimeHandle):
+async def test_run_flow_yield_cancelled(local_runtime: RuntimeHandle):
     """Run a Flow with a Yield action, then cancel it."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -922,20 +914,20 @@ async def test_run_flow_yield_cancelled(hosted_runtime: RuntimeHandle):
     Flow.actions.extend(Start, Yield, Complete)
     Start.connect(PipeType.FORWARD, Yield)
     Yield.connect(PipeType.FORWARD, Complete)
-    hosted_runtime.page().blocks.append(Flow)
-    await hosted_runtime.commit()
+    local_runtime.page().blocks.append(Flow)
+    await local_runtime.commit()
 
-    runner = await hosted_runtime.run(Flow)
+    runner = await local_runtime.run(Flow)
     assert runner.status == RunStatus.YIELDED
     assert runner.tracked_run
     assert runner.tracked_run.interruption
     runner.tracked_run.interruption.cancel()
-    runner = await hosted_runtime.run(runner.tracked_run, return_error=True)
+    runner = await local_runtime.run(runner.tracked_run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == RunErrorType.INTERRUPTION_CANCELLED
 
 
-async def test_run_flow_breakpoint(hosted_runtime: RuntimeHandle):
+async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
     """Run a Flow with breakpoints all over. Should yield and resume properly."""
     Flow = Block.new(
         BlockType.FLOW,
@@ -967,8 +959,8 @@ async def test_run_flow_breakpoint(hosted_runtime: RuntimeHandle):
         Complete,
         run_options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_completed()]),
     )
-    hosted_runtime.page().blocks.append(Flow)
-    await hosted_runtime.commit()
+    local_runtime.page().blocks.append(Flow)
+    await local_runtime.commit()
 
     # check that all yield points are hit in order
     run = create_run_from_node(Flow)
@@ -985,14 +977,14 @@ async def test_run_flow_breakpoint(hosted_runtime: RuntimeHandle):
         Complete,
     ):
         # run up to yield
-        runner = await hosted_runtime.run(run)
+        runner = await local_runtime.run(run)
         assert runner.status == RunStatus.YIELDED
         assert runner.interruption and runner.interruption.runnable == yield_point
         assert runner.tracked_run
         run = runner.tracked_run
 
         # run up to yield again (without handling Interruption)
-        runner = await hosted_runtime.run(run)
+        runner = await local_runtime.run(run)
         assert runner.status == RunStatus.YIELDED
         assert runner.interruption and runner.interruption.runnable == yield_point
         assert runner.tracked_run
@@ -1002,11 +994,11 @@ async def test_run_flow_breakpoint(hosted_runtime: RuntimeHandle):
         runner.interruption.complete()
 
     # run up to completion
-    runner = await hosted_runtime.run(run)
+    runner = await local_runtime.run(run)
     assert runner.status == RunStatus.COMPLETED
 
 
-async def test_run_flow_pause_resume(hosted_runtime: RuntimeHandle):
+async def test_run_flow_pause_resume(local_runtime: RuntimeHandle):
     """Run a long async Flow and pause it, then resume it."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -1017,25 +1009,25 @@ async def test_run_flow_pause_resume(hosted_runtime: RuntimeHandle):
     Start.connect(PipeType.FORWARD, Action1)
     Action1.connect(PipeType.FORWARD, Action2)
     Action2.connect(PipeType.FORWARD, Complete)
-    hosted_runtime.page().blocks.append(Flow)
-    await hosted_runtime.commit()
+    local_runtime.page().blocks.append(Flow)
+    await local_runtime.commit()
 
     # run, pause
-    runner = make_runner(hosted_runtime.runtime, Flow, track=True)
+    runner = make_runner(local_runtime.runtime, Flow, track=True)
     assert runner.tracked_run is not None
     asyncio.get_event_loop().call_later(0.1, runner.tracked_run.pause)
     try:
-        _ = await hosted_runtime.runtime.run_runner(runner)
+        _ = await local_runtime.runtime.run_runner(runner)
     except Interrupted:
         assert runner.status == RunStatus.PAUSED
 
     # resume
     runner.tracked_run.resume()
-    _ = await hosted_runtime.runtime.run_runner(runner)
+    _ = await local_runtime.runtime.run_runner(runner)
     assert runner.status == RunStatus.COMPLETED
 
 
-async def test_run_flow_autoclose_interruptions(hosted_runtime: RuntimeHandle):
+async def test_run_flow_autoclose_interruptions(local_runtime: RuntimeHandle):
     """Run and complete a Flow with an Interruption active, it should auto-cancel."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -1046,10 +1038,10 @@ async def test_run_flow_autoclose_interruptions(hosted_runtime: RuntimeHandle):
     Start.connect(PipeType.FORWARD, Yield)
     Start.connect(PipeType.FORWARD, Pass)
     Pass.connect(PipeType.FORWARD, Complete)
-    hosted_runtime.page().blocks.append(Flow)
-    await hosted_runtime.commit()
+    local_runtime.page().blocks.append(Flow)
+    await local_runtime.commit()
 
-    runner = await hosted_runtime.run(Flow)
+    runner = await local_runtime.run(Flow)
     assert runner.status == RunStatus.COMPLETED
     assert runner.tracked_run is not None
 
