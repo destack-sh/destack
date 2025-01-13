@@ -677,9 +677,9 @@ def node_subtype_(
         )
 
         # add subtype key to properties
-        for prop in cls.__properties__.values():
-            if prop.subtype_key is None:
-                prop.subtype_key = f"{subtype.value}.{prop.name}"
+        for prop in cls.__subtype_extra_properties__.values():
+            if prop.subtype_key is None and type(prop.key) is str:
+                prop.subtype_key = f"{subtype.value}.{prop.key}"
 
         return cls
 
@@ -1383,7 +1383,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
             if value is not None and (prop.default is None or value != prop.default):
                 return True
         else:
-            if len(value) > 0:
+            if type(value) is list and len(value) > 0:
                 return True
         return False
 

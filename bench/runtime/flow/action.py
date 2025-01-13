@@ -32,7 +32,6 @@ from bench.language import (
     NodeType,
     ObserveAction,
     PressAction,
-    ProxyReadObject,
     Run,
     RunnableNode,
     RunOptions,
@@ -101,7 +100,7 @@ class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
             run=run,
         )
         assert self.inputs is not None, f"no inputs for {self!r}"
-        self.action_inputs = cast(A, ProxyReadObject(self.inputs, self.node))
+        self.action_inputs = cast(A, self.inputs)
         self.flow = flow
 
     @override
@@ -144,7 +143,7 @@ class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
             )
             return runner
 
-    # nocheckin: generate missing/unset inputs/outputs/Calls (in Flow? or always?)
+    # nocheckin: generate missing/unset inputs/outputs/Calls/ComputedValues[kind=Generate] (in Flow? or always?)
 
 
 #
@@ -206,7 +205,7 @@ class CreateActionRunner(ActionRunnerBase[CreateAction]):
     @override
     async def run(self) -> None:
         node_partial = self.action_inputs.node_partial
-        assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r}"
+        assert isinstance(node_partial, CustomObject), f"bad node_partial: {node_partial!r}"
 
         # create node from partial
         node = make_node_from_partial(node_partial)
@@ -240,7 +239,7 @@ class DuplicateActionRunner(ActionRunnerBase[DuplicateAction]):
         node = self.action_inputs.node
         node_partial = self.action_inputs.node_partial
         assert node is not None, "no node to clone"
-        assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r}"
+        assert isinstance(node_partial, CustomObject), f"bad node_partial: {node_partial!r}"
 
         # clone node with partial override
         cloned_node = node.clone(recursive=not self.action_inputs.is_shallow, detach=True)
@@ -262,7 +261,7 @@ class UpdateActionRunner(ActionRunnerBase[UpdateAction]):
         node = self.action_inputs.node
         assert node is not None, "no node to update"
         node_partial = self.action_inputs.node_partial
-        assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r}"
+        assert isinstance(node_partial, CustomObject), f"bad node_partial: {node_partial!r}"
 
         # update with partial patch
         patch_node_from_partial(node, node_partial)

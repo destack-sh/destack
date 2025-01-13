@@ -10856,9 +10856,13 @@ export enum ActionType {
      */
     DELETE = 63,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_PASTE = 70;
+     * @generated from protobuf enum value: ACTION_TYPE_PASTE = 65;
      */
-    PASTE = 70,
+    PASTE = 65,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_CHANGE = 70;
+     */
+    CHANGE = 70,
     /**
      * @generated from protobuf enum value: ACTION_TYPE_CODE = 100;
      */
@@ -10868,29 +10872,33 @@ export enum ActionType {
      */
     TOOL = 101,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_WAIT = 110;
+     * @generated from protobuf enum value: ACTION_TYPE_SEND = 120;
      */
-    WAIT = 110,
+    SEND = 120,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_YIELD = 111;
+     * @generated from protobuf enum value: ACTION_TYPE_RECEIVE = 121;
      */
-    YIELD = 111,
+    RECEIVE = 121,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_GENERATE = 200;
+     * @generated from protobuf enum value: ACTION_TYPE_WAIT = 122;
      */
-    GENERATE = 200,
+    WAIT = 122,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_TRANSFORM = 201;
+     * @generated from protobuf enum value: ACTION_TYPE_YIELD = 123;
      */
-    TRANSFORM = 201,
+    YIELD = 123,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_ROUTE = 210;
+     * @generated from protobuf enum value: ACTION_TYPE_GENERATE = 500;
      */
-    ROUTE = 210,
+    GENERATE = 500,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_CHANGE = 211;
+     * @generated from protobuf enum value: ACTION_TYPE_TRANSFORM = 501;
      */
-    CHANGE = 211,
+    TRANSFORM = 501,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_ROUTE = 510;
+     */
+    ROUTE = 510,
     /**
      * @generated from protobuf enum value: ACTION_TYPE_OBSERVE = 1000;
      */
@@ -31073,7 +31081,7 @@ export const ToolActionDataInfo: Record<ToolActionProperty, PropertyInfo> = {
 
 }
 export const WaitActionDataInfo: Record<WaitActionProperty, PropertyInfo> = {
-  [WaitActionProperty.delay]: { id: 100, name: 'delay', component: ObjectType.ACTION, componentSubtype: 110, kind: 'primitive', primitiveType: PrimitiveType.DURATION, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [WaitActionProperty.delay]: { id: 100, name: 'delay', component: ObjectType.ACTION, componentSubtype: 122, kind: 'primitive', primitiveType: PrimitiveType.DURATION, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const GenerateActionDataInfo: Record<GenerateActionProperty, PropertyInfo> = {
 
@@ -31085,7 +31093,7 @@ export const RouteActionDataInfo: Record<RouteActionProperty, PropertyInfo> = {
 
 }
 export const ChangeActionDataInfo: Record<ChangeActionProperty, PropertyInfo> = {
-  [ChangeActionProperty.nodesPtr]: { id: 110, name: 'nodes_ptr', component: ObjectType.ACTION, componentSubtype: 211, kind: 'reference', fieldType: FieldType.INPUT, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [ChangeActionProperty.nodesPtr]: { id: 110, name: 'nodes_ptr', component: ObjectType.ACTION, componentSubtype: 70, kind: 'reference', fieldType: FieldType.INPUT, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ObserveActionDataInfo: Record<ObserveActionProperty, PropertyInfo> = {
   [ObserveActionProperty.excludeImage]: { id: 100, name: 'exclude_image', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
@@ -31869,15 +31877,17 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
   [ActionType.DUPLICATE]: { id: 61, name: 'DUPLICATE', text: 'Duplicate some Nodes' },
   [ActionType.UPDATE]: { id: 62, name: 'UPDATE', text: 'Update a Node' },
   [ActionType.DELETE]: { id: 63, name: 'DELETE', text: 'Delete a Node' },
-  [ActionType.PASTE]: { id: 70, name: 'PASTE', text: 'Paste a Node' },
+  [ActionType.PASTE]: { id: 65, name: 'PASTE', text: 'Paste a Node' },
+  [ActionType.CHANGE]: { id: 70, name: 'CHANGE', text: 'Edit relevant Nodes' },
   [ActionType.CODE]: { id: 100, name: 'CODE', text: 'Run arbitrary Python code' },
   [ActionType.TOOL]: { id: 101, name: 'TOOL', text: 'Delegate to another Block' },
-  [ActionType.WAIT]: { id: 110, name: 'WAIT', text: 'Wait for something' },
-  [ActionType.YIELD]: { id: 111, name: 'YIELD', text: 'Defer to the User' },
-  [ActionType.GENERATE]: { id: 200, name: 'GENERATE', text: 'Generate something' },
-  [ActionType.TRANSFORM]: { id: 201, name: 'TRANSFORM', text: 'Transform something' },
-  [ActionType.ROUTE]: { id: 210, name: 'ROUTE', text: 'Route to other Actions' },
-  [ActionType.CHANGE]: { id: 211, name: 'CHANGE', text: 'Edit relevant Nodes' },
+  [ActionType.SEND]: { id: 120, name: 'SEND', text: 'Send a Message' },
+  [ActionType.RECEIVE]: { id: 121, name: 'RECEIVE', text: 'Receive a Message' },
+  [ActionType.WAIT]: { id: 122, name: 'WAIT', text: 'Wait for something' },
+  [ActionType.YIELD]: { id: 123, name: 'YIELD', text: 'Defer to the User' },
+  [ActionType.GENERATE]: { id: 500, name: 'GENERATE', text: 'Generate something' },
+  [ActionType.TRANSFORM]: { id: 501, name: 'TRANSFORM', text: 'Transform something' },
+  [ActionType.ROUTE]: { id: 510, name: 'ROUTE', text: 'Route to other Actions' },
   [ActionType.OBSERVE]: { id: 1000, name: 'OBSERVE', text: 'Look at the application' },
   [ActionType.CLICK]: { id: 1050, name: 'CLICK', text: 'Click an element' },
   [ActionType.PRESS]: { id: 1051, name: 'PRESS', text: 'Press a key' },

@@ -59,7 +59,7 @@ class MessageStatus(IdEnum):
 class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     """
     A Message by a User or program (author = created_by).
-    If the parent is also a Message, then this is part of a thread (which may also be nested).
+    If the parent is also a Message, then this Message is part of a Message thread.
     """
 
     type: MessageType = p_regular(30, require=True, default=MessageType.INTERNAL)

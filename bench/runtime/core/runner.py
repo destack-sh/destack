@@ -497,15 +497,15 @@ def create_run_from_node(
     # variables
     if variables is None:
         variables = {}
-    if run.variable_type is not None:
-        variables = coerce_custom_object_scalar(variables, run.variable_type)
+    if (variable_type := run.variable_type) is not None:
+        variables = coerce_custom_object_scalar(variables, variable_type)
         run.variables = variables
 
     # inputs
     if inputs is None:
         inputs = {}
-    if run.input_type is not None:
-        inputs = coerce_custom_object_scalar(inputs, run.input_type)
+    if (input_type := run.input_type) is not None:
+        inputs = coerce_custom_object_scalar(inputs, input_type)
         run.inputs = inputs
 
     # options
@@ -530,16 +530,14 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
         raise RunImpossibleError(f"no node for {run!r}")
 
     # variables
-    if run.variables is None and run.variable_type is not None:
-        variables = CustomObject.new(
-            {}, typ=run.variable_type, supergraph=runtime.session._supergraph
-        )
+    if run.variables is None and (variable_type := run.variable_type) is not None:
+        variables = CustomObject.new({}, typ=variable_type, supergraph=runtime.session._supergraph)
     else:
         variables = run.variables
 
     # inputs
-    if run.inputs is None and run.input_type is not None:
-        inputs = CustomObject.new({}, typ=run.input_type, supergraph=runtime.session._supergraph)
+    if run.inputs is None and (input_type := run.input_type) is not None:
+        inputs = CustomObject.new({}, typ=input_type, supergraph=runtime.session._supergraph)
     else:
         inputs = run.inputs
 

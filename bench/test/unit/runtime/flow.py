@@ -26,44 +26,44 @@ from bench.runtime import Interrupted, create_run_from_node, make_runner
 from bench.test.unit.conftest import RuntimeHandle
 
 
-async def test_run_flow_action_directly(local_runtime: RuntimeHandle):
+async def test_run_flow_action_directly(hosted_runtime: RuntimeHandle):
     """Run a Action directly."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
     Code = Action.new(ActionType.CODE, "Code", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Code, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    _ = await local_runtime.run(Start)
-    _ = await local_runtime.run(Code)
-    _ = await local_runtime.run(Complete)
+    _ = await hosted_runtime.run(Start)
+    _ = await hosted_runtime.run(Code)
+    _ = await hosted_runtime.run(Complete)
 
 
-async def test_run_flow_pipe_directly(local_runtime: RuntimeHandle):
+async def test_run_flow_pipe_directly(hosted_runtime: RuntimeHandle):
     """Run a Pipe directly."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
     Pipe = Start.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
+    hosted_runtime.page().blocks.append(Flow1)
 
-    _ = await local_runtime.run(Pipe)
+    _ = await hosted_runtime.run(Pipe)
 
 
-async def test_run_flow_empty(local_runtime: RuntimeHandle):
+async def test_run_flow_empty(hosted_runtime: RuntimeHandle):
     """Empty Code without any fields should fail."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1)
+    runner = await hosted_runtime.run(Flow1)
     assert runner.tracked_run and not runner.tracked_run.runs  # no nested runs
 
 
-async def test_run_flow_spurious(local_runtime: RuntimeHandle):
+async def test_run_flow_spurious(hosted_runtime: RuntimeHandle):
     """Flow with Actions that go nowhere."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Flow1.actions.append(Action.new(ActionType.START, "Start"))
@@ -71,28 +71,28 @@ async def test_run_flow_spurious(local_runtime: RuntimeHandle):
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
     # don't actually connect the actions
     Flow1.actions.extend(Start, Complete, Code1)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1)
+    runner = await hosted_runtime.run(Flow1)
     assert runner.tracked_run and len(runner.tracked_run.runs) == 1  # just Start
 
 
-async def test_run_flow_trivial(local_runtime: RuntimeHandle):
+async def test_run_flow_trivial(hosted_runtime: RuntimeHandle):
     """Trivial flow with Start->Complete, no value."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
     Start.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1)
+    runner = await hosted_runtime.run(Flow1)
     assert runner.tracked_run and len(runner.tracked_run.runs) == 3
 
 
-async def test_run_flow_with_default_values(local_runtime: RuntimeHandle):
+async def test_run_flow_with_default_values(hosted_runtime: RuntimeHandle):
     """Run a Flow with default values in Complete action."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -109,14 +109,14 @@ async def test_run_flow_with_default_values(local_runtime: RuntimeHandle):
     )
     Flow1.actions.extend(Start, Complete)
     Start.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1)
+    runner = await hosted_runtime.run(Flow1)
     assert runner.tracked_run and len(runner.tracked_run.runs) == 3
 
 
-async def test_run_flow_code(local_runtime: RuntimeHandle):
+async def test_run_flow_code(hosted_runtime: RuntimeHandle):
     """Run a code action with values."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -148,15 +148,15 @@ async def test_run_flow_code(local_runtime: RuntimeHandle):
     Flow1.actions.extend(Start, Code1, Complete)
     Start.connect(PipeType.FORWARD, Code1)
     Code1.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1, inputs={"Input1": 2})
+    runner = await hosted_runtime.run(Flow1, inputs={"Input1": 2})
     assert runner.tracked_run and len(runner.tracked_run.runs) == 5
     assert runner.outputs and runner.outputs.Output1 == 4
 
 
-async def test_run_flow_computed_value_chain(local_runtime: RuntimeHandle):
+async def test_run_flow_computed_value_chain(hosted_runtime: RuntimeHandle):
     """Run a Flow with Actions chaining computed inputs."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -217,15 +217,15 @@ async def test_run_flow_computed_value_chain(local_runtime: RuntimeHandle):
     )
     Flow1.actions.append(Complete)
     prev.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1, variables={"BoolIn": True}, inputs={"IntIn": 0})
+    runner = await hosted_runtime.run(Flow1, variables={"BoolIn": True}, inputs={"IntIn": 0})
     assert runner.outputs and runner.outputs.BoolOut is False
     assert runner.outputs and runner.outputs.IntOut == 4
 
 
-async def test_run_flow_invalid_computed_source(local_runtime: RuntimeHandle):
+async def test_run_flow_invalid_computed_source(hosted_runtime: RuntimeHandle):
     """Run a Flow with invalid computed values (invalid source). Should fail."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -241,15 +241,15 @@ async def test_run_flow_invalid_computed_source(local_runtime: RuntimeHandle):
         # missing PathElement.run_() for source, and Block has no inputs
         source=(Flow1, Run.get_property("inputs"), Flow1.fields.Input),
     )
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1, return_error=True)
+    runner = await hosted_runtime.run(Flow1, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == RunErrorType.INVALID_COMPUTED
 
 
-async def test_run_flow_invalid_computed_target(local_runtime: RuntimeHandle):
+async def test_run_flow_invalid_computed_target(hosted_runtime: RuntimeHandle):
     """Run a Flow with an invalid computed value (invalid target). Should pass (?)."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -265,18 +265,18 @@ async def test_run_flow_invalid_computed_target(local_runtime: RuntimeHandle):
         target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output),
         source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input),
     )
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
     # delete output Field
     Flow1.fields.Output.delete()
-    await local_runtime.commit()
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1, inputs={"Input": 1})
+    runner = await hosted_runtime.run(Flow1, inputs={"Input": 1})
     assert runner.status == RunStatus.COMPLETED
 
 
-async def test_run_flow_code_dynamic(local_runtime: RuntimeHandle):
+async def test_run_flow_code_dynamic(hosted_runtime: RuntimeHandle):
     """Run a Code action with Action.code set dynamically in a Variable."""
     Flow1 = Block.new(
         BlockType.FLOW, "Flow1", fields=(Field.variable("Code", Code), Field.output("Output", int))
@@ -302,15 +302,15 @@ async def test_run_flow_code_dynamic(local_runtime: RuntimeHandle):
     )
     Flow1.actions.append(Complete)
     Code1.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
     # override the code to return 2
-    runner = await local_runtime.run(Flow1, variables={"Code": code("return {'Output': 2}")})
+    runner = await hosted_runtime.run(Flow1, variables={"Code": code("return {'Output': 2}")})
     assert runner.outputs and runner.outputs.Output == 2
 
 
-async def test_run_flow_create_in_test_mode(local_runtime: RuntimeHandle):
+async def test_run_flow_create_in_test_mode(hosted_runtime: RuntimeHandle):
     """Flow with Start->Complete in test mode, creating a simple Node. Should be in same node."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -336,17 +336,17 @@ return {'Block': block}
     Flow1.actions.extend(Start, Create, Complete)
     Start.connect(PipeType.FORWARD, Create)
     Create.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1, mode=NodeMode.TEST)
+    runner = await hosted_runtime.run(Flow1, mode=NodeMode.TEST)
     assert runner.tracked_run and len(runner.tracked_run.runs) == 5
     assert all(r.mode == NodeMode.TEST for r in runner.tracked_run.runs)
     assert runner.outputs and isinstance(runner.outputs.Block, Block)
     assert runner.outputs.Block.mode == NodeMode.TEST
 
 
-async def test_run_flow_computed_run_options(local_runtime: RuntimeHandle):
+async def test_run_flow_computed_run_options(hosted_runtime: RuntimeHandle):
     """Run a Flow with computed run options."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1", fields=(Field.variable("Attempts", int),))
     Start = Action.new(ActionType.START, "Start")
@@ -364,8 +364,8 @@ else:
     Flow1.actions.extend(Start, Code1, Complete)
     Start.connect(PipeType.FORWARD, Code1)
     Code1.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
     Code1.set_computed(
         target=(
@@ -375,13 +375,13 @@ else:
         ),
         source=(Flow1, PathElement.run_(), Run.get_property("variables"), Flow1.fields.Attempts),
     )
-    await local_runtime.commit()
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1, variables={"Attempts": 6})
+    runner = await hosted_runtime.run(Flow1, variables={"Attempts": 6})
     assert runner.status == RunStatus.COMPLETED
 
 
-async def test_run_flow_pipe_from_nowhere(local_runtime: RuntimeHandle):
+async def test_run_flow_pipe_from_nowhere(hosted_runtime: RuntimeHandle):
     """Run a flow with a pipe from nowhere. Should not be run and just be ignored."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -390,14 +390,14 @@ async def test_run_flow_pipe_from_nowhere(local_runtime: RuntimeHandle):
     Nowhere = Action.new(ActionType.START, "Nowhere")  # not added to flow/graph
     Nowhere.connect(PipeType.FORWARD, Complete, parent=Flow1)
     Start.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1)
+    runner = await hosted_runtime.run(Flow1)
     assert runner.tracked_run and len(runner.tracked_run.runs) == 3
 
 
-async def test_run_flow_pipe_to_nowhere(local_runtime: RuntimeHandle):
+async def test_run_flow_pipe_to_nowhere(hosted_runtime: RuntimeHandle):
     """Run a flow with a pipe to nowhere. Should not be run and just be ignored."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -406,14 +406,14 @@ async def test_run_flow_pipe_to_nowhere(local_runtime: RuntimeHandle):
     Flow1.actions.extend(Start, Complete)
     Start.connect(PipeType.FORWARD, Nowhere, parent=Flow1)
     Start.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1)
+    runner = await hosted_runtime.run(Flow1)
     assert runner.tracked_run and len(runner.tracked_run.runs) == 5
 
 
-async def test_run_flow_force_invalid_output(local_runtime: RuntimeHandle):
+async def test_run_flow_force_invalid_output(hosted_runtime: RuntimeHandle):
     """Complete the flow with invalid output (should fail)."""
     Flow1 = Block.new(
         BlockType.FLOW, "Flow1", fields=(Field.output("Output1", str, is_required=True),)
@@ -422,15 +422,15 @@ async def test_run_flow_force_invalid_output(local_runtime: RuntimeHandle):
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
     Start.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1, return_error=True)
+    runner = await hosted_runtime.run(Flow1, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
 
 
-async def test_run_flow_force_invalid_input(local_runtime: RuntimeHandle):
+async def test_run_flow_force_invalid_input(hosted_runtime: RuntimeHandle):
     """Run a action with a trigger port that forces a Run of a Action with invalid inputs (should fail)."""
     Flow1 = Block.new(
         BlockType.FLOW, "Flow1", fields=(Field.output("Output1", str, is_required=True),)
@@ -446,30 +446,30 @@ async def test_run_flow_force_invalid_input(local_runtime: RuntimeHandle):
     Flow1.actions.extend(Start, Code1, Complete)
     Start.connect(PipeType.FORWARD, Code1)
     Code1.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1, return_error=True)
+    runner = await hosted_runtime.run(Flow1, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
 
 
-async def test_run_flow_error(local_runtime: RuntimeHandle):
+async def test_run_flow_error(hosted_runtime: RuntimeHandle):
     """Run a code Action that raises an error. Flow should abort and fail."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("raise ValueError"))
     Flow1.actions.extend(Start, Code1)
     Start.connect(PipeType.FORWARD, Code1)
-    local_runtime.page().blocks.extend(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.extend(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1, return_error=True)
+    runner = await hosted_runtime.run(Flow1, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.tracked_run and len(runner.tracked_run.runs) == 3
 
 
-async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle):
+async def test_run_flow_error_with_error_suppressed(hosted_runtime: RuntimeHandle):
     """Run a code action with an error with failure suppressed. Flow should complete."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -483,15 +483,15 @@ async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle
     Flow1.actions.extend(Start, Code1, Complete)
     Start.connect(PipeType.FORWARD, Code1)
     Code1.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.extend(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.extend(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1)
+    runner = await hosted_runtime.run(Flow1)
     assert runner.status == RunStatus.COMPLETED
     assert runner.tracked_run and len(runner.tracked_run.runs) == 3
 
 
-async def test_run_flow_fail_action(local_runtime: RuntimeHandle):
+async def test_run_flow_fail_action(hosted_runtime: RuntimeHandle):
     """Run a Flow with a Fail action."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -500,18 +500,18 @@ async def test_run_flow_fail_action(local_runtime: RuntimeHandle):
     )
     Flow1.actions.extend(Start, Fail)
     Start.connect(PipeType.FORWARD, Fail)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
     # flow
-    runner = await local_runtime.run(Flow1, return_error=True)
+    runner = await hosted_runtime.run(Flow1, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error
     assert runner.error.title == "Fail title"
     assert runner.error.text == Text.plain("Fail text")
 
     # run directly with custom inputs
-    runner = await local_runtime.run(
+    runner = await hosted_runtime.run(
         Fail,
         inputs={"error_title": "Custom title", "error_text": Text.plain("Custom text")},
         return_error=True,
@@ -548,6 +548,69 @@ async def test_run_flow_create_action(hosted_runtime: RuntimeHandle):
     assert runner.status == RunStatus.COMPLETED
     record = await Database1.records.get(Rating=3)
     assert record is not None
+
+
+async def test_run_flow_create_action_dynamic(hosted_runtime: RuntimeHandle):
+    """Run a CreateAction with a dynamic node_partial."""
+    Database1 = Block.new(
+        BlockType.DATABASE,
+        "Database1",
+        fields=(
+            Field.member("Name", str),
+            Field.member("Rating", int),
+        ),
+    )
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Start = Action.new(ActionType.START, "Start")
+    Create = Action.new(
+        ActionType.CREATE, "Create", node_partial=Record.partial(block=Database1, Rating=1)
+    )
+    Create.set_computed(
+        target=(
+            PathElement.run_(),
+            Run.get_property("inputs"),
+            Create.get_property("node_partial"),
+            Record.get_property("name"),
+        ),
+        source=(
+            Flow1,
+            PathElement.run_(),
+            Run.get_property("inputs"),
+            Database1.fields.Name,
+        ),
+    )
+    Create.set_computed(
+        target=(
+            PathElement.run_(),
+            Run.get_property("inputs"),
+            Create.get_property("node_partial"),
+            Database1.fields.Rating,
+        ),
+        source=(
+            Flow1,
+            PathElement.run_(),
+            Run.get_property("inputs"),
+            Database1.fields.Rating,
+        ),
+    )
+    Flow1.actions.extend(Start, Create)
+    Start.connect(PipeType.FORWARD, Create)
+    hosted_runtime.page().blocks.extend(Database1, Flow1)
+    await hosted_runtime.commit()
+
+    # run from flow (with partial override)
+    runner = await hosted_runtime.run(Flow1, inputs={"Name": "My custom Record"})
+    assert runner.status == RunStatus.COMPLETED
+    record = await Database1.records.get(Rating=1)
+    assert record is not None
+    assert record.name == "My custom Record"
+
+    # run from flow (with full override)
+    runner = await hosted_runtime.run(Flow1, inputs={"Name": "My other Record", "Rating": 2})
+    assert runner.status == RunStatus.COMPLETED
+    record = await Database1.records.get(Rating=2)
+    assert record is not None
+    assert record.name == "My other Record"
 
 
 async def test_run_flow_clone_action(hosted_runtime: RuntimeHandle):
@@ -606,7 +669,7 @@ async def test_run_flow_delete_action(hosted_runtime: RuntimeHandle):
     assert await Database1.records.search() == []
 
 
-async def test_run_flow_race(local_runtime: RuntimeHandle):
+async def test_run_flow_race(hosted_runtime: RuntimeHandle):
     """Run multiple actions in parallel, losers should be aborted on completion of winner."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -621,17 +684,17 @@ async def test_run_flow_race(local_runtime: RuntimeHandle):
     Race1.connect(PipeType.FORWARD, Complete)
     Race2.connect(PipeType.FORWARD, Complete)
     Race3.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1)
+    runner = await hosted_runtime.run(Flow1)
     assert runner.tracked_run
     aborted_runs = [r for r in runner.tracked_run.runs if r.status == RunStatus.ABORTED]
     assert len(aborted_runs) == 2  # the two losers should be aborted
     assert len(runner.tracked_run.runs) == 9  # all actions & pipes should run exactly once
 
 
-async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
+async def test_run_flow_infinite_loop(hosted_runtime: RuntimeHandle):
     """Runs an infinite loop that's not infinite because it also completes immediately."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -641,14 +704,14 @@ async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
     Start.connect(PipeType.FORWARD, Loop)
     Loop.connect(PipeType.FORWARD, Loop)  # infinite!
     Loop.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1)
+    runner = await hosted_runtime.run(Flow1)
     assert runner.tracked_run and len(runner.tracked_run.runs) <= 10  # should complete quickly
 
 
-async def test_run_flow_calls_none(local_runtime: RuntimeHandle):
+async def test_run_flow_calls_none(hosted_runtime: RuntimeHandle):
     """Runs a Flow with no calls selected."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -661,15 +724,15 @@ async def test_run_flow_calls_none(local_runtime: RuntimeHandle):
     Route.connect(PipeType.SELECT, Complete)
     Route.connect(PipeType.SELECT, Code2)
     Route.connect(PipeType.SELECT, Code3)
-    await local_runtime.commit()
+    await hosted_runtime.commit()
 
     Route.code = code("pass")
-    runner = await local_runtime.run(Flow)
+    runner = await hosted_runtime.run(Flow)
     assert runner.tracked_run
     assert not runner.tracked_run.has(Code2, Code3, Complete)
 
 
-async def test_run_flow_calls_forward(local_runtime: RuntimeHandle):
+async def test_run_flow_calls_forward(hosted_runtime: RuntimeHandle):
     """Runs a Flow with forward calls selected."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -684,7 +747,7 @@ async def test_run_flow_calls_forward(local_runtime: RuntimeHandle):
     Route.connect(PipeType.SELECT, Code2)
     Route.connect(PipeType.SELECT, Code3)
     Route.connect(PipeType.SELECT, Code4)
-    await local_runtime.commit()
+    await hosted_runtime.commit()
 
     # Route: Code2 + Code3
     Route.code = code("""\
@@ -692,7 +755,7 @@ return {
     'calls': [call(Code2), call(Code3)],
 }
 """)
-    runner = await local_runtime.run(Flow)
+    runner = await hosted_runtime.run(Flow)
     assert runner.tracked_run
     assert runner.tracked_run.has(Code2, Code3)
     assert not runner.tracked_run.has(Complete, Code4)
@@ -703,7 +766,7 @@ return {
     'calls': [call(Code4)],
 }
 """)
-    runner = await local_runtime.run(Flow)
+    runner = await hosted_runtime.run(Flow)
     assert runner.tracked_run
     assert runner.tracked_run.has(Code4)
     assert not runner.tracked_run.has(Complete, Code2, Code3)
@@ -714,13 +777,13 @@ return {
     'calls': [call(Complete), call(Code2)],
 }
 """)
-    runner = await local_runtime.run(Flow)
+    runner = await hosted_runtime.run(Flow)
     assert runner.tracked_run
     assert runner.tracked_run.has(Complete, Code2)
     assert not runner.tracked_run.has(Code3, Code4)
 
 
-async def test_run_flow_calls_back(local_runtime: RuntimeHandle):
+async def test_run_flow_calls_back(hosted_runtime: RuntimeHandle):
     """Runs a Flow with a selective call that goes back."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -730,7 +793,7 @@ async def test_run_flow_calls_back(local_runtime: RuntimeHandle):
     Flow.actions.extend(Start, Route, Code5, Complete)
     Start.connect(PipeType.FORWARD, Route)
     Route.connect(PipeType.SELECT_AND_BACK, Code5)
-    await local_runtime.commit()
+    await hosted_runtime.commit()
 
     Route.code = code("""\
 if not runtime.get_latest_run(Code5):  # avoid infinite loops
@@ -738,13 +801,13 @@ if not runtime.get_latest_run(Code5):  # avoid infinite loops
         'calls': [call(Code5)],
     }
 """)
-    runner = await local_runtime.run(Flow)
+    runner = await hosted_runtime.run(Flow)
     assert runner.tracked_run
     assert runner.tracked_run.has(Code5)
     assert not runner.tracked_run.has(Complete)
 
 
-async def test_run_flow_abort(local_runtime: RuntimeHandle):
+async def test_run_flow_abort(hosted_runtime: RuntimeHandle):
     """Run a long async flow script and abort it. All pending actions should be aborted."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -753,14 +816,14 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     Flow.actions.extend(Start, Code1, Complete)
     Start.connect(PipeType.FORWARD, Code1)
     Code1.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow)
+    await hosted_runtime.commit()
 
     run = create_run_from_node(Flow)
-    run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
+    run_task = asyncio.create_task(hosted_runtime.run(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)
-    local_runtime.runtime.stop(run)
+    hosted_runtime.runtime.stop(run)
     runner = await run_task
     # flow should be aborted
     assert runner.status == RunStatus.ABORTED
@@ -943,7 +1006,7 @@ async def test_run_flow_breakpoint(hosted_runtime: RuntimeHandle):
     assert runner.status == RunStatus.COMPLETED
 
 
-async def test_run_flow_pause_resume(local_runtime: RuntimeHandle):
+async def test_run_flow_pause_resume(hosted_runtime: RuntimeHandle):
     """Run a long async Flow and pause it, then resume it."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -954,25 +1017,25 @@ async def test_run_flow_pause_resume(local_runtime: RuntimeHandle):
     Start.connect(PipeType.FORWARD, Action1)
     Action1.connect(PipeType.FORWARD, Action2)
     Action2.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow)
+    await hosted_runtime.commit()
 
     # run, pause
-    runner = make_runner(local_runtime.runtime, Flow, track=True)
+    runner = make_runner(hosted_runtime.runtime, Flow, track=True)
     assert runner.tracked_run is not None
     asyncio.get_event_loop().call_later(0.1, runner.tracked_run.pause)
     try:
-        _ = await local_runtime.runtime.run_runner(runner)
+        _ = await hosted_runtime.runtime.run_runner(runner)
     except Interrupted:
         assert runner.status == RunStatus.PAUSED
 
     # resume
     runner.tracked_run.resume()
-    _ = await local_runtime.runtime.run_runner(runner)
+    _ = await hosted_runtime.runtime.run_runner(runner)
     assert runner.status == RunStatus.COMPLETED
 
 
-async def test_run_flow_autoclose_interruptions(local_runtime: RuntimeHandle):
+async def test_run_flow_autoclose_interruptions(hosted_runtime: RuntimeHandle):
     """Run and complete a Flow with an Interruption active, it should auto-cancel."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -983,10 +1046,10 @@ async def test_run_flow_autoclose_interruptions(local_runtime: RuntimeHandle):
     Start.connect(PipeType.FORWARD, Yield)
     Start.connect(PipeType.FORWARD, Pass)
     Pass.connect(PipeType.FORWARD, Complete)
-    local_runtime.page().blocks.append(Flow)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow)
+    runner = await hosted_runtime.run(Flow)
     assert runner.status == RunStatus.COMPLETED
     assert runner.tracked_run is not None
 

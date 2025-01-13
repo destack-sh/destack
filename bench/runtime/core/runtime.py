@@ -204,9 +204,8 @@ class Runtime:
             return False
 
         # coerce & set value
-        assert (
-            target_key.type == PathElementType.ATTRIBUTE
-        ), f"bad target {target_key!r} in {computed_value!r}"
+        if target_key.type != PathElementType.ATTRIBUTE:
+            raise InvalidComputedError(computed_value=computed_value)
         if isinstance(node := target_key.node, Field):
             assert isinstance(
                 target_obj, CustomObject
@@ -220,7 +219,7 @@ class Runtime:
             mapped_value = coerce_value(source_value, prop.type_info)
             target_obj._do_set(prop.name, mapped_value)
         else:
-            raise RuntimeError(f"bad target {target_obj!r} in {computed_value!r}")
+            raise InvalidComputedError(computed_value=computed_value)
         logger.trace(
             "runtime.apply_computed_value",
             computed_value=computed_value,
@@ -458,11 +457,13 @@ class Runtime:
 
         # compute variables/inputs/options from context (on initial attempt)
         if runner.status < RunStatus.RUNNING:
-            # set default variables/inputs from node
+            # init variables/inputs from node
             if isinstance(runner.node, Action):
                 if runner.variables is not None and runner.node.variables_packed is not None:
                     runner.variables.set_default(runner.node.variables, _skip_validate=True)
-                if runner.inputs is not None and runner.node.inputs_packed is not None:
+                assert runner.inputs is not None, f"missing inputs in {runner!r}"
+                runner.inputs.set_default(runner.node, _skip_validate=True)
+                if runner.node.inputs_packed is not None:
                     runner.inputs.set_default(runner.node.inputs, _skip_validate=True)
             # apply computed values
             if runner.tracked_run is not None:  # (only in tracked runs)
@@ -694,7 +695,6 @@ class Runtime:
                     run._do_set("terminated_at", self.oracle.utc(), validate=False)
                     run._do_set("terminated_epoch", self.session.epoch, validate=False)
                     run._do_set("duration", run.terminated_at - run.started_at)  # type: ignore
-
                 # close any remaining (directly) contained open Interruptions
                 self.close(run)
 
