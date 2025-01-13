@@ -2626,11 +2626,19 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
         NODE_COMPUTED_VALUES_ID, require=False, array=True, struct=StructType.COMPUTED_VALUE
     )
 
-    def set_computed(self, target: "PathIn", source: "ComputedSourceIn"):
+    def set_computed(
+        self,
+        target: "PathIn",
+        source: "ComputedSourceIn",
+        is_active: bool = True,
+        is_required: bool = False,
+    ):
         """Sets and overrides the computed value for the target path."""
         from .expression import ComputedValue
 
-        computed_value = ComputedValue.new(target=target, source=source)
+        computed_value = ComputedValue.new(
+            target=target, source=source, is_active=is_active, is_required=is_required
+        )
         self.computed_values = [
             *(cv for cv in self.computed_values if cv.target_path != target),
             computed_value,

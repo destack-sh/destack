@@ -104,12 +104,12 @@ def test_partial_node_message(session: Session, package: Package) -> None:
 
     # set/get values on value and properties
     obj.Field1 = 42
-    obj.type = MessageType.INTERNAL
+    obj.type = MessageType.LOCAL
     obj.title = "My New Message"
     obj.block = message_type
     obj.Field4 = datetime(2024, 1, 1, tzinfo=pytz.utc)
     assert obj.Field1 == 42
-    assert obj.type == MessageType.INTERNAL
+    assert obj.type == MessageType.LOCAL
     assert obj.block == message_type
     assert obj.title == "My New Message"
     assert obj.Field4 == datetime(2024, 1, 1, tzinfo=pytz.utc)
@@ -122,11 +122,25 @@ def test_partial_node_message(session: Session, package: Package) -> None:
     # turn into full node
     full_obj = Message.from_partial(obj)
     assert full_obj.id is not None
-    assert full_obj.type == MessageType.INTERNAL
+    assert full_obj.type == MessageType.LOCAL
     assert full_obj.title == "My New Message"
     assert full_obj.value
     assert full_obj.value.Field1 == 42
     assert full_obj.value.Field4 == datetime(2024, 1, 1, tzinfo=pytz.utc)
+
+
+def test_partial_node_message_extraneous_property(session: Session, package: Package) -> None:
+    """Create, update, pack/unpack a partial Message node with extraneous kwargs (should error)."""
+    message_type = Block.new(
+        BlockType.MESSAGE,
+        "MyMessage",
+        fields=(Field.member("Field1", int),),
+    )
+    _ = Message.partial(type=MessageType.LOCAL, block=message_type, Field1=42)
+    with pytest.raises(ValueError):
+        _ = Message.partial(
+            type=MessageType.LOCAL, block=message_type, Field1=42, my_extraneous_something="value"
+        )
 
 
 def test_partial_node_action(session: Session, package: Package) -> None:

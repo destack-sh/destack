@@ -656,6 +656,10 @@ export interface ComputedValueData {
      * @generated from protobuf field: bool is_active = 60;
      */
     isActive: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_required = 61;
+     */
+    isRequired?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.ObjectMappingData
@@ -4634,6 +4638,10 @@ export interface CreateActionData {
      * @generated from protobuf field: optional google.protobuf.Value node_partial_packed = 100;
      */
     nodePartialPacked?: JsonValue;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 200;
+     */
+    nodePtr?: NodeReferenceData;
 }
 /**
  * A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -4763,11 +4771,11 @@ export interface ObserveActionData {
      */
     excludeImage?: boolean;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData screenshot_ptr = 150;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData screenshot_ptr = 200;
      */
     screenshotPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.DomNodeData dom = 151;
+     * @generated from protobuf field: optional symbolx.bench.DomNodeData dom = 201;
      */
     dom?: DomNodeData;
 }
@@ -12052,9 +12060,9 @@ export enum MessageType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_INTERNAL = 1;
+     * @generated from protobuf enum value: MESSAGE_TYPE_LOCAL = 1;
      */
-    INTERNAL = 1,
+    LOCAL = 1,
     /**
      * @generated from protobuf enum value: MESSAGE_TYPE_FEDERATED = 2;
      */
@@ -13955,7 +13963,8 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
             { no: 51, name: "source_path", kind: "message", T: () => PathData },
             { no: 52, name: "source_expression", kind: "message", T: () => ExpressionData },
             { no: 53, name: "source_code", kind: "message", T: () => CodeData },
-            { no: 60, name: "is_active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 60, name: "is_active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_required", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ComputedValueData>): ComputedValueData {
@@ -13996,6 +14005,9 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
                 case /* bool is_active */ 60:
                     message.isActive = reader.bool();
                     break;
+                case /* optional bool is_required */ 61:
+                    message.isRequired = reader.bool();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -14032,6 +14044,9 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
         /* bool is_active = 60; */
         if (message.isActive !== false)
             writer.tag(60, WireType.Varint).bool(message.isActive);
+        /* optional bool is_required = 61; */
+        if (message.isRequired !== undefined)
+            writer.tag(61, WireType.Varint).bool(message.isRequired);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23431,7 +23446,8 @@ export const SearchActionData = new SearchActionData$Type();
 class CreateActionData$Type extends MessageType$<CreateActionData> {
     constructor() {
         super("symbolx.bench.CreateActionData", [
-            { no: 100, name: "node_partial_packed", kind: "message", T: () => Value }
+            { no: 100, name: "node_partial_packed", kind: "message", T: () => Value },
+            { no: 200, name: "node_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<CreateActionData>): CreateActionData {
@@ -23448,6 +23464,9 @@ class CreateActionData$Type extends MessageType$<CreateActionData> {
                 case /* optional google.protobuf.Value node_partial_packed */ 100:
                     message.nodePartialPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 200:
+                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -23463,6 +23482,9 @@ class CreateActionData$Type extends MessageType$<CreateActionData> {
         /* optional google.protobuf.Value node_partial_packed = 100; */
         if (message.nodePartialPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.nodePartialPacked), writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 200; */
+        if (message.nodePtr)
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23908,8 +23930,8 @@ class ObserveActionData$Type extends MessageType$<ObserveActionData> {
     constructor() {
         super("symbolx.bench.ObserveActionData", [
             { no: 100, name: "exclude_image", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 150, name: "screenshot_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 151, name: "dom", kind: "message", T: () => DomNodeData }
+            { no: 200, name: "screenshot_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 201, name: "dom", kind: "message", T: () => DomNodeData }
         ]);
     }
     create(value?: PartialMessage<ObserveActionData>): ObserveActionData {
@@ -23926,10 +23948,10 @@ class ObserveActionData$Type extends MessageType$<ObserveActionData> {
                 case /* optional bool exclude_image */ 100:
                     message.excludeImage = reader.bool();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData screenshot_ptr */ 150:
+                case /* optional symbolx.bench.NodeReferenceData screenshot_ptr */ 200:
                     message.screenshotPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.screenshotPtr);
                     break;
-                case /* optional symbolx.bench.DomNodeData dom */ 151:
+                case /* optional symbolx.bench.DomNodeData dom */ 201:
                     message.dom = DomNodeData.internalBinaryRead(reader, reader.uint32(), options, message.dom);
                     break;
                 default:
@@ -23947,12 +23969,12 @@ class ObserveActionData$Type extends MessageType$<ObserveActionData> {
         /* optional bool exclude_image = 100; */
         if (message.excludeImage !== undefined)
             writer.tag(100, WireType.Varint).bool(message.excludeImage);
-        /* optional symbolx.bench.NodeReferenceData screenshot_ptr = 150; */
+        /* optional symbolx.bench.NodeReferenceData screenshot_ptr = 200; */
         if (message.screenshotPtr)
-            NodeReferenceData.internalBinaryWrite(message.screenshotPtr, writer.tag(150, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.DomNodeData dom = 151; */
+            NodeReferenceData.internalBinaryWrite(message.screenshotPtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.DomNodeData dom = 201; */
         if (message.dom)
-            DomNodeData.internalBinaryWrite(message.dom, writer.tag(151, WireType.LengthDelimited).fork(), options).join();
+            DomNodeData.internalBinaryWrite(message.dom, writer.tag(201, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29089,6 +29111,7 @@ export enum SearchActionProperty {
 
 export enum CreateActionProperty {
   nodePartialPacked = 100,
+  nodePtr = 200,
 }
 
 export enum DuplicateActionProperty {
@@ -29141,8 +29164,8 @@ export enum ChangeActionProperty {
 
 export enum ObserveActionProperty {
   excludeImage = 100,
-  screenshotPtr = 150,
-  dom = 151,
+  screenshotPtr = 200,
+  dom = 201,
 }
 
 export enum ClickActionProperty {
@@ -29563,6 +29586,7 @@ export enum ComputedValueProperty {
   sourceExpression = 52,
   sourceCode = 53,
   isActive = 60,
+  isRequired = 61,
 }
 
 export enum ObjectMappingProperty {
@@ -30308,8 +30332,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.12.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.12.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.13.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.13.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30342,8 +30366,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.12.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.12.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.13.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.13.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31057,6 +31081,7 @@ export const SearchActionDataInfo: Record<SearchActionProperty, PropertyInfo> = 
 }
 export const CreateActionDataInfo: Record<CreateActionProperty, PropertyInfo> = {
   [CreateActionProperty.nodePartialPacked]: { id: 100, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 60, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
+  [CreateActionProperty.nodePtr]: { id: 200, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 60, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
 export const DuplicateActionDataInfo: Record<DuplicateActionProperty, PropertyInfo> = {
   [DuplicateActionProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 61, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
@@ -31097,8 +31122,8 @@ export const ChangeActionDataInfo: Record<ChangeActionProperty, PropertyInfo> = 
 }
 export const ObserveActionDataInfo: Record<ObserveActionProperty, PropertyInfo> = {
   [ObserveActionProperty.excludeImage]: { id: 100, name: 'exclude_image', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [ObserveActionProperty.screenshotPtr]: { id: 150, name: 'screenshot_ptr', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
-  [ObserveActionProperty.dom]: { id: 151, name: 'dom', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DOM_NODE },
+  [ObserveActionProperty.screenshotPtr]: { id: 200, name: 'screenshot_ptr', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
+  [ObserveActionProperty.dom]: { id: 201, name: 'dom', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DOM_NODE },
 }
 export const ClickActionDataInfo: Record<ClickActionProperty, PropertyInfo> = {
   [ClickActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
@@ -31473,6 +31498,7 @@ export const ComputedValueDataInfo: Record<ComputedValueProperty, PropertyInfo> 
   [ComputedValueProperty.sourceExpression]: { id: 52, name: 'source_expression', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [ComputedValueProperty.sourceCode]: { id: 53, name: 'source_code', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ComputedValueProperty.isActive]: { id: 60, name: 'is_active', component: ObjectType.COMPUTED_VALUE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputedValueProperty.isRequired]: { id: 61, name: 'is_required', component: ObjectType.COMPUTED_VALUE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
 }
 export const ObjectMappingDataInfo: Record<ObjectMappingProperty, PropertyInfo> = {
   [ObjectMappingProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.OBJECT_MAPPING, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

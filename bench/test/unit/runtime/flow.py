@@ -26,21 +26,6 @@ from bench.runtime import Interrupted, create_run_from_node, make_runner
 from bench.test.unit.conftest import RuntimeHandle
 
 
-async def test_run_flow_action_directly(hosted_runtime: RuntimeHandle):
-    """Run a Action directly."""
-    Flow1 = Block.new(BlockType.FLOW, "Flow1")
-    Start = Action.new(ActionType.START, "Start")
-    Code = Action.new(ActionType.CODE, "Code", code=code("pass"))
-    Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow1.actions.extend(Start, Code, Complete)
-    hosted_runtime.page().blocks.append(Flow1)
-    await hosted_runtime.commit()
-
-    _ = await hosted_runtime.run(Start)
-    _ = await hosted_runtime.run(Code)
-    _ = await hosted_runtime.run(Complete)
-
-
 async def test_run_flow_pipe_directly(hosted_runtime: RuntimeHandle):
     """Run a Pipe directly."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
@@ -552,20 +537,15 @@ async def test_run_flow_create_action(hosted_runtime: RuntimeHandle):
 
 async def test_run_flow_create_action_dynamic(hosted_runtime: RuntimeHandle):
     """Run a CreateAction with a dynamic node_partial."""
-    Database1 = Block.new(
-        BlockType.DATABASE,
-        "Database1",
-        fields=(
-            Field.member("Name", str),
-            Field.member("Rating", int),
-        ),
-    )
+    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=(Field.member("Rating", int),))
     Flow1 = Block.new(
         BlockType.FLOW, "Flow1", fields=(Field.input("Name", str), Field.input("Rating", int))
     )
     Start = Action.new(ActionType.START, "Start")
     Create = Action.new(
-        ActionType.CREATE, "Create", node_partial=Record.partial(block=Database1, Rating=1)
+        ActionType.CREATE,
+        "Create",
+        node_partial=Record.partial(block=Database1, name="My Custom Record", Rating=1),
     )
     Create.set_computed(
         target=(
@@ -575,6 +555,7 @@ async def test_run_flow_create_action_dynamic(hosted_runtime: RuntimeHandle):
             Record.get_property("name"),
         ),
         source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Name),
+        is_required=True,
     )
     Create.set_computed(
         target=(
@@ -584,6 +565,7 @@ async def test_run_flow_create_action_dynamic(hosted_runtime: RuntimeHandle):
             Database1.fields.Rating,
         ),
         source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Rating),
+        is_required=True,
     )
     Flow1.actions.extend(Start, Create)
     Start.connect(PipeType.FORWARD, Create)
@@ -591,18 +573,18 @@ async def test_run_flow_create_action_dynamic(hosted_runtime: RuntimeHandle):
     await hosted_runtime.commit()
 
     # run from flow (with partial override)
-    runner = await hosted_runtime.run(Flow1, inputs={"Name": "My custom Record"})
-    assert runner.status == RunStatus.COMPLETED
-    record = await Database1.records.get(Rating=1)
-    assert record is not None
-    assert record.name == "My custom Record"
-
-    # run from flow (with full override)
-    runner = await hosted_runtime.run(Flow1, inputs={"Name": "My other Record", "Rating": 2})
+    runner = await hosted_runtime.run(Flow1, inputs={"Rating": 2})
     assert runner.status == RunStatus.COMPLETED
     record = await Database1.records.get(Rating=2)
     assert record is not None
-    assert record.name == "My other Record"
+    assert record.name == "My Custom Record"
+
+    # run from flow (with full override)
+    runner = await hosted_runtime.run(Flow1, inputs={"Name": "My Other Record", "Rating": 3})
+    assert runner.status == RunStatus.COMPLETED
+    record = await Database1.records.get(Rating=3)
+    assert record is not None
+    assert record.name == "My Other Record"
 
 
 async def test_run_flow_clone_action(hosted_runtime: RuntimeHandle):

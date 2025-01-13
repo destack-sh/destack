@@ -1665,7 +1665,7 @@ class OrganizationStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class MessageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     MESSAGE_TYPE_UNSPECIFIED: _ClassVar[MessageType]
-    MESSAGE_TYPE_INTERNAL: _ClassVar[MessageType]
+    MESSAGE_TYPE_LOCAL: _ClassVar[MessageType]
     MESSAGE_TYPE_FEDERATED: _ClassVar[MessageType]
     MESSAGE_TYPE_EMAIL: _ClassVar[MessageType]
     MESSAGE_TYPE_SMS: _ClassVar[MessageType]
@@ -3044,7 +3044,7 @@ ORGANIZATION_STATUS_UNSPECIFIED: OrganizationStatus
 ORGANIZATION_STATUS_REGISTERED: OrganizationStatus
 ORGANIZATION_STATUS_ACTIVATED: OrganizationStatus
 MESSAGE_TYPE_UNSPECIFIED: MessageType
-MESSAGE_TYPE_INTERNAL: MessageType
+MESSAGE_TYPE_LOCAL: MessageType
 MESSAGE_TYPE_FEDERATED: MessageType
 MESSAGE_TYPE_EMAIL: MessageType
 MESSAGE_TYPE_SMS: MessageType
@@ -3404,7 +3404,7 @@ class ValueData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., value_type: _Optional[_Union[TypeData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class ComputedValueData(_message.Message):
-    __slots__ = ("metatype", "kind", "name", "target_path", "source_path", "source_expression", "source_code", "is_active")
+    __slots__ = ("metatype", "kind", "name", "target_path", "source_path", "source_expression", "source_code", "is_active", "is_required")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -3413,6 +3413,7 @@ class ComputedValueData(_message.Message):
     SOURCE_EXPRESSION_FIELD_NUMBER: _ClassVar[int]
     SOURCE_CODE_FIELD_NUMBER: _ClassVar[int]
     IS_ACTIVE_FIELD_NUMBER: _ClassVar[int]
+    IS_REQUIRED_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     kind: ComputedValueKind
     name: str
@@ -3421,7 +3422,8 @@ class ComputedValueData(_message.Message):
     source_expression: ExpressionData
     source_code: CodeData
     is_active: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[ComputedValueKind, str]] = ..., name: _Optional[str] = ..., target_path: _Optional[_Union[PathData, _Mapping]] = ..., source_path: _Optional[_Union[PathData, _Mapping]] = ..., source_expression: _Optional[_Union[ExpressionData, _Mapping]] = ..., source_code: _Optional[_Union[CodeData, _Mapping]] = ..., is_active: bool = ...) -> None: ...
+    is_required: bool
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[ComputedValueKind, str]] = ..., name: _Optional[str] = ..., target_path: _Optional[_Union[PathData, _Mapping]] = ..., source_path: _Optional[_Union[PathData, _Mapping]] = ..., source_expression: _Optional[_Union[ExpressionData, _Mapping]] = ..., source_code: _Optional[_Union[CodeData, _Mapping]] = ..., is_active: bool = ..., is_required: bool = ...) -> None: ...
 
 class ObjectMappingData(_message.Message):
     __slots__ = ("metatype", "mappings")
@@ -5508,10 +5510,12 @@ class SearchActionData(_message.Message):
     def __init__(self, node_type: _Optional[_Union[NodeType, str]] = ..., base_block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ...) -> None: ...
 
 class CreateActionData(_message.Message):
-    __slots__ = ("node_partial_packed",)
+    __slots__ = ("node_partial_packed", "node_ptr")
     NODE_PARTIAL_PACKED_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     node_partial_packed: _struct_pb2.Value
-    def __init__(self, node_partial_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    node_ptr: NodeReferenceData
+    def __init__(self, node_partial_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class DuplicateActionData(_message.Message):
     __slots__ = ("node_ptr", "node_partial_packed", "is_shallow")

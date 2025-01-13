@@ -186,6 +186,9 @@ class Runtime:
             source_value = self._evaluate_computed_value(runner, computed_value)
         except (PathError, AttributeError, ValidationError) as e:
             raise InvalidComputedError(computed_value=computed_value) from e
+        if source_value is None and computed_value.is_required:
+            logger.trace("runtime.apply_computed_value.skip", computed_value=computed_value)
+            return False
 
         # get target site
         assert computed_value.target_path is not None, f"no target for {computed_value!r}"
