@@ -414,8 +414,7 @@ class CustomObject(Mapping[str, Any]):
                 if (
                     (
                         property_field_types
-                        and prop.field_type is not None
-                        and prop.field_type not in property_field_types
+                        and (prop.field_type is None or prop.field_type not in property_field_types)
                     )
                     or prop.id is None
                     or prop.id < 30

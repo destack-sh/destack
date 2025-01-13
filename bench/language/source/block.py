@@ -175,10 +175,12 @@ class Block(SourceNode[BlockData]):
                 return None  # no 'instance' type
             return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=instance_type)
         elif of == "value":
+            field_types = field_types or [FieldType.MEMBER]
             return Type(
                 kind=TypeKind.CUSTOM_OBJECT,
                 base_type=self,
-                base_field_types=field_types or [FieldType.MEMBER],
+                base_field_types=field_types,
+                property_field_types=field_types,
             )
         else:
             assert_never(of)
