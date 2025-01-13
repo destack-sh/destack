@@ -303,10 +303,20 @@ class CustomObject(Mapping[str, Any]):
         if track:
             from .node import _trace_edit_operation
 
+            # apply
             old_value = self._value.get(storage_key)
             self._value[storage_key] = new_value
+
+            # pack if needed
+            if type(new_value) is CustomObject:
+                new_value = pack_custom_object(new_value, new_value._type)
+            if type(old_value) is CustomObject:
+                old_value = pack_custom_object(old_value, old_value._type)
+
+            # trace
             _trace_edit_operation(self, key, new_value=new_value, old_value=old_value, subtype=None)
         else:
+            # apply only
             self._value[storage_key] = new_value
 
     __setitem__ = _do_set
@@ -399,8 +409,8 @@ class CustomObject(Mapping[str, Any]):
                     self._do_set(key, value, validate=not _skip_validate)
         else:
             property_field_types = self._type.property_field_types
+            # NOTE :Performance: all these Property iterations/filters seem inefficient
             for prop in obj._get_effective_cls().__runtime_properties__.values():
-                # NOTE :Performance: all these Property iterations/filters seem inefficient
                 if (
                     (
                         property_field_types
