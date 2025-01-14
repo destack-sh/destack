@@ -65,8 +65,8 @@ class TaskManager:
     async def _run_task(self, coro: Coroutine, logger, task_id: str, owner: Any) -> None:
         try:
             return await coro
-        except asyncio.CancelledError as e:
-            logger.trace(f"{task_id}.cancel", task_id=task_id, owner=owner, exc_info=e)
+        except asyncio.CancelledError:
+            logger.trace(f"{task_id}.cancel", task_id=task_id, owner=owner)
             pass
         except BaseException as e:
             logger.exception(f"{task_id}.error", task_id=task_id, owner=owner, exc_info=e, sentry=e)
