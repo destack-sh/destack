@@ -45,10 +45,9 @@ class LogInfo(Struct):
     This is like a mini-Log that we can attach to Runs and also copy into the combined Log.
 
     Conveniently, we can make this tiny because the containing Run already has all the context.
-
-    NOTE :Incomplete: also capture edit events as mini logs?
-    NOTE :Incomplete: copy Run.logs into Logs somewhere
     """
+
+    # NOTE :Architecture: LogInfo probably shouldn't exist and should just be full Logs
 
     created_at: datetime = p_internal(11, default_factory=lambda: active_session()._oracle.utc())
     level: LogLevel = p_internal(31)

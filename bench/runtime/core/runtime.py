@@ -525,7 +525,7 @@ class Runtime:
                         ),
                         timeout=DEFAULT_RESOURCE_TIMEOUT,
                     )
-                    # nocheckin: decommission resourcers on Run termination?
+                    # nocheckin: free or decommission resourcers on Run termination?
                     #  (use Resource.active_at for timeout/keepalive as backup in Host)
 
         # check inputs

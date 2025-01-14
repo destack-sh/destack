@@ -2209,10 +2209,6 @@ export interface InviteData {
      * @generated from protobuf field: bool is_owner = 32;
      */
     isOwner: boolean;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 33;
-     */
-    rolesPtr: NodeReferenceData[];
 }
 /**
  * @generated from protobuf message symbolx.bench.BenchData
@@ -4374,13 +4370,9 @@ export interface ActionData {
      */
     runOptions?: RunOptionsData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 42;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData machine_ptr = 51;
      */
-    rolesPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 43;
-     */
-    identityPtr?: NodeReferenceData;
+    machinePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.CodeData code = 52;
      */
@@ -4417,15 +4409,15 @@ export interface ActionData {
  */
 export interface GetActionData {
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeType node_type = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeType node_type = 120;
      */
     nodeType?: NodeType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_block_ptr = 101;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_block_ptr = 121;
      */
     baseBlockPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 102;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 122;
      */
     filter?: ExpressionData;
 }
@@ -4436,19 +4428,19 @@ export interface GetActionData {
  */
 export interface SearchActionData {
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeType node_type = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeType node_type = 120;
      */
     nodeType?: NodeType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_block_ptr = 101;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_block_ptr = 121;
      */
     baseBlockPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 102;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 122;
      */
     filter?: ExpressionData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 103;
+     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 123;
      */
     sort: ExpressionData[];
 }
@@ -4459,11 +4451,11 @@ export interface SearchActionData {
  */
 export interface CreateActionData {
     /**
-     * @generated from protobuf field: optional google.protobuf.Value node_partial_packed = 100;
+     * @generated from protobuf field: optional google.protobuf.Value node_partial_packed = 120;
      */
     nodePartialPacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 200;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 220;
      */
     nodePtr?: NodeReferenceData;
 }
@@ -4474,15 +4466,15 @@ export interface CreateActionData {
  */
 export interface DuplicateActionData {
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 120;
      */
     nodePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Value node_partial_packed = 101;
+     * @generated from protobuf field: optional google.protobuf.Value node_partial_packed = 121;
      */
     nodePartialPacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional bool is_shallow = 110;
+     * @generated from protobuf field: optional bool is_shallow = 122;
      */
     isShallow?: boolean;
 }
@@ -4493,11 +4485,11 @@ export interface DuplicateActionData {
  */
 export interface UpdateActionData {
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 120;
      */
     nodePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Value node_partial_packed = 101;
+     * @generated from protobuf field: optional google.protobuf.Value node_partial_packed = 121;
      */
     nodePartialPacked?: JsonValue;
 }
@@ -4508,7 +4500,7 @@ export interface UpdateActionData {
  */
 export interface DeleteActionData {
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 120;
      */
     nodePtr?: NodeReferenceData;
 }
@@ -4519,7 +4511,7 @@ export interface DeleteActionData {
  */
 export interface ChangeActionData {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData nodes_ptr = 110;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData nodes_ptr = 120;
      */
     nodesPtr: NodeReferenceData[];
 }
@@ -4530,11 +4522,11 @@ export interface ChangeActionData {
  */
 export interface FailActionData {
     /**
-     * @generated from protobuf field: optional string error_title = 100;
+     * @generated from protobuf field: optional string error_title = 120;
      */
     errorTitle?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData error_text = 101;
+     * @generated from protobuf field: optional symbolx.bench.TextData error_text = 121;
      */
     errorText?: TextData;
 }
@@ -4591,7 +4583,27 @@ export interface RouteActionData {
  */
 export interface ObserveActionData {
     /**
-     * @generated from protobuf field: optional bool exclude_image = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
+     */
+    applicationPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional string element_id = 110;
+     */
+    elementId?: string;
+    /**
+     * @generated from protobuf field: optional string element_path = 111;
+     */
+    elementPath?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 112;
+     */
+    elementPosition?: Vector2Data;
+    /**
+     * @generated from protobuf field: optional string element_text = 113;
+     */
+    elementText?: string;
+    /**
+     * @generated from protobuf field: optional bool exclude_image = 120;
      */
     excludeImage?: boolean;
     /**
@@ -4610,19 +4622,23 @@ export interface ObserveActionData {
  */
 export interface ClickActionData {
     /**
-     * @generated from protobuf field: optional string element_id = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
+     */
+    applicationPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional string element_id = 110;
      */
     elementId?: string;
     /**
-     * @generated from protobuf field: optional string element_path = 101;
+     * @generated from protobuf field: optional string element_path = 111;
      */
     elementPath?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 102;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 112;
      */
     elementPosition?: Vector2Data;
     /**
-     * @generated from protobuf field: optional string element_text = 103;
+     * @generated from protobuf field: optional string element_text = 113;
      */
     elementText?: string;
 }
@@ -4633,27 +4649,31 @@ export interface ClickActionData {
  */
 export interface PressActionData {
     /**
-     * @generated from protobuf field: optional string element_id = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
+     */
+    applicationPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional string element_id = 110;
      */
     elementId?: string;
     /**
-     * @generated from protobuf field: optional string element_path = 101;
+     * @generated from protobuf field: optional string element_path = 111;
      */
     elementPath?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 102;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 112;
      */
     elementPosition?: Vector2Data;
     /**
-     * @generated from protobuf field: optional string element_text = 103;
+     * @generated from protobuf field: optional string element_text = 113;
      */
     elementText?: string;
     /**
-     * @generated from protobuf field: optional string keys = 110;
+     * @generated from protobuf field: optional string keys = 120;
      */
     keys?: string;
     /**
-     * @generated from protobuf field: optional float delay = 111;
+     * @generated from protobuf field: optional float delay = 121;
      */
     delay?: number;
 }
@@ -4664,27 +4684,31 @@ export interface PressActionData {
  */
 export interface TypeActionData {
     /**
-     * @generated from protobuf field: optional string element_id = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
+     */
+    applicationPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional string element_id = 110;
      */
     elementId?: string;
     /**
-     * @generated from protobuf field: optional string element_path = 101;
+     * @generated from protobuf field: optional string element_path = 111;
      */
     elementPath?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 102;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 112;
      */
     elementPosition?: Vector2Data;
     /**
-     * @generated from protobuf field: optional string element_text = 103;
+     * @generated from protobuf field: optional string element_text = 113;
      */
     elementText?: string;
     /**
-     * @generated from protobuf field: optional string string = 110;
+     * @generated from protobuf field: optional string string = 120;
      */
     string?: string;
     /**
-     * @generated from protobuf field: optional float delay = 111;
+     * @generated from protobuf field: optional float delay = 121;
      */
     delay?: number;
 }
@@ -4695,23 +4719,27 @@ export interface TypeActionData {
  */
 export interface ScrollActionData {
     /**
-     * @generated from protobuf field: optional string element_id = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
+     */
+    applicationPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional string element_id = 110;
      */
     elementId?: string;
     /**
-     * @generated from protobuf field: optional string element_path = 101;
+     * @generated from protobuf field: optional string element_path = 111;
      */
     elementPath?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 102;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 112;
      */
     elementPosition?: Vector2Data;
     /**
-     * @generated from protobuf field: optional string element_text = 103;
+     * @generated from protobuf field: optional string element_text = 113;
      */
     elementText?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data amount = 110;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data amount = 120;
      */
     amount?: Vector2Data;
 }
@@ -4722,19 +4750,23 @@ export interface ScrollActionData {
  */
 export interface SelectActionData {
     /**
-     * @generated from protobuf field: optional string element_id = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
+     */
+    applicationPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional string element_id = 110;
      */
     elementId?: string;
     /**
-     * @generated from protobuf field: optional string element_path = 101;
+     * @generated from protobuf field: optional string element_path = 111;
      */
     elementPath?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 102;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 112;
      */
     elementPosition?: Vector2Data;
     /**
-     * @generated from protobuf field: optional string element_text = 103;
+     * @generated from protobuf field: optional string element_text = 113;
      */
     elementText?: string;
 }
@@ -4745,19 +4777,23 @@ export interface SelectActionData {
  */
 export interface GoBackwardActionData {
     /**
-     * @generated from protobuf field: optional string element_id = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
+     */
+    applicationPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional string element_id = 110;
      */
     elementId?: string;
     /**
-     * @generated from protobuf field: optional string element_path = 101;
+     * @generated from protobuf field: optional string element_path = 111;
      */
     elementPath?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 102;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 112;
      */
     elementPosition?: Vector2Data;
     /**
-     * @generated from protobuf field: optional string element_text = 103;
+     * @generated from protobuf field: optional string element_text = 113;
      */
     elementText?: string;
 }
@@ -4768,19 +4804,23 @@ export interface GoBackwardActionData {
  */
 export interface GoForwardActionData {
     /**
-     * @generated from protobuf field: optional string element_id = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
+     */
+    applicationPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional string element_id = 110;
      */
     elementId?: string;
     /**
-     * @generated from protobuf field: optional string element_path = 101;
+     * @generated from protobuf field: optional string element_path = 111;
      */
     elementPath?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 102;
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 112;
      */
     elementPosition?: Vector2Data;
     /**
-     * @generated from protobuf field: optional string element_text = 103;
+     * @generated from protobuf field: optional string element_text = 113;
      */
     elementText?: string;
 }
@@ -4791,7 +4831,27 @@ export interface GoForwardActionData {
  */
 export interface GoToUrlActionData {
     /**
-     * @generated from protobuf field: optional string url = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
+     */
+    applicationPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional string element_id = 110;
+     */
+    elementId?: string;
+    /**
+     * @generated from protobuf field: optional string element_path = 111;
+     */
+    elementPath?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 112;
+     */
+    elementPosition?: Vector2Data;
+    /**
+     * @generated from protobuf field: optional string element_text = 113;
+     */
+    elementText?: string;
+    /**
+     * @generated from protobuf field: optional string url = 120;
      */
     url?: string;
 }
@@ -4802,7 +4862,27 @@ export interface GoToUrlActionData {
  */
 export interface GoToTabActionData {
     /**
-     * @generated from protobuf field: optional int32 tab_index = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
+     */
+    applicationPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional string element_id = 110;
+     */
+    elementId?: string;
+    /**
+     * @generated from protobuf field: optional string element_path = 111;
+     */
+    elementPath?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 112;
+     */
+    elementPosition?: Vector2Data;
+    /**
+     * @generated from protobuf field: optional string element_text = 113;
+     */
+    elementText?: string;
+    /**
+     * @generated from protobuf field: optional int32 tab_index = 120;
      */
     tabIndex?: number;
 }
@@ -4917,14 +4997,6 @@ export interface BlockData {
      * @generated from protobuf field: repeated symbolx.bench.PolicyData delegated_policies = 43;
      */
     delegatedPolicies: PolicyData[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 44;
-     */
-    rolesPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 45;
-     */
-    identityPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeMode mode = 90;
      */
@@ -6372,13 +6444,13 @@ export enum NodeType {
      */
     FILE = 2200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_STREAM = 2201;
+     * @generated from protobuf enum value: NODE_TYPE_STREAM = 2210;
      */
-    STREAM = 2201,
+    STREAM = 2210,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SECRET = 2202;
+     * @generated from protobuf enum value: NODE_TYPE_SECRET = 2220;
      */
-    SECRET = 2202,
+    SECRET = 2220,
     /**
      * @generated from protobuf enum value: NODE_TYPE_PACKAGE = 3001;
      */
@@ -6754,13 +6826,13 @@ export enum ObjectType {
      */
     FILE = 2200,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_STREAM = 2201;
+     * @generated from protobuf enum value: OBJECT_TYPE_STREAM = 2210;
      */
-    STREAM = 2201,
+    STREAM = 2210,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SECRET = 2202;
+     * @generated from protobuf enum value: OBJECT_TYPE_SECRET = 2220;
      */
-    SECRET = 2202,
+    SECRET = 2220,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_PACKAGE = 3001;
      */
@@ -7127,13 +7199,13 @@ export enum BenchType {
      */
     FILE = 2200,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_STREAM = 2201;
+     * @generated from protobuf enum value: BENCH_TYPE_STREAM = 2210;
      */
-    STREAM = 2201,
+    STREAM = 2210,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SECRET = 2202;
+     * @generated from protobuf enum value: BENCH_TYPE_SECRET = 2220;
      */
-    SECRET = 2202,
+    SECRET = 2220,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_PACKAGE = 3001;
      */
@@ -10659,77 +10731,81 @@ export enum ActionType {
      */
     FAIL = 11,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_GET = 40;
+     * @generated from protobuf enum value: ACTION_TYPE_GET = 100;
      */
-    GET = 40,
+    GET = 100,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_SEARCH = 41;
+     * @generated from protobuf enum value: ACTION_TYPE_SEARCH = 101;
      */
-    SEARCH = 41,
+    SEARCH = 101,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_COPY = 50;
+     * @generated from protobuf enum value: ACTION_TYPE_COPY = 110;
      */
-    COPY = 50,
+    COPY = 110,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_CREATE = 60;
+     * @generated from protobuf enum value: ACTION_TYPE_CREATE = 200;
      */
-    CREATE = 60,
+    CREATE = 200,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_DUPLICATE = 61;
+     * @generated from protobuf enum value: ACTION_TYPE_DUPLICATE = 201;
      */
-    DUPLICATE = 61,
+    DUPLICATE = 201,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_UPDATE = 62;
+     * @generated from protobuf enum value: ACTION_TYPE_UPDATE = 202;
      */
-    UPDATE = 62,
+    UPDATE = 202,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_DELETE = 63;
+     * @generated from protobuf enum value: ACTION_TYPE_DELETE = 203;
      */
-    DELETE = 63,
+    DELETE = 203,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_PASTE = 65;
+     * @generated from protobuf enum value: ACTION_TYPE_PASTE = 204;
      */
-    PASTE = 65,
+    PASTE = 204,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_CHANGE = 70;
+     * @generated from protobuf enum value: ACTION_TYPE_CHANGE = 205;
      */
-    CHANGE = 70,
+    CHANGE = 205,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_CODE = 100;
+     * @generated from protobuf enum value: ACTION_TYPE_SEND = 300;
      */
-    CODE = 100,
+    SEND = 300,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_TOOL = 101;
+     * @generated from protobuf enum value: ACTION_TYPE_RECEIVE = 301;
      */
-    TOOL = 101,
+    RECEIVE = 301,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_SEND = 120;
+     * @generated from protobuf enum value: ACTION_TYPE_WAIT = 302;
      */
-    SEND = 120,
+    WAIT = 302,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_RECEIVE = 121;
+     * @generated from protobuf enum value: ACTION_TYPE_YIELD = 303;
      */
-    RECEIVE = 121,
+    YIELD = 303,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_WAIT = 122;
+     * @generated from protobuf enum value: ACTION_TYPE_TOOL = 400;
      */
-    WAIT = 122,
+    TOOL = 400,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_YIELD = 123;
+     * @generated from protobuf enum value: ACTION_TYPE_CODE = 401;
      */
-    YIELD = 123,
+    CODE = 401,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_GENERATE = 500;
+     * @generated from protobuf enum value: ACTION_TYPE_DO = 450;
      */
-    GENERATE = 500,
+    DO = 450,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_TRANSFORM = 501;
+     * @generated from protobuf enum value: ACTION_TYPE_GENERATE = 451;
      */
-    TRANSFORM = 501,
+    GENERATE = 451,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_ROUTE = 510;
+     * @generated from protobuf enum value: ACTION_TYPE_TRANSFORM = 452;
      */
-    ROUTE = 510,
+    TRANSFORM = 452,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_ROUTE = 453;
+     */
+    ROUTE = 453,
     /**
      * @generated from protobuf enum value: ACTION_TYPE_OBSERVE = 1000;
      */
@@ -10779,9 +10855,9 @@ export enum ActionType {
      */
     CLOSE_TAB = 1103,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_LOOP = 5001;
+     * @generated from protobuf enum value: ACTION_TYPE_LOOP = 8001;
      */
-    LOOP = 5001,
+    LOOP = 8001,
     /**
      * @generated from protobuf enum value: ACTION_TYPE_TEXT = 9000;
      */
@@ -17968,8 +18044,7 @@ class InviteData$Type extends MessageType$<InviteData> {
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "user_email", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "is_owner", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 33, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 32, name: "is_owner", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<InviteData>): InviteData {
@@ -17977,7 +18052,6 @@ class InviteData$Type extends MessageType$<InviteData> {
         message.metatype = 0;
         message.id = "";
         message.isOwner = false;
-        message.rolesPtr = [];
         if (value !== undefined)
             reflectionMergePartial<InviteData>(this, message, value);
         return message;
@@ -18025,9 +18099,6 @@ class InviteData$Type extends MessageType$<InviteData> {
                     break;
                 case /* bool is_owner */ 32:
                     message.isOwner = reader.bool();
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 33:
-                    message.rolesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -18080,9 +18151,6 @@ class InviteData$Type extends MessageType$<InviteData> {
         /* bool is_owner = 32; */
         if (message.isOwner !== false)
             writer.tag(32, WireType.Varint).bool(message.isOwner);
-        /* repeated symbolx.bench.NodeReferenceData roles_ptr = 33; */
-        for (let i = 0; i < message.rolesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(33, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22531,8 +22599,7 @@ class ActionData$Type extends MessageType$<ActionData> {
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "text", kind: "message", T: () => TextData },
             { no: 41, name: "run_options", kind: "message", T: () => RunOptionsData },
-            { no: 42, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 43, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 51, name: "machine_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 52, name: "code", kind: "message", T: () => CodeData },
             { no: 53, name: "tool_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 55, name: "calls", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => CallData },
@@ -22551,7 +22618,6 @@ class ActionData$Type extends MessageType$<ActionData> {
         message.type = 0;
         message.name = "";
         message.orderKey = "";
-        message.rolesPtr = [];
         message.calls = [];
         message.mode = 0;
         if (value !== undefined)
@@ -22626,11 +22692,8 @@ class ActionData$Type extends MessageType$<ActionData> {
                 case /* optional symbolx.bench.RunOptionsData run_options */ 41:
                     message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 42:
-                    message.rolesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 43:
-                    message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
+                case /* optional symbolx.bench.NodeReferenceData machine_ptr */ 51:
+                    message.machinePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.machinePtr);
                     break;
                 case /* optional symbolx.bench.CodeData code */ 52:
                     message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
@@ -22728,12 +22791,9 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* optional symbolx.bench.RunOptionsData run_options = 41; */
         if (message.runOptions)
             RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData roles_ptr = 42; */
-        for (let i = 0; i < message.rolesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData identity_ptr = 43; */
-        if (message.identityPtr)
-            NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData machine_ptr = 51; */
+        if (message.machinePtr)
+            NodeReferenceData.internalBinaryWrite(message.machinePtr, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.CodeData code = 52; */
         if (message.code)
             CodeData.internalBinaryWrite(message.code, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
@@ -22769,9 +22829,9 @@ export const ActionData = new ActionData$Type();
 class GetActionData$Type extends MessageType$<GetActionData> {
     constructor() {
         super("symbolx.bench.GetActionData", [
-            { no: 100, name: "node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 101, name: "base_block_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 102, name: "filter", kind: "message", T: () => ExpressionData }
+            { no: 120, name: "node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 121, name: "base_block_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 122, name: "filter", kind: "message", T: () => ExpressionData }
         ]);
     }
     create(value?: PartialMessage<GetActionData>): GetActionData {
@@ -22785,13 +22845,13 @@ class GetActionData$Type extends MessageType$<GetActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional symbolx.bench.NodeType node_type */ 100:
+                case /* optional symbolx.bench.NodeType node_type */ 120:
                     message.nodeType = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData base_block_ptr */ 101:
+                case /* optional symbolx.bench.NodeReferenceData base_block_ptr */ 121:
                     message.baseBlockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseBlockPtr);
                     break;
-                case /* optional symbolx.bench.ExpressionData filter */ 102:
+                case /* optional symbolx.bench.ExpressionData filter */ 122:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
                     break;
                 default:
@@ -22806,15 +22866,15 @@ class GetActionData$Type extends MessageType$<GetActionData> {
         return message;
     }
     internalBinaryWrite(message: GetActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeType node_type = 100; */
+        /* optional symbolx.bench.NodeType node_type = 120; */
         if (message.nodeType !== undefined)
-            writer.tag(100, WireType.Varint).int32(message.nodeType);
-        /* optional symbolx.bench.NodeReferenceData base_block_ptr = 101; */
+            writer.tag(120, WireType.Varint).int32(message.nodeType);
+        /* optional symbolx.bench.NodeReferenceData base_block_ptr = 121; */
         if (message.baseBlockPtr)
-            NodeReferenceData.internalBinaryWrite(message.baseBlockPtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData filter = 102; */
+            NodeReferenceData.internalBinaryWrite(message.baseBlockPtr, writer.tag(121, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData filter = 122; */
         if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(122, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22829,10 +22889,10 @@ export const GetActionData = new GetActionData$Type();
 class SearchActionData$Type extends MessageType$<SearchActionData> {
     constructor() {
         super("symbolx.bench.SearchActionData", [
-            { no: 100, name: "node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 101, name: "base_block_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 102, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 103, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData }
+            { no: 120, name: "node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 121, name: "base_block_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 122, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 123, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData }
         ]);
     }
     create(value?: PartialMessage<SearchActionData>): SearchActionData {
@@ -22847,16 +22907,16 @@ class SearchActionData$Type extends MessageType$<SearchActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional symbolx.bench.NodeType node_type */ 100:
+                case /* optional symbolx.bench.NodeType node_type */ 120:
                     message.nodeType = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData base_block_ptr */ 101:
+                case /* optional symbolx.bench.NodeReferenceData base_block_ptr */ 121:
                     message.baseBlockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseBlockPtr);
                     break;
-                case /* optional symbolx.bench.ExpressionData filter */ 102:
+                case /* optional symbolx.bench.ExpressionData filter */ 122:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
                     break;
-                case /* repeated symbolx.bench.ExpressionData sort */ 103:
+                case /* repeated symbolx.bench.ExpressionData sort */ 123:
                     message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -22871,18 +22931,18 @@ class SearchActionData$Type extends MessageType$<SearchActionData> {
         return message;
     }
     internalBinaryWrite(message: SearchActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeType node_type = 100; */
+        /* optional symbolx.bench.NodeType node_type = 120; */
         if (message.nodeType !== undefined)
-            writer.tag(100, WireType.Varint).int32(message.nodeType);
-        /* optional symbolx.bench.NodeReferenceData base_block_ptr = 101; */
+            writer.tag(120, WireType.Varint).int32(message.nodeType);
+        /* optional symbolx.bench.NodeReferenceData base_block_ptr = 121; */
         if (message.baseBlockPtr)
-            NodeReferenceData.internalBinaryWrite(message.baseBlockPtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData filter = 102; */
+            NodeReferenceData.internalBinaryWrite(message.baseBlockPtr, writer.tag(121, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData filter = 122; */
         if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.ExpressionData sort = 103; */
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(122, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.ExpressionData sort = 123; */
         for (let i = 0; i < message.sort.length; i++)
-            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(103, WireType.LengthDelimited).fork(), options).join();
+            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(123, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22897,8 +22957,8 @@ export const SearchActionData = new SearchActionData$Type();
 class CreateActionData$Type extends MessageType$<CreateActionData> {
     constructor() {
         super("symbolx.bench.CreateActionData", [
-            { no: 100, name: "node_partial_packed", kind: "message", T: () => Value },
-            { no: 200, name: "node_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 120, name: "node_partial_packed", kind: "message", T: () => Value },
+            { no: 220, name: "node_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<CreateActionData>): CreateActionData {
@@ -22912,10 +22972,10 @@ class CreateActionData$Type extends MessageType$<CreateActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional google.protobuf.Value node_partial_packed */ 100:
+                case /* optional google.protobuf.Value node_partial_packed */ 120:
                     message.nodePartialPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 200:
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 220:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
                 default:
@@ -22930,12 +22990,12 @@ class CreateActionData$Type extends MessageType$<CreateActionData> {
         return message;
     }
     internalBinaryWrite(message: CreateActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional google.protobuf.Value node_partial_packed = 100; */
+        /* optional google.protobuf.Value node_partial_packed = 120; */
         if (message.nodePartialPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.nodePartialPacked), writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData node_ptr = 200; */
+            Value.internalBinaryWrite(Value.fromJson(message.nodePartialPacked), writer.tag(120, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 220; */
         if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(220, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22950,9 +23010,9 @@ export const CreateActionData = new CreateActionData$Type();
 class DuplicateActionData$Type extends MessageType$<DuplicateActionData> {
     constructor() {
         super("symbolx.bench.DuplicateActionData", [
-            { no: 100, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 101, name: "node_partial_packed", kind: "message", T: () => Value },
-            { no: 110, name: "is_shallow", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 120, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 121, name: "node_partial_packed", kind: "message", T: () => Value },
+            { no: 122, name: "is_shallow", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<DuplicateActionData>): DuplicateActionData {
@@ -22966,13 +23026,13 @@ class DuplicateActionData$Type extends MessageType$<DuplicateActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 100:
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 120:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* optional google.protobuf.Value node_partial_packed */ 101:
+                case /* optional google.protobuf.Value node_partial_packed */ 121:
                     message.nodePartialPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional bool is_shallow */ 110:
+                case /* optional bool is_shallow */ 122:
                     message.isShallow = reader.bool();
                     break;
                 default:
@@ -22987,15 +23047,15 @@ class DuplicateActionData$Type extends MessageType$<DuplicateActionData> {
         return message;
     }
     internalBinaryWrite(message: DuplicateActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData node_ptr = 100; */
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 120; */
         if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value node_partial_packed = 101; */
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(120, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value node_partial_packed = 121; */
         if (message.nodePartialPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.nodePartialPacked), writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool is_shallow = 110; */
+            Value.internalBinaryWrite(Value.fromJson(message.nodePartialPacked), writer.tag(121, WireType.LengthDelimited).fork(), options).join();
+        /* optional bool is_shallow = 122; */
         if (message.isShallow !== undefined)
-            writer.tag(110, WireType.Varint).bool(message.isShallow);
+            writer.tag(122, WireType.Varint).bool(message.isShallow);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23010,8 +23070,8 @@ export const DuplicateActionData = new DuplicateActionData$Type();
 class UpdateActionData$Type extends MessageType$<UpdateActionData> {
     constructor() {
         super("symbolx.bench.UpdateActionData", [
-            { no: 100, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 101, name: "node_partial_packed", kind: "message", T: () => Value }
+            { no: 120, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 121, name: "node_partial_packed", kind: "message", T: () => Value }
         ]);
     }
     create(value?: PartialMessage<UpdateActionData>): UpdateActionData {
@@ -23025,10 +23085,10 @@ class UpdateActionData$Type extends MessageType$<UpdateActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 100:
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 120:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* optional google.protobuf.Value node_partial_packed */ 101:
+                case /* optional google.protobuf.Value node_partial_packed */ 121:
                     message.nodePartialPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 default:
@@ -23043,12 +23103,12 @@ class UpdateActionData$Type extends MessageType$<UpdateActionData> {
         return message;
     }
     internalBinaryWrite(message: UpdateActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData node_ptr = 100; */
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 120; */
         if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value node_partial_packed = 101; */
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(120, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value node_partial_packed = 121; */
         if (message.nodePartialPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.nodePartialPacked), writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(Value.fromJson(message.nodePartialPacked), writer.tag(121, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23063,7 +23123,7 @@ export const UpdateActionData = new UpdateActionData$Type();
 class DeleteActionData$Type extends MessageType$<DeleteActionData> {
     constructor() {
         super("symbolx.bench.DeleteActionData", [
-            { no: 100, name: "node_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 120, name: "node_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<DeleteActionData>): DeleteActionData {
@@ -23077,7 +23137,7 @@ class DeleteActionData$Type extends MessageType$<DeleteActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 100:
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 120:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
                 default:
@@ -23092,9 +23152,9 @@ class DeleteActionData$Type extends MessageType$<DeleteActionData> {
         return message;
     }
     internalBinaryWrite(message: DeleteActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData node_ptr = 100; */
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 120; */
         if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(120, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23109,7 +23169,7 @@ export const DeleteActionData = new DeleteActionData$Type();
 class ChangeActionData$Type extends MessageType$<ChangeActionData> {
     constructor() {
         super("symbolx.bench.ChangeActionData", [
-            { no: 110, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 120, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ChangeActionData>): ChangeActionData {
@@ -23124,7 +23184,7 @@ class ChangeActionData$Type extends MessageType$<ChangeActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 110:
+                case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 120:
                     message.nodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -23139,9 +23199,9 @@ class ChangeActionData$Type extends MessageType$<ChangeActionData> {
         return message;
     }
     internalBinaryWrite(message: ChangeActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 110; */
+        /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 120; */
         for (let i = 0; i < message.nodesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(120, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23156,8 +23216,8 @@ export const ChangeActionData = new ChangeActionData$Type();
 class FailActionData$Type extends MessageType$<FailActionData> {
     constructor() {
         super("symbolx.bench.FailActionData", [
-            { no: 100, name: "error_title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "error_text", kind: "message", T: () => TextData }
+            { no: 120, name: "error_title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 121, name: "error_text", kind: "message", T: () => TextData }
         ]);
     }
     create(value?: PartialMessage<FailActionData>): FailActionData {
@@ -23171,10 +23231,10 @@ class FailActionData$Type extends MessageType$<FailActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string error_title */ 100:
+                case /* optional string error_title */ 120:
                     message.errorTitle = reader.string();
                     break;
-                case /* optional symbolx.bench.TextData error_text */ 101:
+                case /* optional symbolx.bench.TextData error_text */ 121:
                     message.errorText = TextData.internalBinaryRead(reader, reader.uint32(), options, message.errorText);
                     break;
                 default:
@@ -23189,12 +23249,12 @@ class FailActionData$Type extends MessageType$<FailActionData> {
         return message;
     }
     internalBinaryWrite(message: FailActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string error_title = 100; */
+        /* optional string error_title = 120; */
         if (message.errorTitle !== undefined)
-            writer.tag(100, WireType.LengthDelimited).string(message.errorTitle);
-        /* optional symbolx.bench.TextData error_text = 101; */
+            writer.tag(120, WireType.LengthDelimited).string(message.errorTitle);
+        /* optional symbolx.bench.TextData error_text = 121; */
         if (message.errorText)
-            TextData.internalBinaryWrite(message.errorText, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+            TextData.internalBinaryWrite(message.errorText, writer.tag(121, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23380,7 +23440,12 @@ export const RouteActionData = new RouteActionData$Type();
 class ObserveActionData$Type extends MessageType$<ObserveActionData> {
     constructor() {
         super("symbolx.bench.ObserveActionData", [
-            { no: 100, name: "exclude_image", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 111, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 112, name: "element_position", kind: "message", T: () => Vector2Data },
+            { no: 113, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 120, name: "exclude_image", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 200, name: "screenshot_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 201, name: "dom", kind: "message", T: () => DomNodeData }
         ]);
@@ -23396,7 +23461,22 @@ class ObserveActionData$Type extends MessageType$<ObserveActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional bool exclude_image */ 100:
+                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
+                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
+                    break;
+                case /* optional string element_id */ 110:
+                    message.elementId = reader.string();
+                    break;
+                case /* optional string element_path */ 111:
+                    message.elementPath = reader.string();
+                    break;
+                case /* optional symbolx.bench.Vector2Data element_position */ 112:
+                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
+                    break;
+                case /* optional string element_text */ 113:
+                    message.elementText = reader.string();
+                    break;
+                case /* optional bool exclude_image */ 120:
                     message.excludeImage = reader.bool();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData screenshot_ptr */ 200:
@@ -23417,9 +23497,24 @@ class ObserveActionData$Type extends MessageType$<ObserveActionData> {
         return message;
     }
     internalBinaryWrite(message: ObserveActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional bool exclude_image = 100; */
+        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
+        if (message.applicationPtr)
+            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_id = 110; */
+        if (message.elementId !== undefined)
+            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
+        /* optional string element_path = 111; */
+        if (message.elementPath !== undefined)
+            writer.tag(111, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 112; */
+        if (message.elementPosition)
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_text = 113; */
+        if (message.elementText !== undefined)
+            writer.tag(113, WireType.LengthDelimited).string(message.elementText);
+        /* optional bool exclude_image = 120; */
         if (message.excludeImage !== undefined)
-            writer.tag(100, WireType.Varint).bool(message.excludeImage);
+            writer.tag(120, WireType.Varint).bool(message.excludeImage);
         /* optional symbolx.bench.NodeReferenceData screenshot_ptr = 200; */
         if (message.screenshotPtr)
             NodeReferenceData.internalBinaryWrite(message.screenshotPtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
@@ -23440,10 +23535,11 @@ export const ObserveActionData = new ObserveActionData$Type();
 class ClickActionData$Type extends MessageType$<ClickActionData> {
     constructor() {
         super("symbolx.bench.ClickActionData", [
-            { no: 100, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 103, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 111, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 112, name: "element_position", kind: "message", T: () => Vector2Data },
+            { no: 113, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<ClickActionData>): ClickActionData {
@@ -23457,16 +23553,19 @@ class ClickActionData$Type extends MessageType$<ClickActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string element_id */ 100:
+                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
+                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
+                    break;
+                case /* optional string element_id */ 110:
                     message.elementId = reader.string();
                     break;
-                case /* optional string element_path */ 101:
+                case /* optional string element_path */ 111:
                     message.elementPath = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 102:
+                case /* optional symbolx.bench.Vector2Data element_position */ 112:
                     message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
-                case /* optional string element_text */ 103:
+                case /* optional string element_text */ 113:
                     message.elementText = reader.string();
                     break;
                 default:
@@ -23481,18 +23580,21 @@ class ClickActionData$Type extends MessageType$<ClickActionData> {
         return message;
     }
     internalBinaryWrite(message: ClickActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string element_id = 100; */
+        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
+        if (message.applicationPtr)
+            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_id = 110; */
         if (message.elementId !== undefined)
-            writer.tag(100, WireType.LengthDelimited).string(message.elementId);
-        /* optional string element_path = 101; */
+            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
+        /* optional string element_path = 111; */
         if (message.elementPath !== undefined)
-            writer.tag(101, WireType.LengthDelimited).string(message.elementPath);
-        /* optional symbolx.bench.Vector2Data element_position = 102; */
+            writer.tag(111, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 112; */
         if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_text = 103; */
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_text = 113; */
         if (message.elementText !== undefined)
-            writer.tag(103, WireType.LengthDelimited).string(message.elementText);
+            writer.tag(113, WireType.LengthDelimited).string(message.elementText);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23507,12 +23609,13 @@ export const ClickActionData = new ClickActionData$Type();
 class PressActionData$Type extends MessageType$<PressActionData> {
     constructor() {
         super("symbolx.bench.PressActionData", [
-            { no: 100, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 103, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 110, name: "keys", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 111, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 111, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 112, name: "element_position", kind: "message", T: () => Vector2Data },
+            { no: 113, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 120, name: "keys", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 121, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<PressActionData>): PressActionData {
@@ -23526,22 +23629,25 @@ class PressActionData$Type extends MessageType$<PressActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string element_id */ 100:
+                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
+                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
+                    break;
+                case /* optional string element_id */ 110:
                     message.elementId = reader.string();
                     break;
-                case /* optional string element_path */ 101:
+                case /* optional string element_path */ 111:
                     message.elementPath = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 102:
+                case /* optional symbolx.bench.Vector2Data element_position */ 112:
                     message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
-                case /* optional string element_text */ 103:
+                case /* optional string element_text */ 113:
                     message.elementText = reader.string();
                     break;
-                case /* optional string keys */ 110:
+                case /* optional string keys */ 120:
                     message.keys = reader.string();
                     break;
-                case /* optional float delay */ 111:
+                case /* optional float delay */ 121:
                     message.delay = reader.float();
                     break;
                 default:
@@ -23556,24 +23662,27 @@ class PressActionData$Type extends MessageType$<PressActionData> {
         return message;
     }
     internalBinaryWrite(message: PressActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string element_id = 100; */
+        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
+        if (message.applicationPtr)
+            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_id = 110; */
         if (message.elementId !== undefined)
-            writer.tag(100, WireType.LengthDelimited).string(message.elementId);
-        /* optional string element_path = 101; */
+            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
+        /* optional string element_path = 111; */
         if (message.elementPath !== undefined)
-            writer.tag(101, WireType.LengthDelimited).string(message.elementPath);
-        /* optional symbolx.bench.Vector2Data element_position = 102; */
+            writer.tag(111, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 112; */
         if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_text = 103; */
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_text = 113; */
         if (message.elementText !== undefined)
-            writer.tag(103, WireType.LengthDelimited).string(message.elementText);
-        /* optional string keys = 110; */
+            writer.tag(113, WireType.LengthDelimited).string(message.elementText);
+        /* optional string keys = 120; */
         if (message.keys !== undefined)
-            writer.tag(110, WireType.LengthDelimited).string(message.keys);
-        /* optional float delay = 111; */
+            writer.tag(120, WireType.LengthDelimited).string(message.keys);
+        /* optional float delay = 121; */
         if (message.delay !== undefined)
-            writer.tag(111, WireType.Bit32).float(message.delay);
+            writer.tag(121, WireType.Bit32).float(message.delay);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23588,12 +23697,13 @@ export const PressActionData = new PressActionData$Type();
 class TypeActionData$Type extends MessageType$<TypeActionData> {
     constructor() {
         super("symbolx.bench.TypeActionData", [
-            { no: 100, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 103, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 110, name: "string", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 111, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 111, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 112, name: "element_position", kind: "message", T: () => Vector2Data },
+            { no: 113, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 120, name: "string", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 121, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<TypeActionData>): TypeActionData {
@@ -23607,22 +23717,25 @@ class TypeActionData$Type extends MessageType$<TypeActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string element_id */ 100:
+                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
+                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
+                    break;
+                case /* optional string element_id */ 110:
                     message.elementId = reader.string();
                     break;
-                case /* optional string element_path */ 101:
+                case /* optional string element_path */ 111:
                     message.elementPath = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 102:
+                case /* optional symbolx.bench.Vector2Data element_position */ 112:
                     message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
-                case /* optional string element_text */ 103:
+                case /* optional string element_text */ 113:
                     message.elementText = reader.string();
                     break;
-                case /* optional string string */ 110:
+                case /* optional string string */ 120:
                     message.string = reader.string();
                     break;
-                case /* optional float delay */ 111:
+                case /* optional float delay */ 121:
                     message.delay = reader.float();
                     break;
                 default:
@@ -23637,24 +23750,27 @@ class TypeActionData$Type extends MessageType$<TypeActionData> {
         return message;
     }
     internalBinaryWrite(message: TypeActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string element_id = 100; */
+        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
+        if (message.applicationPtr)
+            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_id = 110; */
         if (message.elementId !== undefined)
-            writer.tag(100, WireType.LengthDelimited).string(message.elementId);
-        /* optional string element_path = 101; */
+            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
+        /* optional string element_path = 111; */
         if (message.elementPath !== undefined)
-            writer.tag(101, WireType.LengthDelimited).string(message.elementPath);
-        /* optional symbolx.bench.Vector2Data element_position = 102; */
+            writer.tag(111, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 112; */
         if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_text = 103; */
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_text = 113; */
         if (message.elementText !== undefined)
-            writer.tag(103, WireType.LengthDelimited).string(message.elementText);
-        /* optional string string = 110; */
+            writer.tag(113, WireType.LengthDelimited).string(message.elementText);
+        /* optional string string = 120; */
         if (message.string !== undefined)
-            writer.tag(110, WireType.LengthDelimited).string(message.string);
-        /* optional float delay = 111; */
+            writer.tag(120, WireType.LengthDelimited).string(message.string);
+        /* optional float delay = 121; */
         if (message.delay !== undefined)
-            writer.tag(111, WireType.Bit32).float(message.delay);
+            writer.tag(121, WireType.Bit32).float(message.delay);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23669,11 +23785,12 @@ export const TypeActionData = new TypeActionData$Type();
 class ScrollActionData$Type extends MessageType$<ScrollActionData> {
     constructor() {
         super("symbolx.bench.ScrollActionData", [
-            { no: 100, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 103, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 110, name: "amount", kind: "message", T: () => Vector2Data }
+            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 111, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 112, name: "element_position", kind: "message", T: () => Vector2Data },
+            { no: 113, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 120, name: "amount", kind: "message", T: () => Vector2Data }
         ]);
     }
     create(value?: PartialMessage<ScrollActionData>): ScrollActionData {
@@ -23687,19 +23804,22 @@ class ScrollActionData$Type extends MessageType$<ScrollActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string element_id */ 100:
+                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
+                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
+                    break;
+                case /* optional string element_id */ 110:
                     message.elementId = reader.string();
                     break;
-                case /* optional string element_path */ 101:
+                case /* optional string element_path */ 111:
                     message.elementPath = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 102:
+                case /* optional symbolx.bench.Vector2Data element_position */ 112:
                     message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
-                case /* optional string element_text */ 103:
+                case /* optional string element_text */ 113:
                     message.elementText = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data amount */ 110:
+                case /* optional symbolx.bench.Vector2Data amount */ 120:
                     message.amount = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.amount);
                     break;
                 default:
@@ -23714,21 +23834,24 @@ class ScrollActionData$Type extends MessageType$<ScrollActionData> {
         return message;
     }
     internalBinaryWrite(message: ScrollActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string element_id = 100; */
+        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
+        if (message.applicationPtr)
+            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_id = 110; */
         if (message.elementId !== undefined)
-            writer.tag(100, WireType.LengthDelimited).string(message.elementId);
-        /* optional string element_path = 101; */
+            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
+        /* optional string element_path = 111; */
         if (message.elementPath !== undefined)
-            writer.tag(101, WireType.LengthDelimited).string(message.elementPath);
-        /* optional symbolx.bench.Vector2Data element_position = 102; */
+            writer.tag(111, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 112; */
         if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_text = 103; */
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_text = 113; */
         if (message.elementText !== undefined)
-            writer.tag(103, WireType.LengthDelimited).string(message.elementText);
-        /* optional symbolx.bench.Vector2Data amount = 110; */
+            writer.tag(113, WireType.LengthDelimited).string(message.elementText);
+        /* optional symbolx.bench.Vector2Data amount = 120; */
         if (message.amount)
-            Vector2Data.internalBinaryWrite(message.amount, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Data.internalBinaryWrite(message.amount, writer.tag(120, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23743,10 +23866,11 @@ export const ScrollActionData = new ScrollActionData$Type();
 class SelectActionData$Type extends MessageType$<SelectActionData> {
     constructor() {
         super("symbolx.bench.SelectActionData", [
-            { no: 100, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 103, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 111, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 112, name: "element_position", kind: "message", T: () => Vector2Data },
+            { no: 113, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<SelectActionData>): SelectActionData {
@@ -23760,16 +23884,19 @@ class SelectActionData$Type extends MessageType$<SelectActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string element_id */ 100:
+                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
+                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
+                    break;
+                case /* optional string element_id */ 110:
                     message.elementId = reader.string();
                     break;
-                case /* optional string element_path */ 101:
+                case /* optional string element_path */ 111:
                     message.elementPath = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 102:
+                case /* optional symbolx.bench.Vector2Data element_position */ 112:
                     message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
-                case /* optional string element_text */ 103:
+                case /* optional string element_text */ 113:
                     message.elementText = reader.string();
                     break;
                 default:
@@ -23784,18 +23911,21 @@ class SelectActionData$Type extends MessageType$<SelectActionData> {
         return message;
     }
     internalBinaryWrite(message: SelectActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string element_id = 100; */
+        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
+        if (message.applicationPtr)
+            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_id = 110; */
         if (message.elementId !== undefined)
-            writer.tag(100, WireType.LengthDelimited).string(message.elementId);
-        /* optional string element_path = 101; */
+            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
+        /* optional string element_path = 111; */
         if (message.elementPath !== undefined)
-            writer.tag(101, WireType.LengthDelimited).string(message.elementPath);
-        /* optional symbolx.bench.Vector2Data element_position = 102; */
+            writer.tag(111, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 112; */
         if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_text = 103; */
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_text = 113; */
         if (message.elementText !== undefined)
-            writer.tag(103, WireType.LengthDelimited).string(message.elementText);
+            writer.tag(113, WireType.LengthDelimited).string(message.elementText);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23810,10 +23940,11 @@ export const SelectActionData = new SelectActionData$Type();
 class GoBackwardActionData$Type extends MessageType$<GoBackwardActionData> {
     constructor() {
         super("symbolx.bench.GoBackwardActionData", [
-            { no: 100, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 103, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 111, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 112, name: "element_position", kind: "message", T: () => Vector2Data },
+            { no: 113, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<GoBackwardActionData>): GoBackwardActionData {
@@ -23827,16 +23958,19 @@ class GoBackwardActionData$Type extends MessageType$<GoBackwardActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string element_id */ 100:
+                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
+                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
+                    break;
+                case /* optional string element_id */ 110:
                     message.elementId = reader.string();
                     break;
-                case /* optional string element_path */ 101:
+                case /* optional string element_path */ 111:
                     message.elementPath = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 102:
+                case /* optional symbolx.bench.Vector2Data element_position */ 112:
                     message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
-                case /* optional string element_text */ 103:
+                case /* optional string element_text */ 113:
                     message.elementText = reader.string();
                     break;
                 default:
@@ -23851,18 +23985,21 @@ class GoBackwardActionData$Type extends MessageType$<GoBackwardActionData> {
         return message;
     }
     internalBinaryWrite(message: GoBackwardActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string element_id = 100; */
+        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
+        if (message.applicationPtr)
+            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_id = 110; */
         if (message.elementId !== undefined)
-            writer.tag(100, WireType.LengthDelimited).string(message.elementId);
-        /* optional string element_path = 101; */
+            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
+        /* optional string element_path = 111; */
         if (message.elementPath !== undefined)
-            writer.tag(101, WireType.LengthDelimited).string(message.elementPath);
-        /* optional symbolx.bench.Vector2Data element_position = 102; */
+            writer.tag(111, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 112; */
         if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_text = 103; */
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_text = 113; */
         if (message.elementText !== undefined)
-            writer.tag(103, WireType.LengthDelimited).string(message.elementText);
+            writer.tag(113, WireType.LengthDelimited).string(message.elementText);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23877,10 +24014,11 @@ export const GoBackwardActionData = new GoBackwardActionData$Type();
 class GoForwardActionData$Type extends MessageType$<GoForwardActionData> {
     constructor() {
         super("symbolx.bench.GoForwardActionData", [
-            { no: 100, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 101, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 103, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 111, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 112, name: "element_position", kind: "message", T: () => Vector2Data },
+            { no: 113, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<GoForwardActionData>): GoForwardActionData {
@@ -23894,16 +24032,19 @@ class GoForwardActionData$Type extends MessageType$<GoForwardActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string element_id */ 100:
+                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
+                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
+                    break;
+                case /* optional string element_id */ 110:
                     message.elementId = reader.string();
                     break;
-                case /* optional string element_path */ 101:
+                case /* optional string element_path */ 111:
                     message.elementPath = reader.string();
                     break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 102:
+                case /* optional symbolx.bench.Vector2Data element_position */ 112:
                     message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
-                case /* optional string element_text */ 103:
+                case /* optional string element_text */ 113:
                     message.elementText = reader.string();
                     break;
                 default:
@@ -23918,18 +24059,21 @@ class GoForwardActionData$Type extends MessageType$<GoForwardActionData> {
         return message;
     }
     internalBinaryWrite(message: GoForwardActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string element_id = 100; */
+        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
+        if (message.applicationPtr)
+            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_id = 110; */
         if (message.elementId !== undefined)
-            writer.tag(100, WireType.LengthDelimited).string(message.elementId);
-        /* optional string element_path = 101; */
+            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
+        /* optional string element_path = 111; */
         if (message.elementPath !== undefined)
-            writer.tag(101, WireType.LengthDelimited).string(message.elementPath);
-        /* optional symbolx.bench.Vector2Data element_position = 102; */
+            writer.tag(111, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 112; */
         if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_text = 103; */
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_text = 113; */
         if (message.elementText !== undefined)
-            writer.tag(103, WireType.LengthDelimited).string(message.elementText);
+            writer.tag(113, WireType.LengthDelimited).string(message.elementText);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23944,7 +24088,12 @@ export const GoForwardActionData = new GoForwardActionData$Type();
 class GoToUrlActionData$Type extends MessageType$<GoToUrlActionData> {
     constructor() {
         super("symbolx.bench.GoToUrlActionData", [
-            { no: 100, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 111, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 112, name: "element_position", kind: "message", T: () => Vector2Data },
+            { no: 113, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 120, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<GoToUrlActionData>): GoToUrlActionData {
@@ -23958,7 +24107,22 @@ class GoToUrlActionData$Type extends MessageType$<GoToUrlActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string url */ 100:
+                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
+                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
+                    break;
+                case /* optional string element_id */ 110:
+                    message.elementId = reader.string();
+                    break;
+                case /* optional string element_path */ 111:
+                    message.elementPath = reader.string();
+                    break;
+                case /* optional symbolx.bench.Vector2Data element_position */ 112:
+                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
+                    break;
+                case /* optional string element_text */ 113:
+                    message.elementText = reader.string();
+                    break;
+                case /* optional string url */ 120:
                     message.url = reader.string();
                     break;
                 default:
@@ -23973,9 +24137,24 @@ class GoToUrlActionData$Type extends MessageType$<GoToUrlActionData> {
         return message;
     }
     internalBinaryWrite(message: GoToUrlActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string url = 100; */
+        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
+        if (message.applicationPtr)
+            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_id = 110; */
+        if (message.elementId !== undefined)
+            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
+        /* optional string element_path = 111; */
+        if (message.elementPath !== undefined)
+            writer.tag(111, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 112; */
+        if (message.elementPosition)
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_text = 113; */
+        if (message.elementText !== undefined)
+            writer.tag(113, WireType.LengthDelimited).string(message.elementText);
+        /* optional string url = 120; */
         if (message.url !== undefined)
-            writer.tag(100, WireType.LengthDelimited).string(message.url);
+            writer.tag(120, WireType.LengthDelimited).string(message.url);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23990,7 +24169,12 @@ export const GoToUrlActionData = new GoToUrlActionData$Type();
 class GoToTabActionData$Type extends MessageType$<GoToTabActionData> {
     constructor() {
         super("symbolx.bench.GoToTabActionData", [
-            { no: 100, name: "tab_index", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 111, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 112, name: "element_position", kind: "message", T: () => Vector2Data },
+            { no: 113, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 120, name: "tab_index", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<GoToTabActionData>): GoToTabActionData {
@@ -24004,7 +24188,22 @@ class GoToTabActionData$Type extends MessageType$<GoToTabActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional int32 tab_index */ 100:
+                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
+                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
+                    break;
+                case /* optional string element_id */ 110:
+                    message.elementId = reader.string();
+                    break;
+                case /* optional string element_path */ 111:
+                    message.elementPath = reader.string();
+                    break;
+                case /* optional symbolx.bench.Vector2Data element_position */ 112:
+                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
+                    break;
+                case /* optional string element_text */ 113:
+                    message.elementText = reader.string();
+                    break;
+                case /* optional int32 tab_index */ 120:
                     message.tabIndex = reader.int32();
                     break;
                 default:
@@ -24019,9 +24218,24 @@ class GoToTabActionData$Type extends MessageType$<GoToTabActionData> {
         return message;
     }
     internalBinaryWrite(message: GoToTabActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional int32 tab_index = 100; */
+        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
+        if (message.applicationPtr)
+            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_id = 110; */
+        if (message.elementId !== undefined)
+            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
+        /* optional string element_path = 111; */
+        if (message.elementPath !== undefined)
+            writer.tag(111, WireType.LengthDelimited).string(message.elementPath);
+        /* optional symbolx.bench.Vector2Data element_position = 112; */
+        if (message.elementPosition)
+            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
+        /* optional string element_text = 113; */
+        if (message.elementText !== undefined)
+            writer.tag(113, WireType.LengthDelimited).string(message.elementText);
+        /* optional int32 tab_index = 120; */
         if (message.tabIndex !== undefined)
-            writer.tag(100, WireType.Varint).int32(message.tabIndex);
+            writer.tag(120, WireType.Varint).int32(message.tabIndex);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24106,8 +24320,6 @@ class BlockData$Type extends MessageType$<BlockData> {
             { no: 41, name: "run_options", kind: "message", T: () => RunOptionsData },
             { no: 42, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 43, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
-            { no: 44, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 45, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 90, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] }
         ]);
     }
@@ -24122,7 +24334,6 @@ class BlockData$Type extends MessageType$<BlockData> {
         message.orderKey = "";
         message.policies = [];
         message.delegatedPolicies = [];
-        message.rolesPtr = [];
         message.mode = 0;
         if (value !== undefined)
             reflectionMergePartial<BlockData>(this, message, value);
@@ -24204,12 +24415,6 @@ class BlockData$Type extends MessageType$<BlockData> {
                     break;
                 case /* repeated symbolx.bench.PolicyData delegated_policies */ 43:
                     message.delegatedPolicies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 44:
-                    message.rolesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 45:
-                    message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
                     break;
                 case /* symbolx.bench.NodeMode mode */ 90:
                     message.mode = reader.int32();
@@ -24298,12 +24503,6 @@ class BlockData$Type extends MessageType$<BlockData> {
         /* repeated symbolx.bench.PolicyData delegated_policies = 43; */
         for (let i = 0; i < message.delegatedPolicies.length; i++)
             PolicyData.internalBinaryWrite(message.delegatedPolicies[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData roles_ptr = 44; */
-        for (let i = 0; i < message.rolesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData identity_ptr = 45; */
-        if (message.identityPtr)
-            NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeMode mode = 90; */
         if (message.mode !== 0)
             writer.tag(90, WireType.Varint).int32(message.mode);
@@ -26678,13 +26877,13 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.RUN]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.INTERRUPTION]: [NodeType.RUN],
   [NodeType.LOG]: [NodeType.BENCH],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.RUN, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.RUN, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.RUN, NodeType.STREAM, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.SECRET, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.RUN, NodeType.STREAM, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.SECRET, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
 }
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.STREAM, NodeType.RUN, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE],
+  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.RUN, NodeType.STREAM, NodeType.SKIP, NodeType.SECRET, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE],
   [NodeType.USER]: [NodeType.SKIP, NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY],
   [NodeType.HANDLE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CLIENT]: [NodeType.SKIP, NodeType.EMPTY],
@@ -26746,13 +26945,13 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.RUN]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.INTERRUPTION]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.LOG]: [NodeType.BENCH],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.BLOCK, NodeType.USER, NodeType.FIELD, NodeType.CLIENT, NodeType.HANDLE, NodeType.ORGANIZATION, NodeType.VIEW, NodeType.EMPTY, NodeType.SCALER, NodeType.STORE, NodeType.SESSION, NodeType.ACTION, NodeType.PIPE, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.RUN, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.RUN, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.BLOCK, NodeType.USER, NodeType.FIELD, NodeType.CLIENT, NodeType.HANDLE, NodeType.ORGANIZATION, NodeType.VIEW, NodeType.EMPTY, NodeType.SCALER, NodeType.STORE, NodeType.SESSION, NodeType.ACTION, NodeType.PIPE, NodeType.FILE, NodeType.RUN, NodeType.STREAM, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.SECRET, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.RUN, NodeType.STREAM, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.SECRET, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
 }
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.RUN, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
+  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.RUN, NodeType.STREAM, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.SECRET, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
   [NodeType.USER]: [NodeType.SKIP, NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY],
   [NodeType.HANDLE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CLIENT]: [NodeType.SKIP, NodeType.EMPTY],
@@ -27601,7 +27800,6 @@ export enum InviteProperty {
   userPtr = 30,
   userEmail = 31,
   isOwner = 32,
-  rolesPtr = 33,
 }
 
 export enum ScalerProperty {
@@ -27938,8 +28136,6 @@ export enum BlockProperty {
   runOptions = 41,
   policies = 42,
   delegatedPolicies = 43,
-  rolesPtr = 44,
-  identityPtr = 45,
   mode = 90,
 }
 
@@ -28046,8 +28242,7 @@ export enum ActionProperty {
   icon = 35,
   text = 36,
   runOptions = 41,
-  rolesPtr = 42,
-  identityPtr = 43,
+  machinePtr = 51,
   code = 52,
   toolPtr = 53,
   calls = 55,
@@ -28399,45 +28594,45 @@ export enum IconViewProperty {
 }
 
 export enum GetActionProperty {
-  nodeType = 100,
-  baseBlockPtr = 101,
-  filter = 102,
+  nodeType = 120,
+  baseBlockPtr = 121,
+  filter = 122,
 }
 
 export enum SearchActionProperty {
-  nodeType = 100,
-  baseBlockPtr = 101,
-  filter = 102,
-  sort = 103,
+  nodeType = 120,
+  baseBlockPtr = 121,
+  filter = 122,
+  sort = 123,
 }
 
 export enum CreateActionProperty {
-  nodePartialPacked = 100,
-  nodePtr = 200,
+  nodePartialPacked = 120,
+  nodePtr = 220,
 }
 
 export enum DuplicateActionProperty {
-  nodePtr = 100,
-  nodePartialPacked = 101,
-  isShallow = 110,
+  nodePtr = 120,
+  nodePartialPacked = 121,
+  isShallow = 122,
 }
 
 export enum UpdateActionProperty {
-  nodePtr = 100,
-  nodePartialPacked = 101,
+  nodePtr = 120,
+  nodePartialPacked = 121,
 }
 
 export enum DeleteActionProperty {
-  nodePtr = 100,
+  nodePtr = 120,
 }
 
 export enum ChangeActionProperty {
-  nodesPtr = 110,
+  nodesPtr = 120,
 }
 
 export enum FailActionProperty {
-  errorTitle = 100,
-  errorText = 101,
+  errorTitle = 120,
+  errorText = 121,
 }
 
 export enum CodeActionProperty {
@@ -28465,71 +28660,93 @@ export enum RouteActionProperty {
 }
 
 export enum ObserveActionProperty {
-  excludeImage = 100,
+  applicationPtr = 100,
+  elementId = 110,
+  elementPath = 111,
+  elementPosition = 112,
+  elementText = 113,
+  excludeImage = 120,
   screenshotPtr = 200,
   dom = 201,
 }
 
 export enum ClickActionProperty {
-  elementId = 100,
-  elementPath = 101,
-  elementPosition = 102,
-  elementText = 103,
+  applicationPtr = 100,
+  elementId = 110,
+  elementPath = 111,
+  elementPosition = 112,
+  elementText = 113,
 }
 
 export enum PressActionProperty {
-  elementId = 100,
-  elementPath = 101,
-  elementPosition = 102,
-  elementText = 103,
-  keys = 110,
-  delay = 111,
+  applicationPtr = 100,
+  elementId = 110,
+  elementPath = 111,
+  elementPosition = 112,
+  elementText = 113,
+  keys = 120,
+  delay = 121,
 }
 
 export enum TypeActionProperty {
-  elementId = 100,
-  elementPath = 101,
-  elementPosition = 102,
-  elementText = 103,
-  string = 110,
-  delay = 111,
+  applicationPtr = 100,
+  elementId = 110,
+  elementPath = 111,
+  elementPosition = 112,
+  elementText = 113,
+  string = 120,
+  delay = 121,
 }
 
 export enum ScrollActionProperty {
-  elementId = 100,
-  elementPath = 101,
-  elementPosition = 102,
-  elementText = 103,
-  amount = 110,
+  applicationPtr = 100,
+  elementId = 110,
+  elementPath = 111,
+  elementPosition = 112,
+  elementText = 113,
+  amount = 120,
 }
 
 export enum SelectActionProperty {
-  elementId = 100,
-  elementPath = 101,
-  elementPosition = 102,
-  elementText = 103,
+  applicationPtr = 100,
+  elementId = 110,
+  elementPath = 111,
+  elementPosition = 112,
+  elementText = 113,
 }
 
 export enum GoBackwardActionProperty {
-  elementId = 100,
-  elementPath = 101,
-  elementPosition = 102,
-  elementText = 103,
+  applicationPtr = 100,
+  elementId = 110,
+  elementPath = 111,
+  elementPosition = 112,
+  elementText = 113,
 }
 
 export enum GoForwardActionProperty {
-  elementId = 100,
-  elementPath = 101,
-  elementPosition = 102,
-  elementText = 103,
+  applicationPtr = 100,
+  elementId = 110,
+  elementPath = 111,
+  elementPosition = 112,
+  elementText = 113,
 }
 
 export enum GoToUrlActionProperty {
-  url = 100,
+  applicationPtr = 100,
+  elementId = 110,
+  elementPath = 111,
+  elementPosition = 112,
+  elementText = 113,
+  url = 120,
 }
 
 export enum GoToTabActionProperty {
-  tabIndex = 100,
+  applicationPtr = 100,
+  elementId = 110,
+  elementPath = 111,
+  elementPosition = 112,
+  elementText = 113,
+  tabIndex = 120,
 }
 
 export enum LoopActionProperty {
@@ -29564,7 +29781,6 @@ export const InviteDataInfo: Record<InviteProperty, PropertyInfo> = {
   [InviteProperty.userPtr]: { id: 30, name: 'user_ptr', component: ObjectType.INVITE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [InviteProperty.userEmail]: { id: 31, name: 'user_email', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [InviteProperty.isOwner]: { id: 32, name: 'is_owner', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.rolesPtr]: { id: 33, name: 'roles_ptr', component: ObjectType.INVITE, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [50] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ScalerDataInfo: Record<ScalerProperty, PropertyInfo> = {
   [ScalerProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SCALER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -29619,8 +29835,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -29651,8 +29867,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.4", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -29890,8 +30106,6 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.runOptions]: { id: 41, name: 'run_options', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [BlockProperty.policies]: { id: 42, name: 'policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BlockProperty.delegatedPolicies]: { id: 43, name: 'delegated_policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [BlockProperty.rolesPtr]: { id: 44, name: 'roles_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [50] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.identityPtr]: { id: 45, name: 'identity_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [51] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.mode]: { id: 90, name: 'mode', component: ObjectType.BLOCK, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
@@ -29995,8 +30209,7 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.icon]: { id: 35, name: 'icon', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ActionProperty.text]: { id: 36, name: 'text', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ActionProperty.runOptions]: { id: 41, name: 'run_options', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [ActionProperty.rolesPtr]: { id: 42, name: 'roles_ptr', component: ObjectType.ACTION, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [50] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ActionProperty.identityPtr]: { id: 43, name: 'identity_ptr', component: ObjectType.ACTION, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [51] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ActionProperty.machinePtr]: { id: 51, name: 'machine_ptr', component: ObjectType.ACTION, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.code]: { id: 52, name: 'code', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ActionProperty.toolPtr]: { id: 53, name: 'tool_ptr', component: ObjectType.ACTION, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [22] }, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.calls]: { id: 55, name: 'calls', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.OUTPUT, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CALL },
@@ -30315,38 +30528,38 @@ export const IconViewDataInfo: Record<IconViewProperty, PropertyInfo> = {
   [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, componentSubtype: 45204, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const GetActionDataInfo: Record<GetActionProperty, PropertyInfo> = {
-  [GetActionProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.ACTION, componentSubtype: 40, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [GetActionProperty.baseBlockPtr]: { id: 101, name: 'base_block_ptr', component: ObjectType.ACTION, componentSubtype: 40, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [GetActionProperty.filter]: { id: 102, name: 'filter', component: ObjectType.ACTION, componentSubtype: 40, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [GetActionProperty.nodeType]: { id: 120, name: 'node_type', component: ObjectType.ACTION, componentSubtype: 100, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GetActionProperty.baseBlockPtr]: { id: 121, name: 'base_block_ptr', component: ObjectType.ACTION, componentSubtype: 100, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [GetActionProperty.filter]: { id: 122, name: 'filter', component: ObjectType.ACTION, componentSubtype: 100, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
 export const SearchActionDataInfo: Record<SearchActionProperty, PropertyInfo> = {
-  [SearchActionProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.ACTION, componentSubtype: 41, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [SearchActionProperty.baseBlockPtr]: { id: 101, name: 'base_block_ptr', component: ObjectType.ACTION, componentSubtype: 41, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [SearchActionProperty.filter]: { id: 102, name: 'filter', component: ObjectType.ACTION, componentSubtype: 41, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [SearchActionProperty.sort]: { id: 103, name: 'sort', component: ObjectType.ACTION, componentSubtype: 41, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [SearchActionProperty.nodeType]: { id: 120, name: 'node_type', component: ObjectType.ACTION, componentSubtype: 101, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [SearchActionProperty.baseBlockPtr]: { id: 121, name: 'base_block_ptr', component: ObjectType.ACTION, componentSubtype: 101, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SearchActionProperty.filter]: { id: 122, name: 'filter', component: ObjectType.ACTION, componentSubtype: 101, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [SearchActionProperty.sort]: { id: 123, name: 'sort', component: ObjectType.ACTION, componentSubtype: 101, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
 export const CreateActionDataInfo: Record<CreateActionProperty, PropertyInfo> = {
-  [CreateActionProperty.nodePartialPacked]: { id: 100, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 60, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
-  [CreateActionProperty.nodePtr]: { id: 200, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 60, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [CreateActionProperty.nodePartialPacked]: { id: 120, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 200, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
+  [CreateActionProperty.nodePtr]: { id: 220, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 200, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
 export const DuplicateActionDataInfo: Record<DuplicateActionProperty, PropertyInfo> = {
-  [DuplicateActionProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 61, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [DuplicateActionProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 61, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
-  [DuplicateActionProperty.isShallow]: { id: 110, name: 'is_shallow', component: ObjectType.ACTION, componentSubtype: 61, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [DuplicateActionProperty.nodePtr]: { id: 120, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 201, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [DuplicateActionProperty.nodePartialPacked]: { id: 121, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 201, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
+  [DuplicateActionProperty.isShallow]: { id: 122, name: 'is_shallow', component: ObjectType.ACTION, componentSubtype: 201, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const UpdateActionDataInfo: Record<UpdateActionProperty, PropertyInfo> = {
-  [UpdateActionProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 62, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [UpdateActionProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 62, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
+  [UpdateActionProperty.nodePtr]: { id: 120, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 202, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [UpdateActionProperty.nodePartialPacked]: { id: 121, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 202, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
 }
 export const DeleteActionDataInfo: Record<DeleteActionProperty, PropertyInfo> = {
-  [DeleteActionProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 63, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [DeleteActionProperty.nodePtr]: { id: 120, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 203, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ChangeActionDataInfo: Record<ChangeActionProperty, PropertyInfo> = {
-  [ChangeActionProperty.nodesPtr]: { id: 110, name: 'nodes_ptr', component: ObjectType.ACTION, componentSubtype: 70, kind: 'reference', fieldType: FieldType.INPUT, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [ChangeActionProperty.nodesPtr]: { id: 120, name: 'nodes_ptr', component: ObjectType.ACTION, componentSubtype: 205, kind: 'reference', fieldType: FieldType.INPUT, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
 export const FailActionDataInfo: Record<FailActionProperty, PropertyInfo> = {
-  [FailActionProperty.errorTitle]: { id: 100, name: 'error_title', component: ObjectType.ACTION, componentSubtype: 11, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [FailActionProperty.errorText]: { id: 101, name: 'error_text', component: ObjectType.ACTION, componentSubtype: 11, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [FailActionProperty.errorTitle]: { id: 120, name: 'error_title', component: ObjectType.ACTION, componentSubtype: 11, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [FailActionProperty.errorText]: { id: 121, name: 'error_text', component: ObjectType.ACTION, componentSubtype: 11, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
 }
 export const CodeActionDataInfo: Record<CodeActionProperty, PropertyInfo> = {
 
@@ -30355,7 +30568,7 @@ export const ToolActionDataInfo: Record<ToolActionProperty, PropertyInfo> = {
 
 }
 export const WaitActionDataInfo: Record<WaitActionProperty, PropertyInfo> = {
-  [WaitActionProperty.delay]: { id: 100, name: 'delay', component: ObjectType.ACTION, componentSubtype: 122, kind: 'primitive', primitiveType: PrimitiveType.DURATION, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [WaitActionProperty.delay]: { id: 100, name: 'delay', component: ObjectType.ACTION, componentSubtype: 302, kind: 'primitive', primitiveType: PrimitiveType.DURATION, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const GenerateActionDataInfo: Record<GenerateActionProperty, PropertyInfo> = {
 
@@ -30367,65 +30580,87 @@ export const RouteActionDataInfo: Record<RouteActionProperty, PropertyInfo> = {
 
 }
 export const ObserveActionDataInfo: Record<ObserveActionProperty, PropertyInfo> = {
-  [ObserveActionProperty.excludeImage]: { id: 100, name: 'exclude_image', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [ObserveActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [ObserveActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ObserveActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ObserveActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [ObserveActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [ObserveActionProperty.excludeImage]: { id: 120, name: 'exclude_image', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
   [ObserveActionProperty.screenshotPtr]: { id: 200, name: 'screenshot_ptr', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
   [ObserveActionProperty.dom]: { id: 201, name: 'dom', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DOM_NODE },
 }
 export const ClickActionDataInfo: Record<ClickActionProperty, PropertyInfo> = {
-  [ClickActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ClickActionProperty.elementPath]: { id: 101, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ClickActionProperty.elementPosition]: { id: 102, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [ClickActionProperty.elementText]: { id: 103, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [ClickActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [ClickActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ClickActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ClickActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [ClickActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const PressActionDataInfo: Record<PressActionProperty, PropertyInfo> = {
-  [PressActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.elementPath]: { id: 101, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.elementPosition]: { id: 102, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [PressActionProperty.elementText]: { id: 103, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.keys]: { id: 110, name: 'keys', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.delay]: { id: 111, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [PressActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [PressActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.keys]: { id: 120, name: 'keys', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.delay]: { id: 121, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const TypeActionDataInfo: Record<TypeActionProperty, PropertyInfo> = {
-  [TypeActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.elementPath]: { id: 101, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.elementPosition]: { id: 102, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [TypeActionProperty.elementText]: { id: 103, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.string]: { id: 110, name: 'string', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.delay]: { id: 111, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [TypeActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [TypeActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [TypeActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [TypeActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [TypeActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [TypeActionProperty.string]: { id: 120, name: 'string', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [TypeActionProperty.delay]: { id: 121, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const ScrollActionDataInfo: Record<ScrollActionProperty, PropertyInfo> = {
-  [ScrollActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ScrollActionProperty.elementPath]: { id: 101, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ScrollActionProperty.elementPosition]: { id: 102, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [ScrollActionProperty.elementText]: { id: 103, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [ScrollActionProperty.amount]: { id: 110, name: 'amount', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [ScrollActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [ScrollActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ScrollActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ScrollActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [ScrollActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [ScrollActionProperty.amount]: { id: 120, name: 'amount', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
 }
 export const SelectActionDataInfo: Record<SelectActionProperty, PropertyInfo> = {
-  [SelectActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [SelectActionProperty.elementPath]: { id: 101, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [SelectActionProperty.elementPosition]: { id: 102, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [SelectActionProperty.elementText]: { id: 103, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [SelectActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [SelectActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [SelectActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [SelectActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [SelectActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const GoBackwardActionDataInfo: Record<GoBackwardActionProperty, PropertyInfo> = {
-  [GoBackwardActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [GoBackwardActionProperty.elementPath]: { id: 101, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [GoBackwardActionProperty.elementPosition]: { id: 102, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [GoBackwardActionProperty.elementText]: { id: 103, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoBackwardActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [GoBackwardActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [GoBackwardActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [GoBackwardActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [GoBackwardActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const GoForwardActionDataInfo: Record<GoForwardActionProperty, PropertyInfo> = {
-  [GoForwardActionProperty.elementId]: { id: 100, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [GoForwardActionProperty.elementPath]: { id: 101, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [GoForwardActionProperty.elementPosition]: { id: 102, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [GoForwardActionProperty.elementText]: { id: 103, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoForwardActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [GoForwardActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [GoForwardActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [GoForwardActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [GoForwardActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const GoToUrlActionDataInfo: Record<GoToUrlActionProperty, PropertyInfo> = {
-  [GoToUrlActionProperty.url]: { id: 100, name: 'url', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoToUrlActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [GoToUrlActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [GoToUrlActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [GoToUrlActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [GoToUrlActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoToUrlActionProperty.url]: { id: 120, name: 'url', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const GoToTabActionDataInfo: Record<GoToTabActionProperty, PropertyInfo> = {
-  [GoToTabActionProperty.tabIndex]: { id: 100, name: 'tab_index', component: ObjectType.ACTION, componentSubtype: 1101, kind: 'primitive', primitiveType: PrimitiveType.INT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoToTabActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1101, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [GoToTabActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1101, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [GoToTabActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1101, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [GoToTabActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1101, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [GoToTabActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1101, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoToTabActionProperty.tabIndex]: { id: 120, name: 'tab_index', component: ObjectType.ACTION, componentSubtype: 1101, kind: 'primitive', primitiveType: PrimitiveType.INT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const LoopActionDataInfo: Record<LoopActionProperty, PropertyInfo> = {
-  [LoopActionProperty.forFieldPtr]: { id: 100, name: 'for_field_ptr', component: ObjectType.ACTION, componentSubtype: 5001, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [LoopActionProperty.forFieldPtr]: { id: 100, name: 'for_field_ptr', component: ObjectType.ACTION, componentSubtype: 8001, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SelectPipeDataInfo: Record<SelectPipeProperty, PropertyInfo> = {
 
@@ -31141,24 +31376,25 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
   [ActionType.START]: { id: 1, name: 'START', text: 'Begin the Flow' },
   [ActionType.COMPLETE]: { id: 10, name: 'COMPLETE', text: 'Complete the entire Flow' },
   [ActionType.FAIL]: { id: 11, name: 'FAIL', text: 'Fail the entire Flow' },
-  [ActionType.GET]: { id: 40, name: 'GET', text: 'Get a Node' },
-  [ActionType.SEARCH]: { id: 41, name: 'SEARCH', text: 'Search for Nodes' },
-  [ActionType.COPY]: { id: 50, name: 'COPY', text: 'Copy some Nodes' },
-  [ActionType.CREATE]: { id: 60, name: 'CREATE', text: 'Create a Node' },
-  [ActionType.DUPLICATE]: { id: 61, name: 'DUPLICATE', text: 'Duplicate some Nodes' },
-  [ActionType.UPDATE]: { id: 62, name: 'UPDATE', text: 'Update a Node' },
-  [ActionType.DELETE]: { id: 63, name: 'DELETE', text: 'Delete a Node' },
-  [ActionType.PASTE]: { id: 65, name: 'PASTE', text: 'Paste a Node' },
-  [ActionType.CHANGE]: { id: 70, name: 'CHANGE', text: 'Edit relevant Nodes' },
-  [ActionType.CODE]: { id: 100, name: 'CODE', text: 'Run arbitrary Python code' },
-  [ActionType.TOOL]: { id: 101, name: 'TOOL', text: 'Delegate to another Block' },
-  [ActionType.SEND]: { id: 120, name: 'SEND', text: 'Send a Message' },
-  [ActionType.RECEIVE]: { id: 121, name: 'RECEIVE', text: 'Receive a Message' },
-  [ActionType.WAIT]: { id: 122, name: 'WAIT', text: 'Wait for something' },
-  [ActionType.YIELD]: { id: 123, name: 'YIELD', text: 'Defer to someone' },
-  [ActionType.GENERATE]: { id: 500, name: 'GENERATE', text: 'Generate something' },
-  [ActionType.TRANSFORM]: { id: 501, name: 'TRANSFORM', text: 'Transform something' },
-  [ActionType.ROUTE]: { id: 510, name: 'ROUTE', text: 'Route to other Actions' },
+  [ActionType.GET]: { id: 100, name: 'GET', text: 'Get a Node' },
+  [ActionType.SEARCH]: { id: 101, name: 'SEARCH', text: 'Search for Nodes' },
+  [ActionType.COPY]: { id: 110, name: 'COPY', text: 'Copy some Nodes' },
+  [ActionType.CREATE]: { id: 200, name: 'CREATE', text: 'Create a Node' },
+  [ActionType.DUPLICATE]: { id: 201, name: 'DUPLICATE', text: 'Duplicate some Nodes' },
+  [ActionType.UPDATE]: { id: 202, name: 'UPDATE', text: 'Update a Node' },
+  [ActionType.DELETE]: { id: 203, name: 'DELETE', text: 'Delete a Node' },
+  [ActionType.PASTE]: { id: 204, name: 'PASTE', text: 'Paste a Node' },
+  [ActionType.CHANGE]: { id: 205, name: 'CHANGE', text: 'Edit relevant Nodes' },
+  [ActionType.SEND]: { id: 300, name: 'SEND', text: 'Send a Message' },
+  [ActionType.RECEIVE]: { id: 301, name: 'RECEIVE', text: 'Receive a Message' },
+  [ActionType.WAIT]: { id: 302, name: 'WAIT', text: 'Wait for something' },
+  [ActionType.YIELD]: { id: 303, name: 'YIELD', text: 'Defer to something' },
+  [ActionType.TOOL]: { id: 400, name: 'TOOL', text: 'Delegate to an implementation' },
+  [ActionType.CODE]: { id: 401, name: 'CODE', text: 'Run arbitrary Python code' },
+  [ActionType.DO]: { id: 450, name: 'DO', text: 'Perform an arbitrary action' },
+  [ActionType.GENERATE]: { id: 451, name: 'GENERATE', text: 'Generate something' },
+  [ActionType.TRANSFORM]: { id: 452, name: 'TRANSFORM', text: 'Transform something' },
+  [ActionType.ROUTE]: { id: 453, name: 'ROUTE', text: 'Route to other Actions' },
   [ActionType.OBSERVE]: { id: 1000, name: 'OBSERVE', text: 'Look at the application' },
   [ActionType.CLICK]: { id: 1050, name: 'CLICK', text: 'Click an element' },
   [ActionType.PRESS]: { id: 1051, name: 'PRESS', text: 'Press a key' },
@@ -31171,7 +31407,7 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
   [ActionType.GO_TO_TAB]: { id: 1101, name: 'GO_TO_TAB', text: 'Switch to a tab' },
   [ActionType.OPEN_TAB]: { id: 1102, name: 'OPEN_TAB', text: 'Open a new tab' },
   [ActionType.CLOSE_TAB]: { id: 1103, name: 'CLOSE_TAB', text: 'Close a tab' },
-  [ActionType.LOOP]: { id: 5001, name: 'LOOP', text: 'Repeat some Actions' },
+  [ActionType.LOOP]: { id: 8001, name: 'LOOP', text: 'Repeat some Actions' },
   [ActionType.TEXT]: { id: 9000, name: 'TEXT', text: 'Just some documentation' },
 }
 

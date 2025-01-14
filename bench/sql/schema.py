@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.14.2"
+VERSION = "2025.01.14.4"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -268,9 +268,6 @@ INVITE_TABLE = Table(
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_email", PrimitiveType.STRING, is_nullable=True),
         Column("is_owner", PrimitiveType.BOOLEAN, default="false"),
-        Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("roles_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
     ),
 )
 
@@ -753,12 +750,6 @@ BLOCK_TABLE = Table(
         Column("run_options", PrimitiveType.JSON, is_nullable=True),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("delegated_policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
-        Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("roles_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
@@ -909,12 +900,8 @@ ACTION_TABLE = Table(
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("run_options", PrimitiveType.JSON, is_nullable=True),
-        Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("roles_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
+        Column("machine_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("tool_id", PrimitiveType.UUID, is_nullable=True),
         Column("tool_ck", PrimitiveType.UUID, is_nullable=True),

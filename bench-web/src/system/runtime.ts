@@ -261,7 +261,7 @@ export class Runtime {
     let variablesPacked: Record<string, any> | undefined = undefined;
     for (const [key, value] of Object.entries(run.variablesPacked ?? {})) {
       const type = decodeTypeIdentity(key.slice(TK_LENGTH_B64 + 1));
-      if (!isResourceNodeType(type)) {
+      if (!isResourceNodeType(type)) { // nocheckin broken
         // ignore resources?
         if (variablesPacked == null) variablesPacked = {};
         variablesPacked[key] = value;

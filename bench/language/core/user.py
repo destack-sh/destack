@@ -5,7 +5,6 @@ from uuid import UUID
 from bench.pb2 import InviteData, MembershipData, UserData
 
 from .const import (
-    BlockType,
     NodeType,
     Region,
     StructType,
@@ -21,10 +20,10 @@ from .property import (
     p_regular,
     p_system,
 )
-from .validation import EMAIL_CONSTRAINT, NAME_CONSTRAINT, constraint
+from .validation import EMAIL_CONSTRAINT, NAME_CONSTRAINT
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Handle, Icon, NodeReference, Text, User
+    from bench.language import Bench, Handle, Icon, NodeReference, Text, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -101,10 +100,4 @@ class Invite(BenchNode[InviteData]):
 
     # membership properties once accepted
     is_owner: bool = p_regular(32, default=False)
-    roles: list["Block"] = p_regular(
-        33,
-        require=False,
-        array=True,
-        references=NodeType.BLOCK,
-        constraint=constraint(node_subtypes=[BlockType.ROLE]),
-    )
+    # roles, ...?

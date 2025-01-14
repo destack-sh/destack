@@ -350,6 +350,12 @@ class DynamicActionRunner(ActionRunnerBase):
 
 
 class ApplicationActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
+    def _get_application(self) -> Browser:
+        if (application := cast(HasApplicationContext, self.action).application) is not None:
+            return application
+        else:
+            return self._get_ready_resource_or_error(Browser)
+
     async def _get_element_selector(self, inputs: HasApplicationContext) -> str | None:
         """Gets the element selector from the inputs."""
         # TODO :Incomplete: automatically generate selector for Action if non given
@@ -369,12 +375,12 @@ class ApplicationActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
         await pw_page.focus(selector)
 
 
-class ObserveActionRunner(ActionRunnerBase[ObserveAction]):
+class ObserveActionRunner(ApplicationActionRunnerBase[ObserveAction]):
     @override
     async def run(self) -> None:
         # TODO :Performance: obviously ObserveAction could be a lot more efficient
         #  (defer uploads, ensure extension script is preloaded, ...)
-        browser = self._get_ready_resource_or_error(Browser)
+        browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         dom_tree_js = await pw_page.evaluate(
@@ -401,7 +407,7 @@ class ClickActionRunner(ApplicationActionRunnerBase[ClickAction]):
         selector = await self._get_element_selector(self.action)
         if selector is None:
             raise ValidationError(None, "no element selector to click")
-        browser = self._get_ready_resource_or_error(Browser)
+        browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await pw_page.click(selector)
@@ -413,7 +419,7 @@ class PressActionRunner(ApplicationActionRunnerBase[PressAction]):
         keys = self.action.keys
         if keys is None:
             raise ValidationError(None, "no keys to press")
-        browser = self._get_ready_resource_or_error(Browser)
+        browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await self._focus_element(self.action, pw_page)
@@ -426,7 +432,7 @@ class TypeActionRunner(ApplicationActionRunnerBase[TypeAction]):
         string = self.action.string
         if string is None:
             raise ValidationError(None, "no string to type")
-        browser = self._get_ready_resource_or_error(Browser)
+        browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await self._focus_element(self.action, pw_page)
@@ -439,7 +445,7 @@ class ScrollActionRunner(ApplicationActionRunnerBase[ScrollAction]):
         amount = self.action.amount
         if amount is None:
             raise ValidationError(None, "no amount to scroll")
-        browser = self._get_ready_resource_or_error(Browser)
+        browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await self._focus_element(self.action, pw_page)
@@ -455,7 +461,7 @@ class SelectActionRunner(ApplicationActionRunnerBase[SelectAction]):
 class GoBackwardActionRunner(ApplicationActionRunnerBase[GoBackwardAction]):
     @override
     async def run(self) -> None:
-        browser = self._get_ready_resource_or_error(Browser)
+        browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await pw_page.go_back()
@@ -464,7 +470,7 @@ class GoBackwardActionRunner(ApplicationActionRunnerBase[GoBackwardAction]):
 class GoForwardActionRunner(ApplicationActionRunnerBase[GoForwardAction]):
     @override
     async def run(self) -> None:
-        browser = self._get_ready_resource_or_error(Browser)
+        browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await pw_page.go_forward()
@@ -481,7 +487,7 @@ class GoToUrlActionRunner(ApplicationActionRunnerBase[GoToUrlAction]):
         url = self.action.url
         if url is None:
             raise ValidationError(None, "no url to go to")
-        browser = self._get_ready_resource_or_error(Browser)
+        browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await pw_page.goto(url, wait_until="domcontentloaded")
@@ -494,7 +500,7 @@ class GoToTabActionRunner(ApplicationActionRunnerBase[GoToTabAction]):
         tab_index = self.action.tab_index
         if tab_index is None:
             raise ValidationError(None, "no tab index to go to")
-        browser = self._get_ready_resource_or_error(Browser)
+        browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         await pw_browser.pages[tab_index].bring_to_front()
 

@@ -129,8 +129,8 @@ enum NodeType {
   NODE_TYPE_MACHINE = 2100;
   NODE_TYPE_BROWSER = 2110;
   NODE_TYPE_FILE = 2200;
-  NODE_TYPE_STREAM = 2201;
-  NODE_TYPE_SECRET = 2202;
+  NODE_TYPE_STREAM = 2210;
+  NODE_TYPE_SECRET = 2220;
   NODE_TYPE_PACKAGE = 3001;
   NODE_TYPE_DEPENDENCY = 3002;
   NODE_TYPE_SPACE = 3003;
@@ -228,8 +228,8 @@ enum ObjectType {
   OBJECT_TYPE_MACHINE = 2100;
   OBJECT_TYPE_BROWSER = 2110;
   OBJECT_TYPE_FILE = 2200;
-  OBJECT_TYPE_STREAM = 2201;
-  OBJECT_TYPE_SECRET = 2202;
+  OBJECT_TYPE_STREAM = 2210;
+  OBJECT_TYPE_SECRET = 2220;
   OBJECT_TYPE_PACKAGE = 3001;
   OBJECT_TYPE_DEPENDENCY = 3002;
   OBJECT_TYPE_SPACE = 3003;
@@ -323,8 +323,8 @@ enum BenchType {
   BENCH_TYPE_MACHINE = 2100;
   BENCH_TYPE_BROWSER = 2110;
   BENCH_TYPE_FILE = 2200;
-  BENCH_TYPE_STREAM = 2201;
-  BENCH_TYPE_SECRET = 2202;
+  BENCH_TYPE_STREAM = 2210;
+  BENCH_TYPE_SECRET = 2220;
   BENCH_TYPE_PACKAGE = 3001;
   BENCH_TYPE_DEPENDENCY = 3002;
   BENCH_TYPE_SPACE = 3003;
@@ -1347,24 +1347,25 @@ enum ActionType {
   ACTION_TYPE_START = 1;
   ACTION_TYPE_COMPLETE = 10;
   ACTION_TYPE_FAIL = 11;
-  ACTION_TYPE_GET = 40;
-  ACTION_TYPE_SEARCH = 41;
-  ACTION_TYPE_COPY = 50;
-  ACTION_TYPE_CREATE = 60;
-  ACTION_TYPE_DUPLICATE = 61;
-  ACTION_TYPE_UPDATE = 62;
-  ACTION_TYPE_DELETE = 63;
-  ACTION_TYPE_PASTE = 65;
-  ACTION_TYPE_CHANGE = 70;
-  ACTION_TYPE_CODE = 100;
-  ACTION_TYPE_TOOL = 101;
-  ACTION_TYPE_SEND = 120;
-  ACTION_TYPE_RECEIVE = 121;
-  ACTION_TYPE_WAIT = 122;
-  ACTION_TYPE_YIELD = 123;
-  ACTION_TYPE_GENERATE = 500;
-  ACTION_TYPE_TRANSFORM = 501;
-  ACTION_TYPE_ROUTE = 510;
+  ACTION_TYPE_GET = 100;
+  ACTION_TYPE_SEARCH = 101;
+  ACTION_TYPE_COPY = 110;
+  ACTION_TYPE_CREATE = 200;
+  ACTION_TYPE_DUPLICATE = 201;
+  ACTION_TYPE_UPDATE = 202;
+  ACTION_TYPE_DELETE = 203;
+  ACTION_TYPE_PASTE = 204;
+  ACTION_TYPE_CHANGE = 205;
+  ACTION_TYPE_SEND = 300;
+  ACTION_TYPE_RECEIVE = 301;
+  ACTION_TYPE_WAIT = 302;
+  ACTION_TYPE_YIELD = 303;
+  ACTION_TYPE_TOOL = 400;
+  ACTION_TYPE_CODE = 401;
+  ACTION_TYPE_DO = 450;
+  ACTION_TYPE_GENERATE = 451;
+  ACTION_TYPE_TRANSFORM = 452;
+  ACTION_TYPE_ROUTE = 453;
   ACTION_TYPE_OBSERVE = 1000;
   ACTION_TYPE_CLICK = 1050;
   ACTION_TYPE_PRESS = 1051;
@@ -1377,7 +1378,7 @@ enum ActionType {
   ACTION_TYPE_GO_TO_TAB = 1101;
   ACTION_TYPE_OPEN_TAB = 1102;
   ACTION_TYPE_CLOSE_TAB = 1103;
-  ACTION_TYPE_LOOP = 5001;
+  ACTION_TYPE_LOOP = 8001;
   ACTION_TYPE_TEXT = 9000;
 }
 
@@ -2371,7 +2372,6 @@ message InviteData {
   optional NodeReferenceData user_ptr = 30;
   optional string user_email = 31;
   bool is_owner = 32;
-  repeated NodeReferenceData roles_ptr = 33;
 }
 
 message BenchData {
@@ -2961,8 +2961,7 @@ message ActionData {
   optional IconData icon = 35;
   optional TextData text = 36;
   optional RunOptionsData run_options = 41;
-  repeated NodeReferenceData roles_ptr = 42;
-  optional NodeReferenceData identity_ptr = 43;
+  optional NodeReferenceData machine_ptr = 51;
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;
   repeated CallData calls = 55;
@@ -2974,52 +2973,52 @@ message ActionData {
 
 // Get a single Node.
 message GetActionData {
-  optional NodeType node_type = 100;
-  optional NodeReferenceData base_block_ptr = 101;
-  optional ExpressionData filter = 102;
+  optional NodeType node_type = 120;
+  optional NodeReferenceData base_block_ptr = 121;
+  optional ExpressionData filter = 122;
 }
 
 // Search for Nodes.
 message SearchActionData {
-  optional NodeType node_type = 100;
-  optional NodeReferenceData base_block_ptr = 101;
-  optional ExpressionData filter = 102;
-  repeated ExpressionData sort = 103;
+  optional NodeType node_type = 120;
+  optional NodeReferenceData base_block_ptr = 121;
+  optional ExpressionData filter = 122;
+  repeated ExpressionData sort = 123;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message CreateActionData {
-  optional google.protobuf.Value node_partial_packed = 100;
-  optional NodeReferenceData node_ptr = 200;
+  optional google.protobuf.Value node_partial_packed = 120;
+  optional NodeReferenceData node_ptr = 220;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message DuplicateActionData {
-  optional NodeReferenceData node_ptr = 100;
-  optional google.protobuf.Value node_partial_packed = 101;
-  optional bool is_shallow = 110;
+  optional NodeReferenceData node_ptr = 120;
+  optional google.protobuf.Value node_partial_packed = 121;
+  optional bool is_shallow = 122;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message UpdateActionData {
-  optional NodeReferenceData node_ptr = 100;
-  optional google.protobuf.Value node_partial_packed = 101;
+  optional NodeReferenceData node_ptr = 120;
+  optional google.protobuf.Value node_partial_packed = 121;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message DeleteActionData {
-  optional NodeReferenceData node_ptr = 100;
+  optional NodeReferenceData node_ptr = 120;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ChangeActionData {
-  repeated NodeReferenceData nodes_ptr = 110;
+  repeated NodeReferenceData nodes_ptr = 120;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message FailActionData {
-  optional string error_title = 100;
-  optional TextData error_text = 101;
+  optional string error_title = 120;
+  optional TextData error_text = 121;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -3049,80 +3048,102 @@ message RouteActionData {
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ObserveActionData {
-  optional bool exclude_image = 100;
+  optional NodeReferenceData application_ptr = 100;
+  optional string element_id = 110;
+  optional string element_path = 111;
+  optional Vector2Data element_position = 112;
+  optional string element_text = 113;
+  optional bool exclude_image = 120;
   optional NodeReferenceData screenshot_ptr = 200;
   optional DomNodeData dom = 201;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ClickActionData {
-  optional string element_id = 100;
-  optional string element_path = 101;
-  optional Vector2Data element_position = 102;
-  optional string element_text = 103;
+  optional NodeReferenceData application_ptr = 100;
+  optional string element_id = 110;
+  optional string element_path = 111;
+  optional Vector2Data element_position = 112;
+  optional string element_text = 113;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message PressActionData {
-  optional string element_id = 100;
-  optional string element_path = 101;
-  optional Vector2Data element_position = 102;
-  optional string element_text = 103;
-  optional string keys = 110;
-  optional float delay = 111;
+  optional NodeReferenceData application_ptr = 100;
+  optional string element_id = 110;
+  optional string element_path = 111;
+  optional Vector2Data element_position = 112;
+  optional string element_text = 113;
+  optional string keys = 120;
+  optional float delay = 121;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message TypeActionData {
-  optional string element_id = 100;
-  optional string element_path = 101;
-  optional Vector2Data element_position = 102;
-  optional string element_text = 103;
-  optional string string = 110;
-  optional float delay = 111;
+  optional NodeReferenceData application_ptr = 100;
+  optional string element_id = 110;
+  optional string element_path = 111;
+  optional Vector2Data element_position = 112;
+  optional string element_text = 113;
+  optional string string = 120;
+  optional float delay = 121;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ScrollActionData {
-  optional string element_id = 100;
-  optional string element_path = 101;
-  optional Vector2Data element_position = 102;
-  optional string element_text = 103;
-  optional Vector2Data amount = 110;
+  optional NodeReferenceData application_ptr = 100;
+  optional string element_id = 110;
+  optional string element_path = 111;
+  optional Vector2Data element_position = 112;
+  optional string element_text = 113;
+  optional Vector2Data amount = 120;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message SelectActionData {
-  optional string element_id = 100;
-  optional string element_path = 101;
-  optional Vector2Data element_position = 102;
-  optional string element_text = 103;
+  optional NodeReferenceData application_ptr = 100;
+  optional string element_id = 110;
+  optional string element_path = 111;
+  optional Vector2Data element_position = 112;
+  optional string element_text = 113;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message GoBackwardActionData {
-  optional string element_id = 100;
-  optional string element_path = 101;
-  optional Vector2Data element_position = 102;
-  optional string element_text = 103;
+  optional NodeReferenceData application_ptr = 100;
+  optional string element_id = 110;
+  optional string element_path = 111;
+  optional Vector2Data element_position = 112;
+  optional string element_text = 113;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message GoForwardActionData {
-  optional string element_id = 100;
-  optional string element_path = 101;
-  optional Vector2Data element_position = 102;
-  optional string element_text = 103;
+  optional NodeReferenceData application_ptr = 100;
+  optional string element_id = 110;
+  optional string element_path = 111;
+  optional Vector2Data element_position = 112;
+  optional string element_text = 113;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message GoToUrlActionData {
-  optional string url = 100;
+  optional NodeReferenceData application_ptr = 100;
+  optional string element_id = 110;
+  optional string element_path = 111;
+  optional Vector2Data element_position = 112;
+  optional string element_text = 113;
+  optional string url = 120;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message GoToTabActionData {
-  optional int32 tab_index = 100;
+  optional NodeReferenceData application_ptr = 100;
+  optional string element_id = 110;
+  optional string element_path = 111;
+  optional Vector2Data element_position = 112;
+  optional string element_text = 113;
+  optional int32 tab_index = 120;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -3155,8 +3176,6 @@ message BlockData {
   optional RunOptionsData run_options = 41;
   repeated PolicyData policies = 42;
   repeated PolicyData delegated_policies = 43;
-  repeated NodeReferenceData roles_ptr = 44;
-  optional NodeReferenceData identity_ptr = 45;
   NodeMode mode = 90;
 }
 

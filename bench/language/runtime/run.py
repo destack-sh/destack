@@ -196,6 +196,9 @@ class RunFrame(Struct):
     pass
 
 
+# NOTE :Architecture: RunSpan/RunEvent probably shouldn't exist and should just be full Runs/Logs
+
+
 @struct_(StructType.RUN_SPAN)
 class RunSpan(Struct):
     """A span in a Run (a sort of mini-Run inside a tracked Run)."""
