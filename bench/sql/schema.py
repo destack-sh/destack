@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.14.0"
+VERSION = "2025.01.14.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1013,10 +1013,7 @@ MESSAGE_TABLE = Table(
         Column("read_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("is_pinned", PrimitiveType.BOOLEAN, default="false"),
     ),
-    indexes=(
-        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
-        Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
-    ),
+    indexes=(Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),),
 )
 
 SESSION_TABLE = Table(
@@ -1055,7 +1052,6 @@ SESSION_TABLE = Table(
     indexes=(
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
-        Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
     ),
 )
 
@@ -1126,10 +1122,7 @@ RUN_TABLE = Table(
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="2"),
     ),
-    indexes=(
-        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
-        Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
-    ),
+    indexes=(Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),),
 )
 
 INTERRUPTION_TABLE = Table(
@@ -1181,10 +1174,7 @@ INTERRUPTION_TABLE = Table(
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="2"),
     ),
-    indexes=(
-        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
-        Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
-    ),
+    indexes=(Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),),
 )
 
 LOG_TABLE = Table(
@@ -1229,8 +1219,5 @@ LOG_TABLE = Table(
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="2"),
     ),
-    indexes=(
-        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
-        Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
-    ),
+    indexes=(Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),),
 )

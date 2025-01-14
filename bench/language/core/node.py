@@ -698,7 +698,7 @@ def timed_node_(
         passthrough_get=passthrough_get,
         passthrough_set=passthrough_set,
         local=True,
-        indexes=(*indexes, ("created_at",), ("created_epoch",)),
+        indexes=(*indexes, ("created_at",)),
     )
 
 
