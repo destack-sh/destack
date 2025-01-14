@@ -2,13 +2,11 @@ from typing import TYPE_CHECKING, Mapping, Sequence, override
 
 import anthropic
 
-from bench.language import (
-    ModelType,
-    RunOptions,
-)
-from bench.runtime.model.model import ChatModel
-from bench.runtime.model.prompt import Prompt, PromptElement
+from bench.language import ModelType, RunOptions
 from bench.utils.utils import get_from_env
+
+from .chat import ChatModelRunner
+from .prompt import Prompt, PromptElement
 
 if TYPE_CHECKING:
     pass
@@ -25,7 +23,7 @@ ANTHROPIC_MODEL_BY_TYPE: Mapping[ModelType, str] = {
 ANTHROPIC_DEFAULT_MODEL = ModelType.ANTHROPIC_CLAUDE_3_5_SONNET
 
 
-class AnthropicChatModel(ChatModel[anthropic_types.MessageParam]):
+class AnthropicChatModelRunner(ChatModelRunner[anthropic_types.MessageParam]):
     """Compile a Prompt into Anthropic chat messages."""
 
     @override
@@ -33,7 +31,7 @@ class AnthropicChatModel(ChatModel[anthropic_types.MessageParam]):
         raise NotImplementedError
 
     @override
-    async def generate_code(
+    async def generate(
         self,
         prompt: Prompt,
         model: ModelType,

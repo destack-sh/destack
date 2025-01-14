@@ -7,7 +7,7 @@ from bench.language import ModelType
 from bench.language.runtime.run import RunOptions
 from bench.utils.utils import get_from_env
 
-from .model import ChatModel, get_system_prompt, strip_code_completion
+from .chat import ChatModelRunner, get_system_prompt, strip_code_completion
 from .prompt import Prompt, PromptBreak, PromptElement, PromptFile, PromptText
 
 openai_client = openai.AsyncClient(
@@ -22,7 +22,7 @@ OPENAI_MODEL_BY_TYPE: Mapping[ModelType, str] = {
 OPENAI_DEFAULT_MODEL = ModelType.OPENAI_GPT4_0
 
 
-class OpenaiChatModel(ChatModel[openai_chat_types.ChatCompletionMessageParam]):
+class OpenaiChatModelRunner(ChatModelRunner[openai_chat_types.ChatCompletionMessageParam]):
     """Compile a Prompt into OpenAI chat messages."""
 
     SEPARATOR = "#" * 32  # = exactly 1 token
@@ -50,7 +50,7 @@ class OpenaiChatModel(ChatModel[openai_chat_types.ChatCompletionMessageParam]):
         return [{"role": "user", "content": content}]
 
     @override
-    async def generate_code(
+    async def generate(
         self,
         prompt: Prompt,
         model: ModelType,

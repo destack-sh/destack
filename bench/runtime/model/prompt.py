@@ -41,6 +41,8 @@ class PromptPart:
 #
 # Basic Prompt elements
 #
+
+
 @dataclass
 class PromptElement(PromptPart, ABC):
     """A basic Prompt element that can be rendered directly."""
@@ -120,7 +122,7 @@ class PromptQuery(PromptCompound):
 
 @dataclass
 class PromptRun(PromptCompound):
-    """A Run. Expands to Runs inputs/outputs/variables."""
+    """A Run. Expands to Runs variables, inputs and outputs."""
 
     node: Run
 
