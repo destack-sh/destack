@@ -196,10 +196,6 @@ class Session(RuntimeNode[SessionData]):
             return f"{', '.join(status_strs)}, tx={self._tx or '<no tx>'}"
 
     @property
-    def epoch(self) -> int:
-        return max((*(c.epoch for c in self._connections), -1))
-
-    @property
     def tx(self) -> Transaction:
         assert self._tx is not None, f"no active transaction in {self!r}"
         return self._tx

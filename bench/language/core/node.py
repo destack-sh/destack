@@ -78,7 +78,6 @@ from .const import (
     NodeMode,
     NodeType,
     ObjectType,
-    PrimitiveType,
     QueryType,
     ReferenceKind,
     StructType,
@@ -1721,10 +1720,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         same_bench=True,
         baseless=True,
     )
-    # BenchNode.created_epoch (12)
-    updated_at: datetime = p_system(13, default=None, require=True, autoset=True)
+    updated_at: datetime = p_system(12, default=None, require=True, autoset=True)
     updated_by: Optional[EditSubject] = p_system(  # type: ignore (see above)
-        14,
+        13,
         default=None,
         require=False,
         array=False,
@@ -1733,8 +1731,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         same_bench=True,
         baseless=True,
     )
-    # BenchNode.updated_epoch (15)
-    deleted_at: Optional[datetime] = p_system(16, default=None, autoset=True)
+    deleted_at: Optional[datetime] = p_system(14, default=None, autoset=True)
     # managed_by? owned_by?
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
@@ -2582,12 +2579,6 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None
-    created_epoch: int = p_system(
-        12, default=-1, default_sql=None, autoset=True, primitive_type=PrimitiveType.INT64
-    )
-    updated_epoch: int = p_system(
-        15, default=-1, default_sql=None, autoset=True, primitive_type=PrimitiveType.INT64
-    )
 
     @property
     def is_attached(self) -> bool:
@@ -2616,12 +2607,10 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
 
     ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
     template: Optional["Node"] = p_node_template(7)
-    templated_epoch: int | None = p_system(
-        8, require=False, default=None, autoset=True, primitive_type=PrimitiveType.INT64
-    )
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None
         template_ptr: Optional[NodeReference] = None
+    template_at: datetime | None = p_system(8, default=None, autoset=True)
     computed_values: list["ComputedValue"] = p_internal(
         NODE_COMPUTED_VALUES_ID, require=False, array=True, struct=StructType.COMPUTED_VALUE
     )

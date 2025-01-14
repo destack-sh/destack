@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from itertools import chain
-from typing import Any, Literal, Mapping, Sequence, cast, override
+from typing import Any, Literal, Mapping, Sequence, override
 from uuid import UUID
 
 import structlog
@@ -13,7 +13,6 @@ from opentelemetry import trace
 
 from bench.language import (
     BENCH_NODE_TYPES,
-    BENCH_SLUG,
     CLOUD,
     LOCAL_NODE_TYPES,
     REGIONAL_NODE_TYPES,
@@ -31,7 +30,6 @@ from bench.language import (
     FileKind,
     GraphScope,
     HasContext,
-    Log,
     Machine,
     MemoryEngine,
     NodeArea,
@@ -42,7 +40,6 @@ from bench.language import (
     NodeType,
     Ownable,
     Package,
-    Property,
     Query,
     Run,
     Session,
@@ -53,9 +50,7 @@ from bench.language import (
     edit_graph,
     pack_value_scalar,
     patch_graph,
-    sync_node,
 )
-from bench.language.builtin import make_builtins
 from bench.proto import (
     DownloadFilesRequest,
     DownloadFilesResponse,
@@ -156,6 +151,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         self._engines: tuple[Engine, ...] = ()
 
         # processing
+        self._local_epoch = 0
         self._session: Session | None = None
         self._provisioners: tuple[Provisioner, ...] = ()
         self._plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
@@ -229,7 +225,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         else:
             graph_lock_ctx = self._graph_lock.write("all")
         async with graph_lock_ctx, self._session.active(readonly=readonly):
-            self._session._local_epoch = self.epoch
+            self._session._local_epoch = self._local_epoch
             yield self._session
             if commit:
                 await self._session.commit()
@@ -396,18 +392,9 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         await self._session.open(_set_in_context=False)
         self._session.suspend()
 
-        # resume log
+        # nocheckin: why is this needed
         async with self.session(readonly=True):
-            last_epoch = (
-                await Log.order_by(cast(Property, Log.created_epoch).desc())
-                .limit(1)
-                .scalar_maybe("created_epoch")
-            )
-            if last_epoch is not None:
-                self.epoch = last_epoch
-            else:
-                self.epoch = 1  # start at 1
-                logger.debug("host.start.no_logs", host=self, bench=self._bench)
+            ...
 
         # start plugins
         self._provisioners = tuple(get_provisioners(self, self._bench))
@@ -425,19 +412,8 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             host=self,
             bench=self._bench,
             main_package=self._main_package,
-            epoch=self.epoch,
             plugins=self._plugins,
         )
-
-        # synchronize bench builtins
-        if self._bench.slug == BENCH_SLUG:
-            async with self.session(readonly=False, commit=True):
-                Builtins = make_builtins(self._session)
-                sync_node(
-                    parent=self._main_package,
-                    old_root=self._main_package.blocks.get("Builtins"),
-                    new_root=Builtins,
-                )
 
     def close(self) -> None:
         super().close()
@@ -581,7 +557,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             supergraph=session._supergraph,  # use original session's supergraph
             edits=edits,
             cascaded_edits=cascaded_edits,
-            epoch=self.epoch,
+            epoch=self._local_epoch,
         )
         for plugin in self._plugins:
             if plugin.watch_types is None or commit.edited_types & plugin.watch_types:
@@ -621,7 +597,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
                 supergraph=session._supergraph,  # use original session's supergraph
                 edits=edits,
                 cascaded_edits=cascaded_edits,
-                epoch=self.epoch,
+                epoch=self._local_epoch,
             )
             for plugin in self._plugins:
                 if plugin.watch_types is None or commit.edited_types & plugin.watch_types:

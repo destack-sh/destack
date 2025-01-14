@@ -43,7 +43,6 @@ class LogPlugin(HostPlugin):
             node_type = NodeType(edit.node_ptr.node_type)
             if node_type in RUNTIME_NODE_TYPES:
                 continue
-            assert edit.epoch is not None, f"epoch not set in {edit!r}"
             # pack old/new node
             if edit.HasField("node_data"):
                 old_node = unwrap_some_node(edit.node_data)
@@ -58,9 +57,7 @@ class LogPlugin(HostPlugin):
                 parent_ptr=bench_ptr_data,
                 bench_ptr=bench_ptr_data,
                 created_at=edit.edited_at,
-                created_epoch=edit.epoch,
                 updated_at=edit.edited_at,
-                updated_epoch=edit.epoch,
                 # meta
                 kind=pb2.LogKind.LOG_KIND_CHANGE,
                 level=pb2.LogLevel.LOG_LEVEL_INFO,

@@ -175,7 +175,7 @@ class Edit(Struct):
     epoch: int | None = p_system(
         68,
         require=False,
-        description="Epoch at that Edit (Client if submitting, system if accepted).",
+        description="Epoch at that Edit.",
         primitive_type=PrimitiveType.INT64,
     )
     undo_of: Optional["Log"] = p_system(
@@ -745,7 +745,6 @@ def edit_graph(
     from bench.proto import wiring
 
     for edit in edits:
-        assert edit.epoch is not None, f"missing epoch for {edit!r}"
         edit_type = cast(EditType, edit.type)
         node_id = UUID(edit.node_ptr.id)
 
@@ -758,9 +757,6 @@ def edit_graph(
             node_data.created_at.CopyFrom(edit.edited_at)
             node_data.updated_at.CopyFrom(edit.edited_at)
             node_data.ClearField("deleted_at")
-            if hasattr(node_data, "created_epoch"):
-                setattr(node_data, "created_epoch", edit.epoch)
-                setattr(node_data, "updated_epoch", edit.epoch)
             if edit.subject_ptr.metatype != 0:
                 node_data.created_by_ptr.CopyFrom(edit.subject_ptr)
                 node_data.updated_by_ptr.CopyFrom(edit.subject_ptr)
@@ -787,8 +783,6 @@ def edit_graph(
 
             # implicit metadata
             node.updated_at = edit.edited_at.ToDatetime(tzinfo=pytz.utc)
-            if "updated_epoch" in node.__properties__:
-                node._do_set("updated_epoch", edit.epoch, track=False, validate=False)
             updated_by_ptr = (
                 wiring.unpack_builtin_object_prop(
                     Node.get_property("updated_by"), edit.subject_ptr, supergraph=supergraph
@@ -836,7 +830,6 @@ def edit_data_graph(
 
     flat_edits: list[EditData] = []  # for prepass
     for edit in edits:
-        assert edit.epoch is not None, f"missing epoch for {edit!r}"
         edit_type = cast(EditType, edit.type)
         node_type = NodeType(edit.node_ptr.node_type)
         node_cls = NODE_CLASS_BY_TYPE[node_type]
@@ -854,9 +847,6 @@ def edit_data_graph(
             node.created_at.CopyFrom(edit.edited_at)
             node.updated_at.CopyFrom(edit.edited_at)
             node.ClearField("deleted_at")
-            if hasattr(node, "created_epoch"):
-                setattr(node, "created_epoch", edit.epoch)
-                setattr(node, "updated_epoch", edit.epoch)
             if subject_ptr is not None:
                 node.created_by_ptr.CopyFrom(subject_ptr)
                 node.updated_by_ptr.CopyFrom(subject_ptr)
@@ -931,8 +921,6 @@ def edit_data_graph(
 
             # implicit metadata
             node.updated_at.CopyFrom(edit.edited_at)
-            if "updated_epoch" in node_cls.__properties__:
-                setattr(node, "updated_epoch", edit.epoch)
             if edit.subject_ptr.metatype != 0:
                 node.updated_by_ptr.CopyFrom(edit.subject_ptr)
             else:
