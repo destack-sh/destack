@@ -138,10 +138,23 @@ export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {
 };
 
 export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
-  // boundary
+  // flow
   [ActionType.START]: ColorType.YELLOW,
   [ActionType.COMPLETE]: ColorType.YELLOW,
   [ActionType.FAIL]: ColorType.YELLOW,
+  // generic
+  [ActionType.CODE]: ColorType.TEAL,
+  [ActionType.TOOL]: ColorType.TEAL,
+  [ActionType.DO]: ColorType.TEAL,
+  [ActionType.GENERATE]: ColorType.TEAL,
+  [ActionType.TRANSFORM]: ColorType.TEAL,
+  [ActionType.ROUTE]: ColorType.TEAL,
+  [ActionType.EXTRACT]: ColorType.TEAL,
+  [ActionType.CLASSIFY]: ColorType.TEAL,
+  [ActionType.SUMMARIZE]: ColorType.TEAL,
+  [ActionType.COMPARE]: ColorType.TEAL,
+  [ActionType.TRANSLATE]: ColorType.TEAL,
+  [ActionType.CHANGE]: ColorType.TEAL,
   // read
   [ActionType.GET]: ColorType.SKY,
   [ActionType.SEARCH]: ColorType.SKY,
@@ -152,19 +165,11 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   [ActionType.UPDATE]: ColorType.SKY,
   [ActionType.DELETE]: ColorType.SKY,
   [ActionType.PASTE]: ColorType.SKY,
-  [ActionType.CHANGE]: ColorType.SKY,
   // async
   [ActionType.SEND]: ColorType.GREEN,
   [ActionType.RECEIVE]: ColorType.GREEN,
   [ActionType.WAIT]: ColorType.GREEN,
   [ActionType.YIELD]: ColorType.GREEN,
-  // generic
-  [ActionType.CODE]: ColorType.TEAL,
-  [ActionType.TOOL]: ColorType.TEAL,
-  [ActionType.DO]: ColorType.TEAL,
-  [ActionType.GENERATE]: ColorType.TEAL,
-  [ActionType.TRANSFORM]: ColorType.TEAL,
-  [ActionType.ROUTE]: ColorType.TEAL,
   // application
   [ActionType.OBSERVE]: ColorType.INDIGO,
   [ActionType.CLICK]: ColorType.INDIGO,

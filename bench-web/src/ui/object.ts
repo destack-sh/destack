@@ -909,6 +909,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
     const commonRows: Row[] = [];
     this.section(undefined, commonRows);
     commonRows.push(this.rowProperty(ActionProperty.text, { title: false, props: { placeholder: "Text..." } }));
+    commonRows.push(this.rowProperty(ActionProperty.type));
 
     // common rows
     if (node.type == ActionType.CODE) {

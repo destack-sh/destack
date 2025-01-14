@@ -1347,25 +1347,31 @@ enum ActionType {
   ACTION_TYPE_START = 1;
   ACTION_TYPE_COMPLETE = 10;
   ACTION_TYPE_FAIL = 11;
-  ACTION_TYPE_GET = 100;
-  ACTION_TYPE_SEARCH = 101;
-  ACTION_TYPE_COPY = 110;
-  ACTION_TYPE_CREATE = 200;
-  ACTION_TYPE_DUPLICATE = 201;
-  ACTION_TYPE_UPDATE = 202;
-  ACTION_TYPE_DELETE = 203;
-  ACTION_TYPE_PASTE = 204;
-  ACTION_TYPE_CHANGE = 205;
-  ACTION_TYPE_SEND = 300;
-  ACTION_TYPE_RECEIVE = 301;
-  ACTION_TYPE_WAIT = 302;
-  ACTION_TYPE_YIELD = 303;
-  ACTION_TYPE_TOOL = 400;
-  ACTION_TYPE_CODE = 401;
-  ACTION_TYPE_DO = 450;
-  ACTION_TYPE_GENERATE = 451;
-  ACTION_TYPE_TRANSFORM = 452;
-  ACTION_TYPE_ROUTE = 453;
+  ACTION_TYPE_TOOL = 100;
+  ACTION_TYPE_CODE = 101;
+  ACTION_TYPE_DO = 150;
+  ACTION_TYPE_ROUTE = 151;
+  ACTION_TYPE_GENERATE = 152;
+  ACTION_TYPE_TRANSFORM = 153;
+  ACTION_TYPE_EXTRACT = 154;
+  ACTION_TYPE_CLASSIFY = 155;
+  ACTION_TYPE_SUMMARIZE = 156;
+  ACTION_TYPE_COMPARE = 157;
+  ACTION_TYPE_TRANSLATE = 158;
+  ACTION_TYPE_CHANGE = 159;
+  ACTION_TYPE_GET = 200;
+  ACTION_TYPE_SEARCH = 201;
+  ACTION_TYPE_COPY = 210;
+  ACTION_TYPE_CREATE = 300;
+  ACTION_TYPE_DUPLICATE = 301;
+  ACTION_TYPE_UPDATE = 302;
+  ACTION_TYPE_DELETE = 303;
+  ACTION_TYPE_PASTE = 304;
+  ACTION_TYPE_SEND = 400;
+  ACTION_TYPE_RECEIVE = 401;
+  ACTION_TYPE_WAIT = 402;
+  ACTION_TYPE_YIELD = 403;
+  ACTION_TYPE_NOTIFY = 410;
   ACTION_TYPE_OBSERVE = 1000;
   ACTION_TYPE_CLICK = 1050;
   ACTION_TYPE_PRESS = 1051;
@@ -2971,6 +2977,37 @@ message ActionData {
   NodeMode mode = 90;
 }
 
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message FailActionData {
+  optional string error_title = 120;
+  optional TextData error_text = 121;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message CodeActionData {
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message ToolActionData {
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message GenerateActionData {
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message TransformActionData {
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message RouteActionData {
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message ChangeActionData {
+  repeated NodeReferenceData nodes_ptr = 120;
+}
+
 // Get a single Node.
 message GetActionData {
   optional NodeType node_type = 120;
@@ -3011,39 +3048,8 @@ message DeleteActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
-message ChangeActionData {
-  repeated NodeReferenceData nodes_ptr = 120;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Pipes.
-message FailActionData {
-  optional string error_title = 120;
-  optional TextData error_text = 121;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Pipes.
-message CodeActionData {
-}
-
-// A data or control flow node in a Flow. Actions are connected by Pipes.
-message ToolActionData {
-}
-
-// A data or control flow node in a Flow. Actions are connected by Pipes.
 message WaitActionData {
   optional google.protobuf.Duration delay = 100;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Pipes.
-message GenerateActionData {
-}
-
-// A data or control flow node in a Flow. Actions are connected by Pipes.
-message TransformActionData {
-}
-
-// A data or control flow node in a Flow. Actions are connected by Pipes.
-message RouteActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
