@@ -278,7 +278,7 @@ class NodeType(IdEnum):
     # resource (dynamic)
     MACHINE = 2100
     BROWSER = 2110
-    # APPLICATION, ...
+    # MODEL, APPLICATION, ...
     FILE = 2200
     STREAM = 2201
     SECRET = 2202

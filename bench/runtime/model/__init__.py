@@ -1,6 +1,7 @@
-from .anthropic import AnthropicChatModel
-from .model import ChatModel, Model
-from .openai import OpenaiChatModel
+from .anthropic import AnthropicChatModelRunner
+from .chat import ChatModelRunner
+from .model import ModelRunner
+from .openai import OpenaiChatModelRunner
 from .prompt import (
     Prompt,
     PromptBreak,
@@ -14,10 +15,10 @@ from .prompt import (
 )
 
 __all__ = [
-    "AnthropicChatModel",
-    "ChatModel",
-    "Model",
-    "OpenaiChatModel",
+    "AnthropicChatModelRunner",
+    "ChatModelRunner",
+    "ModelRunner",
+    "OpenaiChatModelRunner",
     "Prompt",
     "PromptBreak",
     "PromptElement",
