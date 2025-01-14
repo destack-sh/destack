@@ -389,12 +389,8 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         )
         self._bench._track_rec(self._session)
         self._main_package._track_rec(self._session)
-        await self._session.open(_set_in_context=False)
+        await self._session.open(_set_in_context=True)
         self._session.suspend()
-
-        # nocheckin: why is this needed
-        async with self.session(readonly=True):
-            ...
 
         # start plugins
         self._provisioners = tuple(get_provisioners(self, self._bench))
