@@ -7,10 +7,10 @@ from .prompt import (
     PromptBreak,
     PromptElement,
     PromptFile,
+    PromptNode,
     PromptPart,
     PromptRegion,
     PromptRun,
-    PromptSource,
     PromptText,
 )
 
@@ -23,9 +23,9 @@ __all__ = [
     "PromptBreak",
     "PromptElement",
     "PromptFile",
+    "PromptNode",
     "PromptPart",
     "PromptRegion",
     "PromptRun",
-    "PromptSource",
     "PromptText",
 ]

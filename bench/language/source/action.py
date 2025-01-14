@@ -45,12 +45,14 @@ if TYPE_CHECKING:
     from bench.language import (
         Action,
         Block,
+        Browser,
         Code,
         DomNode,
         Expression,
         Field,
         File,
         Icon,
+        Machine,
         NodeReference,
         ObjectMapping,
         Pipe,
@@ -74,36 +76,38 @@ class ActionType(IdEnum):
     # ABORT?
 
     # read
-    GET = 40, "Get a Node"
-    SEARCH = 41, "Search for Nodes"
+    GET = 100, "Get a Node"
+    SEARCH = 101, "Search for Nodes"
     # AGGREGATE?
-    COPY = 50, "Copy some Nodes"
+    COPY = 110, "Copy some Nodes"
 
     # write
-    CREATE = 60, "Create a Node"
-    DUPLICATE = 61, "Duplicate some Nodes"
-    UPDATE = 62, "Update a Node"
-    DELETE = 63, "Delete a Node"
-    PASTE = 65, "Paste a Node"
-    CHANGE = 70, "Edit relevant Nodes"
+    CREATE = 200, "Create a Node"
+    DUPLICATE = 201, "Duplicate some Nodes"
+    UPDATE = 202, "Update a Node"
+    DELETE = 203, "Delete a Node"
+    PASTE = 204, "Paste a Node"
+    CHANGE = 205, "Edit relevant Nodes"
+
+    # async
+    SEND = 300, "Send a Message"
+    RECEIVE = 301, "Receive a Message"
+    WAIT = 302, "Wait for something"
+    YIELD = 303, "Defer to something"
+
+    # generic
+    TOOL = 400, "Delegate to an implementation"
+    CODE = 401, "Run arbitrary Python code"
+    DO = 450, "Perform an arbitrary action"
+    GENERATE = 451, "Generate something"
+    TRANSFORM = 452, "Transform something"
+    ROUTE = 453, "Route to other Actions"
+
+    # resource
+    # DOWNLOAD, UPLOAD, PROVISION, SUSPEND, DECOMMISSION, ...
 
     # runtime
     # PAUSE, RESUME, STOP, ...
-
-    # static
-    CODE = 100, "Run arbitrary Python code"
-    TOOL = 101, "Delegate to another Block"
-
-    # async
-    SEND = 120, "Send a Message"
-    RECEIVE = 121, "Receive a Message"
-    WAIT = 122, "Wait for something"
-    YIELD = 123, "Defer to someone"
-
-    # dynamic
-    GENERATE = 500, "Generate something"
-    TRANSFORM = 501, "Transform something"
-    ROUTE = 510, "Route to other Actions"
 
     # state
     # ...
@@ -126,7 +130,7 @@ class ActionType(IdEnum):
 
     # containers
     # GROUP = 500  # subflow region
-    LOOP = 5001, "Repeat some Actions"
+    LOOP = 8001, "Repeat some Actions"
 
     # misc
     TEXT = 9000, "Just some documentation"
@@ -137,7 +141,7 @@ class ActionType(IdEnum):
 
     @property
     def is_container(self) -> bool:
-        return self >= 5000 and self < 6000
+        return self >= 8000 and self < 9000
 
 
 @node_(NodeType.ACTION, passthrough_get=("value", "fields"))
@@ -163,24 +167,12 @@ class Action(SourceNode[ActionData]):
     run_options: Optional["RunOptions"] = p_regular(
         41, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
-    roles: list["Block"] = p_regular(
-        42,
-        require=False,
-        array=True,
-        references=NodeType.BLOCK,
-        constraint=constraint(node_subtypes=[BlockType.ROLE]),
-    )
-    identity: Optional["Block"] = p_regular(
-        43,
-        require=False,
-        references=NodeType.BLOCK,
-        constraint=constraint(node_subtypes=[BlockType.IDENTITY]),
-    )
-    if TYPE_CHECKING:
-        roles_ptr: tuple["NodeReference", ...] = ()
-        identity_ptr: Optional["NodeReference"] = None
+    # roles, identity, ...
 
     # content
+    machine: Optional["Machine"] = p_regular(
+        51, require=False, references=(NodeType.MACHINE,), field_type=FieldType.INPUT
+    )
     code: Optional["Code"] = p_regular(
         52,
         default=None,
@@ -388,11 +380,6 @@ class Action(SourceNode[ActionData]):
         return cast(ActionT, action)
 
 
-@object_()
-class HasDynamicContext(BuiltinObject):
-    pass
-
-
 #
 # Read
 #
@@ -402,9 +389,9 @@ class HasDynamicContext(BuiltinObject):
 class GetAction(Action):
     """Get a single Node."""
 
-    node_type: NodeType | None = p_regular(100, default=None, field_type=FieldType.INPUT)
+    node_type: NodeType | None = p_regular(120, default=None, field_type=FieldType.INPUT)
     base_block: Optional["Block"] = p_regular(
-        101,
+        121,
         array=False,
         require=False,
         default=None,
@@ -412,7 +399,7 @@ class GetAction(Action):
         field_type=FieldType.INPUT,
     )
     filter: Optional["Expression"] = p_regular(
-        102, default=None, struct=StructType.EXPRESSION, field_type=FieldType.INPUT
+        122, default=None, struct=StructType.EXPRESSION, field_type=FieldType.INPUT
     )
 
 
@@ -420,9 +407,9 @@ class GetAction(Action):
 class SearchAction(Action):
     """Search for Nodes."""
 
-    node_type: NodeType | None = p_regular(100, default=None, field_type=FieldType.INPUT)
+    node_type: NodeType | None = p_regular(120, default=None, field_type=FieldType.INPUT)
     base_block: Optional["Block"] = p_regular(
-        101,
+        121,
         array=False,
         require=False,
         default=None,
@@ -430,10 +417,10 @@ class SearchAction(Action):
         field_type=FieldType.INPUT,
     )
     filter: Optional["Expression"] = p_regular(
-        102, default=None, struct=StructType.EXPRESSION, field_type=FieldType.INPUT
+        122, default=None, struct=StructType.EXPRESSION, field_type=FieldType.INPUT
     )
     sort: Optional[list["Expression"]] = p_regular(
-        103, default=None, array=True, struct=StructType.EXPRESSION, field_type=FieldType.INPUT
+        123, default=None, array=True, struct=StructType.EXPRESSION, field_type=FieldType.INPUT
     )
 
 
@@ -444,14 +431,14 @@ class SearchAction(Action):
 
 @node_subtype_(ActionType.CREATE)
 class CreateAction(Action):
-    node_partial_packed: Any = p_value_packed(100, field_type=FieldType.INPUT, partial=True)
+    node_partial_packed: Any = p_value_packed(120, field_type=FieldType.INPUT, partial=True)
     node_partial: Any = p_value_runtime(
-        100,
+        120,
         typ=lambda self: CreateAction._node_partial_type(),
         field_type=FieldType.INPUT,
         partial=True,
     )
-    node: Node | None = p_regular(200, require=False, references="any", field_type=FieldType.OUTPUT)
+    node: Node | None = p_regular(220, require=False, references="any", field_type=FieldType.OUTPUT)
 
     @classmethod
     @cachetools.cached({})  # :CachedTypeInfo
@@ -461,17 +448,17 @@ class CreateAction(Action):
 
 @node_subtype_(ActionType.DUPLICATE)
 class DuplicateAction(Action):
-    node: Node | None = p_regular(100, require=False, references="any", field_type=FieldType.INPUT)
+    node: Node | None = p_regular(120, require=False, references="any", field_type=FieldType.INPUT)
     if TYPE_CHECKING:
         node_ptr: NodeReference | None = None
-    node_partial_packed: Any = p_value_packed(101, field_type=FieldType.INPUT, partial=True)
+    node_partial_packed: Any = p_value_packed(121, field_type=FieldType.INPUT, partial=True)
     node_partial: Any = p_value_runtime(
-        101,
+        121,
         typ=lambda self: DuplicateAction._node_partial_type(),
         field_type=FieldType.INPUT,
         partial=True,
     )
-    is_shallow: bool | None = p_regular(110, default=False, field_type=FieldType.INPUT)
+    is_shallow: bool | None = p_regular(122, default=False, field_type=FieldType.INPUT)
 
     @classmethod
     @cachetools.cached({})  # :CachedTypeInfo
@@ -481,12 +468,12 @@ class DuplicateAction(Action):
 
 @node_subtype_(ActionType.UPDATE)
 class UpdateAction(Action):
-    node: Node | None = p_regular(100, require=False, references="any", field_type=FieldType.INPUT)
+    node: Node | None = p_regular(120, require=False, references="any", field_type=FieldType.INPUT)
     if TYPE_CHECKING:
         node_ptr: NodeReference | None = None
-    node_partial_packed: Any = p_value_packed(101, field_type=FieldType.INPUT, partial=True)
+    node_partial_packed: Any = p_value_packed(121, field_type=FieldType.INPUT, partial=True)
     node_partial: Any = p_value_runtime(
-        101,
+        121,
         typ=lambda self: UpdateAction._node_partial_type(),
         field_type=FieldType.INPUT,
         partial=True,
@@ -500,7 +487,7 @@ class UpdateAction(Action):
 
 @node_subtype_(ActionType.DELETE)
 class DeleteAction(Action):
-    node: Node | None = p_regular(100, require=False, references="any", field_type=FieldType.INPUT)
+    node: Node | None = p_regular(120, require=False, references="any", field_type=FieldType.INPUT)
     if TYPE_CHECKING:
         node_ptr: NodeReference | None = None
 
@@ -508,7 +495,7 @@ class DeleteAction(Action):
 @node_subtype_(ActionType.CHANGE)
 class ChangeAction(Action):
     nodes: list[Node] = p_regular(
-        110, array=True, require=False, references="any", field_type=FieldType.INPUT
+        120, array=True, require=False, references="any", field_type=FieldType.INPUT
     )
 
 
@@ -520,10 +507,10 @@ class ChangeAction(Action):
 @node_subtype_(ActionType.FAIL)
 class FailAction(Action):
     error_title: str | None = p_regular(
-        100, default=None, require=False, field_type=FieldType.INPUT
+        120, default=None, require=False, field_type=FieldType.INPUT
     )
     error_text: Optional["Text"] = p_regular(
-        101,
+        121,
         default=None,
         require=False,
         array=False,
@@ -563,17 +550,17 @@ class WaitAction(Action):
 
 
 @node_subtype_(ActionType.GENERATE)
-class GenerateAction(Action, HasDynamicContext):
+class GenerateAction(Action):
     pass
 
 
 @node_subtype_(ActionType.TRANSFORM)
-class TransformAction(Action, HasDynamicContext):
+class TransformAction(Action):
     pass
 
 
 @node_subtype_(ActionType.ROUTE)
-class RouteAction(Action, HasDynamicContext):
+class RouteAction(Action):
     pass
 
 
@@ -584,17 +571,18 @@ class RouteAction(Action, HasDynamicContext):
 
 @object_()
 class HasApplicationContext(BuiltinObject):
-    element_id: str | None = p_regular(100)
-    element_path: str | None = p_regular(101)
+    application: Optional["Browser"] = p_regular(100, require=False, references=(NodeType.BROWSER,))
+    element_id: str | None = p_regular(110)
+    element_path: str | None = p_regular(111)
     element_position: Optional["Vector2"] = p_regular(
-        102, default=None, array=False, struct=StructType.VECTOR2, field_type=FieldType.INPUT
+        112, default=None, array=False, struct=StructType.VECTOR2, field_type=FieldType.INPUT
     )
-    element_text: str | None = p_regular(103, default=None, field_type=FieldType.INPUT)
+    element_text: str | None = p_regular(113, default=None, field_type=FieldType.INPUT)
 
 
 @node_subtype_(ActionType.OBSERVE)
-class ObserveAction(Action):
-    exclude_image: bool | None = p_regular(100, default=False, field_type=FieldType.INPUT)
+class ObserveAction(Action, HasApplicationContext):
+    exclude_image: bool | None = p_regular(120, default=False, field_type=FieldType.INPUT)
     screenshot: Optional["File"] = p_regular(
         200,
         require=False,
@@ -618,20 +606,20 @@ class ClickAction(Action, HasApplicationContext):
 
 @node_subtype_(ActionType.PRESS)
 class PressAction(Action, HasApplicationContext):
-    keys: str | None = p_regular(110, default=None, field_type=FieldType.INPUT)
-    delay: float | None = p_regular(111, default=None, field_type=FieldType.INPUT)
+    keys: str | None = p_regular(120, default=None, field_type=FieldType.INPUT)
+    delay: float | None = p_regular(121, default=None, field_type=FieldType.INPUT)
 
 
 @node_subtype_(ActionType.TYPE)
 class TypeAction(Action, HasApplicationContext):
-    string: str | None = p_regular(110, default=None, field_type=FieldType.INPUT)
-    delay: float | None = p_regular(111, default=None, field_type=FieldType.INPUT)
+    string: str | None = p_regular(120, default=None, field_type=FieldType.INPUT)
+    delay: float | None = p_regular(121, default=None, field_type=FieldType.INPUT)
 
 
 @node_subtype_(ActionType.SCROLL)
 class ScrollAction(Action, HasApplicationContext):
     amount: Optional["Vector2"] = p_regular(
-        110,
+        120,
         default=None,
         require=False,
         array=False,
@@ -661,13 +649,13 @@ class GoForwardAction(Action, HasApplicationContext):
 
 
 @node_subtype_(ActionType.GO_TO_URL)
-class GoToUrlAction(Action):
-    url: str | None = p_regular(100, default=None, field_type=FieldType.INPUT)
+class GoToUrlAction(Action, HasApplicationContext):
+    url: str | None = p_regular(120, default=None, field_type=FieldType.INPUT)
 
 
 @node_subtype_(ActionType.GO_TO_TAB)
-class GoToTabAction(Action):
-    tab_index: int | None = p_regular(100, default=None, field_type=FieldType.INPUT)
+class GoToTabAction(Action, HasApplicationContext):
+    tab_index: int | None = p_regular(120, default=None, field_type=FieldType.INPUT)
 
 
 #

@@ -9,8 +9,6 @@ from bench.language import (
     Context,
     CustomObject,
     FileBase,
-    Node,
-    NodeReference,
     Projection,
     Query,
     RenderOptions,
@@ -22,6 +20,7 @@ from bench.language import (
     render_stmt,
     sample_value,
 )
+from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.runtime.core import Runner
@@ -36,6 +35,17 @@ if TYPE_CHECKING:
 class PromptPart:
     title: str | None
     source: "PromptPart | None" = dataclasses.field(init=False, default=None)
+
+
+class PromptPartType(IdEnum):
+    BREAK = 1
+    TEXT = 2
+    FILE = 3
+    NODE = 4
+    QUERY = 5
+    RUN = 6
+    OBJECT = 7
+    TYPE = 8
 
 
 #
@@ -99,17 +109,6 @@ class PromptRegion(PromptCompound):
 
 
 @dataclass
-class PromptNode(PromptCompound):
-    """A generic non-source node."""
-
-    node: Node | NodeReference
-
-    @override
-    async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
-        raise NotImplementedError
-
-
-@dataclass
 class PromptQuery(PromptCompound):
     """A Query. Expands to the query results."""
 
@@ -148,7 +147,7 @@ class PromptRun(PromptCompound):
 
 
 @dataclass
-class PromptSource(PromptCompound):
+class PromptNode(PromptCompound):
     """A source node. Expands to references."""
 
     node: SourceNode
@@ -236,12 +235,12 @@ def make_prompt(
                 context_items.append(
                     PromptRun(title=f"Parent Run {i}", weight=5, node=ancestor.tracked_run)
                 )
-    context_items.append(PromptSource(title="Current Node", weight=10, node=runner.node))
+    context_items.append(PromptNode(title="Current Node", weight=10, node=runner.node))
     # NOTE :Incomplete: more general Context to Prompt?
 
     # core
     task_prompt: list[PromptPart] = [
-        PromptSource(title="Current Node", weight=10, node=runner.node),
+        PromptNode(title="Current Node", weight=10, node=runner.node),
     ]
     if inputs is not None:
         task_prompt.append(PromptObject(title="Inputs", weight=10, object=inputs))

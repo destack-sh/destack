@@ -26,6 +26,7 @@ async def test_acquire_browser_resource_directly(hosted_runtime: RuntimeHandle):
 
 
 @pytest.mark.browser
+@pytest.mark.slow
 async def test_run_flow_browser_go_to_url(hosted_runtime: RuntimeHandle):
     """Use a Browser as a 'variable' in a Flow to open a URL."""
     Flow = Block.new(BlockType.FLOW, name="Flow", fields=[Field.variable("Browser", Browser)])

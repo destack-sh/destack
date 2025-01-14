@@ -45,16 +45,6 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     assert get_last_operation().type == EditOperationType.CLEAR
     assert get_last_operation().path == [Block.get_property("icon").key]
 
-    # root list set
-    Value1.roles = [Message1]
-    assert get_last_operation().type == EditOperationType.SET
-    assert get_last_operation().path == [Block.get_property("roles").key]
-
-    # root list parent_key clear
-    Value1.roles = []
-    assert get_last_operation().type == EditOperationType.SET
-    assert get_last_operation().path == [Block.get_property("roles").key]
-
     # nested scalar struct set
     Action1.position = Vector2(x=3.0, y=4.0)
     Action1.position.x = 4.0

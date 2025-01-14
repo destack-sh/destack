@@ -22,7 +22,6 @@ from bench.language.core import (
     SourceNode,
     StructType,
     TypeKind,
-    constraint,
     node_,
     node_subtype_,
     p_internal,
@@ -44,7 +43,6 @@ if TYPE_CHECKING:
         Action,
         Field,
         Icon,
-        NodeReference,
         Package,
         Pipe,
         Policy,
@@ -89,22 +87,7 @@ class Block(SourceNode[BlockData]):
     delegated_policies: list["Policy"] = p_regular(
         43, require=False, array=True, struct=StructType.POLICY
     )
-    roles: list["Block"] = p_regular(
-        44,
-        require=False,
-        array=True,
-        references=NodeType.BLOCK,
-        constraint=constraint(node_subtypes=[BlockType.ROLE]),
-    )
-    identity: Optional["Block"] = p_regular(
-        45,
-        require=False,
-        references=NodeType.BLOCK,
-        constraint=constraint(node_subtypes=[BlockType.IDENTITY]),
-    )
-    if TYPE_CHECKING:
-        roles_ptr: tuple["NodeReference", ...] = ()
-        identity_ptr: Optional["NodeReference"] = None
+    # roles, identity, ...
 
     # flags
     # is_builtin, is_owned, is_test? (for testing)

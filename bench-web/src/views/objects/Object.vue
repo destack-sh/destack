@@ -140,7 +140,7 @@ defineExpose<ViewExposed>({ self, id });
         <div
           v-for="(row, i) in section.rows"
           :key="row.title ?? i"
-          class="group/row"
+          class=""
           :class="[
             !isMinimal ? 'mx-4' : '',
             row.type == 'view' || row.type == 'property' || row.type == 'object' || row.type == 'field'
@@ -167,7 +167,7 @@ defineExpose<ViewExposed>({ self, id });
                 :class="
                   computer.has(row.computedPathKey)
                     ? 'text-primary-700 hover:bg-gray-100'
-                    : 'text-gray-400 hover/row:bg-gray-100 group-hover/row:text-gray-700'
+                    : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
                 "
                 @click="() => computer.toggle(row.computedPath!)"
               >

@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.14.2"
+VERSION = "2025.01.14.4"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -280,12 +280,12 @@ class NodeType(IdEnum):
     BROWSER = 2110
     # MODEL, APPLICATION, ...
     FILE = 2200
-    STREAM = 2201
-    SECRET = 2202
+    STREAM = 2210
+    SECRET = 2220
     # ACCOUNT, DOMAIN, EMAIL, PHONE, ...
 
     # synchronization
-    # POOL, LOCK, BARRIER, CONDITION, ...?
+    # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?
 
     #
     # Local (3000-4000)

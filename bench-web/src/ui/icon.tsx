@@ -286,15 +286,15 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   [ActionType.DELETE]: "fas fa-trash",
   [ActionType.PASTE]: "fas fa-paste",
   [ActionType.CHANGE]: "fas fa-pen",
-  // static
-  [ActionType.CODE]: "fas fa-code",
-  [ActionType.TOOL]: "fas fa-hammer",
   // async
   [ActionType.SEND]: "fas fa-inbox-out",
   [ActionType.RECEIVE]: "fas fa-inbox-in",
   [ActionType.WAIT]: "fas fa-clock",
   [ActionType.YIELD]: "fas fa-hand",
-  // dynamic
+  // generic
+  [ActionType.CODE]: "fas fa-code",
+  [ActionType.TOOL]: "fas fa-toolbox",
+  [ActionType.DO]: "fas fa-hammer",
   [ActionType.GENERATE]: "fas fa-maximize",
   [ActionType.TRANSFORM]: "fas fa-shuffle",
   [ActionType.ROUTE]: "fas fa-split",
