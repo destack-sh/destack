@@ -87,7 +87,7 @@ class Runtime:
     A Runtime is exclusively associated with one Session.
 
     NOTE :Robustness :Architecture: separate transactions for session and other edits?
-    NOTE :Incomplete: respect RunOptions.max_concurrency
+    NOTE :Incomplete: respect RunOptions.max_concurrency,...
     NOTE :Architecture: Run started/terminated/... epochs are relative to session
         (meaning if we make local edits during a Run, the terminated_epoch is still the same)
     """

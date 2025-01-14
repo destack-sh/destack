@@ -13,6 +13,7 @@ from bench.language import (
     STATIC_RESOURCE_NODE_TYPES,
     Bench,
     Client,
+    Context,
     GraphScope,
     NodeArea,
     NodeType,
@@ -134,8 +135,9 @@ async def shell(
         session._origin = client.to_origin(nonce=None)._to_data()
 
         # prepare repl context :CodeGlobals
-        _get_node = functools.partial(get_node, main_package)
-        _get_node_or_error = functools.partial(get_node_or_error, main_package)
+        context = Context()
+        _get_node = functools.partial(get_node, main_package, context)
+        _get_node_or_error = functools.partial(get_node_or_error, main_package, context)
         _get_path = functools.partial(get_path, main_package)
         _render = functools.partial(render, options=RenderOptions(scope=main_package))
         glbls: dict[str, Any] = {
