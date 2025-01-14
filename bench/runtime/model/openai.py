@@ -7,7 +7,7 @@ from bench.language import ModelType
 from bench.language.runtime.run import RunOptions
 from bench.utils.utils import get_from_env
 
-from .model import ChatModel, _strip_code_completion, get_system_prompt
+from .model import ChatModel, get_system_prompt, strip_code_completion
 from .prompt import Prompt, PromptBreak, PromptElement, PromptFile, PromptText
 
 openai_client = openai.AsyncClient(
@@ -73,5 +73,5 @@ class OpenaiChatModel(ChatModel[openai_chat_types.ChatCompletionMessageParam]):
         )
         completion_text = completion.choices[0].message.content
         if completion_text:
-            completion_text = _strip_code_completion(completion_text)
+            completion_text = strip_code_completion(completion_text)
         return completion_text or ""

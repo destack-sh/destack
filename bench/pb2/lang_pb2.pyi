@@ -27,17 +27,26 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_NODE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_STRUCT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_OBJECT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_BENCH_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PROPERTY_REFERENCE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_NODE_MODE: _ClassVar[EnumType]
     ENUM_TYPE_DAY: _ClassVar[EnumType]
     ENUM_TYPE_MONTH: _ClassVar[EnumType]
     ENUM_TYPE_TIME_INTERVAL: _ClassVar[EnumType]
-    ENUM_TYPE_BENCH_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PACKAGE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CLOUD: _ClassVar[EnumType]
     ENUM_TYPE_REGION: _ClassVar[EnumType]
     ENUM_TYPE_REGION_ZONE: _ClassVar[EnumType]
     ENUM_TYPE_REGION_AREA: _ClassVar[EnumType]
+    ENUM_TYPE_ACCESS_MODE: _ClassVar[EnumType]
+    ENUM_TYPE_ACCESS_KIND: _ClassVar[EnumType]
+    ENUM_TYPE_POLICY_EFFECT: _ClassVar[EnumType]
+    ENUM_TYPE_QUERY_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_EDIT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_USE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_ACCESS_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_CHANGE_CATEGORY: _ClassVar[EnumType]
+    ENUM_TYPE_EDIT_OPERATION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_RESOURCE_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_RESOURCE_OCCUPANCY: _ClassVar[EnumType]
     ENUM_TYPE_SCALER_TYPE: _ClassVar[EnumType]
@@ -52,15 +61,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_FILE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FILE_FORMAT: _ClassVar[EnumType]
     ENUM_TYPE_ICON_KIND: _ClassVar[EnumType]
-    ENUM_TYPE_ACCESS_MODE: _ClassVar[EnumType]
-    ENUM_TYPE_ACCESS_KIND: _ClassVar[EnumType]
-    ENUM_TYPE_QUERY_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_EDIT_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_USE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_ACCESS_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_CHANGE_CATEGORY: _ClassVar[EnumType]
-    ENUM_TYPE_EDIT_OPERATION_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_POLICY_EFFECT: _ClassVar[EnumType]
     ENUM_TYPE_PRIMITIVE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FIELD_ZONE: _ClassVar[EnumType]
     ENUM_TYPE_TYPE_KIND: _ClassVar[EnumType]
@@ -99,8 +99,9 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_MODEL_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_MODEL_FAMILY: _ClassVar[EnumType]
     ENUM_TYPE_MODEL_PROVIDER: _ClassVar[EnumType]
-    ENUM_TYPE_ACTION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CODE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_CODE_LANGUAGE: _ClassVar[EnumType]
+    ENUM_TYPE_ACTION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PORT_SIDE: _ClassVar[EnumType]
     ENUM_TYPE_PIPE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SPACE_TYPE: _ClassVar[EnumType]
@@ -319,64 +320,6 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_RECTANGLE_CONSTRAINT: _ClassVar[ObjectType]
     OBJECT_TYPE_DOM_NODE: _ClassVar[ObjectType]
 
-class PropertyReferenceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    PROPERTY_REFERENCE_TYPE_UNSPECIFIED: _ClassVar[PropertyReferenceType]
-    PROPERTY_REFERENCE_TYPE_ID: _ClassVar[PropertyReferenceType]
-    PROPERTY_REFERENCE_TYPE_CK: _ClassVar[PropertyReferenceType]
-    PROPERTY_REFERENCE_TYPE_BENCH_ID: _ClassVar[PropertyReferenceType]
-    PROPERTY_REFERENCE_TYPE_BASE_CK: _ClassVar[PropertyReferenceType]
-    PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID: _ClassVar[PropertyReferenceType]
-    PROPERTY_REFERENCE_TYPE_NODE_TYPE: _ClassVar[PropertyReferenceType]
-
-class NodeMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    NODE_MODE_UNSPECIFIED: _ClassVar[NodeMode]
-    NODE_MODE_BUILTIN: _ClassVar[NodeMode]
-    NODE_MODE_PRODUCTION: _ClassVar[NodeMode]
-    NODE_MODE_DEVELOPMENT: _ClassVar[NodeMode]
-    NODE_MODE_TEST: _ClassVar[NodeMode]
-    NODE_MODE_PREVIEW: _ClassVar[NodeMode]
-    NODE_MODE_ARCHIVE: _ClassVar[NodeMode]
-
-class Day(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    DAY_UNSPECIFIED: _ClassVar[Day]
-    DAY_MONDAY: _ClassVar[Day]
-    DAY_TUESDAY: _ClassVar[Day]
-    DAY_WEDNESDAY: _ClassVar[Day]
-    DAY_THURSDAY: _ClassVar[Day]
-    DAY_FRIDAY: _ClassVar[Day]
-    DAY_SATURDAY: _ClassVar[Day]
-    DAY_SUNDAY: _ClassVar[Day]
-
-class Month(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    MONTH_UNSPECIFIED: _ClassVar[Month]
-    MONTH_JANUARY: _ClassVar[Month]
-    MONTH_FEBRUARY: _ClassVar[Month]
-    MONTH_MARCH: _ClassVar[Month]
-    MONTH_APRIL: _ClassVar[Month]
-    MONTH_MAY: _ClassVar[Month]
-    MONTH_JUNE: _ClassVar[Month]
-    MONTH_JULY: _ClassVar[Month]
-    MONTH_AUGUST: _ClassVar[Month]
-    MONTH_SEPTEMBER: _ClassVar[Month]
-    MONTH_OCTOBER: _ClassVar[Month]
-    MONTH_NOVEMBER: _ClassVar[Month]
-    MONTH_DECEMBER: _ClassVar[Month]
-
-class TimeInterval(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    TIME_INTERVAL_UNSPECIFIED: _ClassVar[TimeInterval]
-    TIME_INTERVAL_SECOND: _ClassVar[TimeInterval]
-    TIME_INTERVAL_MINUTE: _ClassVar[TimeInterval]
-    TIME_INTERVAL_HOUR: _ClassVar[TimeInterval]
-    TIME_INTERVAL_DAY: _ClassVar[TimeInterval]
-    TIME_INTERVAL_WEEK: _ClassVar[TimeInterval]
-    TIME_INTERVAL_MONTH: _ClassVar[TimeInterval]
-    TIME_INTERVAL_YEAR: _ClassVar[TimeInterval]
-
 class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     BENCH_TYPE_UNSPECIFIED: _ClassVar[BenchType]
@@ -475,17 +418,26 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_NODE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_STRUCT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_OBJECT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_BENCH_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_PROPERTY_REFERENCE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_NODE_MODE: _ClassVar[BenchType]
     BENCH_TYPE_DAY: _ClassVar[BenchType]
     BENCH_TYPE_MONTH: _ClassVar[BenchType]
     BENCH_TYPE_TIME_INTERVAL: _ClassVar[BenchType]
-    BENCH_TYPE_BENCH_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_PACKAGE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_CLOUD: _ClassVar[BenchType]
     BENCH_TYPE_REGION: _ClassVar[BenchType]
     BENCH_TYPE_REGION_ZONE: _ClassVar[BenchType]
     BENCH_TYPE_REGION_AREA: _ClassVar[BenchType]
+    BENCH_TYPE_ACCESS_MODE: _ClassVar[BenchType]
+    BENCH_TYPE_ACCESS_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_POLICY_EFFECT: _ClassVar[BenchType]
+    BENCH_TYPE_QUERY_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_EDIT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_USE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_ACCESS_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_CHANGE_CATEGORY: _ClassVar[BenchType]
+    BENCH_TYPE_EDIT_OPERATION_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_RESOURCE_STATUS: _ClassVar[BenchType]
     BENCH_TYPE_RESOURCE_OCCUPANCY: _ClassVar[BenchType]
     BENCH_TYPE_SCALER_TYPE: _ClassVar[BenchType]
@@ -500,15 +452,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_FILE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_FILE_FORMAT: _ClassVar[BenchType]
     BENCH_TYPE_ICON_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_ACCESS_MODE: _ClassVar[BenchType]
-    BENCH_TYPE_ACCESS_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_QUERY_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_EDIT_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_USE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_ACCESS_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_CHANGE_CATEGORY: _ClassVar[BenchType]
-    BENCH_TYPE_EDIT_OPERATION_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_POLICY_EFFECT: _ClassVar[BenchType]
     BENCH_TYPE_PRIMITIVE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_FIELD_ZONE: _ClassVar[BenchType]
     BENCH_TYPE_TYPE_KIND: _ClassVar[BenchType]
@@ -547,8 +490,9 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_MODEL_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_MODEL_FAMILY: _ClassVar[BenchType]
     BENCH_TYPE_MODEL_PROVIDER: _ClassVar[BenchType]
-    BENCH_TYPE_ACTION_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_CODE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_CODE_LANGUAGE: _ClassVar[BenchType]
+    BENCH_TYPE_ACTION_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_PORT_SIDE: _ClassVar[BenchType]
     BENCH_TYPE_PIPE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_SPACE_TYPE: _ClassVar[BenchType]
@@ -572,6 +516,64 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_ORGANIZATION_STATUS: _ClassVar[BenchType]
     BENCH_TYPE_MESSAGE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_MESSAGE_STATUS: _ClassVar[BenchType]
+
+class PropertyReferenceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PROPERTY_REFERENCE_TYPE_UNSPECIFIED: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_ID: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_CK: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_BENCH_ID: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_BASE_CK: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_NODE_TYPE: _ClassVar[PropertyReferenceType]
+
+class NodeMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    NODE_MODE_UNSPECIFIED: _ClassVar[NodeMode]
+    NODE_MODE_BUILTIN: _ClassVar[NodeMode]
+    NODE_MODE_PRODUCTION: _ClassVar[NodeMode]
+    NODE_MODE_DEVELOPMENT: _ClassVar[NodeMode]
+    NODE_MODE_TEST: _ClassVar[NodeMode]
+    NODE_MODE_PREVIEW: _ClassVar[NodeMode]
+    NODE_MODE_ARCHIVE: _ClassVar[NodeMode]
+
+class Day(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    DAY_UNSPECIFIED: _ClassVar[Day]
+    DAY_MONDAY: _ClassVar[Day]
+    DAY_TUESDAY: _ClassVar[Day]
+    DAY_WEDNESDAY: _ClassVar[Day]
+    DAY_THURSDAY: _ClassVar[Day]
+    DAY_FRIDAY: _ClassVar[Day]
+    DAY_SATURDAY: _ClassVar[Day]
+    DAY_SUNDAY: _ClassVar[Day]
+
+class Month(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MONTH_UNSPECIFIED: _ClassVar[Month]
+    MONTH_JANUARY: _ClassVar[Month]
+    MONTH_FEBRUARY: _ClassVar[Month]
+    MONTH_MARCH: _ClassVar[Month]
+    MONTH_APRIL: _ClassVar[Month]
+    MONTH_MAY: _ClassVar[Month]
+    MONTH_JUNE: _ClassVar[Month]
+    MONTH_JULY: _ClassVar[Month]
+    MONTH_AUGUST: _ClassVar[Month]
+    MONTH_SEPTEMBER: _ClassVar[Month]
+    MONTH_OCTOBER: _ClassVar[Month]
+    MONTH_NOVEMBER: _ClassVar[Month]
+    MONTH_DECEMBER: _ClassVar[Month]
+
+class TimeInterval(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    TIME_INTERVAL_UNSPECIFIED: _ClassVar[TimeInterval]
+    TIME_INTERVAL_SECOND: _ClassVar[TimeInterval]
+    TIME_INTERVAL_MINUTE: _ClassVar[TimeInterval]
+    TIME_INTERVAL_HOUR: _ClassVar[TimeInterval]
+    TIME_INTERVAL_DAY: _ClassVar[TimeInterval]
+    TIME_INTERVAL_WEEK: _ClassVar[TimeInterval]
+    TIME_INTERVAL_MONTH: _ClassVar[TimeInterval]
+    TIME_INTERVAL_YEAR: _ClassVar[TimeInterval]
 
 class PackageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -633,6 +635,87 @@ class RegionArea(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     REGION_AREA_ASIA: _ClassVar[RegionArea]
     REGION_AREA_AUSTRALIA: _ClassVar[RegionArea]
     REGION_AREA_PRIVATE: _ClassVar[RegionArea]
+
+class AccessMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ACCESS_MODE_UNSPECIFIED: _ClassVar[AccessMode]
+    ACCESS_MODE_ADAPTIVE: _ClassVar[AccessMode]
+    ACCESS_MODE_ATOMIC: _ClassVar[AccessMode]
+
+class AccessKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ACCESS_KIND_UNSPECIFIED: _ClassVar[AccessKind]
+    ACCESS_KIND_READ: _ClassVar[AccessKind]
+    ACCESS_KIND_EDIT: _ClassVar[AccessKind]
+    ACCESS_KIND_USE: _ClassVar[AccessKind]
+
+class PolicyEffect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    POLICY_EFFECT_UNSPECIFIED: _ClassVar[PolicyEffect]
+    POLICY_EFFECT_ALLOW: _ClassVar[PolicyEffect]
+    POLICY_EFFECT_DENY: _ClassVar[PolicyEffect]
+
+class QueryType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    QUERY_TYPE_UNSPECIFIED: _ClassVar[QueryType]
+    QUERY_TYPE_GET: _ClassVar[QueryType]
+    QUERY_TYPE_SEARCH: _ClassVar[QueryType]
+    QUERY_TYPE_AGGREGATE: _ClassVar[QueryType]
+
+class EditType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    EDIT_TYPE_UNSPECIFIED: _ClassVar[EditType]
+    EDIT_TYPE_CREATE: _ClassVar[EditType]
+    EDIT_TYPE_UPSERT: _ClassVar[EditType]
+    EDIT_TYPE_UPDATE: _ClassVar[EditType]
+    EDIT_TYPE_MOVE: _ClassVar[EditType]
+    EDIT_TYPE_DELETE: _ClassVar[EditType]
+    EDIT_TYPE_RESTORE: _ClassVar[EditType]
+    EDIT_TYPE_ERASE: _ClassVar[EditType]
+
+class UseType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    USE_TYPE_UNSPECIFIED: _ClassVar[UseType]
+    USE_TYPE_START: _ClassVar[UseType]
+    USE_TYPE_PAUSE: _ClassVar[UseType]
+    USE_TYPE_RESUME: _ClassVar[UseType]
+    USE_TYPE_STOP: _ClassVar[UseType]
+    USE_TYPE_KILL: _ClassVar[UseType]
+    USE_TYPE_SEND: _ClassVar[UseType]
+    USE_TYPE_RECEIVE: _ClassVar[UseType]
+
+class AccessType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ACCESS_TYPE_UNSPECIFIED: _ClassVar[AccessType]
+    ACCESS_TYPE_GET: _ClassVar[AccessType]
+    ACCESS_TYPE_SEARCH: _ClassVar[AccessType]
+    ACCESS_TYPE_AGGREGATE: _ClassVar[AccessType]
+    ACCESS_TYPE_CREATE: _ClassVar[AccessType]
+    ACCESS_TYPE_UPSERT: _ClassVar[AccessType]
+    ACCESS_TYPE_UPDATE: _ClassVar[AccessType]
+    ACCESS_TYPE_MOVE: _ClassVar[AccessType]
+    ACCESS_TYPE_DELETE: _ClassVar[AccessType]
+    ACCESS_TYPE_RESTORE: _ClassVar[AccessType]
+    ACCESS_TYPE_ERASE: _ClassVar[AccessType]
+    ACCESS_TYPE_START: _ClassVar[AccessType]
+    ACCESS_TYPE_PAUSE: _ClassVar[AccessType]
+    ACCESS_TYPE_RESUME: _ClassVar[AccessType]
+    ACCESS_TYPE_STOP: _ClassVar[AccessType]
+    ACCESS_TYPE_KILL: _ClassVar[AccessType]
+    ACCESS_TYPE_SEND: _ClassVar[AccessType]
+    ACCESS_TYPE_RECEIVE: _ClassVar[AccessType]
+
+class ChangeCategory(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CHANGE_CATEGORY_UNSPECIFIED: _ClassVar[ChangeCategory]
+    CHANGE_CATEGORY_SPACE: _ClassVar[ChangeCategory]
+    CHANGE_CATEGORY_RUNTIME: _ClassVar[ChangeCategory]
+
+class EditOperationType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    EDIT_OPERATION_TYPE_UNSPECIFIED: _ClassVar[EditOperationType]
+    EDIT_OPERATION_TYPE_SET: _ClassVar[EditOperationType]
+    EDIT_OPERATION_TYPE_CLEAR: _ClassVar[EditOperationType]
 
 class ResourceStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -819,87 +902,6 @@ class IconKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ICON_KIND_EMOJI: _ClassVar[IconKind]
     ICON_KIND_FONT_AWESOME: _ClassVar[IconKind]
     ICON_KIND_VS_CODE: _ClassVar[IconKind]
-
-class AccessMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    ACCESS_MODE_UNSPECIFIED: _ClassVar[AccessMode]
-    ACCESS_MODE_ADAPTIVE: _ClassVar[AccessMode]
-    ACCESS_MODE_ATOMIC: _ClassVar[AccessMode]
-
-class AccessKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    ACCESS_KIND_UNSPECIFIED: _ClassVar[AccessKind]
-    ACCESS_KIND_READ: _ClassVar[AccessKind]
-    ACCESS_KIND_EDIT: _ClassVar[AccessKind]
-    ACCESS_KIND_USE: _ClassVar[AccessKind]
-
-class QueryType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    QUERY_TYPE_UNSPECIFIED: _ClassVar[QueryType]
-    QUERY_TYPE_GET: _ClassVar[QueryType]
-    QUERY_TYPE_SEARCH: _ClassVar[QueryType]
-    QUERY_TYPE_AGGREGATE: _ClassVar[QueryType]
-
-class EditType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    EDIT_TYPE_UNSPECIFIED: _ClassVar[EditType]
-    EDIT_TYPE_CREATE: _ClassVar[EditType]
-    EDIT_TYPE_UPSERT: _ClassVar[EditType]
-    EDIT_TYPE_UPDATE: _ClassVar[EditType]
-    EDIT_TYPE_MOVE: _ClassVar[EditType]
-    EDIT_TYPE_DELETE: _ClassVar[EditType]
-    EDIT_TYPE_RESTORE: _ClassVar[EditType]
-    EDIT_TYPE_ERASE: _ClassVar[EditType]
-
-class UseType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    USE_TYPE_UNSPECIFIED: _ClassVar[UseType]
-    USE_TYPE_START: _ClassVar[UseType]
-    USE_TYPE_PAUSE: _ClassVar[UseType]
-    USE_TYPE_RESUME: _ClassVar[UseType]
-    USE_TYPE_STOP: _ClassVar[UseType]
-    USE_TYPE_KILL: _ClassVar[UseType]
-    USE_TYPE_SEND: _ClassVar[UseType]
-    USE_TYPE_RECEIVE: _ClassVar[UseType]
-
-class AccessType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    ACCESS_TYPE_UNSPECIFIED: _ClassVar[AccessType]
-    ACCESS_TYPE_GET: _ClassVar[AccessType]
-    ACCESS_TYPE_SEARCH: _ClassVar[AccessType]
-    ACCESS_TYPE_AGGREGATE: _ClassVar[AccessType]
-    ACCESS_TYPE_CREATE: _ClassVar[AccessType]
-    ACCESS_TYPE_UPSERT: _ClassVar[AccessType]
-    ACCESS_TYPE_UPDATE: _ClassVar[AccessType]
-    ACCESS_TYPE_MOVE: _ClassVar[AccessType]
-    ACCESS_TYPE_DELETE: _ClassVar[AccessType]
-    ACCESS_TYPE_RESTORE: _ClassVar[AccessType]
-    ACCESS_TYPE_ERASE: _ClassVar[AccessType]
-    ACCESS_TYPE_START: _ClassVar[AccessType]
-    ACCESS_TYPE_PAUSE: _ClassVar[AccessType]
-    ACCESS_TYPE_RESUME: _ClassVar[AccessType]
-    ACCESS_TYPE_STOP: _ClassVar[AccessType]
-    ACCESS_TYPE_KILL: _ClassVar[AccessType]
-    ACCESS_TYPE_SEND: _ClassVar[AccessType]
-    ACCESS_TYPE_RECEIVE: _ClassVar[AccessType]
-
-class ChangeCategory(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    CHANGE_CATEGORY_UNSPECIFIED: _ClassVar[ChangeCategory]
-    CHANGE_CATEGORY_SPACE: _ClassVar[ChangeCategory]
-    CHANGE_CATEGORY_RUNTIME: _ClassVar[ChangeCategory]
-
-class EditOperationType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    EDIT_OPERATION_TYPE_UNSPECIFIED: _ClassVar[EditOperationType]
-    EDIT_OPERATION_TYPE_SET: _ClassVar[EditOperationType]
-    EDIT_OPERATION_TYPE_CLEAR: _ClassVar[EditOperationType]
-
-class PolicyEffect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    POLICY_EFFECT_UNSPECIFIED: _ClassVar[PolicyEffect]
-    POLICY_EFFECT_ALLOW: _ClassVar[PolicyEffect]
-    POLICY_EFFECT_DENY: _ClassVar[PolicyEffect]
 
 class PrimitiveType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1317,6 +1319,18 @@ class ModelProvider(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MODEL_PROVIDER_AMAZON: _ClassVar[ModelProvider]
     MODEL_PROVIDER_MICROSOFT: _ClassVar[ModelProvider]
 
+class CodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CODE_TYPE_UNSPECIFIED: _ClassVar[CodeType]
+    CODE_TYPE_SNIPPET: _ClassVar[CodeType]
+    CODE_TYPE_SCRIPT: _ClassVar[CodeType]
+    CODE_TYPE_FUNCTION: _ClassVar[CodeType]
+
+class CodeLanguage(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CODE_LANGUAGE_UNSPECIFIED: _ClassVar[CodeLanguage]
+    CODE_LANGUAGE_PYTHON: _ClassVar[CodeLanguage]
+
 class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ACTION_TYPE_UNSPECIFIED: _ClassVar[ActionType]
@@ -1355,13 +1369,6 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_CLOSE_TAB: _ClassVar[ActionType]
     ACTION_TYPE_LOOP: _ClassVar[ActionType]
     ACTION_TYPE_TEXT: _ClassVar[ActionType]
-
-class CodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    CODE_TYPE_UNSPECIFIED: _ClassVar[CodeType]
-    CODE_TYPE_SNIPPET: _ClassVar[CodeType]
-    CODE_TYPE_SCRIPT: _ClassVar[CodeType]
-    CODE_TYPE_FUNCTION: _ClassVar[CodeType]
 
 class PortSide(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1703,17 +1710,26 @@ ENUM_TYPE_ENUM_TYPE: EnumType
 ENUM_TYPE_NODE_TYPE: EnumType
 ENUM_TYPE_STRUCT_TYPE: EnumType
 ENUM_TYPE_OBJECT_TYPE: EnumType
+ENUM_TYPE_BENCH_TYPE: EnumType
 ENUM_TYPE_PROPERTY_REFERENCE_TYPE: EnumType
 ENUM_TYPE_NODE_MODE: EnumType
 ENUM_TYPE_DAY: EnumType
 ENUM_TYPE_MONTH: EnumType
 ENUM_TYPE_TIME_INTERVAL: EnumType
-ENUM_TYPE_BENCH_TYPE: EnumType
 ENUM_TYPE_PACKAGE_TYPE: EnumType
 ENUM_TYPE_CLOUD: EnumType
 ENUM_TYPE_REGION: EnumType
 ENUM_TYPE_REGION_ZONE: EnumType
 ENUM_TYPE_REGION_AREA: EnumType
+ENUM_TYPE_ACCESS_MODE: EnumType
+ENUM_TYPE_ACCESS_KIND: EnumType
+ENUM_TYPE_POLICY_EFFECT: EnumType
+ENUM_TYPE_QUERY_TYPE: EnumType
+ENUM_TYPE_EDIT_TYPE: EnumType
+ENUM_TYPE_USE_TYPE: EnumType
+ENUM_TYPE_ACCESS_TYPE: EnumType
+ENUM_TYPE_CHANGE_CATEGORY: EnumType
+ENUM_TYPE_EDIT_OPERATION_TYPE: EnumType
 ENUM_TYPE_RESOURCE_STATUS: EnumType
 ENUM_TYPE_RESOURCE_OCCUPANCY: EnumType
 ENUM_TYPE_SCALER_TYPE: EnumType
@@ -1728,15 +1744,6 @@ ENUM_TYPE_FILE_KIND: EnumType
 ENUM_TYPE_FILE_TYPE: EnumType
 ENUM_TYPE_FILE_FORMAT: EnumType
 ENUM_TYPE_ICON_KIND: EnumType
-ENUM_TYPE_ACCESS_MODE: EnumType
-ENUM_TYPE_ACCESS_KIND: EnumType
-ENUM_TYPE_QUERY_TYPE: EnumType
-ENUM_TYPE_EDIT_TYPE: EnumType
-ENUM_TYPE_USE_TYPE: EnumType
-ENUM_TYPE_ACCESS_TYPE: EnumType
-ENUM_TYPE_CHANGE_CATEGORY: EnumType
-ENUM_TYPE_EDIT_OPERATION_TYPE: EnumType
-ENUM_TYPE_POLICY_EFFECT: EnumType
 ENUM_TYPE_PRIMITIVE_TYPE: EnumType
 ENUM_TYPE_FIELD_ZONE: EnumType
 ENUM_TYPE_TYPE_KIND: EnumType
@@ -1775,8 +1782,9 @@ ENUM_TYPE_MODEL_DEVELOPER: EnumType
 ENUM_TYPE_MODEL_TYPE: EnumType
 ENUM_TYPE_MODEL_FAMILY: EnumType
 ENUM_TYPE_MODEL_PROVIDER: EnumType
-ENUM_TYPE_ACTION_TYPE: EnumType
 ENUM_TYPE_CODE_TYPE: EnumType
+ENUM_TYPE_CODE_LANGUAGE: EnumType
+ENUM_TYPE_ACTION_TYPE: EnumType
 ENUM_TYPE_PORT_SIDE: EnumType
 ENUM_TYPE_PIPE_TYPE: EnumType
 ENUM_TYPE_SPACE_TYPE: EnumType
@@ -1985,49 +1993,6 @@ OBJECT_TYPE_VECTOR4: ObjectType
 OBJECT_TYPE_LINE: ObjectType
 OBJECT_TYPE_RECTANGLE_CONSTRAINT: ObjectType
 OBJECT_TYPE_DOM_NODE: ObjectType
-PROPERTY_REFERENCE_TYPE_UNSPECIFIED: PropertyReferenceType
-PROPERTY_REFERENCE_TYPE_ID: PropertyReferenceType
-PROPERTY_REFERENCE_TYPE_CK: PropertyReferenceType
-PROPERTY_REFERENCE_TYPE_BENCH_ID: PropertyReferenceType
-PROPERTY_REFERENCE_TYPE_BASE_CK: PropertyReferenceType
-PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID: PropertyReferenceType
-PROPERTY_REFERENCE_TYPE_NODE_TYPE: PropertyReferenceType
-NODE_MODE_UNSPECIFIED: NodeMode
-NODE_MODE_BUILTIN: NodeMode
-NODE_MODE_PRODUCTION: NodeMode
-NODE_MODE_DEVELOPMENT: NodeMode
-NODE_MODE_TEST: NodeMode
-NODE_MODE_PREVIEW: NodeMode
-NODE_MODE_ARCHIVE: NodeMode
-DAY_UNSPECIFIED: Day
-DAY_MONDAY: Day
-DAY_TUESDAY: Day
-DAY_WEDNESDAY: Day
-DAY_THURSDAY: Day
-DAY_FRIDAY: Day
-DAY_SATURDAY: Day
-DAY_SUNDAY: Day
-MONTH_UNSPECIFIED: Month
-MONTH_JANUARY: Month
-MONTH_FEBRUARY: Month
-MONTH_MARCH: Month
-MONTH_APRIL: Month
-MONTH_MAY: Month
-MONTH_JUNE: Month
-MONTH_JULY: Month
-MONTH_AUGUST: Month
-MONTH_SEPTEMBER: Month
-MONTH_OCTOBER: Month
-MONTH_NOVEMBER: Month
-MONTH_DECEMBER: Month
-TIME_INTERVAL_UNSPECIFIED: TimeInterval
-TIME_INTERVAL_SECOND: TimeInterval
-TIME_INTERVAL_MINUTE: TimeInterval
-TIME_INTERVAL_HOUR: TimeInterval
-TIME_INTERVAL_DAY: TimeInterval
-TIME_INTERVAL_WEEK: TimeInterval
-TIME_INTERVAL_MONTH: TimeInterval
-TIME_INTERVAL_YEAR: TimeInterval
 BENCH_TYPE_UNSPECIFIED: BenchType
 BENCH_TYPE_BENCH: BenchType
 BENCH_TYPE_USER: BenchType
@@ -2124,17 +2089,26 @@ BENCH_TYPE_ENUM_TYPE: BenchType
 BENCH_TYPE_NODE_TYPE: BenchType
 BENCH_TYPE_STRUCT_TYPE: BenchType
 BENCH_TYPE_OBJECT_TYPE: BenchType
+BENCH_TYPE_BENCH_TYPE: BenchType
 BENCH_TYPE_PROPERTY_REFERENCE_TYPE: BenchType
 BENCH_TYPE_NODE_MODE: BenchType
 BENCH_TYPE_DAY: BenchType
 BENCH_TYPE_MONTH: BenchType
 BENCH_TYPE_TIME_INTERVAL: BenchType
-BENCH_TYPE_BENCH_TYPE: BenchType
 BENCH_TYPE_PACKAGE_TYPE: BenchType
 BENCH_TYPE_CLOUD: BenchType
 BENCH_TYPE_REGION: BenchType
 BENCH_TYPE_REGION_ZONE: BenchType
 BENCH_TYPE_REGION_AREA: BenchType
+BENCH_TYPE_ACCESS_MODE: BenchType
+BENCH_TYPE_ACCESS_KIND: BenchType
+BENCH_TYPE_POLICY_EFFECT: BenchType
+BENCH_TYPE_QUERY_TYPE: BenchType
+BENCH_TYPE_EDIT_TYPE: BenchType
+BENCH_TYPE_USE_TYPE: BenchType
+BENCH_TYPE_ACCESS_TYPE: BenchType
+BENCH_TYPE_CHANGE_CATEGORY: BenchType
+BENCH_TYPE_EDIT_OPERATION_TYPE: BenchType
 BENCH_TYPE_RESOURCE_STATUS: BenchType
 BENCH_TYPE_RESOURCE_OCCUPANCY: BenchType
 BENCH_TYPE_SCALER_TYPE: BenchType
@@ -2149,15 +2123,6 @@ BENCH_TYPE_FILE_KIND: BenchType
 BENCH_TYPE_FILE_TYPE: BenchType
 BENCH_TYPE_FILE_FORMAT: BenchType
 BENCH_TYPE_ICON_KIND: BenchType
-BENCH_TYPE_ACCESS_MODE: BenchType
-BENCH_TYPE_ACCESS_KIND: BenchType
-BENCH_TYPE_QUERY_TYPE: BenchType
-BENCH_TYPE_EDIT_TYPE: BenchType
-BENCH_TYPE_USE_TYPE: BenchType
-BENCH_TYPE_ACCESS_TYPE: BenchType
-BENCH_TYPE_CHANGE_CATEGORY: BenchType
-BENCH_TYPE_EDIT_OPERATION_TYPE: BenchType
-BENCH_TYPE_POLICY_EFFECT: BenchType
 BENCH_TYPE_PRIMITIVE_TYPE: BenchType
 BENCH_TYPE_FIELD_ZONE: BenchType
 BENCH_TYPE_TYPE_KIND: BenchType
@@ -2196,8 +2161,9 @@ BENCH_TYPE_MODEL_DEVELOPER: BenchType
 BENCH_TYPE_MODEL_TYPE: BenchType
 BENCH_TYPE_MODEL_FAMILY: BenchType
 BENCH_TYPE_MODEL_PROVIDER: BenchType
-BENCH_TYPE_ACTION_TYPE: BenchType
 BENCH_TYPE_CODE_TYPE: BenchType
+BENCH_TYPE_CODE_LANGUAGE: BenchType
+BENCH_TYPE_ACTION_TYPE: BenchType
 BENCH_TYPE_PORT_SIDE: BenchType
 BENCH_TYPE_PIPE_TYPE: BenchType
 BENCH_TYPE_SPACE_TYPE: BenchType
@@ -2221,6 +2187,49 @@ BENCH_TYPE_USER_STATUS: BenchType
 BENCH_TYPE_ORGANIZATION_STATUS: BenchType
 BENCH_TYPE_MESSAGE_TYPE: BenchType
 BENCH_TYPE_MESSAGE_STATUS: BenchType
+PROPERTY_REFERENCE_TYPE_UNSPECIFIED: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_ID: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_CK: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_BENCH_ID: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_BASE_CK: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_NODE_TYPE: PropertyReferenceType
+NODE_MODE_UNSPECIFIED: NodeMode
+NODE_MODE_BUILTIN: NodeMode
+NODE_MODE_PRODUCTION: NodeMode
+NODE_MODE_DEVELOPMENT: NodeMode
+NODE_MODE_TEST: NodeMode
+NODE_MODE_PREVIEW: NodeMode
+NODE_MODE_ARCHIVE: NodeMode
+DAY_UNSPECIFIED: Day
+DAY_MONDAY: Day
+DAY_TUESDAY: Day
+DAY_WEDNESDAY: Day
+DAY_THURSDAY: Day
+DAY_FRIDAY: Day
+DAY_SATURDAY: Day
+DAY_SUNDAY: Day
+MONTH_UNSPECIFIED: Month
+MONTH_JANUARY: Month
+MONTH_FEBRUARY: Month
+MONTH_MARCH: Month
+MONTH_APRIL: Month
+MONTH_MAY: Month
+MONTH_JUNE: Month
+MONTH_JULY: Month
+MONTH_AUGUST: Month
+MONTH_SEPTEMBER: Month
+MONTH_OCTOBER: Month
+MONTH_NOVEMBER: Month
+MONTH_DECEMBER: Month
+TIME_INTERVAL_UNSPECIFIED: TimeInterval
+TIME_INTERVAL_SECOND: TimeInterval
+TIME_INTERVAL_MINUTE: TimeInterval
+TIME_INTERVAL_HOUR: TimeInterval
+TIME_INTERVAL_DAY: TimeInterval
+TIME_INTERVAL_WEEK: TimeInterval
+TIME_INTERVAL_MONTH: TimeInterval
+TIME_INTERVAL_YEAR: TimeInterval
 PACKAGE_TYPE_UNSPECIFIED: PackageType
 PACKAGE_TYPE_ROOT: PackageType
 PACKAGE_TYPE_SIDE: PackageType
@@ -2267,6 +2276,60 @@ REGION_AREA_AFRICA: RegionArea
 REGION_AREA_ASIA: RegionArea
 REGION_AREA_AUSTRALIA: RegionArea
 REGION_AREA_PRIVATE: RegionArea
+ACCESS_MODE_UNSPECIFIED: AccessMode
+ACCESS_MODE_ADAPTIVE: AccessMode
+ACCESS_MODE_ATOMIC: AccessMode
+ACCESS_KIND_UNSPECIFIED: AccessKind
+ACCESS_KIND_READ: AccessKind
+ACCESS_KIND_EDIT: AccessKind
+ACCESS_KIND_USE: AccessKind
+POLICY_EFFECT_UNSPECIFIED: PolicyEffect
+POLICY_EFFECT_ALLOW: PolicyEffect
+POLICY_EFFECT_DENY: PolicyEffect
+QUERY_TYPE_UNSPECIFIED: QueryType
+QUERY_TYPE_GET: QueryType
+QUERY_TYPE_SEARCH: QueryType
+QUERY_TYPE_AGGREGATE: QueryType
+EDIT_TYPE_UNSPECIFIED: EditType
+EDIT_TYPE_CREATE: EditType
+EDIT_TYPE_UPSERT: EditType
+EDIT_TYPE_UPDATE: EditType
+EDIT_TYPE_MOVE: EditType
+EDIT_TYPE_DELETE: EditType
+EDIT_TYPE_RESTORE: EditType
+EDIT_TYPE_ERASE: EditType
+USE_TYPE_UNSPECIFIED: UseType
+USE_TYPE_START: UseType
+USE_TYPE_PAUSE: UseType
+USE_TYPE_RESUME: UseType
+USE_TYPE_STOP: UseType
+USE_TYPE_KILL: UseType
+USE_TYPE_SEND: UseType
+USE_TYPE_RECEIVE: UseType
+ACCESS_TYPE_UNSPECIFIED: AccessType
+ACCESS_TYPE_GET: AccessType
+ACCESS_TYPE_SEARCH: AccessType
+ACCESS_TYPE_AGGREGATE: AccessType
+ACCESS_TYPE_CREATE: AccessType
+ACCESS_TYPE_UPSERT: AccessType
+ACCESS_TYPE_UPDATE: AccessType
+ACCESS_TYPE_MOVE: AccessType
+ACCESS_TYPE_DELETE: AccessType
+ACCESS_TYPE_RESTORE: AccessType
+ACCESS_TYPE_ERASE: AccessType
+ACCESS_TYPE_START: AccessType
+ACCESS_TYPE_PAUSE: AccessType
+ACCESS_TYPE_RESUME: AccessType
+ACCESS_TYPE_STOP: AccessType
+ACCESS_TYPE_KILL: AccessType
+ACCESS_TYPE_SEND: AccessType
+ACCESS_TYPE_RECEIVE: AccessType
+CHANGE_CATEGORY_UNSPECIFIED: ChangeCategory
+CHANGE_CATEGORY_SPACE: ChangeCategory
+CHANGE_CATEGORY_RUNTIME: ChangeCategory
+EDIT_OPERATION_TYPE_UNSPECIFIED: EditOperationType
+EDIT_OPERATION_TYPE_SET: EditOperationType
+EDIT_OPERATION_TYPE_CLEAR: EditOperationType
 RESOURCE_STATUS_UNSPECIFIED: ResourceStatus
 RESOURCE_STATUS_DECLARED: ResourceStatus
 RESOURCE_STATUS_UP: ResourceStatus
@@ -2411,60 +2474,6 @@ ICON_KIND_UNSPECIFIED: IconKind
 ICON_KIND_EMOJI: IconKind
 ICON_KIND_FONT_AWESOME: IconKind
 ICON_KIND_VS_CODE: IconKind
-ACCESS_MODE_UNSPECIFIED: AccessMode
-ACCESS_MODE_ADAPTIVE: AccessMode
-ACCESS_MODE_ATOMIC: AccessMode
-ACCESS_KIND_UNSPECIFIED: AccessKind
-ACCESS_KIND_READ: AccessKind
-ACCESS_KIND_EDIT: AccessKind
-ACCESS_KIND_USE: AccessKind
-QUERY_TYPE_UNSPECIFIED: QueryType
-QUERY_TYPE_GET: QueryType
-QUERY_TYPE_SEARCH: QueryType
-QUERY_TYPE_AGGREGATE: QueryType
-EDIT_TYPE_UNSPECIFIED: EditType
-EDIT_TYPE_CREATE: EditType
-EDIT_TYPE_UPSERT: EditType
-EDIT_TYPE_UPDATE: EditType
-EDIT_TYPE_MOVE: EditType
-EDIT_TYPE_DELETE: EditType
-EDIT_TYPE_RESTORE: EditType
-EDIT_TYPE_ERASE: EditType
-USE_TYPE_UNSPECIFIED: UseType
-USE_TYPE_START: UseType
-USE_TYPE_PAUSE: UseType
-USE_TYPE_RESUME: UseType
-USE_TYPE_STOP: UseType
-USE_TYPE_KILL: UseType
-USE_TYPE_SEND: UseType
-USE_TYPE_RECEIVE: UseType
-ACCESS_TYPE_UNSPECIFIED: AccessType
-ACCESS_TYPE_GET: AccessType
-ACCESS_TYPE_SEARCH: AccessType
-ACCESS_TYPE_AGGREGATE: AccessType
-ACCESS_TYPE_CREATE: AccessType
-ACCESS_TYPE_UPSERT: AccessType
-ACCESS_TYPE_UPDATE: AccessType
-ACCESS_TYPE_MOVE: AccessType
-ACCESS_TYPE_DELETE: AccessType
-ACCESS_TYPE_RESTORE: AccessType
-ACCESS_TYPE_ERASE: AccessType
-ACCESS_TYPE_START: AccessType
-ACCESS_TYPE_PAUSE: AccessType
-ACCESS_TYPE_RESUME: AccessType
-ACCESS_TYPE_STOP: AccessType
-ACCESS_TYPE_KILL: AccessType
-ACCESS_TYPE_SEND: AccessType
-ACCESS_TYPE_RECEIVE: AccessType
-CHANGE_CATEGORY_UNSPECIFIED: ChangeCategory
-CHANGE_CATEGORY_SPACE: ChangeCategory
-CHANGE_CATEGORY_RUNTIME: ChangeCategory
-EDIT_OPERATION_TYPE_UNSPECIFIED: EditOperationType
-EDIT_OPERATION_TYPE_SET: EditOperationType
-EDIT_OPERATION_TYPE_CLEAR: EditOperationType
-POLICY_EFFECT_UNSPECIFIED: PolicyEffect
-POLICY_EFFECT_ALLOW: PolicyEffect
-POLICY_EFFECT_DENY: PolicyEffect
 PRIMITIVE_TYPE_UNSPECIFIED: PrimitiveType
 PRIMITIVE_TYPE_BOOLEAN: PrimitiveType
 PRIMITIVE_TYPE_INT16: PrimitiveType
@@ -2767,6 +2776,12 @@ MODEL_PROVIDER_ANTHROPIC: ModelProvider
 MODEL_PROVIDER_GOOGLE: ModelProvider
 MODEL_PROVIDER_AMAZON: ModelProvider
 MODEL_PROVIDER_MICROSOFT: ModelProvider
+CODE_TYPE_UNSPECIFIED: CodeType
+CODE_TYPE_SNIPPET: CodeType
+CODE_TYPE_SCRIPT: CodeType
+CODE_TYPE_FUNCTION: CodeType
+CODE_LANGUAGE_UNSPECIFIED: CodeLanguage
+CODE_LANGUAGE_PYTHON: CodeLanguage
 ACTION_TYPE_UNSPECIFIED: ActionType
 ACTION_TYPE_START: ActionType
 ACTION_TYPE_COMPLETE: ActionType
@@ -2803,10 +2818,6 @@ ACTION_TYPE_OPEN_TAB: ActionType
 ACTION_TYPE_CLOSE_TAB: ActionType
 ACTION_TYPE_LOOP: ActionType
 ACTION_TYPE_TEXT: ActionType
-CODE_TYPE_UNSPECIFIED: CodeType
-CODE_TYPE_SNIPPET: CodeType
-CODE_TYPE_SCRIPT: CodeType
-CODE_TYPE_FUNCTION: CodeType
 PORT_SIDE_UNSPECIFIED: PortSide
 PORT_SIDE_INCOMING: PortSide
 PORT_SIDE_OUTGOING: PortSide
@@ -3310,12 +3321,14 @@ class CodeLineData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., content: _Optional[str] = ...) -> None: ...
 
 class CodeData(_message.Message):
-    __slots__ = ("metatype", "lines")
+    __slots__ = ("metatype", "lines", "language")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     LINES_FIELD_NUMBER: _ClassVar[int]
+    LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     lines: _containers.RepeatedCompositeFieldContainer[CodeLineData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., lines: _Optional[_Iterable[_Union[CodeLineData, _Mapping]]] = ...) -> None: ...
+    language: CodeLanguage
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., lines: _Optional[_Iterable[_Union[CodeLineData, _Mapping]]] = ..., language: _Optional[_Union[CodeLanguage, str]] = ...) -> None: ...
 
 class PathElementData(_message.Message):
     __slots__ = ("metatype", "type", "name", "node_ptr", "property_ptr", "run")
