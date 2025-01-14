@@ -161,15 +161,13 @@ class RunAttempt(Struct):
     status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)
     duration: Optional[timedelta] = p_internal(41, default=None)
     started_at: Optional[datetime] = p_internal(42, default=None)
-    started_epoch: Optional[int] = p_internal(43, default=None)
-    terminated_at: Optional[datetime] = p_internal(45, default=None)
-    terminated_epoch: Optional[int] = p_internal(46, default=None)
-    interrupted_at: Optional[datetime] = p_internal(47, default=None)
+    terminated_at: Optional[datetime] = p_internal(43, default=None)
+    interrupted_at: Optional[datetime] = p_internal(44, default=None)
     interruption: Optional["Interruption"] = p_internal(
-        50, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
+        45, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
     )
     error: Optional["RunError"] = p_internal(
-        51, require=False, array=False, struct=StructType.RUN_ERROR
+        50, require=False, array=False, struct=StructType.RUN_ERROR
     )
 
     @property
@@ -375,17 +373,14 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         45, default=None, require=False, array=False, struct=StructType.RUN_ERROR
     )
     scheduled_at: Optional[datetime] = p_system(46, default=None)
-    scheduled_epoch: Optional[int] = p_system(47, default=None)
-    started_at: Optional[datetime] = p_internal(48, default=None)
-    started_epoch: Optional[int] = p_internal(49, default=None)
-    stopped_at: Optional[datetime] = p_internal(50, default=None)
-    interrupted_at: Optional[datetime] = p_internal(51, default=None)
-    paused_at: Optional[datetime] = p_internal(52, default=None)
-    resumed_at: Optional[datetime] = p_internal(53, default=None)
-    terminated_at: Optional[datetime] = p_internal(54, default=None)
-    terminated_epoch: Optional[int] = p_internal(55, default=None)
+    started_at: Optional[datetime] = p_internal(47, default=None)
+    stopped_at: Optional[datetime] = p_internal(48, default=None)
+    interrupted_at: Optional[datetime] = p_internal(49, default=None)
+    paused_at: Optional[datetime] = p_internal(50, default=None)
+    resumed_at: Optional[datetime] = p_internal(51, default=None)
+    terminated_at: Optional[datetime] = p_internal(52, default=None)
     interruption: Optional["Interruption"] = p_internal(
-        56, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
+        53, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
     )
 
     # content
@@ -544,7 +539,6 @@ class Run(RuntimeNode[RunData], HasNodeBase):
 
         # run
         self.terminated_at = self._session._oracle.utc()
-        self.terminated_epoch = self._session.epoch
         if self.started_at:
             self.duration = self.terminated_at - self.started_at
         self.status = RunStatus.ABORTED if self.status.is_active else RunStatus.CANCELLED
@@ -553,7 +547,6 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         if self.attempts:
             last_attempt = self.attempts[-1]
             last_attempt.terminated_at = self.terminated_at
-            last_attempt.terminated_epoch = self.terminated_epoch
             if last_attempt.started_at:
                 last_attempt.duration = last_attempt.terminated_at - last_attempt.started_at
             last_attempt.status = (

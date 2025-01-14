@@ -171,7 +171,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         scope: GraphScopeData,
     ):
         super().__init__(logger=logger, tracer=tracer, oracle=oracle)
-        self.epoch: int = 0
+        self._local_epoch: int = 0
         self.bench_id: UUID | None = bench_id
         self.node_types: bittuple[NodeType] = node_types
         self.connector = ConnectionIndex(owner=self, scope=scope, oracle=self.oracle)
@@ -251,7 +251,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             _is_readonly=readonly,
             _default_scope=self._scope,
             _engines=engines if engines is not None else self.get_engines(),
-            _local_epoch=self.epoch,
+            _local_epoch=self._local_epoch,
             _on_commit_prepare=self._on_commit_prepare_hook if not raw_commit else None,
             _on_commit=self._on_commit_hook if not raw_commit else None,
             _on_commit_failed=self._on_commit_failed_hook if not raw_commit else None,
@@ -310,7 +310,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         new_edits: Sequence[EditData],
     ) -> None:
         assert session._local_epoch is not None, f"no system epoch in {session!r}"
-        self.epoch = session._local_epoch
+        self._local_epoch = session._local_epoch
         await self.on_commit(
             session=session,
             graph=graph,
@@ -330,7 +330,9 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         new_edits: Sequence[EditData],
     ):
         """Handle an accepted commit."""
-        self.connector.on_commit(data_graph, edits, cascaded_edits, self.epoch)  # update cache
+        self.connector.on_commit(
+            data_graph, edits, cascaded_edits, self._local_epoch
+        )  # update cache
 
     @final
     async def _on_commit_failed_hook(
@@ -475,10 +477,10 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             "graph.commit",
             subject=subject,
             request_edits=len(request.edits),
-            epoch=self.epoch,
+            epoch=self._local_epoch,
             span="current",
         )
-        return CommitTransactionResponse(cascaded_edits=cascaded_edits, epoch=self.epoch)
+        return CommitTransactionResponse(cascaded_edits=cascaded_edits, epoch=self._local_epoch)
 
     @override
     async def get_nodes(self, request: "GetNodesRequest", headers: Mapping) -> "GetNodesResponse":
@@ -578,13 +580,13 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             connection=connection,
             graph=result.graph,
             nodes=len(adapted_nodes),
-            epoch=self.epoch,
+            epoch=self._local_epoch,
             span="current",
         )
         return GetNodesResponse(
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
             connection_token=connection.token,
-            epoch=self.epoch,
+            epoch=self._local_epoch,
         )
 
     @override
@@ -606,7 +608,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 subject=subject,
                 subscription=subscription,
                 connection=subscription.connection,
-                epoch=self.epoch,
+                epoch=self._local_epoch,
                 span="current",
             )
             while True:
@@ -709,7 +711,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             connection=connection,
             graph=result.graph,
             nodes=len(adapted_nodes),
-            epoch=self.epoch,
+            epoch=self._local_epoch,
             span="current",
         )
         return SearchNodesResponse(
@@ -717,7 +719,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
             total=result.total,
             connection_token=connection.token,
-            epoch=self.epoch,
+            epoch=self._local_epoch,
         )
 
     @override
@@ -739,7 +741,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 subject=subject,
                 subscription=subscription,
                 connection=subscription.connection,
-                epoch=self.epoch,
+                epoch=self._local_epoch,
                 span="current",
             )
             while True:
@@ -795,11 +797,13 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
 
         # TODO :Security!: check aggregation access
 
-        self.logger.debug("graph.aggregate", subject=subject, epoch=self.epoch, span="current")
+        self.logger.debug(
+            "graph.aggregate", subject=subject, epoch=self._local_epoch, span="current"
+        )
         return AggregateNodesResponse(
             aggregation=connection.result.aggregation,
             connection_token=connection.token,
-            epoch=self.epoch,
+            epoch=self._local_epoch,
         )
 
     @override

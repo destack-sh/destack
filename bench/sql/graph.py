@@ -38,7 +38,6 @@ from bench.language import (
     PARENT_NODE_TYPES,
     UNSET,
     Bench,
-    BenchNode,
     Block,
     C,
     ChannelIncapableError,
@@ -1418,7 +1417,6 @@ async def _pg_edit_cascade(
                 type=cast(pb2.EditType, edit_type),
                 node_ptr=node_ptr,
                 edited_at=root_edit.edited_at,
-                epoch=root_edit.epoch,
                 scope=root_edit.scope,  # should always be the same
                 category=root_edit.category,
                 context=root_edit.context,
@@ -1484,7 +1482,6 @@ async def _pg_edit_batch(
         nodes = []
         rows = []
         for edit in batch:
-            assert edit.epoch is not None, f"no epoch for {edit!r}"
             assert edit.HasField("node_data"), f"no node_data for {edit!r}"
             node = wiring.unwrap_some_node(edit.node_data)
             nodes.append(node)
@@ -1497,8 +1494,6 @@ async def _pg_edit_batch(
                 node=node,
             )
             row["created_at"] = row["updated_at"] = edit.edited_at.ToDatetime(tzinfo=pytz.utc)
-            if "created_epoch" in node_cls.__properties__:
-                row["created_epoch"] = row["updated_epoch"] = edit.epoch
             subject_ptr = edit.subject_ptr if edit.HasField("subject_ptr") else None
             _pg_pack_node_reference_into_row(node_cls.get_property("created_by"), row, subject_ptr)
             _pg_pack_node_reference_into_row(node_cls.get_property("updated_by"), row, subject_ptr)
@@ -1521,8 +1516,6 @@ async def _pg_edit_batch(
             node_cls.updated_at,
             node_cls.get_property("updated_by"),
         ]
-        if issubclass(node_cls, BenchNode):
-            implicit_properties.append(node_cls.updated_epoch)
         if edit_type in (EditType.DELETE, EditType.RESTORE):
             implicit_properties.append(node_cls.deleted_at)
         dynamic_columns: list[Column] = [node_table._primary_key]
@@ -1545,7 +1538,6 @@ async def _pg_edit_batch(
         dynamic_values: list[RowIn] = []
         for edit in batch:
             assert edit.node_ptr is not None, f"no node ptr for {edit!r}"
-            assert edit.epoch is not None, f"no epoch for {edit!r}"
             assert edit.HasField("edited_at"), f"no edited_at for {edit!r}"
             row: dict[str, SqlPrimitive] = {"id": edit.node_ptr.id}
 
@@ -1589,8 +1581,6 @@ async def _pg_edit_batch(
             # implicit properties
             edited_at = edit.edited_at.ToDatetime()
             row["updated_at"] = edited_at
-            if "updated_epoch" in node_cls.__properties__:
-                row["updated_epoch"] = edit.epoch
             subject_ptr = edit.subject_ptr if edit.HasField("subject_ptr") else None
             _pg_pack_node_reference_into_row(node_cls.get_property("updated_by"), row, subject_ptr)
             if edit_type == EditType.DELETE:

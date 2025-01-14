@@ -951,6 +951,7 @@ def p_node_template(id: int) -> Any:
     return Property(
         id=id,
         reference_kind=ReferenceKind.NODE_TEMPLATE,
+        reference_is_baseless=True,
         is_internal=True,
         is_stored=True,
         is_wired=True,

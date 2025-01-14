@@ -129,14 +129,6 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         assert self._main_package is not None, f"no main package for {self!r}"
         return self._main_package
 
-    @property
-    def epoch(self) -> int:
-        assert self._bench is not None, f"no bench for {self!r}"
-        assert self._main_package is not None, f"no main package for {self!r}"
-        # NOTE :Cleanup: get current runtime epoch from session? supergraph?
-        #  (feels clumsy and incorrect to get it just from bench/package here)
-        return max(self._bench.connection.epoch, self._main_package.connection.epoch)
-
     @asynccontextmanager
     async def session(self, *, readonly: bool = False):
         """Gets exclusive query and edit access to the main session."""

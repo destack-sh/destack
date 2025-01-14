@@ -824,7 +824,7 @@ async def test_run_flow_yield(hosted_runtime: RuntimeHandle):
     assert runner.status == RunStatus.YIELDED
     assert runner.tracked_run
     assert runner.tracked_run.interrupted_at and runner.tracked_run.interruption
-    assert not runner.tracked_run.terminated_at and not runner.tracked_run.terminated_epoch
+    assert not runner.tracked_run.terminated_at
     assert len(runner.attempts) == 1
 
     # resume run (without handling Interruption)
@@ -832,7 +832,7 @@ async def test_run_flow_yield(hosted_runtime: RuntimeHandle):
     assert runner.status == RunStatus.YIELDED
     assert runner.tracked_run
     assert runner.tracked_run.interrupted_at and runner.tracked_run.interruption
-    assert not runner.tracked_run.terminated_at and not runner.tracked_run.terminated_epoch
+    assert not runner.tracked_run.terminated_at
     assert len(runner.attempts) == 1  # should be the same attempt
 
     # handle interruption

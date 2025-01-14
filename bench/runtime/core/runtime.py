@@ -449,7 +449,6 @@ class Runtime:
                 if terminated_at is None:
                     terminated_at = self.oracle.utc()
                 attempt._do_set("terminated_at", terminated_at, validate=False)
-                attempt._do_set("terminated_epoch", self.session.epoch, validate=False)
                 if started_at is not None:
                     attempt._do_set("duration", terminated_at - started_at, validate=False)
 
@@ -576,11 +575,7 @@ class Runtime:
                 if last_attempt is not None and last_attempt.status.is_interrupted:
                     current_attempt = last_attempt
                 else:
-                    current_attempt = RunAttempt(
-                        status=RunStatus.RUNNING,
-                        started_epoch=self.session.epoch,
-                        _skip_validate_self=True,
-                    )
+                    current_attempt = RunAttempt(status=RunStatus.RUNNING, _skip_validate_self=True)
                     runner.attempts.append(current_attempt)
                     if runner.tracked_run is not None:  # track attempt
                         runner.tracked_run._do_set("attempts", runner.attempts, validate=False)
@@ -649,7 +644,6 @@ class Runtime:
 
         # mark started
         if run.started_at is None:
-            run._do_set("started_epoch", self.session.epoch, validate=False)
             run._do_set("started_at", self.oracle.utc(), validate=False)
         run._do_set("status", RunStatus.RUNNING, validate=False)
 
@@ -687,7 +681,6 @@ class Runtime:
                 if last_attempt is not None:
                     # made an attempt
                     run._do_set("terminated_at", last_attempt.terminated_at, validate=False)
-                    run._do_set("terminated_epoch", last_attempt.terminated_epoch, validate=False)
                     if last_attempt.duration is not None:
                         run._do_set("duration", last_attempt.duration, validate=False)
                 elif run.terminated_at is not None:
@@ -696,7 +689,6 @@ class Runtime:
                 else:
                     # didn't make an attempt
                     run._do_set("terminated_at", self.oracle.utc(), validate=False)
-                    run._do_set("terminated_epoch", self.session.epoch, validate=False)
                     run._do_set("duration", run.terminated_at - run.started_at)  # type: ignore
                 # close any remaining (directly) contained open Interruptions
                 self.close(run)

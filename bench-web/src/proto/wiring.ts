@@ -59,7 +59,6 @@ export function describeNode(node: {
   const nodeParts: string[] = [`id=${node.id}`];
   const nodeType = isNodeRef(node) ? node.nodeType : node.metatype;
   if ("ck" in node) nodeParts.push(`ck=${node.ck}`);
-  if ("updatedEpoch" in node) nodeParts.push(`updatedEpoch=${node.updatedEpoch}`);
   if (node.name) nodeParts.push(`name='${node.name}'`);
   if (node.slug) nodeParts.push(`slug=${node.slug}`);
   if (node.title) nodeParts.push(`title='${node.title}'`);

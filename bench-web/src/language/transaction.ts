@@ -58,7 +58,7 @@ const DEBOUNCE_LEVELS: Record<"short" | "long", number> = {
   long: 2000,
 };
 
-const IMPLICIT_UPDATE_PROPERTIES_IDS = ["updatedAt", "updatedEpoch", "updatedByPtr", "deletedAt"].map(
+const IMPLICIT_UPDATE_PROPERTIES_IDS = ["updatedAt", "updatedByPtr", "deletedAt"].map(
   (p) => BlockProperty[p as any] as unknown as number,
 );
 const NONCE_POSTFIX = nonce.replace("-", "").slice(0, 16);
@@ -594,9 +594,6 @@ export function editGraph(
       // implicit metadata
       node.createdAt = node.updatedAt = edit.editedAt;
       node.deletedAt = undefined;
-      if (edit.epoch != null && "createdEpoch" in node && "updatedEpoch" in node) {
-        node.createdEpoch = node.updatedEpoch = edit.epoch;
-      }
       node.createdByPtr = node.updatedByPtr = edit.subjectPtr;
       if (edit.type == EditType.CREATE || !graph.has(node)) {
         graph.add(node);
@@ -644,9 +641,6 @@ export function editGraph(
 
       // implicit metadata
       updatedNode.updatedAt = edit.editedAt;
-      if (edit.epoch != null && "updatedEpoch" in updatedNode) {
-        updatedNode.updatedEpoch = edit.epoch;
-      }
       updatedNode.updatedByPtr = edit.subjectPtr;
       if (edit.type == EditType.DELETE || edit.type == EditType.ERASE) {
         // (we handle removes here for overlays)
