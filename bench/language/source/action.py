@@ -388,6 +388,11 @@ class Action(SourceNode[ActionData]):
         return cast(ActionT, action)
 
 
+@object_()
+class HasDynamicContext(BuiltinObject):
+    pass
+
+
 #
 # Read
 #
@@ -500,6 +505,13 @@ class DeleteAction(Action):
         node_ptr: NodeReference | None = None
 
 
+@node_subtype_(ActionType.CHANGE)
+class ChangeAction(Action):
+    nodes: list[Node] = p_regular(
+        110, array=True, require=False, references="any", field_type=FieldType.INPUT
+    )
+
+
 #
 # Session
 #
@@ -535,6 +547,11 @@ class ToolAction(Action):
     pass
 
 
+#
+# Async
+#
+
+
 @node_subtype_(ActionType.WAIT)
 class WaitAction(Action):
     delay: timedelta | None = p_regular(100, default=None, field_type=FieldType.INPUT)
@@ -543,11 +560,6 @@ class WaitAction(Action):
 #
 # Dynamic
 #
-
-
-@object_()
-class HasDynamicContext(BuiltinObject):
-    pass
 
 
 @node_subtype_(ActionType.GENERATE)
@@ -563,13 +575,6 @@ class TransformAction(Action, HasDynamicContext):
 @node_subtype_(ActionType.ROUTE)
 class RouteAction(Action, HasDynamicContext):
     pass
-
-
-@node_subtype_(ActionType.CHANGE)
-class ChangeAction(Action, HasDynamicContext):
-    nodes: list[Node] = p_regular(
-        110, array=True, require=False, references="any", field_type=FieldType.INPUT
-    )
 
 
 #
