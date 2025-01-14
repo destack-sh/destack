@@ -571,9 +571,11 @@ class RouteAction(Action):
 
 @object_()
 class HasApplicationContext(BuiltinObject):
-    application: Optional["Browser"] = p_regular(100, require=False, references=(NodeType.BROWSER,))
-    element_id: str | None = p_regular(110)
-    element_path: str | None = p_regular(111)
+    application: Optional["Browser"] = p_regular(
+        100, require=False, references=(NodeType.BROWSER,), field_type=FieldType.INPUT
+    )
+    element_id: str | None = p_regular(110, field_type=FieldType.INPUT)
+    element_path: str | None = p_regular(111, field_type=FieldType.INPUT)
     element_position: Optional["Vector2"] = p_regular(
         112, default=None, array=False, struct=StructType.VECTOR2, field_type=FieldType.INPUT
     )
