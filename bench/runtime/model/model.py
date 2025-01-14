@@ -71,7 +71,8 @@ class ChatModel[R](Model[PromptElement, R], ABC):
         return elements
 
 
-def _strip_code_completion(completion: str) -> str:
+def strip_code_completion(completion: str) -> str:
+    """Strip code completion from a string."""
     # clean completion
     completion = completion.strip()
     # strip ```[python] ... ``` wrapper

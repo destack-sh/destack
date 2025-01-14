@@ -462,9 +462,13 @@ export interface CodeData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.CodeLineData lines = 30;
+     * @generated from protobuf field: repeated symbolx.bench.CodeLineData lines = 35;
      */
     lines: CodeLineData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.CodeLanguage language = 22401;
+     */
+    language?: CodeLanguage;
 }
 /**
  * @generated from protobuf message symbolx.bench.PathElementData
@@ -5919,233 +5923,233 @@ export enum EnumType {
      */
     OBJECT_TYPE = 20004,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 20005;
+     * @generated from protobuf enum value: ENUM_TYPE_BENCH_TYPE = 20005;
      */
-    PROPERTY_REFERENCE_TYPE = 20005,
+    BENCH_TYPE = 20005,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NODE_MODE = 20010;
+     * @generated from protobuf enum value: ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 20010;
      */
-    NODE_MODE = 20010,
+    PROPERTY_REFERENCE_TYPE = 20010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DAY = 20020;
+     * @generated from protobuf enum value: ENUM_TYPE_NODE_MODE = 20020;
      */
-    DAY = 20020,
+    NODE_MODE = 20020,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 20021;
+     * @generated from protobuf enum value: ENUM_TYPE_DAY = 20100;
      */
-    MONTH = 20021,
+    DAY = 20100,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TIME_INTERVAL = 20022;
+     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 20101;
      */
-    TIME_INTERVAL = 20022,
+    MONTH = 20101,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BENCH_TYPE = 20101;
+     * @generated from protobuf enum value: ENUM_TYPE_TIME_INTERVAL = 20102;
      */
-    BENCH_TYPE = 20101,
+    TIME_INTERVAL = 20102,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PACKAGE_TYPE = 20102;
+     * @generated from protobuf enum value: ENUM_TYPE_PACKAGE_TYPE = 20200;
      */
-    PACKAGE_TYPE = 20102,
+    PACKAGE_TYPE = 20200,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 20110;
+     * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 20210;
      */
-    CLOUD = 20110,
+    CLOUD = 20210,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION = 20120;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION = 20220;
      */
-    REGION = 20120,
+    REGION = 20220,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION_ZONE = 20121;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION_ZONE = 20221;
      */
-    REGION_ZONE = 20121,
+    REGION_ZONE = 20221,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION_AREA = 20122;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION_AREA = 20222;
      */
-    REGION_AREA = 20122,
+    REGION_AREA = 20222,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 20201;
+     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_MODE = 20300;
      */
-    RESOURCE_STATUS = 20201,
+    ACCESS_MODE = 20300,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_OCCUPANCY = 20202;
+     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_KIND = 20301;
      */
-    RESOURCE_OCCUPANCY = 20202,
+    ACCESS_KIND = 20301,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCALER_TYPE = 20210;
+     * @generated from protobuf enum value: ENUM_TYPE_POLICY_EFFECT = 20302;
      */
-    SCALER_TYPE = 20210,
+    POLICY_EFFECT = 20302,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCALER_STRATEGY = 20211;
+     * @generated from protobuf enum value: ENUM_TYPE_QUERY_TYPE = 20400;
      */
-    SCALER_STRATEGY = 20211,
+    QUERY_TYPE = 20400,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MACHINE_TYPE = 20220;
+     * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 20401;
      */
-    MACHINE_TYPE = 20220,
+    EDIT_TYPE = 20401,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BROWSER_TYPE = 20230;
+     * @generated from protobuf enum value: ENUM_TYPE_USE_TYPE = 20402;
      */
-    BROWSER_TYPE = 20230,
+    USE_TYPE = 20402,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DOM_NODE_TYPE = 20231;
+     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_TYPE = 20403;
      */
-    DOM_NODE_TYPE = 20231,
+    ACCESS_TYPE = 20403,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STORE_TYPE = 20240;
+     * @generated from protobuf enum value: ENUM_TYPE_CHANGE_CATEGORY = 20404;
      */
-    STORE_TYPE = 20240,
+    CHANGE_CATEGORY = 20404,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 20250;
+     * @generated from protobuf enum value: ENUM_TYPE_EDIT_OPERATION_TYPE = 20405;
      */
-    CLIENT_TYPE = 20250,
+    EDIT_OPERATION_TYPE = 20405,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 20401;
+     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 21000;
      */
-    FILE_RETENTION_MODE = 20401,
+    RESOURCE_STATUS = 21000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_KIND = 20402;
+     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_OCCUPANCY = 21001;
      */
-    FILE_KIND = 20402,
+    RESOURCE_OCCUPANCY = 21001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_TYPE = 20403;
+     * @generated from protobuf enum value: ENUM_TYPE_SCALER_TYPE = 21010;
      */
-    FILE_TYPE = 20403,
+    SCALER_TYPE = 21010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_FORMAT = 20404;
+     * @generated from protobuf enum value: ENUM_TYPE_SCALER_STRATEGY = 21011;
      */
-    FILE_FORMAT = 20404,
+    SCALER_STRATEGY = 21011,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ICON_KIND = 20410;
+     * @generated from protobuf enum value: ENUM_TYPE_MACHINE_TYPE = 21020;
      */
-    ICON_KIND = 20410,
+    MACHINE_TYPE = 21020,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_MODE = 20601;
+     * @generated from protobuf enum value: ENUM_TYPE_BROWSER_TYPE = 21030;
      */
-    ACCESS_MODE = 20601,
+    BROWSER_TYPE = 21030,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_KIND = 20602;
+     * @generated from protobuf enum value: ENUM_TYPE_DOM_NODE_TYPE = 21031;
      */
-    ACCESS_KIND = 20602,
+    DOM_NODE_TYPE = 21031,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_QUERY_TYPE = 20603;
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_TYPE = 21040;
      */
-    QUERY_TYPE = 20603,
+    STORE_TYPE = 21040,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 20604;
+     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 21050;
      */
-    EDIT_TYPE = 20604,
+    CLIENT_TYPE = 21050,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_USE_TYPE = 20605;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 21200;
      */
-    USE_TYPE = 20605,
+    FILE_RETENTION_MODE = 21200,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_TYPE = 20606;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_KIND = 21201;
      */
-    ACCESS_TYPE = 20606,
+    FILE_KIND = 21201,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CHANGE_CATEGORY = 20607;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_TYPE = 21202;
      */
-    CHANGE_CATEGORY = 20607,
+    FILE_TYPE = 21202,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EDIT_OPERATION_TYPE = 20608;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_FORMAT = 21203;
      */
-    EDIT_OPERATION_TYPE = 20608,
+    FILE_FORMAT = 21203,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_POLICY_EFFECT = 20609;
+     * @generated from protobuf enum value: ENUM_TYPE_ICON_KIND = 21210;
      */
-    POLICY_EFFECT = 20609,
+    ICON_KIND = 21210,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 21001;
+     * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 21300;
      */
-    PRIMITIVE_TYPE = 21001,
+    PRIMITIVE_TYPE = 21300,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FIELD_ZONE = 21002;
+     * @generated from protobuf enum value: ENUM_TYPE_FIELD_ZONE = 21301;
      */
-    FIELD_ZONE = 21002,
+    FIELD_ZONE = 21301,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TYPE_KIND = 21003;
+     * @generated from protobuf enum value: ENUM_TYPE_TYPE_KIND = 21302;
      */
-    TYPE_KIND = 21003,
+    TYPE_KIND = 21302,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TYPE_FORMAT = 21004;
+     * @generated from protobuf enum value: ENUM_TYPE_TYPE_FORMAT = 21303;
      */
-    TYPE_FORMAT = 21004,
+    TYPE_FORMAT = 21303,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BLOCK_TYPE = 21006;
+     * @generated from protobuf enum value: ENUM_TYPE_BLOCK_TYPE = 21304;
      */
-    BLOCK_TYPE = 21006,
+    BLOCK_TYPE = 21304,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 21010;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 21400;
      */
-    TEXT_LINE_TYPE = 21010,
+    TEXT_LINE_TYPE = 21400,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_KIND = 21501;
+     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_KIND = 21500;
      */
-    EXPRESSION_KIND = 21501,
+    EXPRESSION_KIND = 21500,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_OP = 21502;
+     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_OP = 21501;
      */
-    EXPRESSION_OP = 21502,
+    EXPRESSION_OP = 21501,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LITERAL_TYPE = 21503;
+     * @generated from protobuf enum value: ENUM_TYPE_LITERAL_TYPE = 21502;
      */
-    LITERAL_TYPE = 21503,
+    LITERAL_TYPE = 21502,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FUNCTIONAL_TYPE = 21504;
+     * @generated from protobuf enum value: ENUM_TYPE_FUNCTIONAL_TYPE = 21503;
      */
-    FUNCTIONAL_TYPE = 21504,
+    FUNCTIONAL_TYPE = 21503,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_TYPE = 21505;
+     * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_TYPE = 21504;
      */
-    CONDITIONAL_TYPE = 21505,
+    CONDITIONAL_TYPE = 21504,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_AGGREGATION_TYPE = 21506;
+     * @generated from protobuf enum value: ENUM_TYPE_AGGREGATION_TYPE = 21505;
      */
-    AGGREGATION_TYPE = 21506,
+    AGGREGATION_TYPE = 21505,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SORT_MODE = 21507;
+     * @generated from protobuf enum value: ENUM_TYPE_SORT_MODE = 21506;
      */
-    SORT_MODE = 21507,
+    SORT_MODE = 21506,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SORT_TYPE = 21508;
+     * @generated from protobuf enum value: ENUM_TYPE_SORT_TYPE = 21507;
      */
-    SORT_TYPE = 21508,
+    SORT_TYPE = 21507,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COMPUTED_VALUE_KIND = 21540;
+     * @generated from protobuf enum value: ENUM_TYPE_COMPUTED_VALUE_KIND = 21510;
      */
-    COMPUTED_VALUE_KIND = 21540,
+    COMPUTED_VALUE_KIND = 21510,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PATH_ELEMENT_TYPE = 21550;
+     * @generated from protobuf enum value: ENUM_TYPE_PATH_ELEMENT_TYPE = 21520;
      */
-    PATH_ELEMENT_TYPE = 21550,
+    PATH_ELEMENT_TYPE = 21520,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PATH_RUN_SELECTOR = 21551;
+     * @generated from protobuf enum value: ENUM_TYPE_PATH_RUN_SELECTOR = 21521;
      */
-    PATH_RUN_SELECTOR = 21551,
+    PATH_RUN_SELECTOR = 21521,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 22001;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 22000;
      */
-    RUN_STATUS = 22001,
+    RUN_STATUS = 22000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_TYPE = 22002;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_TYPE = 22001;
      */
-    RUN_TYPE = 22002,
+    RUN_TYPE = 22001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_KIND = 22003;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_KIND = 22002;
      */
-    RUN_ERROR_KIND = 22003,
+    RUN_ERROR_KIND = 22002,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_TYPE = 22004;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_TYPE = 22003;
      */
-    RUN_ERROR_TYPE = 22004,
+    RUN_ERROR_TYPE = 22003,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_SPAN_TYPE = 22005;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_SPAN_TYPE = 22004;
      */
-    RUN_SPAN_TYPE = 22005,
+    RUN_SPAN_TYPE = 22004,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_EVENT_TYPE = 22006;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_EVENT_TYPE = 22005;
      */
-    RUN_EVENT_TYPE = 22006,
+    RUN_EVENT_TYPE = 22005,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SESSION_STATUS = 22010;
      */
@@ -6207,105 +6211,109 @@ export enum EnumType {
      */
     MODEL_PROVIDER = 22303,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACTION_TYPE = 22400;
+     * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 22400;
      */
-    ACTION_TYPE = 22400,
+    CODE_TYPE = 22400,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 22401;
+     * @generated from protobuf enum value: ENUM_TYPE_CODE_LANGUAGE = 22401;
      */
-    CODE_TYPE = 22401,
+    CODE_LANGUAGE = 22401,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 22402;
+     * @generated from protobuf enum value: ENUM_TYPE_ACTION_TYPE = 22500;
      */
-    PORT_SIDE = 22402,
+    ACTION_TYPE = 22500,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TYPE = 22403;
+     * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 22501;
      */
-    PIPE_TYPE = 22403,
+    PORT_SIDE = 22501,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 22501;
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TYPE = 22502;
      */
-    SPACE_TYPE = 22501,
+    PIPE_TYPE = 22502,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_VIEW_TYPE = 22502;
+     * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 22600;
      */
-    VIEW_TYPE = 22502,
+    SPACE_TYPE = 22600,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 22504;
+     * @generated from protobuf enum value: ENUM_TYPE_VIEW_TYPE = 22601;
      */
-    COLOR_TYPE = 22504,
+    VIEW_TYPE = 22601,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 22505;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 22602;
      */
-    COLOR_SHADE = 22505,
+    COLOR_TYPE = 22602,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 22506;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 22603;
      */
-    FONT_TYPE = 22506,
+    COLOR_SHADE = 22603,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 22507;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 22604;
      */
-    FONT_WEIGHT = 22507,
+    FONT_TYPE = 22604,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 22508;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 22605;
      */
-    FONT_SIZE = 22508,
+    FONT_WEIGHT = 22605,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPACING = 22509;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 22606;
      */
-    SPACING = 22509,
+    FONT_SIZE = 22606,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ANCHOR = 22510;
+     * @generated from protobuf enum value: ENUM_TYPE_SPACING = 22607;
      */
-    ANCHOR = 22510,
+    SPACING = 22607,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ORIENTATION = 22511;
+     * @generated from protobuf enum value: ENUM_TYPE_ANCHOR = 22608;
      */
-    ORIENTATION = 22511,
+    ANCHOR = 22608,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ALIGNMENT = 22512;
+     * @generated from protobuf enum value: ENUM_TYPE_ORIENTATION = 22609;
      */
-    ALIGNMENT = 22512,
+    ORIENTATION = 22609,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_USER_WIZARD_STAGE = 22513;
+     * @generated from protobuf enum value: ENUM_TYPE_ALIGNMENT = 22610;
      */
-    USER_WIZARD_STAGE = 22513,
+    ALIGNMENT = 22610,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TREE_VIEW_PRESET = 22514;
+     * @generated from protobuf enum value: ENUM_TYPE_USER_WIZARD_STAGE = 22611;
      */
-    TREE_VIEW_PRESET = 22514,
+    USER_WIZARD_STAGE = 22611,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_HUB_ASPECT = 22515;
+     * @generated from protobuf enum value: ENUM_TYPE_TREE_VIEW_PRESET = 22612;
      */
-    HUB_ASPECT = 22515,
+    TREE_VIEW_PRESET = 22612,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_HELP_ASPECT = 22516;
+     * @generated from protobuf enum value: ENUM_TYPE_HUB_ASPECT = 22613;
      */
-    HELP_ASPECT = 22516,
+    HUB_ASPECT = 22613,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BUTTON_VARIANT = 22517;
+     * @generated from protobuf enum value: ENUM_TYPE_HELP_ASPECT = 22614;
      */
-    BUTTON_VARIANT = 22517,
+    HELP_ASPECT = 22614,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PICKER_VARIANT = 22518;
+     * @generated from protobuf enum value: ENUM_TYPE_BUTTON_VARIANT = 22615;
      */
-    PICKER_VARIANT = 22518,
+    BUTTON_VARIANT = 22615,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 23001;
+     * @generated from protobuf enum value: ENUM_TYPE_PICKER_VARIANT = 22616;
      */
-    USER_STATUS = 23001,
+    PICKER_VARIANT = 22616,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ORGANIZATION_STATUS = 23002;
+     * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 22700;
      */
-    ORGANIZATION_STATUS = 23002,
+    USER_STATUS = 22700,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_TYPE = 23100;
+     * @generated from protobuf enum value: ENUM_TYPE_ORGANIZATION_STATUS = 22701;
      */
-    MESSAGE_TYPE = 23100,
+    ORGANIZATION_STATUS = 22701,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_STATUS = 23101;
+     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_TYPE = 22800;
      */
-    MESSAGE_STATUS = 23101
+    MESSAGE_TYPE = 22800,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_STATUS = 22801;
+     */
+    MESSAGE_STATUS = 22801
 }
 /**
  * @generated from protobuf enum symbolx.bench.NodeType
@@ -6356,9 +6364,9 @@ export enum NodeType {
      */
     MACHINE = 2100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BROWSER = 2150;
+     * @generated from protobuf enum value: NODE_TYPE_BROWSER = 2110;
      */
-    BROWSER = 2150,
+    BROWSER = 2110,
     /**
      * @generated from protobuf enum value: NODE_TYPE_FILE = 2200;
      */
@@ -6416,17 +6424,17 @@ export enum NodeType {
      */
     SESSION = 3600,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN = 3601;
+     * @generated from protobuf enum value: NODE_TYPE_RUN = 3610;
      */
-    RUN = 3601,
+    RUN = 3610,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INTERRUPTION = 3602;
+     * @generated from protobuf enum value: NODE_TYPE_INTERRUPTION = 3620;
      */
-    INTERRUPTION = 3602,
+    INTERRUPTION = 3620,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LOG = 3603;
+     * @generated from protobuf enum value: NODE_TYPE_LOG = 3630;
      */
-    LOG = 3603,
+    LOG = 3630,
     /**
      * @generated from protobuf enum value: NODE_TYPE_SKIP = 9000;
      */
@@ -6738,9 +6746,9 @@ export enum ObjectType {
      */
     MACHINE = 2100,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BROWSER = 2150;
+     * @generated from protobuf enum value: OBJECT_TYPE_BROWSER = 2110;
      */
-    BROWSER = 2150,
+    BROWSER = 2110,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_FILE = 2200;
      */
@@ -6798,17 +6806,17 @@ export enum ObjectType {
      */
     SESSION = 3600,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN = 3601;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN = 3610;
      */
-    RUN = 3601,
+    RUN = 3610,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_INTERRUPTION = 3602;
+     * @generated from protobuf enum value: OBJECT_TYPE_INTERRUPTION = 3620;
      */
-    INTERRUPTION = 3602,
+    INTERRUPTION = 3620,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_LOG = 3603;
+     * @generated from protobuf enum value: OBJECT_TYPE_LOG = 3630;
      */
-    LOG = 3603,
+    LOG = 3630,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_SKIP = 9000;
      */
@@ -7063,203 +7071,6 @@ export enum ObjectType {
     DOM_NODE = 13700
 }
 /**
- * @generated from protobuf enum symbolx.bench.PropertyReferenceType
- */
-export enum PropertyReferenceType {
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_ID = 1;
-     */
-    ID = 1,
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_CK = 2;
-     */
-    CK = 2,
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BENCH_ID = 3;
-     */
-    BENCH_ID = 3,
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BASE_CK = 4;
-     */
-    BASE_CK = 4,
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID = 5;
-     */
-    BASE_BENCH_ID = 5,
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_NODE_TYPE = 6;
-     */
-    NODE_TYPE = 6
-}
-/**
- * @generated from protobuf enum symbolx.bench.NodeMode
- */
-export enum NodeMode {
-    /**
-     * @generated from protobuf enum value: NODE_MODE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: NODE_MODE_BUILTIN = 1;
-     */
-    BUILTIN = 1,
-    /**
-     * @generated from protobuf enum value: NODE_MODE_PRODUCTION = 2;
-     */
-    PRODUCTION = 2,
-    /**
-     * @generated from protobuf enum value: NODE_MODE_DEVELOPMENT = 4;
-     */
-    DEVELOPMENT = 4,
-    /**
-     * @generated from protobuf enum value: NODE_MODE_TEST = 6;
-     */
-    TEST = 6,
-    /**
-     * @generated from protobuf enum value: NODE_MODE_PREVIEW = 8;
-     */
-    PREVIEW = 8,
-    /**
-     * @generated from protobuf enum value: NODE_MODE_ARCHIVE = 10;
-     */
-    ARCHIVE = 10
-}
-/**
- * @generated from protobuf enum symbolx.bench.Day
- */
-export enum Day {
-    /**
-     * @generated from protobuf enum value: DAY_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: DAY_MONDAY = 1;
-     */
-    MONDAY = 1,
-    /**
-     * @generated from protobuf enum value: DAY_TUESDAY = 2;
-     */
-    TUESDAY = 2,
-    /**
-     * @generated from protobuf enum value: DAY_WEDNESDAY = 3;
-     */
-    WEDNESDAY = 3,
-    /**
-     * @generated from protobuf enum value: DAY_THURSDAY = 4;
-     */
-    THURSDAY = 4,
-    /**
-     * @generated from protobuf enum value: DAY_FRIDAY = 5;
-     */
-    FRIDAY = 5,
-    /**
-     * @generated from protobuf enum value: DAY_SATURDAY = 6;
-     */
-    SATURDAY = 6,
-    /**
-     * @generated from protobuf enum value: DAY_SUNDAY = 7;
-     */
-    SUNDAY = 7
-}
-/**
- * @generated from protobuf enum symbolx.bench.Month
- */
-export enum Month {
-    /**
-     * @generated from protobuf enum value: MONTH_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: MONTH_JANUARY = 1;
-     */
-    JANUARY = 1,
-    /**
-     * @generated from protobuf enum value: MONTH_FEBRUARY = 2;
-     */
-    FEBRUARY = 2,
-    /**
-     * @generated from protobuf enum value: MONTH_MARCH = 3;
-     */
-    MARCH = 3,
-    /**
-     * @generated from protobuf enum value: MONTH_APRIL = 4;
-     */
-    APRIL = 4,
-    /**
-     * @generated from protobuf enum value: MONTH_MAY = 5;
-     */
-    MAY = 5,
-    /**
-     * @generated from protobuf enum value: MONTH_JUNE = 6;
-     */
-    JUNE = 6,
-    /**
-     * @generated from protobuf enum value: MONTH_JULY = 7;
-     */
-    JULY = 7,
-    /**
-     * @generated from protobuf enum value: MONTH_AUGUST = 8;
-     */
-    AUGUST = 8,
-    /**
-     * @generated from protobuf enum value: MONTH_SEPTEMBER = 9;
-     */
-    SEPTEMBER = 9,
-    /**
-     * @generated from protobuf enum value: MONTH_OCTOBER = 10;
-     */
-    OCTOBER = 10,
-    /**
-     * @generated from protobuf enum value: MONTH_NOVEMBER = 11;
-     */
-    NOVEMBER = 11,
-    /**
-     * @generated from protobuf enum value: MONTH_DECEMBER = 12;
-     */
-    DECEMBER = 12
-}
-/**
- * @generated from protobuf enum symbolx.bench.TimeInterval
- */
-export enum TimeInterval {
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_SECOND = 2;
-     */
-    SECOND = 2,
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_MINUTE = 3;
-     */
-    MINUTE = 3,
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_HOUR = 4;
-     */
-    HOUR = 4,
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_DAY = 5;
-     */
-    DAY = 5,
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_WEEK = 6;
-     */
-    WEEK = 6,
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_MONTH = 7;
-     */
-    MONTH = 7,
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_YEAR = 8;
-     */
-    YEAR = 8
-}
-/**
  * @generated from protobuf enum symbolx.bench.BenchType
  */
 export enum BenchType {
@@ -7308,9 +7119,9 @@ export enum BenchType {
      */
     MACHINE = 2100,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BROWSER = 2150;
+     * @generated from protobuf enum value: BENCH_TYPE_BROWSER = 2110;
      */
-    BROWSER = 2150,
+    BROWSER = 2110,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_FILE = 2200;
      */
@@ -7368,17 +7179,17 @@ export enum BenchType {
      */
     SESSION = 3600,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN = 3601;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN = 3610;
      */
-    RUN = 3601,
+    RUN = 3610,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION = 3602;
+     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION = 3620;
      */
-    INTERRUPTION = 3602,
+    INTERRUPTION = 3620,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_LOG = 3603;
+     * @generated from protobuf enum value: BENCH_TYPE_LOG = 3630;
      */
-    LOG = 3603,
+    LOG = 3630,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SKIP = 9000;
      */
@@ -7648,233 +7459,233 @@ export enum BenchType {
      */
     OBJECT_TYPE = 20004,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PROPERTY_REFERENCE_TYPE = 20005;
+     * @generated from protobuf enum value: BENCH_TYPE_BENCH_TYPE = 20005;
      */
-    PROPERTY_REFERENCE_TYPE = 20005,
+    BENCH_TYPE = 20005,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_NODE_MODE = 20010;
+     * @generated from protobuf enum value: BENCH_TYPE_PROPERTY_REFERENCE_TYPE = 20010;
      */
-    NODE_MODE = 20010,
+    PROPERTY_REFERENCE_TYPE = 20010,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_DAY = 20020;
+     * @generated from protobuf enum value: BENCH_TYPE_NODE_MODE = 20020;
      */
-    DAY = 20020,
+    NODE_MODE = 20020,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MONTH = 20021;
+     * @generated from protobuf enum value: BENCH_TYPE_DAY = 20100;
      */
-    MONTH = 20021,
+    DAY = 20100,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TIME_INTERVAL = 20022;
+     * @generated from protobuf enum value: BENCH_TYPE_MONTH = 20101;
      */
-    TIME_INTERVAL = 20022,
+    MONTH = 20101,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BENCH_TYPE = 20101;
+     * @generated from protobuf enum value: BENCH_TYPE_TIME_INTERVAL = 20102;
      */
-    BENCH_TYPE = 20101,
+    TIME_INTERVAL = 20102,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PACKAGE_TYPE = 20102;
+     * @generated from protobuf enum value: BENCH_TYPE_PACKAGE_TYPE = 20200;
      */
-    PACKAGE_TYPE = 20102,
+    PACKAGE_TYPE = 20200,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLOUD = 20110;
+     * @generated from protobuf enum value: BENCH_TYPE_CLOUD = 20210;
      */
-    CLOUD = 20110,
+    CLOUD = 20210,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_REGION = 20120;
+     * @generated from protobuf enum value: BENCH_TYPE_REGION = 20220;
      */
-    REGION = 20120,
+    REGION = 20220,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_REGION_ZONE = 20121;
+     * @generated from protobuf enum value: BENCH_TYPE_REGION_ZONE = 20221;
      */
-    REGION_ZONE = 20121,
+    REGION_ZONE = 20221,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_REGION_AREA = 20122;
+     * @generated from protobuf enum value: BENCH_TYPE_REGION_AREA = 20222;
      */
-    REGION_AREA = 20122,
+    REGION_AREA = 20222,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_STATUS = 20201;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MODE = 20300;
      */
-    RESOURCE_STATUS = 20201,
+    ACCESS_MODE = 20300,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_OCCUPANCY = 20202;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_KIND = 20301;
      */
-    RESOURCE_OCCUPANCY = 20202,
+    ACCESS_KIND = 20301,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCALER_TYPE = 20210;
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY_EFFECT = 20302;
      */
-    SCALER_TYPE = 20210,
+    POLICY_EFFECT = 20302,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCALER_STRATEGY = 20211;
+     * @generated from protobuf enum value: BENCH_TYPE_QUERY_TYPE = 20400;
      */
-    SCALER_STRATEGY = 20211,
+    QUERY_TYPE = 20400,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MACHINE_TYPE = 20220;
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT_TYPE = 20401;
      */
-    MACHINE_TYPE = 20220,
+    EDIT_TYPE = 20401,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BROWSER_TYPE = 20230;
+     * @generated from protobuf enum value: BENCH_TYPE_USE_TYPE = 20402;
      */
-    BROWSER_TYPE = 20230,
+    USE_TYPE = 20402,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_DOM_NODE_TYPE = 20231;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_TYPE = 20403;
      */
-    DOM_NODE_TYPE = 20231,
+    ACCESS_TYPE = 20403,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_STORE_TYPE = 20240;
+     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_CATEGORY = 20404;
      */
-    STORE_TYPE = 20240,
+    CHANGE_CATEGORY = 20404,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_TYPE = 20250;
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT_OPERATION_TYPE = 20405;
      */
-    CLIENT_TYPE = 20250,
+    EDIT_OPERATION_TYPE = 20405,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 20401;
+     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_STATUS = 21000;
      */
-    FILE_RETENTION_MODE = 20401,
+    RESOURCE_STATUS = 21000,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_KIND = 20402;
+     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_OCCUPANCY = 21001;
      */
-    FILE_KIND = 20402,
+    RESOURCE_OCCUPANCY = 21001,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_TYPE = 20403;
+     * @generated from protobuf enum value: BENCH_TYPE_SCALER_TYPE = 21010;
      */
-    FILE_TYPE = 20403,
+    SCALER_TYPE = 21010,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_FORMAT = 20404;
+     * @generated from protobuf enum value: BENCH_TYPE_SCALER_STRATEGY = 21011;
      */
-    FILE_FORMAT = 20404,
+    SCALER_STRATEGY = 21011,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON_KIND = 20410;
+     * @generated from protobuf enum value: BENCH_TYPE_MACHINE_TYPE = 21020;
      */
-    ICON_KIND = 20410,
+    MACHINE_TYPE = 21020,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MODE = 20601;
+     * @generated from protobuf enum value: BENCH_TYPE_BROWSER_TYPE = 21030;
      */
-    ACCESS_MODE = 20601,
+    BROWSER_TYPE = 21030,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_KIND = 20602;
+     * @generated from protobuf enum value: BENCH_TYPE_DOM_NODE_TYPE = 21031;
      */
-    ACCESS_KIND = 20602,
+    DOM_NODE_TYPE = 21031,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_QUERY_TYPE = 20603;
+     * @generated from protobuf enum value: BENCH_TYPE_STORE_TYPE = 21040;
      */
-    QUERY_TYPE = 20603,
+    STORE_TYPE = 21040,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT_TYPE = 20604;
+     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_TYPE = 21050;
      */
-    EDIT_TYPE = 20604,
+    CLIENT_TYPE = 21050,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_USE_TYPE = 20605;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 21200;
      */
-    USE_TYPE = 20605,
+    FILE_RETENTION_MODE = 21200,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_TYPE = 20606;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_KIND = 21201;
      */
-    ACCESS_TYPE = 20606,
+    FILE_KIND = 21201,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_CATEGORY = 20607;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_TYPE = 21202;
      */
-    CHANGE_CATEGORY = 20607,
+    FILE_TYPE = 21202,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT_OPERATION_TYPE = 20608;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_FORMAT = 21203;
      */
-    EDIT_OPERATION_TYPE = 20608,
+    FILE_FORMAT = 21203,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_POLICY_EFFECT = 20609;
+     * @generated from protobuf enum value: BENCH_TYPE_ICON_KIND = 21210;
      */
-    POLICY_EFFECT = 20609,
+    ICON_KIND = 21210,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PRIMITIVE_TYPE = 21001;
+     * @generated from protobuf enum value: BENCH_TYPE_PRIMITIVE_TYPE = 21300;
      */
-    PRIMITIVE_TYPE = 21001,
+    PRIMITIVE_TYPE = 21300,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FIELD_ZONE = 21002;
+     * @generated from protobuf enum value: BENCH_TYPE_FIELD_ZONE = 21301;
      */
-    FIELD_ZONE = 21002,
+    FIELD_ZONE = 21301,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_KIND = 21003;
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_KIND = 21302;
      */
-    TYPE_KIND = 21003,
+    TYPE_KIND = 21302,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_FORMAT = 21004;
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_FORMAT = 21303;
      */
-    TYPE_FORMAT = 21004,
+    TYPE_FORMAT = 21303,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BLOCK_TYPE = 21006;
+     * @generated from protobuf enum value: BENCH_TYPE_BLOCK_TYPE = 21304;
      */
-    BLOCK_TYPE = 21006,
+    BLOCK_TYPE = 21304,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE_TYPE = 21010;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE_TYPE = 21400;
      */
-    TEXT_LINE_TYPE = 21010,
+    TEXT_LINE_TYPE = 21400,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_KIND = 21501;
+     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_KIND = 21500;
      */
-    EXPRESSION_KIND = 21501,
+    EXPRESSION_KIND = 21500,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_OP = 21502;
+     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_OP = 21501;
      */
-    EXPRESSION_OP = 21502,
+    EXPRESSION_OP = 21501,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_LITERAL_TYPE = 21503;
+     * @generated from protobuf enum value: BENCH_TYPE_LITERAL_TYPE = 21502;
      */
-    LITERAL_TYPE = 21503,
+    LITERAL_TYPE = 21502,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FUNCTIONAL_TYPE = 21504;
+     * @generated from protobuf enum value: BENCH_TYPE_FUNCTIONAL_TYPE = 21503;
      */
-    FUNCTIONAL_TYPE = 21504,
+    FUNCTIONAL_TYPE = 21503,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CONDITIONAL_TYPE = 21505;
+     * @generated from protobuf enum value: BENCH_TYPE_CONDITIONAL_TYPE = 21504;
      */
-    CONDITIONAL_TYPE = 21505,
+    CONDITIONAL_TYPE = 21504,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_TYPE = 21506;
+     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_TYPE = 21505;
      */
-    AGGREGATION_TYPE = 21506,
+    AGGREGATION_TYPE = 21505,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SORT_MODE = 21507;
+     * @generated from protobuf enum value: BENCH_TYPE_SORT_MODE = 21506;
      */
-    SORT_MODE = 21507,
+    SORT_MODE = 21506,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SORT_TYPE = 21508;
+     * @generated from protobuf enum value: BENCH_TYPE_SORT_TYPE = 21507;
      */
-    SORT_TYPE = 21508,
+    SORT_TYPE = 21507,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COMPUTED_VALUE_KIND = 21540;
+     * @generated from protobuf enum value: BENCH_TYPE_COMPUTED_VALUE_KIND = 21510;
      */
-    COMPUTED_VALUE_KIND = 21540,
+    COMPUTED_VALUE_KIND = 21510,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_ELEMENT_TYPE = 21550;
+     * @generated from protobuf enum value: BENCH_TYPE_PATH_ELEMENT_TYPE = 21520;
      */
-    PATH_ELEMENT_TYPE = 21550,
+    PATH_ELEMENT_TYPE = 21520,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_RUN_SELECTOR = 21551;
+     * @generated from protobuf enum value: BENCH_TYPE_PATH_RUN_SELECTOR = 21521;
      */
-    PATH_RUN_SELECTOR = 21551,
+    PATH_RUN_SELECTOR = 21521,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_STATUS = 22001;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_STATUS = 22000;
      */
-    RUN_STATUS = 22001,
+    RUN_STATUS = 22000,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_TYPE = 22002;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_TYPE = 22001;
      */
-    RUN_TYPE = 22002,
+    RUN_TYPE = 22001,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_KIND = 22003;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_KIND = 22002;
      */
-    RUN_ERROR_KIND = 22003,
+    RUN_ERROR_KIND = 22002,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_TYPE = 22004;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_TYPE = 22003;
      */
-    RUN_ERROR_TYPE = 22004,
+    RUN_ERROR_TYPE = 22003,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_SPAN_TYPE = 22005;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_SPAN_TYPE = 22004;
      */
-    RUN_SPAN_TYPE = 22005,
+    RUN_SPAN_TYPE = 22004,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_EVENT_TYPE = 22006;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_EVENT_TYPE = 22005;
      */
-    RUN_EVENT_TYPE = 22006,
+    RUN_EVENT_TYPE = 22005,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SESSION_STATUS = 22010;
      */
@@ -7936,105 +7747,306 @@ export enum BenchType {
      */
     MODEL_PROVIDER = 22303,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACTION_TYPE = 22400;
+     * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 22400;
      */
-    ACTION_TYPE = 22400,
+    CODE_TYPE = 22400,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 22401;
+     * @generated from protobuf enum value: BENCH_TYPE_CODE_LANGUAGE = 22401;
      */
-    CODE_TYPE = 22401,
+    CODE_LANGUAGE = 22401,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 22402;
+     * @generated from protobuf enum value: BENCH_TYPE_ACTION_TYPE = 22500;
      */
-    PORT_SIDE = 22402,
+    ACTION_TYPE = 22500,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TYPE = 22403;
+     * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 22501;
      */
-    PIPE_TYPE = 22403,
+    PORT_SIDE = 22501,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 22501;
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TYPE = 22502;
      */
-    SPACE_TYPE = 22501,
+    PIPE_TYPE = 22502,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VIEW_TYPE = 22502;
+     * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 22600;
      */
-    VIEW_TYPE = 22502,
+    SPACE_TYPE = 22600,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_TYPE = 22504;
+     * @generated from protobuf enum value: BENCH_TYPE_VIEW_TYPE = 22601;
      */
-    COLOR_TYPE = 22504,
+    VIEW_TYPE = 22601,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_SHADE = 22505;
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR_TYPE = 22602;
      */
-    COLOR_SHADE = 22505,
+    COLOR_TYPE = 22602,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_TYPE = 22506;
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR_SHADE = 22603;
      */
-    FONT_TYPE = 22506,
+    COLOR_SHADE = 22603,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_WEIGHT = 22507;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_TYPE = 22604;
      */
-    FONT_WEIGHT = 22507,
+    FONT_TYPE = 22604,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_SIZE = 22508;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_WEIGHT = 22605;
      */
-    FONT_SIZE = 22508,
+    FONT_WEIGHT = 22605,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACING = 22509;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_SIZE = 22606;
      */
-    SPACING = 22509,
+    FONT_SIZE = 22606,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ANCHOR = 22510;
+     * @generated from protobuf enum value: BENCH_TYPE_SPACING = 22607;
      */
-    ANCHOR = 22510,
+    SPACING = 22607,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ORIENTATION = 22511;
+     * @generated from protobuf enum value: BENCH_TYPE_ANCHOR = 22608;
      */
-    ORIENTATION = 22511,
+    ANCHOR = 22608,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ALIGNMENT = 22512;
+     * @generated from protobuf enum value: BENCH_TYPE_ORIENTATION = 22609;
      */
-    ALIGNMENT = 22512,
+    ORIENTATION = 22609,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_USER_WIZARD_STAGE = 22513;
+     * @generated from protobuf enum value: BENCH_TYPE_ALIGNMENT = 22610;
      */
-    USER_WIZARD_STAGE = 22513,
+    ALIGNMENT = 22610,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TREE_VIEW_PRESET = 22514;
+     * @generated from protobuf enum value: BENCH_TYPE_USER_WIZARD_STAGE = 22611;
      */
-    TREE_VIEW_PRESET = 22514,
+    USER_WIZARD_STAGE = 22611,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_HUB_ASPECT = 22515;
+     * @generated from protobuf enum value: BENCH_TYPE_TREE_VIEW_PRESET = 22612;
      */
-    HUB_ASPECT = 22515,
+    TREE_VIEW_PRESET = 22612,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_HELP_ASPECT = 22516;
+     * @generated from protobuf enum value: BENCH_TYPE_HUB_ASPECT = 22613;
      */
-    HELP_ASPECT = 22516,
+    HUB_ASPECT = 22613,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BUTTON_VARIANT = 22517;
+     * @generated from protobuf enum value: BENCH_TYPE_HELP_ASPECT = 22614;
      */
-    BUTTON_VARIANT = 22517,
+    HELP_ASPECT = 22614,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PICKER_VARIANT = 22518;
+     * @generated from protobuf enum value: BENCH_TYPE_BUTTON_VARIANT = 22615;
      */
-    PICKER_VARIANT = 22518,
+    BUTTON_VARIANT = 22615,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 23001;
+     * @generated from protobuf enum value: BENCH_TYPE_PICKER_VARIANT = 22616;
      */
-    USER_STATUS = 23001,
+    PICKER_VARIANT = 22616,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ORGANIZATION_STATUS = 23002;
+     * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 22700;
      */
-    ORGANIZATION_STATUS = 23002,
+    USER_STATUS = 22700,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_TYPE = 23100;
+     * @generated from protobuf enum value: BENCH_TYPE_ORGANIZATION_STATUS = 22701;
      */
-    MESSAGE_TYPE = 23100,
+    ORGANIZATION_STATUS = 22701,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_STATUS = 23101;
+     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_TYPE = 22800;
      */
-    MESSAGE_STATUS = 23101
+    MESSAGE_TYPE = 22800,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_STATUS = 22801;
+     */
+    MESSAGE_STATUS = 22801
+}
+/**
+ * @generated from protobuf enum symbolx.bench.PropertyReferenceType
+ */
+export enum PropertyReferenceType {
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_ID = 1;
+     */
+    ID = 1,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_CK = 2;
+     */
+    CK = 2,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BENCH_ID = 3;
+     */
+    BENCH_ID = 3,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BASE_CK = 4;
+     */
+    BASE_CK = 4,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID = 5;
+     */
+    BASE_BENCH_ID = 5,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_NODE_TYPE = 6;
+     */
+    NODE_TYPE = 6
+}
+/**
+ * @generated from protobuf enum symbolx.bench.NodeMode
+ */
+export enum NodeMode {
+    /**
+     * @generated from protobuf enum value: NODE_MODE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: NODE_MODE_BUILTIN = 1;
+     */
+    BUILTIN = 1,
+    /**
+     * @generated from protobuf enum value: NODE_MODE_PRODUCTION = 2;
+     */
+    PRODUCTION = 2,
+    /**
+     * @generated from protobuf enum value: NODE_MODE_DEVELOPMENT = 4;
+     */
+    DEVELOPMENT = 4,
+    /**
+     * @generated from protobuf enum value: NODE_MODE_TEST = 6;
+     */
+    TEST = 6,
+    /**
+     * @generated from protobuf enum value: NODE_MODE_PREVIEW = 8;
+     */
+    PREVIEW = 8,
+    /**
+     * @generated from protobuf enum value: NODE_MODE_ARCHIVE = 10;
+     */
+    ARCHIVE = 10
+}
+/**
+ * @generated from protobuf enum symbolx.bench.Day
+ */
+export enum Day {
+    /**
+     * @generated from protobuf enum value: DAY_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: DAY_MONDAY = 1;
+     */
+    MONDAY = 1,
+    /**
+     * @generated from protobuf enum value: DAY_TUESDAY = 2;
+     */
+    TUESDAY = 2,
+    /**
+     * @generated from protobuf enum value: DAY_WEDNESDAY = 3;
+     */
+    WEDNESDAY = 3,
+    /**
+     * @generated from protobuf enum value: DAY_THURSDAY = 4;
+     */
+    THURSDAY = 4,
+    /**
+     * @generated from protobuf enum value: DAY_FRIDAY = 5;
+     */
+    FRIDAY = 5,
+    /**
+     * @generated from protobuf enum value: DAY_SATURDAY = 6;
+     */
+    SATURDAY = 6,
+    /**
+     * @generated from protobuf enum value: DAY_SUNDAY = 7;
+     */
+    SUNDAY = 7
+}
+/**
+ * @generated from protobuf enum symbolx.bench.Month
+ */
+export enum Month {
+    /**
+     * @generated from protobuf enum value: MONTH_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: MONTH_JANUARY = 1;
+     */
+    JANUARY = 1,
+    /**
+     * @generated from protobuf enum value: MONTH_FEBRUARY = 2;
+     */
+    FEBRUARY = 2,
+    /**
+     * @generated from protobuf enum value: MONTH_MARCH = 3;
+     */
+    MARCH = 3,
+    /**
+     * @generated from protobuf enum value: MONTH_APRIL = 4;
+     */
+    APRIL = 4,
+    /**
+     * @generated from protobuf enum value: MONTH_MAY = 5;
+     */
+    MAY = 5,
+    /**
+     * @generated from protobuf enum value: MONTH_JUNE = 6;
+     */
+    JUNE = 6,
+    /**
+     * @generated from protobuf enum value: MONTH_JULY = 7;
+     */
+    JULY = 7,
+    /**
+     * @generated from protobuf enum value: MONTH_AUGUST = 8;
+     */
+    AUGUST = 8,
+    /**
+     * @generated from protobuf enum value: MONTH_SEPTEMBER = 9;
+     */
+    SEPTEMBER = 9,
+    /**
+     * @generated from protobuf enum value: MONTH_OCTOBER = 10;
+     */
+    OCTOBER = 10,
+    /**
+     * @generated from protobuf enum value: MONTH_NOVEMBER = 11;
+     */
+    NOVEMBER = 11,
+    /**
+     * @generated from protobuf enum value: MONTH_DECEMBER = 12;
+     */
+    DECEMBER = 12
+}
+/**
+ * @generated from protobuf enum symbolx.bench.TimeInterval
+ */
+export enum TimeInterval {
+    /**
+     * @generated from protobuf enum value: TIME_INTERVAL_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: TIME_INTERVAL_SECOND = 2;
+     */
+    SECOND = 2,
+    /**
+     * @generated from protobuf enum value: TIME_INTERVAL_MINUTE = 3;
+     */
+    MINUTE = 3,
+    /**
+     * @generated from protobuf enum value: TIME_INTERVAL_HOUR = 4;
+     */
+    HOUR = 4,
+    /**
+     * @generated from protobuf enum value: TIME_INTERVAL_DAY = 5;
+     */
+    DAY = 5,
+    /**
+     * @generated from protobuf enum value: TIME_INTERVAL_WEEK = 6;
+     */
+    WEEK = 6,
+    /**
+     * @generated from protobuf enum value: TIME_INTERVAL_MONTH = 7;
+     */
+    MONTH = 7,
+    /**
+     * @generated from protobuf enum value: TIME_INTERVAL_YEAR = 8;
+     */
+    YEAR = 8
 }
 /**
  * @generated from protobuf enum symbolx.bench.PackageType
@@ -8252,6 +8264,277 @@ export enum RegionArea {
      * @generated from protobuf enum value: REGION_AREA_PRIVATE = 9000;
      */
     PRIVATE = 9000
+}
+/**
+ * @generated from protobuf enum symbolx.bench.AccessMode
+ */
+export enum AccessMode {
+    /**
+     * @generated from protobuf enum value: ACCESS_MODE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ACCESS_MODE_ADAPTIVE = 1;
+     */
+    ADAPTIVE = 1,
+    /**
+     * @generated from protobuf enum value: ACCESS_MODE_ATOMIC = 2;
+     */
+    ATOMIC = 2
+}
+/**
+ * @generated from protobuf enum symbolx.bench.AccessKind
+ */
+export enum AccessKind {
+    /**
+     * @generated from protobuf enum value: ACCESS_KIND_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ACCESS_KIND_READ = 1;
+     */
+    READ = 1,
+    /**
+     * @generated from protobuf enum value: ACCESS_KIND_EDIT = 20;
+     */
+    EDIT = 20,
+    /**
+     * @generated from protobuf enum value: ACCESS_KIND_USE = 40;
+     */
+    USE = 40
+}
+/**
+ * @generated from protobuf enum symbolx.bench.PolicyEffect
+ */
+export enum PolicyEffect {
+    /**
+     * @generated from protobuf enum value: POLICY_EFFECT_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: POLICY_EFFECT_ALLOW = 1;
+     */
+    ALLOW = 1,
+    /**
+     * @generated from protobuf enum value: POLICY_EFFECT_DENY = 2;
+     */
+    DENY = 2
+}
+/**
+ * Ways to read nodes.
+ *
+ * @generated from protobuf enum symbolx.bench.QueryType
+ */
+export enum QueryType {
+    /**
+     * @generated from protobuf enum value: QUERY_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: QUERY_TYPE_GET = 1;
+     */
+    GET = 1,
+    /**
+     * @generated from protobuf enum value: QUERY_TYPE_SEARCH = 2;
+     */
+    SEARCH = 2,
+    /**
+     * @generated from protobuf enum value: QUERY_TYPE_AGGREGATE = 3;
+     */
+    AGGREGATE = 3
+}
+/**
+ * Ways to edit nodes.
+ *
+ * @generated from protobuf enum symbolx.bench.EditType
+ */
+export enum EditType {
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_CREATE = 20;
+     */
+    CREATE = 20,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_UPSERT = 21;
+     */
+    UPSERT = 21,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_UPDATE = 22;
+     */
+    UPDATE = 22,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_MOVE = 23;
+     */
+    MOVE = 23,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_DELETE = 26;
+     */
+    DELETE = 26,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_RESTORE = 27;
+     */
+    RESTORE = 27,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_ERASE = 28;
+     */
+    ERASE = 28
+}
+/**
+ * Ways to use nodes.
+ *
+ * @generated from protobuf enum symbolx.bench.UseType
+ */
+export enum UseType {
+    /**
+     * @generated from protobuf enum value: USE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: USE_TYPE_START = 40;
+     */
+    START = 40,
+    /**
+     * @generated from protobuf enum value: USE_TYPE_PAUSE = 41;
+     */
+    PAUSE = 41,
+    /**
+     * @generated from protobuf enum value: USE_TYPE_RESUME = 42;
+     */
+    RESUME = 42,
+    /**
+     * @generated from protobuf enum value: USE_TYPE_STOP = 43;
+     */
+    STOP = 43,
+    /**
+     * @generated from protobuf enum value: USE_TYPE_KILL = 44;
+     */
+    KILL = 44,
+    /**
+     * @generated from protobuf enum value: USE_TYPE_SEND = 45;
+     */
+    SEND = 45,
+    /**
+     * @generated from protobuf enum value: USE_TYPE_RECEIVE = 46;
+     */
+    RECEIVE = 46
+}
+/**
+ * @generated from protobuf enum symbolx.bench.AccessType
+ */
+export enum AccessType {
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_GET = 1;
+     */
+    GET = 1,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_SEARCH = 2;
+     */
+    SEARCH = 2,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_AGGREGATE = 3;
+     */
+    AGGREGATE = 3,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_CREATE = 20;
+     */
+    CREATE = 20,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_UPSERT = 21;
+     */
+    UPSERT = 21,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_UPDATE = 22;
+     */
+    UPDATE = 22,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_MOVE = 23;
+     */
+    MOVE = 23,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_DELETE = 26;
+     */
+    DELETE = 26,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_RESTORE = 27;
+     */
+    RESTORE = 27,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_ERASE = 28;
+     */
+    ERASE = 28,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_START = 40;
+     */
+    START = 40,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_PAUSE = 41;
+     */
+    PAUSE = 41,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_RESUME = 42;
+     */
+    RESUME = 42,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_STOP = 43;
+     */
+    STOP = 43,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_KILL = 44;
+     */
+    KILL = 44,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_SEND = 45;
+     */
+    SEND = 45,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_RECEIVE = 46;
+     */
+    RECEIVE = 46
+}
+/**
+ * Optional classification for edits.
+ *
+ * @generated from protobuf enum symbolx.bench.ChangeCategory
+ */
+export enum ChangeCategory {
+    /**
+     * @generated from protobuf enum value: CHANGE_CATEGORY_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CHANGE_CATEGORY_SPACE = 10;
+     */
+    SPACE = 10,
+    /**
+     * @generated from protobuf enum value: CHANGE_CATEGORY_RUNTIME = 20;
+     */
+    RUNTIME = 20
+}
+/**
+ * The type of edit operation.
+ *
+ * @generated from protobuf enum symbolx.bench.EditOperationType
+ */
+export enum EditOperationType {
+    /**
+     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_SET = 1;
+     */
+    SET = 1,
+    /**
+     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_CLEAR = 2;
+     */
+    CLEAR = 2
 }
 /**
  * Generalized status of a Resource in its lifecycle.
@@ -8904,277 +9187,6 @@ export enum IconKind {
      * @generated from protobuf enum value: ICON_KIND_VS_CODE = 4;
      */
     VS_CODE = 4
-}
-/**
- * @generated from protobuf enum symbolx.bench.AccessMode
- */
-export enum AccessMode {
-    /**
-     * @generated from protobuf enum value: ACCESS_MODE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: ACCESS_MODE_ADAPTIVE = 1;
-     */
-    ADAPTIVE = 1,
-    /**
-     * @generated from protobuf enum value: ACCESS_MODE_ATOMIC = 2;
-     */
-    ATOMIC = 2
-}
-/**
- * @generated from protobuf enum symbolx.bench.AccessKind
- */
-export enum AccessKind {
-    /**
-     * @generated from protobuf enum value: ACCESS_KIND_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: ACCESS_KIND_READ = 1;
-     */
-    READ = 1,
-    /**
-     * @generated from protobuf enum value: ACCESS_KIND_EDIT = 20;
-     */
-    EDIT = 20,
-    /**
-     * @generated from protobuf enum value: ACCESS_KIND_USE = 40;
-     */
-    USE = 40
-}
-/**
- * Ways to read nodes.
- *
- * @generated from protobuf enum symbolx.bench.QueryType
- */
-export enum QueryType {
-    /**
-     * @generated from protobuf enum value: QUERY_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: QUERY_TYPE_GET = 1;
-     */
-    GET = 1,
-    /**
-     * @generated from protobuf enum value: QUERY_TYPE_SEARCH = 2;
-     */
-    SEARCH = 2,
-    /**
-     * @generated from protobuf enum value: QUERY_TYPE_AGGREGATE = 3;
-     */
-    AGGREGATE = 3
-}
-/**
- * Ways to edit nodes.
- *
- * @generated from protobuf enum symbolx.bench.EditType
- */
-export enum EditType {
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_CREATE = 20;
-     */
-    CREATE = 20,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_UPSERT = 21;
-     */
-    UPSERT = 21,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_UPDATE = 22;
-     */
-    UPDATE = 22,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_MOVE = 23;
-     */
-    MOVE = 23,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_DELETE = 26;
-     */
-    DELETE = 26,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_RESTORE = 27;
-     */
-    RESTORE = 27,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_ERASE = 28;
-     */
-    ERASE = 28
-}
-/**
- * Ways to use nodes.
- *
- * @generated from protobuf enum symbolx.bench.UseType
- */
-export enum UseType {
-    /**
-     * @generated from protobuf enum value: USE_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: USE_TYPE_START = 40;
-     */
-    START = 40,
-    /**
-     * @generated from protobuf enum value: USE_TYPE_PAUSE = 41;
-     */
-    PAUSE = 41,
-    /**
-     * @generated from protobuf enum value: USE_TYPE_RESUME = 42;
-     */
-    RESUME = 42,
-    /**
-     * @generated from protobuf enum value: USE_TYPE_STOP = 43;
-     */
-    STOP = 43,
-    /**
-     * @generated from protobuf enum value: USE_TYPE_KILL = 44;
-     */
-    KILL = 44,
-    /**
-     * @generated from protobuf enum value: USE_TYPE_SEND = 45;
-     */
-    SEND = 45,
-    /**
-     * @generated from protobuf enum value: USE_TYPE_RECEIVE = 46;
-     */
-    RECEIVE = 46
-}
-/**
- * @generated from protobuf enum symbolx.bench.AccessType
- */
-export enum AccessType {
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_GET = 1;
-     */
-    GET = 1,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_SEARCH = 2;
-     */
-    SEARCH = 2,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_AGGREGATE = 3;
-     */
-    AGGREGATE = 3,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_CREATE = 20;
-     */
-    CREATE = 20,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_UPSERT = 21;
-     */
-    UPSERT = 21,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_UPDATE = 22;
-     */
-    UPDATE = 22,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_MOVE = 23;
-     */
-    MOVE = 23,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_DELETE = 26;
-     */
-    DELETE = 26,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_RESTORE = 27;
-     */
-    RESTORE = 27,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_ERASE = 28;
-     */
-    ERASE = 28,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_START = 40;
-     */
-    START = 40,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_PAUSE = 41;
-     */
-    PAUSE = 41,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_RESUME = 42;
-     */
-    RESUME = 42,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_STOP = 43;
-     */
-    STOP = 43,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_KILL = 44;
-     */
-    KILL = 44,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_SEND = 45;
-     */
-    SEND = 45,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_RECEIVE = 46;
-     */
-    RECEIVE = 46
-}
-/**
- * Optional classification for edits.
- *
- * @generated from protobuf enum symbolx.bench.ChangeCategory
- */
-export enum ChangeCategory {
-    /**
-     * @generated from protobuf enum value: CHANGE_CATEGORY_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CHANGE_CATEGORY_SPACE = 10;
-     */
-    SPACE = 10,
-    /**
-     * @generated from protobuf enum value: CHANGE_CATEGORY_RUNTIME = 20;
-     */
-    RUNTIME = 20
-}
-/**
- * The type of edit operation.
- *
- * @generated from protobuf enum symbolx.bench.EditOperationType
- */
-export enum EditOperationType {
-    /**
-     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_SET = 1;
-     */
-    SET = 1,
-    /**
-     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_CLEAR = 2;
-     */
-    CLEAR = 2
-}
-/**
- * @generated from protobuf enum symbolx.bench.PolicyEffect
- */
-export enum PolicyEffect {
-    /**
-     * @generated from protobuf enum value: POLICY_EFFECT_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: POLICY_EFFECT_ALLOW = 1;
-     */
-    ALLOW = 1,
-    /**
-     * @generated from protobuf enum value: POLICY_EFFECT_DENY = 2;
-     */
-    DENY = 2
 }
 /**
  * Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
@@ -10588,6 +10600,45 @@ export enum ModelProvider {
     MICROSOFT = 6000
 }
 /**
+ * The implicit 'type' of some Code.
+ * We don't set this explicitly in Code because it depends on where the Code is used.
+ *
+ * @generated from protobuf enum symbolx.bench.CodeType
+ */
+export enum CodeType {
+    /**
+     * @generated from protobuf enum value: CODE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CODE_TYPE_SNIPPET = 1;
+     */
+    SNIPPET = 1,
+    /**
+     * @generated from protobuf enum value: CODE_TYPE_SCRIPT = 2;
+     */
+    SCRIPT = 2,
+    /**
+     * @generated from protobuf enum value: CODE_TYPE_FUNCTION = 3;
+     */
+    FUNCTION = 3
+}
+/**
+ * The language of some Code.
+ *
+ * @generated from protobuf enum symbolx.bench.CodeLanguage
+ */
+export enum CodeLanguage {
+    /**
+     * @generated from protobuf enum value: CODE_LANGUAGE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CODE_LANGUAGE_PYTHON = 1;
+     */
+    PYTHON = 1
+}
+/**
  * @generated from protobuf enum symbolx.bench.ActionType
  */
 export enum ActionType {
@@ -10735,30 +10786,6 @@ export enum ActionType {
      * @generated from protobuf enum value: ACTION_TYPE_TEXT = 9000;
      */
     TEXT = 9000
-}
-/**
- * The implicit 'type' of some Code.
- * We don't set this explicitly in Code because it depends on where the Code is used.
- *
- * @generated from protobuf enum symbolx.bench.CodeType
- */
-export enum CodeType {
-    /**
-     * @generated from protobuf enum value: CODE_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CODE_TYPE_SNIPPET = 1;
-     */
-    SNIPPET = 1,
-    /**
-     * @generated from protobuf enum value: CODE_TYPE_SCRIPT = 2;
-     */
-    SCRIPT = 2,
-    /**
-     * @generated from protobuf enum value: CODE_TYPE_FUNCTION = 3;
-     */
-    FUNCTION = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.PortSide
@@ -13209,7 +13236,8 @@ class CodeData$Type extends MessageType$<CodeData> {
     constructor() {
         super("symbolx.bench.CodeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "lines", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => CodeLineData }
+            { no: 35, name: "lines", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => CodeLineData },
+            { no: 22401, name: "language", kind: "enum", opt: true, T: () => ["symbolx.bench.CodeLanguage", CodeLanguage, "CODE_LANGUAGE_"] }
         ]);
     }
     create(value?: PartialMessage<CodeData>): CodeData {
@@ -13228,8 +13256,11 @@ class CodeData$Type extends MessageType$<CodeData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* repeated symbolx.bench.CodeLineData lines */ 30:
+                case /* repeated symbolx.bench.CodeLineData lines */ 35:
                     message.lines.push(CodeLineData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.CodeLanguage language */ 22401:
+                    message.language = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13246,9 +13277,12 @@ class CodeData$Type extends MessageType$<CodeData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* repeated symbolx.bench.CodeLineData lines = 30; */
+        /* repeated symbolx.bench.CodeLineData lines = 35; */
         for (let i = 0; i < message.lines.length; i++)
-            CodeLineData.internalBinaryWrite(message.lines[i], writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+            CodeLineData.internalBinaryWrite(message.lines[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.CodeLanguage language = 22401; */
+        if (message.language !== undefined)
+            writer.tag(22401, WireType.Varint).int32(message.language);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26644,13 +26678,13 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.RUN]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.INTERRUPTION]: [NodeType.RUN],
   [NodeType.LOG]: [NodeType.BENCH],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.RUN, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.RUN, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
 }
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
+  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.STREAM, NodeType.RUN, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE],
   [NodeType.USER]: [NodeType.SKIP, NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY],
   [NodeType.HANDLE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CLIENT]: [NodeType.SKIP, NodeType.EMPTY],
@@ -26709,16 +26743,16 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.MESSAGE]: [NodeType.BENCH],
   [NodeType.RECORD]: [NodeType.BENCH],
   [NodeType.SESSION]: [NodeType.BENCH],
-  [NodeType.RUN]: [NodeType.RUN, NodeType.BENCH],
-  [NodeType.INTERRUPTION]: [NodeType.RUN, NodeType.BENCH],
+  [NodeType.RUN]: [NodeType.BENCH, NodeType.RUN],
+  [NodeType.INTERRUPTION]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.LOG]: [NodeType.BENCH],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.BLOCK, NodeType.USER, NodeType.FIELD, NodeType.CLIENT, NodeType.HANDLE, NodeType.ORGANIZATION, NodeType.VIEW, NodeType.EMPTY, NodeType.SCALER, NodeType.STORE, NodeType.SESSION, NodeType.ACTION, NodeType.PIPE, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.RUN, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.RUN, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
 }
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
+  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.RUN, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
   [NodeType.USER]: [NodeType.SKIP, NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY],
   [NodeType.HANDLE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CLIENT]: [NodeType.SKIP, NodeType.EMPTY],
@@ -26946,17 +26980,26 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.NODE_TYPE]: NodeType,
   [EnumType.STRUCT_TYPE]: StructType,
   [EnumType.OBJECT_TYPE]: ObjectType,
+  [EnumType.BENCH_TYPE]: BenchType,
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType,
   [EnumType.NODE_MODE]: NodeMode,
   [EnumType.DAY]: Day,
   [EnumType.MONTH]: Month,
   [EnumType.TIME_INTERVAL]: TimeInterval,
-  [EnumType.BENCH_TYPE]: BenchType,
   [EnumType.PACKAGE_TYPE]: PackageType,
   [EnumType.CLOUD]: Cloud,
   [EnumType.REGION]: Region,
   [EnumType.REGION_ZONE]: RegionZone,
   [EnumType.REGION_AREA]: RegionArea,
+  [EnumType.ACCESS_MODE]: AccessMode,
+  [EnumType.ACCESS_KIND]: AccessKind,
+  [EnumType.POLICY_EFFECT]: PolicyEffect,
+  [EnumType.QUERY_TYPE]: QueryType,
+  [EnumType.EDIT_TYPE]: EditType,
+  [EnumType.USE_TYPE]: UseType,
+  [EnumType.ACCESS_TYPE]: AccessType,
+  [EnumType.CHANGE_CATEGORY]: ChangeCategory,
+  [EnumType.EDIT_OPERATION_TYPE]: EditOperationType,
   [EnumType.RESOURCE_STATUS]: ResourceStatus,
   [EnumType.RESOURCE_OCCUPANCY]: ResourceOccupancy,
   [EnumType.SCALER_TYPE]: ScalerType,
@@ -26971,15 +27014,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.FILE_TYPE]: FileType,
   [EnumType.FILE_FORMAT]: FileFormat,
   [EnumType.ICON_KIND]: IconKind,
-  [EnumType.ACCESS_MODE]: AccessMode,
-  [EnumType.ACCESS_KIND]: AccessKind,
-  [EnumType.QUERY_TYPE]: QueryType,
-  [EnumType.EDIT_TYPE]: EditType,
-  [EnumType.USE_TYPE]: UseType,
-  [EnumType.ACCESS_TYPE]: AccessType,
-  [EnumType.CHANGE_CATEGORY]: ChangeCategory,
-  [EnumType.EDIT_OPERATION_TYPE]: EditOperationType,
-  [EnumType.POLICY_EFFECT]: PolicyEffect,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FIELD_ZONE]: FieldType,
   [EnumType.TYPE_KIND]: TypeKind,
@@ -27018,8 +27052,9 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.MODEL_TYPE]: ModelType,
   [EnumType.MODEL_FAMILY]: ModelFamily,
   [EnumType.MODEL_PROVIDER]: ModelProvider,
-  [EnumType.ACTION_TYPE]: ActionType,
   [EnumType.CODE_TYPE]: CodeType,
+  [EnumType.CODE_LANGUAGE]: CodeLanguage,
+  [EnumType.ACTION_TYPE]: ActionType,
   [EnumType.PORT_SIDE]: PortSide,
   [EnumType.PIPE_TYPE]: PipeType,
   [EnumType.SPACE_TYPE]: SpaceType,
@@ -27326,17 +27361,26 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.NODE_TYPE]: NodeType,
   [EnumType.STRUCT_TYPE]: StructType,
   [EnumType.OBJECT_TYPE]: ObjectType,
+  [EnumType.BENCH_TYPE]: BenchType,
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType,
   [EnumType.NODE_MODE]: NodeMode,
   [EnumType.DAY]: Day,
   [EnumType.MONTH]: Month,
   [EnumType.TIME_INTERVAL]: TimeInterval,
-  [EnumType.BENCH_TYPE]: BenchType,
   [EnumType.PACKAGE_TYPE]: PackageType,
   [EnumType.CLOUD]: Cloud,
   [EnumType.REGION]: Region,
   [EnumType.REGION_ZONE]: RegionZone,
   [EnumType.REGION_AREA]: RegionArea,
+  [EnumType.ACCESS_MODE]: AccessMode,
+  [EnumType.ACCESS_KIND]: AccessKind,
+  [EnumType.POLICY_EFFECT]: PolicyEffect,
+  [EnumType.QUERY_TYPE]: QueryType,
+  [EnumType.EDIT_TYPE]: EditType,
+  [EnumType.USE_TYPE]: UseType,
+  [EnumType.ACCESS_TYPE]: AccessType,
+  [EnumType.CHANGE_CATEGORY]: ChangeCategory,
+  [EnumType.EDIT_OPERATION_TYPE]: EditOperationType,
   [EnumType.RESOURCE_STATUS]: ResourceStatus,
   [EnumType.RESOURCE_OCCUPANCY]: ResourceOccupancy,
   [EnumType.SCALER_TYPE]: ScalerType,
@@ -27351,15 +27395,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.FILE_TYPE]: FileType,
   [EnumType.FILE_FORMAT]: FileFormat,
   [EnumType.ICON_KIND]: IconKind,
-  [EnumType.ACCESS_MODE]: AccessMode,
-  [EnumType.ACCESS_KIND]: AccessKind,
-  [EnumType.QUERY_TYPE]: QueryType,
-  [EnumType.EDIT_TYPE]: EditType,
-  [EnumType.USE_TYPE]: UseType,
-  [EnumType.ACCESS_TYPE]: AccessType,
-  [EnumType.CHANGE_CATEGORY]: ChangeCategory,
-  [EnumType.EDIT_OPERATION_TYPE]: EditOperationType,
-  [EnumType.POLICY_EFFECT]: PolicyEffect,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FIELD_ZONE]: FieldType,
   [EnumType.TYPE_KIND]: TypeKind,
@@ -27398,8 +27433,9 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.MODEL_TYPE]: ModelType,
   [EnumType.MODEL_FAMILY]: ModelFamily,
   [EnumType.MODEL_PROVIDER]: ModelProvider,
-  [EnumType.ACTION_TYPE]: ActionType,
   [EnumType.CODE_TYPE]: CodeType,
+  [EnumType.CODE_LANGUAGE]: CodeLanguage,
+  [EnumType.ACTION_TYPE]: ActionType,
   [EnumType.PORT_SIDE]: PortSide,
   [EnumType.PIPE_TYPE]: PipeType,
   [EnumType.SPACE_TYPE]: SpaceType,
@@ -28777,7 +28813,8 @@ export enum TextSpanProperty {
 
 export enum CodeProperty {
   metatype = 1,
-  lines = 30,
+  lines = 35,
+  language = 22401,
 }
 
 export enum CodeLineProperty {
@@ -29582,8 +29619,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -29614,8 +29651,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30641,7 +30678,8 @@ export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
 }
 export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
   [CodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [CodeProperty.lines]: { id: 30, name: 'lines', component: ObjectType.CODE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE_LINE },
+  [CodeProperty.lines]: { id: 35, name: 'lines', component: ObjectType.CODE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE_LINE },
+  [CodeProperty.language]: { id: 22401, name: 'language', component: ObjectType.CODE, enumType: EnumType.CODE_LANGUAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const CodeLineDataInfo: Record<CodeLineProperty, PropertyInfo> = {
   [CodeLineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE_LINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

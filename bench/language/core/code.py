@@ -1,5 +1,5 @@
 import textwrap
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import black
 import structlog
@@ -49,14 +49,21 @@ class CodeLine(Struct):
             return other in self.content
 
 
+@enum_(EnumType.CODE_LANGUAGE)
+class CodeLanguage(IdEnum):
+    """The language of some Code."""
+
+    PYTHON = 1
+
+
 @struct_(StructType.CODE)
 class Code(Struct):
     """Code composed of multiple lines."""
 
     # TODO :Incomplete: support references in nodes (incl. Paths? also in Text?)
 
-    # language: ...
-    lines: list[CodeLine] = p_regular(30, require=True, array=True, struct=StructType.CODE_LINE)
+    language: Optional[CodeLanguage] = p_regular(EnumType.CODE_LANGUAGE, require=False)
+    lines: list[CodeLine] = p_regular(35, require=True, array=True, struct=StructType.CODE_LINE)
 
     def __content_str__(self) -> str:
         preview_str = "\\n".join(line.content or "" for line in self.lines[:3])
