@@ -271,10 +271,23 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
 });
 
 export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeIcons<ActionType>({
-  // boundary
+  // flow
   [ActionType.START]: "fas fa-circle-play",
   [ActionType.COMPLETE]: "fas fa-flag-checkered",
   [ActionType.FAIL]: "fas fa-circle-exclamation",
+  // generic
+  [ActionType.CODE]: "fas fa-code",
+  [ActionType.TOOL]: "fas fa-screwdriver-wrench",
+  [ActionType.DO]: "fas fa-hammer",
+  [ActionType.ROUTE]: "fas fa-split",
+  [ActionType.GENERATE]: "fas fa-wand-magic-sparkles",
+  [ActionType.TRANSFORM]: "fas fa-arrows-rotate",
+  [ActionType.EXTRACT]: "fas fa-filter",
+  [ActionType.CLASSIFY]: "fas fa-tags",
+  [ActionType.SUMMARIZE]: "fas fa-file-lines",
+  [ActionType.COMPARE]: "fas fa-code-compare",
+  [ActionType.TRANSLATE]: "fas fa-language",
+  [ActionType.CHANGE]: "fas fa-pen-to-square",
   // read
   [ActionType.GET]: "fas fa-magnifying-glass",
   [ActionType.SEARCH]: "fas fa-magnifying-glass",
@@ -285,19 +298,11 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   [ActionType.UPDATE]: "fas fa-pencil",
   [ActionType.DELETE]: "fas fa-trash",
   [ActionType.PASTE]: "fas fa-paste",
-  [ActionType.CHANGE]: "fas fa-pen",
   // async
   [ActionType.SEND]: "fas fa-inbox-out",
   [ActionType.RECEIVE]: "fas fa-inbox-in",
   [ActionType.WAIT]: "fas fa-clock",
   [ActionType.YIELD]: "fas fa-hand",
-  // generic
-  [ActionType.CODE]: "fas fa-code",
-  [ActionType.TOOL]: "fas fa-toolbox",
-  [ActionType.DO]: "fas fa-hammer",
-  [ActionType.GENERATE]: "fas fa-maximize",
-  [ActionType.TRANSFORM]: "fas fa-shuffle",
-  [ActionType.ROUTE]: "fas fa-split",
   // application
   [ActionType.OBSERVE]: "fas fa-eye",
   [ActionType.CLICK]: "fas fa-computer-mouse",

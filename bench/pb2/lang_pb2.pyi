@@ -1337,6 +1337,18 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_START: _ClassVar[ActionType]
     ACTION_TYPE_COMPLETE: _ClassVar[ActionType]
     ACTION_TYPE_FAIL: _ClassVar[ActionType]
+    ACTION_TYPE_TOOL: _ClassVar[ActionType]
+    ACTION_TYPE_CODE: _ClassVar[ActionType]
+    ACTION_TYPE_DO: _ClassVar[ActionType]
+    ACTION_TYPE_ROUTE: _ClassVar[ActionType]
+    ACTION_TYPE_GENERATE: _ClassVar[ActionType]
+    ACTION_TYPE_TRANSFORM: _ClassVar[ActionType]
+    ACTION_TYPE_EXTRACT: _ClassVar[ActionType]
+    ACTION_TYPE_CLASSIFY: _ClassVar[ActionType]
+    ACTION_TYPE_SUMMARIZE: _ClassVar[ActionType]
+    ACTION_TYPE_COMPARE: _ClassVar[ActionType]
+    ACTION_TYPE_TRANSLATE: _ClassVar[ActionType]
+    ACTION_TYPE_CHANGE: _ClassVar[ActionType]
     ACTION_TYPE_GET: _ClassVar[ActionType]
     ACTION_TYPE_SEARCH: _ClassVar[ActionType]
     ACTION_TYPE_COPY: _ClassVar[ActionType]
@@ -1345,17 +1357,11 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_UPDATE: _ClassVar[ActionType]
     ACTION_TYPE_DELETE: _ClassVar[ActionType]
     ACTION_TYPE_PASTE: _ClassVar[ActionType]
-    ACTION_TYPE_CHANGE: _ClassVar[ActionType]
     ACTION_TYPE_SEND: _ClassVar[ActionType]
     ACTION_TYPE_RECEIVE: _ClassVar[ActionType]
     ACTION_TYPE_WAIT: _ClassVar[ActionType]
     ACTION_TYPE_YIELD: _ClassVar[ActionType]
-    ACTION_TYPE_TOOL: _ClassVar[ActionType]
-    ACTION_TYPE_CODE: _ClassVar[ActionType]
-    ACTION_TYPE_DO: _ClassVar[ActionType]
-    ACTION_TYPE_GENERATE: _ClassVar[ActionType]
-    ACTION_TYPE_TRANSFORM: _ClassVar[ActionType]
-    ACTION_TYPE_ROUTE: _ClassVar[ActionType]
+    ACTION_TYPE_NOTIFY: _ClassVar[ActionType]
     ACTION_TYPE_OBSERVE: _ClassVar[ActionType]
     ACTION_TYPE_CLICK: _ClassVar[ActionType]
     ACTION_TYPE_PRESS: _ClassVar[ActionType]
@@ -2787,6 +2793,18 @@ ACTION_TYPE_UNSPECIFIED: ActionType
 ACTION_TYPE_START: ActionType
 ACTION_TYPE_COMPLETE: ActionType
 ACTION_TYPE_FAIL: ActionType
+ACTION_TYPE_TOOL: ActionType
+ACTION_TYPE_CODE: ActionType
+ACTION_TYPE_DO: ActionType
+ACTION_TYPE_ROUTE: ActionType
+ACTION_TYPE_GENERATE: ActionType
+ACTION_TYPE_TRANSFORM: ActionType
+ACTION_TYPE_EXTRACT: ActionType
+ACTION_TYPE_CLASSIFY: ActionType
+ACTION_TYPE_SUMMARIZE: ActionType
+ACTION_TYPE_COMPARE: ActionType
+ACTION_TYPE_TRANSLATE: ActionType
+ACTION_TYPE_CHANGE: ActionType
 ACTION_TYPE_GET: ActionType
 ACTION_TYPE_SEARCH: ActionType
 ACTION_TYPE_COPY: ActionType
@@ -2795,17 +2813,11 @@ ACTION_TYPE_DUPLICATE: ActionType
 ACTION_TYPE_UPDATE: ActionType
 ACTION_TYPE_DELETE: ActionType
 ACTION_TYPE_PASTE: ActionType
-ACTION_TYPE_CHANGE: ActionType
 ACTION_TYPE_SEND: ActionType
 ACTION_TYPE_RECEIVE: ActionType
 ACTION_TYPE_WAIT: ActionType
 ACTION_TYPE_YIELD: ActionType
-ACTION_TYPE_TOOL: ActionType
-ACTION_TYPE_CODE: ActionType
-ACTION_TYPE_DO: ActionType
-ACTION_TYPE_GENERATE: ActionType
-ACTION_TYPE_TRANSFORM: ActionType
-ACTION_TYPE_ROUTE: ActionType
+ACTION_TYPE_NOTIFY: ActionType
 ACTION_TYPE_OBSERVE: ActionType
 ACTION_TYPE_CLICK: ActionType
 ACTION_TYPE_PRESS: ActionType
@@ -5408,6 +5420,40 @@ class ActionData(_message.Message):
     mode: NodeMode
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., computed_values: _Optional[_Iterable[_Union[ComputedValueData, _Mapping]]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ActionType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., run_options: _Optional[_Union[RunOptionsData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., tool_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., calls: _Optional[_Iterable[_Union[CallData, _Mapping]]] = ..., variables_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., position: _Optional[_Union[Vector2Data, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
 
+class FailActionData(_message.Message):
+    __slots__ = ("error_title", "error_text")
+    ERROR_TITLE_FIELD_NUMBER: _ClassVar[int]
+    ERROR_TEXT_FIELD_NUMBER: _ClassVar[int]
+    error_title: str
+    error_text: TextData
+    def __init__(self, error_title: _Optional[str] = ..., error_text: _Optional[_Union[TextData, _Mapping]] = ...) -> None: ...
+
+class CodeActionData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ToolActionData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GenerateActionData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class TransformActionData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class RouteActionData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ChangeActionData(_message.Message):
+    __slots__ = ("nodes_ptr",)
+    NODES_PTR_FIELD_NUMBER: _ClassVar[int]
+    nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
+    def __init__(self, nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
+
 class GetActionData(_message.Message):
     __slots__ = ("node_type", "base_block_ptr", "filter")
     NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -5462,45 +5508,11 @@ class DeleteActionData(_message.Message):
     node_ptr: NodeReferenceData
     def __init__(self, node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
-class ChangeActionData(_message.Message):
-    __slots__ = ("nodes_ptr",)
-    NODES_PTR_FIELD_NUMBER: _ClassVar[int]
-    nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    def __init__(self, nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
-
-class FailActionData(_message.Message):
-    __slots__ = ("error_title", "error_text")
-    ERROR_TITLE_FIELD_NUMBER: _ClassVar[int]
-    ERROR_TEXT_FIELD_NUMBER: _ClassVar[int]
-    error_title: str
-    error_text: TextData
-    def __init__(self, error_title: _Optional[str] = ..., error_text: _Optional[_Union[TextData, _Mapping]] = ...) -> None: ...
-
-class CodeActionData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
-class ToolActionData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
 class WaitActionData(_message.Message):
     __slots__ = ("delay",)
     DELAY_FIELD_NUMBER: _ClassVar[int]
     delay: _duration_pb2.Duration
     def __init__(self, delay: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...) -> None: ...
-
-class GenerateActionData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
-class TransformActionData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
-class RouteActionData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
 
 class ObserveActionData(_message.Message):
     __slots__ = ("application_ptr", "element_id", "element_path", "element_position", "element_text", "exclude_image", "screenshot_ptr", "dom")

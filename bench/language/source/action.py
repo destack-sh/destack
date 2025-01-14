@@ -30,7 +30,6 @@ from bench.language.core import (
     p_node_children,
     p_node_parent,
     p_regular,
-    p_system,
     p_value_packed,
     p_value_runtime,
     struct_,
@@ -75,33 +74,39 @@ class ActionType(IdEnum):
     FAIL = 11, "Fail the entire Flow"
     # ABORT?
 
+    # generic
+    TOOL = 100, "Delegate to an implementation"
+    CODE = 101, "Run arbitrary Python code"
+    DO = 150, "Perform an arbitrary action"
+    ROUTE = 151, "Route to other Actions"
+    GENERATE = 152, "Generate something new"
+    TRANSFORM = 153, "Change the form of something"
+    EXTRACT = 154, "Extract structured data"
+    CLASSIFY = 155, "Classify or categorize"
+    SUMMARIZE = 156, "Create a summary"
+    COMPARE = 157, "Compare multiple things"
+    TRANSLATE = 158, "Translate between languages"
+    CHANGE = 159, "Edit your Bench"
+
     # read
-    GET = 100, "Get a Node"
-    SEARCH = 101, "Search for Nodes"
+    GET = 200, "Get a Node"
+    SEARCH = 201, "Search for Nodes"
     # AGGREGATE?
-    COPY = 110, "Copy some Nodes"
+    COPY = 210, "Copy some Nodes"
 
     # write
-    CREATE = 200, "Create a Node"
-    DUPLICATE = 201, "Duplicate some Nodes"
-    UPDATE = 202, "Update a Node"
-    DELETE = 203, "Delete a Node"
-    PASTE = 204, "Paste a Node"
-    CHANGE = 205, "Edit relevant Nodes"
+    CREATE = 300, "Create a Node"
+    DUPLICATE = 301, "Duplicate some Nodes"
+    UPDATE = 302, "Update a Node"
+    DELETE = 303, "Delete a Node"
+    PASTE = 304, "Paste a Node"
 
     # async
-    SEND = 300, "Send a Message"
-    RECEIVE = 301, "Receive a Message"
-    WAIT = 302, "Wait for something"
-    YIELD = 303, "Defer to something"
-
-    # generic
-    TOOL = 400, "Delegate to an implementation"
-    CODE = 401, "Run arbitrary Python code"
-    DO = 450, "Perform an arbitrary action"
-    GENERATE = 451, "Generate something"
-    TRANSFORM = 452, "Transform something"
-    ROUTE = 453, "Route to other Actions"
+    SEND = 400, "Send a Message"
+    RECEIVE = 401, "Receive a Message"
+    WAIT = 402, "Wait for something"
+    YIELD = 403, "Defer to something"
+    NOTIFY = 410, "Notify something"
 
     # resource
     # DOWNLOAD, UPLOAD, PROVISION, SUSPEND, DECOMMISSION, ...
@@ -153,7 +158,7 @@ class Action(SourceNode[ActionData]):
     parent: Union["Block", "Action", None] = p_node_parent(4, NodeType.BLOCK, NodeType.ACTION)
 
     # common
-    type: ActionType = p_system(30)
+    type: ActionType = p_regular(30)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
@@ -381,6 +386,63 @@ class Action(SourceNode[ActionData]):
 
 
 #
+# Flow
+#
+
+
+@node_subtype_(ActionType.FAIL)
+class FailAction(Action):
+    error_title: str | None = p_regular(
+        120, default=None, require=False, field_type=FieldType.INPUT
+    )
+    error_text: Optional["Text"] = p_regular(
+        121,
+        default=None,
+        require=False,
+        array=False,
+        struct=StructType.TEXT,
+        field_type=FieldType.INPUT,
+    )
+
+
+#
+# Generic
+#
+
+
+@node_subtype_(ActionType.CODE)
+class CodeAction(Action):
+    pass
+
+
+@node_subtype_(ActionType.TOOL)
+class ToolAction(Action):
+    pass
+
+
+@node_subtype_(ActionType.GENERATE)
+class GenerateAction(Action):
+    pass
+
+
+@node_subtype_(ActionType.TRANSFORM)
+class TransformAction(Action):
+    pass
+
+
+@node_subtype_(ActionType.ROUTE)
+class RouteAction(Action):
+    pass
+
+
+@node_subtype_(ActionType.CHANGE)
+class ChangeAction(Action):
+    nodes: list[Node] = p_regular(
+        120, array=True, require=False, references="any", field_type=FieldType.INPUT
+    )
+
+
+#
 # Read
 #
 
@@ -492,48 +554,6 @@ class DeleteAction(Action):
         node_ptr: NodeReference | None = None
 
 
-@node_subtype_(ActionType.CHANGE)
-class ChangeAction(Action):
-    nodes: list[Node] = p_regular(
-        120, array=True, require=False, references="any", field_type=FieldType.INPUT
-    )
-
-
-#
-# Session
-#
-
-
-@node_subtype_(ActionType.FAIL)
-class FailAction(Action):
-    error_title: str | None = p_regular(
-        120, default=None, require=False, field_type=FieldType.INPUT
-    )
-    error_text: Optional["Text"] = p_regular(
-        121,
-        default=None,
-        require=False,
-        array=False,
-        struct=StructType.TEXT,
-        field_type=FieldType.INPUT,
-    )
-
-
-#
-# Static
-#
-
-
-@node_subtype_(ActionType.CODE)
-class CodeAction(Action):
-    pass
-
-
-@node_subtype_(ActionType.TOOL)
-class ToolAction(Action):
-    pass
-
-
 #
 # Async
 #
@@ -542,26 +562,6 @@ class ToolAction(Action):
 @node_subtype_(ActionType.WAIT)
 class WaitAction(Action):
     delay: timedelta | None = p_regular(100, default=None, field_type=FieldType.INPUT)
-
-
-#
-# Dynamic
-#
-
-
-@node_subtype_(ActionType.GENERATE)
-class GenerateAction(Action):
-    pass
-
-
-@node_subtype_(ActionType.TRANSFORM)
-class TransformAction(Action):
-    pass
-
-
-@node_subtype_(ActionType.ROUTE)
-class RouteAction(Action):
-    pass
 
 
 #
