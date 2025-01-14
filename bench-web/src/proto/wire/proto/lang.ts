@@ -6408,9 +6408,9 @@ export enum NodeType {
      */
     MESSAGE = 3500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RECORD = 3501;
+     * @generated from protobuf enum value: NODE_TYPE_RECORD = 3510;
      */
-    RECORD = 3501,
+    RECORD = 3510,
     /**
      * @generated from protobuf enum value: NODE_TYPE_SESSION = 3600;
      */
@@ -6790,9 +6790,9 @@ export enum ObjectType {
      */
     MESSAGE = 3500,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RECORD = 3501;
+     * @generated from protobuf enum value: OBJECT_TYPE_RECORD = 3510;
      */
-    RECORD = 3501,
+    RECORD = 3510,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_SESSION = 3600;
      */
@@ -7360,9 +7360,9 @@ export enum BenchType {
      */
     MESSAGE = 3500,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RECORD = 3501;
+     * @generated from protobuf enum value: BENCH_TYPE_RECORD = 3510;
      */
-    RECORD = 3501,
+    RECORD = 3510,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SESSION = 3600;
      */
@@ -26644,13 +26644,13 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.RUN]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.INTERRUPTION]: [NodeType.RUN],
   [NodeType.LOG]: [NodeType.BENCH],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.RECORD, NodeType.MACHINE, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.RECORD, NodeType.MACHINE, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
 }
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.RECORD, NodeType.MACHINE, NodeType.PACKAGE, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
+  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
   [NodeType.USER]: [NodeType.SKIP, NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY],
   [NodeType.HANDLE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CLIENT]: [NodeType.SKIP, NodeType.EMPTY],
@@ -26712,13 +26712,13 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.RUN]: [NodeType.RUN, NodeType.BENCH],
   [NodeType.INTERRUPTION]: [NodeType.RUN, NodeType.BENCH],
   [NodeType.LOG]: [NodeType.BENCH],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.RECORD, NodeType.MACHINE, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.RECORD, NodeType.MACHINE, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
 }
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.RECORD, NodeType.MACHINE, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
+  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.SKIP, NodeType.MESSAGE, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BROWSER],
   [NodeType.USER]: [NodeType.SKIP, NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY],
   [NodeType.HANDLE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CLIENT]: [NodeType.SKIP, NodeType.EMPTY],

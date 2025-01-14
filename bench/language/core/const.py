@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.14.0"
+VERSION = "2025.01.14.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -312,7 +312,7 @@ class NodeType(IdEnum):
 
     # state
     MESSAGE = 3500  # (based, timed)
-    RECORD = 3501  # (based)
+    RECORD = 3510  # (based)
 
     # runtime
     SESSION = 3600  # (timed)
