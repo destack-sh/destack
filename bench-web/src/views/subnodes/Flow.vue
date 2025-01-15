@@ -209,9 +209,9 @@ const implementedActions: Partial<ActionMapImplementation<"flow" | "space" | "ru
           // create new pipe from new action to old pipe target
           const newPipe = flowCtx.createPipe({
             parent: flow.value!,
+            pipe: {},
             source: { parent: newAction, side: PortSide.OUTGOING },
             target: { parent: oldTarget, side: PortSide.INCOMING },
-            pipe: { type: PipeType.SELECT },
             tx,
           });
           // reconnect old pipe to new action

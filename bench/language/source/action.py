@@ -76,7 +76,7 @@ class ActionType(IdEnum):
 
     # tool
     TOOL = 100, "Delegate to an implementation"
-    CODE = 101, "Run arbitrary Python code"
+    CODE = 101, "Run some code"
 
     # generic
     DO = 200, "Perform an arbitrary action"
