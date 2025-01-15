@@ -638,7 +638,7 @@ export function useFieldList(options: {
       if (isNode(node, NodeType.FIELD)) {
         if (event.altKey) {
           // duplicate field before moving
-          node = cloneNode(tx, graph, node) as FieldData;
+          node = cloneNode(tx, graph, node, { keepProperties: true }) as FieldData;
         }
         // move field
         if (target != null) {

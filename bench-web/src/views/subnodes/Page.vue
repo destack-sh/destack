@@ -161,7 +161,7 @@ const { activeDropZone } = useMultiDropZone({
       const target = graph.getOrError({ id: targetId });
       if (event.altKey) {
         // clone node before moving
-        node = cloneNode(tx, graph, node);
+        node = cloneNode(tx, graph, node, { keepProperties: true });
       }
       // move node
       moveNode(tx, graph, node, { anchor, target });
@@ -173,7 +173,7 @@ const { activeDropZone } = useMultiDropZone({
         let node = graph.getOrError(dragged.nodes[i]);
         if (event.altKey) {
           // clone node before moving
-          node = cloneNode(tx, graph, node);
+          node = cloneNode(tx, graph, node, { keepProperties: true });
         }
         moveNode(tx, graph, node, {
           anchor: i == 0 ? anchor : "after",
