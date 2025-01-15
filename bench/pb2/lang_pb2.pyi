@@ -87,7 +87,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_SESSION_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_TRIGGER_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CACHE_MODE: _ClassVar[EnumType]
-    ENUM_TYPE_SCHEDULE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_SCHEDULE_FREQUENCY: _ClassVar[EnumType]
     ENUM_TYPE_LOG_KIND: _ClassVar[EnumType]
     ENUM_TYPE_LOG_LEVEL: _ClassVar[EnumType]
     ENUM_TYPE_BREAKPOINT_SITE: _ClassVar[EnumType]
@@ -478,7 +478,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_SESSION_STATUS: _ClassVar[BenchType]
     BENCH_TYPE_TRIGGER_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_CACHE_MODE: _ClassVar[BenchType]
-    BENCH_TYPE_SCHEDULE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_SCHEDULE_FREQUENCY: _ClassVar[BenchType]
     BENCH_TYPE_LOG_KIND: _ClassVar[BenchType]
     BENCH_TYPE_LOG_LEVEL: _ClassVar[BenchType]
     BENCH_TYPE_BREAKPOINT_SITE: _ClassVar[BenchType]
@@ -1220,11 +1220,16 @@ class CacheMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CACHE_MODE_NEVER: _ClassVar[CacheMode]
     CACHE_MODE_ALWAYS: _ClassVar[CacheMode]
 
-class ScheduleType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class ScheduleFrequency(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    SCHEDULE_TYPE_UNSPECIFIED: _ClassVar[ScheduleType]
-    SCHEDULE_TYPE_INTERVAL: _ClassVar[ScheduleType]
-    SCHEDULE_TYPE_CRON: _ClassVar[ScheduleType]
+    SCHEDULE_FREQUENCY_UNSPECIFIED: _ClassVar[ScheduleFrequency]
+    SCHEDULE_FREQUENCY_YEAR: _ClassVar[ScheduleFrequency]
+    SCHEDULE_FREQUENCY_MONTH: _ClassVar[ScheduleFrequency]
+    SCHEDULE_FREQUENCY_WEEK: _ClassVar[ScheduleFrequency]
+    SCHEDULE_FREQUENCY_DAY: _ClassVar[ScheduleFrequency]
+    SCHEDULE_FREQUENCY_HOUR: _ClassVar[ScheduleFrequency]
+    SCHEDULE_FREQUENCY_MINUTE: _ClassVar[ScheduleFrequency]
+    SCHEDULE_FREQUENCY_SECOND: _ClassVar[ScheduleFrequency]
 
 class LogKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1777,7 +1782,7 @@ ENUM_TYPE_RUN_EVENT_TYPE: EnumType
 ENUM_TYPE_SESSION_STATUS: EnumType
 ENUM_TYPE_TRIGGER_TYPE: EnumType
 ENUM_TYPE_CACHE_MODE: EnumType
-ENUM_TYPE_SCHEDULE_TYPE: EnumType
+ENUM_TYPE_SCHEDULE_FREQUENCY: EnumType
 ENUM_TYPE_LOG_KIND: EnumType
 ENUM_TYPE_LOG_LEVEL: EnumType
 ENUM_TYPE_BREAKPOINT_SITE: EnumType
@@ -2156,7 +2161,7 @@ BENCH_TYPE_RUN_EVENT_TYPE: BenchType
 BENCH_TYPE_SESSION_STATUS: BenchType
 BENCH_TYPE_TRIGGER_TYPE: BenchType
 BENCH_TYPE_CACHE_MODE: BenchType
-BENCH_TYPE_SCHEDULE_TYPE: BenchType
+BENCH_TYPE_SCHEDULE_FREQUENCY: BenchType
 BENCH_TYPE_LOG_KIND: BenchType
 BENCH_TYPE_LOG_LEVEL: BenchType
 BENCH_TYPE_BREAKPOINT_SITE: BenchType
@@ -2720,9 +2725,14 @@ TRIGGER_TYPE_SIGNAL: TriggerType
 CACHE_MODE_UNSPECIFIED: CacheMode
 CACHE_MODE_NEVER: CacheMode
 CACHE_MODE_ALWAYS: CacheMode
-SCHEDULE_TYPE_UNSPECIFIED: ScheduleType
-SCHEDULE_TYPE_INTERVAL: ScheduleType
-SCHEDULE_TYPE_CRON: ScheduleType
+SCHEDULE_FREQUENCY_UNSPECIFIED: ScheduleFrequency
+SCHEDULE_FREQUENCY_YEAR: ScheduleFrequency
+SCHEDULE_FREQUENCY_MONTH: ScheduleFrequency
+SCHEDULE_FREQUENCY_WEEK: ScheduleFrequency
+SCHEDULE_FREQUENCY_DAY: ScheduleFrequency
+SCHEDULE_FREQUENCY_HOUR: ScheduleFrequency
+SCHEDULE_FREQUENCY_MINUTE: ScheduleFrequency
+SCHEDULE_FREQUENCY_SECOND: ScheduleFrequency
 LOG_KIND_UNSPECIFIED: LogKind
 LOG_KIND_CHANGE: LogKind
 LOG_KIND_EDIT: LogKind
@@ -4099,22 +4109,42 @@ class IconData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[IconKind, str]] = ..., emoji: _Optional[str] = ..., fa_name: _Optional[str] = ..., vsc_name: _Optional[str] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
 
 class ScheduleData(_message.Message):
-    __slots__ = ("metatype", "type", "timezone", "every", "interval", "offset", "cron")
+    __slots__ = ("metatype", "frequency", "interval", "start", "end", "count", "week_start", "by_set_pos", "by_month", "by_month_day", "by_year_day", "by_easter", "by_week_no", "by_week_day", "by_hour", "by_minute", "by_second")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    TIMEZONE_FIELD_NUMBER: _ClassVar[int]
-    EVERY_FIELD_NUMBER: _ClassVar[int]
+    FREQUENCY_FIELD_NUMBER: _ClassVar[int]
     INTERVAL_FIELD_NUMBER: _ClassVar[int]
-    OFFSET_FIELD_NUMBER: _ClassVar[int]
-    CRON_FIELD_NUMBER: _ClassVar[int]
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    WEEK_START_FIELD_NUMBER: _ClassVar[int]
+    BY_SET_POS_FIELD_NUMBER: _ClassVar[int]
+    BY_MONTH_FIELD_NUMBER: _ClassVar[int]
+    BY_MONTH_DAY_FIELD_NUMBER: _ClassVar[int]
+    BY_YEAR_DAY_FIELD_NUMBER: _ClassVar[int]
+    BY_EASTER_FIELD_NUMBER: _ClassVar[int]
+    BY_WEEK_NO_FIELD_NUMBER: _ClassVar[int]
+    BY_WEEK_DAY_FIELD_NUMBER: _ClassVar[int]
+    BY_HOUR_FIELD_NUMBER: _ClassVar[int]
+    BY_MINUTE_FIELD_NUMBER: _ClassVar[int]
+    BY_SECOND_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    type: ScheduleType
-    timezone: str
-    every: int
-    interval: TimeInterval
-    offset: _duration_pb2.Duration
-    cron: str
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ScheduleType, str]] = ..., timezone: _Optional[str] = ..., every: _Optional[int] = ..., interval: _Optional[_Union[TimeInterval, str]] = ..., offset: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., cron: _Optional[str] = ...) -> None: ...
+    frequency: ScheduleFrequency
+    interval: int
+    start: _timestamp_pb2.Timestamp
+    end: _timestamp_pb2.Timestamp
+    count: int
+    week_start: Day
+    by_set_pos: _containers.RepeatedScalarFieldContainer[int]
+    by_month: _containers.RepeatedScalarFieldContainer[Month]
+    by_month_day: _containers.RepeatedScalarFieldContainer[int]
+    by_year_day: _containers.RepeatedScalarFieldContainer[int]
+    by_easter: _containers.RepeatedScalarFieldContainer[int]
+    by_week_no: _containers.RepeatedScalarFieldContainer[int]
+    by_week_day: _containers.RepeatedScalarFieldContainer[Day]
+    by_hour: _containers.RepeatedScalarFieldContainer[int]
+    by_minute: _containers.RepeatedScalarFieldContainer[int]
+    by_second: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., frequency: _Optional[_Union[ScheduleFrequency, str]] = ..., interval: _Optional[int] = ..., start: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., end: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., count: _Optional[int] = ..., week_start: _Optional[_Union[Day, str]] = ..., by_set_pos: _Optional[_Iterable[int]] = ..., by_month: _Optional[_Iterable[_Union[Month, str]]] = ..., by_month_day: _Optional[_Iterable[int]] = ..., by_year_day: _Optional[_Iterable[int]] = ..., by_easter: _Optional[_Iterable[int]] = ..., by_week_no: _Optional[_Iterable[int]] = ..., by_week_day: _Optional[_Iterable[_Union[Day, str]]] = ..., by_hour: _Optional[_Iterable[int]] = ..., by_minute: _Optional[_Iterable[int]] = ..., by_second: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class BaseNodeData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "subnode_packed")

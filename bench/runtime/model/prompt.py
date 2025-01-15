@@ -257,7 +257,6 @@ def make_prompt(
         action=action,
         context=context,
         items=[
-            # nocheckin: Prompt tuning/examples/...
             # PromptRegion(title="Examples", weight=1, content=GENERAL_EXAMPLES),
             PromptRegion(title="Context", weight=2, content=context_items),
             PromptRegion(title="Task", weight=3, content=task_prompt),
