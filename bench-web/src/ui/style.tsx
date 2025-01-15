@@ -170,6 +170,7 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   [ActionType.RECEIVE]: ColorType.GREEN,
   [ActionType.WAIT]: ColorType.GREEN,
   [ActionType.YIELD]: ColorType.GREEN,
+  [ActionType.NOTIFY]: ColorType.GREEN,
   // application
   [ActionType.OBSERVE]: ColorType.INDIGO,
   [ActionType.CLICK]: ColorType.INDIGO,

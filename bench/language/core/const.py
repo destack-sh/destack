@@ -173,7 +173,7 @@ class EnumType(IdEnum):
     SESSION_STATUS = 22010
     TRIGGER_TYPE = 22020
     CACHE_MODE = 22030
-    SCHEDULE_TYPE = 22040
+    SCHEDULE_FREQUENCY = 22040
 
     # logging (22100-22199)
     LOG_KIND = 22100
@@ -1067,12 +1067,6 @@ class TriggerType(IdEnum):
     SIGNAL = 2
 
 
-@enum_(EnumType.SCHEDULE_TYPE)
-class ScheduleType(IdEnum):
-    INTERVAL = 1
-    CRON = 2
-
-
 @enum_(EnumType.TIME_INTERVAL)
 class TimeInterval(IdEnum):
     SECOND = 2
@@ -1086,6 +1080,8 @@ class TimeInterval(IdEnum):
 
 @enum_(EnumType.DAY)
 class Day(IdEnum):
+    """The day of the week."""
+
     MONDAY = 1
     TUESDAY = 2
     WEDNESDAY = 3
@@ -1097,6 +1093,8 @@ class Day(IdEnum):
 
 @enum_(EnumType.MONTH)
 class Month(IdEnum):
+    """The month of the year."""
+
     JANUARY = 1
     FEBRUARY = 2
     MARCH = 3

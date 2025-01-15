@@ -50,7 +50,7 @@ from .field import (
 from .pipe import Pipe, PipeType, PortSide
 from .project import Projection, ProjectOptions, project
 from .render import Renderer, RenderOptions, render, render_expr, render_stmt
-from .trigger import Schedule, ScheduleType
+from .schedule import Schedule, ScheduleFrequency
 from .view import (
     Alignment,
     Anchor,
@@ -126,7 +126,7 @@ __all__ = [
     "RenderOptions",
     "Renderer",
     "Schedule",
-    "ScheduleType",
+    "ScheduleFrequency",
     "ScrollAction",
     "SelectAction",
     "Space",

@@ -1852,29 +1852,69 @@ export interface ScheduleData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: symbolx.bench.ScheduleType type = 30;
+     * @generated from protobuf field: symbolx.bench.ScheduleFrequency frequency = 30;
      */
-    type: ScheduleType;
+    frequency: ScheduleFrequency;
     /**
-     * @generated from protobuf field: string timezone = 31;
+     * @generated from protobuf field: int32 interval = 31;
      */
-    timezone: string;
+    interval: number;
     /**
-     * @generated from protobuf field: int32 every = 40;
+     * @generated from protobuf field: optional google.protobuf.Timestamp start = 32;
      */
-    every: number;
+    start?: Timestamp;
     /**
-     * @generated from protobuf field: symbolx.bench.TimeInterval interval = 41;
+     * @generated from protobuf field: optional google.protobuf.Timestamp end = 33;
      */
-    interval: TimeInterval;
+    end?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Duration offset = 42;
+     * @generated from protobuf field: optional int32 count = 34;
      */
-    offset?: Duration;
+    count?: number;
     /**
-     * @generated from protobuf field: optional string cron = 50;
+     * @generated from protobuf field: optional symbolx.bench.Day week_start = 35;
      */
-    cron?: string;
+    weekStart?: Day;
+    /**
+     * @generated from protobuf field: repeated int32 by_set_pos = 36;
+     */
+    bySetPos: number[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.Month by_month = 37;
+     */
+    byMonth: Month[];
+    /**
+     * @generated from protobuf field: repeated int32 by_month_day = 38;
+     */
+    byMonthDay: number[];
+    /**
+     * @generated from protobuf field: repeated int32 by_year_day = 39;
+     */
+    byYearDay: number[];
+    /**
+     * @generated from protobuf field: repeated int32 by_easter = 40;
+     */
+    byEaster: number[];
+    /**
+     * @generated from protobuf field: repeated int32 by_week_no = 41;
+     */
+    byWeekNo: number[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.Day by_week_day = 42;
+     */
+    byWeekDay: Day[];
+    /**
+     * @generated from protobuf field: repeated int32 by_hour = 43;
+     */
+    byHour: number[];
+    /**
+     * @generated from protobuf field: repeated int32 by_minute = 44;
+     */
+    byMinute: number[];
+    /**
+     * @generated from protobuf field: repeated int32 by_second = 45;
+     */
+    bySecond: number[];
 }
 /**
  * @generated from protobuf message symbolx.bench.BaseNodeData
@@ -6235,9 +6275,9 @@ export enum EnumType {
      */
     CACHE_MODE = 22030,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_TYPE = 22040;
+     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_FREQUENCY = 22040;
      */
-    SCHEDULE_TYPE = 22040,
+    SCHEDULE_FREQUENCY = 22040,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_LOG_KIND = 22100;
      */
@@ -7771,9 +7811,9 @@ export enum BenchType {
      */
     CACHE_MODE = 22030,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE_TYPE = 22040;
+     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE_FREQUENCY = 22040;
      */
-    SCHEDULE_TYPE = 22040,
+    SCHEDULE_FREQUENCY = 22040,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_LOG_KIND = 22100;
      */
@@ -7990,6 +8030,8 @@ export enum NodeMode {
     ARCHIVE = 10
 }
 /**
+ * The day of the week.
+ *
  * @generated from protobuf enum symbolx.bench.Day
  */
 export enum Day {
@@ -8027,6 +8069,8 @@ export enum Day {
     SUNDAY = 7
 }
 /**
+ * The month of the year.
+ *
  * @generated from protobuf enum symbolx.bench.Month
  */
 export enum Month {
@@ -10360,21 +10404,41 @@ export enum CacheMode {
     ALWAYS = 2
 }
 /**
- * @generated from protobuf enum symbolx.bench.ScheduleType
+ * @generated from protobuf enum symbolx.bench.ScheduleFrequency
  */
-export enum ScheduleType {
+export enum ScheduleFrequency {
     /**
-     * @generated from protobuf enum value: SCHEDULE_TYPE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: SCHEDULE_FREQUENCY_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: SCHEDULE_TYPE_INTERVAL = 1;
+     * @generated from protobuf enum value: SCHEDULE_FREQUENCY_YEAR = 1;
      */
-    INTERVAL = 1,
+    YEAR = 1,
     /**
-     * @generated from protobuf enum value: SCHEDULE_TYPE_CRON = 2;
+     * @generated from protobuf enum value: SCHEDULE_FREQUENCY_MONTH = 2;
      */
-    CRON = 2
+    MONTH = 2,
+    /**
+     * @generated from protobuf enum value: SCHEDULE_FREQUENCY_WEEK = 3;
+     */
+    WEEK = 3,
+    /**
+     * @generated from protobuf enum value: SCHEDULE_FREQUENCY_DAY = 4;
+     */
+    DAY = 4,
+    /**
+     * @generated from protobuf enum value: SCHEDULE_FREQUENCY_HOUR = 5;
+     */
+    HOUR = 5,
+    /**
+     * @generated from protobuf enum value: SCHEDULE_FREQUENCY_MINUTE = 6;
+     */
+    MINUTE = 6,
+    /**
+     * @generated from protobuf enum value: SCHEDULE_FREQUENCY_SECOND = 7;
+     */
+    SECOND = 7
 }
 /**
  * @generated from protobuf enum symbolx.bench.LogKind
@@ -17313,21 +17377,39 @@ class ScheduleData$Type extends MessageType$<ScheduleData> {
     constructor() {
         super("symbolx.bench.ScheduleData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ScheduleType", ScheduleType, "SCHEDULE_TYPE_"] },
-            { no: 31, name: "timezone", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "every", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 41, name: "interval", kind: "enum", T: () => ["symbolx.bench.TimeInterval", TimeInterval, "TIME_INTERVAL_"] },
-            { no: 42, name: "offset", kind: "message", T: () => Duration },
-            { no: 50, name: "cron", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 30, name: "frequency", kind: "enum", T: () => ["symbolx.bench.ScheduleFrequency", ScheduleFrequency, "SCHEDULE_FREQUENCY_"] },
+            { no: 31, name: "interval", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 32, name: "start", kind: "message", T: () => Timestamp },
+            { no: 33, name: "end", kind: "message", T: () => Timestamp },
+            { no: 34, name: "count", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 35, name: "week_start", kind: "enum", opt: true, T: () => ["symbolx.bench.Day", Day, "DAY_"] },
+            { no: 36, name: "by_set_pos", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 37, name: "by_month", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.Month", Month, "MONTH_"] },
+            { no: 38, name: "by_month_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 39, name: "by_year_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 40, name: "by_easter", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 41, name: "by_week_no", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 42, name: "by_week_day", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.Day", Day, "DAY_"] },
+            { no: 43, name: "by_hour", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 44, name: "by_minute", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 45, name: "by_second", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<ScheduleData>): ScheduleData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.type = 0;
-        message.timezone = "";
-        message.every = 0;
+        message.frequency = 0;
         message.interval = 0;
+        message.bySetPos = [];
+        message.byMonth = [];
+        message.byMonthDay = [];
+        message.byYearDay = [];
+        message.byEaster = [];
+        message.byWeekNo = [];
+        message.byWeekDay = [];
+        message.byHour = [];
+        message.byMinute = [];
+        message.bySecond = [];
         if (value !== undefined)
             reflectionMergePartial<ScheduleData>(this, message, value);
         return message;
@@ -17340,23 +17422,93 @@ class ScheduleData$Type extends MessageType$<ScheduleData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbolx.bench.ScheduleType type */ 30:
-                    message.type = reader.int32();
+                case /* symbolx.bench.ScheduleFrequency frequency */ 30:
+                    message.frequency = reader.int32();
                     break;
-                case /* string timezone */ 31:
-                    message.timezone = reader.string();
-                    break;
-                case /* int32 every */ 40:
-                    message.every = reader.int32();
-                    break;
-                case /* symbolx.bench.TimeInterval interval */ 41:
+                case /* int32 interval */ 31:
                     message.interval = reader.int32();
                     break;
-                case /* optional google.protobuf.Duration offset */ 42:
-                    message.offset = Duration.internalBinaryRead(reader, reader.uint32(), options, message.offset);
+                case /* optional google.protobuf.Timestamp start */ 32:
+                    message.start = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.start);
                     break;
-                case /* optional string cron */ 50:
-                    message.cron = reader.string();
+                case /* optional google.protobuf.Timestamp end */ 33:
+                    message.end = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.end);
+                    break;
+                case /* optional int32 count */ 34:
+                    message.count = reader.int32();
+                    break;
+                case /* optional symbolx.bench.Day week_start */ 35:
+                    message.weekStart = reader.int32();
+                    break;
+                case /* repeated int32 by_set_pos */ 36:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.bySetPos.push(reader.int32());
+                    else
+                        message.bySetPos.push(reader.int32());
+                    break;
+                case /* repeated symbolx.bench.Month by_month */ 37:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byMonth.push(reader.int32());
+                    else
+                        message.byMonth.push(reader.int32());
+                    break;
+                case /* repeated int32 by_month_day */ 38:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byMonthDay.push(reader.int32());
+                    else
+                        message.byMonthDay.push(reader.int32());
+                    break;
+                case /* repeated int32 by_year_day */ 39:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byYearDay.push(reader.int32());
+                    else
+                        message.byYearDay.push(reader.int32());
+                    break;
+                case /* repeated int32 by_easter */ 40:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byEaster.push(reader.int32());
+                    else
+                        message.byEaster.push(reader.int32());
+                    break;
+                case /* repeated int32 by_week_no */ 41:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byWeekNo.push(reader.int32());
+                    else
+                        message.byWeekNo.push(reader.int32());
+                    break;
+                case /* repeated symbolx.bench.Day by_week_day */ 42:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byWeekDay.push(reader.int32());
+                    else
+                        message.byWeekDay.push(reader.int32());
+                    break;
+                case /* repeated int32 by_hour */ 43:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byHour.push(reader.int32());
+                    else
+                        message.byHour.push(reader.int32());
+                    break;
+                case /* repeated int32 by_minute */ 44:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byMinute.push(reader.int32());
+                    else
+                        message.byMinute.push(reader.int32());
+                    break;
+                case /* repeated int32 by_second */ 45:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.bySecond.push(reader.int32());
+                    else
+                        message.bySecond.push(reader.int32());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -17373,24 +17525,94 @@ class ScheduleData$Type extends MessageType$<ScheduleData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.ScheduleType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* string timezone = 31; */
-        if (message.timezone !== "")
-            writer.tag(31, WireType.LengthDelimited).string(message.timezone);
-        /* int32 every = 40; */
-        if (message.every !== 0)
-            writer.tag(40, WireType.Varint).int32(message.every);
-        /* symbolx.bench.TimeInterval interval = 41; */
+        /* symbolx.bench.ScheduleFrequency frequency = 30; */
+        if (message.frequency !== 0)
+            writer.tag(30, WireType.Varint).int32(message.frequency);
+        /* int32 interval = 31; */
         if (message.interval !== 0)
-            writer.tag(41, WireType.Varint).int32(message.interval);
-        /* optional google.protobuf.Duration offset = 42; */
-        if (message.offset)
-            Duration.internalBinaryWrite(message.offset, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional string cron = 50; */
-        if (message.cron !== undefined)
-            writer.tag(50, WireType.LengthDelimited).string(message.cron);
+            writer.tag(31, WireType.Varint).int32(message.interval);
+        /* optional google.protobuf.Timestamp start = 32; */
+        if (message.start)
+            Timestamp.internalBinaryWrite(message.start, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp end = 33; */
+        if (message.end)
+            Timestamp.internalBinaryWrite(message.end, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 count = 34; */
+        if (message.count !== undefined)
+            writer.tag(34, WireType.Varint).int32(message.count);
+        /* optional symbolx.bench.Day week_start = 35; */
+        if (message.weekStart !== undefined)
+            writer.tag(35, WireType.Varint).int32(message.weekStart);
+        /* repeated int32 by_set_pos = 36; */
+        if (message.bySetPos.length) {
+            writer.tag(36, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.bySetPos.length; i++)
+                writer.int32(message.bySetPos[i]);
+            writer.join();
+        }
+        /* repeated symbolx.bench.Month by_month = 37; */
+        if (message.byMonth.length) {
+            writer.tag(37, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byMonth.length; i++)
+                writer.int32(message.byMonth[i]);
+            writer.join();
+        }
+        /* repeated int32 by_month_day = 38; */
+        if (message.byMonthDay.length) {
+            writer.tag(38, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byMonthDay.length; i++)
+                writer.int32(message.byMonthDay[i]);
+            writer.join();
+        }
+        /* repeated int32 by_year_day = 39; */
+        if (message.byYearDay.length) {
+            writer.tag(39, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byYearDay.length; i++)
+                writer.int32(message.byYearDay[i]);
+            writer.join();
+        }
+        /* repeated int32 by_easter = 40; */
+        if (message.byEaster.length) {
+            writer.tag(40, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byEaster.length; i++)
+                writer.int32(message.byEaster[i]);
+            writer.join();
+        }
+        /* repeated int32 by_week_no = 41; */
+        if (message.byWeekNo.length) {
+            writer.tag(41, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byWeekNo.length; i++)
+                writer.int32(message.byWeekNo[i]);
+            writer.join();
+        }
+        /* repeated symbolx.bench.Day by_week_day = 42; */
+        if (message.byWeekDay.length) {
+            writer.tag(42, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byWeekDay.length; i++)
+                writer.int32(message.byWeekDay[i]);
+            writer.join();
+        }
+        /* repeated int32 by_hour = 43; */
+        if (message.byHour.length) {
+            writer.tag(43, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byHour.length; i++)
+                writer.int32(message.byHour[i]);
+            writer.join();
+        }
+        /* repeated int32 by_minute = 44; */
+        if (message.byMinute.length) {
+            writer.tag(44, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byMinute.length; i++)
+                writer.int32(message.byMinute[i]);
+            writer.join();
+        }
+        /* repeated int32 by_second = 45; */
+        if (message.bySecond.length) {
+            writer.tag(45, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.bySecond.length; i++)
+                writer.int32(message.bySecond[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27263,7 +27485,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.SESSION_STATUS]: SessionStatus,
   [EnumType.TRIGGER_TYPE]: TriggerType,
   [EnumType.CACHE_MODE]: CacheMode,
-  [EnumType.SCHEDULE_TYPE]: ScheduleType,
+  [EnumType.SCHEDULE_FREQUENCY]: ScheduleFrequency,
   [EnumType.LOG_KIND]: LogKind,
   [EnumType.LOG_LEVEL]: LogLevel,
   [EnumType.BREAKPOINT_SITE]: BreakpointSite,
@@ -27644,7 +27866,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.SESSION_STATUS]: SessionStatus,
   [EnumType.TRIGGER_TYPE]: TriggerType,
   [EnumType.CACHE_MODE]: CacheMode,
-  [EnumType.SCHEDULE_TYPE]: ScheduleType,
+  [EnumType.SCHEDULE_FREQUENCY]: ScheduleFrequency,
   [EnumType.LOG_KIND]: LogKind,
   [EnumType.LOG_LEVEL]: LogLevel,
   [EnumType.BREAKPOINT_SITE]: BreakpointSite,
@@ -28985,12 +29207,22 @@ export enum TypeConstraintProperty {
 
 export enum ScheduleProperty {
   metatype = 1,
-  type = 30,
-  timezone = 31,
-  every = 40,
-  interval = 41,
-  offset = 42,
-  cron = 50,
+  frequency = 30,
+  interval = 31,
+  start = 32,
+  end = 33,
+  count = 34,
+  weekStart = 35,
+  bySetPos = 36,
+  byMonth = 37,
+  byMonthDay = 38,
+  byYearDay = 39,
+  byEaster = 40,
+  byWeekNo = 41,
+  byWeekDay = 42,
+  byHour = 43,
+  byMinute = 44,
+  bySecond = 45,
 }
 
 export enum FileInfoProperty {
@@ -30874,12 +31106,22 @@ export const TypeConstraintDataInfo: Record<TypeConstraintProperty, PropertyInfo
 }
 export const ScheduleDataInfo: Record<ScheduleProperty, PropertyInfo> = {
   [ScheduleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SCHEDULE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ScheduleProperty.type]: { id: 30, name: 'type', component: ObjectType.SCHEDULE, enumType: EnumType.SCHEDULE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ScheduleProperty.timezone]: { id: 31, name: 'timezone', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "UTC", isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ScheduleProperty.every]: { id: 40, name: 'every', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 1, constraint: { minValue: 1, maxValue: 60, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ScheduleProperty.interval]: { id: 41, name: 'interval', component: ObjectType.SCHEDULE, enumType: EnumType.TIME_INTERVAL, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 5, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ScheduleProperty.offset]: { id: 42, name: 'offset', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
-  [ScheduleProperty.cron]: { id: 50, name: 'cron', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.frequency]: { id: 30, name: 'frequency', component: ObjectType.SCHEDULE, enumType: EnumType.SCHEDULE_FREQUENCY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.interval]: { id: 31, name: 'interval', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.start]: { id: 32, name: 'start', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.end]: { id: 33, name: 'end', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.count]: { id: 34, name: 'count', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.weekStart]: { id: 35, name: 'week_start', component: ObjectType.SCHEDULE, enumType: EnumType.DAY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.bySetPos]: { id: 36, name: 'by_set_pos', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.byMonth]: { id: 37, name: 'by_month', component: ObjectType.SCHEDULE, enumType: EnumType.MONTH, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.byMonthDay]: { id: 38, name: 'by_month_day', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.byYearDay]: { id: 39, name: 'by_year_day', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.byEaster]: { id: 40, name: 'by_easter', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.byWeekNo]: { id: 41, name: 'by_week_no', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.byWeekDay]: { id: 42, name: 'by_week_day', component: ObjectType.SCHEDULE, enumType: EnumType.DAY, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.byHour]: { id: 43, name: 'by_hour', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.byMinute]: { id: 44, name: 'by_minute', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.bySecond]: { id: 45, name: 'by_second', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -31416,7 +31658,7 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
   [ActionType.SEARCH]: { id: 201, name: 'SEARCH', text: 'Search for Nodes' },
   [ActionType.COPY]: { id: 210, name: 'COPY', text: 'Copy some Nodes' },
   [ActionType.CREATE]: { id: 300, name: 'CREATE', text: 'Create a Node' },
-  [ActionType.DUPLICATE]: { id: 301, name: 'DUPLICATE', text: 'Duplicate some Nodes' },
+  [ActionType.DUPLICATE]: { id: 301, name: 'DUPLICATE', text: 'Duplicate a Node' },
   [ActionType.UPDATE]: { id: 302, name: 'UPDATE', text: 'Update a Node' },
   [ActionType.DELETE]: { id: 303, name: 'DELETE', text: 'Delete a Node' },
   [ActionType.PASTE]: { id: 304, name: 'PASTE', text: 'Paste a Node' },

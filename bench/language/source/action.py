@@ -96,7 +96,7 @@ class ActionType(IdEnum):
 
     # write
     CREATE = 300, "Create a Node"
-    DUPLICATE = 301, "Duplicate some Nodes"
+    DUPLICATE = 301, "Duplicate a Node"
     UPDATE = 302, "Update a Node"
     DELETE = 303, "Delete a Node"
     PASTE = 304, "Paste a Node"
