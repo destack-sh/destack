@@ -1,5 +1,6 @@
 import {
-  BOUNDARY_ACTION_TYPES,
+  APPLICATION_ACTION_TYPES,
+  FLOW_ACTION_TYPES,
   getBaseFromNode,
   getPropertyTitle,
   isNodeType,
@@ -54,11 +55,13 @@ import {
   FieldProperty,
   FieldType,
   FlowBlockProperty,
+  GoToUrlActionProperty,
   IconData,
   NodeReferenceData,
   NodeType,
   NodeTypeMapping,
   ObjectType,
+  ObserveActionProperty,
   PathData,
   PathElementType,
   PickerVariant,
@@ -904,6 +907,12 @@ export class FieldLayout extends NodeLayout<NodeType.FIELD> {
 }
 
 export class ActionLayout extends NodeLayout<NodeType.ACTION> {
+  sectionApplication() {
+    this.section("Application", [this.rowProperty(ObserveActionProperty.applicationPtr, { isComputable: true })], {
+      isDefaultCollapsed: true,
+    });
+  }
+
   make() {
     const node = this.node!;
 
@@ -928,32 +937,11 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
           },
         }),
       );
+    } else if (node.type == ActionType.GO_TO_URL) {
+      commonRows.push(this.rowProperty(GoToUrlActionProperty.url, { isComputable: true }));
     } else if (node.type == ActionType.FAIL) {
       commonRows.push(this.rowProperty(FailActionProperty.errorTitle, { title: "Title", isComputable: true }));
       commonRows.push(this.rowProperty(FailActionProperty.errorText, { title: "Text", isComputable: true }));
-    } else {
-      // by default add all subproperties in default order
-      const subproperties = Object.values(this.subpropertyEnum ?? {});
-      for (let i = 0; i < subproperties.length; i++) {
-        const subproperty = subproperties[i];
-        if (typeof subproperty !== "number") continue;
-        const { prop } = this.getProperty(subproperty as any);
-        if (prop == null || prop.fieldType == FieldType.OUTPUT) continue;
-
-        if (prop.valueIsPartial) {
-          if (!this.isPartial) {
-            // no nested partials
-            this.section("Node", [
-              this.rowObjectNested(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), {
-                title: false,
-                isComputable: true,
-              }),
-            ]);
-          }
-        } else {
-          commonRows.push(this.rowProperty(subproperty, { isComputable: true }));
-        }
-      }
     }
 
     // schema
@@ -1063,8 +1051,13 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
       }
     }
 
+    // application options
+    if (APPLICATION_ACTION_TYPES.includes(node.type as ActionType)) {
+      this.sectionApplication();
+    }
+
     // run options
-    if (!BOUNDARY_ACTION_TYPES.includes(this.subtype as any)) {
+    if (!FLOW_ACTION_TYPES.includes(this.subtype as any)) {
       this.sectionRunOptions(ActionProperty.runOptions);
     }
   }

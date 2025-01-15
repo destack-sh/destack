@@ -389,6 +389,7 @@ export function cloneNode<T extends AnyNodeData>(
     includeChildren?: boolean;
     now?: Timestamp;
     set?: Partial<T>;
+    keepProperties?: boolean;
     _isNested?: boolean;
     _keepOrder?: boolean;
     _map?: Record<string, NodeReferenceData>;
@@ -405,26 +406,29 @@ export function cloneNode<T extends AnyNodeData>(
   if (options?.set) Object.assign(clone, options.set);
 
   // update derived properties
-  if ("name" in clone && !options?._isNested) {
-    // update name
-    if (isGeneratedNodeName(node.metatype as unknown as NodeType, (clone as any).name)) {
-      // bump generated node name
-      const siblings = graph.getChildren(node.parentPtr!, node.metatype as unknown as NodeType);
-      clone.name = generateNodeName(node, siblings);
-    } else {
-      // bump digit at end (or add 2) if already exists
-      const seq = (clone as any).name.match(/\d+$/);
-      if (seq != null) {
-        const num = parseInt(seq[0]);
-        clone.name = clone.name!.replace(/\d+$/, (num + 1).toString());
+  if (!options?.keepProperties) {
+    // name
+    if ("name" in clone && !options?._isNested) {
+      // update name
+      if (isGeneratedNodeName(node.metatype as unknown as NodeType, (clone as any).name)) {
+        // bump generated node name
+        const siblings = graph.getChildren(node.parentPtr!, node.metatype as unknown as NodeType);
+        clone.name = generateNodeName(node, siblings);
       } else {
-        clone.name += "2";
+        // bump digit at end (or add 2) if already exists
+        const seq = (clone as any).name.match(/\d+$/);
+        if (seq != null) {
+          const num = parseInt(seq[0]);
+          clone.name = clone.name!.replace(/\d+$/, (num + 1).toString());
+        } else {
+          clone.name += "2";
+        }
       }
     }
-  }
-  if (isNode(clone, NodeType.ACTION)) {
-    // update position
-    clone.position = addVector2(clone.position, { x: 0, y: FLOW_GRID_STEP * 6 });
+    // position
+    if (isNode(clone, NodeType.ACTION)) {
+      clone.position = addVector2(clone.position, { x: 0, y: FLOW_GRID_STEP * 6 });
+    }
   }
 
   // actually create node
