@@ -16,7 +16,7 @@ from playwright.async_api import Playwright, async_playwright
 from playwright.async_api import Request as PlaywrightRequest
 from playwright.async_api import Response as PlaywrightResponse
 
-from bench.language import Browser, DomNode, DomNodeType, ResourceStatus
+from bench.language import Browser, DomNode, ResourceStatus
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -285,20 +285,11 @@ class PlaywrightActivityMonitor:
             self.pw_page.remove_listener("response", self._on_response)
 
 
-def parse_dom_node(dom_tree: dict) -> DomNode:
+def parse_dom_node(dom_node_js: dict[str, Any]) -> DomNode:
     """Parse a DOM node from the Playwright DOM tree :DomNode."""
-    node_type = DomNodeType(dom_tree["type"])
-    kwargs: dict[str, Any] = {
-        "type": node_type,
-        "index": dom_tree.get("id"),
-        "tag": dom_tree.get("tag"),
-        "text": dom_tree.get("text"),
-        "is_interactive": dom_tree.get("isInteractive"),
-        "is_visible": dom_tree.get("isVisible"),
-        "is_top": dom_tree.get("isTop"),
-        "children": [],
-    }
-    if "children" in dom_tree:
-        kwargs["children"] = [parse_dom_node(child) for child in dom_tree["children"]]
+    kwargs: dict[str, Any] = {"id": dom_node_js.get("id")}
+    for key, value in dom_node_js.items():
+        if value:
+            kwargs[key] = value
     dom_node = DomNode(**kwargs, _skip_validate_self=True)
     return dom_node

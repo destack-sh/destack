@@ -53,7 +53,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_SCALER_STRATEGY: _ClassVar[EnumType]
     ENUM_TYPE_MACHINE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_BROWSER_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_DOM_NODE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_STORE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CLIENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FILE_RETENTION_MODE: _ClassVar[EnumType]
@@ -444,7 +443,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_SCALER_STRATEGY: _ClassVar[BenchType]
     BENCH_TYPE_MACHINE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_BROWSER_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_DOM_NODE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_STORE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_CLIENT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_FILE_RETENTION_MODE: _ClassVar[BenchType]
@@ -756,12 +754,6 @@ class BrowserType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     BROWSER_TYPE_UNSPECIFIED: _ClassVar[BrowserType]
     BROWSER_TYPE_CHROMIUM: _ClassVar[BrowserType]
-
-class DomNodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    DOM_NODE_TYPE_UNSPECIFIED: _ClassVar[DomNodeType]
-    DOM_NODE_TYPE_TEXT: _ClassVar[DomNodeType]
-    DOM_NODE_TYPE_ELEMENT: _ClassVar[DomNodeType]
 
 class StoreType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1169,6 +1161,7 @@ class RunErrorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_ERROR_TYPE_ABORTED: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_RUN_IMPOSSIBLE: _ClassVar[RunErrorType]
+    RUN_ERROR_TYPE_NOT_SUPPORTED: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_INVALID_VALUE: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_INVALID_COMPUTED: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_CODE_INVALID: _ClassVar[RunErrorType]
@@ -1749,7 +1742,6 @@ ENUM_TYPE_SCALER_TYPE: EnumType
 ENUM_TYPE_SCALER_STRATEGY: EnumType
 ENUM_TYPE_MACHINE_TYPE: EnumType
 ENUM_TYPE_BROWSER_TYPE: EnumType
-ENUM_TYPE_DOM_NODE_TYPE: EnumType
 ENUM_TYPE_STORE_TYPE: EnumType
 ENUM_TYPE_CLIENT_TYPE: EnumType
 ENUM_TYPE_FILE_RETENTION_MODE: EnumType
@@ -2128,7 +2120,6 @@ BENCH_TYPE_SCALER_TYPE: BenchType
 BENCH_TYPE_SCALER_STRATEGY: BenchType
 BENCH_TYPE_MACHINE_TYPE: BenchType
 BENCH_TYPE_BROWSER_TYPE: BenchType
-BENCH_TYPE_DOM_NODE_TYPE: BenchType
 BENCH_TYPE_STORE_TYPE: BenchType
 BENCH_TYPE_CLIENT_TYPE: BenchType
 BENCH_TYPE_FILE_RETENTION_MODE: BenchType
@@ -2365,9 +2356,6 @@ MACHINE_TYPE_UNSPECIFIED: MachineType
 MACHINE_TYPE_RUNTIME: MachineType
 BROWSER_TYPE_UNSPECIFIED: BrowserType
 BROWSER_TYPE_CHROMIUM: BrowserType
-DOM_NODE_TYPE_UNSPECIFIED: DomNodeType
-DOM_NODE_TYPE_TEXT: DomNodeType
-DOM_NODE_TYPE_ELEMENT: DomNodeType
 STORE_TYPE_UNSPECIFIED: StoreType
 STORE_TYPE_POSTGRES: StoreType
 CLIENT_TYPE_UNSPECIFIED: ClientType
@@ -2691,6 +2679,7 @@ RUN_ERROR_TYPE_UNSPECIFIED: RunErrorType
 RUN_ERROR_TYPE_ABORTED: RunErrorType
 RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE: RunErrorType
 RUN_ERROR_TYPE_RUN_IMPOSSIBLE: RunErrorType
+RUN_ERROR_TYPE_NOT_SUPPORTED: RunErrorType
 RUN_ERROR_TYPE_INVALID_VALUE: RunErrorType
 RUN_ERROR_TYPE_INVALID_COMPUTED: RunErrorType
 RUN_ERROR_TYPE_CODE_INVALID: RunErrorType
@@ -3565,28 +3554,20 @@ class ChangeData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., key: _Optional[str] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ...) -> None: ...
 
 class DomNodeData(_message.Message):
-    __slots__ = ("metatype", "type", "tag", "index", "xpath", "text", "is_interactive", "is_visible", "is_top", "children")
+    __slots__ = ("metatype", "id", "tag", "xpath", "text", "attributes")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
     TAG_FIELD_NUMBER: _ClassVar[int]
-    INDEX_FIELD_NUMBER: _ClassVar[int]
     XPATH_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
-    IS_INTERACTIVE_FIELD_NUMBER: _ClassVar[int]
-    IS_VISIBLE_FIELD_NUMBER: _ClassVar[int]
-    IS_TOP_FIELD_NUMBER: _ClassVar[int]
-    CHILDREN_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTES_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    type: DomNodeType
+    id: int
     tag: str
-    index: int
     xpath: str
     text: str
-    is_interactive: bool
-    is_visible: bool
-    is_top: bool
-    children: _containers.RepeatedCompositeFieldContainer[DomNodeData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[DomNodeType, str]] = ..., tag: _Optional[str] = ..., index: _Optional[int] = ..., xpath: _Optional[str] = ..., text: _Optional[str] = ..., is_interactive: bool = ..., is_visible: bool = ..., is_top: bool = ..., children: _Optional[_Iterable[_Union[DomNodeData, _Mapping]]] = ...) -> None: ...
+    attributes: _struct_pb2.Value
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[int] = ..., tag: _Optional[str] = ..., xpath: _Optional[str] = ..., text: _Optional[str] = ..., attributes: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class FileInfoData(_message.Message):
     __slots__ = ("metatype", "name", "kind", "external_url", "inline_content", "type", "mime_type", "format", "size", "sha256", "width", "height", "aspect_ratio", "codec", "duration", "bitrate", "channels", "sample_rate")
@@ -5555,7 +5536,7 @@ class WaitActionData(_message.Message):
     def __init__(self, delay: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...) -> None: ...
 
 class ObserveActionData(_message.Message):
-    __slots__ = ("application_ptr", "element_id", "element_path", "element_position", "element_text", "exclude_image", "screenshot_ptr", "dom")
+    __slots__ = ("application_ptr", "element_id", "element_path", "element_position", "element_text", "exclude_image", "screenshot_ptr", "dom_nodes")
     APPLICATION_PTR_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -5563,7 +5544,7 @@ class ObserveActionData(_message.Message):
     ELEMENT_TEXT_FIELD_NUMBER: _ClassVar[int]
     EXCLUDE_IMAGE_FIELD_NUMBER: _ClassVar[int]
     SCREENSHOT_PTR_FIELD_NUMBER: _ClassVar[int]
-    DOM_FIELD_NUMBER: _ClassVar[int]
+    DOM_NODES_FIELD_NUMBER: _ClassVar[int]
     application_ptr: NodeReferenceData
     element_id: str
     element_path: str
@@ -5571,8 +5552,8 @@ class ObserveActionData(_message.Message):
     element_text: str
     exclude_image: bool
     screenshot_ptr: NodeReferenceData
-    dom: DomNodeData
-    def __init__(self, application_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., element_text: _Optional[str] = ..., exclude_image: bool = ..., screenshot_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., dom: _Optional[_Union[DomNodeData, _Mapping]] = ...) -> None: ...
+    dom_nodes: _containers.RepeatedCompositeFieldContainer[DomNodeData]
+    def __init__(self, application_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., element_text: _Optional[str] = ..., exclude_image: bool = ..., screenshot_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., dom_nodes: _Optional[_Iterable[_Union[DomNodeData, _Mapping]]] = ...) -> None: ...
 
 class ClickActionData(_message.Message):
     __slots__ = ("application_ptr", "element_id", "element_path", "element_position", "element_text")

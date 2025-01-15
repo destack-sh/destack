@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from bench.language.core import (
     EnumType,
     NodeType,
+    PrimitiveType,
     Struct,
     StructType,
     enum_,
@@ -21,28 +22,29 @@ if TYPE_CHECKING:
     from bench.language import Client, Vector2
 
 
-@enum_(EnumType.DOM_NODE_TYPE)
-class DomNodeType(IdEnum):
-    TEXT = 1
-    ELEMENT = 2
-
-
 @struct_(StructType.DOM_NODE)
 class DomNode(Struct):
     """A DOM node."""
 
     # :DomNode
-    type: DomNodeType = p_regular(30)
+    id: int = p_regular(30)
     tag: str | None = p_regular(31, default=None)
-    index: int | None = p_regular(32, default=None)
     xpath: str | None = p_regular(33, default=None)
     text: str | None = p_regular(34, default=None)
-    # flags
-    is_interactive: bool | None = p_regular(40, default=None)
-    is_visible: bool | None = p_regular(41, default=None)
-    is_top: bool | None = p_regular(42, default=None)
-    # children
-    children: list["DomNode"] = p_regular(50, array=True, struct=StructType.DOM_NODE)
+    attributes: dict[str, str] | None = p_regular(
+        35, default=None, primitive_type=PrimitiveType.JSON
+    )
+
+    def __content_str__(self) -> str:
+        content_parts: list[str] = []
+        if self.tag:
+            content_parts.append(self.tag)
+        if self.text:
+            content_parts.append(repr(self.text))
+        if self.attributes:
+            attribute_parts = [f"{k}={v}" for k, v in self.attributes.items()]
+            content_parts.append(", ".join(attribute_parts))
+        return f"{self.id} [{', '.join(content_parts)}]"
 
 
 @enum_(EnumType.BROWSER_TYPE)

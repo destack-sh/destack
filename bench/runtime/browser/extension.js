@@ -223,6 +223,7 @@ var INTERACTIVE_ROLES = new Set([
     "dropdown",
     "combobox",
 ]);
+var ATTRIBUTE_WHITELIST = new Set(["href", "src", "alt", "title", "placeholder", "value", "aria-label"]);
 var HIGHLIGHT_CONTAINER_ID = "bench-highlight-container";
 function getHighlightContainer() {
     var container = document.getElementById(HIGHLIGHT_CONTAINER_ID);
@@ -457,18 +458,25 @@ function isTextNodeVisible(textNode) {
     var rect = range.getBoundingClientRect();
     return rect.width !== 0 && rect.height !== 0;
 }
-function buildDomTree(node, highlight, iframe, context) {
+var MAX_TEXT_LENGTH = 300;
+function trimText(text) {
+    if (!text)
+        return undefined;
+    text = text.trim();
+    if (text.length === 0)
+        return undefined;
+    if (text.length <= MAX_TEXT_LENGTH)
+        return text;
+    var half = Math.floor(MAX_TEXT_LENGTH / 2);
+    return text.slice(0, half) + "..." + text.slice(-half);
+}
+function extract(node, highlight, iframe, context) {
     var _a, _b, _c;
-    var _d, _e;
+    var _d;
     if (node.nodeType === Node.TEXT_NODE) {
-        var textContent = (_d = node.textContent) === null || _d === void 0 ? void 0 : _d.trim();
+        var textContent = trimText(node.textContent);
         if (textContent && isTextNodeVisible(node)) {
-            return {
-                type: DomNodeType.TEXT,
-                text: textContent,
-                children: [],
-                attributes: {}
-            };
+            return { type: DomNodeType.TEXT, text: textContent };
         }
         return null;
     }
@@ -480,16 +488,16 @@ function buildDomTree(node, highlight, iframe, context) {
             type: DomNodeType.ELEMENT,
             tag: element_1.tagName.toLowerCase(),
             xpath: getXPath(element_1),
-            children: []
+            text: trimText(element_1.textContent)
         };
-        var attributeNames = ((_e = element_1.getAttributeNames) === null || _e === void 0 ? void 0 : _e.call(element_1)) || [];
+        var attributeNames = ((_d = element_1.getAttributeNames) === null || _d === void 0 ? void 0 : _d.call(element_1)) || [];
         for (var _i = 0, attributeNames_1 = attributeNames; _i < attributeNames_1.length; _i++) {
             var name_1 = attributeNames_1[_i];
             if (nodeData.attributes === undefined) {
                 nodeData.attributes = {};
             }
             var attrVal = element_1.getAttribute(name_1);
-            if (attrVal !== null) {
+            if (attrVal !== null && ATTRIBUTE_WHITELIST.has(name_1)) {
                 nodeData.attributes[name_1] = attrVal;
             }
         }
@@ -510,16 +518,20 @@ function buildDomTree(node, highlight, iframe, context) {
                 context.highlightId++;
                 nodeData.id = context.highlightId;
                 highlightElement(element_1, rect, context, iframe);
+                nodeData.isHighlighted = true;
             }
         }
         if (element_1.shadowRoot) {
             nodeData.isShadowRoot = true;
             var shadowChildren_1 = [];
             Array.from(element_1.shadowRoot.childNodes).forEach(function (child) {
-                var childNode = buildDomTree(child, highlight, iframe, context);
+                var childNode = extract(child, highlight, iframe, context);
                 if (childNode)
                     shadowChildren_1.push(childNode);
             });
+            if (nodeData.children === undefined) {
+                nodeData.children = [];
+            }
             (_a = nodeData.children).push.apply(_a, shadowChildren_1);
         }
         if (element_1.tagName === "IFRAME") {
@@ -528,34 +540,62 @@ function buildDomTree(node, highlight, iframe, context) {
                 if (iframeDoc && iframeDoc.body) {
                     var iframeChildren_1 = [];
                     Array.from(iframeDoc.body.childNodes).forEach(function (child) {
-                        var childNode = buildDomTree(child, highlight, element_1, context);
+                        var childNode = extract(child, highlight, element_1, context);
                         if (childNode)
                             iframeChildren_1.push(childNode);
                     });
+                    if (nodeData.children === undefined) {
+                        nodeData.children = [];
+                    }
                     (_b = nodeData.children).push.apply(_b, iframeChildren_1);
                 }
             }
-            catch (_f) {
+            catch (_e) {
             }
         }
         else {
             var children_1 = [];
             Array.from(node.childNodes).forEach(function (child) {
-                var childNode = buildDomTree(child, highlight, iframe, context);
+                var childNode = extract(child, highlight, iframe, context);
                 if (childNode)
                     children_1.push(childNode);
             });
+            if (nodeData.children === undefined) {
+                nodeData.children = [];
+            }
             (_c = nodeData.children).push.apply(_c, children_1);
         }
         return nodeData;
     }
     return null;
 }
-function extractDocumentDomTree(highlight) {
-    if (highlight === void 0) { highlight = true; }
-    return buildDomTree(document.body, highlight, null, makeHighlightContext(document.body));
+function highlight() {
+    var root = extract(document.body, true, null, makeHighlightContext(document.body));
+    var interactiveNodes = [];
+    function walk(node) {
+        if (node.isHighlighted) {
+            var miniNode = { id: node.id, tag: node.tag };
+            if (node.text) {
+                miniNode.text = node.text;
+            }
+            if (node.attributes && Object.keys(node.attributes).length > 0) {
+                miniNode.attributes = node.attributes;
+            }
+            interactiveNodes.push(miniNode);
+        }
+        if (node.children) {
+            for (var _i = 0, _a = node.children; _i < _a.length; _i++) {
+                var child = _a[_i];
+                walk(child);
+            }
+        }
+    }
+    if (root) {
+        walk(root);
+    }
+    return interactiveNodes;
 }
-function cleanupHighlights(scope) {
+function cleanup(scope) {
     if (scope === void 0) { scope = "all"; }
     if (scope === "container" || scope === "all") {
         var container = document.getElementById(HIGHLIGHT_CONTAINER_ID);

@@ -395,10 +395,10 @@ class ObserveActionRunner(ApplicationActionRunnerBase[ObserveAction]):
         browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
-        dom_tree_js = await pw_page.evaluate(
-            self.runtime.playwright.get_extension_script_js() + "\n extractDocumentDomTree(true)"
+        dom_nodes_js = await pw_page.evaluate(
+            self.runtime.playwright.get_extension_script_js() + "\n highlight()"
         )
-        dom_tree = parse_dom_node(dom_tree_js)
+        dom_nodes = [parse_dom_node(dom_node_js) for dom_node_js in dom_nodes_js]
         screenshot_bytes = await pw_page.screenshot(full_page=False, animations="disabled")
         now = self.session._oracle.utc()
         screenshot = await upload_file(
@@ -409,7 +409,7 @@ class ObserveActionRunner(ApplicationActionRunnerBase[ObserveAction]):
         )
         assert self.output_type is not None, f"no output type for {self!r}"
         self.outputs = coerce_custom_object_scalar(
-            {"dom": dom_tree, "screenshot": screenshot}, self.output_type
+            {"dom_nodes": dom_nodes, "screenshot": screenshot}, self.output_type
         )
 
 

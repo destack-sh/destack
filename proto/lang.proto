@@ -41,7 +41,6 @@ enum EnumType {
   ENUM_TYPE_SCALER_STRATEGY = 21011;
   ENUM_TYPE_MACHINE_TYPE = 21020;
   ENUM_TYPE_BROWSER_TYPE = 21030;
-  ENUM_TYPE_DOM_NODE_TYPE = 21031;
   ENUM_TYPE_STORE_TYPE = 21040;
   ENUM_TYPE_CLIENT_TYPE = 21050;
   ENUM_TYPE_FILE_RETENTION_MODE = 21200;
@@ -432,7 +431,6 @@ enum BenchType {
   BENCH_TYPE_SCALER_STRATEGY = 21011;
   BENCH_TYPE_MACHINE_TYPE = 21020;
   BENCH_TYPE_BROWSER_TYPE = 21030;
-  BENCH_TYPE_DOM_NODE_TYPE = 21031;
   BENCH_TYPE_STORE_TYPE = 21040;
   BENCH_TYPE_CLIENT_TYPE = 21050;
   BENCH_TYPE_FILE_RETENTION_MODE = 21200;
@@ -757,12 +755,6 @@ enum MachineType {
 enum BrowserType {
   BROWSER_TYPE_UNSPECIFIED = 0;
   BROWSER_TYPE_CHROMIUM = 1;
-}
-
-enum DomNodeType {
-  DOM_NODE_TYPE_UNSPECIFIED = 0;
-  DOM_NODE_TYPE_TEXT = 1;
-  DOM_NODE_TYPE_ELEMENT = 2;
 }
 
 enum StoreType {
@@ -1176,8 +1168,9 @@ enum RunErrorType {
   RUN_ERROR_TYPE_ABORTED = 2;
   RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE = 3;
   RUN_ERROR_TYPE_RUN_IMPOSSIBLE = 4;
-  RUN_ERROR_TYPE_INVALID_VALUE = 5;
-  RUN_ERROR_TYPE_INVALID_COMPUTED = 6;
+  RUN_ERROR_TYPE_NOT_SUPPORTED = 5;
+  RUN_ERROR_TYPE_INVALID_VALUE = 10;
+  RUN_ERROR_TYPE_INVALID_COMPUTED = 11;
   RUN_ERROR_TYPE_CODE_INVALID = 20;
   RUN_ERROR_TYPE_TEXT_INVALID = 21;
   RUN_ERROR_TYPE_MODEL_INCAPABLE = 100;
@@ -1981,15 +1974,11 @@ message ChangeData {
 
 message DomNodeData {
   ObjectType metatype = 1;
-  DomNodeType type = 30;
+  int32 id = 30;
   optional string tag = 31;
-  optional int32 index = 32;
   optional string xpath = 33;
   optional string text = 34;
-  optional bool is_interactive = 40;
-  optional bool is_visible = 41;
-  optional bool is_top = 42;
-  repeated DomNodeData children = 50;
+  optional google.protobuf.Value attributes = 35;
 }
 
 message FileInfoData {
@@ -3087,7 +3076,7 @@ message ObserveActionData {
   optional string element_text = 113;
   optional bool exclude_image = 120;
   optional NodeReferenceData screenshot_ptr = 200;
-  optional DomNodeData dom = 201;
+  repeated DomNodeData dom_nodes = 201;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.

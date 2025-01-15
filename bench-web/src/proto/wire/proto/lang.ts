@@ -856,17 +856,13 @@ export interface DomNodeData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: symbolx.bench.DomNodeType type = 30;
+     * @generated from protobuf field: int32 id = 30;
      */
-    type: DomNodeType;
+    id: number;
     /**
      * @generated from protobuf field: optional string tag = 31;
      */
     tag?: string;
-    /**
-     * @generated from protobuf field: optional int32 index = 32;
-     */
-    index?: number;
     /**
      * @generated from protobuf field: optional string xpath = 33;
      */
@@ -876,21 +872,9 @@ export interface DomNodeData {
      */
     text?: string;
     /**
-     * @generated from protobuf field: optional bool is_interactive = 40;
+     * @generated from protobuf field: optional google.protobuf.Value attributes = 35;
      */
-    isInteractive?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_visible = 41;
-     */
-    isVisible?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_top = 42;
-     */
-    isTop?: boolean;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.DomNodeData children = 50;
-     */
-    children: DomNodeData[];
+    attributes?: Value;
 }
 /**
  * @generated from protobuf message symbolx.bench.FileInfoData
@@ -4665,9 +4649,9 @@ export interface ObserveActionData {
      */
     screenshotPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.DomNodeData dom = 201;
+     * @generated from protobuf field: repeated symbolx.bench.DomNodeData dom_nodes = 201;
      */
-    dom?: DomNodeData;
+    domNodes: DomNodeData[];
 }
 /**
  * A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -6129,10 +6113,6 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_BROWSER_TYPE = 21030;
      */
     BROWSER_TYPE = 21030,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_DOM_NODE_TYPE = 21031;
-     */
-    DOM_NODE_TYPE = 21031,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_STORE_TYPE = 21040;
      */
@@ -7666,10 +7646,6 @@ export enum BenchType {
      */
     BROWSER_TYPE = 21030,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_DOM_NODE_TYPE = 21031;
-     */
-    DOM_NODE_TYPE = 21031,
-    /**
      * @generated from protobuf enum value: BENCH_TYPE_STORE_TYPE = 21040;
      */
     STORE_TYPE = 21040,
@@ -8764,23 +8740,6 @@ export enum BrowserType {
      * @generated from protobuf enum value: BROWSER_TYPE_CHROMIUM = 1;
      */
     CHROMIUM = 1
-}
-/**
- * @generated from protobuf enum symbolx.bench.DomNodeType
- */
-export enum DomNodeType {
-    /**
-     * @generated from protobuf enum value: DOM_NODE_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: DOM_NODE_TYPE_TEXT = 1;
-     */
-    TEXT = 1,
-    /**
-     * @generated from protobuf enum value: DOM_NODE_TYPE_ELEMENT = 2;
-     */
-    ELEMENT = 2
 }
 /**
  * @generated from protobuf enum symbolx.bench.StoreType
@@ -10225,13 +10184,17 @@ export enum RunErrorType {
      */
     RUN_IMPOSSIBLE = 4,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_TYPE_INVALID_VALUE = 5;
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_NOT_SUPPORTED = 5;
      */
-    INVALID_VALUE = 5,
+    NOT_SUPPORTED = 5,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_TYPE_INVALID_COMPUTED = 6;
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_INVALID_VALUE = 10;
      */
-    INVALID_COMPUTED = 6,
+    INVALID_VALUE = 10,
+    /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_INVALID_COMPUTED = 11;
+     */
+    INVALID_COMPUTED = 11,
     /**
      * @generated from protobuf enum value: RUN_ERROR_TYPE_CODE_INVALID = 20;
      */
@@ -14545,22 +14508,17 @@ class DomNodeData$Type extends MessageType$<DomNodeData> {
     constructor() {
         super("symbolx.bench.DomNodeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.DomNodeType", DomNodeType, "DOM_NODE_TYPE_"] },
+            { no: 30, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "tag", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "index", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 33, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "is_interactive", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 41, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 42, name: "is_top", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 50, name: "children", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => DomNodeData }
+            { no: 35, name: "attributes", kind: "message", T: () => Value }
         ]);
     }
     create(value?: PartialMessage<DomNodeData>): DomNodeData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.type = 0;
-        message.children = [];
+        message.id = 0;
         if (value !== undefined)
             reflectionMergePartial<DomNodeData>(this, message, value);
         return message;
@@ -14573,14 +14531,11 @@ class DomNodeData$Type extends MessageType$<DomNodeData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbolx.bench.DomNodeType type */ 30:
-                    message.type = reader.int32();
+                case /* int32 id */ 30:
+                    message.id = reader.int32();
                     break;
                 case /* optional string tag */ 31:
                     message.tag = reader.string();
-                    break;
-                case /* optional int32 index */ 32:
-                    message.index = reader.int32();
                     break;
                 case /* optional string xpath */ 33:
                     message.xpath = reader.string();
@@ -14588,17 +14543,8 @@ class DomNodeData$Type extends MessageType$<DomNodeData> {
                 case /* optional string text */ 34:
                     message.text = reader.string();
                     break;
-                case /* optional bool is_interactive */ 40:
-                    message.isInteractive = reader.bool();
-                    break;
-                case /* optional bool is_visible */ 41:
-                    message.isVisible = reader.bool();
-                    break;
-                case /* optional bool is_top */ 42:
-                    message.isTop = reader.bool();
-                    break;
-                case /* repeated symbolx.bench.DomNodeData children */ 50:
-                    message.children.push(DomNodeData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* optional google.protobuf.Value attributes */ 35:
+                    message.attributes = Value.internalBinaryRead(reader, reader.uint32(), options, message.attributes);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -14615,33 +14561,21 @@ class DomNodeData$Type extends MessageType$<DomNodeData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.DomNodeType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
+        /* int32 id = 30; */
+        if (message.id !== 0)
+            writer.tag(30, WireType.Varint).int32(message.id);
         /* optional string tag = 31; */
         if (message.tag !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.tag);
-        /* optional int32 index = 32; */
-        if (message.index !== undefined)
-            writer.tag(32, WireType.Varint).int32(message.index);
         /* optional string xpath = 33; */
         if (message.xpath !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.xpath);
         /* optional string text = 34; */
         if (message.text !== undefined)
             writer.tag(34, WireType.LengthDelimited).string(message.text);
-        /* optional bool is_interactive = 40; */
-        if (message.isInteractive !== undefined)
-            writer.tag(40, WireType.Varint).bool(message.isInteractive);
-        /* optional bool is_visible = 41; */
-        if (message.isVisible !== undefined)
-            writer.tag(41, WireType.Varint).bool(message.isVisible);
-        /* optional bool is_top = 42; */
-        if (message.isTop !== undefined)
-            writer.tag(42, WireType.Varint).bool(message.isTop);
-        /* repeated symbolx.bench.DomNodeData children = 50; */
-        for (let i = 0; i < message.children.length; i++)
-            DomNodeData.internalBinaryWrite(message.children[i], writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value attributes = 35; */
+        if (message.attributes)
+            Value.internalBinaryWrite(message.attributes, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23750,11 +23684,12 @@ class ObserveActionData$Type extends MessageType$<ObserveActionData> {
             { no: 113, name: "element_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 120, name: "exclude_image", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 200, name: "screenshot_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 201, name: "dom", kind: "message", T: () => DomNodeData }
+            { no: 201, name: "dom_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => DomNodeData }
         ]);
     }
     create(value?: PartialMessage<ObserveActionData>): ObserveActionData {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.domNodes = [];
         if (value !== undefined)
             reflectionMergePartial<ObserveActionData>(this, message, value);
         return message;
@@ -23785,8 +23720,8 @@ class ObserveActionData$Type extends MessageType$<ObserveActionData> {
                 case /* optional symbolx.bench.NodeReferenceData screenshot_ptr */ 200:
                     message.screenshotPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.screenshotPtr);
                     break;
-                case /* optional symbolx.bench.DomNodeData dom */ 201:
-                    message.dom = DomNodeData.internalBinaryRead(reader, reader.uint32(), options, message.dom);
+                case /* repeated symbolx.bench.DomNodeData dom_nodes */ 201:
+                    message.domNodes.push(DomNodeData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -23821,9 +23756,9 @@ class ObserveActionData$Type extends MessageType$<ObserveActionData> {
         /* optional symbolx.bench.NodeReferenceData screenshot_ptr = 200; */
         if (message.screenshotPtr)
             NodeReferenceData.internalBinaryWrite(message.screenshotPtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.DomNodeData dom = 201; */
-        if (message.dom)
-            DomNodeData.internalBinaryWrite(message.dom, writer.tag(201, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.DomNodeData dom_nodes = 201; */
+        for (let i = 0; i < message.domNodes.length; i++)
+            DomNodeData.internalBinaryWrite(message.domNodes[i], writer.tag(201, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27452,7 +27387,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.SCALER_STRATEGY]: ScalerStrategy,
   [EnumType.MACHINE_TYPE]: MachineType,
   [EnumType.BROWSER_TYPE]: BrowserType,
-  [EnumType.DOM_NODE_TYPE]: DomNodeType,
   [EnumType.STORE_TYPE]: StoreType,
   [EnumType.CLIENT_TYPE]: ClientType,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
@@ -27834,7 +27768,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.SCALER_STRATEGY]: ScalerStrategy,
   [EnumType.MACHINE_TYPE]: MachineType,
   [EnumType.BROWSER_TYPE]: BrowserType,
-  [EnumType.DOM_NODE_TYPE]: DomNodeType,
   [EnumType.STORE_TYPE]: StoreType,
   [EnumType.CLIENT_TYPE]: ClientType,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
@@ -28919,7 +28852,7 @@ export enum ObserveActionProperty {
   elementText = 113,
   excludeImage = 120,
   screenshotPtr = 200,
-  dom = 201,
+  domNodes = 201,
 }
 
 export enum ClickActionProperty {
@@ -29575,15 +29508,11 @@ export enum RectangleConstraintProperty {
 
 export enum DomNodeProperty {
   metatype = 1,
-  type = 30,
+  id = 30,
   tag = 31,
-  index = 32,
   xpath = 33,
   text = 34,
-  isInteractive = 40,
-  isVisible = 41,
-  isTop = 42,
-  children = 50,
+  attributes = 35,
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof HandleProperty | typeof ClientProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof FieldProperty | typeof ViewProperty | typeof ActionProperty | typeof PipeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptionProperty | typeof LogProperty | typeof SkipProperty | typeof EmptyProperty
@@ -30092,8 +30021,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.5", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.5", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.15.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.15.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30124,8 +30053,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.5", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.14.5", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.15.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.15.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30847,7 +30776,7 @@ export const ObserveActionDataInfo: Record<ObserveActionProperty, PropertyInfo> 
   [ObserveActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
   [ObserveActionProperty.excludeImage]: { id: 120, name: 'exclude_image', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
   [ObserveActionProperty.screenshotPtr]: { id: 200, name: 'screenshot_ptr', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
-  [ObserveActionProperty.dom]: { id: 201, name: 'dom', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DOM_NODE },
+  [ObserveActionProperty.domNodes]: { id: 201, name: 'dom_nodes', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.OUTPUT, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DOM_NODE },
 }
 export const ClickActionDataInfo: Record<ClickActionProperty, PropertyInfo> = {
   [ClickActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
@@ -31256,7 +31185,7 @@ export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
   [RunErrorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_ERROR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [RunErrorProperty.kind]: { id: 30, name: 'kind', component: ObjectType.RUN_ERROR, enumType: EnumType.RUN_ERROR_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunErrorProperty.type]: { id: 31, name: 'type', component: ObjectType.RUN_ERROR, enumType: EnumType.RUN_ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunErrorProperty.title]: { id: 32, name: 'title', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunErrorProperty.title]: { id: 32, name: 'title', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunErrorProperty.text]: { id: 33, name: 'text', component: ObjectType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [RunErrorProperty.nodesPtr]: { id: 34, name: 'nodes_ptr', component: ObjectType.RUN_ERROR, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [RunErrorProperty.trace]: { id: 35, name: 'trace', component: ObjectType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_TRACE },
@@ -31432,15 +31361,11 @@ export const RectangleConstraintDataInfo: Record<RectangleConstraintProperty, Pr
 }
 export const DomNodeDataInfo: Record<DomNodeProperty, PropertyInfo> = {
   [DomNodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DOM_NODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [DomNodeProperty.type]: { id: 30, name: 'type', component: ObjectType.DOM_NODE, enumType: EnumType.DOM_NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DomNodeProperty.id]: { id: 30, name: 'id', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [DomNodeProperty.tag]: { id: 31, name: 'tag', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [DomNodeProperty.index]: { id: 32, name: 'index', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [DomNodeProperty.xpath]: { id: 33, name: 'xpath', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [DomNodeProperty.text]: { id: 34, name: 'text', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [DomNodeProperty.isInteractive]: { id: 40, name: 'is_interactive', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [DomNodeProperty.isVisible]: { id: 41, name: 'is_visible', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [DomNodeProperty.isTop]: { id: 42, name: 'is_top', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [DomNodeProperty.children]: { id: 50, name: 'children', component: ObjectType.DOM_NODE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DOM_NODE },
+  [DomNodeProperty.attributes]: { id: 35, name: 'attributes', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true },
 }
 export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo>> = {
   [ObjectType.UNSPECIFIED]: {},
@@ -31651,7 +31576,7 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
   [ActionType.TRANSFORM]: { id: 203, name: 'TRANSFORM', text: 'Change the form of something' },
   [ActionType.EXTRACT]: { id: 204, name: 'EXTRACT', text: 'Extract structured data' },
   [ActionType.CLASSIFY]: { id: 205, name: 'CLASSIFY', text: 'Classify or categorize' },
-  [ActionType.SUMMARIZE]: { id: 206, name: 'SUMMARIZE', text: 'Create a summary' },
+  [ActionType.SUMMARIZE]: { id: 206, name: 'SUMMARIZE', text: 'Condense media content' },
   [ActionType.COMPARE]: { id: 207, name: 'COMPARE', text: 'Compare multiple things' },
   [ActionType.TRANSLATE]: { id: 208, name: 'TRANSLATE', text: 'Translate between languages' },
   [ActionType.CHANGE]: { id: 209, name: 'CHANGE', text: 'Edit this Bench' },
