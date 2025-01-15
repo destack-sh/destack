@@ -354,12 +354,7 @@ defineExpose<ViewExposed>({
     <button
       v-for="item in results"
       :key="item.id"
-      v-tooltip="{
-        icon: (item as any).icon,
-        title: item.title,
-        small: true,
-        group: 'picker',
-      }"
+      v-tooltip="{ icon: (item as any).icon, title: item.title, text: item.text, group: 'picker' }"
       :data-selected="isSelected(item)"
       :disabled="props.isDisabled"
       class="group flex-1 flex-shrink-0 truncate rounded px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-200 hover:text-gray-800 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"

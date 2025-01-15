@@ -10,3 +10,4 @@ posthog==3.0.2
 psycopg[binary,pool]==3.2.3
 uvicorn==0.23.2
 starlette==0.34.0
+stripe==11.4.1

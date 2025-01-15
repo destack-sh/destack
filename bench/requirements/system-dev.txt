@@ -481,6 +481,7 @@ requests==2.32.3
     #   kubernetes
     #   posthog
     #   requests-oauthlib
+    #   stripe
 requests-oauthlib==2.0.0
     # via kubernetes
 rich==13.9.4
@@ -524,6 +525,8 @@ sqlglot==25.30.0
 stack-data==0.6.3
     # via ipython
 starlette==0.34.0
+    # via -r bench/requirements/system.in
+stripe==11.4.1
     # via -r bench/requirements/system.in
 structlog==24.2.0
     # via -r bench/requirements/base.in
@@ -575,6 +578,7 @@ typing-extensions==4.12.2
     #   pyright
     #   python-docx
     #   python-pptx
+    #   stripe
     #   typer
 uritemplate==4.1.1
     # via google-api-python-client

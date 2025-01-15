@@ -45,7 +45,6 @@ if TYPE_CHECKING:
         Icon,
         Package,
         Pipe,
-        Policy,
         Record,
         RunOptions,
         Text,
@@ -79,15 +78,7 @@ class Block(SourceNode[BlockData]):
     variables: Any = p_value_runtime(
         packed=40, type=FieldType.VARIABLE, typ=lambda self: cast("Block", self).variable_type
     )
-
-    run_options: Optional["RunOptions"] = p_regular(
-        41, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
-    policies: list["Policy"] = p_regular(42, require=False, array=True, struct=StructType.POLICY)
-    delegated_policies: list["Policy"] = p_regular(
-        43, require=False, array=True, struct=StructType.POLICY
-    )
-    # roles, identity, ...
+    # policies, roles, identity, ...?
 
     # flags
     # is_builtin, is_owned, is_test? (for testing)
@@ -218,7 +209,9 @@ class TextBlock(Block):
 
 @node_subtype_(BlockType.FLOW)
 class FlowBlock(Block):
-    pass
+    run_options: Optional["RunOptions"] = p_regular(
+        100, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
 
 
 @node_subtype_(BlockType.DATABASE)

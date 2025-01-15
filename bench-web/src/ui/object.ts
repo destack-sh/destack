@@ -53,6 +53,7 @@ import {
   FieldData,
   FieldProperty,
   FieldType,
+  FlowBlockProperty,
   IconData,
   NodeReferenceData,
   NodeType,
@@ -438,9 +439,9 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       }
     } else if (propNames.length == 2) {
       if (!isSubnode) {
-        val = (this.node as any)[propNames[0]]?.[propNames[1]];
+        val = (this.node as any)?.[propNames[0]]?.[propNames[1]];
       } else {
-        val = (this.subnode as any)[propNames[0]]?.[propNames[1]];
+        val = (this.subnode as any)?.[propNames[0]]?.[propNames[1]];
       }
     } else {
       assertNever(propNames);
@@ -483,7 +484,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     // view
     const title = options?.title ?? getPropertyTitle(prop);
     const propType = options?.props?.valueType ?? getPropertyType(prop);
-    const view = getViewForType(propType, { forcePickerDropdown: true });
+    const view = getViewForType(propType);
     if (view == null) {
       return { type: "text", title: title === false ? undefined : title, subtitle: options?.subtitle, text: "No View" };
     }
@@ -735,7 +736,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       [
         this.rowProperty([baseProperty, RunOptionsProperty.maxAttempts], { title: "Attempts" }),
         this.rowProperty([baseProperty, RunOptionsProperty.suppressFail]),
-        this.rowProperty([baseProperty, RunOptionsProperty.modelFamily]),
+        this.rowProperty([baseProperty, RunOptionsProperty.suppressPause]),
       ],
       { isDefaultCollapsed: true },
     );
@@ -779,9 +780,9 @@ export class BlockLayout extends NodeLayout<NodeType.BLOCK> {
           },
         );
       }
-      if (RUNNABLE_BLOCK_TYPES.includes(this.subtype as any)) {
-        this.sectionRunOptions(BlockProperty.runOptions);
-      }
+    }
+    if (this.subtype == BlockType.FLOW) {
+      this.sectionRunOptions(FlowBlockProperty.runOptions);
     }
   }
 }

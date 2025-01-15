@@ -119,23 +119,7 @@ export function makeColor(type: ColorType, shade?: ColorShade): ColorData {
 
 export const COLOR_BY_NODE_TYPE: Partial<Record<NodeType, ColorType>> = {};
 
-export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {
-  [BlockType.PAGE]: ColorType.GRAY,
-  [BlockType.TEXT]: ColorType.GRAY,
-  // state
-  [BlockType.DATABASE]: ColorType.SKY,
-  [BlockType.VARIABLE]: ColorType.SKY,
-  // types
-  [BlockType.CHOICE]: ColorType.GREEN,
-  [BlockType.MESSAGE]: ColorType.GREEN,
-  // runnables
-  [BlockType.FLOW]: ColorType.ORANGE,
-  // view
-  [BlockType.VIEW]: ColorType.YELLOW,
-  // auth
-  [BlockType.ROLE]: ColorType.PURPLE,
-  [BlockType.IDENTITY]: ColorType.PURPLE,
-};
+export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {};
 
 export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   // flow

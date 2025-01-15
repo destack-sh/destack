@@ -21,6 +21,7 @@ from bench.language import (
     FailAction,
     FileFormat,
     FileType,
+    GetAction,
     GoBackwardAction,
     GoForwardAction,
     GoToTabAction,
@@ -37,6 +38,7 @@ from bench.language import (
     RunOptions,
     RunType,
     ScrollAction,
+    SearchAction,
     SelectAction,
     Text,
     ToolAction,
@@ -52,10 +54,15 @@ from bench.language import (
     upload_file,
 )
 from bench.runtime.browser.playwright import parse_dom_node
-from bench.runtime.code.code import CodeFunctionRunner
-from bench.runtime.core import ATTEMPT_ONCE, RetryableError, RunImpossibleError
-from bench.runtime.core.runner import Runner, make_runner, restore_runner
-from bench.runtime.core.runtime import Runtime
+from bench.runtime.core import (
+    ATTEMPT_ONCE,
+    RetryableError,
+    RunImpossibleError,
+    Runner,
+    Runtime,
+    make_runner,
+    restore_runner,
+)
 
 if TYPE_CHECKING:
     from .flow import FlowRunnerBase
@@ -147,7 +154,7 @@ class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
 
 
 #
-# Boundary
+# Flow
 #
 
 
@@ -173,10 +180,63 @@ class FailActionRunner(ActionRunnerBase[FailAction]):
         raise RetryableError(title=title, text=text)
 
 
-class TriggerActionRunner(ActionRunnerBase):
+class DynamicActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
     @override
     async def run(self) -> None:
-        raise NotImplementedError
+        raise NotImplementedError(f"nocheckin: DynamicActionRunner {self!r}")
+
+
+#
+# Tool
+#
+
+
+class CodeActionRunner(DynamicActionRunnerBase[CodeAction]):
+    @override
+    async def run(self) -> None:
+        from bench.runtime.code import CodeFunctionRunner
+
+        code_runner = CodeFunctionRunner(
+            runtime=self.runtime,
+            node=self.node,
+            code=self.action.code or CODE_PASS,
+            variables=self.variables,
+            inputs=self.inputs,
+            output_type=self.output_type,
+            track=False,
+            options=ATTEMPT_ONCE,
+            context=self.context,
+        )
+        await self.runtime.run_runner(code_runner)
+        self.outputs = code_runner.outputs
+
+
+class ToolActionRunner(DynamicActionRunnerBase[ToolAction]):
+    @override
+    async def run(self) -> None:
+        tool = self.action.tool
+        if not tool:
+            raise RunImpossibleError("no tool")
+        tool_runner = self._get_resumable_subrunner(
+            node=tool,
+            variables=self.action.variables,
+            inputs=self.action.inputs,
+            output_type=self.output_type,
+        )
+        await self.runtime.run_runner(tool_runner)
+
+
+#
+# Dynamic
+#
+
+# nocheckin:
+# there are a few types of dynamic generation:
+#  - generated computed values for inputs
+#  - generated outputs for dynamic actions
+#   - consume inputs / generate outputs live
+#  - generate calls for all actions with selective pipes
+#  - ...?
 
 
 #
@@ -184,13 +244,13 @@ class TriggerActionRunner(ActionRunnerBase):
 #
 
 
-class GetActionRunner(ActionRunnerBase):
+class GetActionRunner(ActionRunnerBase[GetAction]):
     @override
     async def run(self) -> None:
         raise NotImplementedError
 
 
-class SearchActionRunner(ActionRunnerBase):
+class SearchActionRunner(ActionRunnerBase[SearchAction]):
     @override
     async def run(self) -> None:
         raise NotImplementedError
@@ -275,7 +335,7 @@ class DeleteActionRunner(ActionRunnerBase[DeleteAction]):
 
 
 #
-# Session
+# Async
 #
 
 
@@ -284,44 +344,6 @@ class YieldActionRunner(ActionRunnerBase):
     async def run(self) -> None:
         interruption = self._trap_interruption(InterruptionType.YIELD)
         self.outputs = interruption.outputs
-
-
-#
-# Static
-#
-
-
-class CodeActionRunner(ActionRunnerBase[CodeAction]):
-    @override
-    async def run(self) -> None:
-        code_runner = CodeFunctionRunner(
-            runtime=self.runtime,
-            node=self.node,
-            code=self.action.code or CODE_PASS,
-            variables=self.variables,
-            inputs=self.inputs,
-            output_type=self.output_type,
-            track=False,
-            options=ATTEMPT_ONCE,
-            context=self.context,
-        )
-        await self.runtime.run_runner(code_runner)
-        self.outputs = code_runner.outputs
-
-
-class ToolActionRunner(ActionRunnerBase[ToolAction]):
-    @override
-    async def run(self) -> None:
-        tool = self.action.tool
-        if not tool:
-            raise RunImpossibleError("no tool")
-        tool_runner = self._get_resumable_subrunner(
-            node=tool,
-            variables=self.action.variables,
-            inputs=self.action.inputs,
-            output_type=self.output_type,
-        )
-        await self.runtime.run_runner(tool_runner)
 
 
 class WaitActionRunner(ActionRunnerBase[WaitAction]):
@@ -333,19 +355,8 @@ class WaitActionRunner(ActionRunnerBase[WaitAction]):
 
 
 #
-# Dynamic
-#
-
-
-class DynamicActionRunner(ActionRunnerBase):
-    @override
-    async def run(self) -> None:
-        raise NotImplementedError(f"nocheckin: DynamicActionRunner {self!r}")
-
-
-#
 # Application
-# NOTE :Incomplete: for now Application Actions only work on the web (with Playwright)
+# NOTE :Incomplete: for now Application Actions only work with Browser (via Playwright)
 #
 
 
@@ -477,7 +488,7 @@ class GoForwardActionRunner(ApplicationActionRunnerBase[GoForwardAction]):
 
 
 #
-# Browser
+# Web
 #
 
 
@@ -506,10 +517,23 @@ class GoToTabActionRunner(ApplicationActionRunnerBase[GoToTabAction]):
 
 
 ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunnerBase[Any]]] = {
-    # boundary
+    # flow
     ActionType.START: StartActionRunner,
     ActionType.COMPLETE: CompleteActionRunner,
     ActionType.FAIL: FailActionRunner,
+    # tool
+    ActionType.CODE: CodeActionRunner,
+    ActionType.TOOL: ToolActionRunner,
+    # dynamic
+    ActionType.DO: DynamicActionRunnerBase,
+    ActionType.ROUTE: DynamicActionRunnerBase,
+    ActionType.GENERATE: DynamicActionRunnerBase,
+    ActionType.TRANSFORM: DynamicActionRunnerBase,
+    ActionType.EXTRACT: DynamicActionRunnerBase,
+    ActionType.CLASSIFY: DynamicActionRunnerBase,
+    ActionType.SUMMARIZE: DynamicActionRunnerBase,
+    ActionType.COMPARE: DynamicActionRunnerBase,
+    ActionType.TRANSLATE: DynamicActionRunnerBase,
     # read
     ActionType.GET: GetActionRunner,
     ActionType.SEARCH: SearchActionRunner,
@@ -518,17 +542,9 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunnerBase[Any]]] = {
     ActionType.DUPLICATE: DuplicateActionRunner,
     ActionType.UPDATE: UpdateActionRunner,
     ActionType.DELETE: DeleteActionRunner,
-    # session
+    # async
     ActionType.YIELD: YieldActionRunner,
-    # static
-    ActionType.CODE: CodeActionRunner,
-    ActionType.TOOL: ToolActionRunner,
     ActionType.WAIT: WaitActionRunner,
-    # dynamic
-    ActionType.GENERATE: DynamicActionRunner,
-    ActionType.TRANSFORM: DynamicActionRunner,
-    ActionType.ROUTE: DynamicActionRunner,
-    ActionType.CHANGE: DynamicActionRunner,
     # application
     ActionType.OBSERVE: ObserveActionRunner,
     ActionType.CLICK: ClickActionRunner,

@@ -355,6 +355,7 @@ requests==2.32.3
     #   kubernetes
     #   posthog
     #   requests-oauthlib
+    #   stripe
 requests-oauthlib==2.0.0
     # via kubernetes
 rich==13.9.4
@@ -388,6 +389,8 @@ sqlglot==25.30.0
     # via -r bench/requirements/base.in
 starlette==0.34.0
     # via -r bench/requirements/system.in
+stripe==11.4.1
+    # via -r bench/requirements/system.in
 structlog==24.2.0
     # via -r bench/requirements/base.in
 sympy==1.13.3
@@ -418,6 +421,7 @@ typing-extensions==4.12.2
     #   psycopg-pool
     #   pydantic
     #   pydantic-core
+    #   stripe
     #   typer
 uritemplate==4.1.1
     # via google-api-python-client

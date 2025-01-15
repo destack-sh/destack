@@ -510,8 +510,8 @@ def create_run_from_node(
 
     # options
     if options is None:
-        if node.run_options is not None:
-            options = node.run_options.clone()
+        if isinstance(run_options := getattr(node, "run_options", None), RunOptions):
+            options = run_options.clone()
             options.set_default(BASE_RUN_OPTIONS_BY_KIND[kind], copy=False)
         else:
             options = BASE_RUN_OPTIONS_BY_KIND[kind].clone()
@@ -586,8 +586,8 @@ def make_runner(
     if options is None:
         if run is not None:
             options = run.options
-        elif node.run_options is not None:
-            options = node.run_options.clone()
+        elif isinstance(run_options := getattr(node, "run_options", None), RunOptions):
+            options = run_options.clone()
     if options is None:
         options = BASE_RUN_OPTIONS_BY_KIND[RUN_TYPE].clone()
     else:

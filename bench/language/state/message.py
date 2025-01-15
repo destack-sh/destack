@@ -38,8 +38,9 @@ logger = structlog.get_logger(__name__)
 class MessageType(IdEnum):
     LOCAL = 1  # within Bench
     FEDERATED = 2  # from/to another Bench
-    EMAIL = 10
-    SMS = 11
+    WEBHOOK = 10
+    EMAIL = 20
+    SMS = 21
     # WHATSAPP, TELEGRAM, SLACK, ...?
 
 

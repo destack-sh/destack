@@ -331,11 +331,9 @@ export const EDIT_TYPE_PAST_VERB: Partial<Record<EditType, string>> = {
   [EditType.ERASE]: "erased",
 };
 
-// NOTE: we soft-limit the subset of available enum options in bench-web
-//  (in code and backend the entire ranges are available)
 export const EXPOSED_NODE_TYPES = NODE_TYPES.filter((t) => t != NodeType.SKIP);
 export const EXPOSED_BLOCK_TYPES = [
-  BlockType.TEXT,
+  // BlockType.TEXT,
   BlockType.DATABASE,
   BlockType.FLOW,
   BlockType.PAGE,

@@ -63,19 +63,14 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-# the node types that can have 'policies' applied to them
-#  (not delegated node types, which delegate via subject)
-LEGISLATIVE_NODE_TYPES: bittuple[NodeType] = bittuple(
-    NodeType.BENCH, NodeType.SPACE, NodeType.BLOCK
-)
 
-
-@_on_completing_setup
-def _check_legislative_types():
-    actual_legislative_node_types: bittuple[NodeType] = bittuple(
-        *tuple(nt for nt in NODE_TYPES if "policies" in NODE_CLASS_BY_TYPE[nt].__properties__)
-    )
-    assert actual_legislative_node_types.bits == LEGISLATIVE_NODE_TYPES.bits
+#
+# Access checking
+# TODO :Performance :Architecture: overhaul Access/Policies/Roles/etc.
+#  This was created in a much earlier time and we need to overhaul it badly.
+#  It should be clearer where you can allow/deny certain access, and how that may be nested.
+#  For instance: can I allow access to a child node whose parent is denied? How do the paths work?
+#
 
 
 # 'owner' refers to both the root node and any user with root-level access to that root node.
@@ -391,13 +386,6 @@ class Subject(Struct):
     memberships: list[Union["Bench", "Organization"]] = p_system(
         53, require=False, array=True, references=NodeType.MEMBERSHIP
     )
-    roles: list["Block"] = p_system(
-        54,
-        require=False,
-        array=True,
-        references=NodeType.BLOCK,
-        constraint=constraint(node_subtypes=[BlockType.ROLE]),
-    )
 
     def __content_str__(self):
         content_parts = []
@@ -441,17 +429,6 @@ class Subject(Struct):
         for membership in self.memberships or ():
             if str(membership.parent_id) in graph:
                 subjects.append(Subject(memberships=[membership], _supergraph=self._supergraph))
-        for role in self.roles or ():
-            role_parent = role.parent
-            assert role_parent, f"role {role!r} has no parent"
-            if role_parent.metatype == NodeType.BLOCK:
-                if str(role.parent_id) in graph:
-                    subjects.append(Subject(roles=[role], _supergraph=self._supergraph))
-            elif role_parent.metatype == NodeType.MEMBERSHIP:
-                if str(role_parent.parent_id) in graph:
-                    subjects.append(Subject(roles=[role], _supergraph=self._supergraph))
-            else:
-                raise BenchError(f"unexpected parent to {role!r}")
 
         assert len(subjects) > 0, f"no applicable principals in {self!r}"
         return tuple(subjects)
@@ -501,12 +478,6 @@ def _register_system_policies():
             .deny(AccessKind.EDIT)
             .object(node_types=(NodeType.HANDLE,)),
             PolicyRule(
-                name="CannotUpsertLegislativeNodes",
-                text=Text.plain("Nodes with their own Policies cannot be upserted."),
-            )
-            .deny(EditType.UPSERT)
-            .object(node_types=LEGISLATIVE_NODE_TYPES.tuple),
-            PolicyRule(
                 name="CannotMoveRuntimeNodes",
                 text=Text.plain("Cannot move Runtime Nodes"),
             )
@@ -553,14 +524,6 @@ def _register_system_policies():
         ),
     )
     _SYSTEM_POLICIES.extend(system_policies)
-
-
-#
-# Access checking
-# NOTE :Performance :Architecture: overhaul access checking (and Policies)
-#  It should be clearer where you can allow/deny certain access, and how that may be nested.
-#  For instance: can I allow access to a child node whose parent is denied? How do the paths work?
-#
 
 
 @struct_(StructType.ACCESS_ZONE)
