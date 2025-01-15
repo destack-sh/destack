@@ -51,7 +51,7 @@ export const FLOW_SCALE_MAX = 1.5;
 export const FLOW_SCALE_SPEED = 0.01;
 
 export const PIPE_WIDTH = 2;
-export const PIPE_CONNECTION_DISTANCE = FLOW_GRID_STEP * 4; // minimum distance to consider a connection when dragging a port
+export const PIPE_CONNECTION_DISTANCE = FLOW_GRID_STEP * 3; // minimum distance to consider a connection when dragging a port
 export const ACTION_SIZE = { width: FLOW_GRID_STEP * 17, height: FLOW_GRID_STEP * 3 };
 export const ACTION_SIZE_HALF = { width: ACTION_SIZE.width / 2, height: ACTION_SIZE.height / 2 };
 
@@ -1000,7 +1000,7 @@ export class FlowContext {
               ) {
                 this.createPipe({
                   parent: this.flow.value!,
-                  pipe: { type: PipeType.FORWARD },
+                  pipe: {},
                   source: sourcePort,
                   target: { parent: action, side: PortSide.INCOMING },
                   tx,
@@ -1017,7 +1017,7 @@ export class FlowContext {
           log.trace("flow.drag.connect", { from: sourcePort, to: targetPort });
           const pipe = this.createPipe({
             parent: this.flow.value,
-            pipe: { type: PipeType.FORWARD },
+            pipe: {},
             source: sourcePort,
             target: targetPort,
           });
@@ -1182,6 +1182,19 @@ export class FlowContext {
     return null;
   }
 
+  getDefaultPipeType(source: Port, target: Port): PipeType {
+    // select if the source already has a select pipe
+    if (
+      this.pipes.value.some(
+        (p) => p.sourcePtr?.ck == source.parent.ck && (p.type == PipeType.SELECT || p.type == PipeType.SELECT_AND_BACK),
+      )
+    ) {
+      return PipeType.SELECT;
+    } else {
+      return PipeType.FORWARD;
+    }
+  }
+
   /** Creates a Action */
   createAction(options: {
     action: { type: ActionType } & Partial<ActionData>;
@@ -1223,7 +1236,7 @@ export class FlowContext {
   /** Creates a Pipe */
   createPipe(options: {
     parent: ActionData | TypedNodeReferenceData<NodeType.ACTION> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>;
-    pipe: { type: PipeType } & Partial<PipeData>;
+    pipe: Partial<PipeData>;
     source: Port;
     target: Port;
     tx?: Transaction;
@@ -1244,12 +1257,16 @@ export class FlowContext {
     const siblings = this.graph.getChildren(parent, NodeType.PIPE);
     const orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
 
+    // decide pipe type
+    const type = options.pipe.type ?? this.getDefaultPipeType(source, target);
+
     // create
     const pipe = (options.tx ?? this.tx).create({
       metatype: NodeType.PIPE,
       name: makeNodeName(this.graph, { ...options.pipe, metatype: ObjectType.PIPE, parentPtr }),
       orderKey,
       ...options.pipe,
+      type,
       parentPtr,
       packagePtr,
       sourcePtr: toNodeRef(source.parent),

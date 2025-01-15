@@ -247,9 +247,9 @@ def make_prompt(
     else:
         task_prompt.append(PromptText(title="Inputs", text="No inputs"))
     if output_type is not None:
-        task_prompt.append(PromptType(title="Output type", weight=10, type=output_type))
+        task_prompt.append(PromptType(title="Output Type", weight=10, type=output_type))
     else:
-        task_prompt.append(PromptText(title="Output type", text="No output type"))
+        task_prompt.append(PromptText(title="Output Type", text="No output type"))
     if outputs is not None:
         task_prompt.append(PromptObject(title="Outputs", weight=10, object=outputs))
 
