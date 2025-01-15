@@ -142,9 +142,10 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   [ActionType.START]: ColorType.YELLOW,
   [ActionType.COMPLETE]: ColorType.YELLOW,
   [ActionType.FAIL]: ColorType.YELLOW,
+  // tool
+  [ActionType.CODE]: ColorType.ORANGE,
+  [ActionType.TOOL]: ColorType.ORANGE,
   // generic
-  [ActionType.CODE]: ColorType.TEAL,
-  [ActionType.TOOL]: ColorType.TEAL,
   [ActionType.DO]: ColorType.TEAL,
   [ActionType.GENERATE]: ColorType.TEAL,
   [ActionType.TRANSFORM]: ColorType.TEAL,
@@ -178,6 +179,7 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   [ActionType.TYPE]: ColorType.INDIGO,
   [ActionType.SCROLL]: ColorType.INDIGO,
   [ActionType.SELECT]: ColorType.INDIGO,
+  [ActionType.DRAG]: ColorType.INDIGO,
   [ActionType.GO_BACKWARD]: ColorType.INDIGO,
   [ActionType.GO_FORWARD]: ColorType.INDIGO,
   // web
@@ -186,8 +188,9 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   [ActionType.OPEN_TAB]: ColorType.INDIGO,
   [ActionType.CLOSE_TAB]: ColorType.INDIGO,
   // containers
+  // ...
+  // misc
   [ActionType.TEXT]: ColorType.GRAY,
-  [ActionType.LOOP]: ColorType.YELLOW,
 };
 
 export const COLOR_BY_LOG_LEVEL: Record<LogLevel, ColorType> = {

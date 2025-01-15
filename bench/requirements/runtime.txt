@@ -141,6 +141,7 @@ google-auth==2.36.0
     #   google-api-python-client
     #   google-auth-httplib2
     #   google-auth-oauthlib
+    #   google-genai
     #   google-generativeai
 google-auth-httplib2==0.2.0
     # via
@@ -148,11 +149,13 @@ google-auth-httplib2==0.2.0
     #   google-api-python-client
 google-auth-oauthlib==1.2.1
     # via -r bench/requirements/runtime.in
+google-genai==0.5.0
+    # via -r bench/requirements/base.in
 google-generativeai==0.8.3
     # via -r bench/requirements/base.in
 google-search-results==2.4.2
     # via -r bench/requirements/runtime.in
-googleapis-common-protos==1.65.0
+googleapis-common-protos==1.66.0
     # via
     #   -r bench/requirements/base.in
     #   google-api-core
@@ -337,6 +340,7 @@ pillow==11.0.0
     # via
     #   -r bench/requirements/base.in
     #   -r bench/requirements/runtime.in
+    #   google-genai
     #   python-pptx
 platformdirs==4.3.6
     # via black
@@ -399,6 +403,7 @@ pydantic==2.9.2
     #   -r bench/requirements/runtime.in
     #   anthropic
     #   browserbase
+    #   google-genai
     #   google-generativeai
     #   openai
     #   pyairtable
@@ -466,6 +471,7 @@ requests==2.32.3
     #   atlassian-python-api
     #   dropbox
     #   google-api-core
+    #   google-genai
     #   google-search-results
     #   googlemaps
     #   pyairtable
@@ -581,6 +587,8 @@ uvloop==0.21.0
     # via -r bench/requirements/base.in
 watchfiles==0.24.0
     # via livekit-agents
+websockets==14.1
+    # via google-genai
 wrapt==1.16.0
     # via deprecated
 xlsxwriter==3.2.0

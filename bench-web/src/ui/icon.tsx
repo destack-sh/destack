@@ -275,9 +275,10 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   [ActionType.START]: "fas fa-circle-play",
   [ActionType.COMPLETE]: "fas fa-flag-checkered",
   [ActionType.FAIL]: "fas fa-circle-exclamation",
-  // generic
+  // tool
   [ActionType.CODE]: "fas fa-code",
   [ActionType.TOOL]: "fas fa-screwdriver-wrench",
+  // generic
   [ActionType.DO]: "fas fa-hammer",
   [ActionType.ROUTE]: "fas fa-split",
   [ActionType.GENERATE]: "fas fa-wand-magic-sparkles",
@@ -306,11 +307,12 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   [ActionType.NOTIFY]: "fas fa-bell",
   // application
   [ActionType.OBSERVE]: "fas fa-eye",
-  [ActionType.CLICK]: "fas fa-computer-mouse",
+  [ActionType.CLICK]: "fas fa-arrow-pointer",
   [ActionType.PRESS]: "fas fa-keyboard",
   [ActionType.TYPE]: "fas fa-keyboard",
-  [ActionType.SCROLL]: "fas fa-arrows-alt-v",
+  [ActionType.SCROLL]: "fas fa-computer-mouse-scrollwheel",
   [ActionType.SELECT]: "fas fa-lasso",
+  [ActionType.DRAG]: "fas fa-hand-pointer",
   [ActionType.GO_BACKWARD]: "fas fa-arrow-turn-left",
   [ActionType.GO_FORWARD]: "fas fa-arrow-turn-right",
   // web
@@ -319,7 +321,7 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   [ActionType.OPEN_TAB]: "fas fa-plus",
   [ActionType.CLOSE_TAB]: "fas fa-minus",
   // containers
-  [ActionType.LOOP]: "fas fa-repeat",
+  // ...
   // misc
   [ActionType.TEXT]: "fas fa-align-left",
 });

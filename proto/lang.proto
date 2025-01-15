@@ -1356,42 +1356,42 @@ enum ActionType {
   ACTION_TYPE_FAIL = 11;
   ACTION_TYPE_TOOL = 100;
   ACTION_TYPE_CODE = 101;
-  ACTION_TYPE_DO = 150;
-  ACTION_TYPE_ROUTE = 151;
-  ACTION_TYPE_GENERATE = 152;
-  ACTION_TYPE_TRANSFORM = 153;
-  ACTION_TYPE_EXTRACT = 154;
-  ACTION_TYPE_CLASSIFY = 155;
-  ACTION_TYPE_SUMMARIZE = 156;
-  ACTION_TYPE_COMPARE = 157;
-  ACTION_TYPE_TRANSLATE = 158;
-  ACTION_TYPE_CHANGE = 159;
-  ACTION_TYPE_GET = 200;
-  ACTION_TYPE_SEARCH = 201;
-  ACTION_TYPE_COPY = 210;
-  ACTION_TYPE_CREATE = 300;
-  ACTION_TYPE_DUPLICATE = 301;
-  ACTION_TYPE_UPDATE = 302;
-  ACTION_TYPE_DELETE = 303;
-  ACTION_TYPE_PASTE = 304;
-  ACTION_TYPE_SEND = 400;
-  ACTION_TYPE_RECEIVE = 401;
-  ACTION_TYPE_WAIT = 402;
-  ACTION_TYPE_YIELD = 403;
-  ACTION_TYPE_NOTIFY = 410;
+  ACTION_TYPE_DO = 200;
+  ACTION_TYPE_ROUTE = 201;
+  ACTION_TYPE_GENERATE = 202;
+  ACTION_TYPE_TRANSFORM = 203;
+  ACTION_TYPE_EXTRACT = 204;
+  ACTION_TYPE_CLASSIFY = 205;
+  ACTION_TYPE_SUMMARIZE = 206;
+  ACTION_TYPE_COMPARE = 207;
+  ACTION_TYPE_TRANSLATE = 208;
+  ACTION_TYPE_CHANGE = 209;
+  ACTION_TYPE_GET = 300;
+  ACTION_TYPE_SEARCH = 301;
+  ACTION_TYPE_COPY = 302;
+  ACTION_TYPE_CREATE = 400;
+  ACTION_TYPE_DUPLICATE = 401;
+  ACTION_TYPE_UPDATE = 402;
+  ACTION_TYPE_DELETE = 403;
+  ACTION_TYPE_PASTE = 404;
+  ACTION_TYPE_SEND = 500;
+  ACTION_TYPE_RECEIVE = 501;
+  ACTION_TYPE_WAIT = 502;
+  ACTION_TYPE_YIELD = 503;
+  ACTION_TYPE_NOTIFY = 510;
   ACTION_TYPE_OBSERVE = 1000;
   ACTION_TYPE_CLICK = 1050;
   ACTION_TYPE_PRESS = 1051;
   ACTION_TYPE_TYPE = 1052;
   ACTION_TYPE_SCROLL = 1053;
   ACTION_TYPE_SELECT = 1054;
+  ACTION_TYPE_DRAG = 1055;
   ACTION_TYPE_GO_BACKWARD = 1060;
   ACTION_TYPE_GO_FORWARD = 1061;
   ACTION_TYPE_GO_TO_URL = 1100;
   ACTION_TYPE_GO_TO_TAB = 1101;
   ACTION_TYPE_OPEN_TAB = 1102;
   ACTION_TYPE_CLOSE_TAB = 1103;
-  ACTION_TYPE_LOOP = 8001;
   ACTION_TYPE_TEXT = 9000;
 }
 
@@ -2987,9 +2987,9 @@ message ActionData {
   optional NodeReferenceData machine_ptr = 51;
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;
-  repeated CallData calls = 55;
-  optional google.protobuf.Value variables_packed = 56;
-  optional google.protobuf.Value inputs_packed = 57;
+  repeated CallData calls = 59;
+  optional google.protobuf.Value variables_packed = 60;
+  optional google.protobuf.Value inputs_packed = 61;
   optional Vector2Data position = 80;
   NodeMode mode = 90;
 }
@@ -3065,8 +3065,18 @@ message DeleteActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
+message SendActionData {
+  optional NodeReferenceData message_type_ptr = 120;
+  optional google.protobuf.Value node_partial_packed = 121;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message ReceiveActionData {
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
 message WaitActionData {
-  optional google.protobuf.Duration delay = 100;
+  optional google.protobuf.Duration delay = 120;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -3167,11 +3177,6 @@ message GoToTabActionData {
   optional Vector2Data element_position = 112;
   optional string element_text = 113;
   optional int32 tab_index = 120;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Pipes.
-message LoopActionData {
-  optional NodeReferenceData for_field_ptr = 100;
 }
 
 message BlockData {
