@@ -242,8 +242,9 @@ class RunErrorType(IdEnum):
     ABORTED = 2
     RUNTIME_UNAVAILABLE = 3
     RUN_IMPOSSIBLE = 4
-    INVALID_VALUE = 5
-    INVALID_COMPUTED = 6
+    NOT_SUPPORTED = 5
+    INVALID_VALUE = 10
+    INVALID_COMPUTED = 11
     CODE_INVALID = 20
     TEXT_INVALID = 21
     MODEL_INCAPABLE = 100
@@ -268,7 +269,7 @@ class RunError(Struct, BenchError):
 
     kind: RunErrorKind = p_internal(30)
     type: RunErrorType = p_internal(31, default=None)
-    title: Optional[str] = p_internal(32, default=None, constraint=TITLE_CONSTRAINT)
+    title: Optional[str] = p_internal(32, default=None)
     text: Optional["Text"] = p_internal(33, default=None, struct=StructType.TEXT)
     nodes: list["Node"] = p_internal(34, array=True, require=False, references="any")
     trace: Optional[RunTrace] = p_internal(
