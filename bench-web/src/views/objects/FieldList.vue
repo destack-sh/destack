@@ -1,25 +1,20 @@
 <script lang="ts" setup>
-import { blockToType } from "@/language/block";
-import { toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
+import { toCamelName } from "@/language/const";
 import { createField, useFieldList } from "@/language/field";
-import { useNodeListActions } from "@/ui/list";
-import { moveNode } from "@/language/node";
-import { newChangeId } from "@/language/transaction";
-import { BlockType, FieldType, NodeType, Orientation, ViewData, type FieldData } from "@/proto/wire";
-import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { FieldType, NodeType, Orientation, ViewData } from "@/proto/wire";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { FIELD_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
-import { onAddFieldAction } from "@/ui/object";
 import {
   isDragging,
   startDraggingIfAllowed,
   startSelectingIfAllowed,
   useMultiDropZone,
-  useSelectionZone,
-  type DragContent,
-  type MultiAnchor,
+  useSelectionZone
 } from "@/ui/drag";
+import { useNodeListActions } from "@/ui/list";
+import { onAddFieldAction } from "@/ui/object";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";

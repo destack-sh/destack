@@ -212,8 +212,8 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                         (is_source and pipe.type == PipeType.FORWARD)
                         or (
                             is_source
-                            and pipe.type in (PipeType.SELECT, PipeType.SELECT_AND_BACK)
                             and is_selected
+                            and pipe.type in (PipeType.SELECT, PipeType.SELECT_AND_BACK)
                         )
                         or (is_target and pipe.type == PipeType.SELECT_AND_BACK)
                     ):

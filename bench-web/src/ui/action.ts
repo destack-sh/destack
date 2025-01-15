@@ -556,7 +556,7 @@ export const INTERRUPTION_CONTEXT_ACTIONS: ActionBuiltinId[] = [
 export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["flow.edit.splitPipe"];
 export const RESOURCE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "resource.status.activate",
-  "resource.status.suspend",
+  // "resource.status.suspend", // (not supported yet)
   "resource.status.decommission",
 ];
 

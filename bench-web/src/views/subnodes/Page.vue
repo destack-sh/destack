@@ -5,7 +5,7 @@ import { makeType } from "@/language/field";
 import { uploadFile } from "@/language/file";
 import { isDescendantOf } from "@/language/graph";
 import { useNodeListActions } from "@/ui/list";
-import { moveNode, NodeIn, packSubnode } from "@/language/node";
+import { cloneNode, moveNode, NodeIn, packSubnode } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
 import { packValue } from "@/language/value";
 import {
@@ -130,7 +130,7 @@ const { activeDropZone } = useMultiDropZone({
       return false;
     }
   },
-  onDrop: (dragged, anchor, targetId) => {
+  onDrop: (dragged, anchor, targetId, event) => {
     if (targetId == null) return; // need target
     if (dragged.kind == "file") {
       // create variable with file
@@ -156,15 +156,26 @@ const { activeDropZone } = useMultiDropZone({
         focus(toNodeRef(block));
       });
     } else if (dragged.kind == "node") {
-      // move node
+      const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
+      let node = graph.getOrError(dragged.node);
       const target = graph.getOrError({ id: targetId });
-      moveNode(connection.tx, graph, dragged.node, { anchor, target });
+      if (event.altKey) {
+        // clone node before moving
+        node = cloneNode(tx, graph, node);
+      }
+      // move node
+      moveNode(tx, graph, node, { anchor, target });
     } else if (dragged.kind == "selection") {
       // move nodes
       const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
       const target = graph.getOrError({ id: targetId });
       for (let i = 0; i < dragged.nodes.length; i++) {
-        moveNode(tx, graph, dragged.nodes[i], {
+        let node = graph.getOrError(dragged.nodes[i]);
+        if (event.altKey) {
+          // clone node before moving
+          node = cloneNode(tx, graph, node);
+        }
+        moveNode(tx, graph, node, {
           anchor: i == 0 ? anchor : "after",
           target: i == 0 ? target : graph.getOrError(dragged.nodes[i - 1]),
         });
@@ -311,7 +322,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   // TODO :Incomplete :UX: into-Node (partial?) Picker (for Action, Block, Resource, ...)
                   props: {
                     valueType: makeType({ benchType: BenchType.BLOCK_TYPE, isRequired: true }),
-                    subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
+                    subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, {
+                      variant: PickerVariant.DROPDOWN_LARGE,
+                    }),
                   },
                   onApply: (blockType: BlockType) => createAndFocusBlock({ type: blockType }, 'after', block),
                 })

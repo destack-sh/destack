@@ -85,7 +85,7 @@ class ActionType(IdEnum):
     TRANSFORM = 203, "Change the form of something"
     EXTRACT = 204, "Extract structured data"
     CLASSIFY = 205, "Classify or categorize"
-    SUMMARIZE = 206, "Create a summary"
+    SUMMARIZE = 206, "Condense media content"
     COMPARE = 207, "Compare multiple things"
     TRANSLATE = 208, "Translate between languages"
     CHANGE = 209, "Edit this Bench"
