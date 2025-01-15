@@ -190,7 +190,7 @@ defineExpose<ViewExposed>({ self, id });
           <!-- Computed View :ComputedView -->
           <ComputedValue
             v-else-if="(row.type == 'property' || row.type == 'field') && computer.has(row.computedPathKey)"
-            :id="i + '.value'"
+            :id="i + '.computed.value'"
             class="w-full"
             is-input
             :model-value="computer.get(row.computedPathKey)"
@@ -203,7 +203,7 @@ defineExpose<ViewExposed>({ self, id });
             v-else-if="
               (row.type == 'view' || row.type == 'property' || row.type == 'field') && hasViewComponent(row.viewType)
             "
-            :id="i + '.value'"
+            :id="i + '.' + row.viewType + '.value'"
             :class="['ml-auto flex-shrink-0', row.isFullWidth ? '' : 'text-right']"
             :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
             v-bind="row.viewProps"
@@ -217,7 +217,7 @@ defineExpose<ViewExposed>({ self, id });
           <!-- Object -->
           <Object
             v-else-if="row.type == 'object'"
-            :id="i + '.value'"
+            :id="i + '.object.value'"
             class=""
             :style="{ width: '100%', minHeight: ROW_HEIGHT_MIN + 'px' }"
             v-bind="row.viewProps as any"
