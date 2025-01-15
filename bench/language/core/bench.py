@@ -40,7 +40,6 @@ if TYPE_CHECKING:
         Icon,
         NodeReference,
         Organization,
-        Policy,
         Region,
         Scaler,
         Space,
@@ -84,14 +83,11 @@ class Bench(BenchNode[BenchData]):
         sensitive=True,
         default_factory=lambda: generate_encryption_key(32),
     )
-    policies: list["Policy"] = p_regular(39, struct=StructType.POLICY, array=True)
 
-    # (static) resources
+    # resources
     main_store: Optional["Store"] = p_system(
         40, require=False, array=False, references=NodeType.STORE, fk=True, same_bench=True
     )
-    stores: LocalNodeList["Store"] = p_node_children(NodeType.STORE)
-    scalers: LocalNodeList["Scaler"] = p_node_children(NodeType.SCALER)
 
     # content
     main_package: Optional["Package"] = p_regular(
@@ -105,7 +101,10 @@ class Bench(BenchNode[BenchData]):
     if TYPE_CHECKING:
         main_package_id: Optional[UUID] = None
         main_package_ptr: Optional[NodeReference] = None
+
     packages: LocalNodeList["Package"] = p_node_children(NodeType.PACKAGE)
+    stores: LocalNodeList["Store"] = p_node_children(NodeType.STORE)
+    scalers: LocalNodeList["Scaler"] = p_node_children(NodeType.SCALER)
 
     @property
     def is_attached(self) -> bool:

@@ -687,29 +687,30 @@ REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
 
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(IdEnum):
-    PAGE = 1, "A Page with Blocks inside"
-    TEXT = 2, "A paragraph of rich Text"
+    PAGE = 1, "Page of Blocks"
+    TEXT = 2, "Line of rich Text"
     # ALIAS   # refer to / 'redefine' an existing block or builtin (like a 'newtype')
 
     # types
     # CLASS?
-    CHOICE = 11, "A choice of Field options"
-    MESSAGE = 12, "A Message type to communicate with"
+    CHOICE = 11, "Choice of Field options"
+    MESSAGE = 12, "Message type to communicate"
     # SECRET, RESOURCE, PROTOCOL, TAG, ISSUE, METRIC, BLOCK, ...?
 
     # runnable
-    FLOW = 22, "A Flow of connected Actions"
+    # LIBRARY?
+    FLOW = 22, "Flow of connected Actions"
 
     # data
-    VARIABLE = 30, "A single-value variable"
-    DATABASE = 31, "A Database full of Records"
+    VARIABLE = 30, "Single-value Variable"
+    DATABASE = 31, "Database of Records"
 
     # view
-    VIEW = 40, "A View of a user interface"
+    VIEW = 40, "User interface"
 
     # auth
-    ROLE = 50, "A Role with Policies"
-    IDENTITY = 51, "An Identity with Roles & Policies"
+    ROLE = 50, "Role to assign"
+    IDENTITY = 51, "Unique Identity"
 
     @property
     def is_type(self) -> bool:

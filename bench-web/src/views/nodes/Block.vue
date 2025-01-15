@@ -156,6 +156,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       </button>
     </div>
     <!-- Body -->
+    <!-- TODO :Incomplete: TextBlock.text is intended to be a single line only
+       (but would need to make multi-block navigation/editing better before we enforce this) -->
     <Text
       v-if="block.type == BlockType.TEXT"
       id="text"

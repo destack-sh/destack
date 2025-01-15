@@ -352,10 +352,6 @@ export interface SubjectData {
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData memberships_ptr = 53;
      */
     membershipsPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 54;
-     */
-    rolesPtr: NodeReferenceData[];
 }
 /**
  * @generated from protobuf message symbolx.bench.AccessZoneData
@@ -2326,10 +2322,6 @@ export interface BenchData {
      * @generated from protobuf field: optional string encryption_key = 38;
      */
     encryptionKey?: string;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.PolicyData policies = 39;
-     */
-    policies: PolicyData[];
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_store_ptr = 40;
      */
@@ -5037,18 +5029,6 @@ export interface BlockData {
      */
     variablesPacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 41;
-     */
-    runOptions?: RunOptionsData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.PolicyData policies = 42;
-     */
-    policies: PolicyData[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.PolicyData delegated_policies = 43;
-     */
-    delegatedPolicies: PolicyData[];
-    /**
      * @generated from protobuf field: symbolx.bench.NodeMode mode = 90;
      */
     mode: NodeMode;
@@ -5081,6 +5061,10 @@ export interface TextBlockData {
  * @generated from protobuf message symbolx.bench.FlowBlockData
  */
 export interface FlowBlockData {
+    /**
+     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 100;
+     */
+    runOptions?: RunOptionsData;
 }
 /**
  * A building block with logic, types, UI, state, auth, AI, ...
@@ -5635,10 +5619,6 @@ export interface SpaceData {
      * @generated from protobuf field: string order_key = 33;
      */
     orderKey: string;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.PolicyData policies = 34;
-     */
-    policies: PolicyData[];
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owned_by_ptr = 36;
      */
@@ -12042,13 +12022,17 @@ export enum MessageType {
      */
     FEDERATED = 2,
     /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_EMAIL = 10;
+     * @generated from protobuf enum value: MESSAGE_TYPE_WEBHOOK = 10;
      */
-    EMAIL = 10,
+    WEBHOOK = 10,
     /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_SMS = 11;
+     * @generated from protobuf enum value: MESSAGE_TYPE_EMAIL = 20;
      */
-    SMS = 11
+    EMAIL = 20,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_SMS = 21;
+     */
+    SMS = 21
 }
 /**
  * @generated from protobuf enum symbolx.bench.MessageStatus
@@ -12987,8 +12971,7 @@ class SubjectData$Type extends MessageType$<SubjectData> {
             { no: 43, name: "machine_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 52, name: "owned_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 53, name: "memberships_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 54, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 53, name: "memberships_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<SubjectData>): SubjectData {
@@ -12997,7 +12980,6 @@ class SubjectData$Type extends MessageType$<SubjectData> {
         message.id = 0;
         message.ownedPtr = [];
         message.membershipsPtr = [];
-        message.rolesPtr = [];
         if (value !== undefined)
             reflectionMergePartial<SubjectData>(this, message, value);
         return message;
@@ -13039,9 +13021,6 @@ class SubjectData$Type extends MessageType$<SubjectData> {
                     break;
                 case /* repeated symbolx.bench.NodeReferenceData memberships_ptr */ 53:
                     message.membershipsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 54:
-                    message.rolesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13088,9 +13067,6 @@ class SubjectData$Type extends MessageType$<SubjectData> {
         /* repeated symbolx.bench.NodeReferenceData memberships_ptr = 53; */
         for (let i = 0; i < message.membershipsPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.membershipsPtr[i], writer.tag(53, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData roles_ptr = 54; */
-        for (let i = 0; i < message.rolesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(54, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -18440,7 +18416,6 @@ class BenchData$Type extends MessageType$<BenchData> {
             { no: 36, name: "owner_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 37, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 38, name: "encryption_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 39, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 40, name: "main_store_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "main_package_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
@@ -18452,7 +18427,6 @@ class BenchData$Type extends MessageType$<BenchData> {
         message.slug = "";
         message.name = "";
         message.region = 0;
-        message.policies = [];
         if (value !== undefined)
             reflectionMergePartial<BenchData>(this, message, value);
         return message;
@@ -18515,9 +18489,6 @@ class BenchData$Type extends MessageType$<BenchData> {
                     break;
                 case /* optional string encryption_key */ 38:
                     message.encryptionKey = reader.string();
-                    break;
-                case /* repeated symbolx.bench.PolicyData policies */ 39:
-                    message.policies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.NodeReferenceData main_store_ptr */ 40:
                     message.mainStorePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainStorePtr);
@@ -18591,9 +18562,6 @@ class BenchData$Type extends MessageType$<BenchData> {
         /* optional string encryption_key = 38; */
         if (message.encryptionKey !== undefined)
             writer.tag(38, WireType.LengthDelimited).string(message.encryptionKey);
-        /* repeated symbolx.bench.PolicyData policies = 39; */
-        for (let i = 0; i < message.policies.length; i++)
-            PolicyData.internalBinaryWrite(message.policies[i], writer.tag(39, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData main_store_ptr = 40; */
         if (message.mainStorePtr)
             NodeReferenceData.internalBinaryWrite(message.mainStorePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -24606,9 +24574,6 @@ class BlockData$Type extends MessageType$<BlockData> {
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "text", kind: "message", T: () => TextData },
             { no: 40, name: "variables_packed", kind: "message", T: () => Value },
-            { no: 41, name: "run_options", kind: "message", T: () => RunOptionsData },
-            { no: 42, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
-            { no: 43, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 90, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] }
         ]);
     }
@@ -24621,8 +24586,6 @@ class BlockData$Type extends MessageType$<BlockData> {
         message.type = 0;
         message.name = "";
         message.orderKey = "";
-        message.policies = [];
-        message.delegatedPolicies = [];
         message.mode = 0;
         if (value !== undefined)
             reflectionMergePartial<BlockData>(this, message, value);
@@ -24695,15 +24658,6 @@ class BlockData$Type extends MessageType$<BlockData> {
                     break;
                 case /* optional google.protobuf.Value variables_packed */ 40:
                     message.variablesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* optional symbolx.bench.RunOptionsData run_options */ 41:
-                    message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
-                    break;
-                case /* repeated symbolx.bench.PolicyData policies */ 42:
-                    message.policies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.PolicyData delegated_policies */ 43:
-                    message.delegatedPolicies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* symbolx.bench.NodeMode mode */ 90:
                     message.mode = reader.int32();
@@ -24783,15 +24737,6 @@ class BlockData$Type extends MessageType$<BlockData> {
         /* optional google.protobuf.Value variables_packed = 40; */
         if (message.variablesPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunOptionsData run_options = 41; */
-        if (message.runOptions)
-            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PolicyData policies = 42; */
-        for (let i = 0; i < message.policies.length; i++)
-            PolicyData.internalBinaryWrite(message.policies[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PolicyData delegated_policies = 43; */
-        for (let i = 0; i < message.delegatedPolicies.length; i++)
-            PolicyData.internalBinaryWrite(message.delegatedPolicies[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeMode mode = 90; */
         if (message.mode !== 0)
             writer.tag(90, WireType.Varint).int32(message.mode);
@@ -24886,7 +24831,9 @@ export const TextBlockData = new TextBlockData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class FlowBlockData$Type extends MessageType$<FlowBlockData> {
     constructor() {
-        super("symbolx.bench.FlowBlockData", []);
+        super("symbolx.bench.FlowBlockData", [
+            { no: 100, name: "run_options", kind: "message", T: () => RunOptionsData }
+        ]);
     }
     create(value?: PartialMessage<FlowBlockData>): FlowBlockData {
         const message = globalThis.Object.create((this.messagePrototype!));
@@ -24895,9 +24842,28 @@ class FlowBlockData$Type extends MessageType$<FlowBlockData> {
         return message;
     }
     internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FlowBlockData): FlowBlockData {
-        return target ?? this.create();
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional symbolx.bench.RunOptionsData run_options */ 100:
+                    message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
     }
     internalBinaryWrite(message: FlowBlockData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional symbolx.bench.RunOptionsData run_options = 100; */
+        if (message.runOptions)
+            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26205,7 +26171,6 @@ class SpaceData$Type extends MessageType$<SpaceData> {
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "text", kind: "message", T: () => TextData },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 36, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 70, name: "focus", kind: "message", T: () => SelectionData },
             { no: 71, name: "selection", kind: "message", T: () => SelectionData },
@@ -26224,7 +26189,6 @@ class SpaceData$Type extends MessageType$<SpaceData> {
         message.type = 0;
         message.name = "";
         message.orderKey = "";
-        message.policies = [];
         message.mode = 0;
         if (value !== undefined)
             reflectionMergePartial<SpaceData>(this, message, value);
@@ -26291,9 +26255,6 @@ class SpaceData$Type extends MessageType$<SpaceData> {
                     break;
                 case /* string order_key */ 33:
                     message.orderKey = reader.string();
-                    break;
-                case /* repeated symbolx.bench.PolicyData policies */ 34:
-                    message.policies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.NodeReferenceData owned_by_ptr */ 36:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
@@ -26385,9 +26346,6 @@ class SpaceData$Type extends MessageType$<SpaceData> {
         /* string order_key = 33; */
         if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
-        /* repeated symbolx.bench.PolicyData policies = 34; */
-        for (let i = 0; i < message.policies.length; i++)
-            PolicyData.internalBinaryWrite(message.policies[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData owned_by_ptr = 36; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
@@ -27971,7 +27929,6 @@ export enum BenchProperty {
   ownerPtr = 36,
   region = 37,
   encryptionKey = 38,
-  policies = 39,
   mainStorePtr = 40,
   mainPackagePtr = 50,
 }
@@ -28391,7 +28348,6 @@ export enum SpaceProperty {
   name = 31,
   text = 32,
   orderKey = 33,
-  policies = 34,
   ownedByPtr = 36,
   focus = 70,
   selection = 71,
@@ -28423,9 +28379,6 @@ export enum BlockProperty {
   icon = 34,
   text = 35,
   variablesPacked = 40,
-  runOptions = 41,
-  policies = 42,
-  delegatedPolicies = 43,
   mode = 90,
 }
 
@@ -28798,7 +28751,7 @@ export enum TextBlockProperty {
 }
 
 export enum FlowBlockProperty {
-
+  runOptions = 100,
 }
 
 export enum DatabaseBlockProperty {
@@ -29187,7 +29140,6 @@ export enum SubjectProperty {
   identityPtr = 50,
   ownedPtr = 52,
   membershipsPtr = 53,
-  rolesPtr = 54,
 }
 
 export enum AccessZoneProperty {
@@ -29974,7 +29926,6 @@ export const BenchDataInfo: Record<BenchProperty, PropertyInfo> = {
   [BenchProperty.ownerPtr]: { id: 36, name: 'owner_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION], referenceStruct: StructType.NODE_REFERENCE },
   [BenchProperty.region]: { id: 37, name: 'region', component: ObjectType.BENCH, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BenchProperty.encryptionKey]: { id: 38, name: 'encryption_key', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [BenchProperty.policies]: { id: 39, name: 'policies', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BenchProperty.mainStorePtr]: { id: 40, name: 'main_store_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
   [BenchProperty.mainPackagePtr]: { id: 50, name: 'main_package_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
@@ -30378,7 +30329,6 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.name]: { id: 31, name: 'name', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.text]: { id: 32, name: 'text', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [SpaceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.policies]: { id: 34, name: 'policies', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [SpaceProperty.ownedByPtr]: { id: 36, name: 'owned_by_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.focus]: { id: 70, name: 'focus', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [SpaceProperty.selection]: { id: 71, name: 'selection', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
@@ -30409,9 +30359,6 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.icon]: { id: 34, name: 'icon', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [BlockProperty.text]: { id: 35, name: 'text', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BlockProperty.variablesPacked]: { id: 40, name: 'variables_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [BlockProperty.runOptions]: { id: 41, name: 'run_options', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [BlockProperty.policies]: { id: 42, name: 'policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [BlockProperty.delegatedPolicies]: { id: 43, name: 'delegated_policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BlockProperty.mode]: { id: 90, name: 'mode', component: ObjectType.BLOCK, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
@@ -30767,7 +30714,7 @@ export const TextBlockDataInfo: Record<TextBlockProperty, PropertyInfo> = {
 
 }
 export const FlowBlockDataInfo: Record<FlowBlockProperty, PropertyInfo> = {
-
+  [FlowBlockProperty.runOptions]: { id: 100, name: 'run_options', component: ObjectType.BLOCK, componentSubtype: 22, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
 }
 export const DatabaseBlockDataInfo: Record<DatabaseBlockProperty, PropertyInfo> = {
 
@@ -31098,7 +31045,6 @@ export const SubjectDataInfo: Record<SubjectProperty, PropertyInfo> = {
   [SubjectProperty.identityPtr]: { id: 50, name: 'identity_ptr', component: ObjectType.SUBJECT, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [51] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.ownedPtr]: { id: 52, name: 'owned_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.membershipsPtr]: { id: 53, name: 'memberships_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.rolesPtr]: { id: 54, name: 'roles_ptr', component: ObjectType.SUBJECT, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [50] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const AccessZoneDataInfo: Record<AccessZoneProperty, PropertyInfo> = {
   [AccessZoneProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS_ZONE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -31681,16 +31627,16 @@ export type EnumOptionInfo = {
 }
 
 export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
-  [BlockType.PAGE]: { id: 1, name: 'PAGE', text: 'A Page with Blocks inside' },
-  [BlockType.TEXT]: { id: 2, name: 'TEXT', text: 'A paragraph of rich Text' },
-  [BlockType.CHOICE]: { id: 11, name: 'CHOICE', text: 'A choice of Field options' },
-  [BlockType.MESSAGE]: { id: 12, name: 'MESSAGE', text: 'A Message type to communicate with' },
-  [BlockType.FLOW]: { id: 22, name: 'FLOW', text: 'A Flow of connected Actions' },
-  [BlockType.VARIABLE]: { id: 30, name: 'VARIABLE', text: 'A single-value variable' },
-  [BlockType.DATABASE]: { id: 31, name: 'DATABASE', text: 'A Database full of Records' },
-  [BlockType.VIEW]: { id: 40, name: 'VIEW', text: 'A View of a user interface' },
-  [BlockType.ROLE]: { id: 50, name: 'ROLE', text: 'A Role with Policies' },
-  [BlockType.IDENTITY]: { id: 51, name: 'IDENTITY', text: 'An Identity with Roles & Policies' },
+  [BlockType.PAGE]: { id: 1, name: 'PAGE', text: 'Page of Blocks' },
+  [BlockType.TEXT]: { id: 2, name: 'TEXT', text: 'Line of rich Text' },
+  [BlockType.CHOICE]: { id: 11, name: 'CHOICE', text: 'Choice of Field options' },
+  [BlockType.MESSAGE]: { id: 12, name: 'MESSAGE', text: 'Message type to communicate' },
+  [BlockType.FLOW]: { id: 22, name: 'FLOW', text: 'Flow of connected Actions' },
+  [BlockType.VARIABLE]: { id: 30, name: 'VARIABLE', text: 'Single-value Variable' },
+  [BlockType.DATABASE]: { id: 31, name: 'DATABASE', text: 'Database of Records' },
+  [BlockType.VIEW]: { id: 40, name: 'VIEW', text: 'User interface' },
+  [BlockType.ROLE]: { id: 50, name: 'ROLE', text: 'Role to assign' },
+  [BlockType.IDENTITY]: { id: 51, name: 'IDENTITY', text: 'Unique Identity' },
 }
 
 export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> = {
@@ -31698,7 +31644,7 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
   [ActionType.COMPLETE]: { id: 10, name: 'COMPLETE', text: 'Complete the entire Flow' },
   [ActionType.FAIL]: { id: 11, name: 'FAIL', text: 'Fail the entire Flow' },
   [ActionType.TOOL]: { id: 100, name: 'TOOL', text: 'Delegate to an implementation' },
-  [ActionType.CODE]: { id: 101, name: 'CODE', text: 'Run arbitrary Python code' },
+  [ActionType.CODE]: { id: 101, name: 'CODE', text: 'Run some code' },
   [ActionType.DO]: { id: 200, name: 'DO', text: 'Perform an arbitrary action' },
   [ActionType.ROUTE]: { id: 201, name: 'ROUTE', text: 'Route to other Actions' },
   [ActionType.GENERATE]: { id: 202, name: 'GENERATE', text: 'Generate something new' },

@@ -1705,8 +1705,9 @@ enum MessageType {
   MESSAGE_TYPE_UNSPECIFIED = 0;
   MESSAGE_TYPE_LOCAL = 1;
   MESSAGE_TYPE_FEDERATED = 2;
-  MESSAGE_TYPE_EMAIL = 10;
-  MESSAGE_TYPE_SMS = 11;
+  MESSAGE_TYPE_WEBHOOK = 10;
+  MESSAGE_TYPE_EMAIL = 20;
+  MESSAGE_TYPE_SMS = 21;
 }
 
 enum MessageStatus {
@@ -1821,7 +1822,6 @@ message SubjectData {
   optional NodeReferenceData identity_ptr = 50;
   repeated NodeReferenceData owned_ptr = 52;
   repeated NodeReferenceData memberships_ptr = 53;
-  repeated NodeReferenceData roles_ptr = 54;
 }
 
 message AccessZoneData {
@@ -2416,7 +2416,6 @@ message BenchData {
   optional NodeReferenceData owner_ptr = 36;
   Region region = 37;
   optional string encryption_key = 38;
-  repeated PolicyData policies = 39;
   optional NodeReferenceData main_store_ptr = 40;
   optional NodeReferenceData main_package_ptr = 50;
 }
@@ -3201,9 +3200,6 @@ message BlockData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional google.protobuf.Value variables_packed = 40;
-  optional RunOptionsData run_options = 41;
-  repeated PolicyData policies = 42;
-  repeated PolicyData delegated_policies = 43;
   NodeMode mode = 90;
 }
 
@@ -3219,6 +3215,7 @@ message TextBlockData {
 
 // A building block with logic, types, UI, state, auth, AI, ...
 message FlowBlockData {
+  optional RunOptionsData run_options = 100;
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
@@ -3395,7 +3392,6 @@ message SpaceData {
   string name = 31;
   optional TextData text = 32;
   string order_key = 33;
-  repeated PolicyData policies = 34;
   optional NodeReferenceData owned_by_ptr = 36;
   optional SelectionData focus = 70;
   optional SelectionData selection = 71;
