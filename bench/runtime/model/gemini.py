@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, Mapping, Sequence, override
 
 from bench.language import ModelType, RunOptions
+from bench.runtime.core import NotSupportedError
 
 from .chat import ChatModelRunner
 from .prompt import Prompt, PromptElement
@@ -35,4 +36,4 @@ class GeminiChatModelRunner(ChatModelRunner[MessagePart]):
         options: RunOptions,
     ) -> str:
         assert model in GEMINI_MODEL_BY_TYPE, f"unsupported model type {model!r}"
-        raise NotImplementedError("nocheckin: gemini chat model")
+        raise NotSupportedError("nocheckin: gemini chat model")

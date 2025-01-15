@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Mapping, Sequence, override
 import anthropic
 
 from bench.language import ModelType, RunOptions
+from bench.runtime.core import NotSupportedError
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner
@@ -40,4 +41,4 @@ class AnthropicChatModelRunner(ChatModelRunner[anthropic_types.MessageParam]):
         options: RunOptions,
     ) -> str:
         assert model in ANTHROPIC_MODEL_BY_TYPE, f"unsupported model type {model!r}"
-        raise NotImplementedError("nocheckin: anthropic chat model")
+        raise NotSupportedError("nocheckin: anthropic chat model")

@@ -951,15 +951,20 @@ def _trace_edit_operation(
     else:
         typ = cast("Field", key)
     old_value_packed = None if old_value is None else pack_value_data(old_value, typ)
+    old_value_packed = pack_proto_json(old_value_packed)
     new_value_packed = None if new_value is None else pack_value_data(new_value, typ)
+    new_value_packed = pack_proto_json(new_value_packed)
 
-    operation = EditOperationData(
-        metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
-        type=operation_type,  # type: ignore
-        path=path,
-        new_value_packed=pack_proto_json(new_value_packed),
-        old_value_packed=pack_proto_json(old_value_packed),
-    )
+    try:
+        operation = EditOperationData(
+            metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
+            type=operation_type,  # type: ignore
+            path=path,
+            new_value_packed=new_value_packed,
+            old_value_packed=old_value_packed,
+        )
+    except BaseException as e:
+        raise ValueError(f"failed to pack edit operation {e!r} for {node!r} {key!r}") from e
     node._session._update(node, operation)
 
 

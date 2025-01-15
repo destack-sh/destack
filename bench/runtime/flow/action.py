@@ -56,6 +56,7 @@ from bench.language import (
 from bench.runtime.browser.playwright import parse_dom_node
 from bench.runtime.core import (
     ATTEMPT_ONCE,
+    NotSupportedError,
     RetryableError,
     RunImpossibleError,
     Runner,
@@ -183,7 +184,7 @@ class FailActionRunner(ActionRunnerBase[FailAction]):
 class DynamicActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
     @override
     async def run(self) -> None:
-        raise NotImplementedError(f"nocheckin: DynamicActionRunner {self!r}")
+        raise NotSupportedError(f"nocheckin: DynamicActionRunner {self!r}")
 
 
 #

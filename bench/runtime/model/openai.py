@@ -3,8 +3,8 @@ from typing import Mapping, Sequence, override
 import openai
 from openai.types import chat as openai_chat_types
 
-from bench.language import ModelType
-from bench.language.runtime.run import RunOptions
+from bench.language import ModelType, RunOptions
+from bench.runtime.core import NotSupportedError
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner, get_system_prompt, strip_code_completion
@@ -44,7 +44,7 @@ class OpenaiChatModelRunner(ChatModelRunner[openai_chat_types.ChatCompletionMess
                     text = f"# {part.title}\n{text}"
                 content.append({"type": "text", "text": text})
             elif isinstance(part, PromptFile):
-                raise NotImplementedError
+                raise NotSupportedError(f"file {part.file!r} not supported yet")
             else:
                 raise RuntimeError(f"unexpected part {part!r}")
         return [{"role": "user", "content": content}]

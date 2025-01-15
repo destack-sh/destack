@@ -30,6 +30,10 @@ class RunImpossibleError(NonRetryableError):
     run_error_type = RunErrorType.RUN_IMPOSSIBLE
 
 
+class NotSupportedError(RunImpossibleError):
+    run_error_type = RunErrorType.NOT_SUPPORTED
+
+
 class InvalidValueError(RunImpossibleError):
     run_error_type = RunErrorType.INVALID_VALUE
 

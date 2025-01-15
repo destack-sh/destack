@@ -420,8 +420,8 @@ class Runtime:
             log.debug("runtime.attempt.completed", attempt=attempt, span="current")
         except asyncio.CancelledError as e:
             # cancelled
-            error = RunError.from_exception(RunErrorKind.RUNTIME, e)
             attempt._do_set("status", RunStatus.ABORTED, validate=False)
+            error = RunError.from_exception(RunErrorKind.RUNTIME, e)
             attempt._do_set("error", error, validate=False)
             log.debug("runtime.attempt.aborted", attempt=attempt, span="current")
             raise
@@ -435,9 +435,9 @@ class Runtime:
             raise
         except BaseException as e:
             # error
+            attempt._do_set("status", RunStatus.FAILED, validate=False)
             error = RunError.from_exception(RunErrorKind.RUNTIME, e)
             attempt._do_set("error", error, validate=False)
-            attempt._do_set("status", RunStatus.FAILED, validate=False)
             log.debug("runtime.attempt.failed", attempt=attempt, exc_info=e, span="current")
             if not error.is_retryable or (
                 not retry.on_error(e) and not (error.type and error.type in runner.options.retry_on)
