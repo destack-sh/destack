@@ -199,7 +199,7 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
     if (propValue != null) {
       (value as any)[propName] = propValue;
     } else if (prop.default != null) {
-      (value as any)[propName] = prop;
+      (value as any)[propName] = prop.default;
     } else if (prop.isList) {
       (value as any)[propName] = [];
     }

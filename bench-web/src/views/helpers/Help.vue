@@ -157,7 +157,7 @@ defineExpose<ViewExposed>({ self });
           id="detail"
           :node-ptr="nodePtr"
           is-input
-          v-bind="state.getChildState('scroll.detail', { nodePtr, isInput: true })"
+          v-bind="state.getChildState('scroll.detail', { nodePtr, isInput: true, isMinimal: false })"
         />
       </Scroll>
     </div>
