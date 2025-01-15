@@ -28,16 +28,19 @@ async def test_acquire_browser_resource_directly(hosted_runtime: RuntimeHandle):
 @pytest.mark.browser
 @pytest.mark.slow
 async def test_run_flow_browser_go_to_url(hosted_runtime: RuntimeHandle):
-    """Use a Browser as a 'variable' in a Flow to open a URL."""
+    """Use a Browser as a 'variable' in a Flow to open a URL and observe the state."""
     Flow = Block.new(BlockType.FLOW, name="Flow", fields=[Field.variable("Browser", Browser)])
     Start = Action.new(ActionType.START, name="Start")
     GoToUrl = Action.new(ActionType.GO_TO_URL, name="GoToUrl", url="https://symbolx.com")
     Wait = Action.new(ActionType.WAIT, name="Wait", delay=timedelta(seconds=3))
+    Observe = Action.new(ActionType.OBSERVE, name="Observe")
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
-    Flow.actions.extend(Start, GoToUrl, Wait, Complete)
+    Flow.actions.extend(Start, GoToUrl, Wait, Observe, Complete)
     Start.connect(PipeType.FORWARD, target=GoToUrl)
     GoToUrl.connect(PipeType.FORWARD, target=Wait)
-    Wait.connect(PipeType.FORWARD, target=Complete)
+    Wait.connect(PipeType.FORWARD, target=Observe)
+    Observe.connect(PipeType.FORWARD, target=Complete)
+    hosted_runtime.page().blocks.append(Flow)
     await hosted_runtime.commit()
 
     runner = await hosted_runtime.run(Flow)

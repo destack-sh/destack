@@ -12,9 +12,9 @@ enum DomNodeType {
  * A DOM node. :DomNode
  */
 type DomNode = {
-    type: DomNodeType;
-    tag?: string;
+    type?: DomNodeType;
     id?: number;
+    tag?: string;
     text?: string;
     attributes?: Record<string, string>;
     xpath?: string;
@@ -22,7 +22,8 @@ type DomNode = {
     isVisible?: boolean;
     isTop?: boolean;
     isShadowRoot?: boolean;
-    children: DomNode[];
+    isHighlighted?: boolean;
+    children?: DomNode[];
 };
 
 const LABEL_WIDTH = 20;
@@ -283,6 +284,7 @@ const INTERACTIVE_ROLES = new Set([
     "dropdown",
     "combobox",
 ]);
+const ATTRIBUTE_WHITELIST = new Set(["href", "src", "alt", "title", "placeholder", "value", "aria-label"]);
 const HIGHLIGHT_CONTAINER_ID = "bench-highlight-container";
 
 /**
@@ -616,24 +618,31 @@ function isTextNodeVisible(textNode: Text): boolean {
     return rect.width !== 0 && rect.height !== 0;
 }
 
+const MAX_TEXT_LENGTH = 300;
+
+/** Trims the text to a maximum length. */
+function trimText(text: string | null | undefined): string | undefined {
+    if (!text) return undefined;
+    text = text.trim();
+    if (text.length === 0) return undefined;
+    if (text.length <= MAX_TEXT_LENGTH) return text;
+    const half = Math.floor(MAX_TEXT_LENGTH / 2);
+    return text.slice(0, half) + "..." + text.slice(-half);
+}
+
 /**
  * Build a DOM node data tree from a given DOM node.
  */
-function buildDomTree(
+function extract(
     node: Node,
     highlight: boolean,
     iframe: HTMLIFrameElement | null,
     context: HighlightContext,
 ): DomNode | null {
     if (node.nodeType === Node.TEXT_NODE) {
-        const textContent = node.textContent?.trim();
+        const textContent = trimText(node.textContent);
         if (textContent && isTextNodeVisible(node as Text)) {
-            return {
-                type: DomNodeType.TEXT,
-                text: textContent,
-                children: [],
-                attributes: {},
-            };
+            return { type: DomNodeType.TEXT, text: textContent };
         }
         return null;
     }
@@ -646,7 +655,7 @@ function buildDomTree(
             type: DomNodeType.ELEMENT,
             tag: element.tagName.toLowerCase(),
             xpath: getXPath(element),
-            children: [],
+            text: trimText(element.textContent),
         };
 
         // attributes
@@ -656,7 +665,7 @@ function buildDomTree(
                 nodeData.attributes = {};
             }
             const attrVal = element.getAttribute(name);
-            if (attrVal !== null) {
+            if (attrVal !== null && ATTRIBUTE_WHITELIST.has(name)) {
                 nodeData.attributes[name] = attrVal;
             }
         }
@@ -679,6 +688,7 @@ function buildDomTree(
                 context.highlightId++;
                 nodeData.id = context.highlightId;
                 highlightElement(element, rect, context, iframe);
+                nodeData.isHighlighted = true;
             }
         }
 
@@ -687,9 +697,12 @@ function buildDomTree(
             nodeData.isShadowRoot = true;
             const shadowChildren: DomNode[] = [];
             Array.from(element.shadowRoot.childNodes).forEach((child) => {
-                const childNode = buildDomTree(child, highlight, iframe, context);
+                const childNode = extract(child, highlight, iframe, context);
                 if (childNode) shadowChildren.push(childNode);
             });
+            if (nodeData.children === undefined) {
+                nodeData.children = [];
+            }
             nodeData.children.push(...shadowChildren);
         }
 
@@ -700,9 +713,12 @@ function buildDomTree(
                 if (iframeDoc && iframeDoc.body) {
                     const iframeChildren: DomNode[] = [];
                     Array.from(iframeDoc.body.childNodes).forEach((child) => {
-                        const childNode = buildDomTree(child, highlight, element as HTMLIFrameElement, context);
+                        const childNode = extract(child, highlight, element as HTMLIFrameElement, context);
                         if (childNode) iframeChildren.push(childNode);
                     });
+                    if (nodeData.children === undefined) {
+                        nodeData.children = [];
+                    }
                     nodeData.children.push(...iframeChildren);
                 }
             } catch {
@@ -711,9 +727,12 @@ function buildDomTree(
         } else {
             const children: DomNode[] = [];
             Array.from(node.childNodes).forEach((child) => {
-                const childNode = buildDomTree(child, highlight, iframe, context);
+                const childNode = extract(child, highlight, iframe, context);
                 if (childNode) children.push(childNode);
             });
+            if (nodeData.children === undefined) {
+                nodeData.children = [];
+            }
             nodeData.children.push(...children);
         }
 
@@ -724,16 +743,39 @@ function buildDomTree(
 }
 
 /**
- * Extract the DOM tree from the current document's body.
+ * Adds highlights and extract the DOM tree from the current document's body.
  */
-function extractDocumentDomTree(highlight = true): DomNode | null {
-    return buildDomTree(document.body, highlight, null, makeHighlightContext(document.body));
+function highlight(): DomNode[] {
+    const root = extract(document.body, true, null, makeHighlightContext(document.body));
+    // collect all interactive nodes into list
+    const interactiveNodes: DomNode[] = [];
+    function walk(node: DomNode): void {
+        if (node.isHighlighted) {
+            const miniNode: DomNode = { id: node.id, tag: node.tag };
+            if (node.text) {
+                miniNode.text = node.text;
+            }
+            if (node.attributes && Object.keys(node.attributes).length > 0) {
+                miniNode.attributes = node.attributes;
+            }
+            interactiveNodes.push(miniNode);
+        }
+        if (node.children) {
+            for (const child of node.children) {
+                walk(child);
+            }
+        }
+    }
+    if (root) {
+        walk(root);
+    }
+    return interactiveNodes;
 }
 
 /**
  * Clean up any highlights from the DOM.
  */
-function cleanupHighlights(scope: "container" | "attribute" | "all" = "all"): void {
+function cleanup(scope: "container" | "attribute" | "all" = "all"): void {
     // remove the highlight container and all its contents
     if (scope === "container" || scope === "all") {
         const container = document.getElementById(HIGHLIGHT_CONTAINER_ID);

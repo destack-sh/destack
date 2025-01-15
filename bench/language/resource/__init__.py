@@ -4,7 +4,6 @@ from .browser import (
     Browser,
     BrowserType,
     DomNode,
-    DomNodeType,
 )
 from .file import (
     FILE_FORMAT_BY_EXTENSION,
@@ -43,7 +42,6 @@ __all__ = [
     "Browser",
     "BrowserType",
     "DomNode",
-    "DomNodeType",
     "DynamicResource",
     "File",
     "FileBase",

@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.14.5"
+VERSION = "2025.01.15.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -125,7 +125,6 @@ class EnumType(IdEnum):
     SCALER_STRATEGY = 21011
     MACHINE_TYPE = 21020
     BROWSER_TYPE = 21030
-    DOM_NODE_TYPE = 21031
     STORE_TYPE = 21040
     CLIENT_TYPE = 21050
 

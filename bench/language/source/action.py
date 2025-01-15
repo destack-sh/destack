@@ -618,10 +618,10 @@ class ObserveAction(Action, HasApplicationContext):
         references=NodeType.FILE,
         field_type=FieldType.OUTPUT,
     )
-    dom: Optional["DomNode"] = p_regular(
+    dom_nodes: list["DomNode"] = p_regular(
         201,
         require=False,
-        array=False,
+        array=True,
         struct=StructType.DOM_NODE,
         field_type=FieldType.OUTPUT,
     )
