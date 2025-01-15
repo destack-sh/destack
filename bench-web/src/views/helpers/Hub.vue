@@ -167,21 +167,21 @@ defineExpose<ViewExposed>({ self });
       </button>
     </div>
 
-    <!-- Content: Bench -->
-    <div v-if="aspect == HubAspect.BENCH">
-      <Scroll
-        id="scroll"
-        ref="scrollRef"
-        :orientation="Orientation.VERTICAL"
-        :size="{ width: size?.width, height: bodyHeight }"
-        @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
+    <!-- Content -->
+    <Scroll
+      id="scroll"
+      ref="scrollRef"
+      :orientation="Orientation.VERTICAL"
+      :size="{ width: size?.width, height: bodyHeight }"
+      @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
+    >
+      <div
+        ref="bodyRef"
+        :style="{
+          minHeight: `${bodyHeight - 10 /* not entirely sure why, the Scroll component seems to have some padding/border? */}px`,
+        }"
       >
-        <div
-          ref="bodyRef"
-          :style="{
-            minHeight: `${bodyHeight - 10 /* not entirely sure why, the Scroll component seems to have some padding/border? */}px`,
-          }"
-        >
+        <div v-if="aspect == HubAspect.BENCH">
           <!-- Main tree -->
           <div
             class="mx-4 mt-1.5 flex flex-row items-center"
@@ -234,22 +234,27 @@ defineExpose<ViewExposed>({ self });
             size-is-dynamic
             v-bind="state.getChildState('scroll.outline')"
           />
-          <!-- Selection overlay -->
-          <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
         </div>
-      </Scroll>
-    </div>
-    <!-- Activity -->
-    <Activity
-      v-else-if="aspect == HubAspect.ACTIVITY"
-      id="activity"
-      :size="{ width: size?.width, height: bodyHeight }"
-    />
-    <!-- Catalog -->
-    <Catalog v-else-if="aspect == HubAspect.CATALOG" id="catalog" :size="{ width: size?.width, height: bodyHeight }" />
-    <div v-else class="mx-5">
-      <span class="text-red-600">{{ toCamelName(HubAspect, aspect) }}</span>
-    </div>
+        <!-- Activity -->
+        <Activity
+          v-else-if="aspect == HubAspect.ACTIVITY"
+          id="activity"
+          :size="{ width: size?.width, height: bodyHeight }"
+        />
+        <!-- Catalog -->
+        <Catalog
+          v-else-if="aspect == HubAspect.CATALOG"
+          id="catalog"
+          :size="{ width: size?.width, height: bodyHeight }"
+        />
+        <div v-else class="mx-5">
+          <span class="text-red-600">{{ toCamelName(HubAspect, aspect) }}</span>
+        </div>
+      </div>
+
+      <!-- Selection overlay -->
+      <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
+    </Scroll>
 
     <!-- Footer -->
     <div
