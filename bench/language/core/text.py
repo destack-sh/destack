@@ -62,6 +62,8 @@ class TextLineType(IdEnum):
     DIVIDER = 40
     # table
     # ...
+    # equation
+    # ...
 
 
 @struct_(StructType.TEXT_SPAN)

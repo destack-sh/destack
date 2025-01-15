@@ -3,7 +3,7 @@ import { createBlock } from "@/language/block";
 import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
-import { moveNode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
+import { cloneNode, moveNode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
 import {
   BlockData,
@@ -293,12 +293,16 @@ const { activeDropZone } = useMultiDropZone({
       return true;
     });
   },
-  onDrop: (dragged, anchor, targetId) => {
+  onDrop: (dragged, anchor, targetId, event) => {
     if (targetId != null && (dragged.kind == "node" || dragged.kind == "selection")) {
       const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
       const target = graph.getOrError({ id: targetId });
       for (let i = 0; i < dragged.nodes.length; i++) {
-        const node = graph.getOrError(dragged.nodes[i]);
+        let node = graph.getOrError(dragged.nodes[i]);
+        if (event.altKey) {
+          // clone node before moving
+          node = cloneNode(tx, graph, node);
+        }
         moveNode(tx, graph, node, {
           anchor: i == 0 ? anchor : "after",
           target: i == 0 ? target : graph.getOrError(dragged.nodes[i - 1]),

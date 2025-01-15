@@ -232,10 +232,10 @@ class ToolActionRunner(DynamicActionRunnerBase[ToolAction]):
 
 # nocheckin:
 # there are a few types of dynamic generation:
-#  - generated computed values for inputs
+#  - generated ComputedValues for inputs
 #  - generated outputs for dynamic actions
-#   - consume inputs / generate outputs live
-#  - generate calls for all actions with selective pipes
+#   - generate calls for all actions with selective pipes
+#  - consume inputs / generate outputs live
 #  - ...?
 
 

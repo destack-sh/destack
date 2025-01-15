@@ -12,7 +12,7 @@ import {
 } from "@/language/const";
 import { getEnumTitle } from "@/language/enum";
 import type { ReadNodeGraph } from "@/language/graph";
-import { makeNodeName, moveNode } from "@/language/node";
+import { cloneNode, makeNodeName, moveNode } from "@/language/node";
 import { getOrderKey } from "@/language/order";
 import { newChangeId, type Transaction } from "@/language/transaction";
 import {
@@ -634,8 +634,12 @@ export function useFieldList(options: {
     const tx = txFactory().with({ change: { key: newChangeId(), title: "Move" } });
     const target = targetId != null ? graph.get({ id: targetId }) : null;
     for (let i = 0; i < dragged.nodes.length; i++) {
-      const node = graph.getOrError(dragged.nodes[i]);
+      let node = graph.getOrError(dragged.nodes[i]);
       if (isNode(node, NodeType.FIELD)) {
+        if (event.altKey) {
+          // duplicate field before moving
+          node = cloneNode(tx, graph, node) as FieldData;
+        }
         // move field
         if (target != null) {
           if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
@@ -646,7 +650,7 @@ export function useFieldList(options: {
         } else {
           moveNode(tx, graph, node, { anchor: "center", target: block.value! });
         }
-        if (node.type != fieldType.value) {
+        if ((node as FieldData).type != fieldType.value) {
           tx.update(node, { type: fieldType.value ?? undefined }, { debounce: "tick" });
         }
       } else if (isNode(node, NodeType.BLOCK)) {
