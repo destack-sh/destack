@@ -145,7 +145,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="group/meta pointer-events-auto absolute z-10 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer select-none flex-row items-center gap-x-1 rounded-2xl border px-1 py-0.5 transition-colors duration-150"
       :class="[
         isInspected ? 'bg-gray-100/80' : 'bg-gray-100/60',
-        isInspected || isHighlighted || isSelected
+        isInspected || isHighlighted
           ? 'border-gray-300 opacity-100 backdrop-blur-xs'
           : 'border-gray-200 opacity-0 group-hover/meta:opacity-100',
       ]"

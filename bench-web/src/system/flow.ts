@@ -51,7 +51,7 @@ export const FLOW_SCALE_MAX = 1.5;
 export const FLOW_SCALE_SPEED = 0.01;
 
 export const PIPE_WIDTH = 2;
-export const PIPE_CONNECTION_DISTANCE = FLOW_GRID_STEP * 2; // minimum distance to consider a connection when dragging a port
+export const PIPE_CONNECTION_DISTANCE = FLOW_GRID_STEP * 4; // minimum distance to consider a connection when dragging a port
 export const ACTION_SIZE = { width: FLOW_GRID_STEP * 17, height: FLOW_GRID_STEP * 3 };
 export const ACTION_SIZE_HALF = { width: ACTION_SIZE.width / 2, height: ACTION_SIZE.height / 2 };
 

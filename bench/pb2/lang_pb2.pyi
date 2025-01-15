@@ -1373,13 +1373,13 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_TYPE: _ClassVar[ActionType]
     ACTION_TYPE_SCROLL: _ClassVar[ActionType]
     ACTION_TYPE_SELECT: _ClassVar[ActionType]
+    ACTION_TYPE_DRAG: _ClassVar[ActionType]
     ACTION_TYPE_GO_BACKWARD: _ClassVar[ActionType]
     ACTION_TYPE_GO_FORWARD: _ClassVar[ActionType]
     ACTION_TYPE_GO_TO_URL: _ClassVar[ActionType]
     ACTION_TYPE_GO_TO_TAB: _ClassVar[ActionType]
     ACTION_TYPE_OPEN_TAB: _ClassVar[ActionType]
     ACTION_TYPE_CLOSE_TAB: _ClassVar[ActionType]
-    ACTION_TYPE_LOOP: _ClassVar[ActionType]
     ACTION_TYPE_TEXT: _ClassVar[ActionType]
 
 class PortSide(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -2834,13 +2834,13 @@ ACTION_TYPE_PRESS: ActionType
 ACTION_TYPE_TYPE: ActionType
 ACTION_TYPE_SCROLL: ActionType
 ACTION_TYPE_SELECT: ActionType
+ACTION_TYPE_DRAG: ActionType
 ACTION_TYPE_GO_BACKWARD: ActionType
 ACTION_TYPE_GO_FORWARD: ActionType
 ACTION_TYPE_GO_TO_URL: ActionType
 ACTION_TYPE_GO_TO_TAB: ActionType
 ACTION_TYPE_OPEN_TAB: ActionType
 ACTION_TYPE_CLOSE_TAB: ActionType
-ACTION_TYPE_LOOP: ActionType
 ACTION_TYPE_TEXT: ActionType
 PORT_SIDE_UNSPECIFIED: PortSide
 PORT_SIDE_INCOMING: PortSide
@@ -5538,6 +5538,18 @@ class DeleteActionData(_message.Message):
     node_ptr: NodeReferenceData
     def __init__(self, node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
+class SendActionData(_message.Message):
+    __slots__ = ("message_type_ptr", "node_partial_packed")
+    MESSAGE_TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
+    NODE_PARTIAL_PACKED_FIELD_NUMBER: _ClassVar[int]
+    message_type_ptr: NodeReferenceData
+    node_partial_packed: _struct_pb2.Value
+    def __init__(self, message_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., node_partial_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+
+class ReceiveActionData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
 class WaitActionData(_message.Message):
     __slots__ = ("delay",)
     DELAY_FIELD_NUMBER: _ClassVar[int]
@@ -5703,12 +5715,6 @@ class GoToTabActionData(_message.Message):
     element_text: str
     tab_index: int
     def __init__(self, application_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., element_id: _Optional[str] = ..., element_path: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., element_text: _Optional[str] = ..., tab_index: _Optional[int] = ...) -> None: ...
-
-class LoopActionData(_message.Message):
-    __slots__ = ("for_field_ptr",)
-    FOR_FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    for_field_ptr: NodeReferenceData
-    def __init__(self, for_field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class BlockData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "template_at", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "computed_values", "subnode_packed", "type", "name", "order_key", "icon", "text", "variables_packed", "run_options", "policies", "delegated_policies", "mode")

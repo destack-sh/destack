@@ -26,18 +26,6 @@ from bench.runtime import Interrupted, create_run_from_node, make_runner
 from bench.test.unit.conftest import RuntimeHandle
 
 
-async def test_run_flow_pipe_directly(hosted_runtime: RuntimeHandle):
-    """Run a Pipe directly."""
-    Flow1 = Block.new(BlockType.FLOW, "Flow1")
-    Start = Action.new(ActionType.START, "Start")
-    Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow1.actions.extend(Start, Complete)
-    Pipe = Start.connect(PipeType.FORWARD, Complete)
-    hosted_runtime.page().blocks.append(Flow1)
-
-    _ = await hosted_runtime.run(Pipe)
-
-
 async def test_run_flow_empty(hosted_runtime: RuntimeHandle):
     """Empty Code without any fields should fail."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")

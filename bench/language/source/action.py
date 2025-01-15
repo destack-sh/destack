@@ -74,39 +74,41 @@ class ActionType(IdEnum):
     FAIL = 11, "Fail the entire Flow"
     # ABORT?
 
-    # generic
+    # tool
     TOOL = 100, "Delegate to an implementation"
     CODE = 101, "Run arbitrary Python code"
-    DO = 150, "Perform an arbitrary action"
-    ROUTE = 151, "Route to other Actions"
-    GENERATE = 152, "Generate something new"
-    TRANSFORM = 153, "Change the form of something"
-    EXTRACT = 154, "Extract structured data"
-    CLASSIFY = 155, "Classify or categorize"
-    SUMMARIZE = 156, "Create a summary"
-    COMPARE = 157, "Compare multiple things"
-    TRANSLATE = 158, "Translate between languages"
-    CHANGE = 159, "Edit your Bench"
+
+    # generic
+    DO = 200, "Perform an arbitrary action"
+    ROUTE = 201, "Route to other Actions"
+    GENERATE = 202, "Generate something new"
+    TRANSFORM = 203, "Change the form of something"
+    EXTRACT = 204, "Extract structured data"
+    CLASSIFY = 205, "Classify or categorize"
+    SUMMARIZE = 206, "Create a summary"
+    COMPARE = 207, "Compare multiple things"
+    TRANSLATE = 208, "Translate between languages"
+    CHANGE = 209, "Edit this Bench"
 
     # read
-    GET = 200, "Get a Node"
-    SEARCH = 201, "Search for Nodes"
+    GET = 300, "Get a Node"
+    SEARCH = 301, "Search for Nodes"
     # AGGREGATE?
-    COPY = 210, "Copy some Nodes"
+    COPY = 302, "Copy some Nodes"
 
     # write
-    CREATE = 300, "Create a Node"
-    DUPLICATE = 301, "Duplicate a Node"
-    UPDATE = 302, "Update a Node"
-    DELETE = 303, "Delete a Node"
-    PASTE = 304, "Paste a Node"
+    CREATE = 400, "Create a Node"
+    DUPLICATE = 401, "Duplicate a Node"
+    UPDATE = 402, "Update a Node"
+    DELETE = 403, "Delete a Node"
+    PASTE = 404, "Paste a Node"
 
     # async
-    SEND = 400, "Send a Message"
-    RECEIVE = 401, "Receive a Message"
-    WAIT = 402, "Wait for something"
-    YIELD = 403, "Defer to something"
-    NOTIFY = 410, "Notify something"
+    SEND = 500, "Send a Message"
+    RECEIVE = 501, "Receive a Message"
+    WAIT = 502, "Wait for something"
+    YIELD = 503, "Defer to someone"
+    NOTIFY = 510, "Notify someone"
 
     # resource
     # DOWNLOAD, UPLOAD, PROVISION, SUSPEND, DECOMMISSION, ...
@@ -124,6 +126,7 @@ class ActionType(IdEnum):
     TYPE = 1052, "Type text"
     SCROLL = 1053, "Scroll the mouse wheel"
     SELECT = 1054, "Select an element"
+    DRAG = 1055, "Drag an element"
     GO_BACKWARD = 1060, "Go back in history"
     GO_FORWARD = 1061, "Go forward in history"
 
@@ -134,8 +137,8 @@ class ActionType(IdEnum):
     CLOSE_TAB = 1103, "Close a tab"
 
     # containers
-    # GROUP = 500  # subflow region
-    LOOP = 8001, "Repeat some Actions"
+    # LOOP = 8001, "Repeat some Actions"
+    # COLLECTION = 8002, "Associate multiple Actions"
 
     # misc
     TEXT = 9000, "Just some documentation"
@@ -199,18 +202,18 @@ class Action(SourceNode[ActionData]):
     if TYPE_CHECKING:
         tool_ptr: "NodeReference | None" = None
     calls: list["Call"] = p_regular(
-        55, array=True, struct=StructType.CALL, field_type=FieldType.OUTPUT
+        59, array=True, struct=StructType.CALL, field_type=FieldType.OUTPUT
     )
     # set variables/inputs for delegates (tool)
-    variables_packed: Any = p_value_packed(56)
+    variables_packed: Any = p_value_packed(60)
     variables: Any = p_value_runtime(
-        56,
+        60,
         type=FieldType.VARIABLE,
         typ=lambda self: cast("Action", self).variable_type_field_only,
     )
-    inputs_packed: Any = p_value_packed(57)
+    inputs_packed: Any = p_value_packed(61)
     inputs: Any = p_value_runtime(
-        57,
+        61,
         type=FieldType.INPUT,
         typ=lambda self: cast("Action", self).input_type_field_only,
     )
@@ -559,9 +562,32 @@ class DeleteAction(Action):
 #
 
 
+@node_subtype_(ActionType.SEND)
+class SendAction(Action):
+    message_type: "Block | None" = p_regular(
+        120, require=False, default=None, references=NodeType.BLOCK, field_type=FieldType.INPUT
+    )
+    node_partial_packed: Any = p_value_packed(121, field_type=FieldType.INPUT, partial=True)
+    node_partial: Any = p_value_runtime(
+        121,
+        typ=lambda self: cast(SendAction, self)._node_partial_type(),
+        field_type=FieldType.INPUT,
+        partial=True,
+    )
+
+    @cachetools.cached({})  # :CachedTypeInfo
+    def _node_partial_type(self) -> "TypeBase":
+        return Type(kind=TypeKind.PARTIAL_OBJECT, base_type=self.message_type)
+
+
+@node_subtype_(ActionType.RECEIVE)
+class ReceiveAction(Action):
+    pass
+
+
 @node_subtype_(ActionType.WAIT)
 class WaitAction(Action):
-    delay: timedelta | None = p_regular(100, default=None, field_type=FieldType.INPUT)
+    delay: timedelta | None = p_regular(120, default=None, field_type=FieldType.INPUT)
 
 
 #
@@ -661,19 +687,14 @@ class GoToTabAction(Action, HasApplicationContext):
 
 
 #
-# Control flow
+# Group
 #
 
+...
 
-@node_subtype_(ActionType.LOOP)
-class LoopAction(Action):
-    for_field: Optional["Field"] = p_regular(
-        100,
-        require=False,
-        array=False,
-        references=NodeType.FIELD,
-        field_type=FieldType.INPUT,
-    )
+#
+# Control flow
+#
 
 
 @struct_(StructType.CALL)
