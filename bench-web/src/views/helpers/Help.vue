@@ -15,8 +15,10 @@ import RunStatus from "@/views/builtins/RunStatus.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import SomeObject from "@/views/objects/Object.vue";
-import Start from "@/views/nodes/Run.vue";
+import Run from "@/views/nodes/Run.vue";
 import { computed, nextTick, ref, Ref, toRef } from "vue";
+import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
+import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -70,7 +72,13 @@ function setAspect(aspect: HelpAspect) {
 }
 const visibleAspects = [HelpAspect.DETAIL, HelpAspect.RUN];
 
-const startRef: Ref<InstanceType<typeof Start> | null> = ref(null);
+// interaction
+const bodyRef = ref<HTMLElement | null>(null);
+const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
+const startRef: Ref<InstanceType<typeof Run> | null> = ref(null);
+const bodyHeight = computed(() => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT);
+const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
+const selectionZone = useSelectionZone({ containerEl: bodyRef, overlayEl: selectionOverlayRef });
 
 defineExpose<ViewExposed>({ self });
 </script>
@@ -145,27 +153,44 @@ defineExpose<ViewExposed>({ self });
     </div>
 
     <!-- Content -->
-    <div v-if="aspect == HelpAspect.DETAIL">
-      <Scroll
-        id="scroll"
-        ref="scrollRef"
-        :orientation="Orientation.VERTICAL"
-        size-is-dynamic
-        :size="{ width: size?.width, height: (size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT }"
+    <Scroll
+      id="scroll"
+      ref="scrollRef"
+      :orientation="Orientation.VERTICAL"
+      size-is-dynamic
+      :size="{ width: size?.width, height: bodyHeight }"
+      @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
+    >
+      <div
+        ref="bodyRef"
+        :style="{
+          minHeight: `${bodyHeight - 10 /* not entirely sure why, the Scroll component seems to have some padding/border? */}px`,
+        }"
       >
+        <!-- Detail -->
         <SomeObject
+          v-if="aspect == HelpAspect.DETAIL"
           id="detail"
           :node-ptr="nodePtr"
           is-input
           v-bind="state.getChildState('scroll.detail', { nodePtr, isInput: true, isMinimal: false })"
         />
-      </Scroll>
-    </div>
-    <div v-else-if="aspect == HelpAspect.RUN">
-      <Start id="start" ref="startRef" :node-ptr="nodePtr" v-bind="state.getChildState('start', { nodePtr })" />
-    </div>
-    <div v-else class="mx-5">
-      <span class="text-red-600">{{ toCamelName(HelpAspect, aspect) }}</span>
-    </div>
+        <!-- Run -->
+        <Run
+          v-else-if="aspect == HelpAspect.RUN"
+          id="start"
+          ref="startRef"
+          :node-ptr="nodePtr"
+          v-bind="state.getChildState('start', { nodePtr })"
+        />
+        <!-- ... -->
+        <div v-else class="mx-5">
+          <span class="text-red-600">{{ toCamelName(HelpAspect, aspect) }}</span>
+        </div>
+      </div>
+
+      <!-- Selection overlay -->
+      <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
+    </Scroll>
   </div>
 </template>
