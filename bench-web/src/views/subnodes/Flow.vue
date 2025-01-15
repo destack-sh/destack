@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { SOURCE_ACTION_TYPES } from "@/language/const";
 import { makeType } from "@/language/field";
+import { packSubnode } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
 import {
   ActionData,
@@ -12,7 +13,6 @@ import {
   NodeType,
   PickerVariant,
   PipeData,
-  PipeType,
   PortSide,
   TypeKind,
   ViewData,
@@ -28,9 +28,9 @@ import {
   FLOW_GRID_STEP,
   FlowContext,
   pathToSvg,
-  PIPE_CONNECTION_DISTANCE,
   PIPE_WIDTH,
   PipePath,
+  SELF_PIPE_CONNECTION_DISTANCE,
 } from "@/system/flow";
 import { canvas, spaceGraph } from "@/system/space";
 import { ACTION_CONTEXT_ACTIONS, PIPE_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
@@ -44,11 +44,10 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
-import FieldList from "@/views/objects/FieldList.vue";
 import Pipe from "@/views/nodes/Pipe.vue";
+import FieldList from "@/views/objects/FieldList.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, provide, ref, toRef, type Ref } from "vue";
-import { packSubnode } from "@/language/node";
 
 const BACKGROUND_STYLE: "checker" | "dots" = "dots";
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -115,11 +114,13 @@ const pendingPath: Ref<PipePath | null> = computed(() => {
     x: sourceBounding.x1 + (flowCtx.dragging.value?.viewOffsetByThing[sourceAction.id]?.x ?? 0),
     y: sourceBounding.y1 + (flowCtx.dragging.value?.viewOffsetByThing[sourceAction.id]?.y ?? 0),
   };
-  const distance = lengthVector2(subVector2(sourcePos, cursor));
-  if (distance < PIPE_CONNECTION_DISTANCE) return null;
-
-  // make path
   const targetAction = flowCtx.getActionAt(cursor);
+  const distance = lengthVector2(subVector2(sourcePos, cursor));
+  if (targetAction != null && targetAction.id === sourceAction.id && distance < SELF_PIPE_CONNECTION_DISTANCE) {
+    return null; // ignore self-connections that are too close to starting point
+  }
+  
+  // make path
   const isValid =
     targetAction != null &&
     !SOURCE_ACTION_TYPES.includes(targetAction.type) &&
@@ -563,7 +564,9 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
                   placement: 'top',
                   props: {
                     valueType: makeType({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
-                    subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
+                    subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, {
+                      variant: PickerVariant.DROPDOWN_LARGE,
+                    }),
                   },
                   onApply: (value) => {
                     flowCtx.createAction({ parent: flow!, action: { type: value } });

@@ -51,7 +51,7 @@ export const FLOW_SCALE_MAX = 1.5;
 export const FLOW_SCALE_SPEED = 0.01;
 
 export const PIPE_WIDTH = 2;
-export const PIPE_CONNECTION_DISTANCE = FLOW_GRID_STEP * 3; // minimum distance to consider a connection when dragging a port
+export const SELF_PIPE_CONNECTION_DISTANCE = FLOW_GRID_STEP * 3; // minimum distance to consider a connection when dragging a port
 export const ACTION_SIZE = { width: FLOW_GRID_STEP * 17, height: FLOW_GRID_STEP * 3 };
 export const ACTION_SIZE_HALF = { width: ACTION_SIZE.width / 2, height: ACTION_SIZE.height / 2 };
 
@@ -966,7 +966,13 @@ export class FlowContext {
         };
         const cursor = this.cursorWorldPos.value;
         const distance = lengthVector2(subVector2(sourcePos, cursor));
-        if (distance < PIPE_CONNECTION_DISTANCE) return null;
+        if (
+          (at.kind == "action" || at.kind == "port") &&
+          at.action.id == sourceAction.id &&
+          distance < SELF_PIPE_CONNECTION_DISTANCE
+        ) {
+          return null; // ignore self-connections that are too close to starting point
+        }
 
         let targetPort: Port | null = null;
         if (at.kind == "port") {
