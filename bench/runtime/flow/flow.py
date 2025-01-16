@@ -182,7 +182,10 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         return runner.tracked_run
 
     def _on_stopped(self, runner: Runner, exc: BaseException | None) -> None:
-        """Tick this Flow when a Action or Pipe stops."""
+        """
+        Tick this Flow on aan Action/Pipe event.
+        NOTE :Incomplete: Flow should handle on_output, on_yield (partial output) *and* on_stopped
+        """
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.tick.stopped", flow=self.node, node=runner.node, runner=runner, exc=exc)
         self._active_runners_by_id.pop(runner.id)

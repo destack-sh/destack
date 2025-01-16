@@ -477,38 +477,38 @@ MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MI
 @object_()
 class FileBase(BuiltinObject):
     """
-    Base class for file info.
+    Core File info.
     """
 
-    # title overlaps with DynamicResource.title
+    # common
+    type: FileType = p_internal(30)
+    kind: FileKind = p_internal(31)
     name: str = p_regular(32, constraint=TITLE_CONSTRAINT)
 
+    # meta
+    mime_type: str | None = p_internal(50, constraint=MIME_TYPE_CONSTRAINT)
+    format: FileFormat | None = p_internal(51, default=None)
+    size: int = p_internal(
+        52, primitive_type=PrimitiveType.INT64, constraint=constraint(min_value=0)
+    )
+    sha256: str | None = p_internal(53, constraint=SHA256_CONSTRAINT)
+
     # content
-    kind: FileKind = p_internal(50)
-    external_url: Optional[str] = p_regular(53, default=None)  # if external
+    external_url: Optional[str] = p_regular(60, default=None)  # if external
     inline_content: Optional[bytes] = p_regular(
-        54, default=None, constraint=constraint(min_length=1)
+        61, default=None, constraint=constraint(min_length=1)
     )
     ...  # thumbnail/preview/...?
 
-    # common metadata
-    type: FileType = p_internal(60)
-    mime_type: str | None = p_internal(61, constraint=MIME_TYPE_CONSTRAINT)
-    format: FileFormat | None = p_internal(62, default=None)
-    size: int = p_internal(
-        63, primitive_type=PrimitiveType.INT64, constraint=constraint(min_value=0)
-    )
-    sha256: str | None = p_internal(64, constraint=SHA256_CONSTRAINT)
-
     # multimedia
-    width: Optional[int] = p_internal(65, default=None)
-    height: Optional[int] = p_internal(66, default=None)
-    aspect_ratio: Optional[float] = p_internal(67, default=None)
-    codec: Optional[str] = p_internal(68, default=None)
-    duration: Optional[timedelta] = p_internal(69, default=None)
-    bitrate: Optional[int] = p_internal(70, default=None)
-    channels: Optional[int] = p_internal(72, default=None)
-    sample_rate: Optional[int] = p_internal(73, default=None)
+    width: Optional[int] = p_internal(70, default=None)
+    height: Optional[int] = p_internal(71, default=None)
+    aspect_ratio: Optional[float] = p_internal(72, default=None)
+    codec: Optional[str] = p_internal(73, default=None)
+    duration: Optional[timedelta] = p_internal(74, default=None)
+    bitrate: Optional[int] = p_internal(75, default=None)
+    channels: Optional[int] = p_internal(76, default=None)
+    sample_rate: Optional[int] = p_internal(77, default=None)
 
     # cached content
     _original: Optional["File"] = p_runtime(default=None)  # if converted
@@ -789,7 +789,7 @@ class File(DynamicResource[FileData], FileBase):
     parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH, is_system=True)
 
     # content/info
-    # ...FileInfoBase[50-79]
+    # ...FileInfoBase[30-59]
 
     # meta
     retention: FileRetentionMode = p_system(

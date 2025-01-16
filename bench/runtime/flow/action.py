@@ -151,8 +151,6 @@ class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
             )
             return runner
 
-    # nocheckin: generate missing/unset inputs/outputs/Calls/ComputedValues[kind=Generate] (in Flow? or always?)
-
 
 #
 # Flow
@@ -233,9 +231,9 @@ class ToolActionRunner(DynamicActionRunnerBase[ToolAction]):
 
 # nocheckin:
 # there are a few types of dynamic generation:
-#  - generated ComputedValues for inputs
 #  - generated outputs for dynamic actions
-#   - generate calls for all actions with selective pipes
+#    - generate calls for all actions with selective (all?) pipes
+#      - generated ComputedValues for inputs
 #  - consume inputs / generate outputs live
 #  - ...?
 

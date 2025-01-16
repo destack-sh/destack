@@ -312,6 +312,7 @@ class TypeBase(BuiltinObject):
     is_required: bool = p_regular(60, default=False)
     is_list: bool = p_regular(61, default=False)
     is_secret: bool = p_regular(62, default=False)
+    # is_streaming?
 
     _from_property: Optional["Property"] = p_runtime(default=None)
 

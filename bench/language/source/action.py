@@ -137,8 +137,8 @@ class ActionType(IdEnum):
     CLOSE_TAB = 1103, "Close a tab"
 
     # containers
+    # GROUP = 8000, "Associate multiple Actions"
     # LOOP = 8001, "Repeat some Actions"
-    # COLLECTION = 8002, "Associate multiple Actions"
 
     # misc
     TEXT = 9000, "Just some documentation"
@@ -173,7 +173,7 @@ class Action(SourceNode[ActionData]):
 
     # meta
     run_options: Optional["RunOptions"] = p_regular(
-        41, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+        40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
     # roles, identity, ...
 
@@ -217,6 +217,9 @@ class Action(SourceNode[ActionData]):
         type=FieldType.INPUT,
         typ=lambda self: cast("Action", self).input_type_field_only,
     )
+
+    # flags
+    # is_streaming: bool = p_regular(80, default=False)
 
     # flow
     position: Optional["Vector2"] = p_regular(

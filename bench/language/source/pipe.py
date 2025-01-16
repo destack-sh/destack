@@ -83,30 +83,27 @@ class Pipe(SourceNode[PipeData]):
         target_id: Optional[UUID] = None
         target_ck: Optional[str] = None
 
-    # associated_fields, ...?
-
-    # run
+    # meta
     run_options: Optional["RunOptions"] = p_regular(
-        50, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
-
-    # filter
-    condition: Optional["Expression"] = p_regular(
-        60, default=None, require=False, array=False, struct=StructType.EXPRESSION
-    )
-    constraint: Optional["TypeConstraint"] = p_regular(
-        62, default=None, array=False, struct=StructType.TYPE_CONSTRAINT
+        40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
 
     # modulation
-    delay: Optional[timedelta] = p_regular(80, default=None)
-
-    # view
-    color: Optional["Color"] = p_regular(
-        91, default=None, require=False, array=False, struct=StructType.COLOR
+    condition: Optional["Expression"] = p_regular(
+        50, default=None, require=False, array=False, struct=StructType.EXPRESSION
     )
-    is_hidden: bool = p_regular(92, default=False)
-    is_name_shown: bool = p_regular(93, default=False)
+    constraint: Optional["TypeConstraint"] = p_regular(
+        51, default=None, array=False, struct=StructType.TYPE_CONSTRAINT
+    )
+    delay: Optional[timedelta] = p_regular(52, default=None)
+
+    # flags
+    # is_streaming: bool = p_regular(80, default=False)
+
+    # flow
+    color: Optional["Color"] = p_regular(
+        80, default=None, require=False, array=False, struct=StructType.COLOR
+    )
 
     def __content_str__(self) -> str:
         sign = SIGN_BY_PIPE_TYPE.get(self.type, "???")
