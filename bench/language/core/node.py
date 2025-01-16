@@ -18,6 +18,7 @@ from typing import (
     Iterable,
     Literal,
     Mapping,
+    NamedTuple,
     Optional,
     Self,
     Sequence,
@@ -1657,13 +1658,6 @@ def is_implicit_node_property(prop_id: int) -> bool:
     return prop_id < 30 and prop_id != 4  # parent is fine
 
 
-NODE_SUBTYPE_PACKED_ID = 29
-NODE_SUBTYPE_PACKED_KEY = str(NODE_SUBTYPE_PACKED_ID)
-
-NODE_COMPUTED_VALUES_ID = 28
-NODE_COMPUTED_VALUES_KEY = str(NODE_COMPUTED_VALUES_ID)
-
-
 @node_component()
 class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     """
@@ -1704,16 +1698,21 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __extra_indexes__: ClassVar[tuple[tuple[str, ...], ...]] = ()  # extra indexes for PG
     __extra_uniques__: ClassVar[tuple[tuple[str, ...], ...]] = ()  # extra constraints for PG
 
-    # 1-9: reserved for node identity
+    # 1-9: node identity
+    # Node.metatype: 1
     id: UUID = p_system(2, default=None, require=True, autoset=True)
+    # SourceNode.ck: 3
     parent: Optional["Node"] = p_node_parent(4)  # type: ignore
     if TYPE_CHECKING:
         parent_type: NodeType | None = None
         parent_id: Optional[UUID] = None
         parent_ck: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
+    # BenchNode.bench: 5
+    # PackageNode.package: 6
+    # SourceNode.template: 7
 
-    # 10-29: reserved for node tracking
+    # 10-29: node tracking
     created_at: datetime = p_system(10, default=None, require=True, autoset=True)
     created_by: Optional[EditSubject] = p_system(  # type: ignore (pyright is wrong, EditSubject is a type)
         11,
@@ -1737,17 +1736,20 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         baseless=True,
     )
     deleted_at: Optional[datetime] = p_system(14, default=None, autoset=True)
-    # managed_by? owned_by?
+    # SourceNode.template_at: 15
+    # ...managed_by? owned_by?
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
         created_by_type: NodeType | None = None
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
+    # ...HasTracingContext[20-25]
 
-    # NOTE :Architecture: obviously, a better system would store subnode directly
-    #  (but we can't do that yet because we're tying top-level properties to Postgres columns,
-    #   so we can't have crazy numbers of subtype-properties unless we pack them like this)
-    subnode_packed: dict[str, dict[str, Any]] | None = p_subnode_packed(NODE_SUBTYPE_PACKED_ID)
+    # NOTE :Architecture!: obviously, a better system would store subnodes directly
+    #  (but we can't do that yet because we map top-level properties to Postgres columns,
+    #   so we can't have crazy numbers of subtype-properties unless we pack them like this,
+    #   similarly, out protobuf types would explode if we flatten out subnodes)
+    subnode_packed: dict[str, dict[str, Any]] | None = p_subnode_packed(29)
 
     # 30-89 for general node/struct properties
     # ...
@@ -1763,8 +1765,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         cls = type(self)
         if isinstance(self, HasTracingContext):
             if not kwargs.get("mode"):
-                mode = get_tracing_context()
-                kwargs["mode"] = mode
+                tracing = get_tracing_context()
+                kwargs["mode"] = tracing.mode
 
         # init object
         super().__init__(**kwargs, _skip_validate_self=True, _skip_extra_kwargs=True)
@@ -2563,15 +2565,22 @@ class HasTracingContext(BuiltinObject):
     """Context for a Node in some Session."""
 
     # tracing :Tracing
-    mode: NodeMode = p_internal(90, default_sql=str(NodeMode.PRODUCTION.value))
-    # NOTE :Incomplete: richer :Tracing context
+    mode: NodeMode = p_internal(20, default=None, default_sql=str(NodeMode.PRODUCTION.value))
+    # ... more tracing context
 
 
-def get_tracing_context() -> NodeMode:
-    """Inject the current runtime mode for a Node."""
+class TracingContext(NamedTuple):  # :Tracing
+    mode: NodeMode
+
+
+def get_tracing_context() -> TracingContext:
+    """Gather the current runtime tracing context."""
     session = _active_session.get(None)
-    mode = session.active_mode if session is not None else NodeMode.PRODUCTION
-    return mode
+    if session is not None:
+        mode = session.active_mode
+        return TracingContext(mode=mode)
+    else:
+        return TracingContext(mode=NodeMode.PRODUCTION)
 
 
 @node_component()
@@ -2579,7 +2588,7 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
     """A Node inside a Bench."""
 
     bench: "Bench | None" = p_node_ancestor_with_self(
-        6, NodeType.BENCH, require=True, store=True, wire=True
+        5, NodeType.BENCH, require=True, store=True, wire=True
     )
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
@@ -2595,7 +2604,7 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContex
     """A Node inside a Package."""
 
     package: "Package | None" = p_node_ancestor_with_self(
-        5, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
+        6, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
     )
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
@@ -2615,9 +2624,9 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None
         template_ptr: Optional[NodeReference] = None
-    template_at: datetime | None = p_system(8, default=None, autoset=True)
+    template_at: datetime | None = p_system(16, default=None, autoset=True)
     computed_values: list["ComputedValue"] = p_internal(
-        NODE_COMPUTED_VALUES_ID, require=False, array=True, struct=StructType.COMPUTED_VALUE
+        28, require=False, array=True, struct=StructType.COMPUTED_VALUE
     )
 
     def set_computed(

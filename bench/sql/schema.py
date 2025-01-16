@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.16.0"
+VERSION = "2025.01.16.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -285,6 +285,7 @@ SCALER_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),
@@ -304,7 +305,6 @@ SCALER_TABLE = Table(
         Column("min_ready_count", PrimitiveType.INT32, default="0"),
         Column("is_active", PrimitiveType.BOOLEAN, default="true"),
         Column("is_main", PrimitiveType.BOOLEAN, default="false"),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
 
@@ -323,6 +323,7 @@ STORE_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
         Column("name", PrimitiveType.STRING),
@@ -340,7 +341,6 @@ STORE_TABLE = Table(
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
         Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
 
@@ -359,6 +359,7 @@ MACHINE_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
         Column("name", PrimitiveType.STRING),
@@ -388,7 +389,6 @@ MACHINE_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("cpu", PrimitiveType.FLOAT32),
         Column("ram", PrimitiveType.FLOAT32),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
 
@@ -407,6 +407,7 @@ BROWSER_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
         Column("name", PrimitiveType.STRING),
@@ -439,7 +440,6 @@ BROWSER_TABLE = Table(
         Column("size", PrimitiveType.JSON, is_nullable=True),
         Column("is_headless", PrimitiveType.BOOLEAN, default="false"),
         Column("is_insecure", PrimitiveType.BOOLEAN, default="false"),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
 
@@ -458,6 +458,7 @@ FILE_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("kind", PrimitiveType.INT16),
@@ -496,7 +497,6 @@ FILE_TABLE = Table(
         Column("sample_rate", PrimitiveType.INT32, is_nullable=True),
         Column("retention", PrimitiveType.INT16),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
 
@@ -515,6 +515,7 @@ STREAM_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),
@@ -536,7 +537,6 @@ STREAM_TABLE = Table(
         Column("suspended_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("decommissioned_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
 
@@ -555,6 +555,7 @@ SECRET_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("name", PrimitiveType.STRING),
         Column("status", PrimitiveType.INT16),
@@ -577,7 +578,6 @@ SECRET_TABLE = Table(
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("value_type", PrimitiveType.JSON),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
 
@@ -631,13 +631,12 @@ DEPENDENCY_TABLE = Table(
         Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("package_ck", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
         Column("template_ck", PrimitiveType.UUID, is_nullable=True),
         Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
@@ -647,13 +646,14 @@ DEPENDENCY_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("depends_on_bench_id", PrimitiveType.UUID),
         Column("depends_on_packages_id", PrimitiveType.UUID, is_array=True),
         Column("depends_on_packages_ck", PrimitiveType.UUID, is_array=True),
         Column("depends_on_packages_bench_id", PrimitiveType.UUID, is_array=True),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
 
@@ -664,13 +664,12 @@ SPACE_TABLE = Table(
         Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("package_ck", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
         Column("template_ck", PrimitiveType.UUID, is_nullable=True),
         Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
@@ -680,6 +679,8 @@ SPACE_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
@@ -710,7 +711,6 @@ SPACE_TABLE = Table(
         Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
 
@@ -722,13 +722,12 @@ BLOCK_TABLE = Table(
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("package_ck", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
         Column("template_ck", PrimitiveType.UUID, is_nullable=True),
         Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
@@ -738,6 +737,8 @@ BLOCK_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
@@ -746,7 +747,6 @@ BLOCK_TABLE = Table(
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("variables_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
 
@@ -758,13 +758,12 @@ FIELD_TABLE = Table(
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("package_ck", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
         Column("template_ck", PrimitiveType.UUID, is_nullable=True),
         Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
@@ -774,6 +773,8 @@ FIELD_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
@@ -801,7 +802,6 @@ FIELD_TABLE = Table(
         Column("is_required", PrimitiveType.BOOLEAN, default="false"),
         Column("is_list", PrimitiveType.BOOLEAN, default="false"),
         Column("is_secret", PrimitiveType.BOOLEAN, default="false"),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
 
@@ -813,13 +813,12 @@ VIEW_TABLE = Table(
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("package_ck", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
         Column("template_ck", PrimitiveType.UUID, is_nullable=True),
         Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
@@ -829,6 +828,8 @@ VIEW_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT32),
@@ -860,7 +861,6 @@ VIEW_TABLE = Table(
         Column("is_inline", PrimitiveType.BOOLEAN, default="false"),
         Column("is_minimal", PrimitiveType.BOOLEAN, default="false"),
         Column("is_loading", PrimitiveType.BOOLEAN, default="false"),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
 
@@ -872,13 +872,12 @@ ACTION_TABLE = Table(
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("package_ck", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
         Column("template_ck", PrimitiveType.UUID, is_nullable=True),
         Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
@@ -888,6 +887,8 @@ ACTION_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
@@ -906,7 +907,6 @@ ACTION_TABLE = Table(
         Column("variables_packed", PrimitiveType.JSON, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("position", PrimitiveType.JSON, is_nullable=True),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
 
@@ -918,13 +918,12 @@ PIPE_TABLE = Table(
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("package_ck", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
         Column("template_ck", PrimitiveType.UUID, is_nullable=True),
         Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
@@ -934,6 +933,8 @@ PIPE_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
@@ -951,7 +952,6 @@ PIPE_TABLE = Table(
         Column("constraint", PrimitiveType.JSON, is_nullable=True),
         Column("delay", PrimitiveType.DURATION, is_nullable=True),
         Column("color", PrimitiveType.JSON, is_nullable=True),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
 )
 
@@ -1012,6 +1012,7 @@ SESSION_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
@@ -1028,7 +1029,6 @@ SESSION_TABLE = Table(
         Column("identity_id", PrimitiveType.UUID, is_nullable=True),
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
     indexes=(
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
@@ -1053,6 +1053,7 @@ RUN_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("root_id", PrimitiveType.UUID, is_nullable=True),
@@ -1101,7 +1102,6 @@ RUN_TABLE = Table(
         Column("identity_id", PrimitiveType.UUID, is_nullable=True),
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
     indexes=(Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),),
 )
@@ -1122,6 +1122,7 @@ INTERRUPTION_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("root_id", PrimitiveType.UUID, is_nullable=True),
@@ -1153,7 +1154,6 @@ INTERRUPTION_TABLE = Table(
         Column("identity_id", PrimitiveType.UUID, is_nullable=True),
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
     indexes=(Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),),
 )
@@ -1173,6 +1173,7 @@ LOG_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("kind", PrimitiveType.INT16),
         Column("level", PrimitiveType.INT16, default="3"),
@@ -1198,7 +1199,6 @@ LOG_TABLE = Table(
         Column("identity_id", PrimitiveType.UUID, is_nullable=True),
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("mode", PrimitiveType.INT16, default="2"),
     ),
     indexes=(Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),),
 )
