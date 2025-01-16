@@ -179,18 +179,12 @@ class FailActionRunner(ActionRunnerBase[FailAction]):
         raise RetryableError(title=title, text=text)
 
 
-class DynamicActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
-    @override
-    async def run(self) -> None:
-        raise NotSupportedError(f"nocheckin: DynamicActionRunner {self!r}")
-
-
 #
 # Tool
 #
 
 
-class CodeActionRunner(DynamicActionRunnerBase[CodeAction]):
+class CodeActionRunner(ActionRunnerBase[CodeAction]):
     @override
     async def run(self) -> None:
         from bench.runtime.code import CodeFunctionRunner
@@ -210,7 +204,7 @@ class CodeActionRunner(DynamicActionRunnerBase[CodeAction]):
         self.outputs = code_runner.outputs
 
 
-class ToolActionRunner(DynamicActionRunnerBase[ToolAction]):
+class ToolActionRunner(ActionRunnerBase[ToolAction]):
     @override
     async def run(self) -> None:
         tool = self.action.tool
@@ -229,13 +223,11 @@ class ToolActionRunner(DynamicActionRunnerBase[ToolAction]):
 # Dynamic
 #
 
-# nocheckin:
-# there are a few types of dynamic generation:
-#  - generated outputs for dynamic actions
-#    - generate calls for all actions with selective (all?) pipes
-#      - generated ComputedValues for inputs
-#  - consume inputs / generate outputs live
-#  - ...?
+
+class DynamicActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
+    @override
+    async def run(self) -> None:
+        raise NotSupportedError(f"nocheckin: DynamicActionRunner {self!r}")
 
 
 #

@@ -195,9 +195,9 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         #   of asking the Action again when they rebound to that same Action)
 
         if runner.status == RunStatus.COMPLETED:
-            # feed forward connected Pipes/Actions
             outgoing: list[Run] = []
             if isinstance(runner.node, Action):
+                # forward Action->Pipes
                 if (
                     runner.outputs is not None
                     and FieldType.OUTPUT in runner.outputs._type.base_field_types
@@ -229,6 +229,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                         )
                         outgoing.append(next_run)
             elif isinstance(runner.node, Pipe):
+                # forward Pipe->Action
                 if (
                     runner.node.type == PipeType.SELECT_AND_BACK
                     and runner.tracked_run.incoming[0].base == runner.node.target

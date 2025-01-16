@@ -13,6 +13,7 @@ import {
   ComputedValueData,
   PathData,
   ComputedValueKind,
+  ComputedValueMode,
 } from "@/proto/wire";
 import { computed, Ref } from "vue";
 
@@ -99,6 +100,7 @@ export function useComputedValues(options: {
       ...(value ?? existing ?? {}),
       metatype: ObjectType.COMPUTED_VALUE,
       kind: ComputedValueKind.PATH,
+      mode: (value?.mode ?? existing?.mode) ?? ComputedValueMode.ALWAYS,
       targetPath: path,
       isActive: true,
     };
