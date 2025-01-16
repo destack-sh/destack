@@ -76,6 +76,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_SORT_MODE: _ClassVar[EnumType]
     ENUM_TYPE_SORT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_COMPUTED_VALUE_KIND: _ClassVar[EnumType]
+    ENUM_TYPE_COMPUTED_VALUE_MODE: _ClassVar[EnumType]
     ENUM_TYPE_PATH_ELEMENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PATH_RUN_SELECTOR: _ClassVar[EnumType]
     ENUM_TYPE_RUN_STATUS: _ClassVar[EnumType]
@@ -467,6 +468,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_SORT_MODE: _ClassVar[BenchType]
     BENCH_TYPE_SORT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_COMPUTED_VALUE_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_COMPUTED_VALUE_MODE: _ClassVar[BenchType]
     BENCH_TYPE_PATH_ELEMENT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_PATH_RUN_SELECTOR: _ClassVar[BenchType]
     BENCH_TYPE_RUN_STATUS: _ClassVar[BenchType]
@@ -1115,6 +1117,13 @@ class ComputedValueKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     COMPUTED_VALUE_KIND_PATH: _ClassVar[ComputedValueKind]
     COMPUTED_VALUE_KIND_EXPRESSION: _ClassVar[ComputedValueKind]
     COMPUTED_VALUE_KIND_CODE: _ClassVar[ComputedValueKind]
+
+class ComputedValueMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    COMPUTED_VALUE_MODE_UNSPECIFIED: _ClassVar[ComputedValueMode]
+    COMPUTED_VALUE_MODE_ALWAYS: _ClassVar[ComputedValueMode]
+    COMPUTED_VALUE_MODE_IF_SOURCE_SET: _ClassVar[ComputedValueMode]
+    COMPUTED_VALUE_MODE_IF_TARGET_UNSET: _ClassVar[ComputedValueMode]
 
 class PathElementType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1776,6 +1785,7 @@ ENUM_TYPE_AGGREGATION_TYPE: EnumType
 ENUM_TYPE_SORT_MODE: EnumType
 ENUM_TYPE_SORT_TYPE: EnumType
 ENUM_TYPE_COMPUTED_VALUE_KIND: EnumType
+ENUM_TYPE_COMPUTED_VALUE_MODE: EnumType
 ENUM_TYPE_PATH_ELEMENT_TYPE: EnumType
 ENUM_TYPE_PATH_RUN_SELECTOR: EnumType
 ENUM_TYPE_RUN_STATUS: EnumType
@@ -2155,6 +2165,7 @@ BENCH_TYPE_AGGREGATION_TYPE: BenchType
 BENCH_TYPE_SORT_MODE: BenchType
 BENCH_TYPE_SORT_TYPE: BenchType
 BENCH_TYPE_COMPUTED_VALUE_KIND: BenchType
+BENCH_TYPE_COMPUTED_VALUE_MODE: BenchType
 BENCH_TYPE_PATH_ELEMENT_TYPE: BenchType
 BENCH_TYPE_PATH_RUN_SELECTOR: BenchType
 BENCH_TYPE_RUN_STATUS: BenchType
@@ -2659,6 +2670,10 @@ COMPUTED_VALUE_KIND_UNSPECIFIED: ComputedValueKind
 COMPUTED_VALUE_KIND_PATH: ComputedValueKind
 COMPUTED_VALUE_KIND_EXPRESSION: ComputedValueKind
 COMPUTED_VALUE_KIND_CODE: ComputedValueKind
+COMPUTED_VALUE_MODE_UNSPECIFIED: ComputedValueMode
+COMPUTED_VALUE_MODE_ALWAYS: ComputedValueMode
+COMPUTED_VALUE_MODE_IF_SOURCE_SET: ComputedValueMode
+COMPUTED_VALUE_MODE_IF_TARGET_UNSET: ComputedValueMode
 PATH_ELEMENT_TYPE_UNSPECIFIED: PathElementType
 PATH_ELEMENT_TYPE_ROOT: PathElementType
 PATH_ELEMENT_TYPE_BENCH: PathElementType
@@ -3449,26 +3464,26 @@ class ValueData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., value_type: _Optional[_Union[TypeData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class ComputedValueData(_message.Message):
-    __slots__ = ("metatype", "kind", "name", "target_path", "source_path", "source_expression", "source_code", "is_active", "is_required")
+    __slots__ = ("metatype", "kind", "name", "mode", "target_path", "source_path", "source_expression", "source_code", "is_active")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
     TARGET_PATH_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
     SOURCE_EXPRESSION_FIELD_NUMBER: _ClassVar[int]
     SOURCE_CODE_FIELD_NUMBER: _ClassVar[int]
     IS_ACTIVE_FIELD_NUMBER: _ClassVar[int]
-    IS_REQUIRED_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     kind: ComputedValueKind
     name: str
+    mode: ComputedValueMode
     target_path: PathData
     source_path: PathData
     source_expression: ExpressionData
     source_code: CodeData
     is_active: bool
-    is_required: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[ComputedValueKind, str]] = ..., name: _Optional[str] = ..., target_path: _Optional[_Union[PathData, _Mapping]] = ..., source_path: _Optional[_Union[PathData, _Mapping]] = ..., source_expression: _Optional[_Union[ExpressionData, _Mapping]] = ..., source_code: _Optional[_Union[CodeData, _Mapping]] = ..., is_active: bool = ..., is_required: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[ComputedValueKind, str]] = ..., name: _Optional[str] = ..., mode: _Optional[_Union[ComputedValueMode, str]] = ..., target_path: _Optional[_Union[PathData, _Mapping]] = ..., source_path: _Optional[_Union[PathData, _Mapping]] = ..., source_expression: _Optional[_Union[ExpressionData, _Mapping]] = ..., source_code: _Optional[_Union[CodeData, _Mapping]] = ..., is_active: bool = ...) -> None: ...
 
 class ObjectMappingData(_message.Message):
     __slots__ = ("metatype", "mappings")

@@ -637,6 +637,10 @@ export interface ComputedValueData {
      */
     name?: string;
     /**
+     * @generated from protobuf field: symbolx.bench.ComputedValueMode mode = 35;
+     */
+    mode: ComputedValueMode;
+    /**
      * @generated from protobuf field: optional symbolx.bench.PathData target_path = 41;
      */
     targetPath?: PathData;
@@ -656,10 +660,6 @@ export interface ComputedValueData {
      * @generated from protobuf field: bool is_active = 60;
      */
     isActive: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_required = 61;
-     */
-    isRequired?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.ObjectMappingData
@@ -6202,6 +6202,10 @@ export enum EnumType {
      */
     COMPUTED_VALUE_KIND = 21510,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_COMPUTED_VALUE_MODE = 21511;
+     */
+    COMPUTED_VALUE_MODE = 21511,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_PATH_ELEMENT_TYPE = 21520;
      */
     PATH_ELEMENT_TYPE = 21520,
@@ -7737,6 +7741,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_COMPUTED_VALUE_KIND = 21510;
      */
     COMPUTED_VALUE_KIND = 21510,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_COMPUTED_VALUE_MODE = 21511;
+     */
+    COMPUTED_VALUE_MODE = 21511,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_PATH_ELEMENT_TYPE = 21520;
      */
@@ -10030,6 +10038,27 @@ export enum ComputedValueKind {
      * @generated from protobuf enum value: COMPUTED_VALUE_KIND_CODE = 3;
      */
     CODE = 3
+}
+/**
+ * @generated from protobuf enum symbolx.bench.ComputedValueMode
+ */
+export enum ComputedValueMode {
+    /**
+     * @generated from protobuf enum value: COMPUTED_VALUE_MODE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: COMPUTED_VALUE_MODE_ALWAYS = 1;
+     */
+    ALWAYS = 1,
+    /**
+     * @generated from protobuf enum value: COMPUTED_VALUE_MODE_IF_SOURCE_SET = 2;
+     */
+    IF_SOURCE_SET = 2,
+    /**
+     * @generated from protobuf enum value: COMPUTED_VALUE_MODE_IF_TARGET_UNSET = 3;
+     */
+    IF_TARGET_UNSET = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.PathElementType
@@ -13912,18 +13941,19 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.ComputedValueKind", ComputedValueKind, "COMPUTED_VALUE_KIND_"] },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "mode", kind: "enum", T: () => ["symbolx.bench.ComputedValueMode", ComputedValueMode, "COMPUTED_VALUE_MODE_"] },
             { no: 41, name: "target_path", kind: "message", T: () => PathData },
             { no: 51, name: "source_path", kind: "message", T: () => PathData },
             { no: 52, name: "source_expression", kind: "message", T: () => ExpressionData },
             { no: 53, name: "source_code", kind: "message", T: () => CodeData },
-            { no: 60, name: "is_active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "is_required", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 60, name: "is_active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ComputedValueData>): ComputedValueData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.kind = 0;
+        message.mode = 0;
         message.isActive = false;
         if (value !== undefined)
             reflectionMergePartial<ComputedValueData>(this, message, value);
@@ -13943,6 +13973,9 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
                 case /* optional string name */ 32:
                     message.name = reader.string();
                     break;
+                case /* symbolx.bench.ComputedValueMode mode */ 35:
+                    message.mode = reader.int32();
+                    break;
                 case /* optional symbolx.bench.PathData target_path */ 41:
                     message.targetPath = PathData.internalBinaryRead(reader, reader.uint32(), options, message.targetPath);
                     break;
@@ -13957,9 +13990,6 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
                     break;
                 case /* bool is_active */ 60:
                     message.isActive = reader.bool();
-                    break;
-                case /* optional bool is_required */ 61:
-                    message.isRequired = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13982,6 +14012,9 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
         /* optional string name = 32; */
         if (message.name !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.name);
+        /* symbolx.bench.ComputedValueMode mode = 35; */
+        if (message.mode !== 0)
+            writer.tag(35, WireType.Varint).int32(message.mode);
         /* optional symbolx.bench.PathData target_path = 41; */
         if (message.targetPath)
             PathData.internalBinaryWrite(message.targetPath, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
@@ -13997,9 +14030,6 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
         /* bool is_active = 60; */
         if (message.isActive !== false)
             writer.tag(60, WireType.Varint).bool(message.isActive);
-        /* optional bool is_required = 61; */
-        if (message.isRequired !== undefined)
-            writer.tag(61, WireType.Varint).bool(message.isRequired);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27435,6 +27465,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.SORT_MODE]: SortMode,
   [EnumType.SORT_TYPE]: SortType,
   [EnumType.COMPUTED_VALUE_KIND]: ComputedValueKind,
+  [EnumType.COMPUTED_VALUE_MODE]: ComputedValueMode,
   [EnumType.PATH_ELEMENT_TYPE]: PathElementType,
   [EnumType.PATH_RUN_SELECTOR]: PathRunSelector,
   [EnumType.RUN_STATUS]: RunStatus,
@@ -27817,6 +27848,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.SORT_MODE]: SortMode,
   [EnumType.SORT_TYPE]: SortType,
   [EnumType.COMPUTED_VALUE_KIND]: ComputedValueKind,
+  [EnumType.COMPUTED_VALUE_MODE]: ComputedValueMode,
   [EnumType.PATH_ELEMENT_TYPE]: PathElementType,
   [EnumType.PATH_RUN_SELECTOR]: PathRunSelector,
   [EnumType.RUN_STATUS]: RunStatus,
@@ -29317,12 +29349,12 @@ export enum ComputedValueProperty {
   metatype = 1,
   kind = 30,
   name = 32,
+  mode = 35,
   targetPath = 41,
   sourcePath = 51,
   sourceExpression = 52,
   sourceCode = 53,
   isActive = 60,
-  isRequired = 61,
 }
 
 export enum ObjectMappingProperty {
@@ -30048,8 +30080,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30080,8 +30112,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31195,12 +31227,12 @@ export const ComputedValueDataInfo: Record<ComputedValueProperty, PropertyInfo> 
   [ComputedValueProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COMPUTED_VALUE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ComputedValueProperty.kind]: { id: 30, name: 'kind', component: ObjectType.COMPUTED_VALUE, enumType: EnumType.COMPUTED_VALUE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ComputedValueProperty.name]: { id: 32, name: 'name', component: ObjectType.COMPUTED_VALUE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [ComputedValueProperty.mode]: { id: 35, name: 'mode', component: ObjectType.COMPUTED_VALUE, enumType: EnumType.COMPUTED_VALUE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ComputedValueProperty.targetPath]: { id: 41, name: 'target_path', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
   [ComputedValueProperty.sourcePath]: { id: 51, name: 'source_path', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
   [ComputedValueProperty.sourceExpression]: { id: 52, name: 'source_expression', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [ComputedValueProperty.sourceCode]: { id: 53, name: 'source_code', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ComputedValueProperty.isActive]: { id: 60, name: 'is_active', component: ObjectType.COMPUTED_VALUE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputedValueProperty.isRequired]: { id: 61, name: 'is_required', component: ObjectType.COMPUTED_VALUE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
 }
 export const ObjectMappingDataInfo: Record<ObjectMappingProperty, PropertyInfo> = {
   [ObjectMappingProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.OBJECT_MAPPING, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

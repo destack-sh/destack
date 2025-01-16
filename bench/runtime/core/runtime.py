@@ -19,6 +19,7 @@ from bench.language import (
     CheckOptions,
     ComputedValue,
     ComputedValueKind,
+    ComputedValueMode,
     Connection,
     CustomObject,
     Field,
@@ -186,8 +187,10 @@ class Runtime:
             source_value = self._evaluate_computed_value(runner, computed_value)
         except (PathError, AttributeError, ValidationError) as e:
             raise InvalidComputedError(computed_value=computed_value) from e
-        if source_value is None and computed_value.is_required:
-            logger.trace("runtime.apply_computed_value.skip", computed_value=computed_value)
+        if source_value is None and computed_value.mode == ComputedValueMode.IF_SOURCE_SET:
+            logger.trace(
+                "runtime.apply_computed_value.skip_if_source_set", computed_value=computed_value
+            )
             return False
 
         # get target site
@@ -205,22 +208,44 @@ class Runtime:
                 "runtime.apply_computed_value.missing", runner=runner, computed_value=computed_value
             )
             return False
-
-        # coerce & set value
         if target_key.type != PathElementType.ATTRIBUTE:
             raise InvalidComputedError(computed_value=computed_value)
-        if isinstance(node := target_key.node, Field):
+
+        # skip if target is already set (if configured)
+        if computed_value.mode == ComputedValueMode.IF_TARGET_UNSET:
+            if isinstance(field := target_key.node, Field):
+                assert isinstance(
+                    target_obj, CustomObject
+                ), f"bad target {target_obj!r} in {computed_value!r}"
+                is_set = target_obj.is_set(field)
+            elif (prop := target_key.property) is not None:
+                assert isinstance(
+                    target_obj, (BuiltinObject, CustomObject)
+                ), f"bad target {target_obj!r} in {computed_value!r}"
+                is_set = target_obj.is_set(prop)
+            else:
+                raise InvalidComputedError(computed_value=computed_value)
+            if is_set:
+                logger.trace(
+                    "runtime.apply_computed_value.skip_if_target_unset",
+                    runner=runner,
+                    computed_value=computed_value,
+                )
+                return False
+
+        # coerce & set value
+        if isinstance(field := target_key.node, Field):
             assert isinstance(
                 target_obj, CustomObject
             ), f"bad target {target_obj!r} in {computed_value!r}"
-            mapped_value = coerce_value(source_value, node)
-            target_obj._do_set(node, mapped_value, coerce=False)
+            mapped_value = coerce_value(source_value, field)
+            target_obj._do_set(field, mapped_value, coerce=False)
         elif (prop := target_key.property) is not None:
             assert isinstance(
                 target_obj, (BuiltinObject, CustomObject)
             ), f"bad target {target_obj!r} in {computed_value!r}"
             mapped_value = coerce_value(source_value, prop.type_info)
-            target_obj._do_set(prop.name, mapped_value)
+            target_obj._do_set(prop.name, mapped_value, coerce=False)
         else:
             raise InvalidComputedError(computed_value=computed_value)
         logger.trace(

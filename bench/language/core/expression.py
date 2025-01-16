@@ -42,7 +42,7 @@ from .validation import NAME_CONSTRAINT
 from .value import unpack_proto_json
 
 if TYPE_CHECKING:
-    from bench.language import Block, Code, Field, Path, Text, Type, TypeBase
+    from bench.language import Block, Code, ComputedValueMode, Field, Path, Text, Type, TypeBase
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -910,6 +910,13 @@ class ComputedValueKind(IdEnum):
     # GENERATE = 4
 
 
+@enum_(EnumType.COMPUTED_VALUE_MODE)
+class ComputedValueMode(IdEnum):
+    ALWAYS = 1
+    IF_SOURCE_SET = 2
+    IF_TARGET_UNSET = 3
+
+
 ComputedSourceIn = Union[PathIn, Expression, "Code"]
 
 
@@ -917,7 +924,7 @@ ComputedSourceIn = Union[PathIn, Expression, "Code"]
 class ComputedValue(Struct):
     """
     A computed value for a certain Property/Field on a Node.
-    The value is computed and set according to the context (and may be re-computed later,
+    The value is computed and set according to the context and mode (and may be re-computed later,
      for instance at the start of a Run or inside an instanced View in a UI).
     The property/field corresponds to the last element of the path (so we know the type).
     """
@@ -926,6 +933,7 @@ class ComputedValue(Struct):
     kind: ComputedValueKind = p_regular(30)
     name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
     # scope...?
+    mode: ComputedValueMode = p_regular(35, default=ComputedValueMode.ALWAYS)
 
     # path to set at
     target_path: "Path | None" = p_regular(41, struct=StructType.PATH)
@@ -936,8 +944,9 @@ class ComputedValue(Struct):
     source_code: "Code | None" = p_regular(53, struct=StructType.CODE)
 
     # flags
-    is_active: bool = p_regular(60, default=True)
-    is_required: bool | None = p_regular(61, default=None)
+    is_active: bool = p_regular(
+        60, default=True, description="Whether to apply this computed value"
+    )
 
     def __content_str__(self) -> str:
         if self.kind == ComputedValueKind.PATH:
@@ -960,37 +969,37 @@ class ComputedValue(Struct):
     def new(
         target: PathIn,
         *,
+        mode: ComputedValueMode = ComputedValueMode.ALWAYS,
         source: ComputedSourceIn,
         is_active: bool = True,
-        is_required: bool = False,
     ) -> "ComputedValue":
         from .code import Code
 
         target = to_path(target)
         if isinstance(source, Code):
             return ComputedValue(
+                mode=mode,
                 kind=ComputedValueKind.CODE,
                 target_path=target,
                 source_code=source,
                 is_active=is_active,
-                is_required=is_required,
             )
         elif isinstance(source, Expression):
             return ComputedValue(
                 kind=ComputedValueKind.EXPRESSION,
+                mode=mode,
                 target_path=target,
                 source_expression=source,
                 is_active=is_active,
-                is_required=is_required,
             )
         else:
             source = to_path(source)
             return ComputedValue(
                 kind=ComputedValueKind.PATH,
+                mode=mode,
                 target_path=target,
                 source_path=source,
                 is_active=is_active,
-                is_required=is_required,
             )
 
 

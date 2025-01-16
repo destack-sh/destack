@@ -118,6 +118,7 @@ if TYPE_CHECKING:
         Client,
         ComputedSourceIn,
         ComputedValue,
+        ComputedValueMode,
         CustomObject,
         Expression,
         Field,
@@ -1300,7 +1301,15 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 _HANDLING_ATTRIBUTE_ERROR.reset(_handling_token)
         raise AttributeError(f"{self_str} has no attribute '{key}'")
 
-    def _do_set(self, key: str, new_value: Any, *, track: bool = True, validate: bool = True):
+    def _do_set(
+        self,
+        key: str,
+        new_value: Any,
+        *,
+        track: bool = True,
+        coerce: bool = True,
+        validate: bool = True,
+    ):
         """Sets *any* attribute on this builtin object."""
         prop = self.__properties__.get(key)
         if prop is not None:
@@ -1318,13 +1327,14 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 if validate:
                     # coerce & check type (if it's not a contributed property, which only we edit)
                     if prop._type_info is not None and prop.reference_source is None:
-                        new_value = coerce_value(
-                            new_value,
-                            prop._type_info,
-                            parent=cast("Struct | Node", self),
-                            parent_key=prop,
-                            supergraph=self._supergraph,
-                        )
+                        if coerce:
+                            new_value = coerce_value(
+                                new_value,
+                                prop._type_info,
+                                parent=cast("Struct | Node", self),
+                                parent_key=prop,
+                                supergraph=self._supergraph,
+                            )
                         check_value(
                             new_value,
                             prop._type_info,
@@ -1380,12 +1390,12 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         __getattr__ = _do_get
         __setattr__ = _do_set
 
-    def is_set(self, prop: Property, value: Any = UNSET) -> bool:
-        """Whether a property is set."""
+    def is_set(self, key: Property, value: Any = UNSET) -> bool:
+        """Whether a key is set on this object."""
         if value is UNSET:
-            value = getattr(self, prop.name)
-        if not prop.is_list:
-            if value is not None and (prop.default is None or value != prop.default):
+            value = getattr(self, key.name)
+        if not key.is_list:
+            if value is not None and (key.default is None or value != key.default):
                 return True
         else:
             if type(value) is list and len(value) > 0:
@@ -2105,7 +2115,15 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         raise AttributeError(f"{self_str} has no attribute '{key}'")
 
     @override
-    def _do_set(self, key: str, new_value: Any, *, track: bool = True, validate: bool = True):
+    def _do_set(
+        self,
+        key: str,
+        new_value: Any,
+        *,
+        track: bool = True,
+        coerce: bool = True,
+        validate: bool = True,
+    ):
         """Sets *any* attribute on this builtin object."""
         if self.__has_subtypes__ and key not in self.__properties__:
             # set subtype property
@@ -2175,7 +2193,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
                     return  # success
 
-        super()._do_set(key, new_value, track=track, validate=validate)
+        super()._do_set(key, new_value, track=track, coerce=coerce, validate=validate)
 
     if not TYPE_CHECKING:  # (see above in BuiltinObject)
         __getattr__ = _do_get
@@ -2633,14 +2651,15 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
         self,
         target: "PathIn",
         source: "ComputedSourceIn",
+        *,
+        mode: "ComputedValueMode | None" = None,
         is_active: bool = True,
-        is_required: bool = False,
     ):
         """Sets and overrides the computed value for the target path."""
-        from .expression import ComputedValue
+        from .expression import ComputedValue, ComputedValueMode
 
         computed_value = ComputedValue.new(
-            target=target, source=source, is_active=is_active, is_required=is_required
+            target=target, source=source, mode=mode or ComputedValueMode.ALWAYS, is_active=is_active
         )
         self.computed_values = [
             *(cv for cv in self.computed_values if cv.target_path != target),

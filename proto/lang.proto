@@ -64,6 +64,7 @@ enum EnumType {
   ENUM_TYPE_SORT_MODE = 21506;
   ENUM_TYPE_SORT_TYPE = 21507;
   ENUM_TYPE_COMPUTED_VALUE_KIND = 21510;
+  ENUM_TYPE_COMPUTED_VALUE_MODE = 21511;
   ENUM_TYPE_PATH_ELEMENT_TYPE = 21520;
   ENUM_TYPE_PATH_RUN_SELECTOR = 21521;
   ENUM_TYPE_RUN_STATUS = 22000;
@@ -455,6 +456,7 @@ enum BenchType {
   BENCH_TYPE_SORT_MODE = 21506;
   BENCH_TYPE_SORT_TYPE = 21507;
   BENCH_TYPE_COMPUTED_VALUE_KIND = 21510;
+  BENCH_TYPE_COMPUTED_VALUE_MODE = 21511;
   BENCH_TYPE_PATH_ELEMENT_TYPE = 21520;
   BENCH_TYPE_PATH_RUN_SELECTOR = 21521;
   BENCH_TYPE_RUN_STATUS = 22000;
@@ -1122,6 +1124,13 @@ enum ComputedValueKind {
   COMPUTED_VALUE_KIND_PATH = 1;
   COMPUTED_VALUE_KIND_EXPRESSION = 2;
   COMPUTED_VALUE_KIND_CODE = 3;
+}
+
+enum ComputedValueMode {
+  COMPUTED_VALUE_MODE_UNSPECIFIED = 0;
+  COMPUTED_VALUE_MODE_ALWAYS = 1;
+  COMPUTED_VALUE_MODE_IF_SOURCE_SET = 2;
+  COMPUTED_VALUE_MODE_IF_TARGET_UNSET = 3;
 }
 
 enum PathElementType {
@@ -1918,12 +1927,12 @@ message ComputedValueData {
   ObjectType metatype = 1;
   ComputedValueKind kind = 30;
   optional string name = 32;
+  ComputedValueMode mode = 35;
   optional PathData target_path = 41;
   optional PathData source_path = 51;
   optional ExpressionData source_expression = 52;
   optional CodeData source_code = 53;
   bool is_active = 60;
-  optional bool is_required = 61;
 }
 
 message ObjectMappingData {

@@ -223,18 +223,34 @@ class CustomObject(Mapping[str, Any]):
 
     __getattr__ = __getitem__
 
-    def _do_get(self, key: "Field | Property") -> SomeValue:
-        if type(key) is Property:
-            if key.is_value_packed:
-                return None
+    def _get_storage(self, key: "Field | Property") -> tuple[str, "TypeBase"]:
+        if isinstance(key, Property):
             if key.is_value_runtime:
                 assert isinstance(
                     key.value_packed_ptr, Property
                 ), f"unexpected {key.value_packed_ptr!r} for {key!r} in {self!r}"
                 key = key.value_packed_ptr
-            storage_key = key.subtype_key or key.key  # :PropertySubtypeKey
+            storage_key = key.subtype_key or key.key
+            typ = key.type_info
         else:
             storage_key = key.key
+            typ = key
+        return storage_key, typ
+
+    def _get_storage_key(self, key: "Field | Property") -> str:
+        if isinstance(key, Property):
+            if key.is_value_runtime:
+                assert isinstance(
+                    key.value_packed_ptr, Property
+                ), f"unexpected {key.value_packed_ptr!r} for {key!r} in {self!r}"
+                key = key.value_packed_ptr
+            storage_key = key.subtype_key or key.key
+        else:
+            storage_key = key.key
+        return storage_key
+
+    def _do_get(self, key: "Field | Property") -> SomeValue:
+        storage_key = self._get_storage_key(key)
         value = self._value.get(storage_key)
         if value is None:
             default = key.default
@@ -272,19 +288,7 @@ class CustomObject(Mapping[str, Any]):
             key = item
 
         # check/coerce
-        if isinstance(key, Property):
-            assert not key.is_value_packed, f"cannot set {key!r} directly in {self!r}"
-            if key.is_value_runtime:
-                assert (
-                    type(key.value_packed_ptr) is Property
-                ), f"unexpected {key.value_packed_ptr!r} for {key!r} in {self!r}"
-                key = key.value_packed_ptr
-                coerce = False
-            key_typ = key.type_info
-            storage_key = key.subtype_key or key.key  # :PropertySubtypeKey
-        else:
-            key_typ = key
-            storage_key = key.key
+        storage_key, key_typ = self._get_storage(key)
         if coerce:
             new_value = coerce_value(
                 new_value,
@@ -327,6 +331,11 @@ class CustomObject(Mapping[str, Any]):
             object.__setattr__(self, item, value)
         else:
             self.__setitem__(item, value)
+
+    def is_set(self, key: "Property | Field") -> bool:
+        """Whether the given key is set."""
+        storage_key = self._get_storage_key(key)
+        return storage_key in self._value
 
     @property
     def fields(self):

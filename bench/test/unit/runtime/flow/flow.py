@@ -8,6 +8,7 @@ from bench.language import (
     Breakpoint,
     BreakpointScope,
     Code,
+    ComputedValueMode,
     Field,
     Interruption,
     InterruptionStatus,
@@ -247,6 +248,61 @@ async def test_run_flow_invalid_computed_target(hosted_runtime: RuntimeHandle):
 
     runner = await hosted_runtime.run(Flow1, inputs={"Input": 1})
     assert runner.status == RunStatus.COMPLETED
+
+
+async def test_run_flow_computed_value_mode(hosted_runtime: RuntimeHandle):
+    """Run a Flow with computed value set if source is set."""
+    Flow1 = Block.new(
+        BlockType.FLOW,
+        "Flow1",
+        fields=(
+            Field.input("Input1", int),
+            Field.input("Input2", int),
+            Field.input("Input3", int),
+            Field.output("Output1", int),
+            Field.output("Output2", int),
+            Field.output("Output3", int),
+        ),
+    )
+    Start = Action.new(ActionType.START, "Start")
+    Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Flow1.actions.extend(Start, Complete)
+    Start.connect(PipeType.FORWARD, Complete)
+    hosted_runtime.page().blocks.append(Flow1)
+    # always
+    Complete.set_computed(
+        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output1),
+        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input1),
+        mode=ComputedValueMode.ALWAYS,
+    )
+    # if source is set
+    Complete.set_computed(
+        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output2),
+        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input2),
+        mode=ComputedValueMode.IF_SOURCE_SET,
+    )
+    # if target is unset x2 (all but first should be ignored)
+    Complete.set_computed(
+        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output3),
+        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input3),
+        mode=ComputedValueMode.IF_TARGET_UNSET,
+    )
+    Complete.set_computed(
+        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output3),
+        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input2),
+        mode=ComputedValueMode.IF_TARGET_UNSET,
+    )
+    Complete.set_computed(
+        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output3),
+        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input1),
+        mode=ComputedValueMode.IF_TARGET_UNSET,
+    )
+    await hosted_runtime.commit()
+
+    runner = await hosted_runtime.run(Flow1, inputs={"Input1": 1, "Input2": 2, "Input3": 3})
+    assert runner.outputs and runner.outputs.Output1 == 1  # Output 1 == Input1 (always)
+    assert runner.outputs and runner.outputs.Output2 == 2  # Output2 == Input2?
+    assert runner.outputs and runner.outputs.Output3 == 3  # Output3 == Input3 (first set)
 
 
 async def test_run_flow_code_dynamic(hosted_runtime: RuntimeHandle):
@@ -543,7 +599,7 @@ async def test_run_flow_create_action_dynamic(hosted_runtime: RuntimeHandle):
             Record.get_property("name"),
         ),
         source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Name),
-        is_required=True,
+        mode=ComputedValueMode.IF_SOURCE_SET,
     )
     Create.set_computed(
         target=(
@@ -553,7 +609,7 @@ async def test_run_flow_create_action_dynamic(hosted_runtime: RuntimeHandle):
             Database1.fields.Rating,
         ),
         source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Rating),
-        is_required=True,
+        mode=ComputedValueMode.IF_SOURCE_SET,
     )
     Flow1.actions.extend(Start, Create)
     Start.connect(PipeType.FORWARD, Create)
