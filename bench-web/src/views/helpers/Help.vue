@@ -181,7 +181,7 @@ defineExpose<ViewExposed>({ self });
           id="start"
           ref="startRef"
           :node-ptr="nodePtr"
-          v-bind="state.getChildState('start', { nodePtr })"
+          v-bind="state.getChildState('scroll.start', { nodePtr })"
         />
         <!-- ... -->
         <div v-else class="mx-5">
