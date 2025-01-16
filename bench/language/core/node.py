@@ -3080,7 +3080,8 @@ def patch_graph(*, old_graph: NodeGraph, new_graph: NodeGraph) -> None:
     for existing_node in tuple(old_graph.nodes):
         if existing_node.id not in new_graph:
             # node removed: leave as is, remove from existing graph
-            old_graph.remove(existing_node)
+            if existing_node in old_graph._nodes_by_id:
+                old_graph.remove(existing_node)  # may be a child
             continue
         else:
             # node updated: patch in place
@@ -3093,7 +3094,8 @@ def patch_graph(*, old_graph: NodeGraph, new_graph: NodeGraph) -> None:
     for patch_node in tuple(new_graph.nodes):
         if patch_node.id not in old_graph:
             # node added: add to existing graph
-            old_graph.add(patch_node)
+            if patch_node.id not in old_graph._nodes_by_id:
+                old_graph.add(patch_node)
 
 
 def sync_node(*, parent: Node, old_root: SourceNode | None, new_root: SourceNode) -> None:
