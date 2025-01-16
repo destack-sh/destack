@@ -679,7 +679,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
 
     // computed
     let computedPrefix: PathData | undefined;
-    if (options?.isComputable && this.computedType) {
+    if (options?.isComputable) {
       if (this.computedPath != null) {
         computedPrefix = this.computedPath;
       } else {

@@ -248,7 +248,7 @@ class Runtime:
             target_obj._do_set(prop.name, mapped_value, coerce=False)
         else:
             raise InvalidComputedError(computed_value=computed_value)
-        logger.trace(
+        logger.debug(
             "runtime.apply_computed_value",
             computed_value=computed_value,
             target=target_obj,
