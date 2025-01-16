@@ -1,5 +1,6 @@
 import {
   APPLICATION_ACTION_TYPES,
+  DYNAMIC_ACTION_TYPES,
   FLOW_ACTION_TYPES,
   getBaseFromNode,
   getPropertyTitle,
@@ -47,6 +48,8 @@ import {
   BlockProperty,
   BlockType,
   ComputedValueData,
+  CreateActionProperty,
+  DeleteActionProperty,
   EditOperationData,
   EditOperationType,
   EmptyProperty,
@@ -78,6 +81,7 @@ import {
   TypeConstraintProperty,
   TypeData,
   TypeKind,
+  UpdateActionProperty,
   ViewType,
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
@@ -906,11 +910,46 @@ export class FieldLayout extends NodeLayout<NodeType.FIELD> {
   }
 }
 
+const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>> = {
+  // write
+  [ActionType.CREATE]: [CreateActionProperty.nodePartialPacked],
+  [ActionType.UPDATE]: [UpdateActionProperty.nodePtr, UpdateActionProperty.nodePartialPacked],
+  [ActionType.DELETE]: [DeleteActionProperty.nodePtr],
+  // web
+  [ActionType.GO_TO_URL]: [GoToUrlActionProperty.url],
+};
+
 export class ActionLayout extends NodeLayout<NodeType.ACTION> {
   sectionApplication() {
     this.section("Application", [this.rowProperty(ObserveActionProperty.applicationPtr, { isComputable: true })], {
       isDefaultCollapsed: true,
     });
+  }
+
+  subproperties(...subproperties: number[]) {
+    const rows: Row[] = [];
+    subproperties = subproperties ?? Object.values(this.subpropertyEnum ?? {});
+    for (let i = 0; i < subproperties.length; i++) {
+      const subproperty = subproperties[i];
+      if (typeof subproperty !== "number") continue;
+      const { prop } = this.getProperty(subproperty as any);
+      if (prop == null || prop.fieldType == FieldType.OUTPUT) continue;
+
+      if (prop.valueIsPartial) {
+        if (!this.isPartial) {
+          // no nested partials
+          this.section("Node", [
+            this.rowObjectNested(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), {
+              title: false,
+              isComputable: true,
+            }),
+          ]);
+        }
+      } else {
+        rows.push(this.rowProperty(subproperty, { isComputable: true }));
+      }
+    }
+    return rows;
   }
 
   make() {
@@ -937,8 +976,6 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
           },
         }),
       );
-    } else if (node.type == ActionType.GO_TO_URL) {
-      commonRows.push(this.rowProperty(GoToUrlActionProperty.url, { isComputable: true }));
     } else if (node.type == ActionType.FAIL) {
       commonRows.push(this.rowProperty(FailActionProperty.errorTitle, { title: "Title", isComputable: true }));
       commonRows.push(this.rowProperty(FailActionProperty.errorText, { title: "Text", isComputable: true }));
@@ -947,11 +984,11 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
     // schema
     if (!this.isPartial) {
       const nodePtr = toNodeRef(node as ActionData);
-      let toolPtr: NodeReferenceData | undefined = undefined;
+      let delegatePtr: NodeReferenceData | undefined = undefined;
       if (node.type == ActionType.START || node.type == ActionType.COMPLETE) {
-        toolPtr = node.parentPtr;
+        delegatePtr = node.parentPtr;
       } else if (node.type == ActionType.TOOL) {
-        toolPtr = node.toolPtr;
+        delegatePtr = node.toolPtr;
       }
       if (node.type == ActionType.START) {
         // flow inputs
@@ -985,7 +1022,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
             ],
           },
         );
-      } else if (node.type == ActionType.TOOL && toolPtr != null) {
+      } else if (node.type == ActionType.TOOL && delegatePtr != null) {
         // own schema with tool schema
         this.section(
           "Schema",
@@ -996,7 +1033,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
               makeType({
                 kind: TypeKind.CUSTOM_OBJECT,
                 baseFieldTypes: [FieldType.VARIABLE],
-                baseTypePtr: toolPtr,
+                baseTypePtr: delegatePtr,
               }),
               { isComputable: true },
             ),
@@ -1005,14 +1042,14 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
               makeType({
                 kind: TypeKind.CUSTOM_OBJECT,
                 baseFieldTypes: [FieldType.INPUT],
-                baseTypePtr: toolPtr,
+                baseTypePtr: delegatePtr,
               }),
               { isComputable: true },
             ),
             // arrow
             this.rowIcon("fas fa-arrow-down"),
             // outputs
-            { type: "fields-list", fieldType: FieldType.OUTPUT, toolPtr },
+            { type: "fields-list", fieldType: FieldType.OUTPUT, toolPtr: delegatePtr },
             this.rowLine("Self"),
             { type: "fields-list", fieldType: FieldType.OUTPUT },
           ],
@@ -1024,7 +1061,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
             ],
           },
         );
-      } else if (node.type == ActionType.CODE || node.type == ActionType.TOOL || node.type! > ActionType.GENERATE) {
+      } else if (DYNAMIC_ACTION_TYPES.includes(node.type as ActionType)) {
         // own schema
         this.section(
           "Schema",
@@ -1034,7 +1071,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
               makeType({
                 kind: TypeKind.CUSTOM_OBJECT,
                 baseFieldTypes: [FieldType.INPUT],
-                baseTypePtr: toolPtr ?? nodePtr ?? undefined,
+                baseTypePtr: nodePtr ?? undefined,
               }),
               { isComputable: true },
             ),
@@ -1048,6 +1085,8 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
             ],
           },
         );
+      } else {
+        commonRows.push(...this.subproperties(...(DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE[node.type!] ?? [])));
       }
     }
 

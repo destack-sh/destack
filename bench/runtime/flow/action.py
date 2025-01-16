@@ -512,10 +512,10 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunnerBase[Any]]] = {
     ActionType.START: StartActionRunner,
     ActionType.COMPLETE: CompleteActionRunner,
     ActionType.FAIL: FailActionRunner,
-    # tool
+    # tool (dynamic)
     ActionType.CODE: CodeActionRunner,
     ActionType.TOOL: ToolActionRunner,
-    # dynamic
+    # dynamic (dynamic)
     ActionType.DO: DynamicActionRunnerBase,
     ActionType.ROUTE: DynamicActionRunnerBase,
     ActionType.GENERATE: DynamicActionRunnerBase,
@@ -525,6 +525,7 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunnerBase[Any]]] = {
     ActionType.SUMMARIZE: DynamicActionRunnerBase,
     ActionType.COMPARE: DynamicActionRunnerBase,
     ActionType.TRANSLATE: DynamicActionRunnerBase,
+    ActionType.CHANGE: DynamicActionRunnerBase,
     # read
     ActionType.GET: GetActionRunner,
     ActionType.SEARCH: SearchActionRunner,
