@@ -4621,9 +4621,9 @@ export interface WaitActionData {
 /**
  * A data or control flow node in a Flow. Actions are connected by Pipes.
  *
- * @generated from protobuf message symbolx.bench.ObserveActionData
+ * @generated from protobuf message symbolx.bench.LookActionData
  */
-export interface ObserveActionData {
+export interface LookActionData {
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
      */
@@ -10911,41 +10911,41 @@ export enum ActionType {
      */
     NOTIFY = 510,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_OBSERVE = 1000;
+     * @generated from protobuf enum value: ACTION_TYPE_LOOK = 800;
      */
-    OBSERVE = 1000,
+    LOOK = 800,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_CLICK = 1050;
+     * @generated from protobuf enum value: ACTION_TYPE_CLICK = 1000;
      */
-    CLICK = 1050,
+    CLICK = 1000,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_PRESS = 1051;
+     * @generated from protobuf enum value: ACTION_TYPE_PRESS = 1001;
      */
-    PRESS = 1051,
+    PRESS = 1001,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_TYPE = 1052;
+     * @generated from protobuf enum value: ACTION_TYPE_TYPE = 1002;
      */
-    TYPE = 1052,
+    TYPE = 1002,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_SCROLL = 1053;
+     * @generated from protobuf enum value: ACTION_TYPE_SCROLL = 1003;
      */
-    SCROLL = 1053,
+    SCROLL = 1003,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_SELECT = 1054;
+     * @generated from protobuf enum value: ACTION_TYPE_SELECT = 1004;
      */
-    SELECT = 1054,
+    SELECT = 1004,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_DRAG = 1055;
+     * @generated from protobuf enum value: ACTION_TYPE_DRAG = 1005;
      */
-    DRAG = 1055,
+    DRAG = 1005,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_GO_BACKWARD = 1060;
+     * @generated from protobuf enum value: ACTION_TYPE_GO_BACKWARD = 1006;
      */
-    GO_BACKWARD = 1060,
+    GO_BACKWARD = 1006,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_GO_FORWARD = 1061;
+     * @generated from protobuf enum value: ACTION_TYPE_GO_FORWARD = 1007;
      */
-    GO_FORWARD = 1061,
+    GO_FORWARD = 1007,
     /**
      * @generated from protobuf enum value: ACTION_TYPE_GO_TO_URL = 1100;
      */
@@ -23745,9 +23745,9 @@ class WaitActionData$Type extends MessageType$<WaitActionData> {
  */
 export const WaitActionData = new WaitActionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ObserveActionData$Type extends MessageType$<ObserveActionData> {
+class LookActionData$Type extends MessageType$<LookActionData> {
     constructor() {
-        super("symbolx.bench.ObserveActionData", [
+        super("symbolx.bench.LookActionData", [
             { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 111, name: "element_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -23758,14 +23758,14 @@ class ObserveActionData$Type extends MessageType$<ObserveActionData> {
             { no: 201, name: "dom_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => DomNodeData }
         ]);
     }
-    create(value?: PartialMessage<ObserveActionData>): ObserveActionData {
+    create(value?: PartialMessage<LookActionData>): LookActionData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.domNodes = [];
         if (value !== undefined)
-            reflectionMergePartial<ObserveActionData>(this, message, value);
+            reflectionMergePartial<LookActionData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ObserveActionData): ObserveActionData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LookActionData): LookActionData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -23805,7 +23805,7 @@ class ObserveActionData$Type extends MessageType$<ObserveActionData> {
         }
         return message;
     }
-    internalBinaryWrite(message: ObserveActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: LookActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
         if (message.applicationPtr)
             NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
@@ -23837,9 +23837,9 @@ class ObserveActionData$Type extends MessageType$<ObserveActionData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.ObserveActionData
+ * @generated MessageType for protobuf message symbolx.bench.LookActionData
  */
-export const ObserveActionData = new ObserveActionData$Type();
+export const LookActionData = new LookActionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ClickActionData$Type extends MessageType$<ClickActionData> {
     constructor() {
@@ -27655,7 +27655,7 @@ export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.ICON]: IconViewData,
 }
 
-export type ActionSubtype = FailActionData | CodeActionData | ToolActionData | GenerateActionData | TransformActionData | RouteActionData | ChangeActionData | GetActionData | SearchActionData | CreateActionData | DuplicateActionData | UpdateActionData | DeleteActionData | SendActionData | ReceiveActionData | WaitActionData | ObserveActionData | ClickActionData | PressActionData | TypeActionData | ScrollActionData | SelectActionData | GoBackwardActionData | GoForwardActionData | GoToUrlActionData | GoToTabActionData;
+export type ActionSubtype = FailActionData | CodeActionData | ToolActionData | GenerateActionData | TransformActionData | RouteActionData | ChangeActionData | GetActionData | SearchActionData | CreateActionData | DuplicateActionData | UpdateActionData | DeleteActionData | SendActionData | ReceiveActionData | WaitActionData | LookActionData | ClickActionData | PressActionData | TypeActionData | ScrollActionData | SelectActionData | GoBackwardActionData | GoForwardActionData | GoToUrlActionData | GoToTabActionData;
 export interface ActionSubtypeMapping extends Record<ActionType, ActionSubtype> {
   [ActionType.FAIL]: FailActionData,
   [ActionType.CODE]: CodeActionData,
@@ -27673,7 +27673,7 @@ export interface ActionSubtypeMapping extends Record<ActionType, ActionSubtype> 
   [ActionType.SEND]: SendActionData,
   [ActionType.RECEIVE]: ReceiveActionData,
   [ActionType.WAIT]: WaitActionData,
-  [ActionType.OBSERVE]: ObserveActionData,
+  [ActionType.LOOK]: LookActionData,
   [ActionType.CLICK]: ClickActionData,
   [ActionType.PRESS]: PressActionData,
   [ActionType.TYPE]: TypeActionData,
@@ -28902,7 +28902,7 @@ export enum WaitActionProperty {
   delay = 120,
 }
 
-export enum ObserveActionProperty {
+export enum LookActionProperty {
   applicationPtr = 100,
   elementId = 110,
   elementPath = 111,
@@ -29822,7 +29822,7 @@ export const ACTION_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ActionType, any>> =
   [ActionType.SEND]: SendActionProperty,
   [ActionType.RECEIVE]: ReceiveActionProperty,
   [ActionType.WAIT]: WaitActionProperty,
-  [ActionType.OBSERVE]: ObserveActionProperty,
+  [ActionType.LOOK]: LookActionProperty,
   [ActionType.CLICK]: ClickActionProperty,
   [ActionType.PRESS]: PressActionProperty,
   [ActionType.TYPE]: TypeActionProperty,
@@ -30080,8 +30080,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30112,8 +30112,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.3", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30825,69 +30825,69 @@ export const ReceiveActionDataInfo: Record<ReceiveActionProperty, PropertyInfo> 
 export const WaitActionDataInfo: Record<WaitActionProperty, PropertyInfo> = {
   [WaitActionProperty.delay]: { id: 120, name: 'delay', component: ObjectType.ACTION, componentSubtype: 502, kind: 'primitive', primitiveType: PrimitiveType.DURATION, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
-export const ObserveActionDataInfo: Record<ObserveActionProperty, PropertyInfo> = {
-  [ObserveActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [ObserveActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [ObserveActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [ObserveActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [ObserveActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [ObserveActionProperty.excludeImage]: { id: 120, name: 'exclude_image', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [ObserveActionProperty.screenshotPtr]: { id: 200, name: 'screenshot_ptr', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
-  [ObserveActionProperty.domNodes]: { id: 201, name: 'dom_nodes', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.OUTPUT, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DOM_NODE },
+export const LookActionDataInfo: Record<LookActionProperty, PropertyInfo> = {
+  [LookActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 800, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [LookActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 800, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [LookActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 800, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [LookActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 800, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [LookActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 800, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [LookActionProperty.excludeImage]: { id: 120, name: 'exclude_image', component: ObjectType.ACTION, componentSubtype: 800, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [LookActionProperty.screenshotPtr]: { id: 200, name: 'screenshot_ptr', component: ObjectType.ACTION, componentSubtype: 800, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
+  [LookActionProperty.domNodes]: { id: 201, name: 'dom_nodes', component: ObjectType.ACTION, componentSubtype: 800, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.OUTPUT, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DOM_NODE },
 }
 export const ClickActionDataInfo: Record<ClickActionProperty, PropertyInfo> = {
-  [ClickActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [ClickActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [ClickActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [ClickActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [ClickActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [ClickActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [ClickActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [ClickActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [ClickActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [ClickActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const PressActionDataInfo: Record<PressActionProperty, PropertyInfo> = {
-  [PressActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [PressActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [PressActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.keys]: { id: 120, name: 'keys', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.delay]: { id: 121, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [PressActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [PressActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.keys]: { id: 120, name: 'keys', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.delay]: { id: 121, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const TypeActionDataInfo: Record<TypeActionProperty, PropertyInfo> = {
-  [TypeActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [TypeActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [TypeActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.string]: { id: 120, name: 'string', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.delay]: { id: 121, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1052, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [TypeActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [TypeActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [TypeActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [TypeActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [TypeActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [TypeActionProperty.string]: { id: 120, name: 'string', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [TypeActionProperty.delay]: { id: 121, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const ScrollActionDataInfo: Record<ScrollActionProperty, PropertyInfo> = {
-  [ScrollActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [ScrollActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [ScrollActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [ScrollActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [ScrollActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [ScrollActionProperty.amount]: { id: 120, name: 'amount', component: ObjectType.ACTION, componentSubtype: 1053, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [ScrollActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1003, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [ScrollActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1003, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [ScrollActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1003, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [ScrollActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1003, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [ScrollActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1003, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [ScrollActionProperty.amount]: { id: 120, name: 'amount', component: ObjectType.ACTION, componentSubtype: 1003, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
 }
 export const SelectActionDataInfo: Record<SelectActionProperty, PropertyInfo> = {
-  [SelectActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [SelectActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [SelectActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [SelectActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [SelectActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1054, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [SelectActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1004, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [SelectActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1004, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [SelectActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1004, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [SelectActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1004, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [SelectActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1004, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const GoBackwardActionDataInfo: Record<GoBackwardActionProperty, PropertyInfo> = {
-  [GoBackwardActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [GoBackwardActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [GoBackwardActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [GoBackwardActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [GoBackwardActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1060, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoBackwardActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1006, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [GoBackwardActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1006, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoBackwardActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1006, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoBackwardActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1006, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [GoBackwardActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1006, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const GoForwardActionDataInfo: Record<GoForwardActionProperty, PropertyInfo> = {
-  [GoForwardActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [GoForwardActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [GoForwardActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [GoForwardActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [GoForwardActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1061, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoForwardActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1007, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [GoForwardActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1007, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoForwardActionProperty.elementPath]: { id: 111, name: 'element_path', component: ObjectType.ACTION, componentSubtype: 1007, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoForwardActionProperty.elementPosition]: { id: 112, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1007, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [GoForwardActionProperty.elementText]: { id: 113, name: 'element_text', component: ObjectType.ACTION, componentSubtype: 1007, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const GoToUrlActionDataInfo: Record<GoToUrlActionProperty, PropertyInfo> = {
   [GoToUrlActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
@@ -31567,7 +31567,7 @@ export const ActionSubtypePropertyInfo: Partial<Record<ActionType, Record<any, P
   [ActionType.SEND]: SendActionDataInfo,
   [ActionType.RECEIVE]: ReceiveActionDataInfo,
   [ActionType.WAIT]: WaitActionDataInfo,
-  [ActionType.OBSERVE]: ObserveActionDataInfo,
+  [ActionType.LOOK]: LookActionDataInfo,
   [ActionType.CLICK]: ClickActionDataInfo,
   [ActionType.PRESS]: PressActionDataInfo,
   [ActionType.TYPE]: TypeActionDataInfo,
@@ -31650,15 +31650,15 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
   [ActionType.WAIT]: { id: 502, name: 'WAIT', text: 'Wait for something' },
   [ActionType.YIELD]: { id: 503, name: 'YIELD', text: 'Defer to someone' },
   [ActionType.NOTIFY]: { id: 510, name: 'NOTIFY', text: 'Notify someone' },
-  [ActionType.OBSERVE]: { id: 1000, name: 'OBSERVE', text: 'Look at the application' },
-  [ActionType.CLICK]: { id: 1050, name: 'CLICK', text: 'Click an element' },
-  [ActionType.PRESS]: { id: 1051, name: 'PRESS', text: 'Press a key' },
-  [ActionType.TYPE]: { id: 1052, name: 'TYPE', text: 'Type text' },
-  [ActionType.SCROLL]: { id: 1053, name: 'SCROLL', text: 'Scroll the mouse wheel' },
-  [ActionType.SELECT]: { id: 1054, name: 'SELECT', text: 'Select an element' },
-  [ActionType.DRAG]: { id: 1055, name: 'DRAG', text: 'Drag an element' },
-  [ActionType.GO_BACKWARD]: { id: 1060, name: 'GO_BACKWARD', text: 'Go back in history' },
-  [ActionType.GO_FORWARD]: { id: 1061, name: 'GO_FORWARD', text: 'Go forward in history' },
+  [ActionType.LOOK]: { id: 800, name: 'LOOK', text: 'Look at the environment' },
+  [ActionType.CLICK]: { id: 1000, name: 'CLICK', text: 'Click an element' },
+  [ActionType.PRESS]: { id: 1001, name: 'PRESS', text: 'Press a key' },
+  [ActionType.TYPE]: { id: 1002, name: 'TYPE', text: 'Type text' },
+  [ActionType.SCROLL]: { id: 1003, name: 'SCROLL', text: 'Scroll the mouse wheel' },
+  [ActionType.SELECT]: { id: 1004, name: 'SELECT', text: 'Select an element' },
+  [ActionType.DRAG]: { id: 1005, name: 'DRAG', text: 'Drag an element' },
+  [ActionType.GO_BACKWARD]: { id: 1006, name: 'GO_BACKWARD', text: 'Go back in history' },
+  [ActionType.GO_FORWARD]: { id: 1007, name: 'GO_FORWARD', text: 'Go forward in history' },
   [ActionType.GO_TO_URL]: { id: 1100, name: 'GO_TO_URL', text: 'Navigate to a URL' },
   [ActionType.GO_TO_TAB]: { id: 1101, name: 'GO_TO_TAB', text: 'Switch to a tab' },
   [ActionType.OPEN_TAB]: { id: 1102, name: 'OPEN_TAB', text: 'Open a new tab' },

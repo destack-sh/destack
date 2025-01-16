@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC
-from typing import TYPE_CHECKING, Any, ClassVar, cast, override
+from typing import TYPE_CHECKING, Any, ClassVar, cast, final, override
 
 import structlog
 from opentelemetry import trace
@@ -30,8 +30,8 @@ from bench.language import (
     HasContext,
     HasNodeBase,
     InterruptionType,
+    LookAction,
     NodeType,
-    ObserveAction,
     PressAction,
     Run,
     RunnableNode,
@@ -53,10 +53,12 @@ from bench.language import (
     patch_node_from_partial,
     upload_file,
 )
-from bench.runtime.browser.playwright import parse_dom_node
+from bench.language.core.code import Code
+from bench.language.runtime.model import ModelType
+from bench.runtime.browser import parse_dom_node
+from bench.runtime.code.code import CodeFunctionRunner
 from bench.runtime.core import (
     ATTEMPT_ONCE,
-    NotSupportedError,
     RetryableError,
     RunImpossibleError,
     Runner,
@@ -64,6 +66,8 @@ from bench.runtime.core import (
     make_runner,
     restore_runner,
 )
+from bench.runtime.model.chat import make_chat_prompt
+from bench.runtime.model.openai import OpenaiChatModelRunner
 
 if TYPE_CHECKING:
     from .flow import FlowRunnerBase
@@ -225,9 +229,46 @@ class ToolActionRunner(ActionRunnerBase[ToolAction]):
 
 
 class DynamicActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
+    # nocheckin: dynamic stuff
+    # we need to generate a few things:
+    #   1. directly generated outputs (with call slots) for dynamic actions
+    #   2. only call slots for non-dynamic actions
+    #   [call slots = any selective pipes, pipes to actions with missing inputs (?)]
+
+    @final
     @override
     async def run(self) -> None:
-        raise NotSupportedError(f"nocheckin: DynamicActionRunner {self!r}")
+        prompt = make_chat_prompt(
+            action=self.node,
+            runner=cast(Runner[RunnableNode], self),
+            context=self.context,
+            inputs=self.inputs,
+            outputs=self.outputs,
+            output_type=self.output_type,
+            include_run_context=True,
+        )
+        runner = OpenaiChatModelRunner()
+        parts = await runner.compile(prompt, 1000)
+        rendered = await runner.assemble(parts)
+        code = await runner.generate(
+            prompt,
+            ModelType.OPENAI_GPT4_0,
+            rendered,
+            user_id=str(self.session.bench_id),
+            options=ATTEMPT_ONCE,
+        )
+        code_runner = CodeFunctionRunner(
+            runtime=self.runtime,
+            node=self.node,
+            code=Code.from_string(code),
+            track=False,
+            options=ATTEMPT_ONCE,
+            context=self.context,
+            output_type=self.output_type,
+            parent=cast(Runner[RunnableNode], self),
+        )
+        await self.runtime.run_runner(code_runner)
+        self.outputs = code_runner.outputs
 
 
 #
@@ -377,10 +418,10 @@ class ApplicationActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
         await pw_page.focus(selector)
 
 
-class ObserveActionRunner(ApplicationActionRunnerBase[ObserveAction]):
+class LookActionRunner(ApplicationActionRunnerBase[LookAction]):
     @override
     async def run(self) -> None:
-        # TODO :Performance: obviously ObserveAction could be a lot more efficient
+        # TODO :Performance: obviously LookAction could be a lot more efficient
         #  (defer uploads, ensure extension script is preloaded, ...)
         browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
@@ -538,7 +579,7 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunnerBase[Any]]] = {
     ActionType.YIELD: YieldActionRunner,
     ActionType.WAIT: WaitActionRunner,
     # application
-    ActionType.OBSERVE: ObserveActionRunner,
+    ActionType.LOOK: LookActionRunner,
     ActionType.CLICK: ClickActionRunner,
     ActionType.PRESS: PressActionRunner,
     ActionType.TYPE: TypeActionRunner,
