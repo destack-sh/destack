@@ -201,7 +201,9 @@ export function toPropertyRef(property: PropertyInfo | PropertyReferenceData): P
 }
 
 export function propertyInfo(metatype: ObjectType | NodeType | StructType, id: number): PropertyInfo {
-  return PROPERTY_INFOS_BY_TYPE[metatype]![id];
+  const info = PROPERTY_INFOS_BY_TYPE[metatype]![id];
+  if (info == null) throw new Error(`missing property info for ${metatype}.${id}`);
+  return info;
 }
 
 export function isNodeRef(value: any | null | undefined): value is NodeReferenceData {

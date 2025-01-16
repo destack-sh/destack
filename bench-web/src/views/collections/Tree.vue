@@ -1,11 +1,12 @@
 <script lang="ts" setup>
 import { createBlock } from "@/language/block";
 import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/const";
-import { NAME_TYPE } from "@/language/field";
+import { makeType, NAME_TYPE } from "@/language/field";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
-import { cloneNode, moveNode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
+import { cloneNode, moveNode, packSubnode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
 import {
+  BenchType,
   BlockData,
   BlockType,
   CHILD_NODE_TYPES,
@@ -13,6 +14,7 @@ import {
   NodeType,
   ObjectType,
   Orientation,
+  PickerVariant,
   TreeViewPreset,
   ViewData,
   ViewType,
@@ -32,6 +34,7 @@ import {
 } from "@/ui/drag";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
+import { PopoverInfoIn } from "@/ui/popover";
 import { highlightMatches } from "@/ui/search";
 import { VIEW_DEFAULT_HEADER_HEIGHT, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
@@ -301,7 +304,7 @@ const { activeDropZone } = useMultiDropZone({
         let node = graph.getOrError(dragged.nodes[i]);
         if (event.altKey) {
           // clone node before moving
-          node = cloneNode(tx, graph, node, { keepProperties: true});
+          node = cloneNode(tx, graph, node, { keepProperties: true });
         }
         moveNode(tx, graph, node, {
           anchor: i == 0 ? anchor : "after",
@@ -445,19 +448,25 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             <!-- Create inside -->
             <button
               v-if="isNode(node, NodeType.BLOCK)"
-              role="button"
-              class="text-gray-400 opacity-0 hover:text-gray-400 group-hover/node:opacity-100"
-              @click.stop="
-                () => {
-                  const block = createBlock(connection.tx, graph, {
-                    anchor: 'inside',
-                    target: node,
-                    block: { type: BlockType.PAGE },
-                  });
-                  canvas.goToNode(block);
-                  if (!isExpanded(node)) toggleExpanded(node);
-                }
+              v-menu="
+                (): PopoverInfoIn => ({
+                  kind: 'view',
+                  component: ViewType.PICKER,
+                  title: `Add to ${node.name}`,
+                  placement: 'bottom',
+                  props: { valueType: makeType({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },
+                  onApply: (blockType: BlockType) => {
+                    const block = createBlock(connection.tx, graph, {
+                      anchor: 'inside',
+                      target: node,
+                      block: { type: blockType },
+                    });
+                    canvas.goToNode(block);
+                    if (!isExpanded(node)) toggleExpanded(node);
+                  },
+                })
               "
+              class="text-gray-400 opacity-0 hover:text-gray-400 group-hover/node:opacity-100"
             >
               <i class="fas fa-plus" />
             </button>

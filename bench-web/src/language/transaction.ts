@@ -445,12 +445,18 @@ export function makeEditFromRoot<T extends AnyNodeData>(node: T, update: Partial
 
   // regular properties
   for (const key in update) {
-    const propId = propertiesEnum[key as unknown as number];
+    const propId = propertiesEnum[key as unknown as number] as unknown as number | undefined;
     if (propId == null) {
-      if (key == "subnode") continue; // subnode is handled separately below
-      throw new Error(`missing property ${key} in ${node.metatype}`);
+      if (key == "subnode") {
+        continue; // subnode is handled separately below
+      } else {
+        throw new Error(`missing property ${key} in ${node.metatype}`);
+      }
+    } else if (typeof propId != "number") {
+      throw new Error(`expected number, got ${typeof propId}: ${propId} from ${key} for ${describeNode(node)}`);
     }
     const prop = properties[propId];
+    if (prop == null) throw new Error(`missing property info for ${node.metatype}.${propId} for ${describeNode(node)}`);
     const propType = getPropertyType(prop);
     const newValue = (update as any)[key];
     let operation: EditOperationData;
