@@ -2,6 +2,7 @@ import {
   APPLICATION_ACTION_TYPES,
   DYNAMIC_ACTION_TYPES,
   FLOW_ACTION_TYPES,
+  GENERIC_ACTION_TYPES,
   getBaseFromNode,
   getPropertyTitle,
   isNodeType,
@@ -467,7 +468,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       isComputable?: boolean;
       default?: any;
       props?: Partial<ViewProps>;
-      extendUpdate?: (newValue: any, options: TransactionOptions) => Record<number, any>;
+      extendUpdate?: (newValue: any, options: TransactionOptions) => Record<string, any>;
     },
   ): Row {
     const { path, prop, propNames, rootProp, rootPropName, isSubnode } = this.getPropertyPath(pathIn);
@@ -972,7 +973,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
             // also update node name if tool changes
             const tool = newValue != null ? this.graph.get(newValue) : null;
             const name = tool != null ? getNodeName(tool) : null;
-            return name != null ? { [ActionProperty.name]: name } : {};
+            return name != null ? { name } : {};
           },
         }),
       );
@@ -1062,6 +1063,12 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
           },
         );
       } else if (DYNAMIC_ACTION_TYPES.includes(node.type as ActionType)) {
+        // variables
+        if (GENERIC_ACTION_TYPES.includes(node.type as ActionType)) {
+          this.section("Variables", [{ type: "fields-list", fieldType: FieldType.VARIABLE }], {
+            actions: [this.actionAddField(FieldType.VARIABLE)],
+          });
+        }
         // own schema
         this.section(
           "Schema",

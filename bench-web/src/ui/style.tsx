@@ -127,8 +127,8 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   [ActionType.COMPLETE]: ColorType.YELLOW,
   [ActionType.FAIL]: ColorType.YELLOW,
   // tool
-  [ActionType.CODE]: ColorType.ORANGE,
-  [ActionType.TOOL]: ColorType.ORANGE,
+  [ActionType.CODE]: ColorType.TEAL,
+  [ActionType.TOOL]: ColorType.TEAL,
   // generic
   [ActionType.DO]: ColorType.TEAL,
   [ActionType.GENERATE]: ColorType.TEAL,

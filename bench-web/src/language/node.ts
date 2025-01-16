@@ -36,6 +36,7 @@ import {
 } from "@/proto/wiring";
 import { FLOW_GRID_STEP } from "@/system/flow";
 import { addVector2 } from "@/ui/view";
+import { INTEGER_ZERO } from "@/utils/fractional";
 import { groupByList } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
 import { uuidt } from "@/utils/uuidt";
@@ -148,6 +149,11 @@ export function makeNode<T extends NodeType>(
     const benchId = node.parentPtr?.benchId ?? (node as any).packagePtr?.benchId;
     if (benchId == null) throw new Error(`missing benchId to make in-bench node ${NodeType[nodeIn.metatype]}`);
     (node as any).benchPtr = nodeReference(NodeType.BENCH, benchId);
+  }
+
+  // assign orderKey
+  if ("orderKey" in properties && (node as any).orderKey == null) {
+    (node as any).orderKey = INTEGER_ZERO;
   }
 
   // pack subnode

@@ -2,8 +2,9 @@ import { makeType } from "@/language/field";
 import { type ReadNodeGraph } from "@/language/graph";
 import { makeNodeName, NodeIn } from "@/language/node";
 import { getOrderKey } from "@/language/order";
-import type { Transaction } from "@/language/transaction";
+import { newChangeId, type Transaction } from "@/language/transaction";
 import {
+  ActionType,
   BenchType,
   BlockData,
   BlockType,
@@ -19,7 +20,7 @@ import {
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { generateOrderKey } from "@/utils/fractional";
 
-/** Create a Block relative to another. */
+/** Create a Block (relative to another). */
 export function createBlock(
   tx: Transaction,
   graph: ReadNodeGraph,
@@ -27,6 +28,7 @@ export function createBlock(
     block: Partial<NodeIn<NodeType.BLOCK>> & Required<Pick<NodeIn<NodeType.BLOCK>, "type">>;
     anchor: "before" | "after" | "inside";
     target: BlockData | TypedNodeReferenceData<NodeType.BLOCK> | PackageData | TypedNodeReferenceData<NodeType.PACKAGE>;
+    skipDefaultStuff?: boolean;
   },
 ): BlockData {
   const target = isNode(options.target) ? options.target : graph.getOrError(options.target);
@@ -57,6 +59,9 @@ export function createBlock(
   }
 
   // create
+  if (tx.change?.key == null) {
+    tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
+  }
   const block = tx.create({
     metatype: NodeType.BLOCK,
     parentPtr,
@@ -65,6 +70,21 @@ export function createBlock(
     orderKey,
     name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: options.block.type, parentPtr }),
   });
+
+  // create default stuff
+  if (!options.skipDefaultStuff) {
+    if (block.type == BlockType.FLOW) {
+      // create start action
+      tx.create({
+        metatype: NodeType.ACTION,
+        type: ActionType.START,
+        parentPtr: toNodeRef(block),
+        name: makeNodeName(graph, { metatype: ObjectType.ACTION, type: ActionType.START, parentPtr: toNodeRef(block) }),
+        packagePtr,
+      });
+    } 
+  }
+
   return block;
 }
 
