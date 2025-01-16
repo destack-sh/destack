@@ -789,7 +789,7 @@ class File(DynamicResource[FileData], FileBase):
     parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH, is_system=True)
 
     # content/info
-    # ...FileInfoBase[30-59]
+    # ...FileInfoBase[50-79]
 
     # meta
     retention: FileRetentionMode = p_system(

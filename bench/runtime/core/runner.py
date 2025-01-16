@@ -484,13 +484,14 @@ def create_run_from_node(
         assert_never(node)
 
     # build run
+    tracing = get_tracing_context()
     run = Run(
         parent=parent or node.bench,
         type=kind,
         block=block,
         action=action,
         pipe=pipe,
-        mode=mode or get_tracing_context(),
+        mode=mode or tracing.mode,
         _skip_validate_self=True,
     )
 
