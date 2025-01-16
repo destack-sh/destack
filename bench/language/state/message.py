@@ -74,12 +74,8 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         references=NodeType.BLOCK,
         constraint=constraint(node_subtypes=[BlockType.MESSAGE]),
     )
-    reply_to: Optional["Message"] = p_regular(
-        37, require=False, array=False, references=NodeType.MESSAGE
-    )
     if TYPE_CHECKING:
         origin_ptr: Optional[NodeReference] = None
-        reply_to_ptr: Optional[NodeReference] = None
 
     # content
     title: Optional[str] = p_regular(40, require=False, default=None, constraint=TITLE_CONSTRAINT)
@@ -88,11 +84,17 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     value: Any = p_value_runtime(
         42, type=FieldType.MEMBER, typ=lambda self: cast("Message", self).value_type
     )
-    expires_at: Optional[datetime] = p_internal(44, default=None)
-    read_at: Optional[datetime] = p_internal(45, default=None)
+    expires_at: Optional[datetime] = p_internal(43, default=None)
+    read_at: Optional[datetime] = p_internal(44, default=None)
+
+    # routing
+    reply_to: Optional["Message"] = p_regular(
+        50, require=False, array=False, references=NodeType.MESSAGE
+    )
+    # to: roles, identities, users, teams, ...
 
     # flags
-    is_pinned: bool = p_regular(50, default=False)
+    is_pinned: bool = p_regular(70, default=False)
 
     def __content_str__(self) -> str:
         if self.title:

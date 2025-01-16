@@ -885,71 +885,71 @@ export interface FileInfoData {
      */
     metatype: ObjectType;
     /**
+     * @generated from protobuf field: symbolx.bench.FileType type = 30;
+     */
+    type: FileType;
+    /**
+     * @generated from protobuf field: symbolx.bench.FileKind kind = 31;
+     */
+    kind: FileKind;
+    /**
      * @generated from protobuf field: string name = 32;
      */
     name: string;
     /**
-     * @generated from protobuf field: symbolx.bench.FileKind kind = 50;
-     */
-    kind: FileKind;
-    /**
-     * @generated from protobuf field: optional string external_url = 53;
-     */
-    externalUrl?: string;
-    /**
-     * @generated from protobuf field: optional bytes inline_content = 54;
-     */
-    inlineContent?: Uint8Array;
-    /**
-     * @generated from protobuf field: symbolx.bench.FileType type = 60;
-     */
-    type: FileType;
-    /**
-     * @generated from protobuf field: optional string mime_type = 61;
+     * @generated from protobuf field: optional string mime_type = 50;
      */
     mimeType?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FileFormat format = 62;
+     * @generated from protobuf field: optional symbolx.bench.FileFormat format = 51;
      */
     format?: FileFormat;
     /**
-     * @generated from protobuf field: int64 size = 63;
+     * @generated from protobuf field: int64 size = 52;
      */
     size: bigint;
     /**
-     * @generated from protobuf field: optional string sha256 = 64;
+     * @generated from protobuf field: optional string sha256 = 53;
      */
     sha256?: string;
     /**
-     * @generated from protobuf field: optional int32 width = 65;
+     * @generated from protobuf field: optional string external_url = 60;
+     */
+    externalUrl?: string;
+    /**
+     * @generated from protobuf field: optional bytes inline_content = 61;
+     */
+    inlineContent?: Uint8Array;
+    /**
+     * @generated from protobuf field: optional int32 width = 70;
      */
     width?: number;
     /**
-     * @generated from protobuf field: optional int32 height = 66;
+     * @generated from protobuf field: optional int32 height = 71;
      */
     height?: number;
     /**
-     * @generated from protobuf field: optional float aspect_ratio = 67;
+     * @generated from protobuf field: optional float aspect_ratio = 72;
      */
     aspectRatio?: number;
     /**
-     * @generated from protobuf field: optional string codec = 68;
+     * @generated from protobuf field: optional string codec = 73;
      */
     codec?: string;
     /**
-     * @generated from protobuf field: optional google.protobuf.Duration duration = 69;
+     * @generated from protobuf field: optional google.protobuf.Duration duration = 74;
      */
     duration?: Duration;
     /**
-     * @generated from protobuf field: optional int32 bitrate = 70;
+     * @generated from protobuf field: optional int32 bitrate = 75;
      */
     bitrate?: number;
     /**
-     * @generated from protobuf field: optional int32 channels = 72;
+     * @generated from protobuf field: optional int32 channels = 76;
      */
     channels?: number;
     /**
-     * @generated from protobuf field: optional int32 sample_rate = 73;
+     * @generated from protobuf field: optional int32 sample_rate = 77;
      */
     sampleRate?: number;
 }
@@ -2878,6 +2878,14 @@ export interface FileData {
      */
     subnodePacked?: JsonValue;
     /**
+     * @generated from protobuf field: symbolx.bench.FileType type = 30;
+     */
+    type: FileType;
+    /**
+     * @generated from protobuf field: symbolx.bench.FileKind kind = 31;
+     */
+    kind: FileKind;
+    /**
      * @generated from protobuf field: string name = 32;
      */
     name: string;
@@ -2930,67 +2938,59 @@ export interface FileData {
      */
     activeAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbolx.bench.FileKind kind = 50;
-     */
-    kind: FileKind;
-    /**
-     * @generated from protobuf field: optional string external_url = 53;
-     */
-    externalUrl?: string;
-    /**
-     * @generated from protobuf field: optional bytes inline_content = 54;
-     */
-    inlineContent?: Uint8Array;
-    /**
-     * @generated from protobuf field: symbolx.bench.FileType type = 60;
-     */
-    type: FileType;
-    /**
-     * @generated from protobuf field: optional string mime_type = 61;
+     * @generated from protobuf field: optional string mime_type = 50;
      */
     mimeType?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FileFormat format = 62;
+     * @generated from protobuf field: optional symbolx.bench.FileFormat format = 51;
      */
     format?: FileFormat;
     /**
-     * @generated from protobuf field: int64 size = 63;
+     * @generated from protobuf field: int64 size = 52;
      */
     size: bigint;
     /**
-     * @generated from protobuf field: optional string sha256 = 64;
+     * @generated from protobuf field: optional string sha256 = 53;
      */
     sha256?: string;
     /**
-     * @generated from protobuf field: optional int32 width = 65;
+     * @generated from protobuf field: optional string external_url = 60;
+     */
+    externalUrl?: string;
+    /**
+     * @generated from protobuf field: optional bytes inline_content = 61;
+     */
+    inlineContent?: Uint8Array;
+    /**
+     * @generated from protobuf field: optional int32 width = 70;
      */
     width?: number;
     /**
-     * @generated from protobuf field: optional int32 height = 66;
+     * @generated from protobuf field: optional int32 height = 71;
      */
     height?: number;
     /**
-     * @generated from protobuf field: optional float aspect_ratio = 67;
+     * @generated from protobuf field: optional float aspect_ratio = 72;
      */
     aspectRatio?: number;
     /**
-     * @generated from protobuf field: optional string codec = 68;
+     * @generated from protobuf field: optional string codec = 73;
      */
     codec?: string;
     /**
-     * @generated from protobuf field: optional google.protobuf.Duration duration = 69;
+     * @generated from protobuf field: optional google.protobuf.Duration duration = 74;
      */
     duration?: Duration;
     /**
-     * @generated from protobuf field: optional int32 bitrate = 70;
+     * @generated from protobuf field: optional int32 bitrate = 75;
      */
     bitrate?: number;
     /**
-     * @generated from protobuf field: optional int32 channels = 72;
+     * @generated from protobuf field: optional int32 channels = 76;
      */
     channels?: number;
     /**
-     * @generated from protobuf field: optional int32 sample_rate = 73;
+     * @generated from protobuf field: optional int32 sample_rate = 77;
      */
     sampleRate?: number;
     /**
@@ -3544,6 +3544,10 @@ export interface StreamData {
      * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 29;
      */
     subnodePacked?: JsonValue;
+    /**
+     * @generated from protobuf field: symbolx.bench.StreamType type = 30;
+     */
+    type: StreamType;
     /**
      * @generated from protobuf field: string name = 32;
      */
@@ -4382,7 +4386,7 @@ export interface ActionData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 41;
+     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 40;
      */
     runOptions?: RunOptionsData;
     /**
@@ -5146,37 +5150,29 @@ export interface PipeData {
      */
     targetPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 50;
+     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 40;
      */
     runOptions?: RunOptionsData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 60;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 50;
      */
     condition?: ExpressionData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TypeConstraintData constraint = 62;
+     * @generated from protobuf field: optional symbolx.bench.TypeConstraintData constraint = 51;
      */
     constraint?: TypeConstraintData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Duration delay = 80;
+     * @generated from protobuf field: optional google.protobuf.Duration delay = 52;
      */
     delay?: Duration;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ColorData color = 80;
+     */
+    color?: ColorData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeMode mode = 90;
      */
     mode: NodeMode;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ColorData color = 91;
-     */
-    color?: ColorData;
-    /**
-     * @generated from protobuf field: bool is_hidden = 92;
-     */
-    isHidden: boolean;
-    /**
-     * @generated from protobuf field: bool is_name_shown = 93;
-     */
-    isNameShown: boolean;
 }
 /**
  * A connection between two Steps in a Flow (source = outgoing, target = incoming).
@@ -5697,10 +5693,6 @@ export interface MessageData {
      */
     blockPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData reply_to_ptr = 37;
-     */
-    replyToPtr?: NodeReferenceData;
-    /**
      * @generated from protobuf field: optional string title = 40;
      */
     title?: string;
@@ -5713,15 +5705,19 @@ export interface MessageData {
      */
     valuePacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp expires_at = 44;
+     * @generated from protobuf field: optional google.protobuf.Timestamp expires_at = 43;
      */
     expiresAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp read_at = 45;
+     * @generated from protobuf field: optional google.protobuf.Timestamp read_at = 44;
      */
     readAt?: Timestamp;
     /**
-     * @generated from protobuf field: bool is_pinned = 50;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData reply_to_ptr = 50;
+     */
+    replyToPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: bool is_pinned = 70;
      */
     isPinned: boolean;
 }
@@ -6141,6 +6137,10 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_ICON_KIND = 21210;
      */
     ICON_KIND = 21210,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_STREAM_TYPE = 21250;
+     */
+    STREAM_TYPE = 21250,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 21300;
      */
@@ -7673,6 +7673,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_ICON_KIND = 21210;
      */
     ICON_KIND = 21210,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_STREAM_TYPE = 21250;
+     */
+    STREAM_TYPE = 21250,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_PRIMITIVE_TYPE = 21300;
      */
@@ -9253,6 +9257,35 @@ export enum IconKind {
      * @generated from protobuf enum value: ICON_KIND_VS_CODE = 4;
      */
     VS_CODE = 4
+}
+/**
+ * @generated from protobuf enum symbolx.bench.StreamType
+ */
+export enum StreamType {
+    /**
+     * @generated from protobuf enum value: STREAM_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: STREAM_TYPE_TEXT = 1;
+     */
+    TEXT = 1,
+    /**
+     * @generated from protobuf enum value: STREAM_TYPE_CODE = 2;
+     */
+    CODE = 2,
+    /**
+     * @generated from protobuf enum value: STREAM_TYPE_IMAGE = 3;
+     */
+    IMAGE = 3,
+    /**
+     * @generated from protobuf enum value: STREAM_TYPE_AUDIO = 4;
+     */
+    AUDIO = 4,
+    /**
+     * @generated from protobuf enum value: STREAM_TYPE_VIDEO = 5;
+     */
+    VIDEO = 5
 }
 /**
  * Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
@@ -14591,31 +14624,31 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
     constructor() {
         super("symbolx.bench.FileInfoData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
+            { no: 31, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 50, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
-            { no: 53, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 54, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 60, name: "type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
-            { no: 61, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 62, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
-            { no: 63, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 64, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 65, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 66, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 67, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 68, name: "codec", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 69, name: "duration", kind: "message", T: () => Duration },
-            { no: 70, name: "bitrate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 72, name: "channels", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 73, name: "sample_rate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+            { no: 50, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
+            { no: 52, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 53, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 60, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 61, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 70, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 71, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 72, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 73, name: "codec", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 74, name: "duration", kind: "message", T: () => Duration },
+            { no: 75, name: "bitrate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 76, name: "channels", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 77, name: "sample_rate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<FileInfoData>): FileInfoData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.name = "";
-        message.kind = 0;
         message.type = 0;
+        message.kind = 0;
+        message.name = "";
         message.size = 0n;
         if (value !== undefined)
             reflectionMergePartial<FileInfoData>(this, message, value);
@@ -14629,55 +14662,55 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
+                case /* symbolx.bench.FileType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* symbolx.bench.FileKind kind */ 31:
+                    message.kind = reader.int32();
+                    break;
                 case /* string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* symbolx.bench.FileKind kind */ 50:
-                    message.kind = reader.int32();
-                    break;
-                case /* optional string external_url */ 53:
-                    message.externalUrl = reader.string();
-                    break;
-                case /* optional bytes inline_content */ 54:
-                    message.inlineContent = reader.bytes();
-                    break;
-                case /* symbolx.bench.FileType type */ 60:
-                    message.type = reader.int32();
-                    break;
-                case /* optional string mime_type */ 61:
+                case /* optional string mime_type */ 50:
                     message.mimeType = reader.string();
                     break;
-                case /* optional symbolx.bench.FileFormat format */ 62:
+                case /* optional symbolx.bench.FileFormat format */ 51:
                     message.format = reader.int32();
                     break;
-                case /* int64 size */ 63:
+                case /* int64 size */ 52:
                     message.size = reader.int64().toBigInt();
                     break;
-                case /* optional string sha256 */ 64:
+                case /* optional string sha256 */ 53:
                     message.sha256 = reader.string();
                     break;
-                case /* optional int32 width */ 65:
+                case /* optional string external_url */ 60:
+                    message.externalUrl = reader.string();
+                    break;
+                case /* optional bytes inline_content */ 61:
+                    message.inlineContent = reader.bytes();
+                    break;
+                case /* optional int32 width */ 70:
                     message.width = reader.int32();
                     break;
-                case /* optional int32 height */ 66:
+                case /* optional int32 height */ 71:
                     message.height = reader.int32();
                     break;
-                case /* optional float aspect_ratio */ 67:
+                case /* optional float aspect_ratio */ 72:
                     message.aspectRatio = reader.float();
                     break;
-                case /* optional string codec */ 68:
+                case /* optional string codec */ 73:
                     message.codec = reader.string();
                     break;
-                case /* optional google.protobuf.Duration duration */ 69:
+                case /* optional google.protobuf.Duration duration */ 74:
                     message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
-                case /* optional int32 bitrate */ 70:
+                case /* optional int32 bitrate */ 75:
                     message.bitrate = reader.int32();
                     break;
-                case /* optional int32 channels */ 72:
+                case /* optional int32 channels */ 76:
                     message.channels = reader.int32();
                     break;
-                case /* optional int32 sample_rate */ 73:
+                case /* optional int32 sample_rate */ 77:
                     message.sampleRate = reader.int32();
                     break;
                 default:
@@ -14695,57 +14728,57 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.FileType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* symbolx.bench.FileKind kind = 31; */
+        if (message.kind !== 0)
+            writer.tag(31, WireType.Varint).int32(message.kind);
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* symbolx.bench.FileKind kind = 50; */
-        if (message.kind !== 0)
-            writer.tag(50, WireType.Varint).int32(message.kind);
-        /* optional string external_url = 53; */
-        if (message.externalUrl !== undefined)
-            writer.tag(53, WireType.LengthDelimited).string(message.externalUrl);
-        /* optional bytes inline_content = 54; */
-        if (message.inlineContent !== undefined)
-            writer.tag(54, WireType.LengthDelimited).bytes(message.inlineContent);
-        /* symbolx.bench.FileType type = 60; */
-        if (message.type !== 0)
-            writer.tag(60, WireType.Varint).int32(message.type);
-        /* optional string mime_type = 61; */
+        /* optional string mime_type = 50; */
         if (message.mimeType !== undefined)
-            writer.tag(61, WireType.LengthDelimited).string(message.mimeType);
-        /* optional symbolx.bench.FileFormat format = 62; */
+            writer.tag(50, WireType.LengthDelimited).string(message.mimeType);
+        /* optional symbolx.bench.FileFormat format = 51; */
         if (message.format !== undefined)
-            writer.tag(62, WireType.Varint).int32(message.format);
-        /* int64 size = 63; */
+            writer.tag(51, WireType.Varint).int32(message.format);
+        /* int64 size = 52; */
         if (message.size !== 0n)
-            writer.tag(63, WireType.Varint).int64(message.size);
-        /* optional string sha256 = 64; */
+            writer.tag(52, WireType.Varint).int64(message.size);
+        /* optional string sha256 = 53; */
         if (message.sha256 !== undefined)
-            writer.tag(64, WireType.LengthDelimited).string(message.sha256);
-        /* optional int32 width = 65; */
+            writer.tag(53, WireType.LengthDelimited).string(message.sha256);
+        /* optional string external_url = 60; */
+        if (message.externalUrl !== undefined)
+            writer.tag(60, WireType.LengthDelimited).string(message.externalUrl);
+        /* optional bytes inline_content = 61; */
+        if (message.inlineContent !== undefined)
+            writer.tag(61, WireType.LengthDelimited).bytes(message.inlineContent);
+        /* optional int32 width = 70; */
         if (message.width !== undefined)
-            writer.tag(65, WireType.Varint).int32(message.width);
-        /* optional int32 height = 66; */
+            writer.tag(70, WireType.Varint).int32(message.width);
+        /* optional int32 height = 71; */
         if (message.height !== undefined)
-            writer.tag(66, WireType.Varint).int32(message.height);
-        /* optional float aspect_ratio = 67; */
+            writer.tag(71, WireType.Varint).int32(message.height);
+        /* optional float aspect_ratio = 72; */
         if (message.aspectRatio !== undefined)
-            writer.tag(67, WireType.Bit32).float(message.aspectRatio);
-        /* optional string codec = 68; */
+            writer.tag(72, WireType.Bit32).float(message.aspectRatio);
+        /* optional string codec = 73; */
         if (message.codec !== undefined)
-            writer.tag(68, WireType.LengthDelimited).string(message.codec);
-        /* optional google.protobuf.Duration duration = 69; */
+            writer.tag(73, WireType.LengthDelimited).string(message.codec);
+        /* optional google.protobuf.Duration duration = 74; */
         if (message.duration)
-            Duration.internalBinaryWrite(message.duration, writer.tag(69, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 bitrate = 70; */
+            Duration.internalBinaryWrite(message.duration, writer.tag(74, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 bitrate = 75; */
         if (message.bitrate !== undefined)
-            writer.tag(70, WireType.Varint).int32(message.bitrate);
-        /* optional int32 channels = 72; */
+            writer.tag(75, WireType.Varint).int32(message.bitrate);
+        /* optional int32 channels = 76; */
         if (message.channels !== undefined)
-            writer.tag(72, WireType.Varint).int32(message.channels);
-        /* optional int32 sample_rate = 73; */
+            writer.tag(76, WireType.Varint).int32(message.channels);
+        /* optional int32 sample_rate = 77; */
         if (message.sampleRate !== undefined)
-            writer.tag(73, WireType.Varint).int32(message.sampleRate);
+            writer.tag(77, WireType.Varint).int32(message.sampleRate);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19647,6 +19680,8 @@ class FileData$Type extends MessageType$<FileData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
+            { no: 31, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 34, name: "text", kind: "message", T: () => TextData },
@@ -19660,22 +19695,20 @@ class FileData$Type extends MessageType$<FileData> {
             { no: 43, name: "suspended_at", kind: "message", T: () => Timestamp },
             { no: 44, name: "decommissioned_at", kind: "message", T: () => Timestamp },
             { no: 45, name: "active_at", kind: "message", T: () => Timestamp },
-            { no: 50, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
-            { no: 53, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 54, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 60, name: "type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
-            { no: 61, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 62, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
-            { no: 63, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 64, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 65, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 66, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 67, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 68, name: "codec", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 69, name: "duration", kind: "message", T: () => Duration },
-            { no: 70, name: "bitrate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 72, name: "channels", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 73, name: "sample_rate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 50, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
+            { no: 52, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 53, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 60, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 61, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 70, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 71, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 72, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 73, name: "codec", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 74, name: "duration", kind: "message", T: () => Duration },
+            { no: 75, name: "bitrate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 76, name: "channels", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 77, name: "sample_rate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 80, name: "retention", kind: "enum", T: () => ["symbolx.bench.FileRetentionMode", FileRetentionMode, "FILE_RETENTION_MODE_"] },
             { no: 81, name: "expires_at", kind: "message", T: () => Timestamp },
             { no: 90, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] }
@@ -19685,12 +19718,12 @@ class FileData$Type extends MessageType$<FileData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.type = 0;
+        message.kind = 0;
         message.name = "";
         message.status = 0;
         message.region = 0;
         message.occupancy = 0;
-        message.kind = 0;
-        message.type = 0;
         message.size = 0n;
         message.retention = 0;
         message.mode = 0;
@@ -19733,6 +19766,12 @@ class FileData$Type extends MessageType$<FileData> {
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
+                case /* symbolx.bench.FileType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* symbolx.bench.FileKind kind */ 31:
+                    message.kind = reader.int32();
+                    break;
                 case /* string name */ 32:
                     message.name = reader.string();
                     break;
@@ -19772,52 +19811,46 @@ class FileData$Type extends MessageType$<FileData> {
                 case /* optional google.protobuf.Timestamp active_at */ 45:
                     message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
                     break;
-                case /* symbolx.bench.FileKind kind */ 50:
-                    message.kind = reader.int32();
-                    break;
-                case /* optional string external_url */ 53:
-                    message.externalUrl = reader.string();
-                    break;
-                case /* optional bytes inline_content */ 54:
-                    message.inlineContent = reader.bytes();
-                    break;
-                case /* symbolx.bench.FileType type */ 60:
-                    message.type = reader.int32();
-                    break;
-                case /* optional string mime_type */ 61:
+                case /* optional string mime_type */ 50:
                     message.mimeType = reader.string();
                     break;
-                case /* optional symbolx.bench.FileFormat format */ 62:
+                case /* optional symbolx.bench.FileFormat format */ 51:
                     message.format = reader.int32();
                     break;
-                case /* int64 size */ 63:
+                case /* int64 size */ 52:
                     message.size = reader.int64().toBigInt();
                     break;
-                case /* optional string sha256 */ 64:
+                case /* optional string sha256 */ 53:
                     message.sha256 = reader.string();
                     break;
-                case /* optional int32 width */ 65:
+                case /* optional string external_url */ 60:
+                    message.externalUrl = reader.string();
+                    break;
+                case /* optional bytes inline_content */ 61:
+                    message.inlineContent = reader.bytes();
+                    break;
+                case /* optional int32 width */ 70:
                     message.width = reader.int32();
                     break;
-                case /* optional int32 height */ 66:
+                case /* optional int32 height */ 71:
                     message.height = reader.int32();
                     break;
-                case /* optional float aspect_ratio */ 67:
+                case /* optional float aspect_ratio */ 72:
                     message.aspectRatio = reader.float();
                     break;
-                case /* optional string codec */ 68:
+                case /* optional string codec */ 73:
                     message.codec = reader.string();
                     break;
-                case /* optional google.protobuf.Duration duration */ 69:
+                case /* optional google.protobuf.Duration duration */ 74:
                     message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
-                case /* optional int32 bitrate */ 70:
+                case /* optional int32 bitrate */ 75:
                     message.bitrate = reader.int32();
                     break;
-                case /* optional int32 channels */ 72:
+                case /* optional int32 channels */ 76:
                     message.channels = reader.int32();
                     break;
-                case /* optional int32 sample_rate */ 73:
+                case /* optional int32 sample_rate */ 77:
                     message.sampleRate = reader.int32();
                     break;
                 case /* symbolx.bench.FileRetentionMode retention */ 80:
@@ -19871,6 +19904,12 @@ class FileData$Type extends MessageType$<FileData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.FileType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* symbolx.bench.FileKind kind = 31; */
+        if (message.kind !== 0)
+            writer.tag(31, WireType.Varint).int32(message.kind);
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -19910,54 +19949,48 @@ class FileData$Type extends MessageType$<FileData> {
         /* optional google.protobuf.Timestamp active_at = 45; */
         if (message.activeAt)
             Timestamp.internalBinaryWrite(message.activeAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.FileKind kind = 50; */
-        if (message.kind !== 0)
-            writer.tag(50, WireType.Varint).int32(message.kind);
-        /* optional string external_url = 53; */
-        if (message.externalUrl !== undefined)
-            writer.tag(53, WireType.LengthDelimited).string(message.externalUrl);
-        /* optional bytes inline_content = 54; */
-        if (message.inlineContent !== undefined)
-            writer.tag(54, WireType.LengthDelimited).bytes(message.inlineContent);
-        /* symbolx.bench.FileType type = 60; */
-        if (message.type !== 0)
-            writer.tag(60, WireType.Varint).int32(message.type);
-        /* optional string mime_type = 61; */
+        /* optional string mime_type = 50; */
         if (message.mimeType !== undefined)
-            writer.tag(61, WireType.LengthDelimited).string(message.mimeType);
-        /* optional symbolx.bench.FileFormat format = 62; */
+            writer.tag(50, WireType.LengthDelimited).string(message.mimeType);
+        /* optional symbolx.bench.FileFormat format = 51; */
         if (message.format !== undefined)
-            writer.tag(62, WireType.Varint).int32(message.format);
-        /* int64 size = 63; */
+            writer.tag(51, WireType.Varint).int32(message.format);
+        /* int64 size = 52; */
         if (message.size !== 0n)
-            writer.tag(63, WireType.Varint).int64(message.size);
-        /* optional string sha256 = 64; */
+            writer.tag(52, WireType.Varint).int64(message.size);
+        /* optional string sha256 = 53; */
         if (message.sha256 !== undefined)
-            writer.tag(64, WireType.LengthDelimited).string(message.sha256);
-        /* optional int32 width = 65; */
+            writer.tag(53, WireType.LengthDelimited).string(message.sha256);
+        /* optional string external_url = 60; */
+        if (message.externalUrl !== undefined)
+            writer.tag(60, WireType.LengthDelimited).string(message.externalUrl);
+        /* optional bytes inline_content = 61; */
+        if (message.inlineContent !== undefined)
+            writer.tag(61, WireType.LengthDelimited).bytes(message.inlineContent);
+        /* optional int32 width = 70; */
         if (message.width !== undefined)
-            writer.tag(65, WireType.Varint).int32(message.width);
-        /* optional int32 height = 66; */
+            writer.tag(70, WireType.Varint).int32(message.width);
+        /* optional int32 height = 71; */
         if (message.height !== undefined)
-            writer.tag(66, WireType.Varint).int32(message.height);
-        /* optional float aspect_ratio = 67; */
+            writer.tag(71, WireType.Varint).int32(message.height);
+        /* optional float aspect_ratio = 72; */
         if (message.aspectRatio !== undefined)
-            writer.tag(67, WireType.Bit32).float(message.aspectRatio);
-        /* optional string codec = 68; */
+            writer.tag(72, WireType.Bit32).float(message.aspectRatio);
+        /* optional string codec = 73; */
         if (message.codec !== undefined)
-            writer.tag(68, WireType.LengthDelimited).string(message.codec);
-        /* optional google.protobuf.Duration duration = 69; */
+            writer.tag(73, WireType.LengthDelimited).string(message.codec);
+        /* optional google.protobuf.Duration duration = 74; */
         if (message.duration)
-            Duration.internalBinaryWrite(message.duration, writer.tag(69, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 bitrate = 70; */
+            Duration.internalBinaryWrite(message.duration, writer.tag(74, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 bitrate = 75; */
         if (message.bitrate !== undefined)
-            writer.tag(70, WireType.Varint).int32(message.bitrate);
-        /* optional int32 channels = 72; */
+            writer.tag(75, WireType.Varint).int32(message.bitrate);
+        /* optional int32 channels = 76; */
         if (message.channels !== undefined)
-            writer.tag(72, WireType.Varint).int32(message.channels);
-        /* optional int32 sample_rate = 73; */
+            writer.tag(76, WireType.Varint).int32(message.channels);
+        /* optional int32 sample_rate = 77; */
         if (message.sampleRate !== undefined)
-            writer.tag(73, WireType.Varint).int32(message.sampleRate);
+            writer.tag(77, WireType.Varint).int32(message.sampleRate);
         /* symbolx.bench.FileRetentionMode retention = 80; */
         if (message.retention !== 0)
             writer.tag(80, WireType.Varint).int32(message.retention);
@@ -21044,6 +21077,7 @@ class StreamData$Type extends MessageType$<StreamData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.StreamType", StreamType, "STREAM_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 34, name: "text", kind: "message", T: () => TextData },
@@ -21064,6 +21098,7 @@ class StreamData$Type extends MessageType$<StreamData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.type = 0;
         message.name = "";
         message.status = 0;
         message.region = 0;
@@ -21107,6 +21142,9 @@ class StreamData$Type extends MessageType$<StreamData> {
                     break;
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* symbolx.bench.StreamType type */ 30:
+                    message.type = reader.int32();
                     break;
                 case /* string name */ 32:
                     message.name = reader.string();
@@ -21192,6 +21230,9 @@ class StreamData$Type extends MessageType$<StreamData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.StreamType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -22757,7 +22798,7 @@ class ActionData$Type extends MessageType$<ActionData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "text", kind: "message", T: () => TextData },
-            { no: 41, name: "run_options", kind: "message", T: () => RunOptionsData },
+            { no: 40, name: "run_options", kind: "message", T: () => RunOptionsData },
             { no: 51, name: "machine_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 52, name: "code", kind: "message", T: () => CodeData },
             { no: 53, name: "tool_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22848,7 +22889,7 @@ class ActionData$Type extends MessageType$<ActionData> {
                 case /* optional symbolx.bench.TextData text */ 36:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional symbolx.bench.RunOptionsData run_options */ 41:
+                case /* optional symbolx.bench.RunOptionsData run_options */ 40:
                     message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData machine_ptr */ 51:
@@ -22947,9 +22988,9 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* optional symbolx.bench.TextData text = 36; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunOptionsData run_options = 41; */
+        /* optional symbolx.bench.RunOptionsData run_options = 40; */
         if (message.runOptions)
-            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData machine_ptr = 51; */
         if (message.machinePtr)
             NodeReferenceData.internalBinaryWrite(message.machinePtr, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
@@ -24859,14 +24900,12 @@ class PipeData$Type extends MessageType$<PipeData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "source_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 36, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "run_options", kind: "message", T: () => RunOptionsData },
-            { no: 60, name: "condition", kind: "message", T: () => ExpressionData },
-            { no: 62, name: "constraint", kind: "message", T: () => TypeConstraintData },
-            { no: 80, name: "delay", kind: "message", T: () => Duration },
-            { no: 90, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
-            { no: 91, name: "color", kind: "message", T: () => ColorData },
-            { no: 92, name: "is_hidden", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 93, name: "is_name_shown", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 40, name: "run_options", kind: "message", T: () => RunOptionsData },
+            { no: 50, name: "condition", kind: "message", T: () => ExpressionData },
+            { no: 51, name: "constraint", kind: "message", T: () => TypeConstraintData },
+            { no: 52, name: "delay", kind: "message", T: () => Duration },
+            { no: 80, name: "color", kind: "message", T: () => ColorData },
+            { no: 90, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] }
         ]);
     }
     create(value?: PartialMessage<PipeData>): PipeData {
@@ -24879,8 +24918,6 @@ class PipeData$Type extends MessageType$<PipeData> {
         message.name = "";
         message.orderKey = "";
         message.mode = 0;
-        message.isHidden = false;
-        message.isNameShown = false;
         if (value !== undefined)
             reflectionMergePartial<PipeData>(this, message, value);
         return message;
@@ -24953,29 +24990,23 @@ class PipeData$Type extends MessageType$<PipeData> {
                 case /* symbolx.bench.NodeReferenceData target_ptr */ 36:
                     message.targetPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.targetPtr);
                     break;
-                case /* optional symbolx.bench.RunOptionsData run_options */ 50:
+                case /* optional symbolx.bench.RunOptionsData run_options */ 40:
                     message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
                     break;
-                case /* optional symbolx.bench.ExpressionData condition */ 60:
+                case /* optional symbolx.bench.ExpressionData condition */ 50:
                     message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
                     break;
-                case /* optional symbolx.bench.TypeConstraintData constraint */ 62:
+                case /* optional symbolx.bench.TypeConstraintData constraint */ 51:
                     message.constraint = TypeConstraintData.internalBinaryRead(reader, reader.uint32(), options, message.constraint);
                     break;
-                case /* optional google.protobuf.Duration delay */ 80:
+                case /* optional google.protobuf.Duration delay */ 52:
                     message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
+                    break;
+                case /* optional symbolx.bench.ColorData color */ 80:
+                    message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
                     break;
                 case /* symbolx.bench.NodeMode mode */ 90:
                     message.mode = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ColorData color */ 91:
-                    message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
-                    break;
-                case /* bool is_hidden */ 92:
-                    message.isHidden = reader.bool();
-                    break;
-                case /* bool is_name_shown */ 93:
-                    message.isNameShown = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -25052,30 +25083,24 @@ class PipeData$Type extends MessageType$<PipeData> {
         /* symbolx.bench.NodeReferenceData target_ptr = 36; */
         if (message.targetPtr)
             NodeReferenceData.internalBinaryWrite(message.targetPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunOptionsData run_options = 50; */
+        /* optional symbolx.bench.RunOptionsData run_options = 40; */
         if (message.runOptions)
-            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData condition = 60; */
+            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData condition = 50; */
         if (message.condition)
-            ExpressionData.internalBinaryWrite(message.condition, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TypeConstraintData constraint = 62; */
+            ExpressionData.internalBinaryWrite(message.condition, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TypeConstraintData constraint = 51; */
         if (message.constraint)
-            TypeConstraintData.internalBinaryWrite(message.constraint, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Duration delay = 80; */
+            TypeConstraintData.internalBinaryWrite(message.constraint, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Duration delay = 52; */
         if (message.delay)
-            Duration.internalBinaryWrite(message.delay, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
+            Duration.internalBinaryWrite(message.delay, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ColorData color = 80; */
+        if (message.color)
+            ColorData.internalBinaryWrite(message.color, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeMode mode = 90; */
         if (message.mode !== 0)
             writer.tag(90, WireType.Varint).int32(message.mode);
-        /* optional symbolx.bench.ColorData color = 91; */
-        if (message.color)
-            ColorData.internalBinaryWrite(message.color, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_hidden = 92; */
-        if (message.isHidden !== false)
-            writer.tag(92, WireType.Varint).bool(message.isHidden);
-        /* bool is_name_shown = 93; */
-        if (message.isNameShown !== false)
-            writer.tag(93, WireType.Varint).bool(message.isNameShown);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26331,13 +26356,13 @@ class MessageData$Type extends MessageType$<MessageData> {
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "origin_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "reply_to_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "text", kind: "message", T: () => TextData },
             { no: 42, name: "value_packed", kind: "message", T: () => Value },
-            { no: 44, name: "expires_at", kind: "message", T: () => Timestamp },
-            { no: 45, name: "read_at", kind: "message", T: () => Timestamp },
-            { no: 50, name: "is_pinned", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 43, name: "expires_at", kind: "message", T: () => Timestamp },
+            { no: 44, name: "read_at", kind: "message", T: () => Timestamp },
+            { no: 50, name: "reply_to_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 70, name: "is_pinned", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<MessageData>): MessageData {
@@ -26401,9 +26426,6 @@ class MessageData$Type extends MessageType$<MessageData> {
                 case /* optional symbolx.bench.NodeReferenceData block_ptr */ 36:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData reply_to_ptr */ 37:
-                    message.replyToPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.replyToPtr);
-                    break;
                 case /* optional string title */ 40:
                     message.title = reader.string();
                     break;
@@ -26413,13 +26435,16 @@ class MessageData$Type extends MessageType$<MessageData> {
                 case /* optional google.protobuf.Value value_packed */ 42:
                     message.valuePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional google.protobuf.Timestamp expires_at */ 44:
+                case /* optional google.protobuf.Timestamp expires_at */ 43:
                     message.expiresAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.expiresAt);
                     break;
-                case /* optional google.protobuf.Timestamp read_at */ 45:
+                case /* optional google.protobuf.Timestamp read_at */ 44:
                     message.readAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.readAt);
                     break;
-                case /* bool is_pinned */ 50:
+                case /* optional symbolx.bench.NodeReferenceData reply_to_ptr */ 50:
+                    message.replyToPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.replyToPtr);
+                    break;
+                case /* bool is_pinned */ 70:
                     message.isPinned = reader.bool();
                     break;
                 default:
@@ -26479,9 +26504,6 @@ class MessageData$Type extends MessageType$<MessageData> {
         /* optional symbolx.bench.NodeReferenceData block_ptr = 36; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData reply_to_ptr = 37; */
-        if (message.replyToPtr)
-            NodeReferenceData.internalBinaryWrite(message.replyToPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* optional string title = 40; */
         if (message.title !== undefined)
             writer.tag(40, WireType.LengthDelimited).string(message.title);
@@ -26491,15 +26513,18 @@ class MessageData$Type extends MessageType$<MessageData> {
         /* optional google.protobuf.Value value_packed = 42; */
         if (message.valuePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.valuePacked), writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp expires_at = 44; */
+        /* optional google.protobuf.Timestamp expires_at = 43; */
         if (message.expiresAt)
-            Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp read_at = 45; */
+            Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp read_at = 44; */
         if (message.readAt)
-            Timestamp.internalBinaryWrite(message.readAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_pinned = 50; */
+            Timestamp.internalBinaryWrite(message.readAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData reply_to_ptr = 50; */
+        if (message.replyToPtr)
+            NodeReferenceData.internalBinaryWrite(message.replyToPtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_pinned = 70; */
         if (message.isPinned !== false)
-            writer.tag(50, WireType.Varint).bool(message.isPinned);
+            writer.tag(70, WireType.Varint).bool(message.isPinned);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27394,6 +27419,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.FILE_TYPE]: FileType,
   [EnumType.FILE_FORMAT]: FileFormat,
   [EnumType.ICON_KIND]: IconKind,
+  [EnumType.STREAM_TYPE]: StreamType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FIELD_ZONE]: FieldType,
   [EnumType.TYPE_KIND]: TypeKind,
@@ -27775,6 +27801,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.FILE_TYPE]: FileType,
   [EnumType.FILE_FORMAT]: FileFormat,
   [EnumType.ICON_KIND]: IconKind,
+  [EnumType.STREAM_TYPE]: StreamType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FIELD_ZONE]: FieldType,
   [EnumType.TYPE_KIND]: TypeKind,
@@ -28130,6 +28157,8 @@ export enum FileProperty {
   updatedByPtr = 13,
   deletedAt = 14,
   subnodePacked = 29,
+  type = 30,
+  kind = 31,
   name = 32,
   status = 33,
   text = 34,
@@ -28143,22 +28172,20 @@ export enum FileProperty {
   suspendedAt = 43,
   decommissionedAt = 44,
   activeAt = 45,
-  kind = 50,
-  externalUrl = 53,
-  inlineContent = 54,
-  type = 60,
-  mimeType = 61,
-  format = 62,
-  size = 63,
-  sha256 = 64,
-  width = 65,
-  height = 66,
-  aspectRatio = 67,
-  codec = 68,
-  duration = 69,
-  bitrate = 70,
-  channels = 72,
-  sampleRate = 73,
+  mimeType = 50,
+  format = 51,
+  size = 52,
+  sha256 = 53,
+  externalUrl = 60,
+  inlineContent = 61,
+  width = 70,
+  height = 71,
+  aspectRatio = 72,
+  codec = 73,
+  duration = 74,
+  bitrate = 75,
+  channels = 76,
+  sampleRate = 77,
   retention = 80,
   expiresAt = 81,
   mode = 90,
@@ -28175,6 +28202,7 @@ export enum StreamProperty {
   updatedByPtr = 13,
   deletedAt = 14,
   subnodePacked = 29,
+  type = 30,
   name = 32,
   status = 33,
   text = 34,
@@ -28417,7 +28445,7 @@ export enum ActionProperty {
   orderKey = 33,
   icon = 35,
   text = 36,
-  runOptions = 41,
+  runOptions = 40,
   machinePtr = 51,
   code = 52,
   toolPtr = 53,
@@ -28450,14 +28478,12 @@ export enum PipeProperty {
   text = 34,
   sourcePtr = 35,
   targetPtr = 36,
-  runOptions = 50,
-  condition = 60,
-  constraint = 62,
-  delay = 80,
+  runOptions = 40,
+  condition = 50,
+  constraint = 51,
+  delay = 52,
+  color = 80,
   mode = 90,
-  color = 91,
-  isHidden = 92,
-  isNameShown = 93,
 }
 
 export enum MessageProperty {
@@ -28476,13 +28502,13 @@ export enum MessageProperty {
   name = 32,
   originPtr = 35,
   blockPtr = 36,
-  replyToPtr = 37,
   title = 40,
   text = 41,
   valuePacked = 42,
-  expiresAt = 44,
-  readAt = 45,
-  isPinned = 50,
+  expiresAt = 43,
+  readAt = 44,
+  replyToPtr = 50,
+  isPinned = 70,
 }
 
 export enum RecordProperty {
@@ -29161,23 +29187,23 @@ export enum ScheduleProperty {
 
 export enum FileInfoProperty {
   metatype = 1,
+  type = 30,
+  kind = 31,
   name = 32,
-  kind = 50,
-  externalUrl = 53,
-  inlineContent = 54,
-  type = 60,
-  mimeType = 61,
-  format = 62,
-  size = 63,
-  sha256 = 64,
-  width = 65,
-  height = 66,
-  aspectRatio = 67,
-  codec = 68,
-  duration = 69,
-  bitrate = 70,
-  channels = 72,
-  sampleRate = 73,
+  mimeType = 50,
+  format = 51,
+  size = 52,
+  sha256 = 53,
+  externalUrl = 60,
+  inlineContent = 61,
+  width = 70,
+  height = 71,
+  aspectRatio = 72,
+  codec = 73,
+  duration = 74,
+  bitrate = 75,
+  channels = 76,
+  sampleRate = 77,
 }
 
 export enum IconProperty {
@@ -30021,8 +30047,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.15.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.15.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30053,8 +30079,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.15.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.15.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.16.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30112,6 +30138,8 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.FILE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.BLOCK, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [FileProperty.type]: { id: 30, name: 'type', component: ObjectType.FILE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.kind]: { id: 31, name: 'kind', component: ObjectType.FILE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.name]: { id: 32, name: 'name', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.status]: { id: 33, name: 'status', component: ObjectType.FILE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.text]: { id: 34, name: 'text', component: ObjectType.FILE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -30125,22 +30153,20 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.kind]: { id: 50, name: 'kind', component: ObjectType.FILE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.externalUrl]: { id: 53, name: 'external_url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.inlineContent]: { id: 54, name: 'inline_content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.type]: { id: 60, name: 'type', component: ObjectType.FILE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.mimeType]: { id: 61, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.format]: { id: 62, name: 'format', component: ObjectType.FILE, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.size]: { id: 63, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.sha256]: { id: 64, name: 'sha256', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.width]: { id: 65, name: 'width', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.height]: { id: 66, name: 'height', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.aspectRatio]: { id: 67, name: 'aspect_ratio', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.codec]: { id: 68, name: 'codec', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.duration]: { id: 69, name: 'duration', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.bitrate]: { id: 70, name: 'bitrate', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.channels]: { id: 72, name: 'channels', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.sampleRate]: { id: 73, name: 'sample_rate', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.mimeType]: { id: 50, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.format]: { id: 51, name: 'format', component: ObjectType.FILE, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.size]: { id: 52, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.sha256]: { id: 53, name: 'sha256', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.externalUrl]: { id: 60, name: 'external_url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.inlineContent]: { id: 61, name: 'inline_content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.width]: { id: 70, name: 'width', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.height]: { id: 71, name: 'height', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.aspectRatio]: { id: 72, name: 'aspect_ratio', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.codec]: { id: 73, name: 'codec', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.duration]: { id: 74, name: 'duration', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.bitrate]: { id: 75, name: 'bitrate', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.channels]: { id: 76, name: 'channels', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.sampleRate]: { id: 77, name: 'sample_rate', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.retention]: { id: 80, name: 'retention', component: ObjectType.FILE, enumType: EnumType.FILE_RETENTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.expiresAt]: { id: 81, name: 'expires_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.mode]: { id: 90, name: 'mode', component: ObjectType.FILE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -30156,6 +30182,7 @@ export const StreamDataInfo: Record<StreamProperty, PropertyInfo> = {
   [StreamProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.STREAM, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.BLOCK, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [StreamProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [StreamProperty.type]: { id: 30, name: 'type', component: ObjectType.STREAM, enumType: EnumType.STREAM_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.name]: { id: 32, name: 'name', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.status]: { id: 33, name: 'status', component: ObjectType.STREAM, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.text]: { id: 34, name: 'text', component: ObjectType.STREAM, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -30390,7 +30417,7 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.icon]: { id: 35, name: 'icon', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ActionProperty.text]: { id: 36, name: 'text', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ActionProperty.runOptions]: { id: 41, name: 'run_options', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
+  [ActionProperty.runOptions]: { id: 40, name: 'run_options', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [ActionProperty.machinePtr]: { id: 51, name: 'machine_ptr', component: ObjectType.ACTION, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.code]: { id: 52, name: 'code', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ActionProperty.toolPtr]: { id: 53, name: 'tool_ptr', component: ObjectType.ACTION, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [22] }, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
@@ -30422,14 +30449,12 @@ export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
   [PipeProperty.text]: { id: 34, name: 'text', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [PipeProperty.sourcePtr]: { id: 35, name: 'source_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.targetPtr]: { id: 36, name: 'target_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.runOptions]: { id: 50, name: 'run_options', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [PipeProperty.condition]: { id: 60, name: 'condition', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [PipeProperty.constraint]: { id: 62, name: 'constraint', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
-  [PipeProperty.delay]: { id: 80, name: 'delay', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.runOptions]: { id: 40, name: 'run_options', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
+  [PipeProperty.condition]: { id: 50, name: 'condition', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [PipeProperty.constraint]: { id: 51, name: 'constraint', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
+  [PipeProperty.delay]: { id: 52, name: 'delay', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.color]: { id: 80, name: 'color', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
   [PipeProperty.mode]: { id: 90, name: 'mode', component: ObjectType.PIPE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.color]: { id: 91, name: 'color', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
-  [PipeProperty.isHidden]: { id: 92, name: 'is_hidden', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.isNameShown]: { id: 93, name: 'is_name_shown', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MESSAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30447,13 +30472,13 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.name]: { id: 32, name: 'name', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.originPtr]: { id: 35, name: 'origin_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.MESSAGE, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [12] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.replyToPtr]: { id: 37, name: 'reply_to_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.title]: { id: 40, name: 'title', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.text]: { id: 41, name: 'text', component: ObjectType.MESSAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [MessageProperty.valuePacked]: { id: 42, name: 'value_packed', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [MessageProperty.expiresAt]: { id: 44, name: 'expires_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [MessageProperty.readAt]: { id: 45, name: 'read_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [MessageProperty.isPinned]: { id: 50, name: 'is_pinned', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [MessageProperty.expiresAt]: { id: 43, name: 'expires_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MessageProperty.readAt]: { id: 44, name: 'read_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MessageProperty.replyToPtr]: { id: 50, name: 'reply_to_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.isPinned]: { id: 70, name: 'is_pinned', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RECORD, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -31054,23 +31079,23 @@ export const ScheduleDataInfo: Record<ScheduleProperty, PropertyInfo> = {
 }
 export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [FileInfoProperty.type]: { id: 30, name: 'type', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.kind]: { id: 31, name: 'kind', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.name]: { id: 32, name: 'name', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.kind]: { id: 50, name: 'kind', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.externalUrl]: { id: 53, name: 'external_url', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.inlineContent]: { id: 54, name: 'inline_content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.type]: { id: 60, name: 'type', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.mimeType]: { id: 61, name: 'mime_type', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.format]: { id: 62, name: 'format', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.size]: { id: 63, name: 'size', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.sha256]: { id: 64, name: 'sha256', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.width]: { id: 65, name: 'width', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.height]: { id: 66, name: 'height', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.aspectRatio]: { id: 67, name: 'aspect_ratio', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.codec]: { id: 68, name: 'codec', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.duration]: { id: 69, name: 'duration', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.bitrate]: { id: 70, name: 'bitrate', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.channels]: { id: 72, name: 'channels', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.sampleRate]: { id: 73, name: 'sample_rate', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.mimeType]: { id: 50, name: 'mime_type', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.format]: { id: 51, name: 'format', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.size]: { id: 52, name: 'size', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.sha256]: { id: 53, name: 'sha256', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.externalUrl]: { id: 60, name: 'external_url', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.inlineContent]: { id: 61, name: 'inline_content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.width]: { id: 70, name: 'width', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.height]: { id: 71, name: 'height', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.aspectRatio]: { id: 72, name: 'aspect_ratio', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.codec]: { id: 73, name: 'codec', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.duration]: { id: 74, name: 'duration', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.bitrate]: { id: 75, name: 'bitrate', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.channels]: { id: 76, name: 'channels', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.sampleRate]: { id: 77, name: 'sample_rate', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
   [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.15.0"
+VERSION = "2025.01.16.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -128,12 +128,15 @@ class EnumType(IdEnum):
     STORE_TYPE = 21040
     CLIENT_TYPE = 21050
 
-    # files (21200-21299)
+    # files (21200-21249)
     FILE_RETENTION_MODE = 21200
     FILE_KIND = 21201
     FILE_TYPE = 21202
     FILE_FORMAT = 21203
     ICON_KIND = 21210
+
+    # streams (21250-21299)
+    STREAM_TYPE = 21250
 
     # types (21300-21399)
     PRIMITIVE_TYPE = 21300

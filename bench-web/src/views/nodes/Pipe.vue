@@ -45,7 +45,6 @@ const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const isInspected = computed(() => canvas.isInspected(pipePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
 const isSelected = computed(() => state.isSelected(pipePtr.value));
-const isHidden = computed(() => pipe.value?.isHidden && !isInspected.value && !isHighlighted.value);
 const isBack = computed(() => pipe.value?.type == PipeType.SELECT_AND_BACK);
 const strokeDashArray = computed(() => {
   if (pipe.value?.type === PipeType.SELECT || pipe.value?.type === PipeType.SELECT_AND_BACK) {
@@ -70,11 +69,7 @@ const actions: Partial<ActionMapImplementation<"space" | "pipe">> = {
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
-  <div
-    v-if="pipe != null && path != null"
-    :class="isHidden ? 'group pointer-events-none z-30' : ''"
-    data-ignore-element="self"
-  >
+  <div v-if="pipe != null && path != null" class="group pointer-events-none z-30" data-ignore-element="self">
     <!-- Path -->
     <svg
       class="group pointer-events-none relative overflow-visible"

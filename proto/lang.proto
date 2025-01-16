@@ -48,6 +48,7 @@ enum EnumType {
   ENUM_TYPE_FILE_TYPE = 21202;
   ENUM_TYPE_FILE_FORMAT = 21203;
   ENUM_TYPE_ICON_KIND = 21210;
+  ENUM_TYPE_STREAM_TYPE = 21250;
   ENUM_TYPE_PRIMITIVE_TYPE = 21300;
   ENUM_TYPE_FIELD_ZONE = 21301;
   ENUM_TYPE_TYPE_KIND = 21302;
@@ -438,6 +439,7 @@ enum BenchType {
   BENCH_TYPE_FILE_TYPE = 21202;
   BENCH_TYPE_FILE_FORMAT = 21203;
   BENCH_TYPE_ICON_KIND = 21210;
+  BENCH_TYPE_STREAM_TYPE = 21250;
   BENCH_TYPE_PRIMITIVE_TYPE = 21300;
   BENCH_TYPE_FIELD_ZONE = 21301;
   BENCH_TYPE_TYPE_KIND = 21302;
@@ -896,6 +898,15 @@ enum IconKind {
   ICON_KIND_EMOJI = 1;
   ICON_KIND_FONT_AWESOME = 3;
   ICON_KIND_VS_CODE = 4;
+}
+
+enum StreamType {
+  STREAM_TYPE_UNSPECIFIED = 0;
+  STREAM_TYPE_TEXT = 1;
+  STREAM_TYPE_CODE = 2;
+  STREAM_TYPE_IMAGE = 3;
+  STREAM_TYPE_AUDIO = 4;
+  STREAM_TYPE_VIDEO = 5;
 }
 
 // Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
@@ -1983,23 +1994,23 @@ message DomNodeData {
 
 message FileInfoData {
   ObjectType metatype = 1;
+  FileType type = 30;
+  FileKind kind = 31;
   string name = 32;
-  FileKind kind = 50;
-  optional string external_url = 53;
-  optional bytes inline_content = 54;
-  FileType type = 60;
-  optional string mime_type = 61;
-  optional FileFormat format = 62;
-  int64 size = 63;
-  optional string sha256 = 64;
-  optional int32 width = 65;
-  optional int32 height = 66;
-  optional float aspect_ratio = 67;
-  optional string codec = 68;
-  optional google.protobuf.Duration duration = 69;
-  optional int32 bitrate = 70;
-  optional int32 channels = 72;
-  optional int32 sample_rate = 73;
+  optional string mime_type = 50;
+  optional FileFormat format = 51;
+  int64 size = 52;
+  optional string sha256 = 53;
+  optional string external_url = 60;
+  optional bytes inline_content = 61;
+  optional int32 width = 70;
+  optional int32 height = 71;
+  optional float aspect_ratio = 72;
+  optional string codec = 73;
+  optional google.protobuf.Duration duration = 74;
+  optional int32 bitrate = 75;
+  optional int32 channels = 76;
+  optional int32 sample_rate = 77;
 }
 
 message MachineImageData {
@@ -2560,6 +2571,8 @@ message FileData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
   optional google.protobuf.Value subnode_packed = 29;
+  FileType type = 30;
+  FileKind kind = 31;
   string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
@@ -2573,22 +2586,20 @@ message FileData {
   optional google.protobuf.Timestamp suspended_at = 43;
   optional google.protobuf.Timestamp decommissioned_at = 44;
   optional google.protobuf.Timestamp active_at = 45;
-  FileKind kind = 50;
-  optional string external_url = 53;
-  optional bytes inline_content = 54;
-  FileType type = 60;
-  optional string mime_type = 61;
-  optional FileFormat format = 62;
-  int64 size = 63;
-  optional string sha256 = 64;
-  optional int32 width = 65;
-  optional int32 height = 66;
-  optional float aspect_ratio = 67;
-  optional string codec = 68;
-  optional google.protobuf.Duration duration = 69;
-  optional int32 bitrate = 70;
-  optional int32 channels = 72;
-  optional int32 sample_rate = 73;
+  optional string mime_type = 50;
+  optional FileFormat format = 51;
+  int64 size = 52;
+  optional string sha256 = 53;
+  optional string external_url = 60;
+  optional bytes inline_content = 61;
+  optional int32 width = 70;
+  optional int32 height = 71;
+  optional float aspect_ratio = 72;
+  optional string codec = 73;
+  optional google.protobuf.Duration duration = 74;
+  optional int32 bitrate = 75;
+  optional int32 channels = 76;
+  optional int32 sample_rate = 77;
   FileRetentionMode retention = 80;
   optional google.protobuf.Timestamp expires_at = 81;
   NodeMode mode = 90;
@@ -2740,6 +2751,7 @@ message StreamData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
   optional google.protobuf.Value subnode_packed = 29;
+  StreamType type = 30;
   string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
@@ -2971,7 +2983,7 @@ message ActionData {
   string order_key = 33;
   optional IconData icon = 35;
   optional TextData text = 36;
-  optional RunOptionsData run_options = 41;
+  optional RunOptionsData run_options = 40;
   optional NodeReferenceData machine_ptr = 51;
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;
@@ -3233,14 +3245,12 @@ message PipeData {
   optional TextData text = 34;
   NodeReferenceData source_ptr = 35;
   NodeReferenceData target_ptr = 36;
-  optional RunOptionsData run_options = 50;
-  optional ExpressionData condition = 60;
-  optional TypeConstraintData constraint = 62;
-  optional google.protobuf.Duration delay = 80;
+  optional RunOptionsData run_options = 40;
+  optional ExpressionData condition = 50;
+  optional TypeConstraintData constraint = 51;
+  optional google.protobuf.Duration delay = 52;
+  optional ColorData color = 80;
   NodeMode mode = 90;
-  optional ColorData color = 91;
-  bool is_hidden = 92;
-  bool is_name_shown = 93;
 }
 
 // A connection between two Steps in a Flow (source = outgoing, target = incoming).
@@ -3406,13 +3416,13 @@ message MessageData {
   optional string name = 32;
   optional NodeReferenceData origin_ptr = 35;
   optional NodeReferenceData block_ptr = 36;
-  optional NodeReferenceData reply_to_ptr = 37;
   optional string title = 40;
   optional TextData text = 41;
   optional google.protobuf.Value value_packed = 42;
-  optional google.protobuf.Timestamp expires_at = 44;
-  optional google.protobuf.Timestamp read_at = 45;
-  bool is_pinned = 50;
+  optional google.protobuf.Timestamp expires_at = 43;
+  optional google.protobuf.Timestamp read_at = 44;
+  optional NodeReferenceData reply_to_ptr = 50;
+  bool is_pinned = 70;
 }
 
 message RecordData {

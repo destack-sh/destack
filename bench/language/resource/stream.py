@@ -1,7 +1,8 @@
 from typing import TYPE_CHECKING, Union
 
-from bench.language.core import NodeType, node_, p_node_parent
+from bench.language.core import EnumType, NodeType, enum_, node_, p_internal, p_node_parent
 from bench.pb2.lang_pb2 import StreamData
+from bench.utils.func import IdEnum
 
 from .resource import DynamicResource
 
@@ -11,6 +12,15 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
+@enum_(EnumType.STREAM_TYPE)
+class StreamType(IdEnum):
+    TEXT = 1
+    CODE = 2
+    IMAGE = 3
+    AUDIO = 4
+    VIDEO = 5
+
+
 @node_(NodeType.STREAM)
 class Stream(DynamicResource[StreamData]):
     """
@@ -18,3 +28,5 @@ class Stream(DynamicResource[StreamData]):
     """
 
     parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH, is_system=True)
+
+    type: StreamType = p_internal(30)
