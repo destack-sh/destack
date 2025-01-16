@@ -33,7 +33,7 @@ async def test_run_flow_browser_go_to_url(hosted_runtime: RuntimeHandle):
     Start = Action.new(ActionType.START, name="Start")
     GoToUrl = Action.new(ActionType.GO_TO_URL, name="GoToUrl", url="https://symbolx.com")
     Wait = Action.new(ActionType.WAIT, name="Wait", delay=timedelta(seconds=3))
-    Observe = Action.new(ActionType.OBSERVE, name="Observe")
+    Observe = Action.new(ActionType.LOOK, name="Observe")
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
     Flow.actions.extend(Start, GoToUrl, Wait, Observe, Complete)
     Start.connect(PipeType.FORWARD, target=GoToUrl)

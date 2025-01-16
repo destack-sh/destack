@@ -119,16 +119,19 @@ class ActionType(IdEnum):
     # state
     # ...
 
+    # environment
+    LOOK = 800, "Look at the environment"
+    # LISTEN, ...
+
     # application
-    OBSERVE = 1000, "Look at the application"
-    CLICK = 1050, "Click an element"
-    PRESS = 1051, "Press a key"
-    TYPE = 1052, "Type text"
-    SCROLL = 1053, "Scroll the mouse wheel"
-    SELECT = 1054, "Select an element"
-    DRAG = 1055, "Drag an element"
-    GO_BACKWARD = 1060, "Go back in history"
-    GO_FORWARD = 1061, "Go forward in history"
+    CLICK = 1000, "Click an element"
+    PRESS = 1001, "Press a key"
+    TYPE = 1002, "Type text"
+    SCROLL = 1003, "Scroll the mouse wheel"
+    SELECT = 1004, "Select an element"
+    DRAG = 1005, "Drag an element"
+    GO_BACKWARD = 1006, "Go back in history"
+    GO_FORWARD = 1007, "Go forward in history"
 
     # web
     GO_TO_URL = 1100, "Navigate to a URL"
@@ -204,13 +207,14 @@ class Action(SourceNode[ActionData]):
     calls: list["Call"] = p_regular(
         59, array=True, struct=StructType.CALL, field_type=FieldType.OUTPUT
     )
-    # set variables/inputs for delegates (tool)
+    # variables for self & delegates (tool)
     variables_packed: Any = p_value_packed(60)
     variables: Any = p_value_runtime(
         60,
         type=FieldType.VARIABLE,
         typ=lambda self: cast("Action", self).variable_type_field_only,
     )
+    # inputs for delegate
     inputs_packed: Any = p_value_packed(61)
     inputs: Any = p_value_runtime(
         61,
@@ -611,8 +615,8 @@ class HasApplicationContext(BuiltinObject):
     element_text: str | None = p_regular(113, default=None, field_type=FieldType.INPUT)
 
 
-@node_subtype_(ActionType.OBSERVE)
-class ObserveAction(Action, HasApplicationContext):
+@node_subtype_(ActionType.LOOK)
+class LookAction(Action, HasApplicationContext):  # move out of application?
     exclude_image: bool | None = p_regular(120, default=False, field_type=FieldType.INPUT)
     screenshot: Optional["File"] = p_regular(
         200,

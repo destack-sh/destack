@@ -36,4 +36,4 @@ class GeminiChatModelRunner(ChatModelRunner[MessagePart]):
         options: RunOptions,
     ) -> str:
         assert model in GEMINI_MODEL_BY_TYPE, f"unsupported model type {model!r}"
-        raise NotSupportedError("nocheckin: gemini chat model")
+        raise NotSupportedError("Gemini is not yet supported")

@@ -1380,7 +1380,7 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_WAIT: _ClassVar[ActionType]
     ACTION_TYPE_YIELD: _ClassVar[ActionType]
     ACTION_TYPE_NOTIFY: _ClassVar[ActionType]
-    ACTION_TYPE_OBSERVE: _ClassVar[ActionType]
+    ACTION_TYPE_LOOK: _ClassVar[ActionType]
     ACTION_TYPE_CLICK: _ClassVar[ActionType]
     ACTION_TYPE_PRESS: _ClassVar[ActionType]
     ACTION_TYPE_TYPE: _ClassVar[ActionType]
@@ -2852,7 +2852,7 @@ ACTION_TYPE_RECEIVE: ActionType
 ACTION_TYPE_WAIT: ActionType
 ACTION_TYPE_YIELD: ActionType
 ACTION_TYPE_NOTIFY: ActionType
-ACTION_TYPE_OBSERVE: ActionType
+ACTION_TYPE_LOOK: ActionType
 ACTION_TYPE_CLICK: ActionType
 ACTION_TYPE_PRESS: ActionType
 ACTION_TYPE_TYPE: ActionType
@@ -5571,7 +5571,7 @@ class WaitActionData(_message.Message):
     delay: _duration_pb2.Duration
     def __init__(self, delay: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...) -> None: ...
 
-class ObserveActionData(_message.Message):
+class LookActionData(_message.Message):
     __slots__ = ("application_ptr", "element_id", "element_path", "element_position", "element_text", "exclude_image", "screenshot_ptr", "dom_nodes")
     APPLICATION_PTR_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]

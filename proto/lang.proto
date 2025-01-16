@@ -1392,15 +1392,15 @@ enum ActionType {
   ACTION_TYPE_WAIT = 502;
   ACTION_TYPE_YIELD = 503;
   ACTION_TYPE_NOTIFY = 510;
-  ACTION_TYPE_OBSERVE = 1000;
-  ACTION_TYPE_CLICK = 1050;
-  ACTION_TYPE_PRESS = 1051;
-  ACTION_TYPE_TYPE = 1052;
-  ACTION_TYPE_SCROLL = 1053;
-  ACTION_TYPE_SELECT = 1054;
-  ACTION_TYPE_DRAG = 1055;
-  ACTION_TYPE_GO_BACKWARD = 1060;
-  ACTION_TYPE_GO_FORWARD = 1061;
+  ACTION_TYPE_LOOK = 800;
+  ACTION_TYPE_CLICK = 1000;
+  ACTION_TYPE_PRESS = 1001;
+  ACTION_TYPE_TYPE = 1002;
+  ACTION_TYPE_SCROLL = 1003;
+  ACTION_TYPE_SELECT = 1004;
+  ACTION_TYPE_DRAG = 1005;
+  ACTION_TYPE_GO_BACKWARD = 1006;
+  ACTION_TYPE_GO_FORWARD = 1007;
   ACTION_TYPE_GO_TO_URL = 1100;
   ACTION_TYPE_GO_TO_TAB = 1101;
   ACTION_TYPE_OPEN_TAB = 1102;
@@ -3089,7 +3089,7 @@ message WaitActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
-message ObserveActionData {
+message LookActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
   optional string element_path = 111;

@@ -41,4 +41,4 @@ class AnthropicChatModelRunner(ChatModelRunner[anthropic_types.MessageParam]):
         options: RunOptions,
     ) -> str:
         assert model in ANTHROPIC_MODEL_BY_TYPE, f"unsupported model type {model!r}"
-        raise NotSupportedError("nocheckin: anthropic chat model")
+        raise NotSupportedError("Anthropic is not yet supported")

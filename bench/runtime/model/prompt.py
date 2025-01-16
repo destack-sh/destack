@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING, Sequence, override
 from bench.language import (
     Action,
     Code,
-    Context,
     CustomObject,
     FileBase,
+    HasContext,
     Projection,
     Query,
     RenderOptions,
@@ -23,7 +23,7 @@ from bench.language import (
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.runtime.core import Runner
+    pass
 
 
 #
@@ -133,14 +133,18 @@ class PromptRun(PromptCompound):
             ),
         ]
         if self.node.variables:
-            parts.append(PromptObject(title="Variables", weight=2, object=self.node.variables))
+            parts.append(
+                PromptCustomObject(title="Variables", weight=2, object=self.node.variables)
+            )
         if self.node.inputs:
-            parts.append(PromptObject(title="Inputs", weight=3, object=self.node.inputs))
+            parts.append(PromptCustomObject(title="Inputs", weight=3, object=self.node.inputs))
         else:
             parts.append(PromptText(title="Inputs", text="No inputs"))
         if self.node.status.is_terminal:
             if self.node.outputs:
-                parts.append(PromptObject(title="Outputs", weight=1, object=self.node.outputs))
+                parts.append(
+                    PromptCustomObject(title="Outputs", weight=1, object=self.node.outputs)
+                )
             else:
                 parts.append(PromptText(title="Outputs", text="No outputs"))
         return parts
@@ -165,7 +169,7 @@ class PromptNode(PromptCompound):
 
 
 @dataclass
-class PromptObject(PromptCompound):
+class PromptCustomObject(PromptCompound):
     """A CustomObject. Expands to definition."""
 
     object: CustomObject
@@ -189,14 +193,14 @@ class PromptType(PromptCompound):
         assert isinstance(sample_object, CustomObject), f"bad sample object {sample_object!r}"
         return [
             PromptText(title=self.title, text=code),
-            PromptObject(title="Example value", weight=1, object=sample_object),
+            PromptCustomObject(title="Example value", weight=1, object=sample_object),
         ]
 
 
 class Prompt:
     """A prompt for an LLM-like model."""
 
-    def __init__(self, action: Action, context: "Context", items: list[PromptPart]):
+    def __init__(self, action: Action, context: "HasContext", items: list[PromptPart]):
         self.action = action
         self.context = context
         self.items = items
@@ -215,53 +219,6 @@ class Prompt:
 
     def extend(self, items: list[PromptPart]) -> None:
         self.items.extend(items)
-
-
-def make_prompt(
-    action: Action,
-    runner: "Runner",
-    context: "Context",
-    inputs: CustomObject | None,
-    outputs: CustomObject | None,
-    output_type: TypeBase | None,
-    include_run_context: bool,
-) -> "Prompt":
-    """Build a Prompt from the given context."""
-    # context
-    context_items: list[PromptPart] = []
-    if include_run_context:
-        for i, ancestor in enumerate(reversed(tuple(runner.ancestors))):
-            if ancestor.tracked_run is not None:
-                context_items.append(
-                    PromptRun(title=f"Parent Run {i}", weight=5, node=ancestor.tracked_run)
-                )
-    context_items.append(PromptNode(title="Current Node", weight=10, node=runner.node))
-    # NOTE :Incomplete: more general Context to Prompt?
-
-    # core
-    task_prompt: list[PromptPart] = [
-        PromptNode(title="Current Node", weight=10, node=runner.node),
-    ]
-    if inputs is not None:
-        task_prompt.append(PromptObject(title="Inputs", weight=10, object=inputs))
-    else:
-        task_prompt.append(PromptText(title="Inputs", text="No inputs"))
-    if output_type is not None:
-        task_prompt.append(PromptType(title="Output Type", weight=10, type=output_type))
-    else:
-        task_prompt.append(PromptText(title="Output Type", text="No output type"))
-    if outputs is not None:
-        task_prompt.append(PromptObject(title="Outputs", weight=10, object=outputs))
-
-    return Prompt(
-        action=action,
-        context=context,
-        items=[
-            # PromptRegion(title="Examples", weight=1, content=GENERAL_EXAMPLES),
-            PromptRegion(title="Context", weight=2, content=context_items),
-            PromptRegion(title="Task", weight=3, content=task_prompt),
-        ],
-    )
 
 
 @dataclass

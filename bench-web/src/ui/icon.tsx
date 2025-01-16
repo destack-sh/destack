@@ -305,8 +305,9 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   [ActionType.WAIT]: "fas fa-clock",
   [ActionType.YIELD]: "fas fa-hand",
   [ActionType.NOTIFY]: "fas fa-bell",
+  // environment
+  [ActionType.LOOK]: "fas fa-eye",
   // application
-  [ActionType.OBSERVE]: "fas fa-eye",
   [ActionType.CLICK]: "fas fa-arrow-pointer",
   [ActionType.PRESS]: "fas fa-keyboard",
   [ActionType.TYPE]: "fas fa-keyboard",

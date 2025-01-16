@@ -175,7 +175,7 @@ export const SINK_ACTION_TYPES = [ActionType.COMPLETE, ActionType.FAIL];
 export const INVISIBLE_ACTION_TYPES = [ActionType.TEXT];
 export const TOOL_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 100 && st < 200);
 export const GENERIC_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 200 && st < 300);
-export const DYNAMIC_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 100 && st < 300);
+export const DYNAMIC_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 100 && st < 300).concat([ActionType.LOOK]);
 export const READ_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 300 && st < 400);
 export const WRITE_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 400 && st < 500);
 export const ASYNC_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 500 && st < 600);

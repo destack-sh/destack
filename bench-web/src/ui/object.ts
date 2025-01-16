@@ -65,7 +65,7 @@ import {
   NodeType,
   NodeTypeMapping,
   ObjectType,
-  ObserveActionProperty,
+  LookActionProperty,
   PathData,
   PathElementType,
   PickerVariant,
@@ -922,7 +922,7 @@ const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>
 
 export class ActionLayout extends NodeLayout<NodeType.ACTION> {
   sectionApplication() {
-    this.section("Application", [this.rowProperty(ObserveActionProperty.applicationPtr, { isComputable: true })], {
+    this.section("Application", [this.rowProperty(LookActionProperty.applicationPtr, { isComputable: true })], {
       isDefaultCollapsed: true,
     });
   }
@@ -1126,7 +1126,7 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
     if (this.isPartial) {
       // select block
       commonRows.push(this.rowProperty(RecordProperty.blockPtr, { title: "Database", isComputable: true }));
-      // TODO :Incomplete: generalize SourceNode partial NodeLayout properties?
+      // NOTE :Incomplete: generalize SourceNode partial NodeLayout properties?
       commonRows.push(this.rowProperty(RecordProperty.name, { isComputable: true }));
     } else {
       commonRows.push(this.rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }));
