@@ -245,7 +245,9 @@ from .path import (
     get_path,
     parse_path,
     path,
+    path_element,
     render_path,
+    reverse_path_element,
     to_path,
 )
 from .property import (
@@ -644,8 +646,10 @@ __all__ = [
     "patch_graph",
     "patch_node_from_partial",
     "path",
+    "path_element",
     "render_path",
     "repr_scope",
+    "reverse_path_element",
     "run_event",
     "run_span",
     "sample_value",

@@ -13,7 +13,7 @@ from bench.language import (
     Interruption,
     InterruptionStatus,
     NodeMode,
-    PathElement,
+    PathElementType,
     PipeType,
     Record,
     Run,
@@ -111,13 +111,13 @@ async def test_run_flow_code(hosted_runtime: RuntimeHandle):
         ),
     )
     Code1.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Code1.fields.Input1),
-        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input1),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Code1.fields.Input1),
+        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input1),
     )
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Complete.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output1),
-        source=(Code1, PathElement.run_(), Run.get_property("outputs"), Code1.fields.Output1),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output1),
+        source=(Code1, PathElementType.RUN, Run.get_property("outputs"), Code1.fields.Output1),
     )
     Flow1.actions.extend(Start, Code1, Complete)
     Start.connect(PipeType.FORWARD, Code1)
@@ -162,32 +162,42 @@ async def test_run_flow_computed_value_chain(hosted_runtime: RuntimeHandle):
         Flow1.actions.append(Code)
         if i == 0:
             Code.set_computed(
-                target=(PathElement.run_(), Run.get_property("inputs"), Code.fields.BoolIn),
-                source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.BoolIn),
+                target=(PathElementType.RUN, Run.get_property("inputs"), Code.fields.BoolIn),
+                source=(
+                    Flow1,
+                    PathElementType.RUN,
+                    Run.get_property("inputs"),
+                    Flow1.fields.BoolIn,
+                ),
             )
             Code.set_computed(
-                target=(PathElement.run_(), Run.get_property("inputs"), Code.fields.IntIn),
-                source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.IntIn),
+                target=(PathElementType.RUN, Run.get_property("inputs"), Code.fields.IntIn),
+                source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.IntIn),
             )
         else:
             Code.set_computed(
-                target=(PathElement.run_(), Run.get_property("inputs"), Code.fields.BoolIn),
-                source=(prev, PathElement.run_(), Run.get_property("outputs"), prev.fields.BoolOut),
+                target=(PathElementType.RUN, Run.get_property("inputs"), Code.fields.BoolIn),
+                source=(
+                    prev,
+                    PathElementType.RUN,
+                    Run.get_property("outputs"),
+                    prev.fields.BoolOut,
+                ),
             )
             Code.set_computed(
-                target=(PathElement.run_(), Run.get_property("inputs"), Code.fields.IntIn),
-                source=(prev, PathElement.run_(), Run.get_property("outputs"), prev.fields.IntOut),
+                target=(PathElementType.RUN, Run.get_property("inputs"), Code.fields.IntIn),
+                source=(prev, PathElementType.RUN, Run.get_property("outputs"), prev.fields.IntOut),
             )
         prev.connect(PipeType.FORWARD, Code)
         prev = Code
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Complete.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.BoolOut),
-        source=(prev, PathElement.run_(), Run.get_property("outputs"), prev.fields.BoolOut),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.BoolOut),
+        source=(prev, PathElementType.RUN, Run.get_property("outputs"), prev.fields.BoolOut),
     )
     Complete.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.IntOut),
-        source=(prev, PathElement.run_(), Run.get_property("outputs"), prev.fields.IntOut),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.IntOut),
+        source=(prev, PathElementType.RUN, Run.get_property("outputs"), prev.fields.IntOut),
     )
     Flow1.actions.append(Complete)
     prev.connect(PipeType.FORWARD, Complete)
@@ -211,8 +221,8 @@ async def test_run_flow_invalid_computed_source(hosted_runtime: RuntimeHandle):
     Flow1.actions.extend(Start, Complete)
     Start.connect(PipeType.FORWARD, Complete)
     Complete.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output),
-        # missing PathElement.run_() for source, and Block has no inputs
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output),
+        # missing PathElementType.RUN for source, and Block has no inputs
         source=(Flow1, Run.get_property("inputs"), Flow1.fields.Input),
     )
     hosted_runtime.page().blocks.append(Flow1)
@@ -236,8 +246,8 @@ async def test_run_flow_invalid_computed_target(hosted_runtime: RuntimeHandle):
     Start.connect(PipeType.FORWARD, Complete)
     Complete.set_computed(
         # refers to Output, but we delete output below (oh no!, should be ignored)
-        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output),
-        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output),
+        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input),
     )
     hosted_runtime.page().blocks.append(Flow1)
     await hosted_runtime.commit()
@@ -271,30 +281,30 @@ async def test_run_flow_computed_value_mode(hosted_runtime: RuntimeHandle):
     hosted_runtime.page().blocks.append(Flow1)
     # always
     Complete.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output1),
-        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input1),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output1),
+        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input1),
         mode=ComputedValueMode.ALWAYS,
     )
     # if source is set
     Complete.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output2),
-        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input2),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output2),
+        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input2),
         mode=ComputedValueMode.IF_SOURCE_SET,
     )
     # if target is unset x2 (all but first should be ignored)
     Complete.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output3),
-        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input3),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output3),
+        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input3),
         mode=ComputedValueMode.IF_TARGET_UNSET,
     )
     Complete.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output3),
-        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input2),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output3),
+        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input2),
         mode=ComputedValueMode.IF_TARGET_UNSET,
     )
     Complete.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output3),
-        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input1),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output3),
+        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input1),
         mode=ComputedValueMode.IF_TARGET_UNSET,
     )
     await hosted_runtime.commit()
@@ -321,13 +331,13 @@ async def test_run_flow_code_dynamic(hosted_runtime: RuntimeHandle):
     Flow1.actions.append(Code1)
     Start.connect(PipeType.FORWARD, Code1)
     Code1.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Code1.get_property("code")),
-        source=(Flow1, PathElement.run_(), Run.get_property("variables"), Flow1.fields.Code),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Code1.get_property("code")),
+        source=(Flow1, PathElementType.RUN, Run.get_property("variables"), Flow1.fields.Code),
     )
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Complete.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output),
-        source=(Code1, PathElement.run_(), Run.get_property("outputs"), Code1.fields.Output),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output),
+        source=(Code1, PathElementType.RUN, Run.get_property("outputs"), Code1.fields.Output),
     )
     Flow1.actions.append(Complete)
     Code1.connect(PipeType.FORWARD, Complete)
@@ -359,8 +369,8 @@ return {'Block': block}
     )
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Complete.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Block),
-        source=(Create, PathElement.run_(), Run.get_property("outputs"), Create.fields.Block),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Block),
+        source=(Create, PathElementType.RUN, Run.get_property("outputs"), Create.fields.Block),
     )
     Flow1.actions.extend(Start, Create, Complete)
     Start.connect(PipeType.FORWARD, Create)
@@ -398,11 +408,11 @@ else:
 
     Code1.set_computed(
         target=(
-            PathElement.run_(),
+            PathElementType.RUN,
             Run.get_property("options"),
             RunOptions.get_property("max_attempts"),
         ),
-        source=(Flow1, PathElement.run_(), Run.get_property("variables"), Flow1.fields.Attempts),
+        source=(Flow1, PathElementType.RUN, Run.get_property("variables"), Flow1.fields.Attempts),
     )
     await hosted_runtime.commit()
 
@@ -593,22 +603,22 @@ async def test_run_flow_create_action_dynamic(hosted_runtime: RuntimeHandle):
     )
     Create.set_computed(
         target=(
-            PathElement.run_(),
+            PathElementType.RUN,
             Run.get_property("inputs"),
             Create.get_property("node_partial"),
             Record.get_property("name"),
         ),
-        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Name),
+        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Name),
         mode=ComputedValueMode.IF_SOURCE_SET,
     )
     Create.set_computed(
         target=(
-            PathElement.run_(),
+            PathElementType.RUN,
             Run.get_property("inputs"),
             Create.get_property("node_partial"),
             Database1.fields.Rating,
         ),
-        source=(Flow1, PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Rating),
+        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Rating),
         mode=ComputedValueMode.IF_SOURCE_SET,
     )
     Flow1.actions.extend(Start, Create)
