@@ -10,6 +10,7 @@ from bench.language import (
     Block,
     BlockType,
     BuiltinObject,
+    ComputedValue,
     ComputedValueMode,
     Field,
     File,
@@ -123,7 +124,7 @@ def test_render_property(session: Session, package: Package):
     prop_1 = Node.get_property("id")
     prop_2 = Block.get_property("name")
     prop_3 = Run.get_property("outputs")
-    return {"prop1": prop_1, "prop2": prop_2, "prop3": prop_3}
+    return {"prop_1": prop_1, "prop_2": prop_2, "prop_3": prop_3}
 
 
 @_rendered_expression
@@ -231,9 +232,8 @@ def test_render_create_action(session: Session, package: Package):
 def test_render_flow_simple(session: Session, package: Package):
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
-    Flow1.actions.append(Start)
     Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow1.actions.append(Complete)
+    Flow1.actions.extend(Start, Complete)
     Pipe1 = Pipe.new(PipeType.FORWARD, "Pipe1", source=Start, target=Complete)
     Flow1.pipes.append(Pipe1)
     return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Pipe1": Pipe1}
@@ -245,30 +245,34 @@ def test_render_flow_computed_value(session: Session, package: Package):
     Flow1 = Block.new(
         BlockType.FLOW,
         "Flow1",
-        fields=(
+        fields=[
             Field.input("Input1", int),
             Field.input("Input2", int),
             Field.input("Input3", int),
             Field.output("Output1", int),
             Field.output("Output2", int),
             Field.output("Output3", int),
-        ),
+        ],
     )
     Start = Action.new(ActionType.START, "Start")
-    Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Complete.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output1),
-        source=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input1),
-        mode=ComputedValueMode.ALWAYS,
-    )
-    Complete.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output2),
-        source=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input2),
-        mode=ComputedValueMode.IF_SOURCE_SET,
+    Complete = Action.new(
+        ActionType.COMPLETE,
+        "Complete",
+        computed_values=[
+            ComputedValue.new(
+                target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output1),
+                source=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input1),
+            ),
+            ComputedValue.new(
+                target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output2),
+                source=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input2),
+                mode=ComputedValueMode.IF_SOURCE_SET,
+            ),
+        ],
     )
     Flow1.actions.extend(Start, Complete)
-    Start.connect(PipeType.FORWARD, Complete)
-    return {"Flow1": Flow1, "Start": Start, "Complete": Complete}
+    Forward1 = Start.connect(PipeType.FORWARD, Complete)
+    return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Forward1": Forward1}
 
 
 #

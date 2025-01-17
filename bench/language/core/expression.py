@@ -965,6 +965,23 @@ class ComputedValue(Struct):
         else:
             return source_str
 
+    @property
+    def source(self) -> "Path | Expression | Code":
+        if self.kind == ComputedValueKind.PATH:
+            path = self.source_path
+            assert path is not None, f"missing source_path for {self!r}"
+            return path
+        elif self.kind == ComputedValueKind.EXPRESSION:
+            expression = self.source_expression
+            assert expression is not None, f"missing source_expression for {self!r}"
+            return expression
+        elif self.kind == ComputedValueKind.CODE:
+            code = self.source_code
+            assert code is not None, f"missing source_code for {self!r}"
+            return code
+        else:
+            assert_never(self.kind)
+
     @staticmethod
     def new(
         target: PathIn,

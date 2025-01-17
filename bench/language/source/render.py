@@ -15,6 +15,8 @@ from bench.language.core import (
     BlockType,
     BuiltinObject,
     Code,
+    ComputedValue,
+    ComputedValueMode,
     CustomObject,
     EnumType,
     FieldType,
@@ -22,6 +24,7 @@ from bench.language.core import (
     NodeReference,
     NodeType,
     ObjectType,
+    Path,
     PathElement,
     PathElementType,
     PrimitiveType,
@@ -41,8 +44,8 @@ from bench.language.core import (
     render_path,
     reverse_path_element,
 )
-from bench.language.core.path import Path
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
+from bench.language.resource.resource import Resource
 from bench.utils.time import timedelta_to_isoformat
 
 from .action import Action
@@ -64,6 +67,7 @@ class RenderOptions:
     as_page: bool = False
     node_types: Collection[NodeType] = NODE_TYPES_SET
     folded_child_types: Collection[NodeType] = (NodeType.FIELD,)
+    include_computed_values: bool = True
     node_filter: Collection[UUID] | None = None
     statement_separator: str = "\n"
     simplify_paths: bool = True
@@ -150,28 +154,24 @@ class Renderer:
     """A renderer to render related objects into code(ish)."""
 
     def __init__(self, options: RenderOptions):
-        self._options = options
-        self._aliasing = options.aliasing or Aliasing()
+        self.options = options
+        self.aliasing = options.aliasing or Aliasing()
 
     def __str__(self) -> str:
-        return f"scope={self.scope!r}, aliases={', '.join(self._aliasing._node_by_alias)}"
+        return f"scope={self.scope!r}, aliases={', '.join(self.aliasing._node_by_alias)}"
 
     def __repr__(self) -> str:
         return f"<Renderer {self}>"
 
     @property
     def scope(self) -> Node:
-        return self._options.scope
-
-    @property
-    def aliasing(self) -> Aliasing:
-        return self._aliasing
+        return self.options.scope
 
     def render_node_ref(self, node: Node | NodeReference) -> str:
         """Renders a python-valid reference to the given node in this context."""
         if (
             isinstance(node, Node)
-            and node.metatype in self._options.folded_child_types
+            and node.metatype in self.options.folded_child_types
             and "name" in node.__properties__
         ):
             # refer named folded children from parent
@@ -183,7 +183,7 @@ class Renderer:
                 alias = f"{parent_alias}.{parent_child_prop.name}.{node.code_name}"
                 return alias
 
-        alias = self._aliasing.get(node)
+        alias = self.aliasing.get(node)
         if alias is not None:
             # already have an alias
             return alias
@@ -191,7 +191,7 @@ class Renderer:
             # reference as path
             path = get_path(scope=self.scope, node=node)
             rendered_path = render_path(path)
-            if self._options.simplify_paths:
+            if self.options.simplify_paths:
                 # simplify path for use in Code (which treats references as unique get_node)
                 if len(path) == 1 and path[0].type in (
                     PathElementType.UNIQUE,
@@ -208,7 +208,7 @@ class Renderer:
             return f"get_node({rendered_path!r})"
         else:
             # create new alias
-            alias = self._aliasing.add(node)
+            alias = self.aliasing.add(node)
             return alias
 
     def render_property_ref(self, prop: Property | PropertyReference) -> str:
@@ -331,23 +331,40 @@ class Renderer:
             assert_never(value)
         return rendered
 
+    def _get_parent_child_key(self, node: Node) -> str | None:
+        """Gets the 'key' for the NodeList of the given Node's parent."""
+        if node.parent_ptr and node.parent_ptr in self.aliasing:
+            parent_alias = self.aliasing.get(node.parent_ptr)
+            parent_cls = NODE_CLASS_BY_TYPE[node.parent_ptr.node_type]
+            parent_child_prop = parent_cls.get_child_property_or_error(node.metatype)
+            return f"{parent_alias}.{parent_child_prop.name}"
+        return None
+
     def render_statement(self, *nodes: Node) -> str:
         """Renders the given objects to a Python block that defines those objects."""
         # render
         rendered_objs: list[str] = []
-        for node in nodes:
+        current_children: list[str] = []
+        for i, node in enumerate(nodes):
             rendered = self.render_object(node)
-            node_alias = self._aliasing.get(node)
+            node_alias = self.aliasing.get(node)
+            assert node_alias is not None, f"no alias for {node!r}"
             rendered_objs.append(f"{node_alias} = {rendered}")
-            if node.parent_ptr and node.parent_ptr in self.aliasing:
-                # append to parent
-                parent_alias = self._aliasing.get(node.parent_ptr)
-                parent_cls = NODE_CLASS_BY_TYPE[node.parent_ptr.node_type]
-                parent_child_prop = parent_cls.get_child_property_or_error(node.metatype)
-                rendered_objs.append(
-                    f"{parent_alias}.{parent_child_prop.name}.append({node_alias})"
-                )
-        rendered = self._options.statement_separator.join(rendered_objs)
+
+            # append to parent
+            parent_key = self._get_parent_child_key(node)
+            next_parent_key = (
+                self._get_parent_child_key(nodes[i + 1]) if i < len(nodes) - 1 else None
+            )
+            if parent_key is not None:
+                current_children.append(node_alias)
+                if parent_key != next_parent_key:
+                    if len(current_children) > 1:
+                        rendered_objs.append(f"{parent_key}.extend({', '.join(current_children)})")
+                    else:
+                        rendered_objs.append(f"{parent_key}.append({node_alias})")
+                    current_children = []
+        rendered = self.options.statement_separator.join(rendered_objs)
         return rendered
 
 
@@ -483,7 +500,13 @@ def _get_renderer(object_type: ObjectType) -> "BuiltinObjectRenderer":
     renderer = _renderers.get(object_type)
     if renderer is None:
         if is_node_type(object_type):
-            renderer = NODE_RENDERER if NodeType(object_type).is_source else SOURCE_NODE_RENDERER
+            node_type = NodeType(object_type)
+            if node_type.is_source:
+                renderer = SOURCE_NODE_RENDERER
+            elif node_type.is_resource:
+                renderer = RESOURCE_NODE_RENDERER
+            else:
+                renderer = NODE_RENDERER
         else:
             renderer = BUILTIN_OBJECT_RENDERER
     return renderer
@@ -499,30 +522,27 @@ class BuiltinObjectRenderer[T: BuiltinObject]:
         return f"{obj.__class__.__name__}({renderer._render_kwargs(**rendered_kwargs)})"
 
 
-BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObject]()
-
-
 #
 # Node renderers
 #
 
 
 class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
+    """The base renderer for a Node."""
+
     def _render_child_properties(
         self, renderer: "Renderer", obj: T, rendered_kwargs: dict[str, str] | None = None
     ) -> dict[str, str]:
         rendered_kwargs = rendered_kwargs if rendered_kwargs is not None else {}
         for prop in obj.__node_child_properties__.values():
             assert prop.reference_nodes, f"no reference nodes for {prop!r}"
-            if prop.reference_nodes[0] not in renderer._options.folded_child_types:
+            if prop.reference_nodes[0] not in renderer.options.folded_child_types:
                 continue
             children = getattr(obj, prop.name)
             if not children:
                 continue
-            if renderer._options.node_filter is not None:
-                children = [
-                    child for child in children if child.id in renderer._options.node_filter
-                ]
+            if renderer.options.node_filter is not None:
+                children = [child for child in children if child.id in renderer.options.node_filter]
             rendered_children = [
                 renderer.render_builtin_object(cast(BuiltinObject, child)) for child in children
             ]
@@ -537,7 +557,7 @@ class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
         rendered_kwargs: dict[str, str],
     ) -> str:
         """Create the constructor expression for a BuiltinObject (for the default .render)."""
-        return f"{obj.__name__}({renderer._render_kwargs(**rendered_kwargs)})"
+        return f"{obj.__class__.__name__}({renderer._render_kwargs(**rendered_kwargs)})"
 
     @override
     def render(self, renderer: Renderer, obj: T) -> str:
@@ -547,14 +567,28 @@ class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
         return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
 
 
-NODE_RENDERER = NodeRenderer[Node]()
-
-
 class SourceNodeRenderer[T: SourceNode](NodeRenderer[T]):
-    pass
+    """The base renderer for a SourceNode."""
+
+    @override
+    def render(self, renderer: Renderer, obj: T) -> str:
+        kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
+        if renderer.options.include_computed_values:
+            if computed_values := obj.computed_values:
+                kwargs[obj.get_property("computed_values")] = computed_values
+        rendered_kwargs = _render_builtin_object(renderer, obj, kwargs)
+        rendered_kwargs = self._render_child_properties(renderer, obj, rendered_kwargs)
+        return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
 
 
+class ResourceNodeRenderer[T: Resource](NodeRenderer[T]):
+    """The base renderer for a ResourceNode."""
+
+
+NODE_RENDERER = NodeRenderer[Node]()
 SOURCE_NODE_RENDERER = SourceNodeRenderer[SourceNode]()
+RESOURCE_NODE_RENDERER = ResourceNodeRenderer[Resource]()
+BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObject]()
 
 
 @_renderer(NodeType.BLOCK)
@@ -721,7 +755,7 @@ class IconRenderer(BuiltinObjectRenderer[Icon]):
             return super().render(renderer, obj)
 
 
-def _render_path_element(renderer: "Renderer", element: PathElement) -> str:
+def _render_path_element_in(renderer: "Renderer", element: PathElement) -> str:
     element_in = reverse_path_element(element)
     if isinstance(element_in, Node):
         return renderer.render_node_ref(element_in)
@@ -737,11 +771,19 @@ def _render_path_element(renderer: "Renderer", element: PathElement) -> str:
         assert_never(element_in)
 
 
+def _render_path_in(renderer: "Renderer", obj: Path) -> str:
+    elements_in: list[str] = []
+    for element in obj.elements:
+        element_in_str = _render_path_element_in(renderer, element)
+        elements_in.append(element_in_str)
+    return f"({', '.join(elements_in)})"
+
+
 @_renderer(StructType.PATH_ELEMENT)
 class PathElementRenderer(BuiltinObjectRenderer[PathElement]):
     @override
     def render(self, renderer: "Renderer", obj: PathElement) -> str:
-        element_in_str = _render_path_element(renderer, obj)
+        element_in_str = _render_path_element_in(renderer, obj)
         return f"path_element({element_in_str})"
 
 
@@ -749,15 +791,29 @@ class PathElementRenderer(BuiltinObjectRenderer[PathElement]):
 class PathRenderer(BuiltinObjectRenderer[Path]):
     @override
     def render(self, renderer: "Renderer", obj: Path) -> str:
-        elements_in: list[str] = []
-        for element in obj.elements:
-            element_in_str = _render_path_element(renderer, element)
-            elements_in.append(element_in_str)
-        return f"path({', '.join(elements_in)})"
+        path_in_str = _render_path_in(renderer, obj)
+        return f"path{path_in_str}"
+
+
+@_renderer(StructType.COMPUTED_VALUE)
+class ComputedValueRenderer(BuiltinObjectRenderer[ComputedValue]):
+    @override
+    def render(self, renderer: "Renderer", obj: ComputedValue) -> str:
+        rendered_kwargs = {}
+        if target := obj.target_path:
+            rendered_kwargs["target"] = _render_path_in(renderer, target)
+        if (source := obj.source) is not None:
+            if isinstance(source, Path):
+                rendered_kwargs["source"] = _render_path_in(renderer, source)
+            else:
+                rendered_kwargs["source"] = renderer.render_expression(source)
+        if obj.mode != ComputedValueMode.ALWAYS:
+            rendered_kwargs["mode"] = f"ComputedValueMode.{obj.mode.name}"
+        return f"ComputedValue.new({renderer._render_kwargs(**rendered_kwargs)})"
 
 
 #
-# Rendering
+# Top level helpers
 #
 
 
