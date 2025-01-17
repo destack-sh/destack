@@ -264,16 +264,39 @@ class Renderer:
         """Renders single Object into an expression."""
         # collect kwargs
         kwargs = _deconstruct_custom_object(value)
-
-        if (
+        rendered_kwargs = _render_custom_object_kwargs(self, value, kwargs)
+        if value._type.kind == TypeKind.PARTIAL_OBJECT:
+            node_cls = (
+                NODE_CLASS_BY_TYPE[cast(NodeType, value._type.bench_type)]
+                if value._type.bench_type
+                else Node
+            )
+            if value._type.bench_type is not None:
+                rendered_kwargs.pop("metatype", None)
+            if value._type.constraint is not None and value._type.constraint.node_subtypes:
+                rendered_kwargs.pop("type", None)
+                assert node_cls.__subtype_base_property__, f"bad subtype {node_cls!r}"
+                subtype_type = node_cls.__subtype_base_property__.enum_type
+                assert subtype_type is not None, f"bad subtype {node_cls!r}"
+                subtype_cls = ENUM_CLASS_BY_TYPE[subtype_type]
+                subtype = subtype_cls(value._type.constraint.node_subtypes[0])
+                args = (
+                    subtype_cls.__name__ + "." + subtype.name,
+                    self._render_kwargs(**rendered_kwargs) or None,
+                )
+                return f"{node_cls.__name__}.partial({self._render_args(*args)})"
+            else:
+                return f"{node_cls.__name__}.partial({self._render_kwargs(**rendered_kwargs)})"
+        elif (
             typ.base_field_types
             and FieldType.MEMBER in typ.base_field_types
             and (base_type := typ.base_type) is not None
         ):
-            kwargs_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())
-            kwargs_str = f"{base_type.code_name}({kwargs_str})"
+            # object representation
+            kwargs_str = f"{base_type.code_name}({self._render_kwargs(**rendered_kwargs)})"
             return kwargs_str
         else:
+            # default dict representation
             kwargs_str = ", ".join(f"'{k}': {v}" for k, v in kwargs.items())
             kwargs_str = f"{{{', '.join({kwargs_str})}}}"
             return kwargs_str
@@ -413,7 +436,7 @@ def _deconstruct_builtin_object(
     return kwargs
 
 
-def _render_builtin_object(
+def _render_builtin_object_kwargs(
     renderer: Renderer, obj: BuiltinObject, kwargs: dict[Property, Any]
 ) -> dict[str, str]:
     rendered_kwargs: dict[str, str] = {}
@@ -444,6 +467,15 @@ def _deconstruct_custom_object(obj: CustomObject) -> dict[Property | Field, Any]
             continue
         kwargs[field] = field_value
     return kwargs
+
+
+def _render_custom_object_kwargs(
+    renderer: "Renderer", obj: CustomObject, kwargs: dict[Property | Field, Any]
+) -> dict[str, str]:
+    rendered_kwargs: dict[str, str] = {}
+    for prop, value in kwargs.items():
+        rendered_kwargs[prop.name] = renderer.render_value(value, prop.type_info)
+    return rendered_kwargs
 
 
 def _deconstruct_type_in(
@@ -525,7 +557,7 @@ class BuiltinObjectRenderer[T: BuiltinObject]:
     def render(self, renderer: "Renderer", obj: T) -> str:
         """Render the given object to a Python expression (string)."""
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
-        rendered_kwargs = _render_builtin_object(renderer, obj, kwargs)
+        rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         return f"{obj.__class__.__name__}({renderer._render_kwargs(**rendered_kwargs)})"
 
 
@@ -569,7 +601,7 @@ class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
     @override
     def render(self, renderer: Renderer, obj: T) -> str:
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
-        rendered_kwargs = _render_builtin_object(renderer, obj, kwargs)
+        rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         rendered_kwargs = self._render_child_properties(renderer, obj, rendered_kwargs)
         return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
 
@@ -583,7 +615,7 @@ class SourceNodeRenderer[T: SourceNode](NodeRenderer[T]):
         if renderer.options.include_computed_values:
             if computed_values := obj.computed_values:
                 kwargs[obj.get_property("computed_values")] = computed_values
-        rendered_kwargs = _render_builtin_object(renderer, obj, kwargs)
+        rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         rendered_kwargs = self._render_child_properties(renderer, obj, rendered_kwargs)
         return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
 
@@ -736,7 +768,7 @@ class TypeRenderer(BuiltinObjectRenderer[TypeBase]):
             node_cls, rendered_kwargs = _desconstruct_partial_type(renderer, obj)
             return f"{node_cls.__name__}.partial_type({renderer._render_kwargs(**rendered_kwargs)})"
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
-        rendered_kwargs = _render_builtin_object(renderer, obj, kwargs)
+        rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         type_in, rendered_kwargs = _deconstruct_type_in(renderer, obj, rendered_kwargs)
         if type_in is not None:
             type_args = renderer._render_args(
@@ -752,7 +784,7 @@ class TypeConstraintRenderer(BuiltinObjectRenderer[TypeConstraint]):
     @override
     def render(self, renderer: "Renderer", obj: TypeConstraint) -> str:
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
-        rendered_kwargs = _render_builtin_object(renderer, obj, kwargs)
+        rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         return f"constraint({renderer._render_kwargs(**rendered_kwargs)})"
 
 

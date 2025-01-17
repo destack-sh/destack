@@ -1672,7 +1672,7 @@ def is_implicit_node_property(prop_id: int) -> bool:
 @node_component()
 class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     """
-    A Node with properties (like a Struct) and a global identity in our graph.
+    A Node with properties and an identity.
     Conceptually, all Nodes live together happily in a single giant supergraph.
     In practice, there are multiple stores and we load smaller subgraphs at runtime.
     """
