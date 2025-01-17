@@ -288,7 +288,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 prop = prop.clone()
                 prop.component = cls
                 properties_by_name[name] = prop
-            elif not prop._equals_type(existing):
+            elif not prop.equals_type(existing):
                 raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
             if not is_node and prop.is_tree_reference:
                 raise ValueError(f"non-node {cls} has node-only relation {prop}")
@@ -2026,11 +2026,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return clone
 
     def __eq__(self, other: Any):
-        """Equals node identity."""
+        """Equals the Node's identity."""
         return self is other or (type(self) is type(other) and (self.id == other.id))
 
     def _stable_hash(self):
-        """Hash node identity."""
+        """Hash the Node's identity."""
         return stable_hash((self.metatype, self.id))
 
     # only define __hash__ for nodes since their id is constant

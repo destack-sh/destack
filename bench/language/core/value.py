@@ -147,7 +147,7 @@ class CustomObject(Mapping[str, Any]):
 
     def __str__(self) -> str:
         set_fields: list[str] = []
-        for prop in _get_custom_object_properties(self._type, self._value):
+        for prop in get_custom_object_properties(self._type, self._value):
             if prop.id is None or prop.id < 30:
                 continue  # ignore tracking properties
             prop_value = self._do_get(prop)
@@ -189,7 +189,7 @@ class CustomObject(Mapping[str, Any]):
         """Checks if all fields of the two Values are equal (recursively)."""
         if other is None or type(other) is not CustomObject:
             return False
-        for prop in _get_custom_object_properties(self._type, self._value):
+        for prop in get_custom_object_properties(self._type, self._value):
             prop_key = prop.subtype_key or prop.key
             if self._value.get(prop_key) != other._value.get(prop_key):
                 return False
@@ -204,7 +204,7 @@ class CustomObject(Mapping[str, Any]):
         return True  # always True
 
     def _get_key(self, item: str) -> "Field | Property | None":
-        prop = _get_custom_object_property(self._type, self._value, item)
+        prop = get_custom_object_property(self._type, self._value, item)
         if prop is not None:
             return prop
         else:
@@ -376,6 +376,7 @@ class CustomObject(Mapping[str, Any]):
         parent_key: ValueParentKey,
     ) -> "CustomObject":
         """Copy this object into the given parent/prop."""
+        # NOTE :Performance: CustomObject.copy using pack/unpack seems expensive
         value_packed = pack_custom_object(self, self._type)
         copy = unpack_custom_object(
             value_packed,
@@ -485,7 +486,7 @@ def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":
 
     # assemble kwargs
     node_kwargs: dict[str, Any] = {}
-    for prop in _get_custom_object_properties(partial_type, partial_node._value):
+    for prop in get_custom_object_properties(partial_type, partial_node._value):
         prop_value = partial_node._do_get(prop)
         if prop_value is not None:
             node_kwargs[prop.name] = prop_value
@@ -514,7 +515,7 @@ def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":
 def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
     """Applies the set Properties/Fields from the partial Node to the Node."""
     # apply properties
-    for prop in _get_custom_object_properties(partial_node._type, partial_node._value):
+    for prop in get_custom_object_properties(partial_node._type, partial_node._value):
         if (
             prop.id is None
             or prop.id < 30
@@ -540,7 +541,7 @@ def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
                 value._do_set(field, new_field_value, track=True, validate=False)
 
 
-def _get_custom_object_properties(
+def get_custom_object_properties(
     typ: "TypeBase | TypeIdentity", value_packed: Mapping[str, JsonValue | SomeValue]
 ) -> "Iterable[Property]":
     """Gets all the custom object properties available in this value."""
@@ -579,7 +580,7 @@ def _get_custom_object_properties(
         return ()
 
 
-def _get_custom_object_property(
+def get_custom_object_property(
     typ: "TypeBase | TypeIdentity",
     value_packed: Mapping[str, JsonValue | SomeValue],
     name: str,
@@ -782,7 +783,7 @@ def coerce_custom_object_scalar(
         parent_property=parent_prop,
         supergraph=supergraph,
     )
-    properties = _get_custom_object_properties(typ, value)
+    properties = get_custom_object_properties(typ, value)
     for prop in properties:
         prop_value = value.pop(prop.name, None)
         if prop_value is not None:
@@ -1541,7 +1542,7 @@ def pack_custom_object(value: CustomObject, typ: "TypeBase | TypeIdentity") -> d
             ]
 
     # properties
-    for prop in _get_custom_object_properties(typ, _value):
+    for prop in get_custom_object_properties(typ, _value):
         storage_key = prop.subtype_key or prop.key
         prop_value = cast(SomeValue, _value.get(storage_key))
         if prop_value is None:
@@ -1609,7 +1610,7 @@ def unpack_custom_object(
         value[storage_key] = field_value
 
     # properties
-    for prop in _get_custom_object_properties(typ, value_packed):
+    for prop in get_custom_object_properties(typ, value_packed):
         storage_key = prop.subtype_key or prop.key
         prop_value_packed = value_packed.get(storage_key)
         if prop_value_packed is None:
