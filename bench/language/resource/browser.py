@@ -56,7 +56,7 @@ DEFAULT_BROWSER_WIDTH = 1920.0
 DEFAULT_BROWSER_HEIGHT = 1080.0
 
 
-@node_(NodeType.BROWSER)
+@node_(NodeType.BROWSER, has_subtypes=True)
 class Browser(DynamicResource[BrowserData]):
     """A Browser instance for web browsing."""
 

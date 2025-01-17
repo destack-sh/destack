@@ -29,7 +29,7 @@ class ScalerStrategy(IdEnum):
     AUTO = 2
 
 
-@node_(NodeType.SCALER)
+@node_(NodeType.SCALER, has_subtypes=True)
 class Scaler(StaticResource[ScalerData]):
     """
     A Scaler is a static Resource that automatically scales a dynamic Resource.

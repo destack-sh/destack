@@ -613,7 +613,7 @@ def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
 
 
 # pyright: reportIncompatibleMethodOverride=false
-@node_(NodeType.FIELD)
+@node_(NodeType.FIELD, has_subtypes=True)
 class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _IntoQuery):
     """
     A custom attribute of some value, the user-defined counterpart to Properties in builtin objects.

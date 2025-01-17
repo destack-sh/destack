@@ -21,7 +21,7 @@ class StreamType(IdEnum):
     VIDEO = 5
 
 
-@node_(NodeType.STREAM)
+@node_(NodeType.STREAM, has_subtypes=True)
 class Stream(DynamicResource[StreamData]):
     """
     A Stream stored somewhere (like in a Drive, or externally).

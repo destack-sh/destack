@@ -38,10 +38,11 @@ from bench.language.registry import (
 )
 from bench.pb2 import AnyNodeData, AnyStructData, Date, TimeOfDay
 from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.func import IdEnum
+from bench.utils.func import IdEnum, is_close
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 from .const import (
+    EMPTY_DICT,
     FLOAT_EPSILON,
     PY_TYPE_BY_PRIMITIVE_TYPE,
     UNSET,
@@ -185,16 +186,27 @@ class CustomObject(Mapping[str, Any]):
         else:
             return self._type.kind.bench_name
 
-    def equals(self, other: Any) -> bool:
+    def equals(
+        self,
+        other: Any,
+        identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
+    ) -> bool:
         """Checks if all fields of the two Values are equal (recursively)."""
         if other is None or type(other) is not CustomObject:
             return False
+        # properties
         for prop in get_custom_object_properties(self._type, self._value):
-            prop_key = prop.subtype_key or prop.key
-            if self._value.get(prop_key) != other._value.get(prop_key):
+            if prop._type_info is None:
+                continue
+            self_value = self._do_get(prop)
+            other_value = other._do_get(prop)
+            if not value_equals(prop._type_info, self_value, other_value, identity_map):
                 return False
+        # fields
         for field in self._type._base_fields:
-            if self._value.get(field.storage_key) != other._value.get(field.storage_key):
+            self_value = self._do_get(field)
+            other_value = other._do_get(field)
+            if not value_equals(field, self_value, other_value, identity_map):
                 return False
         return True
 
@@ -464,6 +476,73 @@ class CustomObject(Mapping[str, Any]):
             parent_key=parent_property,
             supergraph=supergraph,
         )
+
+
+def value_equals(
+    typ: "TypeBase | TypeIdentity",
+    self_value: Any,
+    other_value: Any,
+    identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
+) -> bool:
+    """Checks whether two values for a given type are equal (recursively)."""
+    if self_value is None or other_value is None:
+        return self_value is other_value
+    elif typ.kind == TypeKind.PRIMITIVE:
+        # compare primitives directly with is_close
+        if not typ.is_list:
+            return self_value == other_value or (
+                typ.primitive_type is not None
+                and typ.primitive_type.is_float
+                and is_close(self_value, other_value, FLOAT_EPSILON)
+            )
+        else:
+            if len(self_value) != len(other_value):
+                return False  # unequal list
+            for i in range(len(self_value)):
+                self_el = self_value[i]
+                other_el = other_value[i]
+                if self_el != other_el or not is_close(self_el, other_el, FLOAT_EPSILON):
+                    return False  # unequal list
+            return True
+    elif typ.kind == TypeKind.ENUM or typ.kind == TypeKind.LITERAL:
+        # compare enums/literaly directly
+        return self_value == other_value
+    elif typ.kind == TypeKind.STRUCT:
+        # compare struct recursively
+        if not typ.is_list:
+            if type(self_value) is not type(other_value) or (
+                self_value is not None
+                and not cast(Struct, self_value).equals(other_value, identity_map=identity_map)
+            ):
+                return False  # unequal struct
+        else:
+            if (
+                not isinstance(self_value, Sequence)
+                or not isinstance(other_value, Sequence)
+                or len(self_value) != len(other_value)
+            ):
+                return False  # unequal list
+            for i in range(len(self_value)):
+                if not self_value[i].equals(other_value[i], identity_map=identity_map):
+                    return False  # unequal struct
+    elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
+        if not typ.is_list:
+            self_value = identity_map.get(self_value.ck, self_value)
+            other_value = identity_map.get(other_value.ck, other_value)
+            return self_value.id == other_value.id
+        else:
+            if len(self_value) != len(other_value):
+                return False  # unequal list
+            for i in range(len(self_value)):
+                self_element = identity_map.get(self_value[i].ck, self_value[i])
+                other_element = identity_map.get(other_value[i].ck, other_value[i])
+                if self_element.id != other_element.id:
+                    return False  # unequal list
+            return True
+    elif typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
+        return self_value.equals(other_value, identity_map=identity_map)
+
+    return True
 
 
 def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":

@@ -38,7 +38,7 @@ class MachineImage(Struct):
     pass
 
 
-@node_(NodeType.MACHINE)
+@node_(NodeType.MACHINE, has_subtypes=True)
 class Machine(DynamicResource[MachineData]):
     """
     A Machine provides physical compute.

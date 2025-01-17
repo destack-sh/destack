@@ -57,7 +57,7 @@ if TYPE_CHECKING:
 _type = type
 
 
-@node_(NodeType.BLOCK, passthrough_get=("fields",))
+@node_(NodeType.BLOCK, passthrough_get=("fields",), has_subtypes=True)
 class Block(SourceNode[BlockData]):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 

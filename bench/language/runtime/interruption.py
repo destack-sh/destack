@@ -136,7 +136,7 @@ class InterruptionStatus(IdEnum):
         return self >= 7
 
 
-@timed_node_(NodeType.INTERRUPTION)
+@timed_node_(NodeType.INTERRUPTION, has_subtypes=True)
 class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
     """An Interruption in the execution of a Run."""
 

@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH))
+@node_(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), has_subtypes=True)
 class Client(BenchNode[ClientData]):
     """A client to a Bench."""
 
