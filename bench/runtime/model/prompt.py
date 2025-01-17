@@ -64,7 +64,7 @@ class PromptElement(PromptPart, ABC):
 class PromptBreak(PromptElement):
     """A semantic break in the prompt."""
 
-    pass
+    text: str | None = None
 
 
 @dataclass
@@ -102,10 +102,15 @@ class PromptRegion(PromptCompound):
     """A region for enclosing other items."""
 
     content: Sequence[PromptPart]
+    text: str | None = None
 
     @override
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
-        return (PromptBreak(title=self.title), *self.content, PromptBreak(title=None))
+        return (
+            PromptBreak(title=self.title, text=self.text),
+            *self.content,
+            PromptBreak(title=None),
+        )
 
 
 @dataclass

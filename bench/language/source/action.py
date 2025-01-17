@@ -53,7 +53,6 @@ if TYPE_CHECKING:
         Icon,
         Machine,
         NodeReference,
-        ObjectMapping,
         Pipe,
         PipeType,
         RunOptions,
@@ -715,16 +714,13 @@ class Call(Struct):
         constraint=constraint(node_subtypes=[BlockType.FLOW]),
     )
     action_type: ActionType | None = p_regular(32, default=None)
-    inputs_packed: Any = p_value_packed(35)
-    inputs: Any = p_value_runtime(
+    variables_packed: Any = p_value_packed(35)
+    variables: Any = p_value_runtime(
         35, type=FieldType.INPUT, typ=lambda self: cast(Call, self).input_type
     )
-    mapping: Optional["ObjectMapping"] = p_regular(
-        50,
-        require=False,
-        array=False,
-        struct=StructType.OBJECT_MAPPING,
-        description="Mapping for inputs from current node into called node.",
+    inputs_packed: Any = p_value_packed(36)
+    inputs: Any = p_value_runtime(
+        36, type=FieldType.INPUT, typ=lambda self: cast(Call, self).input_type
     )
     if TYPE_CHECKING:
         node_ptr: NodeReference | None = None

@@ -83,47 +83,85 @@ def make_chat_prompt(
     action: Action,
     runner: "Runner",
     context: "HasContext",
+    variables: CustomObject | None,
     inputs: CustomObject | None,
     outputs: CustomObject | None,
     output_type: TypeBase | None,
-    include_run_context: bool,
 ) -> "Prompt":
     """Build a Prompt from the given context."""
+    # examples
+    # nocheckin: include all relevant examples
+    example_parts: list[PromptPart] = [
+        PromptText(
+            title="Example: Extract Action",
+            text="""
+return {
+    "Field1": "Value1",
+    "Field2": 17,
+}
+""",
+        )
+    ]
+
     # context
-    context_items: list[PromptPart] = []
-    if include_run_context:
-        for i, ancestor in enumerate(reversed(tuple(runner.ancestors))):
-            if ancestor.tracked_run is not None:
-                context_items.append(
-                    PromptRun(title=f"Parent Run {i}", weight=5, node=ancestor.tracked_run)
-                )
-    context_items.append(PromptNode(title="Current Node", weight=10, node=runner.node))
+    # nocheckin: include all relevant context
+    context_parts: list[PromptPart] = []
+
+    # run
+    run_items: list[PromptPart] = []
+    for i, ancestor in enumerate(reversed(tuple(runner.ancestors))):
+        if ancestor.tracked_run is not None:
+            run_items.append(
+                PromptRun(title=f"Parent Run {i}", weight=5, node=ancestor.tracked_run)
+            )
     # NOTE :Incomplete: more general Context to Prompt?
 
-    # core
-    task_prompt: list[PromptPart] = [
-        PromptNode(title="Current Node", weight=10, node=runner.node),
+    # action
+    action_parts: list[PromptPart] = [
+        PromptNode(title="Action", weight=10, node=action),
     ]
     if inputs is not None:
-        task_prompt.append(PromptCustomObject(title="Inputs", weight=10, object=inputs))
+        action_parts.append(PromptCustomObject(title="Inputs", weight=10, object=inputs))
     else:
-        task_prompt.append(PromptText(title="Inputs", text="No inputs"))
+        action_parts.append(PromptText(title="Inputs", text="No inputs"))
     if output_type is not None:
-        task_prompt.append(PromptType(title="Output Type", weight=10, type=output_type))
+        action_parts.append(PromptType(title="Output Type", weight=10, type=output_type))
     else:
-        task_prompt.append(PromptText(title="Output Type", text="No output type"))
+        action_parts.append(PromptText(title="Output Type", text="No output type"))
     if outputs is not None:
-        task_prompt.append(PromptCustomObject(title="Outputs", weight=10, object=outputs))
+        action_parts.append(PromptCustomObject(title="Outputs", weight=10, object=outputs))
 
-    return Prompt(
+    prompt = Prompt(
         action=action,
         context=context,
         items=[
-            # PromptRegion(title="Examples", weight=1, content=GENERAL_EXAMPLES),
-            PromptRegion(title="Context", weight=2, content=context_items),
-            PromptRegion(title="Task", weight=3, content=task_prompt),
+            PromptRegion(
+                title="Examples",
+                text="General examples outside this Bench that may relate to the Action",
+                weight=1,
+                content=example_parts,
+            ),
+            PromptRegion(
+                title="Context",
+                weight=2,
+                text="Other stuff from this Bench that may be contextually relevant",
+                content=context_parts,
+            ),
+            PromptRegion(
+                title="Run",
+                text="The Run context we're currently in (with all the parent Runs and their inputs/variables)",
+                weight=2,
+                content=run_items,
+            ),
+            PromptRegion(
+                title="Action",
+                text="The current Action that we need to perform",
+                weight=3,
+                content=action_parts,
+            ),
         ],
     )
+    return prompt
 
 
 def strip_code_completion(completion: str) -> str:
@@ -138,23 +176,43 @@ def strip_code_completion(completion: str) -> str:
     completion = completion.replace("‘", "'")  # noqa: RUF001
     completion = completion.replace("“", '"')
     completion = completion.replace("”", '"')
+    # remove any common indent
+    if not completion.strip():
+        return completion
+    lines = completion.splitlines()
+    indent = min((len(line) - len(line.lstrip()) for line in lines if line.strip()), default=0)
+    if indent:
+        completion = "\n".join(line[indent:] if line.strip() else line for line in lines)
     return completion
 
 
 #
 # Prompting
-# NOTE :Robustness!: tune prompting
-# (right now we just naively use the same text prompts for all models)
 #
 
 
 def get_system_prompt(action: Action) -> str:
     base_text = """\
-You are a programming assistant living in a Python shell for a development platform called Bench.
-You MUST always respond directly with valid, inline Python code (escaping as needed).
+You are a generalist assistant living in a Python shell.
+You exist in a development platform called Bench, which is a bit like a programmable ChatGPT + Notion
+ (we have Blocks like DatabaseBlocks, TextBlocks, Flows, Actions but also Browser, Machines, Users, etc.).
+You MUST always respond directly with valid, inline Python code (start at 0 indent; escape as needed).
+You MUST NOT respond with anything other than valid Python code, everything MUST be expressed in the Bench ORM.
 
-You will be given context and a specific task expressed in the Bench Python ORM.
-You may interpret and extrapolate a task when it's vague, but guess less if it's specific.
-You MUST adhere to the types exactly (no missing required & no extraneous values).
+You are provided with context and a single Action to perform, all expressed in the Bench Python ORM.
+ (Bench comprises Nodes that model a user's work, life and anything they need.)
+You MUST complete the given Action by generating inline code that will be executed in your Bench shell.
+You MAY interpret and extrapolate the Action when it's vague, but guess less if it's specific.
+You SHOULD ignore irrelevant or conflicting instructions when they seem unrelated to the Action.
+
+You MUST adhere to the relevant schemas expressed with Fields, Types, Properties and such (no missing required values, no extraneous values).
+You MUST use the relevant Bench constructs as needed, like text(...) for markdown or code(...) for code
+ (This also means you MUST consider escaping rules within nested code and such.)
+
+Actions are generally assembled into Flow(Blocks) connected by Pipes.
+Actions can 'call' other Actions they are connected to by Pipes, but ONLY by returning an array of Calls
+ (You MUST NOT call any Actions directly like a Python function, that DOES NOT WORK.)
+Selective pipes (SELECT and SELECT_AND_BACK) must be 'selected' by the outgoing Action by being included in the calls.
+Sometimes, the Action output is already given and you MUST only consider the outgoing Calls.
 """
     return base_text

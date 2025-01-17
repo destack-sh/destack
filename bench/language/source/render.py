@@ -10,6 +10,7 @@ import regex
 import structlog
 from opentelemetry import trace
 
+from bench.language import Resource
 from bench.language.core import (
     NODE_TYPES_SET,
     BlockType,
@@ -36,6 +37,7 @@ from bench.language.core import (
     Struct,
     StructType,
     Text,
+    TypeFormat,
     TypeKind,
     format_code,
     get_custom_object_properties,
@@ -45,7 +47,6 @@ from bench.language.core import (
     reverse_path_element,
 )
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
-from bench.language.resource.resource import Resource
 from bench.utils.time import timedelta_to_isoformat
 
 from .action import Action
@@ -297,7 +298,7 @@ class Renderer:
             return kwargs_str
         else:
             # default dict representation
-            kwargs_str = ", ".join(f"'{k}': {v}" for k, v in kwargs.items())
+            kwargs_str = ", ".join(f"'{k}': {v}" for k, v in rendered_kwargs.items())
             kwargs_str = f"{{{', '.join({kwargs_str})}}}"
             return kwargs_str
 
@@ -496,6 +497,8 @@ def _deconstruct_type_in(
     kwargs = {**kwargs}
     for key in ("kind", "primitive_type", "bench_type", "base_type"):
         kwargs.pop(key, None)
+    if isinstance(type_in, TypeFormat):
+        kwargs.pop("format", None)
     return rendered_type, kwargs
 
 

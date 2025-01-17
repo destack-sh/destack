@@ -1476,7 +1476,7 @@ export function onAddFieldAction(
         const field = createField(txFactory(), graph, {
           anchor: "inside",
           target: parent,
-          field: { ...typeInfo, type: fieldType },
+          field: { ...typeInfo, icon: undefined, type: fieldType },
         });
         if (!options?.dontFocus) {
           canvas.inspect({ node: field });

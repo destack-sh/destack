@@ -242,14 +242,14 @@ class DynamicActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
             action=self.node,
             runner=cast(Runner[RunnableNode], self),
             context=self.context,
+            variables=self.variables,
             inputs=self.inputs,
             outputs=self.outputs,
             output_type=self.output_type,
-            include_run_context=True,
         )
         runner = OpenaiChatModelRunner()
-        parts = await runner.compile(prompt, 1000)
-        rendered = await runner.assemble(parts)
+        compiled = await runner.compile(prompt, 1000)
+        rendered = await runner.assemble(compiled)
         code = await runner.generate(
             prompt,
             ModelType.OPENAI_GPT4_0,
@@ -264,6 +264,8 @@ class DynamicActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
             track=False,
             options=ATTEMPT_ONCE,
             context=self.context,
+            variables=self.variables,
+            inputs=self.inputs,
             output_type=self.output_type,
             parent=cast(Runner[RunnableNode], self),
         )
