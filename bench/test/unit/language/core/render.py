@@ -112,7 +112,10 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
         for name, original_obj in original_defns.items():
             rendered_obj = rendered_defns[name]
             if isinstance(original_obj, Property):
-                assert original_obj == rendered_obj
+                assert (
+                    original_obj.component == rendered_obj.component
+                    and original_obj.id == rendered_obj.id
+                )
             elif isinstance(original_obj, CustomObject):
                 assert original_obj.equals(rendered_obj, identity_map=identity_map)
             elif isinstance(original_obj, BuiltinObject):

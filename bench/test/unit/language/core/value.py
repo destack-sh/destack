@@ -89,7 +89,6 @@ def test_partial_node_message(session: Session, package: Package) -> None:
             Field.member("Field2", Block),
             Field.member("Field3", bool),
             Field.member("Field4", datetime),
-            Field.member("title", Text),
         ),
     )
     typ = Type(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.MESSAGE, base_type=message_type)

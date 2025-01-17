@@ -1,4 +1,4 @@
-from typing import Mapping, cast, override
+from typing import Mapping, override
 from uuid import UUID, uuid4, uuid5
 
 import structlog
@@ -159,7 +159,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
             id=client_id or uuid4(),
             parent=user,
             name=name,
-            type=cast(ClientType, client_data.type),
+            type=ClientType(client_data.type),
             seen_at=self.oracle.utc(),
             _is_new=True,  # force create
         )
@@ -167,10 +167,13 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         return client
 
     def _patch_client(self, client: Client, client_data: ClientDataIn) -> Client:
-        # copy over other properties
-        for field, value in client_data.ListFields():
-            if field.name not in ("id", "name") and field.name in client.__properties__:
-                setattr(client, field.name, value)
+        # copy over Client properties
+        client.type = ClientType(client_data.type)
+        client.device_type = client_data.device_type or None
+        client.device_name = client_data.device_name or None
+        client.operating_system = client_data.operating_system or None
+        client.browser_name = client_data.browser_name or None
+        client.browser_version = client_data.browser_version or None
         return client
 
     @override
