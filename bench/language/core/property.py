@@ -210,11 +210,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         attrs_str = f" ({attrs_str})" if attrs_str else ""
         return f"<{self.__class__.__name__} {self!s}{attrs_str}>"
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Property):
-            return False
-        return self.component == other.component and self.id == other.id
-
     def _stable_hash(self):
         """Hash the Node's identity."""
         return stable_hash((self.component.__name__, self.id))

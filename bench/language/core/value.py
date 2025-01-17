@@ -205,7 +205,7 @@ class CustomObject(Mapping[str, Any]):
         # fields
         for field in self._type._base_fields:
             self_value = self._do_get(field)
-            other_value = other._do_get(field)
+            other_value = other.get(field.name)
             if not value_equals(field, self_value, other_value, identity_map):
                 return False
         return True
@@ -489,11 +489,10 @@ def value_equals(
         return self_value is other_value
     elif typ.kind == TypeKind.PRIMITIVE:
         # compare primitives directly with is_close
+        is_float = typ.primitive_type is not None and typ.primitive_type.is_float
         if not typ.is_list:
             return self_value == other_value or (
-                typ.primitive_type is not None
-                and typ.primitive_type.is_float
-                and is_close(self_value, other_value, FLOAT_EPSILON)
+                is_float and is_close(self_value, other_value, FLOAT_EPSILON)
             )
         else:
             if len(self_value) != len(other_value):
@@ -501,12 +500,32 @@ def value_equals(
             for i in range(len(self_value)):
                 self_el = self_value[i]
                 other_el = other_value[i]
-                if self_el != other_el or not is_close(self_el, other_el, FLOAT_EPSILON):
+                if self_el != other_el or (
+                    is_float and not is_close(self_el, other_el, FLOAT_EPSILON)
+                ):
                     return False  # unequal list
             return True
     elif typ.kind == TypeKind.ENUM or typ.kind == TypeKind.LITERAL:
         # compare enums/literaly directly
         return self_value == other_value
+    elif (
+        typ.kind == TypeKind.NODE
+        or typ.kind == TypeKind.BASED_NODE
+        or typ.bench_type == StructType.NODE_REFERENCE
+    ):
+        if not typ.is_list:
+            self_value = identity_map.get(self_value.ck, self_value)
+            other_value = identity_map.get(other_value.ck, other_value)
+            return self_value.id == other_value.id
+        else:
+            if len(self_value) != len(other_value):
+                return False  # unequal list
+            for i in range(len(self_value)):
+                self_element = identity_map.get(self_value[i].ck, self_value[i])
+                other_element = identity_map.get(other_value[i].ck, other_value[i])
+                if self_element.id != other_element.id:
+                    return False  # unequal list
+            return True
     elif typ.kind == TypeKind.STRUCT:
         # compare struct recursively
         if not typ.is_list:
@@ -525,20 +544,7 @@ def value_equals(
             for i in range(len(self_value)):
                 if not self_value[i].equals(other_value[i], identity_map=identity_map):
                     return False  # unequal struct
-    elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
-        if not typ.is_list:
-            self_value = identity_map.get(self_value.ck, self_value)
-            other_value = identity_map.get(other_value.ck, other_value)
-            return self_value.id == other_value.id
-        else:
-            if len(self_value) != len(other_value):
-                return False  # unequal list
-            for i in range(len(self_value)):
-                self_element = identity_map.get(self_value[i].ck, self_value[i])
-                other_element = identity_map.get(other_value[i].ck, other_value[i])
-                if self_element.id != other_element.id:
-                    return False  # unequal list
-            return True
+
     elif typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
         return self_value.equals(other_value, identity_map=identity_map)
 
@@ -685,8 +691,9 @@ def get_custom_object_property(
             else:
                 subtype = value_packed.get(node_cls.__subtype_base_property__.key)
             if subtype is not None:
-                subtype_cls = node_cls.__subclass_by_subtype__[cast(IdEnum, subtype)]
-                prop = subtype_cls.__subtype_extra_original_properties__.get(name)
+                subtype_cls = node_cls.__subclass_by_subtype__.get(cast(IdEnum, subtype))
+                if subtype_cls is not None:
+                    prop = subtype_cls.__subtype_extra_original_properties__.get(name)
 
     if prop is not None and (
         not typ.property_field_types or prop.field_type in typ.property_field_types
