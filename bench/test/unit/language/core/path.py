@@ -7,7 +7,6 @@ from bench.language import (
     Action,
     ActionType,
     Bench,
-    Block,
     BlockType,
     Context,
     Field,
@@ -317,7 +316,7 @@ def test_path_evaluate_attribute(session: Session, mock_package: Package):
 
     # relative to scope
     p = path(
-        Block.get_property("run_options"),
+        FlowBlock.get_property("run_options"),
         RunOptions.get_property("text_options"),
         TextOptions.get_property("temperature"),
     )
@@ -326,7 +325,7 @@ def test_path_evaluate_attribute(session: Session, mock_package: Package):
     # absolute node path
     p = path(
         page1,
-        Block.get_property("run_options"),
+        FlowBlock.get_property("run_options"),
         RunOptions.get_property("text_options"),
         TextOptions.get_property("temperature"),
     )

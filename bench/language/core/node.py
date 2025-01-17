@@ -134,6 +134,7 @@ if TYPE_CHECKING:
         Run,
         SearchConnection,
         Session,
+        Type,
         User,
     )
 
@@ -2439,32 +2440,57 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return None
 
     @classmethod
+    def partial_type(
+        cls,
+        type: int | None = None,
+        *,
+        block: "Block | None" = None,
+        field_types: list[FieldType] | None = None,
+    ) -> "Type":
+        """Creates a Type object for a partial Node."""
+        from bench.language.source import Type, TypeConstraint
+
+        constraint = TypeConstraint(node_subtypes=[type]) if type is not None else None
+        metatype = getattr(cls, "metatype", None)  # Node has no metatype
+
+        if block is not None:
+            return Type(
+                kind=TypeKind.PARTIAL_OBJECT,
+                base_type=block,
+                base_field_types=field_types or [FieldType.MEMBER],
+                property_field_types=field_types or [],
+                bench_type=metatype,
+                constraint=constraint,
+            )
+        else:
+            field_types = field_types or []
+            return Type(
+                kind=TypeKind.PARTIAL_OBJECT,
+                bench_type=metatype,
+                base_field_types=field_types,
+                property_field_types=field_types,
+                constraint=constraint,
+            )
+
+    @classmethod
     def partial(
-        cls, *, type: int | None = None, block: "Block | None" = None, **kwargs: Any
+        cls,
+        type: int | None = None,
+        *,
+        block: "Block | None" = None,
+        field_types: list[FieldType] | None = None,
+        **kwargs: Any,
     ) -> "CustomObject":
         """Creates a new partial Node of this type."""
-        from bench.language.source.field import Type, TypeConstraint
-
         from .value import coerce_custom_object_scalar
 
+        typ = cls.partial_type(type, block=block, field_types=field_types)
         if cls is not Node:
             kwargs["metatype"] = cls.metatype
         if type is not None:
             kwargs["type"] = type
-            constraint = TypeConstraint(node_subtypes=[type])
-        else:
-            constraint = None
         if block is not None:
             kwargs["block"] = block
-            typ = Type(
-                kind=TypeKind.PARTIAL_OBJECT,
-                base_type=block,
-                base_field_types=[FieldType.MEMBER],
-                bench_type=cls.metatype,
-                constraint=constraint,
-            )
-        else:
-            typ = Type(kind=TypeKind.PARTIAL_OBJECT, bench_type=cls.metatype, constraint=constraint)
         return coerce_custom_object_scalar(kwargs, typ)
 
     @classmethod

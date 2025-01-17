@@ -4,11 +4,7 @@ import textwrap
 from typing import Any, Callable, Mapping, cast
 from uuid import UUID
 
-import pytest
-from hypothesis import HealthCheck, assume, given, settings
-
 from bench.language import (
-    NODE_TYPES,
     Action,
     ActionType,
     Block,
@@ -23,129 +19,118 @@ from bench.language import (
     Package,
     Pipe,
     PipeType,
-    ReferenceKind,
-    Renderer,
     RenderOptions,
     Session,
-    StructType,
+    Struct,
     View,
     ViewType,
     constraint,
     md,
     render,
-    render_expr,
+    render_expression,
     to_type,
 )
+from bench.language.source.render import render_expressions
 from bench.runtime.code import BUILTIN_GLOBALS, STATIC_CODE_GLOBALS
-from bench.test.strategies import builtin_objects, examples
-from bench.test.unit.conftest import BUILTIN_OBJECTS, BUILTIN_OBJECTS_BY_TYPE
 
 
-@given(obj=builtin_objects())
-@examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@pytest.mark.skip(reason="no longer a good test, should come up with better rendering tests")
-def test_render_builtin_object_expr(obj: BuiltinObject, session: Session, package: Package):
-    # NOTE: rendering Access doesn't work for some reason (issue with empty object),
-    #  but we're going to overhaul the auth system soon anyway, so, whatever.
-    assume(obj.metatype != StructType.ACCESS)
-    assume(obj.metatype != StructType.TEXT)  # :CrummyMarkdown
-    assume(obj.metatype != StructType.TYPE_CONSTRAINT)  # coerced to TypeConstraintIn (incomparable)
-
-    renderer = Renderer(RenderOptions(scope=package))
-
-    # impute real nodes for required node references (since they're needed for rendering)
-    node_references = {}
-    for o in obj._walk_struct():
-        for prop in o.__node_reference_properties__.values():
-            if prop.reference_kind != ReferenceKind.NODE_REGULAR:
-                continue
-            wired_prop = prop.reference_wired_ptr
-            assert wired_prop is not None, f"no wired prop for {prop!r}"
-            if not wired_prop.is_required or wired_prop.is_list or not wired_prop.reference_nodes:
-                # ignore any generated references (they're not real)
-                if wired_prop.is_list:
-                    setattr(o, prop.name, [])
-                else:
-                    setattr(o, prop.name, None)
-                continue
-            reference_nodes = (
-                NODE_TYPES.tuple
-                if wired_prop.reference_nodes == "any"
-                else wired_prop.reference_nodes
-            )
-            reference_node = BUILTIN_OBJECTS_BY_TYPE[reference_nodes[0]]
-            assert isinstance(reference_node, Node), f"expected Node, got {reference_node!r}"
-            reference_alias = renderer.aliasing.add(reference_node)
-            node_references[reference_alias] = reference_node
-            setattr(o, prop.name, reference_node)
+def _render_and_check(
+    func: Callable[[Any, Any], Mapping[str, BuiltinObject]],
+    session: Session,
+    package: Package,
+    render_func: Callable,
+) -> None:
+    """Common logic for rendering and checking rendered code matches original."""
+    render_options = RenderOptions(scope=package, format=True, format_line_length=96)
+    original_defns = func(session, package)
 
     # render
-    rendered = renderer.render_builtin_object_expr(obj)
-    glbls = {**STATIC_CODE_GLOBALS, **BUILTIN_GLOBALS, **node_references}
-    rendered_obj = eval(rendered, glbls)
-    assert cast(BuiltinObject, rendered_obj).equals(obj)
+    rendered = render_func(original_defns, options=render_options)
+
+    # should match source (minus last line)
+    source = inspect.getsource(func)
+    source = "\n".join(source.splitlines()[2:-1])  # remove return
+    source = textwrap.dedent(source).strip()
+    assert rendered == source
+
+    # eval
+    glbls = {**STATIC_CODE_GLOBALS, **BUILTIN_GLOBALS}
+    glbls_tmp = {**glbls}
+    exec(rendered, glbls_tmp)
+    rendered_defns = {
+        name: obj
+        for name, obj in glbls_tmp.items()
+        if name not in glbls and isinstance(obj, BuiltinObject)
+    }
+
+    # check that all definitions are equal
+    identity_map: dict[UUID, NodeReference] = {}
+    for name, original_obj in original_defns.items():
+        rendered_obj = rendered_defns[name]
+        if isinstance(original_obj, Node):
+            assert isinstance(rendered_obj, Node)
+            identity_map[original_obj.ck] = rendered_obj.to_ref()
+    for name, original_obj in original_defns.items():
+        rendered_obj = rendered_defns[name]
+        assert cast(BuiltinObject, rendered_obj).equals(original_obj, identity_map=identity_map)
+
+    # render again from evaluated
+    rendered_again = render_func(rendered_defns, options=render_options)
+    assert rendered == rendered_again
 
 
-#
-# Roundtrip render statements
-#
+def _rendered_expression(func: Callable[[Any, Any], Mapping[str, Struct]]):
+    """Decorator to check that the function body is exactly equivalent to its (re)rendered form."""
+
+    @functools.wraps(func)
+    def _inner(session: Session, package: Package):
+        _render_and_check(func, session, package, render_expressions)
+        return func(session, package)
+
+    return _inner
 
 
-def _render_as_stmt(func: Callable[[Any, Any], Mapping[str, BuiltinObject]]):
+def _rendered_statement(func: Callable[[Any, Any], Mapping[str, BuiltinObject]]):
     """Decorator to check that the function body is exactly equivalent to its (re)rendered form."""
 
     @functools.wraps(func)
     def _inner(session: Session, package: Package):
         # (line length 96 because it's 100 - 4 for the method indent here)
-        render_options = RenderOptions(scope=package, format=True, format_line_length=96)
-        original_defns = func(session, package)
+        def render_func(defns, options):
+            return render(*defns.values(), options=options)
 
-        # render
-        rendered = render(*original_defns.values(), options=render_options)
-
-        # should match source (minus last line)
-        source = inspect.getsource(func)
-        source = "\n".join(source.splitlines()[2:-1])  # remove return
-        source = textwrap.dedent(source).strip()
-        assert rendered == source
-
-        # eval as statement
-        glbls = {**STATIC_CODE_GLOBALS, **BUILTIN_GLOBALS}
-        glbls_tmp = {**glbls}
-        exec(rendered, glbls_tmp)
-        rendered_defns = {
-            name: obj
-            for name, obj in glbls_tmp.items()
-            if name not in glbls and isinstance(obj, BuiltinObject)
-        }
-
-        # check that all definitions are equal
-        identity_map: dict[UUID, NodeReference] = {}
-        for name, original_obj in original_defns.items():
-            rendered_obj = rendered_defns[name]
-            if isinstance(original_obj, Node):
-                assert isinstance(rendered_obj, Node)
-                identity_map[original_obj.ck] = rendered_obj.to_ref()
-        for name, original_obj in original_defns.items():
-            rendered_obj = rendered_defns[name]
-            assert cast(BuiltinObject, rendered_obj).equals(original_obj, identity_map=identity_map)
-
-        # render again from evaluated
-        rendered_again = render(*rendered_defns.values(), options=render_options)
-        assert rendered == rendered_again
+        _render_and_check(func, session, package, render_func)
+        return func(session, package)
 
     return _inner
 
 
-@_render_as_stmt
+#
+# Structs
+#
+
+
+@_rendered_expression
+def test_render_type_in(session: Session, package: Package):
+    type_1 = to_type(int)
+    type_2 = to_type(str)
+    type_3 = Node.partial_type()
+    return {"type_1": type_1, "type_2": type_2, "type_3": type_3}
+
+
+#
+# Nodes
+#
+
+
+@_rendered_statement
 def test_render_bad_names(session: Session, package: Package):
     _F_1 = Field.variable("-F_1", str)
     Block_with_Spa_se = Block.new(BlockType.MESSAGE, "Block with Spa'se")
     return {"_F_1": _F_1, "Block_with_Spa_se": Block_with_Spa_se}
 
 
-@_render_as_stmt
+@_rendered_statement
 def test_render_choice_block(session: Session, package: Package):
     ShapeType = Block.new(
         BlockType.CHOICE,
@@ -155,7 +140,7 @@ def test_render_choice_block(session: Session, package: Package):
     return {"ShapeType": ShapeType}
 
 
-@_render_as_stmt
+@_rendered_statement
 def test_render_message_block(session: Session, package: Package):
     ShapeType = Block.new(
         BlockType.CHOICE,
@@ -170,13 +155,13 @@ def test_render_message_block(session: Session, package: Package):
     return {"ShapeType": ShapeType, "Shape": Shape}
 
 
-@_render_as_stmt
+@_rendered_statement
 def test_render_variable_block(session: Session, package: Package):
     Variable1 = Block.new(BlockType.VARIABLE, "Variable1", value_type=to_type(int), value=1)
     return {"Variable1": Variable1}
 
 
-@_render_as_stmt
+@_rendered_statement
 def test_render_view_block(session: Session, package: Package):
     View_1 = Block.new(BlockType.VIEW, "View 1")
     Button1 = View.new(ViewType.BUTTON, "Button1", node=View_1)
@@ -184,7 +169,7 @@ def test_render_view_block(session: Session, package: Package):
     return {"View_1": View_1, "Button1": Button1}
 
 
-@_render_as_stmt
+@_rendered_statement
 def test_render_field_with_constraint(session: Session, package: Package):
     Field1 = Field.input(
         "Field1", int, constraint=constraint(min_value=1.0, max_value=10.0, step_value=2.0)
@@ -192,18 +177,18 @@ def test_render_field_with_constraint(session: Session, package: Package):
     return {"Field1": Field1}
 
 
-@_render_as_stmt
+@_rendered_statement
 def test_render_variable(session: Session, package: Package):
     Variable1 = Block.new(BlockType.VARIABLE, "Variable1", value_type=to_type(int), value=5)
     return {"Variable1": Variable1}
 
 
-@_render_as_stmt
+@_rendered_statement
 def test_render_variable_with_file(session: Session, package: Package):
     myfile_txt = File(
-        name="myfile.txt",
-        kind=FileKind.DRIVE,
         type=FileType.TEXT,
+        kind=FileKind.DRIVE,
+        name="myfile.txt",
         mime_type="text/plain",
         size=1024,
     )
@@ -213,7 +198,13 @@ def test_render_variable_with_file(session: Session, package: Package):
     return {"myfile_txt": myfile_txt, "Variable1": Variable1}
 
 
-@_render_as_stmt
+@_rendered_statement
+def test_render_create_action(session: Session, package: Package):
+    Action1 = Action.new(ActionType.CREATE, "Action1", node_partial=Block.partial(BlockType.PAGE))
+    return {"Action1": Action1}
+
+
+@_rendered_statement
 def test_render_flow(session: Session, package: Package):
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -226,7 +217,7 @@ def test_render_flow(session: Session, package: Package):
 
 
 #
-# Other renderings
+# Other
 #
 
 
@@ -247,7 +238,7 @@ def test_render_simple_choice_option_ref(session: Session, package: Package):
     )
     Page = Block.new(BlockType.PAGE, "Page")
     Page.blocks.extend(Choice)
-    rendered_option = render_expr(
+    rendered_option = render_expression(
         Choice.fields.Option2, options=RenderOptions(scope=Page), as_ref=True
     )
     assert rendered_option == "Choice.fields.Option2"

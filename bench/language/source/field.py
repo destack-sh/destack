@@ -513,43 +513,43 @@ TypeIn = Union[
 
 
 def to_type_scalar(
-    typ: TypeIn,
+    type_in: TypeIn,
     *,
     of: Literal["instance", "value"] = "instance",
     field_types: list[FieldType] | None = None,
 ) -> "Type":
-    """Converts a type-like object to a TypeInfo."""
+    """Converts a type-like object to a Type."""
     from bench.language.resource import FileType
 
-    if isinstance(typ, TypeBase):
-        return cast("Type", typ)
-    elif isinstance(typ, Node) and typ.metatype in (NodeType.BLOCK, NodeType.ACTION):
-        type_info = cast("Block|Action", typ).to_type_maybe(of=of, field_types=field_types)
-        if type_info is not None:
-            assert isinstance(type_info, Type), f"expected TypeInfo, got {type_info!r}"
-            return type_info
-    elif isinstance(typ, PrimitiveType):
-        return Type(kind=TypeKind.PRIMITIVE, primitive_type=typ)
-    elif isinstance(typ, (NodeType, StructType, EnumType, BenchType)):
-        if is_node_type(typ):
-            return Type(kind=TypeKind.NODE, bench_type=typ)
-        elif is_struct_type(typ):
-            return Type(kind=TypeKind.STRUCT, bench_type=typ)
-        elif is_enum_type(typ):
-            return Type(kind=TypeKind.ENUM, bench_type=typ)
-    elif isinstance(typ, TypeFormat):
-        return Type(kind=TypeKind.PRIMITIVE, primitive_type=typ.primitive_type, format=typ)
-    elif isinstance(typ, FileType):
+    if isinstance(type_in, TypeBase):
+        return cast("Type", type_in)
+    elif isinstance(type_in, Node) and type_in.metatype in (NodeType.BLOCK, NodeType.ACTION):
+        type_scalar = cast("Block | Action", type_in).to_type_maybe(of=of, field_types=field_types)
+        if type_scalar is not None:
+            assert isinstance(type_scalar, Type), f"expected Type, got {type_scalar!r}"
+            return type_scalar
+    elif isinstance(type_in, PrimitiveType):
+        return Type(kind=TypeKind.PRIMITIVE, primitive_type=type_in)
+    elif isinstance(type_in, (NodeType, StructType, EnumType, BenchType)):
+        if is_node_type(type_in):
+            return Type(kind=TypeKind.NODE, bench_type=type_in)
+        elif is_struct_type(type_in):
+            return Type(kind=TypeKind.STRUCT, bench_type=type_in)
+        elif is_enum_type(type_in):
+            return Type(kind=TypeKind.ENUM, bench_type=type_in)
+    elif isinstance(type_in, TypeFormat):
+        return Type(kind=TypeKind.PRIMITIVE, primitive_type=type_in.primitive_type, format=type_in)
+    elif isinstance(type_in, FileType):
         return Type(
             kind=TypeKind.NODE,
             bench_type=NodeType.FILE,
-            constraint=TypeConstraint(node_subtypes=[typ]),
+            constraint=TypeConstraint(node_subtypes=[type_in]),
         )
-    elif isinstance(typ, type):
-        primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(typ)
+    elif isinstance(type_in, type):
+        primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(type_in)
         if primitive_type:
             return Type(kind=TypeKind.PRIMITIVE, primitive_type=primitive_type)
-        bench_type = BENCH_TYPE_BY_CLASS.get(cast(Any, typ))
+        bench_type = BENCH_TYPE_BY_CLASS.get(cast(Any, type_in))
         if bench_type is not None:
             if is_node_type(bench_type):
                 return Type(kind=TypeKind.NODE, bench_type=bench_type)
@@ -557,14 +557,14 @@ def to_type_scalar(
                 return Type(kind=TypeKind.STRUCT, bench_type=bench_type)
             elif is_enum_type(bench_type):
                 return Type(kind=TypeKind.ENUM, bench_type=bench_type)
-        elif typ == Node:
+        elif type_in == Node:
             return Type(kind=TypeKind.NODE)
 
-    raise ValueError(f"unsupported type {typ!r}")
+    raise ValueError(f"unsupported type {type_in!r}")
 
 
 def to_type(
-    typ: TypeIn,
+    type_in: TypeIn,
     *,
     of: Literal["instance", "value"] = "instance",
     field_types: list[FieldType] | None = None,
@@ -572,8 +572,8 @@ def to_type(
     is_required: bool = False,
     is_list: bool = False,
 ) -> Type:
-    """Converts a TypeIn into a TypeBase."""
-    type_scalar = to_type_scalar(typ, of=of, field_types=field_types)
+    """Converts a TypeIn into a Type."""
+    type_scalar = to_type_scalar(type_in, of=of, field_types=field_types)
     if isinstance(constraint, TypeConstraintIn):
         constraint = constraint.into()
     type_scalar.constraint = constraint
@@ -583,7 +583,10 @@ def to_type(
 
 
 def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
-    """Reverses a TypeInfo into a TypeIn as closely as possible."""
+    """
+    Reverses a Type into a TypeIn as closely as possible.
+    Does not consider non-scalar properties (is_list, is_required, etc.)
+    """
     if typ.kind == TypeKind.PRIMITIVE:
         assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
         if typ.format is not None:
@@ -605,8 +608,8 @@ def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
     elif typ.kind == TypeKind.BASED_NODE:
         assert typ.base_type is not None, f"missing base type for {typ!r}"
         return typ.base_type
-    else:
-        return None  # can't reverse
+
+    return None  # couldn't reverse
 
 
 # pyright: reportIncompatibleMethodOverride=false

@@ -16,8 +16,8 @@ from bench.language import (
     SourceNode,
     Text,
     TypeBase,
-    render_expr,
-    render_stmt,
+    render_expression,
+    render_statement,
     sample_value,
 )
 from bench.utils.func import IdEnum
@@ -160,11 +160,11 @@ class PromptNode(PromptCompound):
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
         context_nodes = context.projection.project(self.node)
         context_code = "\n".join(
-            render_stmt(n, options=context.render_options)
+            render_statement(n, options=context.render_options)
             for n in context_nodes
             if n.metatype not in context.render_options.folded_child_types and n != self.node
         )
-        node_code = render_stmt(self.node, options=context.render_options)
+        node_code = render_statement(self.node, options=context.render_options)
         return [PromptText(title=self.title, text=f"{context_code}\n\n{node_code}")]
 
 
@@ -176,7 +176,7 @@ class PromptCustomObject(PromptCompound):
 
     @override
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
-        code = render_expr(self.object, options=context.render_options)
+        code = render_expression(self.object, options=context.render_options)
         return [PromptText(title=self.title, text=code)]
 
 
@@ -188,7 +188,7 @@ class PromptType(PromptCompound):
 
     @override
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
-        code = render_expr(self.type, options=context.render_options)
+        code = render_expression(self.type, options=context.render_options)
         sample_object = sample_value(self.type)
         assert isinstance(sample_object, CustomObject), f"bad sample object {sample_object!r}"
         return [
