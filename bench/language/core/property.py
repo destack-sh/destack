@@ -16,7 +16,7 @@ from uuid import UUID
 
 from bench.language.registry import BENCH_CLASS_BY_NAME, ENUM_TYPE_BY_CLASS, _on_completing_setup
 from bench.utils.env import IS_DEV
-from bench.utils.func import IdEnum, parse_py_annotation
+from bench.utils.func import IdEnum, parse_py_annotation, stable_hash
 from bench.utils.utils import frozendict
 
 from .const import (
@@ -210,6 +210,18 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         attrs_str = f" ({attrs_str})" if attrs_str else ""
         return f"<{self.__class__.__name__} {self!s}{attrs_str}>"
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Property):
+            return False
+        return self.component == other.component and self.id == other.id
+
+    def _stable_hash(self):
+        """Hash the Node's identity."""
+        return stable_hash((self.component.__name__, self.id))
+
+    # only define __hash__ for nodes since their id is constant
+    __hash__ = _stable_hash  # type: ignore
+
     def clone(self):
         return dataclasses.replace(
             self,
@@ -304,7 +316,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     def is_enum(self):
         return self.enum_type is not None
 
-    def _equals_type(self, other: "Property") -> bool:
+    def equals_type(self, other: "Property") -> bool:
         """Compares everything but the source component."""
         for k in dataclasses.fields(self):
             if k.name in (

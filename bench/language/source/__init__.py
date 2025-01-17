@@ -57,7 +57,16 @@ from .field import (
 )
 from .pipe import Pipe, PipeType, PortSide
 from .project import Projection, ProjectOptions, project
-from .render import Renderer, RenderOptions, render, render_expression, render_statement
+from .render import (
+    Renderer,
+    RenderOptions,
+    render,
+    render_expression,
+    render_expressions,
+    render_path,
+    render_statement,
+    render_value,
+)
 from .schedule import Schedule, ScheduleFrequency
 from .view import (
     Alignment,
@@ -178,7 +187,10 @@ __all__ = [
     "project",
     "render",
     "render_expression",
+    "render_expressions",
+    "render_path",
     "render_statement",
+    "render_value",
     "to_icon",
     "to_type",
     "to_type_scalar",

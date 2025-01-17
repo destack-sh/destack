@@ -10,6 +10,7 @@ from bench.language import (
     Block,
     BlockType,
     BuiltinObject,
+    ComputedValueMode,
     Field,
     File,
     FileKind,
@@ -17,9 +18,11 @@ from bench.language import (
     Node,
     NodeReference,
     Package,
+    PathElement,
     Pipe,
     PipeType,
     RenderOptions,
+    Run,
     Session,
     Struct,
     View,
@@ -28,9 +31,9 @@ from bench.language import (
     md,
     render,
     render_expression,
+    render_expressions,
     to_type,
 )
-from bench.language.source.render import render_expressions
 from bench.runtime.code import BUILTIN_GLOBALS, STATIC_CODE_GLOBALS
 
 
@@ -41,6 +44,7 @@ def _render_and_check(
     render_func: Callable,
 ) -> None:
     """Common logic for rendering and checking rendered code matches original."""
+    # (line length 96 because it's 100 - 4 for the method indent here)
     render_options = RenderOptions(scope=package, format=True, format_line_length=96)
     original_defns = func(session, package)
 
@@ -95,7 +99,6 @@ def _rendered_statement(func: Callable[[Any, Any], Mapping[str, BuiltinObject]])
 
     @functools.wraps(func)
     def _inner(session: Session, package: Package):
-        # (line length 96 because it's 100 - 4 for the method indent here)
         def render_func(defns, options):
             return render(*defns.values(), options=options)
 
@@ -205,7 +208,7 @@ def test_render_create_action(session: Session, package: Package):
 
 
 @_rendered_statement
-def test_render_flow(session: Session, package: Package):
+def test_render_flow_simple(session: Session, package: Package):
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
     Flow1.actions.append(Start)
@@ -214,6 +217,38 @@ def test_render_flow(session: Session, package: Package):
     Pipe1 = Pipe.new(PipeType.FORWARD, "Pipe1", source=Start, target=Complete)
     Flow1.pipes.append(Pipe1)
     return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Pipe1": Pipe1}
+
+
+@_rendered_statement
+def test_render_flow_computed_value(session: Session, package: Package):
+    """Run a Flow with computed value set if source is set."""
+    Flow1 = Block.new(
+        BlockType.FLOW,
+        "Flow1",
+        fields=(
+            Field.input("Input1", int),
+            Field.input("Input2", int),
+            Field.input("Input3", int),
+            Field.output("Output1", int),
+            Field.output("Output2", int),
+            Field.output("Output3", int),
+        ),
+    )
+    Start = Action.new(ActionType.START, "Start")
+    Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Complete.set_computed(
+        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output1),
+        source=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input1),
+        mode=ComputedValueMode.ALWAYS,
+    )
+    Complete.set_computed(
+        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output2),
+        source=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input2),
+        mode=ComputedValueMode.IF_SOURCE_SET,
+    )
+    Flow1.actions.extend(Start, Complete)
+    Start.connect(PipeType.FORWARD, Complete)
+    return {"Flow1": Flow1, "Start": Start, "Complete": Complete}
 
 
 #
