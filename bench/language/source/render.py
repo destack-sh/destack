@@ -51,6 +51,7 @@ from bench.utils.time import timedelta_to_isoformat
 from .action import Action
 from .block import Block
 from .field import Field, TypeBase, TypeConstraint, reverse_type_scalar
+from .pipe import Pipe
 from .view import Icon, View, reverse_icon
 
 if TYPE_CHECKING:
@@ -357,6 +358,8 @@ class Renderer:
                 self._get_parent_child_key(nodes[i + 1]) if i < len(nodes) - 1 else None
             )
             if parent_key is not None:
+                if node.metatype == NodeType.PIPE:
+                    continue  # implicitly added into parent (see PipeRenderer)
                 current_children.append(node_alias)
                 if parent_key != next_parent_key:
                     if len(current_children) > 1:
@@ -646,21 +649,40 @@ class ActionRenderer(SourceNodeRenderer[Action]):
 
 
 @_renderer(NodeType.PIPE)
-class PipeRenderer(SourceNodeRenderer[Action]):
+class PipeRenderer(SourceNodeRenderer[Pipe]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: Action,
+        obj: Pipe,
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
-        pipe_args = renderer._render_args(
-            rendered_kwargs.pop("type"),
-            rendered_kwargs.pop("name"),
-            renderer._render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"Pipe.new({pipe_args})"
+        if (
+            (obj.parent) is not None
+            and (source := obj.source) is not None
+            and (target := obj.target) is not None
+        ):
+            source_ref = renderer.render_node_ref(source)
+            target_ref = renderer.render_node_ref(target)
+            rendered_kwargs.pop("type", None)
+            rendered_kwargs.pop("source", None)
+            rendered_kwargs.pop("target", None)
+            rendered_kwargs.pop("name", None)
+            args = (
+                f"PipeType.{obj.type.name}",
+                target_ref,
+                repr(obj.name),
+                renderer._render_kwargs(**rendered_kwargs) or None,
+            )
+            return f"{source_ref}.connect({renderer._render_args(*args)})"
+        else:
+            args = (
+                rendered_kwargs.pop("type"),
+                rendered_kwargs.pop("name"),
+                renderer._render_kwargs(**rendered_kwargs) or None,
+            )
+            return f"Pipe.new({renderer._render_args(*args)})"
 
 
 @_renderer(NodeType.FIELD)

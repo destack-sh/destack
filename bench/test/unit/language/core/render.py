@@ -20,7 +20,6 @@ from bench.language import (
     NodeReference,
     Package,
     PathElementType,
-    Pipe,
     PipeType,
     Property,
     RenderOptions,
@@ -234,14 +233,12 @@ def test_render_flow_simple(session: Session, package: Package):
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
-    Pipe1 = Pipe.new(PipeType.FORWARD, "Pipe1", source=Start, target=Complete)
-    Flow1.pipes.append(Pipe1)
-    return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Pipe1": Pipe1}
+    Forward1 = Start.connect(PipeType.FORWARD, Complete, "Forward1")
+    return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Forward1": Forward1}
 
 
 @_rendered_statement
 def test_render_flow_computed_value(session: Session, package: Package):
-    """Run a Flow with computed value set if source is set."""
     Flow1 = Block.new(
         BlockType.FLOW,
         "Flow1",
@@ -271,7 +268,7 @@ def test_render_flow_computed_value(session: Session, package: Package):
         ],
     )
     Flow1.actions.extend(Start, Complete)
-    Forward1 = Start.connect(PipeType.FORWARD, Complete)
+    Forward1 = Start.connect(PipeType.FORWARD, Complete, "Forward1")
     return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Forward1": Forward1}
 
 
