@@ -36,7 +36,15 @@ class OpenaiChatModelRunner(ChatModelRunner[openai_chat_types.ChatCompletionMess
             if isinstance(part, PromptBreak):
                 content.append({"type": "text", "text": self.SEPARATOR})
                 if part.title:
-                    content.append({"type": "text", "text": f"# {part.title}"})  # noqa: FURB113
+                    content.append({"type": "text", "text": f"# {part.title}"})
+                    if part.text:
+                        # split into lines and prefix each line with "# "
+                        content.append(
+                            {
+                                "type": "text",
+                                "text": "\n".join(f"# {line}" for line in part.text.splitlines()),
+                            }
+                        )
                     content.append({"type": "text", "text": self.SEPARATOR})
             elif isinstance(part, PromptText):
                 text = part.text.to_string() if not isinstance(part.text, str) else part.text

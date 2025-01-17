@@ -787,6 +787,8 @@ class _IntoQuery:
     def __eq__(self, other):  # type: ignore
         if isinstance(self, Node) and isinstance(other, Node):
             return Node.__eq__(self, other)  # imitate Field equality
+        elif type(self) is Property and type(other) is Property:
+            return self.component == other.component and self.id == other.id
         else:
             return self.is_equal(other)
 
