@@ -262,12 +262,16 @@ class Renderer:
 
     def render_custom_object_scalar(self, value: "CustomObject", typ: "TypeBase") -> str:
         """Renders single Object into an expression."""
-        assert typ.base_type is not None, f"{value!r} has no base type"
         # collect kwargs
         kwargs = _deconstruct_custom_object(value)
-        if typ.base_field_types and FieldType.MEMBER in typ.base_field_types:
+
+        if (
+            typ.base_field_types
+            and FieldType.MEMBER in typ.base_field_types
+            and (base_type := typ.base_type) is not None
+        ):
             kwargs_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())
-            kwargs_str = f"{typ.base_type.code_name}({kwargs_str})"
+            kwargs_str = f"{base_type.code_name}({kwargs_str})"
             return kwargs_str
         else:
             kwargs_str = ", ".join(f"'{k}': {v}" for k, v in kwargs.items())
@@ -426,12 +430,6 @@ def _render_builtin_object(
 def _deconstruct_custom_object(obj: CustomObject) -> dict[Property | Field, Any]:
     """Gets the 'content' values for a CustomObject."""
     kwargs: dict[Property | Field, Any] = {}
-    # fields
-    for field in obj._type._fields:
-        field_value = obj._do_get(field)
-        if field_value is None:
-            continue
-        kwargs[field] = field_value
     # properties
     for prop in get_custom_object_properties(obj._type, obj._value):
         storage_key = prop.subtype_key or prop.key
@@ -439,6 +437,12 @@ def _deconstruct_custom_object(obj: CustomObject) -> dict[Property | Field, Any]
         if prop_value is None:
             continue
         kwargs[prop] = prop_value
+    # fields
+    for field in obj._type._fields:
+        field_value = obj._do_get(field)
+        if field_value is None:
+            continue
+        kwargs[field] = field_value
     return kwargs
 
 
@@ -883,15 +887,11 @@ def render_statement(*objs: Node, options: RenderOptions) -> str:
 @overload
 def render(*objs: BuiltinObject, options: RenderOptions) -> str: ...
 @overload
-def render(*objs: CustomObject, options: RenderOptions) -> str: ...
-def render(*objs: BuiltinObject | CustomObject, options: RenderOptions) -> str:
+def render(*objs: CustomObject | Property, options: RenderOptions) -> str: ...
+def render(*objs: BuiltinObject | CustomObject | Property, options: RenderOptions) -> str:
     """Renders the given object to either an expression (for values) or statement (for nodes)."""
     if any(isinstance(obj, Node) for obj in objs):
         # render into single statement block
-        assert all(
-            isinstance(obj, Node) for obj in objs
-        ), f"cannot render nodes with other values: {objs!r}"
-
         if options.as_page:
             # collect additional nodes not in folded nodes
             child_nodes: list[Node] = []
