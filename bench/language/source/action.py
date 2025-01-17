@@ -254,8 +254,8 @@ class Action(SourceNode[ActionData]):
         self,
         type: "PipeType",
         target: "Action",
-        *,
         name: str | None = None,
+        *,
         parent: Union["Block", "Action", None] = None,
         run_options: "RunOptions | None" = None,
     ) -> "Pipe":
