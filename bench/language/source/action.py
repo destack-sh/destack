@@ -155,7 +155,7 @@ class ActionType(IdEnum):
         return self >= 8000 and self < 9000
 
 
-@node_(NodeType.ACTION, passthrough_get=("value", "fields"))
+@node_(NodeType.ACTION, passthrough_get=("value", "fields"), has_subtypes=True)
 class Action(SourceNode[ActionData]):
     """
     A data or control flow node in a Flow. Actions are connected by Pipes.

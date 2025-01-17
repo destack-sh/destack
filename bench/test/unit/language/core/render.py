@@ -114,10 +114,10 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
             if isinstance(original_obj, Property):
                 assert original_obj == rendered_obj
             elif isinstance(original_obj, CustomObject):
-                assert original_obj.equals(rendered_obj)
+                assert original_obj.equals(rendered_obj, identity_map=identity_map)
             elif isinstance(original_obj, BuiltinObject):
-                assert cast(BuiltinObject, rendered_obj).equals(
-                    original_obj, identity_map=identity_map
+                assert cast(BuiltinObject, original_obj).equals(
+                    rendered_obj, identity_map=identity_map
                 )
             else:
                 assert_never(original_obj)
@@ -159,6 +159,7 @@ def test_render_path(session: Session, package: Package):
 
 @_render_test
 def test_render_partial_object(session: Session, package: Package):
+    PartialBlock1 = Block.partial(BlockType.PAGE, name="PartialBlock1")
     Message1 = Block.new(
         BlockType.MESSAGE,
         "Message1",
@@ -168,7 +169,6 @@ def test_render_partial_object(session: Session, package: Package):
             Field.member("Field3", bool),
         ],
     )
-    PartialBlock1 = Block.partial(BlockType.PAGE, name="PartialBlock1")
     PatialMessage1 = Message.partial(MessageType.LOCAL, block=Message1, Field1=17, Field2="hello!")
     return {"PartialBlock1": PartialBlock1, "Message1": Message1, "PatialMessage1": PatialMessage1}
 

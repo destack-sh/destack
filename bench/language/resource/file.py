@@ -780,7 +780,7 @@ class FileInfo(Struct[FileInfoData], FileBase):
     __content_str__ = FileBase.__content_str__  # type: ignore
 
 
-@node_(NodeType.FILE)
+@node_(NodeType.FILE, has_subtypes=True)
 class File(DynamicResource[FileData], FileBase):
     """
     A File stored somewhere (like in a Drive, or externally).

@@ -57,7 +57,7 @@ SIGN_BY_PIPE_TYPE: dict[PipeType, str] = {
 PIPE_TYPES_BY_SIGN: dict[str, PipeType] = {v: k for k, v in SIGN_BY_PIPE_TYPE.items()}
 
 
-@node_(NodeType.PIPE)
+@node_(NodeType.PIPE, has_subtypes=True)
 class Pipe(SourceNode[PipeData]):
     """
     A connection between two Steps in a Flow (source = outgoing, target = incoming).

@@ -470,7 +470,7 @@ class RectangleConstraint(Struct):
 #
 
 
-@node_(NodeType.VIEW)
+@node_(NodeType.VIEW, has_subtypes=True)
 class View(SourceNode[ViewData]):
     """A view of a user interface in a Bench."""
 

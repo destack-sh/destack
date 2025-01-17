@@ -57,7 +57,7 @@ from bench.pb2 import (
 )
 from bench.pb2.lang_pb2 import EditOperationData
 from bench.utils.env import IS_DEV, IS_TEST
-from bench.utils.func import IdEnum, bittuple, dualmethod, is_close, stable_hash
+from bench.utils.func import IdEnum, bittuple, dualmethod, stable_hash
 from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
@@ -66,7 +66,6 @@ from .const import (
     BASED_NODE_TYPES,
     BENCH_NODE_TYPES,
     EMPTY_DICT,
-    FLOAT_EPSILON,
     NODE_TYPES,
     PACKAGE_NODE_TYPES,
     TK_LENGTH_BYTES,
@@ -567,10 +566,10 @@ def node_(
     passthrough_set: str | tuple[str, ...] | None = None,
     stored: bool = True,
     stored_value_unraveled: bool = False,
-    local: bool = False,
     roots: tuple[NodeType, ...] = (NodeType.BENCH,),
     indexes: tuple[tuple[str, ...], ...] = (),
     unique: tuple[tuple[str, ...], ...] = (),
+    has_subtypes: bool = False,
 ):
     """Register a class as a concrete node for the given node type."""
 
@@ -604,6 +603,10 @@ def node_(
         cls.__roots__ = bittuple(*roots, enum_cls=NodeType)
         cls.__is_in_package__ = in_package
         cls.__is_in_bench__ = in_bench
+
+        if has_subtypes:
+            cls.__has_subtypes__ = True
+            cls.__subtype_base_property__ = cls.__properties__["type"]
 
         if IS_DEV:
             if issubclass(cls, (Struct, Struct)):
@@ -667,8 +670,8 @@ def node_subtype_(
             raise ValueError(f"subtype {subtype} already registered for {base_cls}")
         base_cls.__subclass_by_subtype__[subtype] = cls
         base_cls.__subtype_by_subclass__[cls] = subtype
-        base_cls.__has_subtypes__ = True
-        base_cls.__subtype_base_property__ = base_cls.__properties__["type"]
+        assert base_cls.__has_subtypes__, f"bad base type {cls!r}"
+        assert base_cls.__subtype_base_property__ is not None, f"bad base type {cls!r}"
         cls.__subtype__ = subtype
         subtype_extra_properties = {
             p.name: p for p in cls.__properties__.values() if p.name not in base_cls.__properties__
@@ -694,14 +697,15 @@ def timed_node_(
     passthrough_get: str | tuple[str, ...] | None = None,
     passthrough_set: str | tuple[str, ...] | None = None,
     indexes: tuple[tuple[str, ...], ...] = (),
+    has_subtypes: bool = False,
 ):
     """Register a class as a concrete node for the given node type."""
     return node_(
         node_type=node_type,
         passthrough_get=passthrough_get,
         passthrough_set=passthrough_set,
-        local=True,
         indexes=(*indexes, ("created_at",)),
+        has_subtypes=has_subtypes,
     )
 
 
@@ -1180,54 +1184,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         else:
             return self.equals(other)
 
-    def _prop_value_equals(
-        self,
-        prop: Property,
-        self_value: Any,
-        other_value: Any,
-        identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
-    ) -> bool:
-        """Checks whether two values for a given property are equal (recursively)."""
-        if prop.is_struct:
-            # apply identity map
-            if prop.is_node_reference:
-                if prop.is_list:
-                    self_value = (
-                        [identity_map.get(v.ck, v) for v in self_value] if self_value else ()
-                    )
-                    other_value = (
-                        [identity_map.get(v.ck, v) for v in other_value] if other_value else ()
-                    )
-                else:
-                    self_value = identity_map.get(self_value.ck, self_value) if self_value else None
-                    other_value = (
-                        identity_map.get(other_value.ck, other_value) if other_value else None
-                    )
-
-            # compare struct recursively
-            if prop.is_list:
-                if (
-                    not isinstance(self_value, Sequence)
-                    or not isinstance(other_value, Sequence)
-                    or len(self_value) != len(other_value)
-                ):
-                    return False  # unequal list
-                for i in range(len(self_value)):
-                    if not self_value[i].equals(other_value[i], identity_map=identity_map):
-                        return False  # unequal struct
-            else:
-                if type(self_value) is not type(other_value) or (
-                    self_value is not None
-                    and not cast(Struct, self_value).equals(other_value, identity_map=identity_map)
-                ):
-                    return False  # unequal struct
-        else:
-            # compare primitives
-            if self_value != other_value and not is_close(self_value, other_value, FLOAT_EPSILON):
-                return False  # unequal primitive
-
-        return True
-
     def equals(
         self,
         other: Self | Any,
@@ -1243,11 +1199,12 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 or prop.is_value_packed  # compared in runtime value
                 or prop.name == "order_key"  # implicitly checked in lists
                 or prop.name in HasTracingContext.__properties__
+                or prop._type_info is None
             ):
                 continue  # ignore identity/tracking
             self_value = getattr(self, prop.name)
             other_value = getattr(other, prop.name)
-            if not self._prop_value_equals(prop, self_value, other_value, identity_map):
+            if not value_equals(prop._type_info, self_value, other_value, identity_map):
                 return False
         return True
 
@@ -2054,7 +2011,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 for prop in subtype_cls.__subtype_extra_original_properties__.values():
                     self_value = self_subnode.get(prop.name)
                     other_value = other_subnode.get(prop.name)
-                    if not self._prop_value_equals(prop, self_value, other_value):
+                    if prop._type_info is not None and not value_equals(
+                        prop._type_info, self_value, other_value, identity_map
+                    ):
                         return False
         return True
 
@@ -3071,6 +3030,7 @@ from .value import (  # noqa: E402
     coerce_value,
     pack_proto_json,
     pack_value_data,
+    value_equals,
 )
 
 
