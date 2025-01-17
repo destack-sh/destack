@@ -291,24 +291,27 @@ PathElementIn = Union[
 ]
 
 
-def path(*elements_in: PathElementIn) -> Path:
-    """Create a Path from a list of PathElements or strings."""
+def path_element(element_in: PathElementIn) -> PathElement:
+    """Create a PathElement from a PathElement-like."""
     from bench.language import Field, Property
 
-    elements = []
-    for element_in in elements_in:
-        if isinstance(element_in, PathElement):
-            elements.append(element_in)
-        elif isinstance(element_in, str):
-            elements.extend(parse_path(element_in).elements)
-        elif isinstance(element_in, (Property, Field)):
-            elements.append(PathElement.attribute(element_in))
-        elif isinstance(element_in, SourceNode):
-            elements.append(PathElement.node_(element_in))
-        elif isinstance(element_in, PathElementType):
-            elements.append(PathElement(type=element_in))
-        else:
-            assert_never(element_in)
+    if isinstance(element_in, PathElement):
+        return element_in
+    elif isinstance(element_in, str):
+        return parse_path(element_in).elements[0]
+    elif isinstance(element_in, (Property, Field)):
+        return PathElement.attribute(element_in)
+    elif isinstance(element_in, SourceNode):
+        return PathElement.node_(element_in)
+    elif isinstance(element_in, PathElementType):
+        return PathElement(type=element_in)
+    else:
+        assert_never(element_in)
+
+
+def path(*elements_in: PathElementIn) -> Path:
+    """Create a Path from a list of PathElements or strings."""
+    elements = [path_element(element_in) for element_in in elements_in]
     return Path(elements=elements)
 
 
@@ -323,6 +326,27 @@ def to_path(path_in: PathIn) -> Path:
         return path(*path_in)
     else:
         return path(path_in)
+
+
+def reverse_path_element(element: PathElement) -> PathElementIn:
+    """Reverse a PathElement back into a PathElement-like (where possible)."""
+    from bench.language import Field, Property, SourceNode
+
+    if element.type == PathElementType.ATTRIBUTE:
+        if isinstance(node := element.node, Field):
+            return node
+        elif isinstance(prop := element.property, Property):
+            return prop
+    elif element.type == PathElementType.NODE:
+        if isinstance(node := element.node, SourceNode):
+            return node
+    elif element.type in (PathElementType.ROOT, PathElementType.CURRENT, PathElementType.PARENT):
+        return element.type
+    elif element.type == PathElementType.RUN and (
+        element.run is None or element.run == PathRunSelector.LATEST
+    ):
+        return PathElementType.RUN
+    return element
 
 
 # see NAME_REGEX in validation

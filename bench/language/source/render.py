@@ -22,9 +22,11 @@ from bench.language.core import (
     NodeReference,
     NodeType,
     ObjectType,
+    PathElement,
     PathElementType,
     PrimitiveType,
     Property,
+    PropertyReference,
     ScalarValue,
     SomeValue,
     SourceNode,
@@ -37,7 +39,9 @@ from bench.language.core import (
     get_path,
     is_node_type,
     render_path,
+    reverse_path_element,
 )
+from bench.language.core.path import Path
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.utils.time import timedelta_to_isoformat
 
@@ -207,6 +211,13 @@ class Renderer:
             alias = self._aliasing.add(node)
             return alias
 
+    def render_property_ref(self, prop: Property | PropertyReference) -> str:
+        if isinstance(prop, PropertyReference):
+            prop = prop.resolve_or_error()
+        if prop.value_runtime_ptr is not None:
+            prop = prop.value_runtime_ptr
+        return f'{prop.component.__name__}.get_property("{prop.name}")'
+
     def render_value_scalar(self, value: "ScalarValue", typ: "TypeBase") -> str:
         """Renders single scalar value into an expression."""
         if typ.kind == TypeKind.PRIMITIVE:
@@ -303,7 +314,9 @@ class Renderer:
         else:
             assert_never(obj)
 
-    def render_expression(self, value: BuiltinObject | CustomObject, as_ref: bool = False) -> str:
+    def render_expression(
+        self, value: BuiltinObject | CustomObject | Property, as_ref: bool = False
+    ) -> str:
         """Renders a value into an expression."""
         if isinstance(value, CustomObject):
             rendered = self.render_custom_object_scalar(value, value._type)
@@ -312,6 +325,8 @@ class Renderer:
                 rendered = self.render_node_ref(value)
             else:
                 rendered = self.render_builtin_object(value)
+        elif isinstance(value, Property):
+            rendered = self.render_property_ref(value)
         else:
             assert_never(value)
         return rendered
@@ -481,16 +496,6 @@ class BuiltinObjectRenderer[T: BuiltinObject]:
         """Render the given object to a Python expression (string)."""
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
         rendered_kwargs = _render_builtin_object(renderer, obj, kwargs)
-        return self.render_constructor(renderer, obj, kwargs, rendered_kwargs)
-
-    def render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: T,
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        """Create the constructor expression for a BuiltinObject (for the default .render)."""
         return f"{obj.__class__.__name__}({renderer._render_kwargs(**rendered_kwargs)})"
 
 
@@ -503,12 +508,10 @@ BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObject]()
 
 
 class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
-    @override
-    def render(self, renderer: Renderer, obj: T) -> str:
-        # base properties
-        kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
-        rendered_kwargs = _render_builtin_object(renderer, obj, kwargs)
-        # folded child properties
+    def _render_child_properties(
+        self, renderer: "Renderer", obj: T, rendered_kwargs: dict[str, str] | None = None
+    ) -> dict[str, str]:
+        rendered_kwargs = rendered_kwargs if rendered_kwargs is not None else {}
         for prop in obj.__node_child_properties__.values():
             assert prop.reference_nodes, f"no reference nodes for {prop!r}"
             if prop.reference_nodes[0] not in renderer._options.folded_child_types:
@@ -524,8 +527,24 @@ class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
                 renderer.render_builtin_object(cast(BuiltinObject, child)) for child in children
             ]
             rendered_kwargs[prop.name] = f"[{', '.join(rendered_children)}]"
-        # render
-        return self.render_constructor(renderer, obj, kwargs, rendered_kwargs)
+        return rendered_kwargs
+
+    def _render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: T,
+        kwargs: dict[Property, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        """Create the constructor expression for a BuiltinObject (for the default .render)."""
+        return f"{obj.__name__}({renderer._render_kwargs(**rendered_kwargs)})"
+
+    @override
+    def render(self, renderer: Renderer, obj: T) -> str:
+        kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
+        rendered_kwargs = _render_builtin_object(renderer, obj, kwargs)
+        rendered_kwargs = self._render_child_properties(renderer, obj, rendered_kwargs)
+        return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
 
 
 NODE_RENDERER = NodeRenderer[Node]()
@@ -541,7 +560,7 @@ SOURCE_NODE_RENDERER = SourceNodeRenderer[SourceNode]()
 @_renderer(NodeType.BLOCK)
 class BlockRenderer(SourceNodeRenderer[Block]):
     @override
-    def render_constructor(
+    def _render_constructor(
         self,
         renderer: "Renderer",
         obj: Block,
@@ -559,7 +578,7 @@ class BlockRenderer(SourceNodeRenderer[Block]):
 @_renderer(NodeType.VIEW)
 class ViewRenderer(SourceNodeRenderer[View]):
     @override
-    def render_constructor(
+    def _render_constructor(
         self,
         renderer: "Renderer",
         obj: View,
@@ -577,7 +596,7 @@ class ViewRenderer(SourceNodeRenderer[View]):
 @_renderer(NodeType.ACTION)
 class ActionRenderer(SourceNodeRenderer[Action]):
     @override
-    def render_constructor(
+    def _render_constructor(
         self,
         renderer: "Renderer",
         obj: Action,
@@ -595,7 +614,7 @@ class ActionRenderer(SourceNodeRenderer[Action]):
 @_renderer(NodeType.PIPE)
 class PipeRenderer(SourceNodeRenderer[Action]):
     @override
-    def render_constructor(
+    def _render_constructor(
         self,
         renderer: "Renderer",
         obj: Action,
@@ -613,7 +632,7 @@ class PipeRenderer(SourceNodeRenderer[Action]):
 @_renderer(NodeType.FIELD)
 class FieldRenderer(SourceNodeRenderer[Field]):
     @override
-    def render_constructor(
+    def _render_constructor(
         self,
         renderer: "Renderer",
         obj: Field,
@@ -671,13 +690,9 @@ class TypeRenderer(BuiltinObjectRenderer[TypeBase]):
 @_renderer(StructType.TYPE_CONSTRAINT)
 class TypeConstraintRenderer(BuiltinObjectRenderer[TypeConstraint]):
     @override
-    def render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: TypeConstraint,
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
+    def render(self, renderer: "Renderer", obj: TypeConstraint) -> str:
+        kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
+        rendered_kwargs = _render_builtin_object(renderer, obj, kwargs)
         return f"constraint({renderer._render_kwargs(**rendered_kwargs)})"
 
 
@@ -706,6 +721,41 @@ class IconRenderer(BuiltinObjectRenderer[Icon]):
             return super().render(renderer, obj)
 
 
+def _render_path_element(renderer: "Renderer", element: PathElement) -> str:
+    element_in = reverse_path_element(element)
+    if isinstance(element_in, Node):
+        return renderer.render_node_ref(element_in)
+    elif isinstance(element_in, Property):
+        return renderer.render_property_ref(element_in)
+    elif isinstance(element_in, PathElementType):
+        return f"PathElementType.{element_in.name}"
+    elif isinstance(element_in, str):
+        return element_in
+    elif isinstance(element_in, PathElement):
+        return renderer.render_expression(element_in)
+    else:
+        assert_never(element_in)
+
+
+@_renderer(StructType.PATH_ELEMENT)
+class PathElementRenderer(BuiltinObjectRenderer[PathElement]):
+    @override
+    def render(self, renderer: "Renderer", obj: PathElement) -> str:
+        element_in_str = _render_path_element(renderer, obj)
+        return f"path_element({element_in_str})"
+
+
+@_renderer(StructType.PATH)
+class PathRenderer(BuiltinObjectRenderer[Path]):
+    @override
+    def render(self, renderer: "Renderer", obj: Path) -> str:
+        elements_in: list[str] = []
+        for element in obj.elements:
+            element_in_str = _render_path_element(renderer, element)
+            elements_in.append(element_in_str)
+        return f"path({', '.join(elements_in)})"
+
+
 #
 # Rendering
 #
@@ -719,7 +769,7 @@ def render_value(value: SomeValue, typ: TypeBase, options: RenderOptions) -> str
 
 
 def render_expression(
-    value: BuiltinObject | CustomObject, options: RenderOptions, as_ref: bool = False
+    value: BuiltinObject | CustomObject | Property, options: RenderOptions, as_ref: bool = False
 ) -> str:
     """Render the given object to a python expression."""
     renderer = Renderer(options)
@@ -730,7 +780,7 @@ def render_expression(
 
 
 def render_expressions(
-    expressions: Mapping[str, BuiltinObject | CustomObject],
+    expressions: Mapping[str, BuiltinObject | CustomObject | Property],
     options: RenderOptions,
 ) -> str:
     """Render the given expressions to python expressions."""

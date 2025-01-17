@@ -18,9 +18,10 @@ from bench.language import (
     Node,
     NodeReference,
     Package,
-    PathElement,
+    PathElementType,
     Pipe,
     PipeType,
+    Property,
     RenderOptions,
     Run,
     Session,
@@ -29,6 +30,7 @@ from bench.language import (
     ViewType,
     constraint,
     md,
+    path,
     render,
     render_expression,
     render_expressions,
@@ -64,7 +66,7 @@ def _render_and_check(
     rendered_defns = {
         name: obj
         for name, obj in glbls_tmp.items()
-        if name not in glbls and isinstance(obj, BuiltinObject)
+        if name not in glbls and name not in ("__builtins__", "__doc__", "__file__", "__name__")
     }
 
     # check that all definitions are equal
@@ -76,7 +78,10 @@ def _render_and_check(
             identity_map[original_obj.ck] = rendered_obj.to_ref()
     for name, original_obj in original_defns.items():
         rendered_obj = rendered_defns[name]
-        assert cast(BuiltinObject, rendered_obj).equals(original_obj, identity_map=identity_map)
+        if isinstance(original_obj, Property):
+            assert original_obj == rendered_obj
+        else:
+            assert cast(BuiltinObject, rendered_obj).equals(original_obj, identity_map=identity_map)
 
     # render again from evaluated
     rendered_again = render_func(rendered_defns, options=render_options)
@@ -114,11 +119,26 @@ def _rendered_statement(func: Callable[[Any, Any], Mapping[str, BuiltinObject]])
 
 
 @_rendered_expression
+def test_render_property(session: Session, package: Package):
+    prop_1 = Node.get_property("id")
+    prop_2 = Block.get_property("name")
+    prop_3 = Run.get_property("outputs")
+    return {"prop1": prop_1, "prop2": prop_2, "prop3": prop_3}
+
+
+@_rendered_expression
 def test_render_type_in(session: Session, package: Package):
     type_1 = to_type(int)
     type_2 = to_type(str)
     type_3 = Node.partial_type()
     return {"type_1": type_1, "type_2": type_2, "type_3": type_3}
+
+
+@_rendered_expression
+def test_render_path(session: Session, package: Package):
+    path_1 = path(PathElementType.RUN, Run.get_property("inputs"))
+    path_2 = path(PathElementType.RUN, Run.get_property("inputs"))
+    return {"path_1": path_1, "path_2": path_2}
 
 
 #
@@ -237,13 +257,13 @@ def test_render_flow_computed_value(session: Session, package: Package):
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Complete.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output1),
-        source=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input1),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output1),
+        source=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input1),
         mode=ComputedValueMode.ALWAYS,
     )
     Complete.set_computed(
-        target=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Output2),
-        source=(PathElement.run_(), Run.get_property("inputs"), Flow1.fields.Input2),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output2),
+        source=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input2),
         mode=ComputedValueMode.IF_SOURCE_SET,
     )
     Flow1.actions.extend(Start, Complete)
