@@ -9,7 +9,7 @@ from bench.language import (
     DEFAULT_BROWSER_WIDTH,
     Browser,
     Region,
-    RegionArea,
+    RegionContinent,
     Vector2,
 )
 from bench.utils.utils import get_from_env
@@ -25,9 +25,9 @@ tracer = trace.get_tracer(__name__)
 
 
 def get_browserbase_region(region: Region) -> BrowserbaseRegion:
-    if region.area == RegionArea.EUROPE:
+    if region.continent == RegionContinent.EUROPE:
         return "eu-central-1"
-    elif region == Region.OHIO:
+    elif region.continent == RegionContinent.NORTH_AMERICA:
         return "us-east-1"
     else:
         raise ValueError(f"unsupported Browserbase region: {region}")

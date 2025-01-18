@@ -100,6 +100,7 @@ class EnumType(IdEnum):
     REGION = 20220
     REGION_ZONE = 20221
     REGION_AREA = 20222
+    REGION_CONTINENT = 20223
 
     # auth (20300-20399)
     ACCESS_MODE = 20300
@@ -559,10 +560,10 @@ class Cloud(IdEnum):
         return self.name.lower().replace("_", "-")
 
 
-@enum_(EnumType.REGION_AREA)
-class RegionArea(IdEnum):
+@enum_(EnumType.REGION_CONTINENT)
+class RegionContinent(IdEnum):
     """
-    Rough 'contintents' of Regions.
+    'Continents' of Regions.
     """
 
     EUROPE = 1000
@@ -576,6 +577,49 @@ class RegionArea(IdEnum):
 
     @property
     def slug(self) -> str:
+        return REGION_CONTINENT_SLUGS[self]
+
+    @staticmethod
+    def get_by_slug(slug: str) -> "RegionContinent":
+        return REGION_CONTINENT_BY_SLUG[slug]
+
+
+REGION_CONTINENT_SLUGS: dict[RegionContinent, str] = {
+    RegionContinent.EUROPE: "eu",
+    RegionContinent.NORTH_AMERICA: "na",
+    RegionContinent.SOUTH_AMERICA: "sa",
+    RegionContinent.MIDDLE_EAST: "me",
+    RegionContinent.AFRICA: "af",
+    RegionContinent.ASIA: "as",
+    RegionContinent.AUSTRALIA: "au",
+}
+REGION_CONTINENT_BY_SLUG = {v: k for k, v in REGION_CONTINENT_SLUGS.items()}
+
+
+@enum_(EnumType.REGION_AREA)
+class RegionArea(IdEnum):
+    """
+    A larger RegionArea of Regions within a RegionContinent.
+    """
+
+    EUROPE_CENTRAL = 1000
+    NORTH_AMERICA_EAST = 2000
+    NORTH_AMERICA_WEST = 2200
+    SOUTH_AMERICA_EAST = 3000
+    MIDDLE_EAST_CENTRAL = 4000
+    MIDDLE_EAST_WEST = 4200
+    AFRICA_SOUTH = 5000
+    ASIA_WEST = 6000
+    ASIA_SOUTH = 6200
+    ASIA_EAST = 6400
+    AUSTRALIA_SOUTH = 7000
+
+    @property
+    def continent(self) -> RegionContinent:
+        return RegionContinent((self.id // 1000) * 1000)
+
+    @property
+    def slug(self) -> str:
         return REGION_AREA_SLUGS[self]
 
     @staticmethod
@@ -584,104 +628,79 @@ class RegionArea(IdEnum):
 
 
 REGION_AREA_SLUGS: dict[RegionArea, str] = {
-    RegionArea.EUROPE: "eu",
-    RegionArea.NORTH_AMERICA: "na",
-    RegionArea.SOUTH_AMERICA: "sa",
-    RegionArea.MIDDLE_EAST: "me",
-    RegionArea.AFRICA: "af",
-    RegionArea.ASIA: "as",
-    RegionArea.AUSTRALIA: "au",
+    RegionArea.EUROPE_CENTRAL: "eu-central",
+    RegionArea.NORTH_AMERICA_EAST: "na-east",
+    RegionArea.NORTH_AMERICA_WEST: "na-west",
+    RegionArea.SOUTH_AMERICA_EAST: "sa-east",
+    RegionArea.MIDDLE_EAST_CENTRAL: "me-central",
+    RegionArea.MIDDLE_EAST_WEST: "me-west",
+    RegionArea.AFRICA_SOUTH: "af-south",
+    RegionArea.ASIA_WEST: "as-west",
+    RegionArea.ASIA_SOUTH: "as-south",
+    RegionArea.ASIA_EAST: "as-east",
+    RegionArea.AUSTRALIA_SOUTH: "au-south",
 }
 REGION_AREA_BY_SLUG = {v: k for k, v in REGION_AREA_SLUGS.items()}
 
 
-@enum_(EnumType.REGION_ZONE)
-class RegionZone(IdEnum):
-    """
-    A larger zone of Regions within an Area.
-    """
-
-    EUROPE_CENTRAL = 1000
-    NORTH_AMERICA_EAST = 2000
-    NORTH_AMERICA_WEST = 2100
-    SOUTH_AMERICA_EAST = 3000
-    MIDDLE_EAST_CENTRAL = 4000
-    MIDDLE_EAST_WEST = 4100
-    AFRICA_SOUTH = 5000
-    ASIA_WEST = 6000
-    ASIA_SOUTH = 6100
-    ASIA_EAST = 6200
-    AUSTRALIA_SOUTH = 7000
-
-    @property
-    def area(self) -> RegionArea:
-        return RegionArea((self.id // 1000) * 1000)
-
-    @property
-    def slug(self) -> str:
-        zone = self.name.split("_")[-1]
-        return REGION_AREA_SLUGS[self.area] + "-" + zone.replace("_", "-").lower()
-
-    @staticmethod
-    def get_by_slug(slug: str) -> "RegionZone":
-        return REGION_ZONE_BY_SLUG[slug]
-
-
-REGION_ZONE_SLUGS: dict[RegionZone, str] = {r: r.slug for r in RegionZone}
-REGION_ZONE_BY_SLUG = {v: k for k, v in REGION_ZONE_SLUGS.items()}
-
-
 @enum_(EnumType.REGION)
 class Region(IdEnum):
-    """Actual regions within a Zone in an Area."""
+    """Regions in a RegionArea, comprising RegionZones."""
 
     # eu-central
-    ZURICH = 1001
-    FRANKFURT = 1002
+    ZURICH = 1000
+    FRANKFURT = 1010
 
     # na-east
-    VIRGINIA = 2001
-    OHIO = 2002
+    VIRGINIA = 2000
+    OHIO = 2010
 
     # na-west
-    OREGON = 2101
+    OREGON = 2200
 
     # sa-east
-    SAO_PAULO = 3001
+    SAO_PAULO = 3000
 
     ...
 
     # af-south
-    CAPE_TOWN = 5001
+    CAPE_TOWN = 5000
 
     # as-east
-    MUMBAI = 6001
+    MUMBAI = 6000
 
     # as-south
-    SINGAPORE = 6101
+    SINGAPORE = 6200
 
     # as-east
-    TOKYO = 6201
+    TOKYO = 6400
 
     # au-south
-    SYDNEY = 7001
+    SYDNEY = 7000
 
     @property
-    def zone(self) -> RegionZone:
-        return RegionZone((self.id // 100) * 100)
+    def continent(self) -> RegionContinent:
+        return RegionContinent((self.id // 1000) * 1000)
 
     @property
     def area(self) -> RegionArea:
-        return RegionArea((self.id // 1000) * 1000)
+        return RegionArea((self.id // 200) * 200)
 
     @property
     def slug(self) -> str:
-        area = self.area
-        return area.slug + "-" + self.name.replace("_", "-").lower()
+        continent = self.continent
+        return continent.slug + "-" + self.name.replace("_", "-").lower()
 
     @staticmethod
     def get_by_slug(slug: str) -> "Region":
         return REGION_BY_SLUG[slug]
+
+
+@enum_(EnumType.REGION_ZONE)
+class RegionZone(IdEnum):
+    """An available region within a specific Region."""
+
+    ...
 
 
 REGION_SLUGS: dict[Region, str] = {r: r.slug for r in Region}
@@ -1347,8 +1366,6 @@ class OrganizationStatus(IdEnum):
 
 CLOUD = get_from_env("CLOUD", typ=Cloud, description="Cloud we're running in")
 REGION = get_from_env("REGION", typ=Region, description="Region we're running in")
-REGION_ZONE = REGION.zone
-REGION_AREA = REGION.area
 TRACING = get_from_env("TRACING", typ=bool, description="Enable tracing")
 
 

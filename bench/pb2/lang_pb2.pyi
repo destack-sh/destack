@@ -38,6 +38,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_REGION: _ClassVar[EnumType]
     ENUM_TYPE_REGION_ZONE: _ClassVar[EnumType]
     ENUM_TYPE_REGION_AREA: _ClassVar[EnumType]
+    ENUM_TYPE_REGION_CONTINENT: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_MODE: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_KIND: _ClassVar[EnumType]
     ENUM_TYPE_POLICY_EFFECT: _ClassVar[EnumType]
@@ -430,6 +431,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_REGION: _ClassVar[BenchType]
     BENCH_TYPE_REGION_ZONE: _ClassVar[BenchType]
     BENCH_TYPE_REGION_AREA: _ClassVar[BenchType]
+    BENCH_TYPE_REGION_CONTINENT: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_MODE: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_KIND: _ClassVar[BenchType]
     BENCH_TYPE_POLICY_EFFECT: _ClassVar[BenchType]
@@ -614,29 +616,33 @@ class Region(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class RegionZone(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     REGION_ZONE_UNSPECIFIED: _ClassVar[RegionZone]
-    REGION_ZONE_EUROPE_CENTRAL: _ClassVar[RegionZone]
-    REGION_ZONE_NORTH_AMERICA_EAST: _ClassVar[RegionZone]
-    REGION_ZONE_NORTH_AMERICA_WEST: _ClassVar[RegionZone]
-    REGION_ZONE_SOUTH_AMERICA_EAST: _ClassVar[RegionZone]
-    REGION_ZONE_MIDDLE_EAST_CENTRAL: _ClassVar[RegionZone]
-    REGION_ZONE_MIDDLE_EAST_WEST: _ClassVar[RegionZone]
-    REGION_ZONE_AFRICA_SOUTH: _ClassVar[RegionZone]
-    REGION_ZONE_ASIA_WEST: _ClassVar[RegionZone]
-    REGION_ZONE_ASIA_SOUTH: _ClassVar[RegionZone]
-    REGION_ZONE_ASIA_EAST: _ClassVar[RegionZone]
-    REGION_ZONE_AUSTRALIA_SOUTH: _ClassVar[RegionZone]
 
 class RegionArea(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     REGION_AREA_UNSPECIFIED: _ClassVar[RegionArea]
-    REGION_AREA_EUROPE: _ClassVar[RegionArea]
-    REGION_AREA_NORTH_AMERICA: _ClassVar[RegionArea]
-    REGION_AREA_SOUTH_AMERICA: _ClassVar[RegionArea]
-    REGION_AREA_MIDDLE_EAST: _ClassVar[RegionArea]
-    REGION_AREA_AFRICA: _ClassVar[RegionArea]
-    REGION_AREA_ASIA: _ClassVar[RegionArea]
-    REGION_AREA_AUSTRALIA: _ClassVar[RegionArea]
-    REGION_AREA_PRIVATE: _ClassVar[RegionArea]
+    REGION_AREA_EUROPE_CENTRAL: _ClassVar[RegionArea]
+    REGION_AREA_NORTH_AMERICA_EAST: _ClassVar[RegionArea]
+    REGION_AREA_NORTH_AMERICA_WEST: _ClassVar[RegionArea]
+    REGION_AREA_SOUTH_AMERICA_EAST: _ClassVar[RegionArea]
+    REGION_AREA_MIDDLE_EAST_CENTRAL: _ClassVar[RegionArea]
+    REGION_AREA_MIDDLE_EAST_WEST: _ClassVar[RegionArea]
+    REGION_AREA_AFRICA_SOUTH: _ClassVar[RegionArea]
+    REGION_AREA_ASIA_WEST: _ClassVar[RegionArea]
+    REGION_AREA_ASIA_SOUTH: _ClassVar[RegionArea]
+    REGION_AREA_ASIA_EAST: _ClassVar[RegionArea]
+    REGION_AREA_AUSTRALIA_SOUTH: _ClassVar[RegionArea]
+
+class RegionContinent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    REGION_CONTINENT_UNSPECIFIED: _ClassVar[RegionContinent]
+    REGION_CONTINENT_EUROPE: _ClassVar[RegionContinent]
+    REGION_CONTINENT_NORTH_AMERICA: _ClassVar[RegionContinent]
+    REGION_CONTINENT_SOUTH_AMERICA: _ClassVar[RegionContinent]
+    REGION_CONTINENT_MIDDLE_EAST: _ClassVar[RegionContinent]
+    REGION_CONTINENT_AFRICA: _ClassVar[RegionContinent]
+    REGION_CONTINENT_ASIA: _ClassVar[RegionContinent]
+    REGION_CONTINENT_AUSTRALIA: _ClassVar[RegionContinent]
+    REGION_CONTINENT_PRIVATE: _ClassVar[RegionContinent]
 
 class AccessMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1747,6 +1753,7 @@ ENUM_TYPE_CLOUD: EnumType
 ENUM_TYPE_REGION: EnumType
 ENUM_TYPE_REGION_ZONE: EnumType
 ENUM_TYPE_REGION_AREA: EnumType
+ENUM_TYPE_REGION_CONTINENT: EnumType
 ENUM_TYPE_ACCESS_MODE: EnumType
 ENUM_TYPE_ACCESS_KIND: EnumType
 ENUM_TYPE_POLICY_EFFECT: EnumType
@@ -2127,6 +2134,7 @@ BENCH_TYPE_CLOUD: BenchType
 BENCH_TYPE_REGION: BenchType
 BENCH_TYPE_REGION_ZONE: BenchType
 BENCH_TYPE_REGION_AREA: BenchType
+BENCH_TYPE_REGION_CONTINENT: BenchType
 BENCH_TYPE_ACCESS_MODE: BenchType
 BENCH_TYPE_ACCESS_KIND: BenchType
 BENCH_TYPE_POLICY_EFFECT: BenchType
@@ -2284,26 +2292,27 @@ REGION_SINGAPORE: Region
 REGION_TOKYO: Region
 REGION_SYDNEY: Region
 REGION_ZONE_UNSPECIFIED: RegionZone
-REGION_ZONE_EUROPE_CENTRAL: RegionZone
-REGION_ZONE_NORTH_AMERICA_EAST: RegionZone
-REGION_ZONE_NORTH_AMERICA_WEST: RegionZone
-REGION_ZONE_SOUTH_AMERICA_EAST: RegionZone
-REGION_ZONE_MIDDLE_EAST_CENTRAL: RegionZone
-REGION_ZONE_MIDDLE_EAST_WEST: RegionZone
-REGION_ZONE_AFRICA_SOUTH: RegionZone
-REGION_ZONE_ASIA_WEST: RegionZone
-REGION_ZONE_ASIA_SOUTH: RegionZone
-REGION_ZONE_ASIA_EAST: RegionZone
-REGION_ZONE_AUSTRALIA_SOUTH: RegionZone
 REGION_AREA_UNSPECIFIED: RegionArea
-REGION_AREA_EUROPE: RegionArea
-REGION_AREA_NORTH_AMERICA: RegionArea
-REGION_AREA_SOUTH_AMERICA: RegionArea
-REGION_AREA_MIDDLE_EAST: RegionArea
-REGION_AREA_AFRICA: RegionArea
-REGION_AREA_ASIA: RegionArea
-REGION_AREA_AUSTRALIA: RegionArea
-REGION_AREA_PRIVATE: RegionArea
+REGION_AREA_EUROPE_CENTRAL: RegionArea
+REGION_AREA_NORTH_AMERICA_EAST: RegionArea
+REGION_AREA_NORTH_AMERICA_WEST: RegionArea
+REGION_AREA_SOUTH_AMERICA_EAST: RegionArea
+REGION_AREA_MIDDLE_EAST_CENTRAL: RegionArea
+REGION_AREA_MIDDLE_EAST_WEST: RegionArea
+REGION_AREA_AFRICA_SOUTH: RegionArea
+REGION_AREA_ASIA_WEST: RegionArea
+REGION_AREA_ASIA_SOUTH: RegionArea
+REGION_AREA_ASIA_EAST: RegionArea
+REGION_AREA_AUSTRALIA_SOUTH: RegionArea
+REGION_CONTINENT_UNSPECIFIED: RegionContinent
+REGION_CONTINENT_EUROPE: RegionContinent
+REGION_CONTINENT_NORTH_AMERICA: RegionContinent
+REGION_CONTINENT_SOUTH_AMERICA: RegionContinent
+REGION_CONTINENT_MIDDLE_EAST: RegionContinent
+REGION_CONTINENT_AFRICA: RegionContinent
+REGION_CONTINENT_ASIA: RegionContinent
+REGION_CONTINENT_AUSTRALIA: RegionContinent
+REGION_CONTINENT_PRIVATE: RegionContinent
 ACCESS_MODE_UNSPECIFIED: AccessMode
 ACCESS_MODE_ADAPTIVE: AccessMode
 ACCESS_MODE_ATOMIC: AccessMode
@@ -3956,18 +3965,18 @@ class TypeData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[TypeKind, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., bench_type: _Optional[_Union[BenchType, str]] = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base_field_types: _Optional[_Iterable[_Union[FieldType, str]]] = ..., property_field_types: _Optional[_Iterable[_Union[FieldType, str]]] = ..., oneof_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., default_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., format: _Optional[_Union[TypeFormat, str]] = ..., condition: _Optional[_Union[ExpressionData, _Mapping]] = ..., constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ..., is_required: bool = ..., is_list: bool = ..., is_secret: bool = ...) -> None: ...
 
 class CallData(_message.Message):
-    __slots__ = ("metatype", "node_ptr", "action_type", "inputs_packed", "mapping")
+    __slots__ = ("metatype", "node_ptr", "action_type", "variables_packed", "inputs_packed")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     ACTION_TYPE_FIELD_NUMBER: _ClassVar[int]
+    VARIABLES_PACKED_FIELD_NUMBER: _ClassVar[int]
     INPUTS_PACKED_FIELD_NUMBER: _ClassVar[int]
-    MAPPING_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     node_ptr: NodeReferenceData
     action_type: ActionType
+    variables_packed: _struct_pb2.Value
     inputs_packed: _struct_pb2.Value
-    mapping: ObjectMappingData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., action_type: _Optional[_Union[ActionType, str]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., mapping: _Optional[_Union[ObjectMappingData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., action_type: _Optional[_Union[ActionType, str]] = ..., variables_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class ColorData(_message.Message):
     __slots__ = ("metatype", "type", "shade", "hex")

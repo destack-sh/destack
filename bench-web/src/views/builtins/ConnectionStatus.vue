@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
-import { Orientation, RegionArea } from "@/proto/wire";
+import { Orientation, RegionContinent } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
 import { connections, hasPendingConnections } from "@/system/connection";
 import { ScrollbarWidth } from "@/ui/layout";
@@ -42,7 +42,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
           <span class="font-semibold">Connections</span>
           <div class="ml-auto">
             <span v-if="GEOLOCATION?.area" class="text-gray-400"
-              >{{ toCamelName(RegionArea, GEOLOCATION?.area) }} / {{ GEOLOCATION?.detail?.city }}</span
+              >{{ toCamelName(RegionContinent, GEOLOCATION?.area) }} / {{ GEOLOCATION?.detail?.city }}</span
             >
           </div>
         </div>
