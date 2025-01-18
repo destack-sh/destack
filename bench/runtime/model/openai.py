@@ -3,7 +3,7 @@ from typing import Mapping, Sequence, override
 import openai
 from openai.types import chat as openai_chat_types
 
-from bench.language import ModelType, RunOptions
+from bench.language import Code, ModelType, RunOptions
 from bench.runtime.core import NotSupportedError
 from bench.utils.utils import get_from_env
 
@@ -36,20 +36,14 @@ class OpenaiChatModelRunner(ChatModelRunner[openai_chat_types.ChatCompletionMess
             if isinstance(part, PromptBreak):
                 content.append({"type": "text", "text": self.SEPARATOR})
                 if part.title:
-                    content.append({"type": "text", "text": f"# {part.title}"})
+                    content.append({"type": "text", "text": f"{part.title}"})
                     if part.text:
-                        # split into lines and prefix each line with "# "
-                        content.append(
-                            {
-                                "type": "text",
-                                "text": "\n".join(f"# {line}" for line in part.text.splitlines()),
-                            }
-                        )
+                        content.append({"type": "text", "text": part.text})
                     content.append({"type": "text", "text": self.SEPARATOR})
             elif isinstance(part, PromptText):
                 text = part.text.to_string() if not isinstance(part.text, str) else part.text
                 if part.title:
-                    text = f"# {part.title}\n{text}"
+                    text = f"{part.title}\n{text}"
                 content.append({"type": "text", "text": text})
             elif isinstance(part, PromptFile):
                 raise NotSupportedError(f"file {part.file!r} not supported yet")
@@ -65,11 +59,12 @@ class OpenaiChatModelRunner(ChatModelRunner[openai_chat_types.ChatCompletionMess
         rendered_prompt: Sequence[openai_chat_types.ChatCompletionMessageParam],
         user_id: str,
         options: RunOptions,
-    ) -> str:
-        assert model in OPENAI_MODEL_BY_TYPE, f"unsupported model type {model!r}"
-        model_id = OPENAI_MODEL_BY_TYPE[model]
+    ) -> Code:
+        model_id = OPENAI_MODEL_BY_TYPE.get(model)
+        if model_id is None:
+            raise NotSupportedError(f"unsupported model type {model!r}")
         messages: list[openai_chat_types.ChatCompletionMessageParam] = [
-            {"role": "system", "content": get_system_prompt(prompt.action)},
+            {"role": "developer", "content": get_system_prompt(prompt)},
             *rendered_prompt,
         ]
         temperature = options.text_options.temperature if options.text_options else 0.1
@@ -82,4 +77,4 @@ class OpenaiChatModelRunner(ChatModelRunner[openai_chat_types.ChatCompletionMess
         completion_text = completion.choices[0].message.content
         if completion_text:
             completion_text = strip_code_completion(completion_text)
-        return completion_text or ""
+        return Code.from_string(completion_text or "pass")

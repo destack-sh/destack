@@ -1,7 +1,7 @@
 # run ./scripts/update-requirements.sh
 
 aiohttp==3.11.11
-anthropic==0.39.0
+anthropic==0.43.1
 bitarray==2.9.2
 boto3==1.35.58
 botocore==1.35.58
@@ -22,7 +22,7 @@ magika==0.5.1
 more-itertools==9.0.0
 multidict>=6.0.4
 numpy==1.26.4
-openai==1.54.3
+openai==1.59.8
 opentelemetry-api==1.28.1
 opentelemetry-sdk==1.28.1
 opentelemetry-exporter-otlp-proto-grpc==1.28.1

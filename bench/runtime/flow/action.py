@@ -13,7 +13,6 @@ from bench.language import (
     BreakpointSite,
     Browser,
     ClickAction,
-    Code,
     CodeAction,
     CreateAction,
     CustomObject,
@@ -33,6 +32,7 @@ from bench.language import (
     InterruptionType,
     LogLevel,
     LookAction,
+    ModelDeveloper,
     ModelType,
     NodeType,
     PressAction,
@@ -62,6 +62,7 @@ from bench.runtime.browser import parse_dom_node
 from bench.runtime.code.code import CodeFunctionRunner
 from bench.runtime.core import (
     ATTEMPT_ONCE,
+    NotSupportedError,
     RetryableError,
     RunImpossibleError,
     Runner,
@@ -69,8 +70,7 @@ from bench.runtime.core import (
     make_runner,
     restore_runner,
 )
-from bench.runtime.model.chat import make_chat_prompt
-from bench.runtime.model.openai import OpenaiChatModelRunner
+from bench.runtime.model import AnthropicChatModelRunner, OpenaiChatModelRunner, make_chat_prompt
 
 if TYPE_CHECKING:
     from .flow import FlowRunnerBase
@@ -232,41 +232,51 @@ class ToolActionRunner(ActionRunnerBase[ToolAction]):
 
 
 class DynamicActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
-    # nocheckin: dynamic stuff
-    # we need to generate a few things:
-    #   1. directly generated outputs (with call slots) for dynamic actions
-    #   2. only call slots for non-dynamic actions
-    #   [call slots = any selective pipes, pipes to actions with missing inputs (?)]
-
     @final
     @override
     async def run(self) -> None:
-        prompt = make_chat_prompt(
-            action=self.node,
-            runner=cast(Runner[RunnableNode], self),
-            context=self.context,
-            variables=self.variables,
-            inputs=self.inputs,
-            outputs=self.outputs,
-            output_type=self.output_type,
-        )
-        model = OpenaiChatModelRunner()
+        # nocheckin: generate calls (and run for all Actions in Flows when needed)
+        # we need to generate a few things:
+        #   1. directly generated outputs (with call slots) for dynamic actions
+        #   2. only call slots for non-dynamic actions
+        #   [call slots = any selective pipes, pipes to actions with missing inputs (?)]
+        model_developer = self.options.model_developer or ModelDeveloper.OPENAI
+        if model_developer == ModelDeveloper.OPENAI:
+            model_runner = OpenaiChatModelRunner()
+            model_type = self.options.model_type or ModelType.OPENAI_GPT4_0
+        elif model_developer == ModelDeveloper.ANTHROPIC:
+            model_runner = AnthropicChatModelRunner()
+            model_type = self.options.model_type or ModelType.ANTHROPIC_CLAUDE_3_5_SONNET
+        else:
+            raise NotSupportedError(f"unsupported model developer {model_developer!r}")
+
         with run_span(tracer, "model.compile", RunSpanType.MODEL_PREPARE, level=LogLevel.DEBUG):
-            compiled = await model.compile(prompt, 1000)
-            rendered = await model.assemble(compiled)
+            prompt = make_chat_prompt(
+                action=self.node,
+                runner=cast(Runner[RunnableNode], self),
+                context=self.context,
+                variables=self.variables,
+                inputs=self.inputs,
+                outputs=self.outputs,
+                output_type=self.output_type,
+            )
+            compiled = await model_runner.compile(prompt, 1000)
+            rendered = await model_runner.assemble(compiled)
+        # print("\n".join(p["text"] for p in rendered[0]["content"]))  # nocheckin
         with run_span(tracer, "model.generate", RunSpanType.MODEL_GENERATE, level=LogLevel.DEBUG):
-            code = await model.generate(
+            code = await model_runner.generate(
                 prompt,
-                ModelType.OPENAI_GPT4_0,
-                rendered,
+                model_type,
+                cast(Any, rendered),  # type-checked in ModelRunner
                 user_id=str(self.session.bench_id),
                 options=ATTEMPT_ONCE,
             )
+            self.action.code = code
         with run_span(tracer, "model.parse", RunSpanType.MODEL_PARSE, level=LogLevel.DEBUG):
             code_runner = CodeFunctionRunner(
                 runtime=self.runtime,
                 node=self.node,
-                code=Code.from_string(code),
+                code=code,
                 track=False,
                 options=ATTEMPT_ONCE,
                 context=self.context,

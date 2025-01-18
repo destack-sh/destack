@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Mapping, Sequence, override
 
-from bench.language import ModelType, RunOptions
+from bench.language import Code, ModelType, RunOptions
 from bench.runtime.core import NotSupportedError
 
 from .chat import ChatModelRunner
@@ -34,6 +34,6 @@ class GeminiChatModelRunner(ChatModelRunner[MessagePart]):
         rendered_prompt: Sequence[MessagePart],
         user_id: str,
         options: RunOptions,
-    ) -> str:
+    ) -> Code:
         assert model in GEMINI_MODEL_BY_TYPE, f"unsupported model type {model!r}"
         raise NotSupportedError("Gemini is not yet supported")

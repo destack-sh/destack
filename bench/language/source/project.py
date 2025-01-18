@@ -36,7 +36,12 @@ class ProjectOptions:
     inline_pages: bool = False  # whether to include all source nodes of contained pages
     node_types: Collection[NodeType] = NODE_TYPES_SET
     # child ndoes to 'consider' implicitly references by parents :FoldedNodes
-    inline_node_types: Collection[NodeType] = (NodeType.FIELD,)
+    inline_node_types: Collection[NodeType] = (
+        NodeType.FIELD,
+        NodeType.ACTION,
+        NodeType.PIPE,
+        NodeType.VIEW,
+    )
     inline_page_node_types: Collection[NodeType] = (NodeType.BLOCK,)
 
 
