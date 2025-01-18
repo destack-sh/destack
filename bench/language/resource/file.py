@@ -998,7 +998,7 @@ async def extract_file_info(  # noqa: RUF029
     return file, content
 
 
-@run_span(tracer, "file.upload", RunSpanType.FILE_UPLOAD)
+@run_span(tracer, "file.upload", RunSpanType.FILE_UPLOAD, level=LogLevel.DEBUG)
 async def upload_file(
     file_in: FileIn,
     name: str,

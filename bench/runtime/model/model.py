@@ -8,7 +8,10 @@ if TYPE_CHECKING:
 
 
 class ModelRunner[IP, P](ABC):
-    """Run a Model that takes Prompts and returns some Model-specific output (maybe streaming)."""
+    """
+    Run a Model that takes Prompts and returns some Model-specific output (maybe streaming).
+    NOTE :Architecture: shouldn't ModelRunner be a subclass of Runner?
+    """
 
     @abstractmethod
     async def compile(self, prompt: Prompt, budget: float) -> Sequence[IP]:

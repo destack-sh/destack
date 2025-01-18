@@ -13,6 +13,7 @@ from bench.language import (
     BreakpointSite,
     Browser,
     ClickAction,
+    Code,
     CodeAction,
     CreateAction,
     CustomObject,
@@ -30,12 +31,15 @@ from bench.language import (
     HasContext,
     HasNodeBase,
     InterruptionType,
+    LogLevel,
     LookAction,
+    ModelType,
     NodeType,
     PressAction,
     Run,
     RunnableNode,
     RunOptions,
+    RunSpanType,
     RunType,
     ScrollAction,
     SearchAction,
@@ -51,10 +55,9 @@ from bench.language import (
     coerce_custom_object_scalar,
     make_node_from_partial,
     patch_node_from_partial,
+    run_span,
     upload_file,
 )
-from bench.language.core.code import Code
-from bench.language.runtime.model import ModelType
 from bench.runtime.browser import parse_dom_node
 from bench.runtime.code.code import CodeFunctionRunner
 from bench.runtime.core import (
@@ -247,29 +250,32 @@ class DynamicActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
             outputs=self.outputs,
             output_type=self.output_type,
         )
-        runner = OpenaiChatModelRunner()
-        compiled = await runner.compile(prompt, 1000)
-        rendered = await runner.assemble(compiled)
-        code = await runner.generate(
-            prompt,
-            ModelType.OPENAI_GPT4_0,
-            rendered,
-            user_id=str(self.session.bench_id),
-            options=ATTEMPT_ONCE,
-        )
-        code_runner = CodeFunctionRunner(
-            runtime=self.runtime,
-            node=self.node,
-            code=Code.from_string(code),
-            track=False,
-            options=ATTEMPT_ONCE,
-            context=self.context,
-            variables=self.variables,
-            inputs=self.inputs,
-            output_type=self.output_type,
-            parent=cast(Runner[RunnableNode], self),
-        )
-        await self.runtime.run_runner(code_runner)
+        model = OpenaiChatModelRunner()
+        with run_span(tracer, "model.compile", RunSpanType.MODEL_PREPARE, level=LogLevel.DEBUG):
+            compiled = await model.compile(prompt, 1000)
+            rendered = await model.assemble(compiled)
+        with run_span(tracer, "model.generate", RunSpanType.MODEL_GENERATE, level=LogLevel.DEBUG):
+            code = await model.generate(
+                prompt,
+                ModelType.OPENAI_GPT4_0,
+                rendered,
+                user_id=str(self.session.bench_id),
+                options=ATTEMPT_ONCE,
+            )
+        with run_span(tracer, "model.parse", RunSpanType.MODEL_PARSE, level=LogLevel.DEBUG):
+            code_runner = CodeFunctionRunner(
+                runtime=self.runtime,
+                node=self.node,
+                code=Code.from_string(code),
+                track=False,
+                options=ATTEMPT_ONCE,
+                context=self.context,
+                variables=self.variables,
+                inputs=self.inputs,
+                output_type=self.output_type,
+                parent=cast(Runner[RunnableNode], self),
+            )
+            await self.runtime.run_runner(code_runner)
         self.outputs = code_runner.outputs
 
 

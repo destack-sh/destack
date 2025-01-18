@@ -374,6 +374,10 @@ def _get_node_types(
     return node_types
 
 
+UNIVERSE_NODE_TYPES = _get_node_types(None, 100)
+AUTH_NODE_TYPES = _get_node_types(100, 200)
+BILLING_NODE_TYPES = _get_node_types(200, 300)
+
 GLOBAL_NODE_TYPES = _get_node_types(None, 2000)
 REGIONAL_NODE_TYPES = _get_node_types(2000, 5000)
 LOCAL_NODE_TYPES = _get_node_types(5000, None)
@@ -942,15 +946,17 @@ class LogLevel(IdEnum):  # :LogLevel
 @enum_(EnumType.RUN_SPAN_TYPE)
 class RunSpanType(IdEnum):
     # general
-    WAIT_FOR = 10
+    WAIT = 10
     # flow
     FLOW_GENERATE_CALLS = 100
     # action
-    ACTION_GENERATE_OUTPUT = 200
+    # ...
     # application (action)
-    APPLICATION_FIND_ELEMENT = 210
+    # ...
     # model
-    MODEL_INFERENCE = 300
+    MODEL_PREPARE = 300
+    MODEL_GENERATE = 310
+    MODEL_PARSE = 320
     # file
     FILE_UPLOAD = 500
     FILE_PREPARE_UPLOAD = 501

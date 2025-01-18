@@ -534,7 +534,7 @@ class Runtime:
             # acquire missing resource variables
             if missing_resource_slots:
                 with run_span(
-                    tracer, "runtime.acquire_resources", RunSpanType.WAIT_FOR, runner=runner
+                    tracer, "runtime.acquire_resources", RunSpanType.WAIT, runner=runner
                 ) as span:
                     resources = await self._get_or_create_resources(
                         runner=runner, resources=missing_resource_slots
