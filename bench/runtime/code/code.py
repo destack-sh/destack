@@ -221,11 +221,21 @@ class CodeFunctionRunner(CodeRunnerBase):
         func = glbls[compiled.function_name]
         with self._capture_logs(), tracer.start_as_current_span("code.run.function") as span:
             span.set_attribute("code", compiled.code)
-            if compiled.is_coroutine:
-                outputs_raw = await func()
-            else:
-                outputs_raw = func()
-            logger.trace(
-                "code.run", runner=self, code=cast(Code, self.code).to_string(), span="current"
-            )
+            try:
+                if compiled.is_coroutine:
+                    outputs_raw = await func()
+                else:
+                    outputs_raw = func()
+                logger.debug(
+                    "code.run", runner=self, code=cast(Code, self.code).to_string(), span="current"
+                )
+            except Exception as e:
+                logger.debug(
+                    "code.run.error",
+                    runner=self,
+                    code=cast(Code, self.code).to_string(),
+                    span="current",
+                    exc_info=e,
+                )
+                raise
         self.outputs = self._coerce_outputs(outputs_raw)

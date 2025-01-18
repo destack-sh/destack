@@ -376,7 +376,6 @@ def _get_node_types(
 
 UNIVERSE_NODE_TYPES = _get_node_types(None, 100)
 AUTH_NODE_TYPES = _get_node_types(100, 200)
-BILLING_NODE_TYPES = _get_node_types(200, 300)
 
 GLOBAL_NODE_TYPES = _get_node_types(None, 2000)
 REGIONAL_NODE_TYPES = _get_node_types(2000, 5000)

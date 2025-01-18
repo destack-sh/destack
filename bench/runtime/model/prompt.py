@@ -1,4 +1,3 @@
-import dataclasses
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Sequence, override
@@ -9,8 +8,9 @@ from bench.language import (
     CustomObject,
     FileBase,
     HasContext,
+    Node,
     Projection,
-    Query,
+    Renderer,
     RenderOptions,
     Run,
     SourceNode,
@@ -34,7 +34,6 @@ if TYPE_CHECKING:
 @dataclass
 class PromptPart:
     title: str | None
-    source: "PromptPart | None" = dataclasses.field(init=False, default=None)
 
 
 class PromptPartType(IdEnum):
@@ -91,7 +90,6 @@ class PromptCompound(PromptPart, ABC):
     """A compound Prompt part that is expanded into other parts."""
 
     weight: int  # proportional
-    children: list["PromptPart"] = dataclasses.field(init=False, default_factory=list)
 
     @abstractmethod
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]: ...
@@ -114,14 +112,26 @@ class PromptRegion(PromptCompound):
 
 
 @dataclass
-class PromptQuery(PromptCompound):
-    """A Query. Expands to the query results."""
+class PromptExample(PromptCompound):
+    """An example of a prompt."""
 
-    node: Query
+    text: str
+    source: list[Node]
+    output: str | None
 
     @override
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
-        raise NotImplementedError
+        rendered = context.renderer.render_statement(*self.source)
+        if self.output is not None:
+            rendered = f"{rendered}\n # -> \n{self.output}"
+        return (
+            PromptRegion(
+                title=self.title,
+                weight=1,
+                text=self.text,
+                content=[PromptText(title=None, text=rendered)],
+            ),
+        )
 
 
 @dataclass
@@ -133,16 +143,14 @@ class PromptRun(PromptCompound):
     @override
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
         parts: list[PromptPart] = [
-            PromptText(
-                title="Run", text=f"# Run {self.node.base!r} ({self.node.status.bench_name})"
-            ),
+            PromptText(title="Run", text=f"Run {self.node.base!r} ({self.node.status.bench_name})"),
         ]
         if self.node.variables:
             parts.append(
-                PromptCustomObject(title="Variables", weight=2, object=self.node.variables)
+                PromptCustomObject(title="Variables", weight=1, object=self.node.variables)
             )
         if self.node.inputs:
-            parts.append(PromptCustomObject(title="Inputs", weight=3, object=self.node.inputs))
+            parts.append(PromptCustomObject(title="Inputs", weight=1, object=self.node.inputs))
         else:
             parts.append(PromptText(title="Inputs", text="No inputs"))
         if self.node.status.is_terminal:
@@ -230,4 +238,5 @@ class Prompt:
 class CompilationContext:  # == ContextOptions?
     prompt: Prompt
     projection: Projection
+    renderer: Renderer
     render_options: RenderOptions
