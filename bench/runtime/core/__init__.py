@@ -1,7 +1,6 @@
 from .cache import Cache, MemoryCache, RedisCache
 from .error import (
     AbortedError,
-    ActionChangedError,
     BenchError,
     CodeInvalidError,
     InterruptionCancelledError,
@@ -32,7 +31,6 @@ __all__ = [
     "ATTEMPT_THRICE",
     "BASE_RUN_OPTIONS_BY_KIND",
     "AbortedError",
-    "ActionChangedError",
     "BenchError",
     "Cache",
     "CodeInvalidError",

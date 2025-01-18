@@ -74,10 +74,6 @@ class ModelIncapableError(NonRetryableError):
     run_error_type = RunErrorType.MODEL_INCAPABLE
 
 
-class ActionChangedError(ModelIncapableError):
-    run_error_type = RunErrorType.ACTION_CHANGED
-
-
 class InterruptionCancelledError(RetryableError):
     run_error_type = RunErrorType.INTERRUPTION_CANCELLED
 

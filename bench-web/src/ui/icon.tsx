@@ -727,7 +727,7 @@ export function getTypeIcon(node: Partial<FieldData> | TypeIdentity): IconData |
 /** Gets the icon for a node 'subtype' (enum property) with the given name/value.  */
 function getNodeSubtypeIcon(nodeType: NodeType, subtype: any): IconData | undefined {
   const allProperties = PROPERTY_ENUM_BY_TYPE[nodeType]!;
-  const prop = PROPERTY_INFOS_BY_TYPE[nodeType][allProperties["type" as any]];
+  const prop = PROPERTY_INFOS_BY_TYPE[nodeType]?.[allProperties["type" as any]];
   if (prop?.enumType != null) {
     const enumIcons = ICONS_BY_ENUM_TYPE[prop.enumType];
     if (enumIcons?.[subtype] != null) {
