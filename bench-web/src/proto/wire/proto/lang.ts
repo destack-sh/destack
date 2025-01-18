@@ -6471,61 +6471,61 @@ export enum NodeType {
      */
     SECRET = 2220,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_PACKAGE = 3001;
+     * @generated from protobuf enum value: NODE_TYPE_PACKAGE = 5000;
      */
-    PACKAGE = 3001,
+    PACKAGE = 5000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DEPENDENCY = 3002;
+     * @generated from protobuf enum value: NODE_TYPE_DEPENDENCY = 5002;
      */
-    DEPENDENCY = 3002,
+    DEPENDENCY = 5002,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SPACE = 3003;
+     * @generated from protobuf enum value: NODE_TYPE_SPACE = 5003;
      */
-    SPACE = 3003,
+    SPACE = 5003,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BLOCK = 3010;
+     * @generated from protobuf enum value: NODE_TYPE_BLOCK = 5010;
      */
-    BLOCK = 3010,
+    BLOCK = 5010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FIELD = 3012;
+     * @generated from protobuf enum value: NODE_TYPE_FIELD = 5012;
      */
-    FIELD = 3012,
+    FIELD = 5012,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_VIEW = 3020;
+     * @generated from protobuf enum value: NODE_TYPE_VIEW = 5020;
      */
-    VIEW = 3020,
+    VIEW = 5020,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ACTION = 3030;
+     * @generated from protobuf enum value: NODE_TYPE_ACTION = 5030;
      */
-    ACTION = 3030,
+    ACTION = 5030,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_PIPE = 3031;
+     * @generated from protobuf enum value: NODE_TYPE_PIPE = 5031;
      */
-    PIPE = 3031,
+    PIPE = 5031,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MESSAGE = 3500;
+     * @generated from protobuf enum value: NODE_TYPE_MESSAGE = 5500;
      */
-    MESSAGE = 3500,
+    MESSAGE = 5500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RECORD = 3510;
+     * @generated from protobuf enum value: NODE_TYPE_RECORD = 5510;
      */
-    RECORD = 3510,
+    RECORD = 5510,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SESSION = 3600;
+     * @generated from protobuf enum value: NODE_TYPE_SESSION = 6000;
      */
-    SESSION = 3600,
+    SESSION = 6000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN = 3610;
+     * @generated from protobuf enum value: NODE_TYPE_RUN = 6010;
      */
-    RUN = 3610,
+    RUN = 6010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INTERRUPTION = 3620;
+     * @generated from protobuf enum value: NODE_TYPE_INTERRUPTION = 6020;
      */
-    INTERRUPTION = 3620,
+    INTERRUPTION = 6020,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LOG = 3630;
+     * @generated from protobuf enum value: NODE_TYPE_LOG = 6030;
      */
-    LOG = 3630,
+    LOG = 6030,
     /**
      * @generated from protobuf enum value: NODE_TYPE_SKIP = 9000;
      */
@@ -6853,61 +6853,61 @@ export enum ObjectType {
      */
     SECRET = 2220,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PACKAGE = 3001;
+     * @generated from protobuf enum value: OBJECT_TYPE_PACKAGE = 5000;
      */
-    PACKAGE = 3001,
+    PACKAGE = 5000,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_DEPENDENCY = 3002;
+     * @generated from protobuf enum value: OBJECT_TYPE_DEPENDENCY = 5002;
      */
-    DEPENDENCY = 3002,
+    DEPENDENCY = 5002,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SPACE = 3003;
+     * @generated from protobuf enum value: OBJECT_TYPE_SPACE = 5003;
      */
-    SPACE = 3003,
+    SPACE = 5003,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BLOCK = 3010;
+     * @generated from protobuf enum value: OBJECT_TYPE_BLOCK = 5010;
      */
-    BLOCK = 3010,
+    BLOCK = 5010,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FIELD = 3012;
+     * @generated from protobuf enum value: OBJECT_TYPE_FIELD = 5012;
      */
-    FIELD = 3012,
+    FIELD = 5012,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VIEW = 3020;
+     * @generated from protobuf enum value: OBJECT_TYPE_VIEW = 5020;
      */
-    VIEW = 3020,
+    VIEW = 5020,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ACTION = 3030;
+     * @generated from protobuf enum value: OBJECT_TYPE_ACTION = 5030;
      */
-    ACTION = 3030,
+    ACTION = 5030,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PIPE = 3031;
+     * @generated from protobuf enum value: OBJECT_TYPE_PIPE = 5031;
      */
-    PIPE = 3031,
+    PIPE = 5031,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_MESSAGE = 3500;
+     * @generated from protobuf enum value: OBJECT_TYPE_MESSAGE = 5500;
      */
-    MESSAGE = 3500,
+    MESSAGE = 5500,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RECORD = 3510;
+     * @generated from protobuf enum value: OBJECT_TYPE_RECORD = 5510;
      */
-    RECORD = 3510,
+    RECORD = 5510,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SESSION = 3600;
+     * @generated from protobuf enum value: OBJECT_TYPE_SESSION = 6000;
      */
-    SESSION = 3600,
+    SESSION = 6000,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN = 3610;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN = 6010;
      */
-    RUN = 3610,
+    RUN = 6010,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_INTERRUPTION = 3620;
+     * @generated from protobuf enum value: OBJECT_TYPE_INTERRUPTION = 6020;
      */
-    INTERRUPTION = 3620,
+    INTERRUPTION = 6020,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_LOG = 3630;
+     * @generated from protobuf enum value: OBJECT_TYPE_LOG = 6030;
      */
-    LOG = 3630,
+    LOG = 6030,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_SKIP = 9000;
      */
@@ -7226,61 +7226,61 @@ export enum BenchType {
      */
     SECRET = 2220,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PACKAGE = 3001;
+     * @generated from protobuf enum value: BENCH_TYPE_PACKAGE = 5000;
      */
-    PACKAGE = 3001,
+    PACKAGE = 5000,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_DEPENDENCY = 3002;
+     * @generated from protobuf enum value: BENCH_TYPE_DEPENDENCY = 5002;
      */
-    DEPENDENCY = 3002,
+    DEPENDENCY = 5002,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACE = 3003;
+     * @generated from protobuf enum value: BENCH_TYPE_SPACE = 5003;
      */
-    SPACE = 3003,
+    SPACE = 5003,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BLOCK = 3010;
+     * @generated from protobuf enum value: BENCH_TYPE_BLOCK = 5010;
      */
-    BLOCK = 3010,
+    BLOCK = 5010,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FIELD = 3012;
+     * @generated from protobuf enum value: BENCH_TYPE_FIELD = 5012;
      */
-    FIELD = 3012,
+    FIELD = 5012,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VIEW = 3020;
+     * @generated from protobuf enum value: BENCH_TYPE_VIEW = 5020;
      */
-    VIEW = 3020,
+    VIEW = 5020,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACTION = 3030;
+     * @generated from protobuf enum value: BENCH_TYPE_ACTION = 5030;
      */
-    ACTION = 3030,
+    ACTION = 5030,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE = 3031;
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE = 5031;
      */
-    PIPE = 3031,
+    PIPE = 5031,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE = 3500;
+     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE = 5500;
      */
-    MESSAGE = 3500,
+    MESSAGE = 5500,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RECORD = 3510;
+     * @generated from protobuf enum value: BENCH_TYPE_RECORD = 5510;
      */
-    RECORD = 3510,
+    RECORD = 5510,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SESSION = 3600;
+     * @generated from protobuf enum value: BENCH_TYPE_SESSION = 6000;
      */
-    SESSION = 3600,
+    SESSION = 6000,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN = 3610;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN = 6010;
      */
-    RUN = 3610,
+    RUN = 6010,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION = 3620;
+     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION = 6020;
      */
-    INTERRUPTION = 3620,
+    INTERRUPTION = 6020,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_LOG = 3630;
+     * @generated from protobuf enum value: BENCH_TYPE_LOG = 6030;
      */
-    LOG = 3630,
+    LOG = 6030,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SKIP = 9000;
      */
@@ -27133,13 +27133,13 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.RUN]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.INTERRUPTION]: [NodeType.RUN],
   [NodeType.LOG]: [NodeType.BENCH],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.RUN, NodeType.STREAM, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.SECRET, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.RUN, NodeType.STREAM, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.SECRET, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.RECORD, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.ORGANIZATION, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.LOG, NodeType.EMPTY, NodeType.BLOCK, NodeType.FIELD, NodeType.FILE, NodeType.VIEW, NodeType.STREAM, NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.SECRET, NodeType.MACHINE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.MESSAGE],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.RECORD, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.ORGANIZATION, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.LOG, NodeType.EMPTY, NodeType.BLOCK, NodeType.FIELD, NodeType.FILE, NodeType.VIEW, NodeType.STREAM, NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.SECRET, NodeType.MACHINE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.MESSAGE],
 }
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.RUN, NodeType.STREAM, NodeType.SKIP, NodeType.SECRET, NodeType.MESSAGE, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE],
+  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.RECORD, NodeType.PACKAGE, NodeType.LOG, NodeType.EMPTY, NodeType.FILE, NodeType.STREAM, NodeType.SKIP, NodeType.SECRET, NodeType.MACHINE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.MESSAGE],
   [NodeType.USER]: [NodeType.SKIP, NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY],
   [NodeType.HANDLE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CLIENT]: [NodeType.SKIP, NodeType.EMPTY],
@@ -27153,13 +27153,13 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FILE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.STREAM]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SECRET]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PACKAGE]: [NodeType.BLOCK, NodeType.SKIP, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.SPACE],
+  [NodeType.PACKAGE]: [NodeType.SKIP, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.EMPTY, NodeType.BLOCK],
   [NodeType.DEPENDENCY]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SPACE]: [NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY],
-  [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.FIELD, NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE],
+  [NodeType.BLOCK]: [NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.EMPTY, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW],
   [NodeType.FIELD]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.VIEW]: [NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY],
-  [NodeType.ACTION]: [NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE],
+  [NodeType.ACTION]: [NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.EMPTY, NodeType.FIELD],
   [NodeType.PIPE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.MESSAGE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.RECORD]: [NodeType.SKIP, NodeType.EMPTY],
@@ -27190,9 +27190,9 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.PACKAGE]: [NodeType.BENCH],
   [NodeType.DEPENDENCY]: [NodeType.PACKAGE, NodeType.BENCH],
   [NodeType.SPACE]: [NodeType.PACKAGE, NodeType.BENCH],
-  [NodeType.BLOCK]: [NodeType.PACKAGE, NodeType.BLOCK, NodeType.BENCH],
+  [NodeType.BLOCK]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.BLOCK],
   [NodeType.FIELD]: [NodeType.BENCH, NodeType.BLOCK, NodeType.ACTION, NodeType.PACKAGE],
-  [NodeType.VIEW]: [NodeType.BENCH, NodeType.BLOCK, NodeType.VIEW, NodeType.PACKAGE, NodeType.SPACE],
+  [NodeType.VIEW]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK, NodeType.VIEW],
   [NodeType.ACTION]: [NodeType.BENCH, NodeType.BLOCK, NodeType.ACTION, NodeType.PACKAGE],
   [NodeType.PIPE]: [NodeType.BENCH, NodeType.BLOCK, NodeType.ACTION, NodeType.PACKAGE],
   [NodeType.MESSAGE]: [NodeType.BENCH],
@@ -27201,13 +27201,13 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.RUN]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.INTERRUPTION]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.LOG]: [NodeType.BENCH],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.BLOCK, NodeType.USER, NodeType.FIELD, NodeType.CLIENT, NodeType.HANDLE, NodeType.ORGANIZATION, NodeType.VIEW, NodeType.EMPTY, NodeType.SCALER, NodeType.STORE, NodeType.SESSION, NodeType.ACTION, NodeType.PIPE, NodeType.FILE, NodeType.RUN, NodeType.STREAM, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.SECRET, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.RUN, NodeType.STREAM, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.SECRET, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.RECORD, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.ORGANIZATION, NodeType.LOG, NodeType.EMPTY, NodeType.SCALER, NodeType.STORE, NodeType.BLOCK, NodeType.FIELD, NodeType.FILE, NodeType.VIEW, NodeType.STREAM, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.SECRET, NodeType.SESSION, NodeType.MACHINE, NodeType.RUN, NodeType.MESSAGE, NodeType.BROWSER],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.RECORD, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.ORGANIZATION, NodeType.LOG, NodeType.EMPTY, NodeType.BLOCK, NodeType.FIELD, NodeType.FILE, NodeType.VIEW, NodeType.STREAM, NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.SECRET, NodeType.MACHINE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.MESSAGE],
 }
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY, NodeType.SESSION, NodeType.FILE, NodeType.RUN, NodeType.STREAM, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.MESSAGE, NodeType.SECRET, NodeType.LOG, NodeType.MACHINE, NodeType.RECORD, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BROWSER, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.SCALER, NodeType.STORE, NodeType.ACTION, NodeType.PIPE, NodeType.MEMBERSHIP, NodeType.INVITE],
+  [NodeType.BENCH]: [NodeType.INTERRUPTION, NodeType.CLIENT, NodeType.RECORD, NodeType.HANDLE, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.LOG, NodeType.EMPTY, NodeType.BLOCK, NodeType.FIELD, NodeType.FILE, NodeType.VIEW, NodeType.STREAM, NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.SECRET, NodeType.MACHINE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.MESSAGE],
   [NodeType.USER]: [NodeType.SKIP, NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY],
   [NodeType.HANDLE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CLIENT]: [NodeType.SKIP, NodeType.EMPTY],
@@ -27221,13 +27221,13 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FILE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.STREAM]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SECRET]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PACKAGE]: [NodeType.BLOCK, NodeType.FIELD, NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE, NodeType.DEPENDENCY, NodeType.SPACE],
+  [NodeType.PACKAGE]: [NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.EMPTY, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW],
   [NodeType.DEPENDENCY]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SPACE]: [NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY],
-  [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.FIELD, NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE],
+  [NodeType.BLOCK]: [NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.EMPTY, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW],
   [NodeType.FIELD]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.VIEW]: [NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY],
-  [NodeType.ACTION]: [NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE],
+  [NodeType.ACTION]: [NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.EMPTY, NodeType.FIELD],
   [NodeType.PIPE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.MESSAGE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.RECORD]: [NodeType.SKIP, NodeType.EMPTY],

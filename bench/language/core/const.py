@@ -251,7 +251,7 @@ class NodeArea(enum.StrEnum):
 @enum_(EnumType.NODE_TYPE)
 class NodeType(IdEnum):
     #
-    # Global (1-1000)
+    # Global (1-2000)
     #
 
     # universe
@@ -271,8 +271,7 @@ class NodeType(IdEnum):
     # BALANCE, BUDGET, TRANSFER, INVOICE, ...
 
     #
-    # Regional (2000-3000)
-    # nocheckin: bump NodeType spacing one more time
+    # Regional (2000-4000)
     #
 
     # resource (static)
@@ -292,30 +291,30 @@ class NodeType(IdEnum):
     # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?
 
     #
-    # Local (3000-4000)
+    # Local (5000-)
     #
 
     # source (named, versioned, templatable)
-    PACKAGE = 3001
-    DEPENDENCY = 3002
-    SPACE = 3003
-    BLOCK = 3010
-    FIELD = 3012  # (based)
-    VIEW = 3020
-    ACTION = 3030
-    PIPE = 3031
+    PACKAGE = 5000
+    DEPENDENCY = 5002
+    SPACE = 5003
+    BLOCK = 5010
+    FIELD = 5012  # (based)
+    VIEW = 5020
+    ACTION = 5030
+    PIPE = 5031
     # BADGE? POLICY?
     # TAG?
 
     # state
-    MESSAGE = 3500  # (based, timed)
-    RECORD = 3510  # (based)
+    MESSAGE = 5500  # (based, timed)
+    RECORD = 5510  # (based)
 
     # runtime
-    SESSION = 3600  # (timed)
-    RUN = 3610  # (based, timed)
-    INTERRUPTION = 3620  # (timed)
-    LOG = 3630  # (timed)
+    SESSION = 6000  # (timed)
+    RUN = 6010  # (based, timed)
+    INTERRUPTION = 6020  # (timed)
+    LOG = 6030  # (timed)
 
     #
     # Misc
@@ -326,15 +325,15 @@ class NodeType(IdEnum):
 
     @property
     def is_global(self) -> bool:
-        return self.id < 1000
+        return self.id < 2000
 
     @property
     def is_regional(self) -> bool:
-        return self.id >= 2000 and self.id < 3000
+        return self.id >= 2000 and self.id < 5000
 
     @property
     def is_local(self) -> bool:
-        return self.id >= 3000
+        return self.id >= 5000
 
     @property
     def area(self) -> NodeArea:
@@ -346,15 +345,15 @@ class NodeType(IdEnum):
 
     @property
     def is_source(self) -> bool:
-        return self.id >= 3000 and self.id < 3100
+        return self.id >= 5000 and self.id < 5500
 
     @property
     def is_state(self) -> bool:
-        return self.id >= 3500 and self.id < 3600
+        return self.id >= 5500 and self.id < 6000
 
     @property
     def is_runtime(self) -> bool:
-        return self.id >= 3600 and self.id < 3700
+        return self.id >= 6000 and self.id < 6500
 
 
 # :NodeTypes
@@ -375,9 +374,9 @@ def _get_node_types(
     return node_types
 
 
-GLOBAL_NODE_TYPES = _get_node_types(None, 1000)
-REGIONAL_NODE_TYPES = _get_node_types(2000, 3000)
-LOCAL_NODE_TYPES = _get_node_types(3000, None)
+GLOBAL_NODE_TYPES = _get_node_types(None, 2000)
+REGIONAL_NODE_TYPES = _get_node_types(2000, 5000)
+LOCAL_NODE_TYPES = _get_node_types(5000, None)
 AREA_BY_NODE_TYPE = {
     **dict.fromkeys(GLOBAL_NODE_TYPES, NodeArea.GLOBAL),
     **dict.fromkeys(REGIONAL_NODE_TYPES, NodeArea.REGIONAL),
@@ -390,16 +389,16 @@ NODE_TYPES_BY_AREA = {
 }
 
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
-RESOURCE_NODE_TYPES = _get_node_types(2000, 2200)
+RESOURCE_NODE_TYPES = _get_node_types(2000, 3000)
 STATIC_RESOURCE_NODE_TYPES = _get_node_types(2000, 2100)
-DYNAMIC_RESOURCE_NODE_TYPES = _get_node_types(2100, 2200)
-SOURCE_NODE_TYPES = _get_node_types(3000, 3100)
-STATE_NODE_TYPES = _get_node_types(3500, 3600)
-RUNTIME_NODE_TYPES = _get_node_types(3600, 3700)
+DYNAMIC_RESOURCE_NODE_TYPES = _get_node_types(2100, 3000)
+SOURCE_NODE_TYPES = _get_node_types(5000, 5500)
+STATE_NODE_TYPES = _get_node_types(5500, 6000)
+RUNTIME_NODE_TYPES = _get_node_types(6000, 6500)
 BASED_NODE_TYPES = bittuple(  # :HasBase
     NodeType.FIELD, NodeType.RUN, NodeType.INTERRUPTION, NodeType.MESSAGE, NodeType.RECORD
 )
-PACKAGE_NODE_TYPES = _get_node_types(3001, 3500, NodeType.SKIP, NodeType.EMPTY)
+PACKAGE_NODE_TYPES = _get_node_types(5000, 5500, NodeType.SKIP, NodeType.EMPTY)
 BENCH_NODE_TYPES = _get_node_types(
     2000,
     10000,
