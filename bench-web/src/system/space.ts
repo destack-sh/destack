@@ -56,9 +56,7 @@ pkgConnection.onError((e) => {
 export const spaceGraph = new ProxyNodeGraph({ graph: spaceGraphLocal, filter: DEFAULT_NODE_FILTER });
 export const space = spaceGraph.getRef(local.spacePtr);
 setSpace(space);
-export const { connection: spaceConnection } = useExistingConnection(local.spacePtr, {
-  isRequired: false,
-});
+export const { connection: spaceConnection } = useExistingConnection(local.spacePtr, { isRequired: false });
 export const canvas = new SpaceCanvas(local.spacePtr, spaceGraph, () =>
   spaceConnection.tx.with({ category: ChangeCategory.SPACE }),
 );

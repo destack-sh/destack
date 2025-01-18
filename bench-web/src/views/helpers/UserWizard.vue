@@ -14,8 +14,7 @@ import {
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr } from "@/system/client";
-import { useExistingConnection } from "@/system/connection";
-import { canvas, goToBench } from "@/system/space";
+import { canvas, goToBench, spaceGraph } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
 import { makeIcon } from "@/ui/icon";
 import { getViewComponentChildren, isVueInstanceOf } from "@/ui/view";
@@ -33,8 +32,6 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
-
-const { graph: spaceGraph } = useExistingConnection(toRef(props, "self"));
 
 const subnode = useSubnode(NodeType.VIEW, ViewType.USER_WIZARD, toRef(props, "subnodePacked"));
 const stage = computed(() => subnode.value?.stage ?? UserWizardViewStage.LOG_IN);
@@ -122,7 +119,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
 defineExpose<ViewExposed>({ self, focus });
 </script>
 <template>
-  <div class="mx-auto mt-[20%] h-fit min-w-80 max-w-96 rounded px-9 py-7 text-gray-900">
+  <div class="mx-auto mt-[16%] h-fit min-w-80 max-w-96 rounded px-9 py-7 text-gray-900">
     <!-- Header -->
     <div>
       <h2 class="text-2xl font-semibold">{{ title }}</h2>
@@ -133,55 +130,67 @@ defineExpose<ViewExposed>({ self, focus });
       </p>
     </div>
     <!-- Data -->
-    <div v-if="!user" class="mt-5 flex w-full flex-col gap-y-3">
-      <NativeInput
-        v-if="stage == UserWizardViewStage.SIGN_UP"
-        id="name"
-        ref="nameRef"
-        v-model="name"
-        :icon="makeIcon({ faName: 'fas fa-user' })"
-        name="Name"
-        title="Name"
-        is-input
-      />
-      <NativeInput
-        id="slug"
-        ref="slugRef"
-        v-model="slug"
-        :icon="makeIcon({ faName: 'fas fa-at' })"
-        name="slug"
-        title="Username"
-        is-input
-      />
-      <NativeInput
-        v-if="stage == UserWizardViewStage.SIGN_UP"
-        id="email"
-        v-model="email"
-        :icon="makeIcon({ faName: 'fas fa-at' })"
-        name="Email"
-        title="Email"
-        is-input
-      />
-      <!-- NOTE :UX: add passowrd feedback (see https://zxcvbn-ts.github.io/zxcvbn/) -->
-      <NativeInput
-        id="password"
-        v-model="password"
-        :icon="makeIcon({ faName: 'fas fa-key' })"
-        name="Password"
-        title="Password"
-        is-input
-        :value-type="makeType({ isSecret: true })"
-      />
-      <Picker
-        v-if="stage == UserWizardViewStage.SIGN_UP"
-        id="region"
-        v-model="region"
-        :icon="makeIcon({ faName: 'fas fa-globe' })"
-        name="Region"
-        title="Region"
-        is-input
-        :value-type="makeType({ benchType: BenchType.REGION, isList: false, isRequired: true })"
-      />
+    <div v-if="!user" class="mt-5 flex w-full flex-col gap-y-2">
+      <div v-if="stage == UserWizardViewStage.SIGN_UP" class="flex flex-col gap-y-0.5">
+        <span class="font-medium">Name</span>
+        <NativeInput
+          id="name"
+          ref="nameRef"
+          v-model="name"
+          :icon="makeIcon({ faName: 'fas fa-user' })"
+          name="Name"
+          title="Name"
+          is-input
+        />
+      </div>
+      <div class="flex flex-col gap-y-0.5">
+        <span class="font-medium">Username</span>
+        <NativeInput
+          id="slug"
+          ref="slugRef"
+          v-model="slug"
+          :icon="makeIcon({ faName: 'fas fa-hashtag' })"
+          name="slug"
+          title="Username"
+          is-input
+        />
+      </div>
+      <div v-if="stage == UserWizardViewStage.SIGN_UP" class="flex flex-col gap-y-0.5">
+        <span class="font-medium">Email</span>
+        <NativeInput
+          id="email"
+          v-model="email"
+          :icon="makeIcon({ faName: 'fas fa-at' })"
+          name="Email"
+          title="Email"
+          is-input
+        />
+      </div>
+      <!-- NOTE :UX: add passowrd feedback (see https://zxcvbn-ts.github.io/zxcvbn/)? -->
+      <div class="flex flex-col gap-y-0.5">
+        <span class="font-medium">Password</span>
+        <NativeInput
+          id="password"
+          v-model="password"
+          :icon="makeIcon({ faName: 'fas fa-key' })"
+          name="Password"
+          title="Password"
+          is-input
+          :value-type="makeType({ isSecret: true })"
+        />
+      </div>
+      <div v-if="stage == UserWizardViewStage.SIGN_UP" class="flex flex-col gap-y-0.5">
+        <span class="font-medium">Region</span>
+        <Picker
+          id="region"
+          v-model="region"
+          :icon="makeIcon({ faName: 'fas fa-globe' })"
+          name="Region"
+          title="Region"
+          is-input
+          :value-type="makeType({ benchType: BenchType.REGION, isList: false, isRequired: true })"
+        />
+      </div>
     </div>
     <!-- Actions -->
     <div class="mt-7">

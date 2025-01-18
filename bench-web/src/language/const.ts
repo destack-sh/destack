@@ -67,7 +67,7 @@ export function isEnumType(object: any): object is EnumType {
 }
 
 export function isSourceNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 3000 && nodeType < 3100;
+  return nodeType >= 5000 && nodeType < 5500;
 }
 
 export function isSourceNode(node: any): node is SourceNodeData {
@@ -76,7 +76,7 @@ export function isSourceNode(node: any): node is SourceNodeData {
 }
 
 export function isStateNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && nodeType >= 3500 && nodeType < 3600;
+  return typeof nodeType == "number" && nodeType >= 5500 && nodeType < 6000;
 }
 
 export function isStateNode(node: any): node is StateNodeData {
@@ -85,7 +85,7 @@ export function isStateNode(node: any): node is StateNodeData {
 }
 
 export function isRuntimeNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && nodeType >= 3600 && nodeType < 3700;
+  return typeof nodeType == "number" && nodeType >= 6000 && nodeType < 6500;
 }
 
 export function isRuntimeNode(node: any): node is RuntimeNodeData {
@@ -112,7 +112,7 @@ export function isStaticResourceNode(node: any): node is StaticResourceNodeData 
 }
 
 export function isDynamicResourceNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && nodeType >= 2100 && nodeType < 2200;
+  return typeof nodeType == "number" && nodeType >= 2100 && nodeType < 3000;
 }
 
 export function isDynamicResourceNode(node: any): node is DynamicResourceNodeData {
@@ -121,7 +121,15 @@ export function isDynamicResourceNode(node: any): node is DynamicResourceNodeDat
 }
 
 export function isLocalNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && nodeType >= 3000;
+  return typeof nodeType == "number" && nodeType >= 5000;
+}
+
+export function isGlobalNodeType(nodeType: any): boolean {
+  return typeof nodeType == "number" && nodeType < 2000;
+}
+
+export function isRegionalNodeType(nodeType: any): boolean {
+  return typeof nodeType == "number" && nodeType >= 2000 && nodeType < 5000;
 }
 
 export function isBenchNodeType(nodeType: any): boolean {
@@ -231,7 +239,7 @@ export function getBaseFromNodeReference(nodeRef: NodeReferenceData): NodeRefere
   if (nodeRef.baseCk != null) {
     // NOTE :Broken :Architecture: technically there could be multiple different base types for the references
     //  (but right now we only use the node type to get the appropriate supergraph, and since all bases are source nodes,
-    //   it doesn't matter which base type we use - for now)
+    //   it doesn't matter which specific base type we use)
     const baseType = BASE_TYPE_BY_NODE_TYPE[nodeRef.nodeType];
     if (baseType == null) throw new Error(`no base type found for ${describeNode(nodeRef)}`);
     return {

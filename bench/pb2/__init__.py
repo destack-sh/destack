@@ -37,12 +37,12 @@ AnyNodeData = Union[
     SecretData,
     PackageData,
     DependencyData,
-    SpaceData,
     BlockData,
     FieldData,
     ViewData,
     ActionData,
     PipeData,
+    SpaceData,
     MessageData,
     RecordData,
     SessionData,
@@ -131,12 +131,12 @@ BenchNodeData = Union[
     SecretData,
     PackageData,
     DependencyData,
-    SpaceData,
     BlockData,
     FieldData,
     ViewData,
     ActionData,
     PipeData,
+    SpaceData,
     MessageData,
     RecordData,
     SessionData,
@@ -145,7 +145,7 @@ BenchNodeData = Union[
     LogData,
 ]
 PackageNodeData = Union[
-    DependencyData, SpaceData, BlockData, FieldData, ViewData, ActionData, PipeData
+    DependencyData, BlockData, FieldData, ViewData, ActionData, PipeData, SpaceData
 ]
 ResourceNodeData = Union[
     ScalerData, StoreData, MachineData, BrowserData, FileData, StreamData, SecretData
@@ -153,7 +153,7 @@ ResourceNodeData = Union[
 DynamicResourceNodeData = Union[MachineData, BrowserData, FileData, StreamData, SecretData]
 StaticResourceNodeData = Union[ScalerData, StoreData]
 SourceNodeData = Union[
-    DependencyData, SpaceData, BlockData, FieldData, ViewData, ActionData, PipeData
+    DependencyData, BlockData, FieldData, ViewData, ActionData, PipeData, SpaceData
 ]
 StateNodeData = Union[MessageData, RecordData]
 RuntimeNodeData = Union[SessionData, RunData, InterruptionData, LogData]

@@ -386,7 +386,7 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
         "export interface NodeSubtypeMapping extends Record<NodeType, object> {\n"
     ]
     for node_cls in NODE_CLASSES:
-        if node_cls.__has_subtypes__:
+        if node_cls.__has_subtypes__ and node_cls.__subtype_base_property__:
             subnode_base_mapping_parts.append(
                 f"  [NodeType.{node_cls.metatype.name}]: {node_cls.__name__}SubtypeMapping,\n"
             )

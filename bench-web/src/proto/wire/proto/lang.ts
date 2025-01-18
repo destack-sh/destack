@@ -5894,41 +5894,41 @@ export interface SomeNodeData {
          */
         dependency: DependencyData;
     } | {
-        oneofKind: "space";
-        /**
-         * @generated from protobuf field: symbolx.bench.SpaceData space = 17;
-         */
-        space: SpaceData;
-    } | {
         oneofKind: "block";
         /**
-         * @generated from protobuf field: symbolx.bench.BlockData block = 18;
+         * @generated from protobuf field: symbolx.bench.BlockData block = 17;
          */
         block: BlockData;
     } | {
         oneofKind: "field";
         /**
-         * @generated from protobuf field: symbolx.bench.FieldData field = 19;
+         * @generated from protobuf field: symbolx.bench.FieldData field = 18;
          */
         field: FieldData;
     } | {
         oneofKind: "view";
         /**
-         * @generated from protobuf field: symbolx.bench.ViewData view = 20;
+         * @generated from protobuf field: symbolx.bench.ViewData view = 19;
          */
         view: ViewData;
     } | {
         oneofKind: "action";
         /**
-         * @generated from protobuf field: symbolx.bench.ActionData action = 21;
+         * @generated from protobuf field: symbolx.bench.ActionData action = 20;
          */
         action: ActionData;
     } | {
         oneofKind: "pipe";
         /**
-         * @generated from protobuf field: symbolx.bench.PipeData pipe = 22;
+         * @generated from protobuf field: symbolx.bench.PipeData pipe = 21;
          */
         pipe: PipeData;
+    } | {
+        oneofKind: "space";
+        /**
+         * @generated from protobuf field: symbolx.bench.SpaceData space = 22;
+         */
+        space: SpaceData;
     } | {
         oneofKind: "message";
         /**
@@ -6479,29 +6479,29 @@ export enum NodeType {
      */
     DEPENDENCY = 5002,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SPACE = 5003;
+     * @generated from protobuf enum value: NODE_TYPE_BLOCK = 5020;
      */
-    SPACE = 5003,
+    BLOCK = 5020,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BLOCK = 5010;
+     * @generated from protobuf enum value: NODE_TYPE_FIELD = 5022;
      */
-    BLOCK = 5010,
+    FIELD = 5022,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FIELD = 5012;
+     * @generated from protobuf enum value: NODE_TYPE_VIEW = 5030;
      */
-    FIELD = 5012,
+    VIEW = 5030,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_VIEW = 5020;
+     * @generated from protobuf enum value: NODE_TYPE_ACTION = 5040;
      */
-    VIEW = 5020,
+    ACTION = 5040,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ACTION = 5030;
+     * @generated from protobuf enum value: NODE_TYPE_PIPE = 5041;
      */
-    ACTION = 5030,
+    PIPE = 5041,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_PIPE = 5031;
+     * @generated from protobuf enum value: NODE_TYPE_SPACE = 5200;
      */
-    PIPE = 5031,
+    SPACE = 5200,
     /**
      * @generated from protobuf enum value: NODE_TYPE_MESSAGE = 5500;
      */
@@ -6861,29 +6861,29 @@ export enum ObjectType {
      */
     DEPENDENCY = 5002,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SPACE = 5003;
+     * @generated from protobuf enum value: OBJECT_TYPE_BLOCK = 5020;
      */
-    SPACE = 5003,
+    BLOCK = 5020,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BLOCK = 5010;
+     * @generated from protobuf enum value: OBJECT_TYPE_FIELD = 5022;
      */
-    BLOCK = 5010,
+    FIELD = 5022,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FIELD = 5012;
+     * @generated from protobuf enum value: OBJECT_TYPE_VIEW = 5030;
      */
-    FIELD = 5012,
+    VIEW = 5030,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VIEW = 5020;
+     * @generated from protobuf enum value: OBJECT_TYPE_ACTION = 5040;
      */
-    VIEW = 5020,
+    ACTION = 5040,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ACTION = 5030;
+     * @generated from protobuf enum value: OBJECT_TYPE_PIPE = 5041;
      */
-    ACTION = 5030,
+    PIPE = 5041,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PIPE = 5031;
+     * @generated from protobuf enum value: OBJECT_TYPE_SPACE = 5200;
      */
-    PIPE = 5031,
+    SPACE = 5200,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_MESSAGE = 5500;
      */
@@ -7234,29 +7234,29 @@ export enum BenchType {
      */
     DEPENDENCY = 5002,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACE = 5003;
+     * @generated from protobuf enum value: BENCH_TYPE_BLOCK = 5020;
      */
-    SPACE = 5003,
+    BLOCK = 5020,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BLOCK = 5010;
+     * @generated from protobuf enum value: BENCH_TYPE_FIELD = 5022;
      */
-    BLOCK = 5010,
+    FIELD = 5022,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FIELD = 5012;
+     * @generated from protobuf enum value: BENCH_TYPE_VIEW = 5030;
      */
-    FIELD = 5012,
+    VIEW = 5030,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VIEW = 5020;
+     * @generated from protobuf enum value: BENCH_TYPE_ACTION = 5040;
      */
-    VIEW = 5020,
+    ACTION = 5040,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACTION = 5030;
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE = 5041;
      */
-    ACTION = 5030,
+    PIPE = 5041,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE = 5031;
+     * @generated from protobuf enum value: BENCH_TYPE_SPACE = 5200;
      */
-    PIPE = 5031,
+    SPACE = 5200,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_MESSAGE = 5500;
      */
@@ -26757,12 +26757,12 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 14, name: "secret", kind: "message", oneof: "node", T: () => SecretData },
             { no: 15, name: "package", kind: "message", oneof: "node", T: () => PackageData },
             { no: 16, name: "dependency", kind: "message", oneof: "node", T: () => DependencyData },
-            { no: 17, name: "space", kind: "message", oneof: "node", T: () => SpaceData },
-            { no: 18, name: "block", kind: "message", oneof: "node", T: () => BlockData },
-            { no: 19, name: "field", kind: "message", oneof: "node", T: () => FieldData },
-            { no: 20, name: "view", kind: "message", oneof: "node", T: () => ViewData },
-            { no: 21, name: "action", kind: "message", oneof: "node", T: () => ActionData },
-            { no: 22, name: "pipe", kind: "message", oneof: "node", T: () => PipeData },
+            { no: 17, name: "block", kind: "message", oneof: "node", T: () => BlockData },
+            { no: 18, name: "field", kind: "message", oneof: "node", T: () => FieldData },
+            { no: 19, name: "view", kind: "message", oneof: "node", T: () => ViewData },
+            { no: 20, name: "action", kind: "message", oneof: "node", T: () => ActionData },
+            { no: 21, name: "pipe", kind: "message", oneof: "node", T: () => PipeData },
+            { no: 22, name: "space", kind: "message", oneof: "node", T: () => SpaceData },
             { no: 23, name: "message", kind: "message", oneof: "node", T: () => MessageData },
             { no: 24, name: "record", kind: "message", oneof: "node", T: () => RecordData },
             { no: 25, name: "session", kind: "message", oneof: "node", T: () => SessionData },
@@ -26881,40 +26881,40 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         dependency: DependencyData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dependency)
                     };
                     break;
-                case /* symbolx.bench.SpaceData space */ 17:
-                    message.node = {
-                        oneofKind: "space",
-                        space: SpaceData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).space)
-                    };
-                    break;
-                case /* symbolx.bench.BlockData block */ 18:
+                case /* symbolx.bench.BlockData block */ 17:
                     message.node = {
                         oneofKind: "block",
                         block: BlockData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).block)
                     };
                     break;
-                case /* symbolx.bench.FieldData field */ 19:
+                case /* symbolx.bench.FieldData field */ 18:
                     message.node = {
                         oneofKind: "field",
                         field: FieldData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).field)
                     };
                     break;
-                case /* symbolx.bench.ViewData view */ 20:
+                case /* symbolx.bench.ViewData view */ 19:
                     message.node = {
                         oneofKind: "view",
                         view: ViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).view)
                     };
                     break;
-                case /* symbolx.bench.ActionData action */ 21:
+                case /* symbolx.bench.ActionData action */ 20:
                     message.node = {
                         oneofKind: "action",
                         action: ActionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).action)
                     };
                     break;
-                case /* symbolx.bench.PipeData pipe */ 22:
+                case /* symbolx.bench.PipeData pipe */ 21:
                     message.node = {
                         oneofKind: "pipe",
                         pipe: PipeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pipe)
+                    };
+                    break;
+                case /* symbolx.bench.SpaceData space */ 22:
+                    message.node = {
+                        oneofKind: "space",
+                        space: SpaceData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).space)
                     };
                     break;
                 case /* symbolx.bench.MessageData message */ 23:
@@ -27025,24 +27025,24 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbolx.bench.DependencyData dependency = 16; */
         if (message.node.oneofKind === "dependency")
             DependencyData.internalBinaryWrite(message.node.dependency, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.SpaceData space = 17; */
-        if (message.node.oneofKind === "space")
-            SpaceData.internalBinaryWrite(message.node.space, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.BlockData block = 18; */
+        /* symbolx.bench.BlockData block = 17; */
         if (message.node.oneofKind === "block")
-            BlockData.internalBinaryWrite(message.node.block, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.FieldData field = 19; */
+            BlockData.internalBinaryWrite(message.node.block, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.FieldData field = 18; */
         if (message.node.oneofKind === "field")
-            FieldData.internalBinaryWrite(message.node.field, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.ViewData view = 20; */
+            FieldData.internalBinaryWrite(message.node.field, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ViewData view = 19; */
         if (message.node.oneofKind === "view")
-            ViewData.internalBinaryWrite(message.node.view, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.ActionData action = 21; */
+            ViewData.internalBinaryWrite(message.node.view, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ActionData action = 20; */
         if (message.node.oneofKind === "action")
-            ActionData.internalBinaryWrite(message.node.action, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.PipeData pipe = 22; */
+            ActionData.internalBinaryWrite(message.node.action, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.PipeData pipe = 21; */
         if (message.node.oneofKind === "pipe")
-            PipeData.internalBinaryWrite(message.node.pipe, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+            PipeData.internalBinaryWrite(message.node.pipe, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.SpaceData space = 22; */
+        if (message.node.oneofKind === "space")
+            SpaceData.internalBinaryWrite(message.node.space, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.MessageData message = 23; */
         if (message.node.oneofKind === "message")
             MessageData.internalBinaryWrite(message.node.message, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
@@ -27089,14 +27089,14 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 //
 
 // Any...
-export type AnyNodeData = BenchData | UserData | HandleData | ClientData | OrganizationData | MembershipData | InviteData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | SpaceData | BlockData | FieldData | ViewData | ActionData | PipeData | MessageData | RecordData | SessionData | RunData | InterruptionData | LogData | SkipData | EmptyData
+export type AnyNodeData = BenchData | UserData | HandleData | ClientData | OrganizationData | MembershipData | InviteData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | BlockData | FieldData | ViewData | ActionData | PipeData | SpaceData | MessageData | RecordData | SessionData | RunData | InterruptionData | LogData | SkipData | EmptyData
 export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeData | TypeConstraintData | ScheduleData | FileInfoData | IconData | TextData | TextLineData | TextSpanData | CodeData | CodeLineData | PathData | PathElementData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ObjectMappingData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | CallData | BreakpointData | LogInfoData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData | DomNodeData
-export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof HandleData | typeof ClientData | typeof OrganizationData | typeof MembershipData | typeof InviteData | typeof ScalerData | typeof StoreData | typeof MachineData | typeof BrowserData | typeof FileData | typeof StreamData | typeof SecretData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof FieldData | typeof ViewData | typeof ActionData | typeof PipeData | typeof MessageData | typeof RecordData | typeof SessionData | typeof RunData | typeof InterruptionData | typeof LogData | typeof SkipData | typeof EmptyData
+export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof HandleData | typeof ClientData | typeof OrganizationData | typeof MembershipData | typeof InviteData | typeof ScalerData | typeof StoreData | typeof MachineData | typeof BrowserData | typeof FileData | typeof StreamData | typeof SecretData | typeof PackageData | typeof DependencyData | typeof BlockData | typeof FieldData | typeof ViewData | typeof ActionData | typeof PipeData | typeof SpaceData | typeof MessageData | typeof RecordData | typeof SessionData | typeof RunData | typeof InterruptionData | typeof LogData | typeof SkipData | typeof EmptyData
 export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeData | typeof TypeConstraintData | typeof ScheduleData | typeof FileInfoData | typeof IconData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathElementData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ObjectMappingData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof CallData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData | typeof DomNodeData
-export type BenchNodeData = BenchData | HandleData | ClientData | MembershipData | InviteData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | SpaceData | BlockData | FieldData | ViewData | ActionData | PipeData | MessageData | RecordData | SessionData | RunData | InterruptionData | LogData
-export type PackageNodeData = DependencyData | SpaceData | BlockData | FieldData | ViewData | ActionData | PipeData
+export type BenchNodeData = BenchData | HandleData | ClientData | MembershipData | InviteData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | BlockData | FieldData | ViewData | ActionData | PipeData | SpaceData | MessageData | RecordData | SessionData | RunData | InterruptionData | LogData
+export type PackageNodeData = DependencyData | BlockData | FieldData | ViewData | ActionData | PipeData | SpaceData
 export type ResourceNodeData = ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData
-export type SourceNodeData = DependencyData | SpaceData | BlockData | FieldData | ViewData | ActionData | PipeData
+export type SourceNodeData = DependencyData | BlockData | FieldData | ViewData | ActionData | PipeData | SpaceData
 export type StateNodeData = MessageData | RecordData
 export type RuntimeNodeData = SessionData | RunData | InterruptionData | LogData
 export type StaticResourceNodeData = ScalerData | StoreData
@@ -27121,20 +27121,20 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.SECRET]: [NodeType.BENCH],
   [NodeType.PACKAGE]: [NodeType.BENCH],
   [NodeType.DEPENDENCY]: [NodeType.PACKAGE],
-  [NodeType.SPACE]: [NodeType.PACKAGE],
   [NodeType.BLOCK]: [NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.FIELD]: [NodeType.BLOCK, NodeType.ACTION],
-  [NodeType.VIEW]: [NodeType.BLOCK, NodeType.SPACE, NodeType.VIEW],
-  [NodeType.ACTION]: [NodeType.BLOCK, NodeType.ACTION],
-  [NodeType.PIPE]: [NodeType.BLOCK, NodeType.ACTION],
+  [NodeType.FIELD]: [NodeType.ACTION, NodeType.BLOCK],
+  [NodeType.VIEW]: [NodeType.SPACE, NodeType.BLOCK, NodeType.VIEW],
+  [NodeType.ACTION]: [NodeType.ACTION, NodeType.BLOCK],
+  [NodeType.PIPE]: [NodeType.ACTION, NodeType.BLOCK],
+  [NodeType.SPACE]: [NodeType.PACKAGE],
   [NodeType.MESSAGE]: [NodeType.BENCH],
   [NodeType.RECORD]: [NodeType.BENCH],
   [NodeType.SESSION]: [NodeType.BENCH],
   [NodeType.RUN]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.INTERRUPTION]: [NodeType.RUN],
   [NodeType.LOG]: [NodeType.BENCH],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.RECORD, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.ORGANIZATION, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.LOG, NodeType.EMPTY, NodeType.BLOCK, NodeType.FIELD, NodeType.FILE, NodeType.VIEW, NodeType.STREAM, NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.SECRET, NodeType.MACHINE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.MESSAGE],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.RECORD, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.ORGANIZATION, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.LOG, NodeType.EMPTY, NodeType.BLOCK, NodeType.FIELD, NodeType.FILE, NodeType.VIEW, NodeType.STREAM, NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.SECRET, NodeType.MACHINE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.MESSAGE],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.RECORD, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.ORGANIZATION, NodeType.DEPENDENCY, NodeType.LOG, NodeType.EMPTY, NodeType.FILE, NodeType.BLOCK, NodeType.FIELD, NodeType.STREAM, NodeType.VIEW, NodeType.SKIP, NodeType.SECRET, NodeType.ACTION, NodeType.PIPE, NodeType.MACHINE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.SPACE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.MESSAGE],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.RECORD, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.ORGANIZATION, NodeType.DEPENDENCY, NodeType.LOG, NodeType.EMPTY, NodeType.FILE, NodeType.BLOCK, NodeType.FIELD, NodeType.STREAM, NodeType.VIEW, NodeType.SKIP, NodeType.SECRET, NodeType.ACTION, NodeType.PIPE, NodeType.MACHINE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.SPACE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.MESSAGE],
 }
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -27153,14 +27153,14 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FILE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.STREAM]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SECRET]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PACKAGE]: [NodeType.SKIP, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.EMPTY, NodeType.BLOCK],
+  [NodeType.PACKAGE]: [NodeType.SKIP, NodeType.DEPENDENCY, NodeType.EMPTY, NodeType.SPACE, NodeType.BLOCK],
   [NodeType.DEPENDENCY]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.SPACE]: [NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY],
-  [NodeType.BLOCK]: [NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.EMPTY, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW],
+  [NodeType.BLOCK]: [NodeType.VIEW, NodeType.SKIP, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE, NodeType.BLOCK, NodeType.FIELD],
   [NodeType.FIELD]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.VIEW]: [NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY],
-  [NodeType.ACTION]: [NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.EMPTY, NodeType.FIELD],
+  [NodeType.ACTION]: [NodeType.SKIP, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE, NodeType.FIELD],
   [NodeType.PIPE]: [NodeType.SKIP, NodeType.EMPTY],
+  [NodeType.SPACE]: [NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY],
   [NodeType.MESSAGE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.RECORD]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SESSION]: [NodeType.SKIP, NodeType.EMPTY],
@@ -27189,25 +27189,25 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.SECRET]: [NodeType.BENCH],
   [NodeType.PACKAGE]: [NodeType.BENCH],
   [NodeType.DEPENDENCY]: [NodeType.PACKAGE, NodeType.BENCH],
-  [NodeType.SPACE]: [NodeType.PACKAGE, NodeType.BENCH],
   [NodeType.BLOCK]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.BLOCK],
-  [NodeType.FIELD]: [NodeType.BENCH, NodeType.BLOCK, NodeType.ACTION, NodeType.PACKAGE],
-  [NodeType.VIEW]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK, NodeType.VIEW],
-  [NodeType.ACTION]: [NodeType.BENCH, NodeType.BLOCK, NodeType.ACTION, NodeType.PACKAGE],
-  [NodeType.PIPE]: [NodeType.BENCH, NodeType.BLOCK, NodeType.ACTION, NodeType.PACKAGE],
+  [NodeType.FIELD]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.BLOCK, NodeType.ACTION],
+  [NodeType.VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.VIEW, NodeType.PACKAGE, NodeType.BLOCK],
+  [NodeType.ACTION]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.BLOCK, NodeType.ACTION],
+  [NodeType.PIPE]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.ACTION, NodeType.BLOCK],
+  [NodeType.SPACE]: [NodeType.PACKAGE, NodeType.BENCH],
   [NodeType.MESSAGE]: [NodeType.BENCH],
   [NodeType.RECORD]: [NodeType.BENCH],
   [NodeType.SESSION]: [NodeType.BENCH],
   [NodeType.RUN]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.INTERRUPTION]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.LOG]: [NodeType.BENCH],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.RECORD, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.ORGANIZATION, NodeType.LOG, NodeType.EMPTY, NodeType.SCALER, NodeType.STORE, NodeType.BLOCK, NodeType.FIELD, NodeType.FILE, NodeType.VIEW, NodeType.STREAM, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.SECRET, NodeType.SESSION, NodeType.MACHINE, NodeType.RUN, NodeType.MESSAGE, NodeType.BROWSER],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.RECORD, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.ORGANIZATION, NodeType.LOG, NodeType.EMPTY, NodeType.BLOCK, NodeType.FIELD, NodeType.FILE, NodeType.VIEW, NodeType.STREAM, NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.SECRET, NodeType.MACHINE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.MESSAGE],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.RECORD, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.ORGANIZATION, NodeType.LOG, NodeType.EMPTY, NodeType.SPACE, NodeType.STORE, NodeType.SCALER, NodeType.FILE, NodeType.BLOCK, NodeType.FIELD, NodeType.STREAM, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.VIEW, NodeType.SKIP, NodeType.SECRET, NodeType.SESSION, NodeType.PIPE, NodeType.ACTION, NodeType.MACHINE, NodeType.RUN, NodeType.MESSAGE, NodeType.BROWSER],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.RECORD, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.ORGANIZATION, NodeType.LOG, NodeType.EMPTY, NodeType.FILE, NodeType.BLOCK, NodeType.FIELD, NodeType.STREAM, NodeType.VIEW, NodeType.SKIP, NodeType.SECRET, NodeType.ACTION, NodeType.PIPE, NodeType.MACHINE, NodeType.BROWSER, NodeType.SPACE, NodeType.STORE, NodeType.SCALER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.MESSAGE],
 }
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.INTERRUPTION, NodeType.CLIENT, NodeType.RECORD, NodeType.HANDLE, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.LOG, NodeType.EMPTY, NodeType.BLOCK, NodeType.FIELD, NodeType.FILE, NodeType.VIEW, NodeType.STREAM, NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.SECRET, NodeType.MACHINE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.MESSAGE],
+  [NodeType.BENCH]: [NodeType.INTERRUPTION, NodeType.CLIENT, NodeType.RECORD, NodeType.HANDLE, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.LOG, NodeType.EMPTY, NodeType.FILE, NodeType.BLOCK, NodeType.FIELD, NodeType.STREAM, NodeType.VIEW, NodeType.SKIP, NodeType.SECRET, NodeType.ACTION, NodeType.PIPE, NodeType.MACHINE, NodeType.BROWSER, NodeType.SCALER, NodeType.STORE, NodeType.SPACE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.MESSAGE],
   [NodeType.USER]: [NodeType.SKIP, NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY],
   [NodeType.HANDLE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CLIENT]: [NodeType.SKIP, NodeType.EMPTY],
@@ -27221,14 +27221,14 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FILE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.STREAM]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SECRET]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PACKAGE]: [NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.EMPTY, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW],
+  [NodeType.PACKAGE]: [NodeType.VIEW, NodeType.SKIP, NodeType.DEPENDENCY, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD],
   [NodeType.DEPENDENCY]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.SPACE]: [NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY],
-  [NodeType.BLOCK]: [NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.EMPTY, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW],
+  [NodeType.BLOCK]: [NodeType.VIEW, NodeType.SKIP, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE, NodeType.BLOCK, NodeType.FIELD],
   [NodeType.FIELD]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.VIEW]: [NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY],
-  [NodeType.ACTION]: [NodeType.ACTION, NodeType.PIPE, NodeType.SKIP, NodeType.EMPTY, NodeType.FIELD],
+  [NodeType.ACTION]: [NodeType.SKIP, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE, NodeType.FIELD],
   [NodeType.PIPE]: [NodeType.SKIP, NodeType.EMPTY],
+  [NodeType.SPACE]: [NodeType.VIEW, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.MESSAGE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.RECORD]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SESSION]: [NodeType.SKIP, NodeType.EMPTY],
@@ -27258,12 +27258,12 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.SECRET]: SecretData,
   [ObjectType.PACKAGE]: PackageData,
   [ObjectType.DEPENDENCY]: DependencyData,
-  [ObjectType.SPACE]: SpaceData,
   [ObjectType.BLOCK]: BlockData,
   [ObjectType.FIELD]: FieldData,
   [ObjectType.VIEW]: ViewData,
   [ObjectType.ACTION]: ActionData,
   [ObjectType.PIPE]: PipeData,
+  [ObjectType.SPACE]: SpaceData,
   [ObjectType.MESSAGE]: MessageData,
   [ObjectType.RECORD]: RecordData,
   [ObjectType.SESSION]: SessionData,
@@ -27352,12 +27352,12 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.SecretData"]: ObjectType.SECRET,
   ["symbolx.bench.PackageData"]: ObjectType.PACKAGE,
   ["symbolx.bench.DependencyData"]: ObjectType.DEPENDENCY,
-  ["symbolx.bench.SpaceData"]: ObjectType.SPACE,
   ["symbolx.bench.BlockData"]: ObjectType.BLOCK,
   ["symbolx.bench.FieldData"]: ObjectType.FIELD,
   ["symbolx.bench.ViewData"]: ObjectType.VIEW,
   ["symbolx.bench.ActionData"]: ObjectType.ACTION,
   ["symbolx.bench.PipeData"]: ObjectType.PIPE,
+  ["symbolx.bench.SpaceData"]: ObjectType.SPACE,
   ["symbolx.bench.MessageData"]: ObjectType.MESSAGE,
   ["symbolx.bench.RecordData"]: ObjectType.RECORD,
   ["symbolx.bench.SessionData"]: ObjectType.SESSION,
@@ -27620,12 +27620,12 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.SECRET]: SecretData,
   [NodeType.PACKAGE]: PackageData,
   [NodeType.DEPENDENCY]: DependencyData,
-  [NodeType.SPACE]: SpaceData,
   [NodeType.BLOCK]: BlockData,
   [NodeType.FIELD]: FieldData,
   [NodeType.VIEW]: ViewData,
   [NodeType.ACTION]: ActionData,
   [NodeType.PIPE]: PipeData,
+  [NodeType.SPACE]: SpaceData,
   [NodeType.MESSAGE]: MessageData,
   [NodeType.RECORD]: RecordData,
   [NodeType.SESSION]: SessionData,
@@ -27743,12 +27743,12 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.SECRET]: SecretData,
   [ObjectType.PACKAGE]: PackageData,
   [ObjectType.DEPENDENCY]: DependencyData,
-  [ObjectType.SPACE]: SpaceData,
   [ObjectType.BLOCK]: BlockData,
   [ObjectType.FIELD]: FieldData,
   [ObjectType.VIEW]: ViewData,
   [ObjectType.ACTION]: ActionData,
   [ObjectType.PIPE]: PipeData,
+  [ObjectType.SPACE]: SpaceData,
   [ObjectType.MESSAGE]: MessageData,
   [ObjectType.RECORD]: RecordData,
   [ObjectType.SESSION]: SessionData,
@@ -28349,35 +28349,6 @@ export enum DependencyProperty {
   dependsOnPackagesPtr = 41,
 }
 
-export enum SpaceProperty {
-  metatype = 1,
-  id = 2,
-  ck = 3,
-  parentPtr = 4,
-  benchPtr = 5,
-  packagePtr = 6,
-  templatePtr = 7,
-  createdAt = 10,
-  createdByPtr = 11,
-  updatedAt = 12,
-  updatedByPtr = 13,
-  deletedAt = 14,
-  templateAt = 16,
-  mode = 20,
-  computedValues = 28,
-  subnodePacked = 29,
-  type = 30,
-  name = 31,
-  text = 32,
-  orderKey = 33,
-  ownedByPtr = 36,
-  focus = 70,
-  selection = 71,
-  inspectionPtr = 75,
-  basePtr = 76,
-  runPtr = 77,
-}
-
 export enum BlockProperty {
   metatype = 1,
   id = 2,
@@ -28544,6 +28515,35 @@ export enum PipeProperty {
   constraint = 51,
   delay = 52,
   color = 80,
+}
+
+export enum SpaceProperty {
+  metatype = 1,
+  id = 2,
+  ck = 3,
+  parentPtr = 4,
+  benchPtr = 5,
+  packagePtr = 6,
+  templatePtr = 7,
+  createdAt = 10,
+  createdByPtr = 11,
+  updatedAt = 12,
+  updatedByPtr = 13,
+  deletedAt = 14,
+  templateAt = 16,
+  mode = 20,
+  computedValues = 28,
+  subnodePacked = 29,
+  type = 30,
+  name = 31,
+  text = 32,
+  orderKey = 33,
+  ownedByPtr = 36,
+  focus = 70,
+  selection = 71,
+  inspectionPtr = 75,
+  basePtr = 76,
+  runPtr = 77,
 }
 
 export enum MessageProperty {
@@ -29601,12 +29601,12 @@ export enum DomNodeProperty {
   attributes = 35,
 }
 
-export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof HandleProperty | typeof ClientProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof FieldProperty | typeof ViewProperty | typeof ActionProperty | typeof PipeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptionProperty | typeof LogProperty | typeof SkipProperty | typeof EmptyProperty
+export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof HandleProperty | typeof ClientProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof BlockProperty | typeof FieldProperty | typeof ViewProperty | typeof ActionProperty | typeof PipeProperty | typeof SpaceProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptionProperty | typeof LogProperty | typeof SkipProperty | typeof EmptyProperty
 export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ObjectMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof CallProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
-export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof HandleProperty | typeof ClientProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof FieldProperty | typeof ViewProperty | typeof ActionProperty | typeof PipeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptionProperty | typeof LogProperty | typeof SkipProperty | typeof EmptyProperty
+export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof HandleProperty | typeof ClientProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof BlockProperty | typeof FieldProperty | typeof ViewProperty | typeof ActionProperty | typeof PipeProperty | typeof SpaceProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptionProperty | typeof LogProperty | typeof SkipProperty | typeof EmptyProperty
 export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ObjectMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof CallProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof HandleProperty | typeof ClientProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof FieldProperty | typeof ViewProperty | typeof ActionProperty | typeof PipeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptionProperty | typeof LogProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ObjectMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof CallProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof HandleProperty | typeof ClientProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof BlockProperty | typeof FieldProperty | typeof ViewProperty | typeof ActionProperty | typeof PipeProperty | typeof SpaceProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptionProperty | typeof LogProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ObjectMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof CallProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -29624,12 +29624,12 @@ export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePrope
   [ObjectType.SECRET]: SecretProperty,
   [ObjectType.PACKAGE]: PackageProperty,
   [ObjectType.DEPENDENCY]: DependencyProperty,
-  [ObjectType.SPACE]: SpaceProperty,
   [ObjectType.BLOCK]: BlockProperty,
   [ObjectType.FIELD]: FieldProperty,
   [ObjectType.VIEW]: ViewProperty,
   [ObjectType.ACTION]: ActionProperty,
   [ObjectType.PIPE]: PipeProperty,
+  [ObjectType.SPACE]: SpaceProperty,
   [ObjectType.MESSAGE]: MessageProperty,
   [ObjectType.RECORD]: RecordProperty,
   [ObjectType.SESSION]: SessionProperty,
@@ -29721,12 +29721,12 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.SECRET]: SecretProperty,
   [ObjectType.PACKAGE]: PackageProperty,
   [ObjectType.DEPENDENCY]: DependencyProperty,
-  [ObjectType.SPACE]: SpaceProperty,
   [ObjectType.BLOCK]: BlockProperty,
   [ObjectType.FIELD]: FieldProperty,
   [ObjectType.VIEW]: ViewProperty,
   [ObjectType.ACTION]: ActionProperty,
   [ObjectType.PIPE]: PipeProperty,
+  [ObjectType.SPACE]: SpaceProperty,
   [ObjectType.MESSAGE]: MessageProperty,
   [ObjectType.RECORD]: RecordProperty,
   [ObjectType.SESSION]: SessionProperty,
@@ -30353,34 +30353,6 @@ export const DependencyDataInfo: Record<DependencyProperty, PropertyInfo> = {
   [DependencyProperty.dependsOnBenchPtr]: { id: 40, name: 'depends_on_bench_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [DependencyProperty.dependsOnPackagesPtr]: { id: 41, name: 'depends_on_packages_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
-export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
-  [SpaceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SPACE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [SpaceProperty.id]: { id: 2, name: 'id', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.ck]: { id: 3, name: 'ck', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SPACE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.SPACE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.SPACE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.SPACE], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.SPACE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.BLOCK, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.SPACE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.BLOCK, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.mode]: { id: 20, name: 'mode', component: ObjectType.SPACE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.computedValues]: { id: 28, name: 'computed_values', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COMPUTED_VALUE },
-  [SpaceProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [SpaceProperty.type]: { id: 30, name: 'type', component: ObjectType.SPACE, enumType: EnumType.SPACE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.name]: { id: 31, name: 'name', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.text]: { id: 32, name: 'text', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [SpaceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.ownedByPtr]: { id: 36, name: 'owned_by_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.focus]: { id: 70, name: 'focus', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
-  [SpaceProperty.selection]: { id: 71, name: 'selection', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
-  [SpaceProperty.inspectionPtr]: { id: 75, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.ACTION, NodeType.PIPE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.basePtr]: { id: 76, name: 'base_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.ACTION, NodeType.PIPE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.runPtr]: { id: 77, name: 'run_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-}
 export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BLOCK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [BlockProperty.id]: { id: 2, name: 'id', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -30543,6 +30515,34 @@ export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
   [PipeProperty.constraint]: { id: 51, name: 'constraint', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
   [PipeProperty.delay]: { id: 52, name: 'delay', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.color]: { id: 80, name: 'color', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
+}
+export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
+  [SpaceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SPACE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [SpaceProperty.id]: { id: 2, name: 'id', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.ck]: { id: 3, name: 'ck', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SPACE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.SPACE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.SPACE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.SPACE], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.SPACE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.BLOCK, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.SPACE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.BLOCK, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.mode]: { id: 20, name: 'mode', component: ObjectType.SPACE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.computedValues]: { id: 28, name: 'computed_values', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COMPUTED_VALUE },
+  [SpaceProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [SpaceProperty.type]: { id: 30, name: 'type', component: ObjectType.SPACE, enumType: EnumType.SPACE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.name]: { id: 31, name: 'name', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.text]: { id: 32, name: 'text', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [SpaceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.ownedByPtr]: { id: 36, name: 'owned_by_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.focus]: { id: 70, name: 'focus', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
+  [SpaceProperty.selection]: { id: 71, name: 'selection', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
+  [SpaceProperty.inspectionPtr]: { id: 75, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.ACTION, NodeType.PIPE, NodeType.SPACE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.basePtr]: { id: 76, name: 'base_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.ACTION, NodeType.PIPE, NodeType.SPACE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.runPtr]: { id: 77, name: 'run_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MESSAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30721,7 +30721,7 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
 export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
   [SkipProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SKIP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SkipProperty.id]: { id: 2, name: 'id', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SkipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SKIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.ACTION, NodeType.PIPE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
+  [SkipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SKIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.ACTION, NodeType.PIPE, NodeType.SPACE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SkipProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.SKIP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.BLOCK, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -30734,7 +30734,7 @@ export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
 export const EmptyDataInfo: Record<EmptyProperty, PropertyInfo> = {
   [EmptyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EMPTY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [EmptyProperty.id]: { id: 2, name: 'id', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [EmptyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.EMPTY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.ACTION, NodeType.PIPE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
+  [EmptyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.EMPTY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.HANDLE, NodeType.CLIENT, NodeType.ORGANIZATION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.ACTION, NodeType.PIPE, NodeType.SPACE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
   [EmptyProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [EmptyProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.EMPTY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.BLOCK, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [EmptyProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -31498,12 +31498,12 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.SECRET]: SecretDataInfo,
   [ObjectType.PACKAGE]: PackageDataInfo,
   [ObjectType.DEPENDENCY]: DependencyDataInfo,
-  [ObjectType.SPACE]: SpaceDataInfo,
   [ObjectType.BLOCK]: BlockDataInfo,
   [ObjectType.FIELD]: FieldDataInfo,
   [ObjectType.VIEW]: ViewDataInfo,
   [ObjectType.ACTION]: ActionDataInfo,
   [ObjectType.PIPE]: PipeDataInfo,
+  [ObjectType.SPACE]: SpaceDataInfo,
   [ObjectType.MESSAGE]: MessageDataInfo,
   [ObjectType.RECORD]: RecordDataInfo,
   [ObjectType.SESSION]: SessionDataInfo,
