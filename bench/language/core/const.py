@@ -297,14 +297,14 @@ class NodeType(IdEnum):
     # source (named, versioned, templatable)
     PACKAGE = 5000
     DEPENDENCY = 5002
-    SPACE = 5003
-    BLOCK = 5010
-    FIELD = 5012  # (based)
-    VIEW = 5020
-    ACTION = 5030
-    PIPE = 5031
+    BLOCK = 5020
+    FIELD = 5022  # (based)
+    VIEW = 5030
+    ACTION = 5040
+    PIPE = 5041
     # BADGE? POLICY?
     # TAG?
+    SPACE = 5200
 
     # state
     MESSAGE = 5500  # (based, timed)

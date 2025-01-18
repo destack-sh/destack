@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { STRING_TYPE, typeIsNumeric } from "@/language/field";
 import { checkValueScalar, checkValueScalarConstraint } from "@/language/value";
-import { Alignment, ColorShade, NodeType, ViewType, type ViewData } from "@/proto/wire";
+import { Alignment, ColorShade, NodeType, PrimitiveType, ViewType, type ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
@@ -26,9 +26,17 @@ const id = toRef(props, "id");
 const valueType = computed(() => props.valueType ?? STRING_TYPE);
 const modelValue = defineModel<string | number | bigint | Array<string | number | bigint>>();
 const hasValue = computed(() => {
-  if (modelValue.value == null) return false;
-  if (props.valueType?.isList) return (modelValue.value as any[]).length > 0;
-  else return true;
+  if (modelValue.value == null) {
+    return false;
+  } else if (props.valueType?.isList) {
+    return (modelValue.value as any[]).length > 0;
+  } else {
+    if (typeof modelValue.value == "string") {
+      return modelValue.value.length > 0;
+    } else {
+      return true;
+    }
+  }
 });
 const values = computed(() => {
   if (modelValue.value == null) return [];
