@@ -1540,13 +1540,13 @@ export interface CallData {
      */
     actionType?: ActionType;
     /**
-     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 35;
+     * @generated from protobuf field: optional google.protobuf.Value variables_packed = 35;
+     */
+    variablesPacked?: JsonValue;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 36;
      */
     inputsPacked?: JsonValue;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ObjectMappingData mapping = 50;
-     */
-    mapping?: ObjectMappingData;
 }
 /**
  * @generated from protobuf message symbolx.bench.ColorData
@@ -6050,6 +6050,10 @@ export enum EnumType {
      */
     REGION_AREA = 20222,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_REGION_CONTINENT = 20223;
+     */
+    REGION_CONTINENT = 20223,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_ACCESS_MODE = 20300;
      */
     ACCESS_MODE = 20300,
@@ -7590,6 +7594,10 @@ export enum BenchType {
      */
     REGION_AREA = 20222,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_REGION_CONTINENT = 20223;
+     */
+    REGION_CONTINENT = 20223,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MODE = 20300;
      */
     ACCESS_MODE = 20300,
@@ -8208,7 +8216,7 @@ export enum Cloud {
     PRIVATE = 900
 }
 /**
- * Actual regions within a Zone in an Area.
+ * Regions in a RegionArea, comprising RegionZones.
  *
  * @generated from protobuf enum symbolx.bench.Region
  */
@@ -8218,52 +8226,52 @@ export enum Region {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: REGION_ZURICH = 1001;
+     * @generated from protobuf enum value: REGION_ZURICH = 1000;
      */
-    ZURICH = 1001,
+    ZURICH = 1000,
     /**
-     * @generated from protobuf enum value: REGION_FRANKFURT = 1002;
+     * @generated from protobuf enum value: REGION_FRANKFURT = 1010;
      */
-    FRANKFURT = 1002,
+    FRANKFURT = 1010,
     /**
-     * @generated from protobuf enum value: REGION_VIRGINIA = 2001;
+     * @generated from protobuf enum value: REGION_VIRGINIA = 2000;
      */
-    VIRGINIA = 2001,
+    VIRGINIA = 2000,
     /**
-     * @generated from protobuf enum value: REGION_OHIO = 2002;
+     * @generated from protobuf enum value: REGION_OHIO = 2010;
      */
-    OHIO = 2002,
+    OHIO = 2010,
     /**
-     * @generated from protobuf enum value: REGION_OREGON = 2101;
+     * @generated from protobuf enum value: REGION_OREGON = 2200;
      */
-    OREGON = 2101,
+    OREGON = 2200,
     /**
-     * @generated from protobuf enum value: REGION_SAO_PAULO = 3001;
+     * @generated from protobuf enum value: REGION_SAO_PAULO = 3000;
      */
-    SAO_PAULO = 3001,
+    SAO_PAULO = 3000,
     /**
-     * @generated from protobuf enum value: REGION_CAPE_TOWN = 5001;
+     * @generated from protobuf enum value: REGION_CAPE_TOWN = 5000;
      */
-    CAPE_TOWN = 5001,
+    CAPE_TOWN = 5000,
     /**
-     * @generated from protobuf enum value: REGION_MUMBAI = 6001;
+     * @generated from protobuf enum value: REGION_MUMBAI = 6000;
      */
-    MUMBAI = 6001,
+    MUMBAI = 6000,
     /**
-     * @generated from protobuf enum value: REGION_SINGAPORE = 6101;
+     * @generated from protobuf enum value: REGION_SINGAPORE = 6200;
      */
-    SINGAPORE = 6101,
+    SINGAPORE = 6200,
     /**
-     * @generated from protobuf enum value: REGION_TOKYO = 6201;
+     * @generated from protobuf enum value: REGION_TOKYO = 6400;
      */
-    TOKYO = 6201,
+    TOKYO = 6400,
     /**
-     * @generated from protobuf enum value: REGION_SYDNEY = 7001;
+     * @generated from protobuf enum value: REGION_SYDNEY = 7000;
      */
-    SYDNEY = 7001
+    SYDNEY = 7000
 }
 /**
- * A larger zone of Regions within an Area.
+ * An available region within a specific Region.
  *
  * @generated from protobuf enum symbolx.bench.RegionZone
  */
@@ -8271,54 +8279,10 @@ export enum RegionZone {
     /**
      * @generated from protobuf enum value: REGION_ZONE_UNSPECIFIED = 0;
      */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: REGION_ZONE_EUROPE_CENTRAL = 1000;
-     */
-    EUROPE_CENTRAL = 1000,
-    /**
-     * @generated from protobuf enum value: REGION_ZONE_NORTH_AMERICA_EAST = 2000;
-     */
-    NORTH_AMERICA_EAST = 2000,
-    /**
-     * @generated from protobuf enum value: REGION_ZONE_NORTH_AMERICA_WEST = 2100;
-     */
-    NORTH_AMERICA_WEST = 2100,
-    /**
-     * @generated from protobuf enum value: REGION_ZONE_SOUTH_AMERICA_EAST = 3000;
-     */
-    SOUTH_AMERICA_EAST = 3000,
-    /**
-     * @generated from protobuf enum value: REGION_ZONE_MIDDLE_EAST_CENTRAL = 4000;
-     */
-    MIDDLE_EAST_CENTRAL = 4000,
-    /**
-     * @generated from protobuf enum value: REGION_ZONE_MIDDLE_EAST_WEST = 4100;
-     */
-    MIDDLE_EAST_WEST = 4100,
-    /**
-     * @generated from protobuf enum value: REGION_ZONE_AFRICA_SOUTH = 5000;
-     */
-    AFRICA_SOUTH = 5000,
-    /**
-     * @generated from protobuf enum value: REGION_ZONE_ASIA_WEST = 6000;
-     */
-    ASIA_WEST = 6000,
-    /**
-     * @generated from protobuf enum value: REGION_ZONE_ASIA_SOUTH = 6100;
-     */
-    ASIA_SOUTH = 6100,
-    /**
-     * @generated from protobuf enum value: REGION_ZONE_ASIA_EAST = 6200;
-     */
-    ASIA_EAST = 6200,
-    /**
-     * @generated from protobuf enum value: REGION_ZONE_AUSTRALIA_SOUTH = 7000;
-     */
-    AUSTRALIA_SOUTH = 7000
+    UNSPECIFIED = 0
 }
 /**
- * Rough 'contintents' of Regions.
+ * A larger RegionArea of Regions within a RegionContinent.
  *
  * @generated from protobuf enum symbolx.bench.RegionArea
  */
@@ -8328,35 +8292,90 @@ export enum RegionArea {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: REGION_AREA_EUROPE = 1000;
+     * @generated from protobuf enum value: REGION_AREA_EUROPE_CENTRAL = 1000;
+     */
+    EUROPE_CENTRAL = 1000,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_NORTH_AMERICA_EAST = 2000;
+     */
+    NORTH_AMERICA_EAST = 2000,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_NORTH_AMERICA_WEST = 2200;
+     */
+    NORTH_AMERICA_WEST = 2200,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_SOUTH_AMERICA_EAST = 3000;
+     */
+    SOUTH_AMERICA_EAST = 3000,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_MIDDLE_EAST_CENTRAL = 4000;
+     */
+    MIDDLE_EAST_CENTRAL = 4000,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_MIDDLE_EAST_WEST = 4200;
+     */
+    MIDDLE_EAST_WEST = 4200,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_AFRICA_SOUTH = 5000;
+     */
+    AFRICA_SOUTH = 5000,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_ASIA_WEST = 6000;
+     */
+    ASIA_WEST = 6000,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_ASIA_SOUTH = 6200;
+     */
+    ASIA_SOUTH = 6200,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_ASIA_EAST = 6400;
+     */
+    ASIA_EAST = 6400,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_AUSTRALIA_SOUTH = 7000;
+     */
+    AUSTRALIA_SOUTH = 7000
+}
+/**
+ * 'Continents' of Regions.
+ *
+ * @generated from protobuf enum symbolx.bench.RegionContinent
+ */
+export enum RegionContinent {
+    /**
+     * @generated from protobuf enum value: REGION_CONTINENT_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: REGION_CONTINENT_EUROPE = 1000;
      */
     EUROPE = 1000,
     /**
-     * @generated from protobuf enum value: REGION_AREA_NORTH_AMERICA = 2000;
+     * @generated from protobuf enum value: REGION_CONTINENT_NORTH_AMERICA = 2000;
      */
     NORTH_AMERICA = 2000,
     /**
-     * @generated from protobuf enum value: REGION_AREA_SOUTH_AMERICA = 3000;
+     * @generated from protobuf enum value: REGION_CONTINENT_SOUTH_AMERICA = 3000;
      */
     SOUTH_AMERICA = 3000,
     /**
-     * @generated from protobuf enum value: REGION_AREA_MIDDLE_EAST = 4000;
+     * @generated from protobuf enum value: REGION_CONTINENT_MIDDLE_EAST = 4000;
      */
     MIDDLE_EAST = 4000,
     /**
-     * @generated from protobuf enum value: REGION_AREA_AFRICA = 5000;
+     * @generated from protobuf enum value: REGION_CONTINENT_AFRICA = 5000;
      */
     AFRICA = 5000,
     /**
-     * @generated from protobuf enum value: REGION_AREA_ASIA = 6000;
+     * @generated from protobuf enum value: REGION_CONTINENT_ASIA = 6000;
      */
     ASIA = 6000,
     /**
-     * @generated from protobuf enum value: REGION_AREA_AUSTRALIA = 7000;
+     * @generated from protobuf enum value: REGION_CONTINENT_AUSTRALIA = 7000;
      */
     AUSTRALIA = 7000,
     /**
-     * @generated from protobuf enum value: REGION_AREA_PRIVATE = 9000;
+     * @generated from protobuf enum value: REGION_CONTINENT_PRIVATE = 9000;
      */
     PRIVATE = 9000
 }
@@ -16452,8 +16471,8 @@ class CallData$Type extends MessageType$<CallData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 31, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "action_type", kind: "enum", opt: true, T: () => ["symbolx.bench.ActionType", ActionType, "ACTION_TYPE_"] },
-            { no: 35, name: "inputs_packed", kind: "message", T: () => Value },
-            { no: 50, name: "mapping", kind: "message", T: () => ObjectMappingData }
+            { no: 35, name: "variables_packed", kind: "message", T: () => Value },
+            { no: 36, name: "inputs_packed", kind: "message", T: () => Value }
         ]);
     }
     create(value?: PartialMessage<CallData>): CallData {
@@ -16477,11 +16496,11 @@ class CallData$Type extends MessageType$<CallData> {
                 case /* optional symbolx.bench.ActionType action_type */ 32:
                     message.actionType = reader.int32();
                     break;
-                case /* optional google.protobuf.Value inputs_packed */ 35:
-                    message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                case /* optional google.protobuf.Value variables_packed */ 35:
+                    message.variablesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional symbolx.bench.ObjectMappingData mapping */ 50:
-                    message.mapping = ObjectMappingData.internalBinaryRead(reader, reader.uint32(), options, message.mapping);
+                case /* optional google.protobuf.Value inputs_packed */ 36:
+                    message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -16504,12 +16523,12 @@ class CallData$Type extends MessageType$<CallData> {
         /* optional symbolx.bench.ActionType action_type = 32; */
         if (message.actionType !== undefined)
             writer.tag(32, WireType.Varint).int32(message.actionType);
-        /* optional google.protobuf.Value inputs_packed = 35; */
+        /* optional google.protobuf.Value variables_packed = 35; */
+        if (message.variablesPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value inputs_packed = 36; */
         if (message.inputsPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ObjectMappingData mapping = 50; */
-        if (message.mapping)
-            ObjectMappingData.internalBinaryWrite(message.mapping, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27427,6 +27446,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.REGION]: Region,
   [EnumType.REGION_ZONE]: RegionZone,
   [EnumType.REGION_AREA]: RegionArea,
+  [EnumType.REGION_CONTINENT]: RegionContinent,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
@@ -27691,12 +27711,19 @@ export interface PipeSubtypeMapping extends Record<PipeType, PipeSubtype> {
 }
 
 export interface NodeSubtypeMapping extends Record<NodeType, object> {
+  [NodeType.CLIENT]: ClientSubtypeMapping,
   [NodeType.SCALER]: ScalerSubtypeMapping,
+  [NodeType.MACHINE]: MachineSubtypeMapping,
+  [NodeType.BROWSER]: BrowserSubtypeMapping,
+  [NodeType.FILE]: FileSubtypeMapping,
+  [NodeType.STREAM]: StreamSubtypeMapping,
   [NodeType.BLOCK]: BlockSubtypeMapping,
   [NodeType.FIELD]: FieldSubtypeMapping,
   [NodeType.VIEW]: ViewSubtypeMapping,
   [NodeType.ACTION]: ActionSubtypeMapping,
   [NodeType.PIPE]: PipeSubtypeMapping,
+  [NodeType.MESSAGE]: MessageSubtypeMapping,
+  [NodeType.INTERRUPTION]: InterruptionSubtypeMapping,
 }
 
 export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNodeData> {
@@ -27810,6 +27837,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.REGION]: Region,
   [EnumType.REGION_ZONE]: RegionZone,
   [EnumType.REGION_AREA]: RegionArea,
+  [EnumType.REGION_CONTINENT]: RegionContinent,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
@@ -29466,8 +29494,8 @@ export enum CallProperty {
   metatype = 1,
   nodePtr = 31,
   actionType = 32,
-  inputsPacked = 35,
-  mapping = 50,
+  variablesPacked = 35,
+  inputsPacked = 36,
 }
 
 export enum BreakpointProperty {
@@ -29770,9 +29798,24 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.DOM_NODE]: DomNodeProperty,
 }
 
+export const CLIENT_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ClientType, any>> = {
+}
+
 export const SCALER_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ScalerType, any>> = {
   [ScalerType.MACHINE]: MachineScalerProperty,
   [ScalerType.BROWSER]: BrowserScalerProperty,
+}
+
+export const MACHINE_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<MachineType, any>> = {
+}
+
+export const BROWSER_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<BrowserType, any>> = {
+}
+
+export const FILE_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<FileType, any>> = {
+}
+
+export const STREAM_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<StreamType, any>> = {
 }
 
 export const BLOCK_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<BlockType, any>> = {
@@ -29838,13 +29881,26 @@ export const PIPE_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<PipeType, any>> = {
   [PipeType.SELECT]: SelectPipeProperty,
 }
 
+export const MESSAGE_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<MessageType, any>> = {
+}
+
+export const INTERRUPTION_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<InterruptionType, any>> = {
+}
+
 export const PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<NodeType, Record<any, any>>> = {
+  [NodeType.CLIENT]: CLIENT_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.SCALER]: SCALER_PROPERTY_ENUM_BY_SUBTYPE,
+  [NodeType.MACHINE]: MACHINE_PROPERTY_ENUM_BY_SUBTYPE,
+  [NodeType.BROWSER]: BROWSER_PROPERTY_ENUM_BY_SUBTYPE,
+  [NodeType.FILE]: FILE_PROPERTY_ENUM_BY_SUBTYPE,
+  [NodeType.STREAM]: STREAM_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.BLOCK]: BLOCK_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.FIELD]: FIELD_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.VIEW]: VIEW_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.ACTION]: ACTION_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.PIPE]: PIPE_PROPERTY_ENUM_BY_SUBTYPE,
+  [NodeType.MESSAGE]: MESSAGE_PROPERTY_ENUM_BY_SUBTYPE,
+  [NodeType.INTERRUPTION]: INTERRUPTION_PROPERTY_ENUM_BY_SUBTYPE,
 }
 
 
@@ -29911,7 +29967,7 @@ export const BenchDataInfo: Record<BenchProperty, PropertyInfo> = {
   [BenchProperty.text]: { id: 34, name: 'text', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BenchProperty.icon]: { id: 35, name: 'icon', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [BenchProperty.ownerPtr]: { id: 36, name: 'owner_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION], referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.region]: { id: 37, name: 'region', component: ObjectType.BENCH, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.region]: { id: 37, name: 'region', component: ObjectType.BENCH, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BenchProperty.encryptionKey]: { id: 38, name: 'encryption_key', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
   [BenchProperty.mainStorePtr]: { id: 40, name: 'main_store_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
   [BenchProperty.mainPackagePtr]: { id: 50, name: 'main_package_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -30042,7 +30098,7 @@ export const ScalerDataInfo: Record<ScalerProperty, PropertyInfo> = {
   [ScalerProperty.name]: { id: 32, name: 'name', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.status]: { id: 33, name: 'status', component: ObjectType.SCALER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.text]: { id: 34, name: 'text', component: ObjectType.SCALER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ScalerProperty.region]: { id: 35, name: 'region', component: ObjectType.SCALER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.region]: { id: 35, name: 'region', component: ObjectType.SCALER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.activatedAt]: { id: 40, name: 'activated_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.deactivatedAt]: { id: 41, name: 'deactivated_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.resetAt]: { id: 42, name: 'reset_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -30073,7 +30129,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.name]: { id: 32, name: 'name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 33, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.text]: { id: 34, name: 'text', component: ObjectType.STORE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activatedAt]: { id: 40, name: 'activated_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.deactivatedAt]: { id: 41, name: 'deactivated_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.resetAt]: { id: 42, name: 'reset_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -30102,7 +30158,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.name]: { id: 32, name: 'name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 33, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.text]: { id: 34, name: 'text', component: ObjectType.MACHINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.MACHINE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
@@ -30137,7 +30193,7 @@ export const BrowserDataInfo: Record<BrowserProperty, PropertyInfo> = {
   [BrowserProperty.name]: { id: 32, name: 'name', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.status]: { id: 33, name: 'status', component: ObjectType.BROWSER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.text]: { id: 34, name: 'text', component: ObjectType.BROWSER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [BrowserProperty.region]: { id: 35, name: 'region', component: ObjectType.BROWSER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [BrowserProperty.region]: { id: 35, name: 'region', component: ObjectType.BROWSER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.BROWSER, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BrowserProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
@@ -30176,7 +30232,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.name]: { id: 32, name: 'name', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.status]: { id: 33, name: 'status', component: ObjectType.FILE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.text]: { id: 34, name: 'text', component: ObjectType.FILE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [FileProperty.region]: { id: 35, name: 'region', component: ObjectType.FILE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.region]: { id: 35, name: 'region', component: ObjectType.FILE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.FILE, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
@@ -30219,7 +30275,7 @@ export const StreamDataInfo: Record<StreamProperty, PropertyInfo> = {
   [StreamProperty.name]: { id: 32, name: 'name', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.status]: { id: 33, name: 'status', component: ObjectType.STREAM, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.text]: { id: 34, name: 'text', component: ObjectType.STREAM, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [StreamProperty.region]: { id: 35, name: 'region', component: ObjectType.STREAM, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.region]: { id: 35, name: 'region', component: ObjectType.STREAM, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.STREAM, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [StreamProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
@@ -30245,7 +30301,7 @@ export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.name]: { id: 32, name: 'name', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.status]: { id: 33, name: 'status', component: ObjectType.SECRET, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.text]: { id: 34, name: 'text', component: ObjectType.SECRET, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [SecretProperty.region]: { id: 35, name: 'region', component: ObjectType.SECRET, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [SecretProperty.region]: { id: 35, name: 'region', component: ObjectType.SECRET, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.SECRET, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.SECRET, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SecretProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.SECRET, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
@@ -31331,8 +31387,8 @@ export const CallDataInfo: Record<CallProperty, PropertyInfo> = {
   [CallProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CALL, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [CallProperty.nodePtr]: { id: 31, name: 'node_ptr', component: ObjectType.CALL, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [22] }, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [CallProperty.actionType]: { id: 32, name: 'action_type', component: ObjectType.CALL, enumType: EnumType.ACTION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [CallProperty.inputsPacked]: { id: 35, name: 'inputs_packed', component: ObjectType.CALL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [CallProperty.mapping]: { id: 50, name: 'mapping', component: ObjectType.CALL, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OBJECT_MAPPING },
+  [CallProperty.variablesPacked]: { id: 35, name: 'variables_packed', component: ObjectType.CALL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [CallProperty.inputsPacked]: { id: 36, name: 'inputs_packed', component: ObjectType.CALL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const BreakpointDataInfo: Record<BreakpointProperty, PropertyInfo> = {
   [BreakpointProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BREAKPOINT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -31519,9 +31575,19 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.DOM_NODE]: DomNodeDataInfo,
 }
 
+export const ClientSubtypePropertyInfo: Partial<Record<ClientType, Record<any, PropertyInfo>>> = {
+}
 export const ScalerSubtypePropertyInfo: Partial<Record<ScalerType, Record<any, PropertyInfo>>> = {
   [ScalerType.MACHINE]: MachineScalerDataInfo,
   [ScalerType.BROWSER]: BrowserScalerDataInfo,
+}
+export const MachineSubtypePropertyInfo: Partial<Record<MachineType, Record<any, PropertyInfo>>> = {
+}
+export const BrowserSubtypePropertyInfo: Partial<Record<BrowserType, Record<any, PropertyInfo>>> = {
+}
+export const FileSubtypePropertyInfo: Partial<Record<FileType, Record<any, PropertyInfo>>> = {
+}
+export const StreamSubtypePropertyInfo: Partial<Record<StreamType, Record<any, PropertyInfo>>> = {
 }
 export const BlockSubtypePropertyInfo: Partial<Record<BlockType, Record<any, PropertyInfo>>> = {
   [BlockType.VARIABLE]: VariableBlockDataInfo,
@@ -31581,23 +31647,41 @@ export const ActionSubtypePropertyInfo: Partial<Record<ActionType, Record<any, P
 export const PipeSubtypePropertyInfo: Partial<Record<PipeType, Record<any, PropertyInfo>>> = {
   [PipeType.SELECT]: SelectPipeDataInfo,
 }
+export const MessageSubtypePropertyInfo: Partial<Record<MessageType, Record<any, PropertyInfo>>> = {
+}
+export const InterruptionSubtypePropertyInfo: Partial<Record<InterruptionType, Record<any, PropertyInfo>>> = {
+}
 export const PROPERTY_INFOS_BY_SUBTYPE: Partial<Record<NodeType, Record<any, Record<any, PropertyInfo>>>> = {
+  [NodeType.CLIENT]: ClientSubtypePropertyInfo,
   [NodeType.SCALER]: ScalerSubtypePropertyInfo,
+  [NodeType.MACHINE]: MachineSubtypePropertyInfo,
+  [NodeType.BROWSER]: BrowserSubtypePropertyInfo,
+  [NodeType.FILE]: FileSubtypePropertyInfo,
+  [NodeType.STREAM]: StreamSubtypePropertyInfo,
   [NodeType.BLOCK]: BlockSubtypePropertyInfo,
   [NodeType.FIELD]: FieldSubtypePropertyInfo,
   [NodeType.VIEW]: ViewSubtypePropertyInfo,
   [NodeType.ACTION]: ActionSubtypePropertyInfo,
   [NodeType.PIPE]: PipeSubtypePropertyInfo,
+  [NodeType.MESSAGE]: MessageSubtypePropertyInfo,
+  [NodeType.INTERRUPTION]: InterruptionSubtypePropertyInfo,
 }
 
 
 export const NODE_SUBTYPE_PROPERTY_ID: Partial<Record<NodeType, number>> = {
+  [NodeType.CLIENT]: 30,
   [NodeType.SCALER]: 30,
+  [NodeType.MACHINE]: 30,
+  [NodeType.BROWSER]: 30,
+  [NodeType.FILE]: 30,
+  [NodeType.STREAM]: 30,
   [NodeType.BLOCK]: 30,
   [NodeType.FIELD]: 30,
   [NodeType.VIEW]: 30,
   [NodeType.ACTION]: 30,
   [NodeType.PIPE]: 30,
+  [NodeType.MESSAGE]: 30,
+  [NodeType.INTERRUPTION]: 30,
 }
 
 // Enum options

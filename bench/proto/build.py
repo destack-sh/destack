@@ -367,7 +367,7 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
     # node subtype mappings (per base node)
     subnode_mappings_parts: list[str] = []
     for node_cls in NODE_CLASSES:
-        if not node_cls.__has_subtypes__:
+        if not node_cls.__has_subtypes__ or not node_cls.__subclass_by_subtype__:
             continue
         subtype_prop = node_cls.__subtype_base_property__
         assert subtype_prop is not None

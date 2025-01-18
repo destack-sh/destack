@@ -26,7 +26,7 @@ import {
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
   Region,
-  RegionArea,
+  RegionContinent,
   ResourceStatus,
   RunStatus,
   NodeMode,
@@ -630,14 +630,14 @@ export const ICON_BY_NODE_MODE: Partial<Record<NodeMode, IconData>> = _makeIcons
   [NodeMode.ARCHIVE]: "fas fa-box-archive",
 });
 
-export const ICON_BY_REGION_AREA: Partial<Record<RegionArea, IconData>> = _makeIcons<RegionArea>({
-  [RegionArea.EUROPE]: "🇪🇺",
-  [RegionArea.NORTH_AMERICA]: "🇺🇸",
-  [RegionArea.SOUTH_AMERICA]: "fas fas fa-globe-americas",
-  [RegionArea.MIDDLE_EAST]: "fas fas fa-globe-asia",
-  [RegionArea.AFRICA]: "fas fas fa-globe-africa",
-  [RegionArea.ASIA]: "fas fas fa-globe-asia",
-  [RegionArea.AUSTRALIA]: "🇦🇺",
+export const ICON_BY_REGION_CONTINENT: Partial<Record<RegionContinent, IconData>> = _makeIcons<RegionContinent>({
+  [RegionContinent.EUROPE]: "🇪🇺",
+  [RegionContinent.NORTH_AMERICA]: "🇺🇸",
+  [RegionContinent.SOUTH_AMERICA]: "fas fas fa-globe-americas",
+  [RegionContinent.MIDDLE_EAST]: "fas fas fa-globe-asia",
+  [RegionContinent.AFRICA]: "fas fas fa-globe-africa",
+  [RegionContinent.ASIA]: "fas fas fa-globe-asia",
+  [RegionContinent.AUSTRALIA]: "🇦🇺",
 });
 
 export const ICON_BY_REGION: Partial<Record<Region, IconData>> = _makeIcons<Region>({
@@ -689,7 +689,7 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.LOG_LEVEL]: ICON_BY_LOG_LEVEL,
   [EnumType.EDIT_TYPE]: ICON_BY_EDIT_TYPE,
   [EnumType.NODE_MODE]: ICON_BY_NODE_MODE,
-  [EnumType.REGION_AREA]: ICON_BY_REGION_AREA,
+  [EnumType.REGION_CONTINENT]: ICON_BY_REGION_CONTINENT,
   [EnumType.REGION]: ICON_BY_REGION,
   [EnumType.RESOURCE_STATUS]: ICON_BY_RESOURCE_STATUS,
   [EnumType.CACHE_MODE]: ICON_BY_CACHE_MODE,

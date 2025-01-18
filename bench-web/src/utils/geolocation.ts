@@ -1,4 +1,4 @@
-import { Region, RegionArea, type RegionZone } from "@/proto/wire";
+import { Region, RegionContinent, type RegionZone } from "@/proto/wire";
 import { IP_API_KEY } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { createSharedComposable } from "@vueuse/core";
@@ -41,7 +41,7 @@ const GEOLOCATION_FIELDS = [
 ];
 
 export interface Geolocation {
-  area: RegionArea | undefined;
+  area: RegionContinent | undefined;
   zone: RegionZone | undefined;
   region: Region | undefined;
   detail: GeolocationRaw;
@@ -72,7 +72,7 @@ async function getGeolocation(): Promise<Geolocation> {
 
 function parseGeolocation(data: GeolocationRaw): Geolocation {
   // NOTE :Incomplete: parse zone/region in geolocation
-  const area = REGION_AREA_BY_CONTINENT_CODE[data.continentCode];
+  const area = REGION_CONTINENT_BY_CONTINENT_CODE[data.continentCode];
   const gelocation: Geolocation = {
     area,
     zone: undefined,
@@ -82,23 +82,23 @@ function parseGeolocation(data: GeolocationRaw): Geolocation {
   return gelocation;
 }
 
-const REGION_AREA_BY_CONTINENT_CODE: Record<string, RegionArea> = {
-  EU: RegionArea.EUROPE,
-  NA: RegionArea.NORTH_AMERICA,
-  SA: RegionArea.SOUTH_AMERICA,
-  AS: RegionArea.ASIA,
-  AF: RegionArea.AFRICA,
-  OC: RegionArea.AUSTRALIA,
-  AU: RegionArea.AUSTRALIA,
+const REGION_CONTINENT_BY_CONTINENT_CODE: Record<string, RegionContinent> = {
+  EU: RegionContinent.EUROPE,
+  NA: RegionContinent.NORTH_AMERICA,
+  SA: RegionContinent.SOUTH_AMERICA,
+  AS: RegionContinent.ASIA,
+  AF: RegionContinent.AFRICA,
+  OC: RegionContinent.AUSTRALIA,
+  AU: RegionContinent.AUSTRALIA,
 };
 
-export const DEFAULT_REGION_BY_AREA: Partial<Record<RegionArea, Region>> = {
-  [RegionArea.EUROPE]: Region.FRANKFURT,
-  [RegionArea.NORTH_AMERICA]: Region.VIRGINIA,
-  [RegionArea.SOUTH_AMERICA]: Region.SAO_PAULO,
-  [RegionArea.AFRICA]: Region.CAPE_TOWN,
-  [RegionArea.ASIA]: Region.MUMBAI,
-  [RegionArea.AUSTRALIA]: Region.SYDNEY,
+export const DEFAULT_REGION_BY_AREA: Partial<Record<RegionContinent, Region>> = {
+  [RegionContinent.EUROPE]: Region.FRANKFURT,
+  [RegionContinent.NORTH_AMERICA]: Region.VIRGINIA,
+  [RegionContinent.SOUTH_AMERICA]: Region.SAO_PAULO,
+  [RegionContinent.AFRICA]: Region.CAPE_TOWN,
+  [RegionContinent.ASIA]: Region.MUMBAI,
+  [RegionContinent.AUSTRALIA]: Region.SYDNEY,
 };
 
 const _geolocation: Ref<Geolocation | null> = shallowRef(null);

@@ -120,6 +120,10 @@ return {
     action_parts: list[PromptPart] = [
         PromptNode(title="Action", weight=10, node=action),
     ]
+    if variables is not None:
+        action_parts.append(PromptCustomObject(title="Variables", weight=10, object=variables))
+    else:
+        action_parts.append(PromptText(title="Variables", text="No variables"))
     if inputs is not None:
         action_parts.append(PromptCustomObject(title="Inputs", weight=10, object=inputs))
     else:
