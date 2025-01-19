@@ -1,5 +1,5 @@
 import asyncio
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar, cast, final, override
 
 import structlog
@@ -30,7 +30,6 @@ from bench.language import (
     HasContext,
     HasNodeBase,
     InterruptionType,
-    LogLevel,
     LookAction,
     ModelDeveloper,
     ModelType,
@@ -39,7 +38,6 @@ from bench.language import (
     Run,
     RunnableNode,
     RunOptions,
-    RunSpanType,
     RunType,
     ScrollAction,
     SearchAction,
@@ -55,11 +53,9 @@ from bench.language import (
     coerce_custom_object_scalar,
     make_node_from_partial,
     patch_node_from_partial,
-    run_span,
     upload_file,
 )
 from bench.runtime.browser import parse_dom_node
-from bench.runtime.code.code import CodeFunctionRunner
 from bench.runtime.core import (
     ATTEMPT_ONCE,
     NotSupportedError,
@@ -70,10 +66,9 @@ from bench.runtime.core import (
     make_runner,
     restore_runner,
 )
-from bench.runtime.model import AnthropicChatModelRunner, OpenaiChatModelRunner, make_chat_prompt
 
 if TYPE_CHECKING:
-    from .flow import FlowRunnerBase
+    from .flow import FlowRunner
 
 
 logger = structlog.get_logger(__name__)
@@ -82,10 +77,10 @@ tracer = trace.get_tracer(__name__)
 CODE_PASS = code("pass")
 
 
-class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
+class ActionRunner[A: Action = Action](Runner[A], ABC):
     """Action Runner."""
 
-    kind: ClassVar[RunType] = RunType.ACTION
+    runner_type: ClassVar[RunType] = RunType.ACTION
 
     def __init__(
         self,
@@ -100,7 +95,7 @@ class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
         inputs: CustomObject | None = None,
         output_type: TypeBase | None = None,
         run: Run | None = None,
-        flow: "FlowRunnerBase | None" = None,
+        flow: "FlowRunner | None" = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
@@ -159,28 +154,83 @@ class ActionRunnerBase[A: Action = Action](Runner[A], ABC):
             return runner
 
 
+# nocheckin: generate calls (and run for all Actions in Flows when needed)
+# we need to generate a few things:
+#   1. directly generated outputs (with call slots) for dynamic actions
+#   2. only call slots for non-dynamic actions
+#   [call slots = any selective pipes, pipes to actions with missing inputs (?)]
+
+
+class StaticActionRunner[A: Action = Action](ActionRunner[A]):
+    @final
+    @override
+    async def run(self) -> None:
+        """Run the Action and generate any missing slots."""
+        await self.run_static()
+
+    @abstractmethod
+    async def run_static(self) -> None:
+        """Run the static part of the Action."""
+        ...
+
+
+class DynamicActionRunner[A: Action = Action](ActionRunner[A]):
+    @final
+    @override
+    async def run(self) -> None:
+        from bench.runtime.model import AnthropicChatModelRunner, OpenaiChatModelRunner
+
+        # determine model
+        model_developer = self.options.model_developer or ModelDeveloper.OPENAI
+        if model_developer == ModelDeveloper.OPENAI:
+            model_runner_cls = OpenaiChatModelRunner
+            model_type = self.options.model_type or ModelType.OPENAI_GPT4_0
+        elif model_developer == ModelDeveloper.ANTHROPIC:
+            model_runner_cls = AnthropicChatModelRunner
+            model_type = self.options.model_type or ModelType.ANTHROPIC_CLAUDE_3_5_SONNET
+        else:
+            raise NotSupportedError(f"unsupported model developer {model_developer!r}")
+
+        # run model
+        model_kwargs: dict[str, Any] = {
+            "runtime": self.runtime,
+            "node": self.node,
+            "model_type": model_type,
+            "options": self.options,
+            "context": self.context,
+            "variables": self.variables,
+            "inputs": self.inputs,
+            "output_type": self.output_type,
+            "track": False,
+            "parent": self,
+        }
+        model_runner = model_runner_cls(**model_kwargs)
+        await self.runtime.run_runner(model_runner)
+        self.outputs = model_runner.outputs
+
+
 #
 # Flow
 #
 
 
-class StartActionRunner(ActionRunnerBase):
+class StartActionRunner(StaticActionRunner):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         self.outputs = self.inputs
 
 
-class CompleteActionRunner(ActionRunnerBase):
+class CompleteActionRunner(StaticActionRunner):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         self.outputs = self.inputs
         if self.flow is not None:
             self.flow._complete(outputs=self.outputs)
 
 
-class FailActionRunner(ActionRunnerBase[FailAction]):
+class FailActionRunner(StaticActionRunner[FailAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         title = self.action.error_title or "Flow failed"
         text = self.action.error_text or Text.plain(f"Flow failed at {self.node!r}")
         raise RetryableError(title=title, text=text)
@@ -191,9 +241,9 @@ class FailActionRunner(ActionRunnerBase[FailAction]):
 #
 
 
-class CodeActionRunner(ActionRunnerBase[CodeAction]):
+class CodeActionRunner(StaticActionRunner[CodeAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         from bench.runtime.code import CodeFunctionRunner
 
         code_runner = CodeFunctionRunner(
@@ -211,9 +261,9 @@ class CodeActionRunner(ActionRunnerBase[CodeAction]):
         self.outputs = code_runner.outputs
 
 
-class ToolActionRunner(ActionRunnerBase[ToolAction]):
+class ToolActionRunner(StaticActionRunner[ToolAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         tool = self.action.tool
         if not tool:
             raise RunImpossibleError("no tool")
@@ -227,82 +277,19 @@ class ToolActionRunner(ActionRunnerBase[ToolAction]):
 
 
 #
-# Dynamic
-#
-
-
-class DynamicActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
-    @final
-    @override
-    async def run(self) -> None:
-        # nocheckin: generate calls (and run for all Actions in Flows when needed)
-        # we need to generate a few things:
-        #   1. directly generated outputs (with call slots) for dynamic actions
-        #   2. only call slots for non-dynamic actions
-        #   [call slots = any selective pipes, pipes to actions with missing inputs (?)]
-        model_developer = self.options.model_developer or ModelDeveloper.OPENAI
-        if model_developer == ModelDeveloper.OPENAI:
-            model_runner = OpenaiChatModelRunner()
-            model_type = self.options.model_type or ModelType.OPENAI_GPT4_0
-        elif model_developer == ModelDeveloper.ANTHROPIC:
-            model_runner = AnthropicChatModelRunner()
-            model_type = self.options.model_type or ModelType.ANTHROPIC_CLAUDE_3_5_SONNET
-        else:
-            raise NotSupportedError(f"unsupported model developer {model_developer!r}")
-
-        with run_span(tracer, "model.compile", RunSpanType.MODEL_PREPARE, level=LogLevel.DEBUG):
-            prompt = make_chat_prompt(
-                action=self.node,
-                runner=cast(Runner[RunnableNode], self),
-                context=self.context,
-                variables=self.variables,
-                inputs=self.inputs,
-                outputs=self.outputs,
-                output_type=self.output_type,
-            )
-            compiled = await model_runner.compile(prompt, 1000)
-            rendered = await model_runner.assemble(compiled)
-        # print("\n".join(p["text"] for p in rendered[0]["content"]))  # nocheckin
-        with run_span(tracer, "model.generate", RunSpanType.MODEL_GENERATE, level=LogLevel.DEBUG):
-            code = await model_runner.generate(
-                prompt,
-                model_type,
-                cast(Any, rendered),  # type-checked in ModelRunner
-                user_id=str(self.session.bench_id),
-                options=ATTEMPT_ONCE,
-            )
-            self.action.code = code
-        with run_span(tracer, "model.parse", RunSpanType.MODEL_PARSE, level=LogLevel.DEBUG):
-            code_runner = CodeFunctionRunner(
-                runtime=self.runtime,
-                node=self.node,
-                code=code,
-                track=False,
-                options=ATTEMPT_ONCE,
-                context=self.context,
-                variables=self.variables,
-                inputs=self.inputs,
-                output_type=self.output_type,
-                parent=cast(Runner[RunnableNode], self),
-            )
-            await self.runtime.run_runner(code_runner)
-        self.outputs = code_runner.outputs
-
-
-#
 # Read
 #
 
 
-class GetActionRunner(ActionRunnerBase[GetAction]):
+class GetActionRunner(StaticActionRunner[GetAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         raise NotImplementedError
 
 
-class SearchActionRunner(ActionRunnerBase[SearchAction]):
+class SearchActionRunner(StaticActionRunner[SearchAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         raise NotImplementedError
 
 
@@ -311,9 +298,9 @@ class SearchActionRunner(ActionRunnerBase[SearchAction]):
 #
 
 
-class CreateActionRunner(ActionRunnerBase[CreateAction]):
+class CreateActionRunner(StaticActionRunner[CreateAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         node_partial = self.action.node_partial
         assert isinstance(node_partial, CustomObject), f"bad node_partial: {node_partial!r}"
 
@@ -343,9 +330,9 @@ class CreateActionRunner(ActionRunnerBase[CreateAction]):
         self.outputs = coerce_custom_object_scalar({"node": node}, self.output_type, as_packed=True)
 
 
-class DuplicateActionRunner(ActionRunnerBase[DuplicateAction]):
+class DuplicateActionRunner(StaticActionRunner[DuplicateAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         node = self.action.node
         node_partial = self.action.node_partial
         assert node is not None, "no node to clone"
@@ -360,9 +347,9 @@ class DuplicateActionRunner(ActionRunnerBase[DuplicateAction]):
         logger.debug("action.clone", action=self.node, node=cloned_node, partial=node_partial)
 
 
-class UpdateActionRunner(ActionRunnerBase[UpdateAction]):
+class UpdateActionRunner(StaticActionRunner[UpdateAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         node = self.action.node
         assert node is not None, "no node to update"
         node_partial = self.action.node_partial
@@ -373,9 +360,9 @@ class UpdateActionRunner(ActionRunnerBase[UpdateAction]):
         logger.debug("action.update", action=self.node, node=node, partial=node_partial)
 
 
-class DeleteActionRunner(ActionRunnerBase[DeleteAction]):
+class DeleteActionRunner(StaticActionRunner[DeleteAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         node = self.action.node
         assert node is not None, "no node to delete"
 
@@ -389,16 +376,16 @@ class DeleteActionRunner(ActionRunnerBase[DeleteAction]):
 #
 
 
-class YieldActionRunner(ActionRunnerBase):
+class YieldActionRunner(StaticActionRunner):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         interruption = self._trap_interruption(InterruptionType.YIELD)
         self.outputs = interruption.outputs
 
 
-class WaitActionRunner(ActionRunnerBase[WaitAction]):
+class WaitActionRunner(StaticActionRunner[WaitAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         # NOTE: obviously WaitStep should be Interruption/Trigger-driven
         if self.action.delay is not None:
             await asyncio.sleep(self.action.delay.total_seconds())
@@ -410,7 +397,7 @@ class WaitActionRunner(ActionRunnerBase[WaitAction]):
 #
 
 
-class ApplicationActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
+class ApplicationActionRunner[A: Action = Action](StaticActionRunner[A]):
     def _get_application(self) -> Browser:
         if (application := cast(HasApplicationContext, self.action).application) is not None:
             return application
@@ -436,9 +423,9 @@ class ApplicationActionRunnerBase[A: Action = Action](ActionRunnerBase[A]):
         await pw_page.focus(selector)
 
 
-class LookActionRunner(ApplicationActionRunnerBase[LookAction]):
+class LookActionRunner(ApplicationActionRunner[LookAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         # TODO :Performance: obviously LookAction could be a lot more efficient
         #  (defer uploads, ensure extension script is preloaded, ...)
         browser = self._get_application()
@@ -462,9 +449,9 @@ class LookActionRunner(ApplicationActionRunnerBase[LookAction]):
         )
 
 
-class ClickActionRunner(ApplicationActionRunnerBase[ClickAction]):
+class ClickActionRunner(ApplicationActionRunner[ClickAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         selector = await self._get_element_selector(self.action)
         if selector is None:
             raise ValidationError(None, "no element selector to click")
@@ -474,9 +461,9 @@ class ClickActionRunner(ApplicationActionRunnerBase[ClickAction]):
         await pw_page.click(selector)
 
 
-class PressActionRunner(ApplicationActionRunnerBase[PressAction]):
+class PressActionRunner(ApplicationActionRunner[PressAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         keys = self.action.keys
         if keys is None:
             raise ValidationError(None, "no keys to press")
@@ -487,9 +474,9 @@ class PressActionRunner(ApplicationActionRunnerBase[PressAction]):
         await pw_page.keyboard.press(keys, delay=self.action.delay)
 
 
-class TypeActionRunner(ApplicationActionRunnerBase[TypeAction]):
+class TypeActionRunner(ApplicationActionRunner[TypeAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         string = self.action.string
         if string is None:
             raise ValidationError(None, "no string to type")
@@ -500,9 +487,9 @@ class TypeActionRunner(ApplicationActionRunnerBase[TypeAction]):
         await pw_page.keyboard.type(string, delay=self.action.delay)
 
 
-class ScrollActionRunner(ApplicationActionRunnerBase[ScrollAction]):
+class ScrollActionRunner(ApplicationActionRunner[ScrollAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         amount = self.action.amount
         if amount is None:
             raise ValidationError(None, "no amount to scroll")
@@ -513,24 +500,24 @@ class ScrollActionRunner(ApplicationActionRunnerBase[ScrollAction]):
         await pw_page.mouse.wheel(delta_x=amount.x, delta_y=amount.y)
 
 
-class SelectActionRunner(ApplicationActionRunnerBase[SelectAction]):
+class SelectActionRunner(ApplicationActionRunner[SelectAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         raise NotImplementedError
 
 
-class GoBackwardActionRunner(ApplicationActionRunnerBase[GoBackwardAction]):
+class GoBackwardActionRunner(ApplicationActionRunner[GoBackwardAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await pw_page.go_back()
 
 
-class GoForwardActionRunner(ApplicationActionRunnerBase[GoForwardAction]):
+class GoForwardActionRunner(ApplicationActionRunner[GoForwardAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
@@ -542,9 +529,9 @@ class GoForwardActionRunner(ApplicationActionRunnerBase[GoForwardAction]):
 #
 
 
-class GoToUrlActionRunner(ApplicationActionRunnerBase[GoToUrlAction]):
+class GoToUrlActionRunner(ApplicationActionRunner[GoToUrlAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         url = self.action.url
         if url is None:
             raise ValidationError(None, "no url to go to")
@@ -555,9 +542,9 @@ class GoToUrlActionRunner(ApplicationActionRunnerBase[GoToUrlAction]):
         await self.runtime.playwright.wait_for_idle(pw_page)
 
 
-class GoToTabActionRunner(ApplicationActionRunnerBase[GoToTabAction]):
+class GoToTabActionRunner(ApplicationActionRunner[GoToTabAction]):
     @override
-    async def run(self) -> None:
+    async def run_static(self) -> None:
         tab_index = self.action.tab_index
         if tab_index is None:
             raise ValidationError(None, "no tab index to go to")
@@ -566,25 +553,25 @@ class GoToTabActionRunner(ApplicationActionRunnerBase[GoToTabAction]):
         await pw_browser.pages[tab_index].bring_to_front()
 
 
-ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunnerBase[Any]]] = {
+ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner[Any]]] = {
     # flow
     ActionType.START: StartActionRunner,
     ActionType.COMPLETE: CompleteActionRunner,
     ActionType.FAIL: FailActionRunner,
-    # tool (dynamic)
+    # tool
     ActionType.CODE: CodeActionRunner,
     ActionType.TOOL: ToolActionRunner,
-    # dynamic (dynamic)
-    ActionType.DO: DynamicActionRunnerBase,
-    ActionType.ROUTE: DynamicActionRunnerBase,
-    ActionType.GENERATE: DynamicActionRunnerBase,
-    ActionType.TRANSFORM: DynamicActionRunnerBase,
-    ActionType.EXTRACT: DynamicActionRunnerBase,
-    ActionType.CLASSIFY: DynamicActionRunnerBase,
-    ActionType.SUMMARIZE: DynamicActionRunnerBase,
-    ActionType.COMPARE: DynamicActionRunnerBase,
-    ActionType.TRANSLATE: DynamicActionRunnerBase,
-    ActionType.CHANGE: DynamicActionRunnerBase,
+    # dynamic
+    ActionType.DO: DynamicActionRunner,
+    ActionType.ROUTE: DynamicActionRunner,
+    ActionType.GENERATE: DynamicActionRunner,
+    ActionType.TRANSFORM: DynamicActionRunner,
+    ActionType.EXTRACT: DynamicActionRunner,
+    ActionType.CLASSIFY: DynamicActionRunner,
+    ActionType.SUMMARIZE: DynamicActionRunner,
+    ActionType.COMPARE: DynamicActionRunner,
+    ActionType.TRANSLATE: DynamicActionRunner,
+    ActionType.CHANGE: DynamicActionRunner,
     # read
     ActionType.GET: GetActionRunner,
     ActionType.SEARCH: SearchActionRunner,

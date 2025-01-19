@@ -73,11 +73,11 @@ class ActionType(IdEnum):
     FAIL = 11, "Fail the entire Flow"
     # ABORT?
 
-    # tool (dynamic)
+    # tool
     TOOL = 100, "Delegate to an implementation"
     CODE = 101, "Run some code"
 
-    # generic (dynamic)
+    # dynamic
     DO = 200, "Perform an arbitrary action"
     ROUTE = 201, "Route to other Actions"
     GENERATE = 202, "Generate something new"

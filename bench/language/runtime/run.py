@@ -404,7 +404,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     spans: list["RunSpan"] = p_internal(66, array=True, struct=StructType.RUN_SPAN)
     events: list["RunEvent"] = p_internal(67, array=True, struct=StructType.RUN_EVENT)
 
-    # ...HasRuntimeContext[80-99]
+    # ...HasContext[80-99]
 
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
     interruptions: LocalNodeList["Interruption"] = p_node_children(NodeType.INTERRUPTION)

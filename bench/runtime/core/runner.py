@@ -114,7 +114,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "variables",
     )
 
-    kind: ClassVar[RunType]
+    runner_type: ClassVar[RunType]
 
     def __init__(
         self,
@@ -189,7 +189,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             with tracer.start_as_current_span("runtime.create_run"):
                 run = Run(
                     parent=parent_run or self.runtime.bench,
-                    type=self.kind,
+                    type=self.runner_type,
                     block=node if isinstance(node, Block) else node.block,
                     action=node if isinstance(node, Action) else None,
                     pipe=node if isinstance(node, Pipe) else None,
@@ -599,8 +599,8 @@ def make_runner(
         "runtime": runtime,
         "options": options,
         "context": context or run,
-        "inputs": inputs,
         "variables": variables,
+        "inputs": inputs,
         "output_type": output_type,
         "run": run,
         "track": track,

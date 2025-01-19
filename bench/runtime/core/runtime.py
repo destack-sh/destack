@@ -722,7 +722,7 @@ class Runtime:
             self.session.commit_optimistic()
 
     @tracer.start_as_current_span("runtime.run_runner")
-    async def run_runner(self, runner: Runner, hook: RunnerHook | None = None):
+    async def run_runner(self, runner: Runner[Any], hook: RunnerHook | None = None):
         """Runs a Runner until termination/interruption."""
         async with self.session.active():
             self._active_runners_by_id[runner.id] = runner

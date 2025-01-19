@@ -1,4 +1,5 @@
 import functools
+from abc import ABC
 from contextlib import contextmanager
 from typing import Any, ClassVar, cast, override
 
@@ -35,12 +36,12 @@ tracer = trace.get_tracer(__name__)
 # NOTE :Performance :Robustness: run (some?) sync code in a separate thread?
 
 
-class CodeRunnerBase(Runner):
+class CodeRunner(Runner, ABC):
     """Common base for compiling and running code."""
 
     __slots__ = ("code", "compiled", "log_sink")
 
-    kind: ClassVar[RunType] = RunType.CODE
+    runner_type: ClassVar[RunType] = RunType.ACTION
 
     def __init__(
         self,
@@ -170,7 +171,7 @@ class CodeRunnerBase(Runner):
         return outputs
 
 
-class CodeScriptRunner(CodeRunnerBase):
+class CodeScriptRunner(CodeRunner):
     """Run a code script and update the state's exported definitions."""
 
     @override
@@ -196,7 +197,7 @@ class CodeScriptRunner(CodeRunnerBase):
             )
 
 
-class CodeFunctionRunner(CodeRunnerBase):
+class CodeFunctionRunner(CodeRunner):
     """Run a code function and update the run's outputs."""
 
     @override
