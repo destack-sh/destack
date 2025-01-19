@@ -4,9 +4,10 @@ import anthropic
 
 from bench.language import Code, ModelType, RunOptions
 from bench.runtime.core import NotSupportedError
+from bench.runtime.model.instruct import get_system_prompt
 from bench.utils.utils import get_from_env
 
-from .chat import ChatModelRunner, get_system_prompt, strip_code_completion
+from .chat import ChatModelRunner, strip_code_completion
 from .prompt import Prompt, PromptBreak, PromptElement, PromptFile, PromptText
 
 if TYPE_CHECKING:
@@ -25,13 +26,21 @@ ANTHROPIC_MODEL_BY_TYPE: Mapping[ModelType, str] = {
 ANTHROPIC_DEFAULT_MODEL = ModelType.ANTHROPIC_CLAUDE_3_5_SONNET
 
 
-class AnthropicChatModelRunner(ChatModelRunner[anthropic_types.MessageParam]):
+class AnthropicChatModelRunner(ChatModelRunner):
     """Compile a Prompt into Anthropic chat messages."""
 
     SEPARATOR = "#" * 32  # = exactly 1 token
 
     @override
-    async def assemble(self, parts: Sequence[PromptElement]) -> list[anthropic_types.MessageParam]:
+    async def generate(
+        self,
+        prompt: Prompt,
+        parts: Sequence[PromptElement],
+        model: ModelType,
+        user_id: str,
+        options: RunOptions,
+    ) -> Code:
+        # compile
         content: list[anthropic_types.MessageParam] = []
         for part in parts:
             if isinstance(part, PromptBreak):
@@ -50,21 +59,12 @@ class AnthropicChatModelRunner(ChatModelRunner[anthropic_types.MessageParam]):
                 raise NotSupportedError(f"file {part.file!r} not supported yet")
             else:
                 raise RuntimeError(f"unexpected part {part!r}")
-        return content
 
-    @override
-    async def generate(
-        self,
-        prompt: Prompt,
-        model: ModelType,
-        rendered_prompt: Sequence[anthropic_types.MessageParam],
-        user_id: str,
-        options: RunOptions,
-    ) -> Code:
+        # genreate
         model_id = ANTHROPIC_MODEL_BY_TYPE.get(model)
         if model_id is None:
             raise NotSupportedError(f"unsupported model type {model!r}")
-        messages: list[anthropic_types.MessageParam] = [*rendered_prompt]
+        messages: list[anthropic_types.MessageParam] = [*content]
         temperature = options.text_options.temperature if options.text_options else None
         completion = await anthropic_client.messages.create(
             system=get_system_prompt(prompt),

@@ -7,7 +7,8 @@ from bench.language import Code, ModelType, RunOptions
 from bench.runtime.core import NotSupportedError
 from bench.utils.utils import get_from_env
 
-from .chat import ChatModelRunner, get_system_prompt, strip_code_completion
+from .chat import ChatModelRunner, strip_code_completion
+from .instruct import get_system_prompt
 from .prompt import Prompt, PromptBreak, PromptElement, PromptFile, PromptText
 
 openai_client = openai.AsyncClient(
@@ -22,21 +23,27 @@ OPENAI_MODEL_BY_TYPE: Mapping[ModelType, str] = {
 OPENAI_DEFAULT_MODEL = ModelType.OPENAI_GPT4_0
 
 
-class OpenaiChatModelRunner(ChatModelRunner[openai_chat_types.ChatCompletionMessageParam]):
+class OpenaiChatModelRunner(ChatModelRunner):
     """Compile a Prompt into OpenAI chat messages."""
 
     SEPARATOR = "#" * 32  # = exactly 1 token
 
     @override
-    async def assemble(
-        self, parts: Sequence[PromptElement]
-    ) -> Sequence[openai_chat_types.ChatCompletionMessageParam]:
+    async def generate(
+        self,
+        prompt: Prompt,
+        parts: Sequence[PromptElement],
+        model: ModelType,
+        user_id: str,
+        options: RunOptions,
+    ) -> Code:
+        # assemble
         content: list[openai_chat_types.ChatCompletionContentPartParam] = []
         for part in parts:
             if isinstance(part, PromptBreak):
                 content.append({"type": "text", "text": self.SEPARATOR})
                 if part.title:
-                    content.append({"type": "text", "text": f"{part.title}"})
+                    content.append({"type": "text", "text": f"# {part.title}"})
                     if part.text:
                         content.append({"type": "text", "text": part.text})
                     content.append({"type": "text", "text": self.SEPARATOR})
@@ -49,23 +56,14 @@ class OpenaiChatModelRunner(ChatModelRunner[openai_chat_types.ChatCompletionMess
                 raise NotSupportedError(f"file {part.file!r} not supported yet")
             else:
                 raise RuntimeError(f"unexpected part {part!r}")
-        return [{"role": "user", "content": content}]
 
-    @override
-    async def generate(
-        self,
-        prompt: Prompt,
-        model: ModelType,
-        rendered_prompt: Sequence[openai_chat_types.ChatCompletionMessageParam],
-        user_id: str,
-        options: RunOptions,
-    ) -> Code:
+        # generate
         model_id = OPENAI_MODEL_BY_TYPE.get(model)
         if model_id is None:
             raise NotSupportedError(f"unsupported model type {model!r}")
         messages: list[openai_chat_types.ChatCompletionMessageParam] = [
             {"role": "developer", "content": get_system_prompt(prompt)},
-            *rendered_prompt,
+            {"role": "user", "content": content},
         ]
         temperature = options.text_options.temperature if options.text_options else 0.1
         completion = await openai_client.chat.completions.create(

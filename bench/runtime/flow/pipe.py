@@ -19,7 +19,7 @@ from bench.language import (
 from bench.runtime.core import Runner, Runtime
 
 if TYPE_CHECKING:
-    from .flow import FlowRunnerBase
+    from .flow import FlowRunner
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -29,8 +29,8 @@ tracer = trace.get_tracer(__name__)
 #
 
 
-class PipeRunnerBase(Runner[Pipe], ABC):
-    kind: ClassVar[RunType] = RunType.PIPE
+class PipeRunner(Runner[Pipe], ABC):
+    runner_type: ClassVar[RunType] = RunType.ACTION
 
     def __init__(
         self,
@@ -40,7 +40,7 @@ class PipeRunnerBase(Runner[Pipe], ABC):
         track: bool,
         options: RunOptions,
         context: HasContext,
-        flow: "FlowRunnerBase | None" = None,
+        flow: "FlowRunner | None" = None,
         parent: Runner | None = None,
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
@@ -77,19 +77,19 @@ class PipeRunnerBase(Runner[Pipe], ABC):
             await self.runtime.oracle.sleep(self.node.delay.total_seconds())
 
 
-class ForwardPipeRunner(PipeRunnerBase):
+class ForwardPipeRunner(PipeRunner):
     pass
 
 
-class SelectPipeRunner(PipeRunnerBase):
+class SelectPipeRunner(PipeRunner):
     pass
 
 
-class SelectAndBackPipeRunner(PipeRunnerBase):
+class SelectAndBackPipeRunner(PipeRunner):
     pass
 
 
-PIPE_RUNNER_BY_PIPE_TYPE: dict[PipeType, type[PipeRunnerBase]] = {
+PIPE_RUNNER_BY_PIPE_TYPE: dict[PipeType, type[PipeRunner]] = {
     PipeType.FORWARD: ForwardPipeRunner,
     PipeType.SELECT: SelectPipeRunner,
     PipeType.SELECT_AND_BACK: SelectAndBackPipeRunner,

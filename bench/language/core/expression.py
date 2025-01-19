@@ -1020,10 +1020,3 @@ class ComputedValue(Struct):
                 source_path=source,
                 is_active=is_active,
             )
-
-
-@struct_(StructType.OBJECT_MAPPING)
-class ObjectMapping(Struct):
-    mappings: list["ComputedValue"] = p_regular(
-        40, require=True, array=True, struct=StructType.COMPUTED_VALUE
-    )

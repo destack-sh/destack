@@ -294,7 +294,6 @@ UNGENERATABLE_STRUCT_TYPES = [
     StructType.NODE_REFERENCE,
     StructType.PROPERTY_REFERENCE,
     # contain required references
-    StructType.OBJECT_MAPPING,
     StructType.CALL,
 ]
 

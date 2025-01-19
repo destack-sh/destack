@@ -19,19 +19,15 @@ GEMINI_DEFAULT_MODEL = ModelType.GOOGLE_GEMINI_2_0_FLASH
 MessagePart = Any  # ???
 
 
-class GeminiChatModelRunner(ChatModelRunner[MessagePart]):
+class GeminiChatModelRunner(ChatModelRunner):
     """Compile a Prompt into Gemini chat messages."""
-
-    @override
-    async def assemble(self, parts: Sequence[PromptElement]) -> list[MessagePart]:
-        raise NotImplementedError
 
     @override
     async def generate(
         self,
         prompt: Prompt,
+        parts: Sequence[PromptElement],
         model: ModelType,
-        rendered_prompt: Sequence[MessagePart],
         user_id: str,
         options: RunOptions,
     ) -> Code:

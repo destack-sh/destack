@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from asyncio import Event
 from typing import Any, ClassVar, Literal, Sequence, assert_never, cast, override
 from uuid import UUID
@@ -35,8 +35,8 @@ from bench.runtime.core import (
     restore_runner,
 )
 
-from .action import ActionRunnerBase
-from .pipe import PipeRunnerBase
+from .action import ActionRunner
+from .pipe import PipeRunner
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -46,8 +46,10 @@ tracer = trace.get_tracer(__name__)
 #
 
 
-class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
+class FlowRunner[N: FlowBlock = FlowBlock](Runner[N], ABC):
     """Runs a Flow or sub-Flow."""
+
+    runner_type: ClassVar[RunType] = RunType.FLOW
 
     def __init__(
         self,
@@ -76,21 +78,25 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             run=run,
         )
         self._interrupted_runners: list[Runner] = []
-        self._active_runners_by_id: dict[UUID, PipeRunnerBase | ActionRunnerBase[Any]] = {}
+        self._active_runners_by_id: dict[UUID, PipeRunner | ActionRunner[Any]] = {}
         self._stop_result: CustomObject | Literal["completed"] | RunError | Interruption | None = (
             None
         )
         self._stop_event = Event()
 
-    @abstractmethod
     def get_actions(self) -> Sequence[Action]:
-        """Gets all Actions in this (sub-)Flow."""
-        ...
+        """Get all Actions in this Flow."""
+        return self.node.actions
 
-    @abstractmethod
     def get_pipes_at(self, action: Action) -> Sequence[Pipe]:
-        """Gets all Pipes connected to a Action."""
-        ...
+        """Get all Pipes at the given Action."""
+        return tuple(
+            pipe
+            for pipe in self.node.pipes
+            if (pipe.target_id == action.id or pipe.source_id == action.id)
+            and pipe.source is not None
+            and pipe.target is not None
+        )
 
     def _abort(self):
         """Abort any contained Actions (and any relevant Interrupts)."""
@@ -157,11 +163,11 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             context=self.context,
             variables=variables,
             inputs=inputs,
-            parent=self,
+            parent=cast(Runner[RunnableNode], self),
         )
-        assert isinstance(runner, (ActionRunnerBase, PipeRunnerBase)), f"unexpected {runner!r}"
+        assert isinstance(runner, (ActionRunner, PipeRunner)), f"unexpected {runner!r}"
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
-        runner.flow = self
+        runner.flow = cast(FlowRunner, self)
         runner.tracked_run.incoming_ptr = tuple(run.to_ref() for run in incoming)
         logger.debug("flow.tick.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
@@ -173,8 +179,8 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         runner = run if isinstance(run, Runner) else restore_runner(self.runtime, run)
         if runner in self._interrupted_runners:
             self._interrupted_runners.remove(runner)
-        assert isinstance(runner, (ActionRunnerBase, PipeRunnerBase)), f"unexpected {runner!r}"
-        runner.flow = self
+        assert isinstance(runner, (ActionRunner, PipeRunner)), f"unexpected {runner!r}"
+        runner.flow = cast(FlowRunner, self)
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.tick.resume", flow=self.node, node=runner.node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
@@ -298,7 +304,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         elif isinstance(self._stop_result, RunError):
             raise RetryableError(title=self._stop_result.title, error=self._stop_result)
         elif isinstance(self._stop_result, Interruption):
-            raise Interrupted(self, self.tracked_run, self._stop_result)
+            raise Interrupted(cast(Runner[RunnableNode], self), self.tracked_run, self._stop_result)
         else:
             assert_never(self._stop_result)
 
@@ -311,23 +317,3 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             runner = interrupted_runners_by_id.get(run.id)
             if runner is not None:
                 self._resume(runner)
-
-
-class FlowRunner(FlowRunnerBase[FlowBlock]):
-    """Runs an entire Flow."""
-
-    kind: ClassVar[RunType] = RunType.FLOW
-
-    @override
-    def get_actions(self) -> Sequence[Action]:
-        return self.node.actions
-
-    @override
-    def get_pipes_at(self, action: Action) -> Sequence[Pipe]:
-        return tuple(
-            pipe
-            for pipe in self.node.pipes
-            if (pipe.target_id == action.id or pipe.source_id == action.id)
-            and pipe.source is not None
-            and pipe.target is not None
-        )
