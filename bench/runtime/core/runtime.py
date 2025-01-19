@@ -693,9 +693,6 @@ class Runtime:
             raise
         finally:
             run._do_set("attempts", runner.attempts, validate=False)
-            run._do_set("logs", runner.logs, validate=False)
-            run._do_set("spans", runner.spans, validate=False)
-            run._do_set("events", runner.events, validate=False)
             run._do_set("inputs", runner.inputs, validate=False)
             run._do_set("outputs", runner.outputs, validate=False)
             run._do_set("error", runner.error, validate=False)
@@ -738,11 +735,6 @@ class Runtime:
                 raise
             finally:
                 self._active_runners_by_id.pop(runner.id, None)
-                if runner.tracked_run is None and runner.parent is not None:
-                    # add inner spans/logs/events to parent
-                    runner.parent.logs.extend(runner.logs)
-                    runner.parent.events.extend(runner.events)
-                    runner.parent.spans.extend(runner.spans)
                 if hook is not None:
                     hook(runner, exc)
 

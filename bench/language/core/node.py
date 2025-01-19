@@ -2683,23 +2683,23 @@ class HasContext(BuiltinObject):
     # NOTE :Security: session context properties are p_internal (not p_system) so we can update
     #   them in all Clients. But this also means Users could mess with them if they really want to.
     session: Optional["Session"] = p_internal(
-        80, require=False, array=False, references=NodeType.SESSION, same_bench=True
+        90, require=False, array=False, references=NodeType.SESSION, same_bench=True
     )
     run: Optional["Run"] = p_internal(
-        81, require=False, array=False, references=NodeType.RUN, same_bench=True
+        91, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
     run_root: Optional["Run"] = p_internal(
-        82, require=False, array=False, references=NodeType.RUN, same_bench=True
+        92, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
     client: Optional["Client"] = p_internal(
-        83, require=False, array=False, references=NodeType.CLIENT, same_bench=True
+        93, require=False, array=False, references=NodeType.CLIENT, same_bench=True
     )
     machine: Optional["Machine"] = p_internal(
-        84, require=False, array=False, references=NodeType.MACHINE, same_bench=True
+        94, require=False, array=False, references=NodeType.MACHINE, same_bench=True
     )
-    user: Optional["User"] = p_internal(86, require=False, array=False, references=NodeType.USER)
+    user: Optional["User"] = p_internal(96, require=False, array=False, references=NodeType.USER)
     identity: Optional["Block"] = p_internal(
-        87,
+        97,
         require=False,
         array=False,
         references=NodeType.BLOCK,

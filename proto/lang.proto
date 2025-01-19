@@ -70,15 +70,14 @@ enum EnumType {
   ENUM_TYPE_PATH_RUN_SELECTOR = 21521;
   ENUM_TYPE_RUN_STATUS = 22000;
   ENUM_TYPE_RUN_TYPE = 22001;
-  ENUM_TYPE_RUN_ERROR_KIND = 22002;
-  ENUM_TYPE_RUN_ERROR_TYPE = 22003;
-  ENUM_TYPE_RUN_SPAN_TYPE = 22004;
-  ENUM_TYPE_RUN_EVENT_TYPE = 22005;
+  ENUM_TYPE_RUN_SPAN_TYPE = 22002;
+  ENUM_TYPE_RUN_ERROR_KIND = 22003;
+  ENUM_TYPE_RUN_ERROR_TYPE = 22004;
   ENUM_TYPE_SESSION_STATUS = 22010;
   ENUM_TYPE_TRIGGER_TYPE = 22020;
   ENUM_TYPE_CACHE_MODE = 22030;
   ENUM_TYPE_SCHEDULE_FREQUENCY = 22040;
-  ENUM_TYPE_LOG_KIND = 22100;
+  ENUM_TYPE_LOG_TYPE = 22100;
   ENUM_TYPE_LOG_LEVEL = 22101;
   ENUM_TYPE_BREAKPOINT_SITE = 22200;
   ENUM_TYPE_BREAKPOINT_ACTION = 22201;
@@ -145,6 +144,7 @@ enum NodeType {
   NODE_TYPE_RECORD = 5510;
   NODE_TYPE_SESSION = 6000;
   NODE_TYPE_RUN = 6010;
+  NODE_TYPE_RUN_SPAN = 6011;
   NODE_TYPE_INTERRUPTION = 6020;
   NODE_TYPE_LOG = 6030;
   NODE_TYPE_SKIP = 9000;
@@ -188,21 +188,17 @@ enum StructType {
   STRUCT_TYPE_SELECT_OPTIONS = 12230;
   STRUCT_TYPE_VALUE = 12240;
   STRUCT_TYPE_COMPUTED_VALUE = 12241;
-  STRUCT_TYPE_OBJECT_MAPPING = 12250;
   STRUCT_TYPE_RUN_ERROR = 12700;
   STRUCT_TYPE_RUN_OPTIONS = 12701;
   STRUCT_TYPE_RUN_ATTEMPT = 12702;
   STRUCT_TYPE_RUN_TRACE = 12703;
   STRUCT_TYPE_RUN_FRAME = 12704;
-  STRUCT_TYPE_RUN_SPAN = 12705;
-  STRUCT_TYPE_RUN_EVENT = 12706;
-  STRUCT_TYPE_TEXT_OPTIONS = 12707;
-  STRUCT_TYPE_AUDIO_OPTIONS = 12708;
-  STRUCT_TYPE_IMAGE_OPTIONS = 12709;
-  STRUCT_TYPE_VIDEO_OPTIONS = 12710;
-  STRUCT_TYPE_CALL = 12712;
-  STRUCT_TYPE_BREAKPOINT = 12714;
-  STRUCT_TYPE_LOG_INFO = 12715;
+  STRUCT_TYPE_CALL = 12730;
+  STRUCT_TYPE_BREAKPOINT = 12740;
+  STRUCT_TYPE_TEXT_OPTIONS = 12800;
+  STRUCT_TYPE_AUDIO_OPTIONS = 12801;
+  STRUCT_TYPE_IMAGE_OPTIONS = 12802;
+  STRUCT_TYPE_VIDEO_OPTIONS = 12803;
   STRUCT_TYPE_COLOR = 13200;
   STRUCT_TYPE_FONT = 13201;
   STRUCT_TYPE_RECTANGLE = 13202;
@@ -244,6 +240,7 @@ enum ObjectType {
   OBJECT_TYPE_RECORD = 5510;
   OBJECT_TYPE_SESSION = 6000;
   OBJECT_TYPE_RUN = 6010;
+  OBJECT_TYPE_RUN_SPAN = 6011;
   OBJECT_TYPE_INTERRUPTION = 6020;
   OBJECT_TYPE_LOG = 6030;
   OBJECT_TYPE_SKIP = 9000;
@@ -283,21 +280,17 @@ enum ObjectType {
   OBJECT_TYPE_SELECT_OPTIONS = 12230;
   OBJECT_TYPE_VALUE = 12240;
   OBJECT_TYPE_COMPUTED_VALUE = 12241;
-  OBJECT_TYPE_OBJECT_MAPPING = 12250;
   OBJECT_TYPE_RUN_ERROR = 12700;
   OBJECT_TYPE_RUN_OPTIONS = 12701;
   OBJECT_TYPE_RUN_ATTEMPT = 12702;
   OBJECT_TYPE_RUN_TRACE = 12703;
   OBJECT_TYPE_RUN_FRAME = 12704;
-  OBJECT_TYPE_RUN_SPAN = 12705;
-  OBJECT_TYPE_RUN_EVENT = 12706;
-  OBJECT_TYPE_TEXT_OPTIONS = 12707;
-  OBJECT_TYPE_AUDIO_OPTIONS = 12708;
-  OBJECT_TYPE_IMAGE_OPTIONS = 12709;
-  OBJECT_TYPE_VIDEO_OPTIONS = 12710;
-  OBJECT_TYPE_CALL = 12712;
-  OBJECT_TYPE_BREAKPOINT = 12714;
-  OBJECT_TYPE_LOG_INFO = 12715;
+  OBJECT_TYPE_CALL = 12730;
+  OBJECT_TYPE_BREAKPOINT = 12740;
+  OBJECT_TYPE_TEXT_OPTIONS = 12800;
+  OBJECT_TYPE_AUDIO_OPTIONS = 12801;
+  OBJECT_TYPE_IMAGE_OPTIONS = 12802;
+  OBJECT_TYPE_VIDEO_OPTIONS = 12803;
   OBJECT_TYPE_COLOR = 13200;
   OBJECT_TYPE_FONT = 13201;
   OBJECT_TYPE_RECTANGLE = 13202;
@@ -339,6 +332,7 @@ enum BenchType {
   BENCH_TYPE_RECORD = 5510;
   BENCH_TYPE_SESSION = 6000;
   BENCH_TYPE_RUN = 6010;
+  BENCH_TYPE_RUN_SPAN = 6011;
   BENCH_TYPE_INTERRUPTION = 6020;
   BENCH_TYPE_LOG = 6030;
   BENCH_TYPE_SKIP = 9000;
@@ -378,21 +372,17 @@ enum BenchType {
   BENCH_TYPE_SELECT_OPTIONS = 12230;
   BENCH_TYPE_VALUE = 12240;
   BENCH_TYPE_COMPUTED_VALUE = 12241;
-  BENCH_TYPE_OBJECT_MAPPING = 12250;
   BENCH_TYPE_RUN_ERROR = 12700;
   BENCH_TYPE_RUN_OPTIONS = 12701;
   BENCH_TYPE_RUN_ATTEMPT = 12702;
   BENCH_TYPE_RUN_TRACE = 12703;
   BENCH_TYPE_RUN_FRAME = 12704;
-  BENCH_TYPE_RUN_SPAN = 12705;
-  BENCH_TYPE_RUN_EVENT = 12706;
-  BENCH_TYPE_TEXT_OPTIONS = 12707;
-  BENCH_TYPE_AUDIO_OPTIONS = 12708;
-  BENCH_TYPE_IMAGE_OPTIONS = 12709;
-  BENCH_TYPE_VIDEO_OPTIONS = 12710;
-  BENCH_TYPE_CALL = 12712;
-  BENCH_TYPE_BREAKPOINT = 12714;
-  BENCH_TYPE_LOG_INFO = 12715;
+  BENCH_TYPE_CALL = 12730;
+  BENCH_TYPE_BREAKPOINT = 12740;
+  BENCH_TYPE_TEXT_OPTIONS = 12800;
+  BENCH_TYPE_AUDIO_OPTIONS = 12801;
+  BENCH_TYPE_IMAGE_OPTIONS = 12802;
+  BENCH_TYPE_VIDEO_OPTIONS = 12803;
   BENCH_TYPE_COLOR = 13200;
   BENCH_TYPE_FONT = 13201;
   BENCH_TYPE_RECTANGLE = 13202;
@@ -463,15 +453,14 @@ enum BenchType {
   BENCH_TYPE_PATH_RUN_SELECTOR = 21521;
   BENCH_TYPE_RUN_STATUS = 22000;
   BENCH_TYPE_RUN_TYPE = 22001;
-  BENCH_TYPE_RUN_ERROR_KIND = 22002;
-  BENCH_TYPE_RUN_ERROR_TYPE = 22003;
-  BENCH_TYPE_RUN_SPAN_TYPE = 22004;
-  BENCH_TYPE_RUN_EVENT_TYPE = 22005;
+  BENCH_TYPE_RUN_SPAN_TYPE = 22002;
+  BENCH_TYPE_RUN_ERROR_KIND = 22003;
+  BENCH_TYPE_RUN_ERROR_TYPE = 22004;
   BENCH_TYPE_SESSION_STATUS = 22010;
   BENCH_TYPE_TRIGGER_TYPE = 22020;
   BENCH_TYPE_CACHE_MODE = 22030;
   BENCH_TYPE_SCHEDULE_FREQUENCY = 22040;
-  BENCH_TYPE_LOG_KIND = 22100;
+  BENCH_TYPE_LOG_TYPE = 22100;
   BENCH_TYPE_LOG_LEVEL = 22101;
   BENCH_TYPE_BREAKPOINT_SITE = 22200;
   BENCH_TYPE_BREAKPOINT_ACTION = 22201;
@@ -1184,6 +1173,20 @@ enum RunType {
   RUN_TYPE_PIPE = 12;
 }
 
+enum RunSpanType {
+  RUN_SPAN_TYPE_UNSPECIFIED = 0;
+  RUN_SPAN_TYPE_ATTEMPT = 1;
+  RUN_SPAN_TYPE_WAIT = 10;
+  RUN_SPAN_TYPE_FLOW_GENERATE_CALLS = 100;
+  RUN_SPAN_TYPE_MODEL_PREPARE = 300;
+  RUN_SPAN_TYPE_MODEL_GENERATE = 310;
+  RUN_SPAN_TYPE_MODEL_PARSE = 320;
+  RUN_SPAN_TYPE_FILE_UPLOAD = 500;
+  RUN_SPAN_TYPE_FILE_PREPARE_UPLOAD = 501;
+  RUN_SPAN_TYPE_FILE_DOWNLOAD = 502;
+  RUN_SPAN_TYPE_FILE_PREPARE_DOWNLOAD = 503;
+}
+
 enum RunErrorKind {
   RUN_ERROR_KIND_UNSPECIFIED = 0;
   RUN_ERROR_KIND_INTERNAL = 1;
@@ -1201,32 +1204,13 @@ enum RunErrorType {
   RUN_ERROR_TYPE_CODE_INVALID = 20;
   RUN_ERROR_TYPE_TEXT_INVALID = 21;
   RUN_ERROR_TYPE_MODEL_INCAPABLE = 100;
+  RUN_ERROR_TYPE_MODEL_REFUSED = 101;
   RUN_ERROR_TYPE_NON_RETRYABLE = 499;
   RUN_ERROR_TYPE_MODEL_FAILED = 500;
-  RUN_ERROR_TYPE_ACTION_CHANGED = 501;
   RUN_ERROR_TYPE_INVALID_CONTINUATION = 502;
   RUN_ERROR_TYPE_INVALID_CALL = 503;
   RUN_ERROR_TYPE_INTERRUPTION_CANCELLED = 504;
   RUN_ERROR_TYPE_RETRYABLE = 999;
-}
-
-enum RunSpanType {
-  RUN_SPAN_TYPE_UNSPECIFIED = 0;
-  RUN_SPAN_TYPE_WAIT_FOR = 10;
-  RUN_SPAN_TYPE_FLOW_GENERATE_CALLS = 100;
-  RUN_SPAN_TYPE_ACTION_GENERATE_OUTPUT = 200;
-  RUN_SPAN_TYPE_APPLICATION_FIND_ELEMENT = 210;
-  RUN_SPAN_TYPE_MODEL_INFERENCE = 300;
-  RUN_SPAN_TYPE_FILE_UPLOAD = 500;
-  RUN_SPAN_TYPE_FILE_PREPARE_UPLOAD = 501;
-  RUN_SPAN_TYPE_FILE_DOWNLOAD = 502;
-  RUN_SPAN_TYPE_FILE_PREPARE_DOWNLOAD = 503;
-}
-
-enum RunEventType {
-  RUN_EVENT_TYPE_UNSPECIFIED = 0;
-  RUN_EVENT_TYPE_CONNECTION_ESTABLISHED = 10;
-  RUN_EVENT_TYPE_CONNECTION_LOST = 11;
 }
 
 enum SessionStatus {
@@ -1261,10 +1245,10 @@ enum ScheduleFrequency {
   SCHEDULE_FREQUENCY_SECOND = 7;
 }
 
-enum LogKind {
-  LOG_KIND_UNSPECIFIED = 0;
-  LOG_KIND_CHANGE = 1;
-  LOG_KIND_EDIT = 2;
+enum LogType {
+  LOG_TYPE_UNSPECIFIED = 0;
+  LOG_TYPE_CHANGE = 1;
+  LOG_TYPE_EDIT = 2;
 }
 
 enum LogLevel {
@@ -1942,11 +1926,6 @@ message ComputedValueData {
   bool is_active = 60;
 }
 
-message ObjectMappingData {
-  ObjectType metatype = 1;
-  repeated ComputedValueData mappings = 40;
-}
-
 message SelectOptionsData {
   ObjectType metatype = 1;
   bool select_all_properties = 40;
@@ -2040,14 +2019,6 @@ message BreakpointData {
   BreakpointAction action = 32;
 }
 
-message LogInfoData {
-  ObjectType metatype = 1;
-  google.protobuf.Timestamp created_at = 11;
-  LogLevel level = 31;
-  optional TextData text = 61;
-  optional string text_plain = 62;
-}
-
 message TextOptionsData {
   ObjectType metatype = 1;
   optional float temperature = 30;
@@ -2092,7 +2063,6 @@ message RunOptionsData {
 
 message RunAttemptData {
   ObjectType metatype = 1;
-  optional CodeData code = 30;
   RunStatus status = 40;
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp started_at = 42;
@@ -2109,33 +2079,6 @@ message RunTraceData {
 
 message RunFrameData {
   ObjectType metatype = 1;
-}
-
-message RunSpanData {
-  ObjectType metatype = 1;
-  RunSpanType type = 30;
-  LogLevel level = 31;
-  optional string name = 32;
-  optional IconData icon = 33;
-  optional TextData text = 34;
-  optional string text_plain = 35;
-  repeated NodeReferenceData nodes_ptr = 36;
-  optional google.protobuf.Timestamp started_at = 40;
-  optional google.protobuf.Timestamp terminated_at = 41;
-  optional google.protobuf.Duration duration = 42;
-}
-
-message RunEventData {
-  ObjectType metatype = 1;
-  RunEventType type = 30;
-  LogLevel level = 31;
-  optional string name = 32;
-  optional IconData icon = 33;
-  optional string title = 34;
-  optional TextData text = 35;
-  optional string text_plain = 36;
-  repeated NodeReferenceData nodes_ptr = 37;
-  optional google.protobuf.Timestamp created_at = 40;
 }
 
 message RunErrorData {
@@ -2160,13 +2103,13 @@ message EditContextData {
 
 message ContextData {
   ObjectType metatype = 1;
-  optional NodeReferenceData session_ptr = 80;
-  optional NodeReferenceData run_ptr = 81;
-  optional NodeReferenceData run_root_ptr = 82;
-  optional NodeReferenceData client_ptr = 83;
-  optional NodeReferenceData machine_ptr = 84;
-  optional NodeReferenceData user_ptr = 86;
-  optional NodeReferenceData identity_ptr = 87;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData run_ptr = 91;
+  optional NodeReferenceData run_root_ptr = 92;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData user_ptr = 96;
+  optional NodeReferenceData identity_ptr = 97;
 }
 
 message TypeConstraintData {
@@ -2808,13 +2751,13 @@ message InterruptionData {
   optional google.protobuf.Timestamp closed_at = 42;
   optional google.protobuf.Value inputs_packed = 51;
   optional google.protobuf.Value outputs_packed = 52;
-  optional NodeReferenceData session_ptr = 80;
-  optional NodeReferenceData run_ptr = 81;
-  optional NodeReferenceData run_root_ptr = 82;
-  optional NodeReferenceData client_ptr = 83;
-  optional NodeReferenceData machine_ptr = 84;
-  optional NodeReferenceData user_ptr = 86;
-  optional NodeReferenceData identity_ptr = 87;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData run_ptr = 91;
+  optional NodeReferenceData run_root_ptr = 92;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData user_ptr = 96;
+  optional NodeReferenceData identity_ptr = 97;
 }
 
 message LogData {
@@ -2829,23 +2772,48 @@ message LogData {
   optional google.protobuf.Timestamp deleted_at = 14;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
-  LogKind kind = 30;
+  LogType type = 30;
   LogLevel level = 31;
-  optional NodeReferenceData change_ptr = 32;
-  optional NodeReferenceData undo_of_ptr = 33;
-  optional AccessType type = 40;
-  optional NodeReferenceData node_ptr = 41;
-  optional google.protobuf.Value node_data = 43;
-  repeated EditOperationData operations = 44;
-  optional ChangeCategory category = 48;
-  optional ChangeVignetteData vignette = 49;
-  optional NodeReferenceData session_ptr = 80;
-  optional NodeReferenceData run_ptr = 81;
-  optional NodeReferenceData run_root_ptr = 82;
-  optional NodeReferenceData client_ptr = 83;
-  optional NodeReferenceData machine_ptr = 84;
-  optional NodeReferenceData user_ptr = 86;
-  optional NodeReferenceData identity_ptr = 87;
+  optional string title = 32;
+  optional TextData text = 33;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData run_ptr = 91;
+  optional NodeReferenceData run_root_ptr = 92;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData user_ptr = 96;
+  optional NodeReferenceData identity_ptr = 97;
+}
+
+message RunSpanData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  NodeMode mode = 20;
+  optional google.protobuf.Value subnode_packed = 29;
+  RunSpanType type = 30;
+  optional NodeReferenceData root_ptr = 31;
+  LogLevel level = 33;
+  RunStatus status = 40;
+  optional google.protobuf.Timestamp started_at = 41;
+  optional google.protobuf.Timestamp terminated_at = 42;
+  optional google.protobuf.Duration duration = 43;
+  optional string title = 50;
+  optional TextData text = 51;
+  repeated NodeReferenceData nodes_ptr = 52;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData run_ptr = 91;
+  optional NodeReferenceData run_root_ptr = 92;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData user_ptr = 96;
+  optional NodeReferenceData identity_ptr = 97;
 }
 
 message RunData {
@@ -2870,7 +2838,6 @@ message RunData {
   RunOptionsData options = 39;
   RunStatus status = 40;
   optional google.protobuf.Duration duration = 41;
-  repeated RunAttemptData attempts = 44;
   optional RunErrorData error = 45;
   optional google.protobuf.Timestamp scheduled_at = 46;
   optional google.protobuf.Timestamp started_at = 47;
@@ -2883,16 +2850,13 @@ message RunData {
   optional google.protobuf.Value variables_packed = 60;
   optional google.protobuf.Value inputs_packed = 61;
   optional google.protobuf.Value outputs_packed = 63;
-  repeated LogInfoData logs = 65;
-  repeated RunSpanData spans = 66;
-  repeated RunEventData events = 67;
-  optional NodeReferenceData session_ptr = 80;
-  optional NodeReferenceData run_ptr = 81;
-  optional NodeReferenceData run_root_ptr = 82;
-  optional NodeReferenceData client_ptr = 83;
-  optional NodeReferenceData machine_ptr = 84;
-  optional NodeReferenceData user_ptr = 86;
-  optional NodeReferenceData identity_ptr = 87;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData run_ptr = 91;
+  optional NodeReferenceData run_root_ptr = 92;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData user_ptr = 96;
+  optional NodeReferenceData identity_ptr = 97;
 }
 
 message SessionData {
@@ -2911,13 +2875,13 @@ message SessionData {
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp opened_at = 42;
   optional google.protobuf.Timestamp closed_at = 43;
-  optional NodeReferenceData session_ptr = 80;
-  optional NodeReferenceData run_ptr = 81;
-  optional NodeReferenceData run_root_ptr = 82;
-  optional NodeReferenceData client_ptr = 83;
-  optional NodeReferenceData machine_ptr = 84;
-  optional NodeReferenceData user_ptr = 86;
-  optional NodeReferenceData identity_ptr = 87;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData run_ptr = 91;
+  optional NodeReferenceData run_root_ptr = 92;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData user_ptr = 96;
+  optional NodeReferenceData identity_ptr = 97;
 }
 
 message FieldData {
@@ -3506,10 +3470,11 @@ message SomeNodeData {
     RecordData record = 24;
     SessionData session = 25;
     RunData run = 26;
-    InterruptionData interruption = 27;
-    LogData log = 28;
-    SkipData skip = 29;
-    EmptyData empty = 30;
+    RunSpanData run_span = 27;
+    InterruptionData interruption = 28;
+    LogData log = 29;
+    SkipData skip = 30;
+    EmptyData empty = 31;
   };
 }
 

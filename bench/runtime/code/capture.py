@@ -2,7 +2,7 @@ import contextlib
 import io
 from typing import Any, Iterable, override
 
-from bench.language import LogInfo, LogLevel, Text
+from bench.language import Log, LogLevel, Text
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
@@ -34,7 +34,7 @@ class LogSink:
         max_log_length: int,
     ):
         self.oracle = oracle
-        self.logs: list[LogInfo] = []
+        self.logs: list[Log] = []
         self.max_logs = max_logs
         self.is_open = len(self.logs) < self.max_logs
         self.max_log_length = max_log_length
@@ -45,29 +45,29 @@ class LogSink:
 
         # coerce
         if isinstance(text_in, str):
+            title = text_in
             text = None
-            text_plain = text_in.strip()
         elif isinstance(text_in, Text):
+            title = None
             text = text_in
-            text_plain = None
         else:
+            title = repr(text_in)
             text = None
-            text_plain = repr(text_in)
 
         # coerce to none if empty
-        if text_plain is not None and len(text_plain) == 0:
-            text_plain = None  # we can't have empty strings
+        if text is not None and len(text) == 0:
+            text = None  # we can't have empty strings
 
         # truncate plain text if too long
-        if text_plain is not None and len(text_plain) > self.max_log_length:
-            text_plain = text_plain[: self.max_log_length] + "... <line too long, truncated>"
+        if title is not None and len(title) > self.max_log_length:
+            title = title[: self.max_log_length] + "... <line too long, truncated>"
 
         # NOTE :Incomplete: transform kwargs into freeform LogInfo.values
-        log = LogInfo(
+        log = Log(
             created_at=self.oracle.utc(),
             level=level,
+            title=title,
             text=text,
-            text_plain=text_plain,
             _skip_validate_self=True,
         )
         self.logs.append(log)
@@ -75,14 +75,6 @@ class LogSink:
         # close if overflown
         if self.is_open and len(self.logs) >= self.max_logs - 1:
             self.is_open = False
-            self.logs.append(
-                LogInfo(
-                    created_at=self.oracle.utc(),
-                    level=LogLevel.WARNING,
-                    text_plain=f"<stopping log capture, log overflow (exceeded {self.max_logs} logs)>",
-                    _skip_validate_self=True,
-                )
-            )
 
     def bind(self, **kwargs) -> "BoundLogSink":
         """Bind additional kwargs to this log sink."""

@@ -171,7 +171,7 @@ class BenchSqlContext(SqlContext):
 
 
 def get_node_table_name(node_type: NodeType) -> str:
-    return f"{BENCH_TABLE_PREFIX}{node_type.name.lower().replace('_', '')}"
+    return f"{BENCH_TABLE_PREFIX}{node_type.name.lower()}"
 
 
 def get_record_table_name(block: Block) -> str:

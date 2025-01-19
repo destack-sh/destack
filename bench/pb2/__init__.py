@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.01.16.3"
+VERSION = "2025.01.19.0"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -47,6 +47,7 @@ AnyNodeData = Union[
     RecordData,
     SessionData,
     RunData,
+    RunSpanData,
     InterruptionData,
     LogData,
     SkipData,
@@ -88,21 +89,17 @@ AnyStructData = Union[
     SelectOptionsData,
     ValueData,
     ComputedValueData,
-    ObjectMappingData,
     RunErrorData,
     RunOptionsData,
     RunAttemptData,
     RunTraceData,
     RunFrameData,
-    RunSpanData,
-    RunEventData,
+    CallData,
+    BreakpointData,
     TextOptionsData,
     AudioOptionsData,
     ImageOptionsData,
     VideoOptionsData,
-    CallData,
-    BreakpointData,
-    LogInfoData,
     ColorData,
     FontData,
     RectangleData,
@@ -141,6 +138,7 @@ BenchNodeData = Union[
     RecordData,
     SessionData,
     RunData,
+    RunSpanData,
     InterruptionData,
     LogData,
 ]
@@ -156,4 +154,4 @@ SourceNodeData = Union[
     DependencyData, BlockData, FieldData, ViewData, ActionData, PipeData, SpaceData
 ]
 StateNodeData = Union[MessageData, RecordData]
-RuntimeNodeData = Union[SessionData, RunData, InterruptionData, LogData]
+RuntimeNodeData = Union[SessionData, RunData, RunSpanData, InterruptionData, LogData]
