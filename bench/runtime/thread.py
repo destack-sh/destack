@@ -238,7 +238,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                 with tracer.start_as_current_span("thread.load"):
                     async with self._session.active(readonly=True):
                         run = await Run.include_descendants(
-                            NodeType.RUN, NodeType.INTERRUPTION
+                            NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION
                         ).get(run_ptr, live=True)
                     assert run.bench_id == self._bench_id, f"{run!r} is not in {self!r}"
                     assert run.root_ptr is None, f"{run!r} is not a root Run"

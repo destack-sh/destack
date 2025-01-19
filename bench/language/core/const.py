@@ -3,7 +3,7 @@ import enum
 import secrets
 import typing
 from datetime import date, datetime, time, timedelta
-from typing import Any, Generator, Mapping, Optional, TypeGuard, cast
+from typing import TYPE_CHECKING, Any, Generator, Mapping, Optional, TypeGuard, cast
 from uuid import UUID, uuid4, uuid5
 
 from opentelemetry.trace import Tracer
@@ -12,9 +12,9 @@ from opentelemetry.util._decorator import _agnosticcontextmanager
 from bench.utils.func import IdEnum, bittuple
 from bench.utils.utils import frozendict, get_from_env
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from bench.language import LogLevel, Node, Session, Text, Transaction
-    from bench.language.runtime.run import RunEvent, RunEventType, RunSpan, RunSpanType
+    from bench.language.runtime.run import RunSpan, RunSpanType
     from bench.runtime.core import Runner
 
 
@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.16.3"
+VERSION = "2025.01.19.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -170,17 +170,16 @@ class EnumType(IdEnum):
     # runtime core (22000-22099)
     RUN_STATUS = 22000
     RUN_TYPE = 22001
-    RUN_ERROR_KIND = 22002
-    RUN_ERROR_TYPE = 22003
-    RUN_SPAN_TYPE = 22004
-    RUN_EVENT_TYPE = 22005
+    RUN_SPAN_TYPE = 22002
+    RUN_ERROR_KIND = 22003
+    RUN_ERROR_TYPE = 22004
     SESSION_STATUS = 22010
     TRIGGER_TYPE = 22020
     CACHE_MODE = 22030
     SCHEDULE_FREQUENCY = 22040
 
     # logging (22100-22199)
-    LOG_KIND = 22100
+    LOG_TYPE = 22100
     LOG_LEVEL = 22101
 
     # debugging (22200-22299)
@@ -313,6 +312,7 @@ class NodeType(IdEnum):
     # runtime
     SESSION = 6000  # (timed)
     RUN = 6010  # (based, timed)
+    RUN_SPAN = 6011  # (timed)
     INTERRUPTION = 6020  # (timed)
     LOG = 6030  # (timed)
 
@@ -478,11 +478,8 @@ class StructType(IdEnum):
     RUN_ATTEMPT = 12702
     RUN_TRACE = 12703
     RUN_FRAME = 12704
-    RUN_SPAN = 12705
-    RUN_EVENT = 12706
     CALL = 12730
     BREAKPOINT = 12740
-    LOG_INFO = 12750
     # model
     TEXT_OPTIONS = 12800
     AUDIO_OPTIONS = 12801
@@ -923,8 +920,8 @@ class AccessMode(IdEnum):
 #
 
 
-@enum_(EnumType.LOG_KIND)
-class LogKind(IdEnum):
+@enum_(EnumType.LOG_TYPE)
+class LogType(IdEnum):
     # access
     CHANGE = 1
     EDIT = 2
@@ -945,6 +942,7 @@ class LogLevel(IdEnum):  # :LogLevel
 @enum_(EnumType.RUN_SPAN_TYPE)
 class RunSpanType(IdEnum):
     # general
+    ATTEMPT = 1
     WAIT = 10
     # flow
     FLOW_GENERATE_CALLS = 100
@@ -1412,46 +1410,6 @@ def get_active_tx() -> Optional["Transaction"]:
     return session._tx
 
 
-def run_event(
-    type: "RunEventType",
-    *,
-    level: "LogLevel | None" = None,
-    name: str | None = None,
-    text: "Text | None" = None,
-    text_plain: str | None = None,
-    nodes: list["Node"] | None = None,
-    runner: "Runner | None" = None,
-) -> "RunEvent | None":
-    """Emit a RunEvent in the current Run (noop if not inside a Run)."""
-
-    if runner is None:
-        session = _active_session.get()
-        runtime = session._runtime if session is not None else None
-        runner = runtime.active_runner if runtime is not None else None
-    else:
-        runtime = runner.runtime
-        session = runner.session
-
-    if runner is None or runtime is None:
-        return None
-
-    event = RunEvent(
-        type=type,
-        level=level or LogLevel.INFO,
-        name=name,
-        text=text,
-        text_plain=text_plain,
-        nodes=nodes or [],
-        created_at=runtime.oracle.utc(),
-        _skip_validate_self=True,
-    )
-    runner.events.append(event)
-    run = runner.tracked_run
-    if run is not None:
-        run._do_set("events", runner.events, validate=False)
-    return event
-
-
 @_agnosticcontextmanager
 def run_span(
     tracer: Tracer,
@@ -1472,11 +1430,13 @@ def run_span(
         session = _active_session.get()
         runtime = session._runtime if session is not None else None
         runner = runtime.active_runner if runtime is not None else None
+        run = runner.closest_tracked_run if runner is not None else None
     else:
         runtime = runner.runtime
         session = runner.session
+        run = runner.closest_tracked_run
 
-    if runner is None or runtime is None:
+    if runner is None or runtime is None or run is None:
         # not inside a Run
         with tracer.start_as_current_span(key):
             yield
@@ -1491,16 +1451,10 @@ def run_span(
             started_at=runtime.oracle.utc(),
             _skip_validate_self=True,
         )
-        runner.spans.append(span)
-        run = runner.tracked_run
-        if run is not None:
-            run._do_set("spans", runner.spans, validate=False)
-
+        run.spans.append(span)
         try:
             with tracer.start_as_current_span(key):
                 yield span
         finally:
-            span._do_set("terminated_at", runtime.oracle.utc())
-            span._do_set("duration", span.terminated_at - span.started_at)  # type: ignore
-            if run is not None:
-                run._do_set("spans", runner.spans, validate=False)
+            span._do_set("terminated_at", runtime.oracle.utc(), validate=False)
+            span._do_set("duration", span.terminated_at - span.started_at, validate=False)  # type: ignore

@@ -9,7 +9,7 @@ from .interruption import (
     InterruptionStatus,
     InterruptionType,
 )
-from .log import Log, LogInfo, LogKind, LogLevel
+from .log import Log, LogLevel, LogType
 from .model import (
     AudioOptions,
     ImageOptions,
@@ -25,7 +25,6 @@ from .run import (
     RunAttempt,
     RunError,
     RunErrorType,
-    RunEvent,
     RunOptions,
     RunSpan,
     RunSpanType,
@@ -47,9 +46,8 @@ __all__ = [
     "InterruptionStatus",
     "InterruptionType",
     "Log",
-    "LogInfo",
-    "LogKind",
     "LogLevel",
+    "LogType",
     "ModelDeveloper",
     "ModelFamily",
     "ModelProvider",
@@ -58,7 +56,6 @@ __all__ = [
     "RunAttempt",
     "RunError",
     "RunErrorType",
-    "RunEvent",
     "RunOptions",
     "RunSpan",
     "RunSpanType",

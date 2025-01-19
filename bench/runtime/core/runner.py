@@ -29,7 +29,6 @@ from bench.language import (
     Interruption,
     InterruptionStatus,
     InterruptionType,
-    LogInfo,
     Node,
     NodeMode,
     Pipe,
@@ -38,10 +37,8 @@ from bench.language import (
     Run,
     RunAttempt,
     RunError,
-    RunEvent,
     RunnableNode,
     RunOptions,
-    RunSpan,
     RunStatus,
     RunType,
     Session,
@@ -89,7 +86,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "attempts",
         "context",
         "error",
-        "events",
         "id",
         "input_type",
         "inputs",
@@ -106,7 +102,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "runners",
         "runs",
         "runtime",
-        "spans",
         "status",
         "task",
         "tracked_run",
@@ -153,14 +148,8 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.parent = parent or runtime.active_runner
         if run is not None:
             self.attempts = list(run.attempts)
-            self.logs = list(run.logs)
-            self.spans = list(run.spans)
-            self.events = list(run.events)
         else:
             self.attempts: list[RunAttempt] = []
-            self.logs: list[LogInfo] = []
-            self.spans: list[RunSpan] = []
-            self.events: list[RunEvent] = []
         self.runners: list[Runner] = []
         self.tracked_run = run
         self.task: asyncio.Task | None = None

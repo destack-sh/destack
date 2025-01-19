@@ -5,7 +5,6 @@ from uuid import UUID
 
 from bench.language.core import (
     TERMINAL_RUN_STATUSES,
-    TITLE_CONSTRAINT,
     BenchError,
     EnumType,
     FieldType,
@@ -38,6 +37,7 @@ from bench.language.core import (
     timed_node_,
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
+from bench.pb2.lang_pb2 import RunSpanData
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
 from bench.utils.tenacity import RetryOptions
@@ -49,12 +49,10 @@ if TYPE_CHECKING:
         Bench,
         Block,
         Breakpoint,
-        Code,
         CustomObject,
-        Icon,
         ImageOptions,
         Interruption,
-        LogInfo,
+        Log,
         ModelDeveloper,
         ModelFamily,
         ModelType,
@@ -155,9 +153,6 @@ class RunOptions(Struct):
 class RunAttempt(Struct):
     """A single attempt at a Run."""
 
-    code: Optional["Code"] = p_internal(
-        30, default=None, require=False, array=False, struct=StructType.CODE
-    )
     status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)
     duration: Optional[timedelta] = p_internal(41, default=None)
     started_at: Optional[datetime] = p_internal(42, default=None)
@@ -194,46 +189,6 @@ class RunFrame(Struct):
     """A single frame in a stacktrace."""
 
     pass
-
-
-# NOTE :Architecture: RunSpan/RunEvent probably shouldn't exist and should just be full Runs/Logs
-
-
-@struct_(StructType.RUN_SPAN)
-class RunSpan(Struct):
-    """A span in a Run (a sort of mini-Run inside a tracked Run)."""
-
-    type: RunSpanType = p_regular(30)
-    level: "LogLevel" = p_regular(31, default=LogLevel.INFO)
-    name: str | None = p_regular(32, default=None)
-    icon: "Icon | None" = p_regular(33, default=None, struct=StructType.ICON)
-    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
-    text_plain: Optional[str] = p_regular(35, default=None)
-    nodes: list["Node"] = p_regular(36, array=True, require=False, references="any")
-    started_at: Optional[datetime] = p_regular(40, default=None)
-    terminated_at: Optional[datetime] = p_regular(41, default=None)
-    duration: Optional[timedelta] = p_regular(42, default=None)
-
-
-@enum_(EnumType.RUN_EVENT_TYPE)
-class RunEventType(IdEnum):
-    CONNECTION_ESTABLISHED = 10
-    CONNECTION_LOST = 11
-
-
-@struct_(StructType.RUN_EVENT)
-class RunEvent(Struct):
-    """An event in a Run of something that happened."""
-
-    type: RunEventType = p_regular(30)
-    level: LogLevel = p_regular(31, default=LogLevel.INFO)
-    name: str | None = p_regular(32, default=None)
-    icon: "Icon | None" = p_regular(33, default=None, struct=StructType.ICON)
-    title: Optional[str] = p_regular(34, default=None, constraint=TITLE_CONSTRAINT)
-    text: Optional["Text"] = p_regular(35, default=None, struct=StructType.TEXT)
-    text_plain: Optional[str] = p_regular(36, default=None)
-    nodes: list["Node"] = p_regular(37, array=True, require=False, references="any")
-    created_at: Optional[datetime] = p_regular(40, default=None)
 
 
 @enum_(EnumType.RUN_ERROR_TYPE)
@@ -323,6 +278,33 @@ class RunError(Struct, BenchError):
         return RunError(kind=kind, type=typ, title=title, text=text)
 
 
+@timed_node_(NodeType.RUN_SPAN)
+class RunSpan(RuntimeNode[RunSpanData]):
+    """A span in a Run (a sort of mini-Run inside a tracked Run)."""
+
+    # meta
+    parent: Union["Run", None] = p_node_parent(4, NodeType.RUN)
+    type: RunSpanType = p_regular(30)
+    root: "Run | None" = p_node_ancestor(
+        31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
+    )
+    if TYPE_CHECKING:
+        root_ptr: Optional[NodeReference] = None
+        root_id: Optional[UUID] = None
+    level: "LogLevel" = p_regular(33, default=LogLevel.INFO)
+
+    # status
+    status: RunStatus = p_regular(40, default=RunStatus.SCHEDULED)
+    started_at: Optional[datetime] = p_regular(41, default=None)
+    terminated_at: Optional[datetime] = p_regular(42, default=None)
+    duration: Optional[timedelta] = p_regular(43, default=None)
+
+    # content
+    title: str | None = p_regular(50, default=None)
+    text: Optional["Text"] = p_regular(51, default=None, struct=StructType.TEXT)
+    nodes: list["Node"] = p_regular(52, array=True, require=False, references="any")
+
+
 @timed_node_(NodeType.RUN)
 class Run(RuntimeNode[RunData], HasNodeBase):
     """
@@ -372,7 +354,6 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         description="Duration from first attempt start to last attempt termination.",
     )
     # cached_duration, active_duration, ...?
-    attempts: list[RunAttempt] = p_internal(44, array=True, struct=StructType.RUN_ATTEMPT)
     error: Optional["RunError"] = p_internal(
         45, default=None, require=False, array=False, struct=StructType.RUN_ERROR
     )
@@ -400,13 +381,12 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     outputs: "CustomObject | None" = p_value_runtime(
         63, type=FieldType.OUTPUT, typ=lambda self: cast("Run", self).output_type
     )
-    logs: list["LogInfo"] = p_internal(65, array=True, struct=StructType.LOG_INFO)
-    spans: list["RunSpan"] = p_internal(66, array=True, struct=StructType.RUN_SPAN)
-    events: list["RunEvent"] = p_internal(67, array=True, struct=StructType.RUN_EVENT)
 
-    # ...HasContext[80-99]
+    # ...HasContext[90-99]
 
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
+    spans: LocalNodeList["RunSpan"] = p_node_children(NodeType.RUN_SPAN)
+    logs: LocalNodeList["Log"] = p_node_children(NodeType.LOG)
     interruptions: LocalNodeList["Interruption"] = p_node_children(NodeType.INTERRUPTION)
 
     def __content_str__(self):
