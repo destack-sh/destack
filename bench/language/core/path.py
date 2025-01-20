@@ -538,7 +538,7 @@ def _get_contained_descendant(scope: Node, name: str) -> Node | None:
             if node := _get_child(scope, name, node_type):
                 return node
         # recurse descendant views/actions
-        for node_type in (NodeType.VIEW, NodeType.ACTION):
+        for node_type in (NodeType.VIEW, NodeType.ACTION, NodeType.PIPE):
             if node := _get_descendant(scope, name, node_type):
                 return node
         # recurse down into blocks until we hit pages
@@ -601,7 +601,7 @@ def _get_container(scope: Node, name: str | None = None) -> Node | None:
 
 def _get_unique(scope: Node, name: str) -> Node | None:
     """
-    Finds a uniquely named node in any containing ancestor scope.
+    Finds a named node in any containing ancestor scope.
     The order of search is:
      1. 'Siblings' - descendents of parent container.
      2. Descendants - descendants of scope.

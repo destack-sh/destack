@@ -823,8 +823,8 @@ async def test_run_flow_calls_tool(hosted_runtime: RuntimeHandle):
         ),
     )
     Start = Action.new(ActionType.START, "Start")
-    Code1 = Action.new(ActionType.CODE, "Code", code=code("pass"))
-    Tool1 = Action.new(ActionType.TOOL, "Tool")
+    Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
+    Tool1 = Action.new(ActionType.TOOL, "Tool1")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Code1, Tool1, Complete)
     Start.connect(PipeType.CALL, Code1)
