@@ -600,7 +600,7 @@ class Runtime:
         retry = runner.options.to_retry().new(self.oracle)
 
         if runner.tracked_run is not None:
-            # Runner is Run, retry with attempts (and breakpoints)
+            # Runner = Run, retry with attempts & breakpoints
             # recover run
             attempts = runner.attempts
             retry.attempt = len(attempts)
@@ -616,7 +616,7 @@ class Runtime:
             runner._trap_pause()
             if last_attempt is None:
                 runner._trap_breakpoint(BreakpointSite.RUN_BEFORE)
-
+            # core loop
             active_runner_token = self._active_runner.set(runner)
             try:
                 # make new attempts if we can/should
@@ -649,7 +649,6 @@ class Runtime:
                     finally:
                         if (error := last_attempt.error) is not None:
                             retry.on_error(error)
-
                 # give up if retry exhausted
                 if last_attempt is not None and last_attempt.status != RunStatus.COMPLETED:
                     if last_attempt.error:
@@ -663,11 +662,9 @@ class Runtime:
             finally:
                 # reset active run
                 self._active_runner.reset(active_runner_token)
-
                 # update from last attempt
                 last_attempt = runner.current_attempt
                 assert last_attempt is not None, f"missing last attempt for run {runner!r}"
-
                 # breakpoint after
                 if last_attempt.status.is_terminal:
                     if last_attempt.status == RunStatus.FAILED:
@@ -680,13 +677,11 @@ class Runtime:
                         )
                     else:
                         runner._trap_breakpoint(BreakpointSite.RUN_AFTER)
-
                 # runner status = last attempt status
                 runner.status = last_attempt.status
                 runner.error = last_attempt.error
-
         else:
-            # Runner is RunSpan, attempt only once (no breakpoints)
+            # Runner = RunSpan, attempt only once (no breakpoints)
             span = runner.tracked_span
             assert span is not None, f"missing tracked span for {runner!r}"
             active_runner_token = self._active_runner.set(runner)

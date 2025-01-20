@@ -1173,7 +1173,8 @@ enum RunType {
 enum RunSpanType {
   RUN_SPAN_TYPE_UNSPECIFIED = 0;
   RUN_SPAN_TYPE_ATTEMPT = 1;
-  RUN_SPAN_TYPE_WAIT = 10;
+  RUN_SPAN_TYPE_DELEGATE = 10;
+  RUN_SPAN_TYPE_WAIT = 11;
   RUN_SPAN_TYPE_FLOW_GENERATE_CALLS = 100;
   RUN_SPAN_TYPE_MODEL_PREPARE = 300;
   RUN_SPAN_TYPE_MODEL_GENERATE = 310;
@@ -2091,11 +2092,10 @@ message ContextData {
   ObjectType metatype = 1;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
-  optional NodeReferenceData run_root_ptr = 92;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData machine_ptr = 94;
-  optional NodeReferenceData user_ptr = 96;
-  optional NodeReferenceData identity_ptr = 97;
+  optional NodeReferenceData user_ptr = 95;
+  optional NodeReferenceData identity_ptr = 96;
 }
 
 message TypeConstraintData {
@@ -2739,11 +2739,10 @@ message InterruptionData {
   optional google.protobuf.Value outputs_packed = 52;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
-  optional NodeReferenceData run_root_ptr = 92;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData machine_ptr = 94;
-  optional NodeReferenceData user_ptr = 96;
-  optional NodeReferenceData identity_ptr = 97;
+  optional NodeReferenceData user_ptr = 95;
+  optional NodeReferenceData identity_ptr = 96;
 }
 
 message LogData {
@@ -2764,11 +2763,10 @@ message LogData {
   optional TextData text = 33;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
-  optional NodeReferenceData run_root_ptr = 92;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData machine_ptr = 94;
-  optional NodeReferenceData user_ptr = 96;
-  optional NodeReferenceData identity_ptr = 97;
+  optional NodeReferenceData user_ptr = 95;
+  optional NodeReferenceData identity_ptr = 96;
 }
 
 message RunSpanData {
@@ -2798,11 +2796,10 @@ message RunSpanData {
   repeated NodeReferenceData nodes_ptr = 62;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
-  optional NodeReferenceData run_root_ptr = 92;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData machine_ptr = 94;
-  optional NodeReferenceData user_ptr = 96;
-  optional NodeReferenceData identity_ptr = 97;
+  optional NodeReferenceData user_ptr = 95;
+  optional NodeReferenceData identity_ptr = 96;
 }
 
 message RunData {
@@ -2841,11 +2838,10 @@ message RunData {
   optional google.protobuf.Value outputs_packed = 63;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
-  optional NodeReferenceData run_root_ptr = 92;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData machine_ptr = 94;
-  optional NodeReferenceData user_ptr = 96;
-  optional NodeReferenceData identity_ptr = 97;
+  optional NodeReferenceData user_ptr = 95;
+  optional NodeReferenceData identity_ptr = 96;
 }
 
 message SessionData {
@@ -2866,11 +2862,10 @@ message SessionData {
   optional google.protobuf.Timestamp closed_at = 43;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
-  optional NodeReferenceData run_root_ptr = 92;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData machine_ptr = 94;
-  optional NodeReferenceData user_ptr = 96;
-  optional NodeReferenceData identity_ptr = 97;
+  optional NodeReferenceData user_ptr = 95;
+  optional NodeReferenceData identity_ptr = 96;
 }
 
 message FieldData {

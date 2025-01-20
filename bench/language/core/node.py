@@ -2686,8 +2686,8 @@ class HasContext(BuiltinObject):
     session: Optional["Session"] = p_internal(
         90, require=False, array=False, references=NodeType.SESSION, same_bench=True
     )
-    run: "Run | None" = p_node_ancestor(
-        91, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
+    run: "Run | None" = p_internal(
+        91, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
     client: Optional["Client"] = p_internal(
         93, require=False, array=False, references=NodeType.CLIENT, same_bench=True

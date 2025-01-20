@@ -50,7 +50,6 @@ from bench.language import (
     active_session,
     get_tracing_context,
 )
-from bench.utils.uuidt import UUIDT
 
 from .error import InterruptionCancelledError, RunImpossibleError
 from .options import BASE_RUN_OPTIONS_BY_KIND
@@ -78,9 +77,9 @@ RunnerHook = Callable[["Runner", BaseException | None], None]
 
 class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     """
-    A runner for a single Run (tracked Run or untracked RunSpan).
+    A Runner to run a Run/RunSpan (every Run has one Runner, some RunSpans have one).
     Runners work similar to asyncio Tasks, making progress until terminated or stopped by an Interruption.
-    Once an Interruption is handled, we try to run the Runner again - it may progress or raise another Interruption.
+    After an Interruption is handled, we try to run the Runner again - it may progress or raise another Interruption.
     Interruption-capable Runners may be nested, and it's the responsibility of the Runners
      to ensure replay stability in all sub-Runners when resuming after an Interruption.
     """
@@ -129,7 +128,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         outputs: TypeBase | CustomObject | None = None,
         mode: NodeMode | None = None,
     ) -> None:
-        self.id: UUIDT = run.id if run is not None else UUIDT()
         self.runtime = runtime
         self.node = node
         self.status = RunStatus.QUEUED
@@ -138,8 +136,12 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.context: HasContext = context
         self.variables = variables
         self.variable_type = node.variable_type
+        assert (
+            self.variable_type is None or self.variables is not None
+        ), f"{self!r} has no variables"
         self.inputs: CustomObject | None = inputs
         self.input_type = node.input_type
+        assert self.input_type is None or self.inputs is not None, f"{self!r} has no inputs"
         if isinstance(outputs, TypeBase):
             self.outputs: CustomObject | None = None
             self.output_type = outputs or node.output_type
@@ -150,10 +152,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             self.outputs = None
             self.output_type = node.output_type
         self.error: RunError | None = None
-        assert (
-            self.variable_type is None or self.variables is not None
-        ), f"{self!r} has no variables"
-        assert self.input_type is None or self.inputs is not None, f"{self!r} has no inputs"
 
         self.parent = parent or runtime.active_runner
         self.runners: list[Runner] = []
@@ -161,31 +159,19 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.outer_task: asyncio.Task | None = None
         self.is_stopped = False
 
-        self.tracked_run: Run | None = None
-        self.tracked_span: RunSpan | None = None
+        # track in Run/RunSpan
+        self.tracked_run: Run | None
+        self.tracked_span: RunSpan | None
         self.tracked: RunSpan | Run
-
-        # determine mode
-        if mode is not None:
-            self.mode = mode
-        elif self.parent is not None:
-            self.mode = self.parent.mode
-        elif isinstance(run, Node):
-            self.mode = run.mode
-        else:
-            self.mode = NodeMode.PRODUCTION
-
-        # track with Run
         if self.parent is not None:
             self.parent.runners.append(self)  # register with parent Runner
-        if track and run is None:
-            if self.parent is not None:
-                assert self.parent.tracked_run is not None, f"{self.parent!r} has no Run"
-                parent_run = self.parent.tracked_run
-            else:
-                parent_run = None
-            with tracer.start_as_current_span("runtime.create_run"):
-                run = Run(
+            parent_run = self.parent.closest_tracked_run
+        else:
+            parent_run = None
+        if type(run) is Run or run == "track":
+            # Runner = Run
+            if run == "track":
+                tracked_run = Run(
                     parent=parent_run or self.runtime.bench,
                     type=self.runner_type,
                     block=node if isinstance(node, Block) else node.block,
@@ -199,24 +185,58 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                     session=self.session,
                     _skip_validate_self=True,
                 )
-                self.id = run.id
-                self.session._create(run)
-                # get objects from Run (Node may copy them if they're from a different parent,
-                #  like when we re-use a Flow's inputs for the StartAction.inputs)
-                self.inputs = run.inputs
-                self.variables = run.variables
-                self.options = run.options
-            self.tracked_run = run
-        if type(run) is Run:
+                self.session._create(tracked_run)
+            else:
+                tracked_run = cast(Run, run)
+            self.id = tracked_run.id
             # Run and Runner *must* share the same objects (so we can apply computed values)
-            assert run.variables is self.variables, f"{run!r} has other variables than {self!r}"
-            assert run.inputs is self.inputs, f"{run!r} has other inputs than {self!r}"
-            assert run.options is self.options, f"{run!r} has other options than {self!r}"
+            # get objects from Run (Node may copy them if they're from a different parent,
+            #  like when we re-use a Flow's inputs for the StartAction.inputs)
+            self.inputs = tracked_run.inputs
+            self.variables = tracked_run.variables
+            self.options = tracked_run.options
+            self.tracked_run = tracked_run
+            self.tracked_span = None
+            self.tracked = tracked_run
+            assert (
+                tracked_run.variables is self.variables
+            ), f"{tracked_run!r} has other variables than {self!r}"
+            assert (
+                tracked_run.inputs is self.inputs
+            ), f"{tracked_run!r} has other inputs than {self!r}"
+            assert (
+                tracked_run.options is self.options
+            ), f"{tracked_run!r} has other options than {self!r}"
+        else:
+            # Runner = RunSpan
+            if type(run) is RunSpanType:
+                assert parent_run is not None, f"{self!r} has no parent Run"
+                tracked_span = RunSpan(
+                    parent=parent_run,
+                    type=run,
+                    status=self.status,
+                    _skip_validate_self=True,
+                )
+                self.session._create(tracked_span)
+            else:
+                tracked_span = cast(RunSpan, run)
+            self.tracked_run = None
+            self.tracked_span = tracked_span
+            self.tracked = self.tracked_span
 
-        # assume context
+        # tracing
+        if mode is not None:
+            self.mode = mode
+        elif self.parent is not None:
+            self.mode = self.parent.mode
+        elif isinstance(run, Node):
+            self.mode = run.mode
+        else:
+            self.mode = NodeMode.PRODUCTION
+
+        # context
         if self.context is None:
-            self.context = run
-        assert self.context is not None, f"{self!r} has no context"
+            self.context = self.tracked
 
     def __str__(self):
         str_parts: list[str] = [
