@@ -1,6 +1,6 @@
 from asyncio import CancelledError
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Union, cast
 from uuid import UUID
 
 from bench.language.core import (
@@ -464,6 +464,10 @@ class Run(RuntimeNode[RunData], HasNodeBase):
             return cast(RunData, data).action_ptr
         else:
             return cast(RunData, data).block_ptr
+
+    @property
+    def attempts(self) -> Sequence[RunSpan]:
+        return tuple(span for span in self.spans if span.type == RunSpanType.ATTEMPT)
 
     @property
     def current_attempt(self) -> RunSpan | None:

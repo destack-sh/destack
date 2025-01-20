@@ -29,7 +29,7 @@ tracer = trace.get_tracer(__name__)
 
 
 class PipeRunner(Runner[Pipe], ABC):
-    runner_type: ClassVar[RunType] = RunType.ACTION
+    runner_type: ClassVar[RunType] = RunType.PIPE
 
     def __init__(
         self,

@@ -268,8 +268,9 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
             raise RunImpossibleError("no tool")
         tool_runner = self._get_resumable_subrunner(
             node=tool,
-            variables=self.action.variables,
-            inputs=self.action.inputs,
+            # inputs/variables are both PartialAction with node=tool
+            variables=self.inputs,
+            inputs=self.inputs,
             output_type=self.output_type,
         )
         await self.runtime.run_runner(tool_runner)
