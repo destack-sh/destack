@@ -1245,8 +1245,9 @@ enum ScheduleFrequency {
 
 enum LogType {
   LOG_TYPE_UNSPECIFIED = 0;
-  LOG_TYPE_CHANGE = 1;
-  LOG_TYPE_EDIT = 2;
+  LOG_TYPE_PRINT = 100;
+  LOG_TYPE_CHANGE = 200;
+  LOG_TYPE_EDIT = 201;
 }
 
 enum LogLevel {
@@ -1256,7 +1257,7 @@ enum LogLevel {
   LOG_LEVEL_INFO = 3;
   LOG_LEVEL_WARNING = 4;
   LOG_LEVEL_ERROR = 5;
-  LOG_LEVEL_CRITICAL = 6;
+  LOG_LEVEL_PANIC = 6;
 }
 
 enum BreakpointSite {
@@ -1405,9 +1406,8 @@ enum PortSide {
 
 enum PipeType {
   PIPE_TYPE_UNSPECIFIED = 0;
-  PIPE_TYPE_FORWARD = 1;
+  PIPE_TYPE_CALL = 1;
   PIPE_TYPE_SELECT = 10;
-  PIPE_TYPE_SELECT_AND_BACK = 11;
 }
 
 enum SpaceType {
@@ -2136,8 +2136,7 @@ message CallData {
   ObjectType metatype = 1;
   NodeReferenceData node_ptr = 31;
   optional ActionType action_type = 32;
-  optional google.protobuf.Value variables_packed = 35;
-  optional google.protobuf.Value inputs_packed = 36;
+  optional google.protobuf.Value value_packed = 36;
 }
 
 message ColorData {
@@ -2952,9 +2951,9 @@ message ActionData {
   optional NodeReferenceData machine_ptr = 51;
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;
-  repeated CallData calls = 59;
-  optional google.protobuf.Value variables_packed = 60;
-  optional google.protobuf.Value inputs_packed = 61;
+  optional google.protobuf.Value variables_packed = 55;
+  optional google.protobuf.Value inputs_packed = 56;
+  repeated CallData calls = 60;
   optional Vector2Data position = 80;
 }
 

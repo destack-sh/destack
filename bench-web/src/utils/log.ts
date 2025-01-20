@@ -12,7 +12,7 @@ const CONSOLE_METHOD_MAP: Record<LogLevel, keyof typeof console> = {
   [LogLevel.INFO]: "info",
   [LogLevel.WARNING]: "warn",
   [LogLevel.ERROR]: "error",
-  [LogLevel.CRITICAL]: "error",
+  [LogLevel.PANIC]: "error",
 };
 
 const LOG_LEVEL_INDEX: Record<LogLevel, number> = {
@@ -22,7 +22,7 @@ const LOG_LEVEL_INDEX: Record<LogLevel, number> = {
   [LogLevel.INFO]: 3,
   [LogLevel.WARNING]: 4,
   [LogLevel.ERROR]: 5,
-  [LogLevel.CRITICAL]: 6,
+  [LogLevel.PANIC]: 6,
 };
 
 export class Logger {
@@ -57,8 +57,8 @@ export class Logger {
     this.log(LogLevel.ERROR, ...args);
   }
 
-  critical(...args: any[]) {
-    this.log(LogLevel.CRITICAL, ...args);
+  panic(...args: any[]) {
+    this.log(LogLevel.PANIC, ...args);
   }
 }
 

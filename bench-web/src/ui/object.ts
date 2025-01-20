@@ -1051,8 +1051,6 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
             this.rowIcon("fas fa-arrow-down"),
             // outputs
             { type: "fields-list", fieldType: FieldType.OUTPUT, toolPtr: delegatePtr },
-            this.rowLine("Self"),
-            { type: "fields-list", fieldType: FieldType.OUTPUT },
           ],
           {
             subtitle: "(Tool)",

@@ -82,12 +82,7 @@ class SelectPipeRunner(PipeRunner):
     pass
 
 
-class SelectAndBackPipeRunner(PipeRunner):
-    pass
-
-
 PIPE_RUNNER_BY_PIPE_TYPE: dict[PipeType, type[PipeRunner]] = {
-    PipeType.FORWARD: ForwardPipeRunner,
+    PipeType.CALL: ForwardPipeRunner,
     PipeType.SELECT: SelectPipeRunner,
-    PipeType.SELECT_AND_BACK: SelectAndBackPipeRunner,
 }

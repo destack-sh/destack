@@ -1235,6 +1235,7 @@ class ScheduleFrequency(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class LogType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     LOG_TYPE_UNSPECIFIED: _ClassVar[LogType]
+    LOG_TYPE_PRINT: _ClassVar[LogType]
     LOG_TYPE_CHANGE: _ClassVar[LogType]
     LOG_TYPE_EDIT: _ClassVar[LogType]
 
@@ -1246,7 +1247,7 @@ class LogLevel(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     LOG_LEVEL_INFO: _ClassVar[LogLevel]
     LOG_LEVEL_WARNING: _ClassVar[LogLevel]
     LOG_LEVEL_ERROR: _ClassVar[LogLevel]
-    LOG_LEVEL_CRITICAL: _ClassVar[LogLevel]
+    LOG_LEVEL_PANIC: _ClassVar[LogLevel]
 
 class BreakpointSite(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1392,9 +1393,8 @@ class PortSide(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class PipeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PIPE_TYPE_UNSPECIFIED: _ClassVar[PipeType]
-    PIPE_TYPE_FORWARD: _ClassVar[PipeType]
+    PIPE_TYPE_CALL: _ClassVar[PipeType]
     PIPE_TYPE_SELECT: _ClassVar[PipeType]
-    PIPE_TYPE_SELECT_AND_BACK: _ClassVar[PipeType]
 
 class SpaceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2734,6 +2734,7 @@ SCHEDULE_FREQUENCY_HOUR: ScheduleFrequency
 SCHEDULE_FREQUENCY_MINUTE: ScheduleFrequency
 SCHEDULE_FREQUENCY_SECOND: ScheduleFrequency
 LOG_TYPE_UNSPECIFIED: LogType
+LOG_TYPE_PRINT: LogType
 LOG_TYPE_CHANGE: LogType
 LOG_TYPE_EDIT: LogType
 LOG_LEVEL_UNSPECIFIED: LogLevel
@@ -2742,7 +2743,7 @@ LOG_LEVEL_DEBUG: LogLevel
 LOG_LEVEL_INFO: LogLevel
 LOG_LEVEL_WARNING: LogLevel
 LOG_LEVEL_ERROR: LogLevel
-LOG_LEVEL_CRITICAL: LogLevel
+LOG_LEVEL_PANIC: LogLevel
 BREAKPOINT_SITE_UNSPECIFIED: BreakpointSite
 BREAKPOINT_SITE_RUN_BEFORE: BreakpointSite
 BREAKPOINT_SITE_RUN_AFTER_FAILED: BreakpointSite
@@ -2846,9 +2847,8 @@ PORT_SIDE_UNSPECIFIED: PortSide
 PORT_SIDE_INCOMING: PortSide
 PORT_SIDE_OUTGOING: PortSide
 PIPE_TYPE_UNSPECIFIED: PipeType
-PIPE_TYPE_FORWARD: PipeType
+PIPE_TYPE_CALL: PipeType
 PIPE_TYPE_SELECT: PipeType
-PIPE_TYPE_SELECT_AND_BACK: PipeType
 SPACE_TYPE_UNSPECIFIED: SpaceType
 SPACE_TYPE_DESKTOP: SpaceType
 SPACE_TYPE_BROWSER: SpaceType
@@ -3836,18 +3836,16 @@ class TypeData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[TypeKind, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., bench_type: _Optional[_Union[BenchType, str]] = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base_field_types: _Optional[_Iterable[_Union[FieldType, str]]] = ..., property_field_types: _Optional[_Iterable[_Union[FieldType, str]]] = ..., oneof_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., default_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., format: _Optional[_Union[TypeFormat, str]] = ..., condition: _Optional[_Union[ExpressionData, _Mapping]] = ..., constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ..., is_required: bool = ..., is_list: bool = ..., is_secret: bool = ...) -> None: ...
 
 class CallData(_message.Message):
-    __slots__ = ("metatype", "node_ptr", "action_type", "variables_packed", "inputs_packed")
+    __slots__ = ("metatype", "node_ptr", "action_type", "value_packed")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     ACTION_TYPE_FIELD_NUMBER: _ClassVar[int]
-    VARIABLES_PACKED_FIELD_NUMBER: _ClassVar[int]
-    INPUTS_PACKED_FIELD_NUMBER: _ClassVar[int]
+    VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     node_ptr: NodeReferenceData
     action_type: ActionType
-    variables_packed: _struct_pb2.Value
-    inputs_packed: _struct_pb2.Value
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., action_type: _Optional[_Union[ActionType, str]] = ..., variables_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    value_packed: _struct_pb2.Value
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., action_type: _Optional[_Union[ActionType, str]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class ColorData(_message.Message):
     __slots__ = ("metatype", "type", "shade", "hex")
@@ -5320,7 +5318,7 @@ class OptionFieldData(_message.Message):
     def __init__(self) -> None: ...
 
 class ActionData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "template_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_at", "mode", "computed_values", "subnode_packed", "type", "name", "order_key", "icon", "text", "run_options", "machine_ptr", "code", "tool_ptr", "calls", "variables_packed", "inputs_packed", "position")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "template_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_at", "mode", "computed_values", "subnode_packed", "type", "name", "order_key", "icon", "text", "run_options", "machine_ptr", "code", "tool_ptr", "variables_packed", "inputs_packed", "calls", "position")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -5346,9 +5344,9 @@ class ActionData(_message.Message):
     MACHINE_PTR_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
     TOOL_PTR_FIELD_NUMBER: _ClassVar[int]
-    CALLS_FIELD_NUMBER: _ClassVar[int]
     VARIABLES_PACKED_FIELD_NUMBER: _ClassVar[int]
     INPUTS_PACKED_FIELD_NUMBER: _ClassVar[int]
+    CALLS_FIELD_NUMBER: _ClassVar[int]
     POSITION_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
@@ -5375,11 +5373,11 @@ class ActionData(_message.Message):
     machine_ptr: NodeReferenceData
     code: CodeData
     tool_ptr: NodeReferenceData
-    calls: _containers.RepeatedCompositeFieldContainer[CallData]
     variables_packed: _struct_pb2.Value
     inputs_packed: _struct_pb2.Value
+    calls: _containers.RepeatedCompositeFieldContainer[CallData]
     position: Vector2Data
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., computed_values: _Optional[_Iterable[_Union[ComputedValueData, _Mapping]]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ActionType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., run_options: _Optional[_Union[RunOptionsData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., tool_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., calls: _Optional[_Iterable[_Union[CallData, _Mapping]]] = ..., variables_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., computed_values: _Optional[_Iterable[_Union[ComputedValueData, _Mapping]]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ActionType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., run_options: _Optional[_Union[RunOptionsData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., tool_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., variables_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., calls: _Optional[_Iterable[_Union[CallData, _Mapping]]] = ..., position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
 
 class FailActionData(_message.Message):
     __slots__ = ("error_title", "error_text")

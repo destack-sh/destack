@@ -4,7 +4,6 @@ from typing import Any, ClassVar, Literal, Sequence, assert_never, cast, overrid
 from uuid import UUID
 
 import structlog
-from more_itertools import first
 from opentelemetry import trace
 
 from bench.language import (
@@ -152,8 +151,8 @@ class FlowRunner[N: FlowBlock = FlowBlock](Runner[N], ABC):
         self,
         node: Action | Pipe,
         *,
-        variables: CustomObject | None,
-        inputs: CustomObject | None,
+        variables: CustomObject | None = None,
+        inputs: CustomObject | None = None,
         incoming: Sequence[Run],
     ) -> Run:
         """Run a Action or Pipe in this Flow."""
@@ -215,35 +214,15 @@ class FlowRunner[N: FlowBlock = FlowBlock](Runner[N], ABC):
                     calls = ()
                 available_pipes = self.get_pipes_at(runner.node)
                 for pipe in available_pipes:
-                    is_source = pipe.source_id == runner.node.id
-                    is_target = pipe.target_id == runner.node.id
-                    is_selected = any(c.node_id == pipe.target_id for c in calls)
-                    if (
-                        (is_source and pipe.type == PipeType.FORWARD)
-                        or (
-                            is_source
-                            and is_selected
-                            and pipe.type in (PipeType.SELECT, PipeType.SELECT_AND_BACK)
-                        )
-                        or (is_target and pipe.type == PipeType.SELECT_AND_BACK)
-                    ):
-                        call = first((c for c in calls if c.node == pipe), None)
-                        next_run = self._start(
-                            pipe,
-                            variables=None,
-                            inputs=call.inputs if call is not None else None,
-                            incoming=(runner.tracked_run,),
-                        )
+                    if pipe.source_id != runner.node.id:
+                        continue
+                    is_called = any(c.node_id == pipe.target_id for c in calls)
+                    if pipe.type == PipeType.CALL or (is_called and pipe.type == PipeType.SELECT):
+                        next_run = self._start(pipe, incoming=(runner.tracked_run,))
                         outgoing.append(next_run)
             elif isinstance(runner.node, Pipe):
                 # forward Pipe->Action
-                if (
-                    runner.node.type == PipeType.SELECT_AND_BACK
-                    and runner.tracked_run.incoming[0].base == runner.node.target
-                ):  # go back to source
-                    next_action = runner.node.source
-                else:
-                    next_action = runner.node.target
+                next_action = runner.node.target
                 next_run = self._start(
                     next_action,
                     variables=None,

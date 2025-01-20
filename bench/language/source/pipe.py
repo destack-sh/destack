@@ -44,17 +44,16 @@ class PortSide(IdEnum):
 
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
-    FORWARD = 1, "Always go forward"
+    CALL = 1, "Always go forward"
     SELECT = 10, "Maybe go forward"
-    SELECT_AND_BACK = 11, "Maybe go forward, then back"
     # MESSAGE?
     # WAIT?
+    # STREAM?
 
 
 SIGN_BY_PIPE_TYPE: dict[PipeType, str] = {
-    PipeType.FORWARD: "->",
+    PipeType.CALL: "->",
     PipeType.SELECT: "-?>",
-    PipeType.SELECT_AND_BACK: "<-?>",
 }
 PIPE_TYPES_BY_SIGN: dict[str, PipeType] = {v: k for k, v in SIGN_BY_PIPE_TYPE.items()}
 

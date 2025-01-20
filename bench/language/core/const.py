@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.20.0"
+VERSION = "2025.01.20.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -1420,7 +1420,7 @@ def run_span(
     nodes: list["Node"] | None = None,
     title: str | None = None,
     text: "Text | None" = None,
-    runner: "Runner | None" = None,
+    runner: "Runner[Any] | None" = None,
 ) -> Generator["RunSpan | None", None, None]:
     """Decorate or annotate a RunSpan in the current Run (noop if not inside a Run)."""
     from bench.language import LogLevel, RunSpan
