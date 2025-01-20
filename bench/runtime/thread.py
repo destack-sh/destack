@@ -261,7 +261,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             # process run
             self._active_runs[handle.root.id] = handle
             try:
-                await self._runtime.run_run(handle.root, return_error=True, optimistic=True)
+                await self._runtime.run(handle.root, return_error=True, optimistic=True)
                 logger.info("thread.run", process=self, run=handle.root, span="current")
 
                 # done, close handle

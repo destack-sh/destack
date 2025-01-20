@@ -47,6 +47,8 @@ class PipeType(IdEnum):
     FORWARD = 1, "Always go forward"
     SELECT = 10, "Maybe go forward"
     SELECT_AND_BACK = 11, "Maybe go forward, then back"
+    # MESSAGE?
+    # WAIT?
 
 
 SIGN_BY_PIPE_TYPE: dict[PipeType, str] = {

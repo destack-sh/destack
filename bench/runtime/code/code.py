@@ -70,7 +70,9 @@ class CodeRunner(Runner, ABC):
         self.code = code
         self.compiled: CompiledCode | None = None
         self.log_sink = LogSink(
-            self.runtime.oracle, max_logs=MAX_LOGS_PER_CAPTURE, max_log_length=MAX_LOG_LINE_LENGTH
+            runtime=self.runtime,
+            max_logs=MAX_LOGS_PER_CAPTURE,
+            max_log_length=MAX_LOG_LINE_LENGTH,
         )
 
     @tracer.start_as_current_span("code.compile")
@@ -103,10 +105,7 @@ class CodeRunner(Runner, ABC):
     def _capture_logs(self):
         """Capture logs into this run."""
         with capture_logs(self.log_sink):
-            try:
-                yield self.log_sink
-            finally:
-                self.logs.extend(self.log_sink.logs)
+            yield self.log_sink
 
     @tracer.start_as_current_span("code.prepare_context")
     def _prepare_glbls(self) -> dict[str, Any]:
@@ -140,7 +139,7 @@ class CodeRunner(Runner, ABC):
             "info": self.log_sink.info,
             "warn": self.log_sink.warn,
             "error": self.log_sink.error,
-            "critical": self.log_sink.critical,
+            "panic": self.log_sink.panic,
             "print": self.log_sink.print,
         }
 

@@ -30,6 +30,7 @@ from bench.language import (
     Interruption,
     InterruptionStatus,
     InterruptionType,
+    Log,
     Node,
     NodeMode,
     Pipe,
@@ -91,8 +92,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "input_type",
         "inputs",
         "is_stopped",
-        "kind",
-        "logs",
         "mode",
         "node",
         "options",
@@ -101,7 +100,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "outputs",
         "parent",
         "runners",
-        "runs",
         "runtime",
         "status",
         "task",
@@ -223,6 +221,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             self.tracked_run = None
             self.tracked_span = tracked_span
             self.tracked = self.tracked_span
+        self.id = self.tracked.id
 
         # tracing
         if mode is not None:
@@ -316,6 +315,15 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         for span in reversed(self.tracked_run.spans):
             if span.type == RunSpanType.ATTEMPT:
                 return span
+
+    @property
+    def logs(self) -> Sequence[Log]:
+        if self.tracked_run is not None:
+            return self.tracked_run.logs
+        elif (run := self.closest_tracked_run) is not None:
+            return run.logs
+        else:
+            return ()
 
     @property
     def ancestors(self):
@@ -587,7 +595,6 @@ def make_runner(
     outputs: TypeBase | CustomObject | None = None,
     options: RunOptions | None = None,
     parent: "Runner | None" = None,
-    span_type: RunSpanType | None = None,
 ) -> "Runner":
     """Make a Runner from a runnable Node."""
 
@@ -625,7 +632,6 @@ def make_runner(
         "run": run,
         "node": node,
         "parent": parent,
-        "span_type": span_type,
     }
 
     # map to runner

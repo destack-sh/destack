@@ -36,9 +36,8 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.language.core.list import RemoteNodeList
 from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
-from bench.pb2.lang_pb2 import LogData, RunSpanData
+from bench.pb2.lang_pb2 import RunSpanData
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
 from bench.utils.tenacity import RetryOptions
@@ -372,7 +371,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
     spans: LocalNodeList["RunSpan"] = p_node_children(NodeType.RUN_SPAN)
     interruptions: LocalNodeList["Interruption"] = p_node_children(NodeType.INTERRUPTION)
-    logs: RemoteNodeList["Log", LogData] = p_node_children(NodeType.LOG)
+    logs: LocalNodeList["Log"] = p_node_children(NodeType.LOG)
 
     def __content_str__(self):
         node = self.runnable

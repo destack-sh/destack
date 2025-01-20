@@ -301,7 +301,7 @@ class NodeType(IdEnum):
     VIEW = 5030
     ACTION = 5040
     PIPE = 5041
-    # BADGE? POLICY?
+    # BADGE? POLICY? (POLICY_)RULE?
     # TAG?
     SPACE = 5200
 
@@ -921,11 +921,11 @@ class AccessMode(IdEnum):
 
 @enum_(EnumType.LOG_TYPE)
 class LogType(IdEnum):
+    # code
+    PRINT = 100
     # access
-    CHANGE = 1
-    EDIT = 2
-
-    # custom?
+    CHANGE = 200
+    EDIT = 201
 
 
 @enum_(EnumType.LOG_LEVEL)
@@ -935,7 +935,7 @@ class LogLevel(IdEnum):  # :LogLevel
     INFO = 3
     WARNING = 4
     ERROR = 5
-    CRITICAL = 6
+    PANIC = 6
 
 
 @enum_(EnumType.POLICY_EFFECT)

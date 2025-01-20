@@ -225,7 +225,7 @@ class RuntimeHandle:
         mode: NodeMode | None = None,
         return_error: bool = False,
     ) -> Runner:
-        runner = await self.runtime.run_run(
+        runner = await self.runtime.run(
             run, variables=variables, inputs=inputs, mode=mode, return_error=return_error
         )
         assert runner is not None, f"no runner for {run!r}"
