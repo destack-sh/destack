@@ -2,8 +2,8 @@ import contextlib
 import io
 from typing import Any, Iterable, override
 
-from bench.language import Log, LogLevel, Text
-from bench.utils.oracle import Oracle
+from bench.language import Log, LogLevel, LogType, Text
+from bench.runtime.core import Runtime
 from bench.utils.utils import get_from_env
 
 TextIn = str | Text | Any
@@ -11,13 +11,13 @@ TextIn = str | Text | Any
 MAX_LOGS_PER_CAPTURE = get_from_env(
     "MAX_LOGS_PER_CAPTURE",
     typ=int,
-    default=100,
+    default=20,
     description="Maximum Logs to capture per capture (i.e. run)",
 )
 MAX_LOG_LINE_LENGTH = get_from_env(
     "MAX_LOG_LINE_LENGTH",
     typ=int,
-    default=1000,
+    default=2000,
     description="Maximum length of a log line in characters",
 )
 
@@ -25,15 +25,15 @@ MAX_LOG_LINE_LENGTH = get_from_env(
 class LogSink:
     """A sink for capturing logs."""
 
-    __slots__ = ["is_open", "logs", "max_log_length", "max_logs", "oracle"]
+    __slots__ = ["is_open", "logs", "max_log_length", "max_logs", "runtime"]
 
     def __init__(
         self,
-        oracle: Oracle,
+        runtime: Runtime,
         max_logs: int,
         max_log_length: int,
     ):
-        self.oracle = oracle
+        self.runtime = runtime
         self.logs: list[Log] = []
         self.max_logs = max_logs
         self.is_open = len(self.logs) < self.max_logs
@@ -45,7 +45,7 @@ class LogSink:
 
         # coerce
         if isinstance(text_in, str):
-            title = text_in
+            title = text_in.strip()
             text = None
         elif isinstance(text_in, Text):
             title = None
@@ -60,20 +60,31 @@ class LogSink:
 
         # truncate plain text if too long
         if title is not None and len(title) > self.max_log_length:
-            title = title[: self.max_log_length] + "... <line too long, truncated>"
+            title = (
+                title[: (self.max_log_length // 2)]
+                + f"... <truncated {len(title)} chars> ..."
+                + title[-(self.max_log_length // 2) :]
+            )
 
-        # NOTE :Incomplete: transform kwargs into freeform LogInfo.values
+        # NOTE :Performance: track Logs more efficiently
+        #  (creating a Log Node for every line seems excessive?)
+        run = self.runtime.active_run
+        assert run is not None, f"no active run in {self.runtime!r}"
         log = Log(
-            created_at=self.oracle.utc(),
+            parent=run,
+            created_at=self.runtime.oracle.utc(),
+            type=LogType.PRINT,
             level=level,
             title=title,
             text=text,
             _skip_validate_self=True,
         )
+        self.runtime._set_context(log)
+        self.runtime.session._create(log)
         self.logs.append(log)
 
         # close if overflown
-        if self.is_open and len(self.logs) >= self.max_logs - 1:
+        if self.is_open and len(self.logs) >= self.max_logs:
             self.is_open = False
 
     def bind(self, **kwargs) -> "BoundLogSink":
@@ -120,9 +131,9 @@ class LogSink:
         """Log an error message."""
         self._capture(level=LogLevel.ERROR, text_in=text, **kwargs)
 
-    def critical(self, text: TextIn, **kwargs):
+    def panic(self, text: TextIn, **kwargs):
         """Log a critical message."""
-        self._capture(level=LogLevel.CRITICAL, text_in=text, **kwargs)
+        self._capture(level=LogLevel.PANIC, text_in=text, **kwargs)
 
     #
     # Print wrapper

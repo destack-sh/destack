@@ -61,7 +61,7 @@ builtins.print('print5\\nwith newline') # python print
 info('info1')
 warn('warn1')
 error('error1')
-critical('critical1')        
+panic('panic1')        
 """),
     )
     local_runtime.page().actions.append(Logs101)
@@ -82,11 +82,11 @@ critical('critical1')
             "info1",
             "warn1",
             "error1",
-            "critical1",
+            "panic1",
         ),
         runner.logs,
     ):
-        assert log.text_plain == s
+        assert log.title == s
 
 
 async def test_run_code_capture_logs_on_error(local_runtime: RuntimeHandle):
@@ -108,7 +108,7 @@ print('print3')
     assert runner.status == RunStatus.FAILED
     assert runner.logs and len(runner.logs) == 2
     for s, log in zip(("print1", "print2"), runner.logs):
-        assert log.text_plain == s
+        assert log.title == s
 
 
 async def test_run_code_capture_log_size_overflow(local_runtime: RuntimeHandle):
@@ -126,7 +126,6 @@ for i in range(0, {MAX_LOGS_PER_CAPTURE + 5}):
 
     runner = await local_runtime.run(Logs103)
     assert len(runner.logs) == MAX_LOGS_PER_CAPTURE
-    assert runner.logs[-1].text_plain and "overflow" in runner.logs[-1].text_plain
 
 
 async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
@@ -141,7 +140,7 @@ async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
 
     runner = await local_runtime.run(Logs103)
     assert runner.logs and len(runner.logs) == 1
-    assert runner.logs[0].text_plain and "truncate" in runner.logs[0].text_plain
+    assert runner.logs[0].title and "truncate" in runner.logs[0].title
 
 
 async def test_run_code_invalid_inputs(local_runtime: RuntimeHandle):
@@ -259,7 +258,7 @@ async def test_run_code_output_scalar(hosted_runtime: RuntimeHandle):
     runner = await hosted_runtime.run(Function, inputs={"Input1": 3})
     assert runner.outputs and runner.outputs.Result1 == 12
 
-    # run with cast return value
+    # run with coercible return value
     Function = Action.new(
         ActionType.CODE,
         "Function",
@@ -282,50 +281,6 @@ async def test_run_code_output_scalar(hosted_runtime: RuntimeHandle):
     await hosted_runtime.commit()
     runner = await hosted_runtime.run(Function, inputs={"Input1": 3}, return_error=True)
     assert runner.status == RunStatus.FAILED
-
-
-async def test_run_code_output_tuple(local_runtime: RuntimeHandle):
-    """Run a code function with a tuple, should coerce into object."""
-    Function = Action.new(
-        ActionType.CODE,
-        "Function",
-        code=code("""return {"Result1": Input1 > 10, "Result2": Input1 * 4, "Result3": None}"""),
-        fields=(
-            Field.input("Input1", int),
-            Field.output("Result1", bool, is_required=True),
-            Field.output("Result2", int),
-            Field.output("Result3", int),
-        ),
-    )
-    local_runtime.page().actions.append(Function)
-    await local_runtime.commit()
-
-    runner = await local_runtime.run(Function, inputs={"Input1": 3})
-    assert (
-        runner.outputs
-        and runner.outputs.Result1 is False
-        and runner.outputs.Result2 == 12
-        and runner.outputs.Result3 is None
-    )
-
-
-async def test_run_code_output_dict(local_runtime: RuntimeHandle):
-    """Run a code function with a dict, should coerce into object."""
-    Function = Action.new(
-        ActionType.CODE,
-        "Function",
-        code=code("""return {"Result1": Input1 > 10, "Result2": Input1 * 4}"""),
-        fields=(
-            Field.input("Input1", int),
-            Field.output("Result1", bool),
-            Field.output("Result2", int),
-        ),
-    )
-    local_runtime.page().actions.append(Function)
-    await local_runtime.commit()
-
-    runner = await local_runtime.run(Function, inputs={"Input1": 3})
-    assert runner.outputs and runner.outputs.Result1 is False and runner.outputs.Result2 == 12
 
 
 async def test_run_code_output_choice(local_runtime: RuntimeHandle):

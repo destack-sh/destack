@@ -9,7 +9,6 @@ from typing import (
     Iterable,
     Optional,
     Sequence,
-    cast,
 )
 from uuid import UUID
 
@@ -76,7 +75,6 @@ if TYPE_CHECKING:
         Action,
         Bench,
         Block,
-        Interruption,
         NodeReference,
         Query,
         Run,
@@ -656,10 +654,8 @@ class Session(RuntimeNode[SessionData]):
         """Whether this is a runtime node tied to the current session."""
         if node.metatype == NodeType.SESSION:
             return self.id == node.id
-        elif node.metatype == NodeType.RUN:
-            return cast("Run", node).session_id == self.id
-        elif node.metatype == NodeType.INTERRUPTION:
-            return cast("Interruption", node).session_id == self.id
+        elif isinstance(node, RuntimeNode):
+            return node.session_id == self.id
         else:
             return False
 

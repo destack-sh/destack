@@ -71,6 +71,6 @@ DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
     "info": LogSink.info,
     "warn": LogSink.warn,
     "error": LogSink.error,
-    "critical": LogSink.critical,
+    "panic": LogSink.panic,
     "print": LogSink.print,
 }
