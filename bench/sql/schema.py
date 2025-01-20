@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.19.0"
+VERSION = "2025.01.20.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1021,8 +1021,6 @@ SESSION_TABLE = Table(
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("machine_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
@@ -1090,8 +1088,6 @@ RUN_TABLE = Table(
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("machine_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
@@ -1143,8 +1139,6 @@ RUN_SPAN_TABLE = Table(
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("machine_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
@@ -1195,8 +1189,6 @@ INTERRUPTION_TABLE = Table(
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("machine_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
@@ -1233,8 +1225,6 @@ LOG_TABLE = Table(
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("machine_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),

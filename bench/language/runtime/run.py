@@ -26,6 +26,7 @@ from bench.language.core import (
     ValidationError,
     enum_,
     p_internal,
+    p_node_ancestor,
     p_node_children,
     p_node_parent,
     p_regular,
@@ -257,6 +258,12 @@ class RunSpan(RuntimeNode[RunSpanData]):
     # meta
     parent: Union["Run", None] = p_node_parent(4, NodeType.RUN)
     type: RunSpanType = p_regular(30)
+    root: "Run | None" = p_node_ancestor(
+        31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
+    )
+    if TYPE_CHECKING:
+        root_ptr: Optional[NodeReference] = None
+        root_id: Optional[UUID] = None
     level: "LogLevel" = p_regular(33, default=LogLevel.INFO)
 
     # status
@@ -292,6 +299,12 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     # meta
     parent: Union["Bench", "Run", None] = p_node_parent(4, NodeType.BENCH, NodeType.RUN)
     type: RunType = p_system(30)
+    root: "Run | None" = p_node_ancestor(
+        31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
+    )
+    if TYPE_CHECKING:
+        root_ptr: Optional[NodeReference] = None
+        root_id: Optional[UUID] = None
     block: Optional["Block"] = p_internal(32, require=False, array=False, references=NodeType.BLOCK)
     action: Optional["Action"] = p_internal(
         33, require=False, array=False, references=NodeType.ACTION
