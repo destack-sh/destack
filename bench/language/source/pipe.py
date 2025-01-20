@@ -99,6 +99,7 @@ class Pipe(SourceNode[PipeData]):
     delay: Optional[timedelta] = p_regular(52, default=None)
 
     # flags
+    # is_automap? (dynamically generate inputs?)
     # is_streaming: bool = p_regular(80, default=False)
 
     # flow
