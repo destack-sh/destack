@@ -1190,14 +1190,10 @@ export class FlowContext {
 
   getDefaultPipeType(source: Port, target: Port): PipeType {
     // select if the source already has a select pipe
-    if (
-      this.pipes.value.some(
-        (p) => p.sourcePtr?.ck == source.parent.ck && (p.type == PipeType.SELECT || p.type == PipeType.SELECT_AND_BACK),
-      )
-    ) {
+    if (this.pipes.value.some((p) => p.sourcePtr?.ck == source.parent.ck && p.type == PipeType.SELECT)) {
       return PipeType.SELECT;
     } else {
-      return PipeType.FORWARD;
+      return PipeType.CALL;
     }
   }
 

@@ -34,6 +34,7 @@ from bench.language.core import (
     p_value_runtime,
     struct_,
 )
+from bench.language.core.value import CustomObject
 from bench.pb2.lang_pb2 import ActionData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
@@ -163,7 +164,9 @@ class Action(SourceNode[ActionData]):
     parent: Union["Block", "Action", None] = p_node_parent(4, NodeType.BLOCK, NodeType.ACTION)
 
     # common
-    type: ActionType = p_regular(30)
+    type: ActionType = p_regular(
+        30, description="Type of this Action. Only dynamic for tools.", field_type=FieldType.INPUT
+    )
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
@@ -179,7 +182,7 @@ class Action(SourceNode[ActionData]):
     )
     # roles, identity, ...
 
-    # content
+    # inputs
     machine: Optional["Machine"] = p_regular(
         51, require=False, references=(NodeType.MACHINE,), field_type=FieldType.INPUT
     )
@@ -189,7 +192,7 @@ class Action(SourceNode[ActionData]):
         require=False,
         array=False,
         struct=StructType.CODE,
-        description="Current implementation code for this action.",
+        description="The implementation code for this action.",
         field_type=FieldType.INPUT,
     )
     tool: Union["Block", None] = p_regular(
@@ -198,28 +201,31 @@ class Action(SourceNode[ActionData]):
         array=False,
         references=(NodeType.BLOCK,),
         constraint=constraint(node_subtypes=[BlockType.FLOW]),
-        description="Current implementation for this action.",
+        description="The implementation for this action.",
         field_type=FieldType.INPUT,
     )
     if TYPE_CHECKING:
         tool_ptr: "NodeReference | None" = None
-    calls: list["Call"] = p_regular(
-        59, array=True, struct=StructType.CALL, field_type=FieldType.OUTPUT
-    )
-    # variables for self & delegates (tool)
-    variables_packed: Any = p_value_packed(60)
+    # variables for tool
+    variables_packed: Any = p_value_packed(55)
     variables: Any = p_value_runtime(
-        60,
+        55,
         type=FieldType.VARIABLE,
         typ=lambda self: cast("Action", self).variable_type_field_only,
     )
     # inputs for delegate
-    inputs_packed: Any = p_value_packed(61)
+    inputs_packed: Any = p_value_packed(56)
     inputs: Any = p_value_runtime(
-        61,
+        56,
         type=FieldType.INPUT,
         typ=lambda self: cast("Action", self).input_type_field_only,
     )
+
+    # outputs
+    calls: list["Call"] = p_regular(
+        60, array=True, struct=StructType.CALL, field_type=FieldType.OUTPUT
+    )
+    # fanout, ...?
 
     # flags
     # is_streaming: bool = p_regular(80, default=False)
@@ -311,17 +317,14 @@ class Action(SourceNode[ActionData]):
                 else:
                     return None
 
-            base = self
-            if self.type == ActionType.TOOL:
-                base = self.tool
-
-            # actions also have their subtype as input & output type
-            #  (to enable dynamically setting action properties as inputs)
+            base = self.tool if self.type == ActionType.TOOL else self
             if (
                 field_types
                 and (FieldType.INPUT in field_types or FieldType.OUTPUT in field_types)
                 and not field_only
             ):
+                # actions also have their subtype as input & output type
+                #  (to support dynamically setting some action properties as inputs)
                 typ = Type(
                     kind=TypeKind.PARTIAL_OBJECT,
                     base_type=base,
@@ -714,33 +717,35 @@ class Call(Struct):
         constraint=constraint(node_subtypes=[BlockType.FLOW]),
     )
     action_type: ActionType | None = p_regular(32, default=None)
-    variables_packed: Any = p_value_packed(35)
-    variables: Any = p_value_runtime(
-        35, type=FieldType.INPUT, typ=lambda self: cast(Call, self).input_type
-    )
-    inputs_packed: Any = p_value_packed(36)
-    inputs: Any = p_value_runtime(
-        36, type=FieldType.INPUT, typ=lambda self: cast(Call, self).input_type
+    value_packed: Any = p_value_packed(36)
+    value: Any = p_value_runtime(
+        36, type=FieldType.INPUT, typ=lambda self: cast(Call, self).value_type
     )
     if TYPE_CHECKING:
         node_ptr: NodeReference | None = None
         node_id: str | None = None
 
-    @property
-    def input_type(self) -> Optional["TypeBase"]:
+    @cached_property
+    def value_type(self) -> Optional["TypeBase"]:
         node = self.node
-        return node.input_type if node is not None else None
+        return (
+            node.to_type_maybe(of="value", field_types=[FieldType.VARIABLE, FieldType.INPUT])
+            if node is not None
+            else None
+        )
 
     @staticmethod
-    def new(node: "Block | Action", inputs: Any | None = None, **kwargs) -> "Call":
-        input_type = node.input_type
-        assert input_type is not None, f"no input type for {node!r}"
+    def new(node: "Block | Action", value: CustomObject | None = None, **kwargs) -> "Call":
+        value_type = node.to_type_maybe(
+            of="value", field_types=[FieldType.VARIABLE, FieldType.INPUT]
+        )
+        assert value_type is not None, f"no call value type for {node!r}"
         return Call(
             node=node,
-            inputs=coerce_custom_object_scalar(inputs or {}, input_type),
+            value=coerce_custom_object_scalar(value or {}, value_type),
             **kwargs,
         )
 
 
 def call(node: "Block | Action", **kwargs) -> "Call":
-    return Call.new(node, inputs=kwargs)
+    return Call.new(node, **kwargs)

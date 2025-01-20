@@ -120,7 +120,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         options: RunOptions,
         context: HasContext,
         run: RunIn,
-        parent: "Runner | None" = None,
+        parent: "Runner[Any] | None" = None,
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
@@ -592,7 +592,7 @@ def make_runner(
     inputs: Any | None = None,
     outputs: TypeBase | CustomObject | None = None,
     options: RunOptions | None = None,
-    parent: "Runner | None" = None,
+    parent: "Runner[Any] | None" = None,
 ) -> "Runner":
     """Make a Runner from a runnable Node."""
 

@@ -161,7 +161,7 @@ class CustomObject(Mapping[str, Any]):
                     set_fields.append(f"{prop.name}=<{prop_value.absolute_path}>")
                 else:
                     set_fields.append(f"{prop.name}={prop_value!r}")
-        for field in self._type._fields:
+        for field in self._type._fields:  # should support :DynamicBaseType
             field_value = self._do_get(field)
             if field_value is not None and (not field.is_list or field_value):
                 if type(field_value) is list:
@@ -182,7 +182,7 @@ class CustomObject(Mapping[str, Any]):
         if self._type.kind == TypeKind.PARTIAL_OBJECT and self._type.bench_type is not None:
             return f"Partial{self._type.bench_type.bench_name}"
         elif self._type.base_type is not None:
-            return self._type.base_type.absolute_path
+            return self._type.base_type.absolute_path  # :DynamicBaseType?
         else:
             return self._type.kind.bench_name
 
@@ -626,37 +626,54 @@ def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
                 value._do_set(field, new_field_value, track=True, validate=False)
 
 
+def get_partial_object_type(
+    typ: "TypeBase | TypeIdentity", value_packed: Mapping[str, JsonValue | SomeValue]
+) -> tuple[NodeType | None, type["Node"], int | None, type["Node"] | None]:
+    """Gets the actual partial object type as specified in the type/value."""
+    # node type
+    if typ.bench_type is not None:
+        bench_type = cast(NodeType, typ.bench_type)
+        node_cls = NODE_CLASS_BY_TYPE[bench_type]
+    elif "1" in value_packed:  # generic partial
+        bench_type = cast(NodeType, int(value_packed["1"]))  # type: ignore
+        node_cls = NODE_CLASS_BY_TYPE[bench_type]
+    else:
+        # no specific node type, so we can't resolve subtype properties
+        bench_type = None
+        node_cls = Node
+
+    # subtype
+    subtype = None
+    subtype_cls = None
+    if node_cls.__subtype_base_property__ is not None:
+        subtype = cast(int | None, value_packed.get(node_cls.__subtype_base_property__.key))
+        if subtype is None or (
+            # subtype may be overridden in value for some nodes (like with Action.type)
+            typ.property_field_types
+            and node_cls.__subtype_base_property__.field_type not in typ.property_field_types
+        ):
+            if typ.constraint is not None and typ.constraint.node_subtypes:
+                subtype = typ.constraint.node_subtypes[0]
+        if subtype is not None:
+            subtype_cls = node_cls.__subclass_by_subtype__.get(cast(IdEnum, subtype))
+
+    return bench_type, node_cls, subtype, subtype_cls
+
+
 def get_custom_object_properties(
     typ: "TypeBase | TypeIdentity", value_packed: Mapping[str, JsonValue | SomeValue]
 ) -> "Iterable[Property]":
     """Gets all the custom object properties available in this value."""
     if typ.kind == TypeKind.PARTIAL_OBJECT:
-        # figure out actual node type
-        if typ.bench_type is not None:
-            bench_type = cast(NodeType, typ.bench_type)
-            node_cls = NODE_CLASS_BY_TYPE[bench_type]
-        elif "1" in value_packed:  # generic partial
-            bench_type = cast(NodeType, int(value_packed["1"]))  # type: ignore
-            node_cls = NODE_CLASS_BY_TYPE[bench_type]
+        # get properties for actual type
+        _, node_cls, _, subtype_cls = get_partial_object_type(typ, value_packed)
+        if subtype_cls is not None:
+            properties = chain(
+                subtype_cls.__subtype_extra_original_properties__.values(),
+                node_cls.__original_properties__.values(),
+            )
         else:
-            # no known node type, so we can't resolve subtype properties
-            node_cls = Node
-
-        # check subtype
-        node_properties = node_cls.__original_properties__.values()
-        subtype_properties = ()
-        if node_cls.__subtype_base_property__ is not None:
-            if typ.constraint is not None and typ.constraint.node_subtypes:
-                subtype = typ.constraint.node_subtypes[0]
-            else:
-                subtype = value_packed.get(node_cls.__subtype_base_property__.key)
-            if subtype is not None:
-                subtype_cls = node_cls.__subclass_by_subtype__.get(cast(IdEnum, subtype))
-                if subtype_cls is not None:
-                    subtype_properties = subtype_cls.__subtype_extra_original_properties__.values()
-
-        # assemble properties
-        properties = chain(subtype_properties, node_properties)
+            properties = node_cls.__original_properties__.values()
         if typ.property_field_types:
             properties = tuple(p for p in properties if p.field_type in typ.property_field_types)
         return properties
@@ -673,27 +690,12 @@ def get_custom_object_property(
     """Gets the property with the given name from the custom object."""
     prop = None
     if typ.kind == TypeKind.PARTIAL_OBJECT:
-        # figure out actual node type
-        if typ.bench_type is not None:
-            bench_type = cast(NodeType, typ.bench_type)
-            node_cls = NODE_CLASS_BY_TYPE[bench_type]
-        elif "1" in value_packed:  # generic partial
-            bench_type = cast(NodeType, int(value_packed["1"]))  # type: ignore
-            node_cls = NODE_CLASS_BY_TYPE[bench_type]
-        else:
-            node_cls = Node  # just base node properties
-
-        # check node
-        prop = node_cls.__original_properties__.get(name)
-        if prop is None and node_cls.__subtype_base_property__ is not None:
-            if typ.constraint is not None and typ.constraint.node_subtypes:
-                subtype = typ.constraint.node_subtypes[0]
-            else:
-                subtype = value_packed.get(node_cls.__subtype_base_property__.key)
-            if subtype is not None:
-                subtype_cls = node_cls.__subclass_by_subtype__.get(cast(IdEnum, subtype))
-                if subtype_cls is not None:
-                    prop = subtype_cls.__subtype_extra_original_properties__.get(name)
+        # check properties for actual type
+        _, node_cls, _, subtype_cls = get_partial_object_type(typ, value_packed)
+        if subtype_cls is not None:
+            prop = subtype_cls.__subtype_extra_original_properties__.get(name)
+        if prop is None:
+            prop = node_cls.__original_properties__.get(name)
 
     if prop is not None and (
         not typ.property_field_types or prop.field_type in typ.property_field_types
@@ -874,6 +876,8 @@ def coerce_custom_object_scalar(
         prop_value = value.pop(prop.name, None)
         if prop_value is not None:
             obj._do_set(prop, prop_value, track=False)
+    # NOTE :Incomplete: should support dynamic base type from value :DynamicBaseType
+    #  (for ToolAction, but also for Record and such would be nice to get the base from the value)
     for field in typ._base_fields:
         # try getting value by storage key, name and ident
         field_value = value.pop(field.storage_key, None)

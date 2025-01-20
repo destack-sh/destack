@@ -24,6 +24,7 @@ from bench.language import (
     code,
 )
 from bench.runtime import Interrupted, create_run_from_node, make_runner
+from bench.runtime.flow.action import CodeActionRunner
 from bench.test.unit.conftest import RuntimeHandle
 
 
@@ -58,7 +59,7 @@ async def test_run_flow_trivial(hosted_runtime: RuntimeHandle):
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
-    Start.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow1)
     await hosted_runtime.commit()
 
@@ -82,7 +83,7 @@ async def test_run_flow_with_default_values(hosted_runtime: RuntimeHandle):
         ActionType.COMPLETE, "Complete", parent=Flow1, inputs={"Output1": 1, "Output3": "MyString"}
     )
     Flow1.actions.extend(Start, Complete)
-    Start.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow1)
     await hosted_runtime.commit()
 
@@ -120,8 +121,8 @@ async def test_run_flow_code(hosted_runtime: RuntimeHandle):
         source=(Code1, PathElementType.RUN, Run.get_property("outputs"), Code1.fields.Output1),
     )
     Flow1.actions.extend(Start, Code1, Complete)
-    Start.connect(PipeType.FORWARD, Code1)
-    Code1.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Code1)
+    Code1.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow1)
     await hosted_runtime.commit()
 
@@ -188,7 +189,7 @@ async def test_run_flow_computed_value_chain(hosted_runtime: RuntimeHandle):
                 target=(PathElementType.RUN, Run.get_property("inputs"), Code.fields.IntIn),
                 source=(prev, PathElementType.RUN, Run.get_property("outputs"), prev.fields.IntOut),
             )
-        prev.connect(PipeType.FORWARD, Code)
+        prev.connect(PipeType.CALL, Code)
         prev = Code
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Complete.set_computed(
@@ -200,7 +201,7 @@ async def test_run_flow_computed_value_chain(hosted_runtime: RuntimeHandle):
         source=(prev, PathElementType.RUN, Run.get_property("outputs"), prev.fields.IntOut),
     )
     Flow1.actions.append(Complete)
-    prev.connect(PipeType.FORWARD, Complete)
+    prev.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow1)
     await hosted_runtime.commit()
 
@@ -219,7 +220,7 @@ async def test_run_flow_invalid_computed_source(hosted_runtime: RuntimeHandle):
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
-    Start.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Complete)
     Complete.set_computed(
         target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output),
         # missing PathElementType.RUN for source, and Block has no inputs
@@ -243,7 +244,7 @@ async def test_run_flow_invalid_computed_target(hosted_runtime: RuntimeHandle):
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
-    Start.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Complete)
     Complete.set_computed(
         # refers to Output, but we delete output below (oh no!, should be ignored)
         target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output),
@@ -277,7 +278,7 @@ async def test_run_flow_computed_value_mode(hosted_runtime: RuntimeHandle):
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
-    Start.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow1)
     # always
     Complete.set_computed(
@@ -329,7 +330,7 @@ async def test_run_flow_code_dynamic(hosted_runtime: RuntimeHandle):
         fields=(Field.output("Output", int),),
     )
     Flow1.actions.append(Code1)
-    Start.connect(PipeType.FORWARD, Code1)
+    Start.connect(PipeType.CALL, Code1)
     Code1.set_computed(
         target=(PathElementType.RUN, Run.get_property("inputs"), Code1.get_property("code")),
         source=(Flow1, PathElementType.RUN, Run.get_property("variables"), Flow1.fields.Code),
@@ -340,7 +341,7 @@ async def test_run_flow_code_dynamic(hosted_runtime: RuntimeHandle):
         source=(Code1, PathElementType.RUN, Run.get_property("outputs"), Code1.fields.Output),
     )
     Flow1.actions.append(Complete)
-    Code1.connect(PipeType.FORWARD, Complete)
+    Code1.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow1)
     await hosted_runtime.commit()
 
@@ -373,8 +374,8 @@ return {'Block': block}
         source=(Create, PathElementType.RUN, Run.get_property("outputs"), Create.fields.Block),
     )
     Flow1.actions.extend(Start, Create, Complete)
-    Start.connect(PipeType.FORWARD, Create)
-    Create.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Create)
+    Create.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow1)
     await hosted_runtime.commit()
 
@@ -401,8 +402,8 @@ else:
     )
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Code1, Complete)
-    Start.connect(PipeType.FORWARD, Code1)
-    Code1.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Code1)
+    Code1.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow1)
     await hosted_runtime.commit()
 
@@ -427,8 +428,8 @@ async def test_run_flow_pipe_from_nowhere(hosted_runtime: RuntimeHandle):
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
     Nowhere = Action.new(ActionType.START, "Nowhere")  # not added to flow/graph
-    Nowhere.connect(PipeType.FORWARD, Complete, parent=Flow1)
-    Start.connect(PipeType.FORWARD, Complete)
+    Nowhere.connect(PipeType.CALL, Complete, parent=Flow1)
+    Start.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow1)
     await hosted_runtime.commit()
 
@@ -443,8 +444,8 @@ async def test_run_flow_pipe_to_nowhere(hosted_runtime: RuntimeHandle):
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Nowhere = Action.new(ActionType.START, "Nowhere")  # not added to flow/graph
     Flow1.actions.extend(Start, Complete)
-    Start.connect(PipeType.FORWARD, Nowhere, parent=Flow1)
-    Start.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Nowhere, parent=Flow1)
+    Start.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow1)
     await hosted_runtime.commit()
 
@@ -460,7 +461,7 @@ async def test_run_flow_force_invalid_output(hosted_runtime: RuntimeHandle):
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
-    Start.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow1)
     await hosted_runtime.commit()
 
@@ -483,8 +484,8 @@ async def test_run_flow_force_invalid_input(hosted_runtime: RuntimeHandle):
     )
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Code1, Complete)
-    Start.connect(PipeType.FORWARD, Code1)
-    Code1.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Code1)
+    Code1.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow1)
     await hosted_runtime.commit()
 
@@ -499,7 +500,7 @@ async def test_run_flow_error(hosted_runtime: RuntimeHandle):
     Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("raise ValueError"))
     Flow1.actions.extend(Start, Code1)
-    Start.connect(PipeType.FORWARD, Code1)
+    Start.connect(PipeType.CALL, Code1)
     hosted_runtime.page().blocks.extend(Flow1)
     await hosted_runtime.commit()
 
@@ -520,8 +521,8 @@ async def test_run_flow_error_with_error_suppressed(hosted_runtime: RuntimeHandl
     )
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Code1, Complete)
-    Start.connect(PipeType.FORWARD, Code1)
-    Code1.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Code1)
+    Code1.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.extend(Flow1)
     await hosted_runtime.commit()
 
@@ -538,7 +539,7 @@ async def test_run_flow_fail_action(hosted_runtime: RuntimeHandle):
         ActionType.FAIL, "Fail", error_title="Fail title", error_text=Text.plain("Fail text")
     )
     Flow1.actions.extend(Start, Fail)
-    Start.connect(PipeType.FORWARD, Fail)
+    Start.connect(PipeType.CALL, Fail)
     hosted_runtime.page().blocks.append(Flow1)
     await hosted_runtime.commit()
 
@@ -622,7 +623,7 @@ async def test_run_flow_create_action_dynamic(hosted_runtime: RuntimeHandle):
         mode=ComputedValueMode.IF_SOURCE_SET,
     )
     Flow1.actions.extend(Start, Create)
-    Start.connect(PipeType.FORWARD, Create)
+    Start.connect(PipeType.CALL, Create)
     hosted_runtime.page().blocks.extend(Database1, Flow1)
     await hosted_runtime.commit()
 
@@ -706,12 +707,12 @@ async def test_run_flow_race(hosted_runtime: RuntimeHandle):
     Race2 = Action.new(ActionType.CODE, "Race2", code=code("await asyncio.sleep(2)"))
     Race3 = Action.new(ActionType.CODE, "Race3", code=code("await asyncio.sleep(3)"))
     Flow1.actions.extend(Start, Race1, Race2, Race3, Complete)
-    Start.connect(PipeType.FORWARD, Race1)
-    Start.connect(PipeType.FORWARD, Race2)
-    Start.connect(PipeType.FORWARD, Race3)
-    Race1.connect(PipeType.FORWARD, Complete)
-    Race2.connect(PipeType.FORWARD, Complete)
-    Race3.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Race1)
+    Start.connect(PipeType.CALL, Race2)
+    Start.connect(PipeType.CALL, Race3)
+    Race1.connect(PipeType.CALL, Complete)
+    Race2.connect(PipeType.CALL, Complete)
+    Race3.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow1)
     await hosted_runtime.commit()
 
@@ -729,9 +730,9 @@ async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
     Loop = Action.new(ActionType.CODE, "Loop", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Loop, Complete)
-    Start.connect(PipeType.FORWARD, Loop)
-    Loop.connect(PipeType.FORWARD, Loop)  # infinite!
-    Loop.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Loop)
+    Loop.connect(PipeType.CALL, Loop)  # infinite!
+    Loop.connect(PipeType.CALL, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -748,7 +749,7 @@ async def test_run_flow_calls_none(hosted_runtime: RuntimeHandle):
     Code3 = Action.new(ActionType.CODE, "Code3", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Route, Code2, Code3, Complete)
-    Start.connect(PipeType.FORWARD, Route)
+    Start.connect(PipeType.CALL, Route)
     Route.connect(PipeType.SELECT, Complete)
     Route.connect(PipeType.SELECT, Code2)
     Route.connect(PipeType.SELECT, Code3)
@@ -770,7 +771,7 @@ async def test_run_flow_calls_forward(hosted_runtime: RuntimeHandle):
     Code4 = Action.new(ActionType.CODE, "Code4", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Route, Code2, Code3, Code4, Complete)
-    Start.connect(PipeType.FORWARD, Route)
+    Start.connect(PipeType.CALL, Route)
     Route.connect(PipeType.SELECT, Complete)
     Route.connect(PipeType.SELECT, Code2)
     Route.connect(PipeType.SELECT, Code3)
@@ -811,28 +812,49 @@ return {
     assert not runner.tracked_run.has(Code3, Code4)
 
 
-async def test_run_flow_calls_back(hosted_runtime: RuntimeHandle):
-    """Runs a Flow with a selective call that goes back."""
-    Flow = Block.new(BlockType.FLOW, "Flow1")
+async def test_run_flow_calls_tool(hosted_runtime: RuntimeHandle):
+    """Run a Flow with a tool call."""
+    Flow = Block.new(
+        BlockType.FLOW,
+        "Flow1",
+        fields=(
+            Field.input("Input1", str),
+            Field.output("Output1", str),
+        ),
+    )
     Start = Action.new(ActionType.START, "Start")
-    Route = Action.new(ActionType.CODE, "Router", code=code("pass"))
-    Code5 = Action.new(ActionType.CODE, "Code5", code=code("pass"))
+    Code1 = Action.new(ActionType.CODE, "Code", code=code("pass"))
+    Tool1 = Action.new(ActionType.TOOL, "Tool")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow.actions.extend(Start, Route, Code5, Complete)
-    Start.connect(PipeType.FORWARD, Route)
-    Route.connect(PipeType.SELECT_AND_BACK, Code5)
+    Flow.actions.extend(Start, Code1, Tool1, Complete)
+    Start.connect(PipeType.CALL, Code1)
+    Code1.connect(PipeType.CALL, Tool1)
+    Tool1.connect(PipeType.CALL, Complete)
+    hosted_runtime.page().blocks.append(Flow)
     await hosted_runtime.commit()
 
-    Route.code = code("""\
-if not runtime.get_latest_run(Code5):  # avoid infinite loops
-    return {
-        'calls': [call(Code5)],
-    }
+    # run tool action directly
+    runner = await hosted_runtime.run(
+        Tool1,
+        inputs={"type": ActionType.CODE, "code": code("pass")},
+    )
+    assert len(runner.runners) == 1
+    assert isinstance(runner.runners[0], CodeActionRunner)
+    assert runner.runners[0].inputs.code == code("pass")
+
+    # running flow as is should fail (at tool, because tool is unset)
+    runner = await hosted_runtime.run(Flow, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == RunErrorType.RUN_IMPOSSIBLE
+
+    # run tool within flow via calls
+    Code1.code = code("""\
+return {
+    'calls': [call(Tool1, type=ActionType.CODE, code=code("pass"))],
+}
 """)
     runner = await hosted_runtime.run(Flow)
     assert runner.tracked_run
-    assert runner.tracked_run.has(Code5)
-    assert not runner.tracked_run.has(Complete)
 
 
 async def test_run_flow_abort(hosted_runtime: RuntimeHandle):
@@ -842,8 +864,8 @@ async def test_run_flow_abort(hosted_runtime: RuntimeHandle):
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("await asyncio.sleep(5)"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Code1, Complete)
-    Start.connect(PipeType.FORWARD, Code1)
-    Code1.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Code1)
+    Code1.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow)
     await hosted_runtime.commit()
 
@@ -868,8 +890,8 @@ async def test_run_flow_yield(hosted_runtime: RuntimeHandle):
     Yield = Action.new(ActionType.YIELD, "Yield")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Yield, Complete)
-    Start.connect(PipeType.FORWARD, Yield)
-    Yield.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Yield)
+    Yield.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow)
     await hosted_runtime.commit()
 
@@ -907,8 +929,8 @@ async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
     YieldInner = Action.new(ActionType.YIELD, "YieldInner")
     CompleteInner = Action.new(ActionType.COMPLETE, "CompleteInner")
     FlowInner.actions.extend(StartInner, YieldInner, CompleteInner)
-    StartInner.connect(PipeType.FORWARD, YieldInner)
-    YieldInner.connect(PipeType.FORWARD, CompleteInner)
+    StartInner.connect(PipeType.CALL, YieldInner)
+    YieldInner.connect(PipeType.CALL, CompleteInner)
 
     # outer flow
     FlowOuter = Block.new(BlockType.FLOW, "FlowOuter")
@@ -916,8 +938,8 @@ async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
     ActionOuter = Action.new(ActionType.TOOL, "Action", tool=FlowInner)
     CompleteOuter = Action.new(ActionType.COMPLETE, "Complete")
     FlowOuter.actions.extend(StartOuter, ActionOuter, CompleteOuter)
-    StartOuter.connect(PipeType.FORWARD, ActionOuter)
-    ActionOuter.connect(PipeType.FORWARD, CompleteOuter)
+    StartOuter.connect(PipeType.CALL, ActionOuter)
+    ActionOuter.connect(PipeType.CALL, CompleteOuter)
 
     local_runtime.page().blocks.extend(FlowInner, FlowOuter)
     await local_runtime.commit()
@@ -948,8 +970,8 @@ async def test_run_flow_yield_cancelled(local_runtime: RuntimeHandle):
     Yield = Action.new(ActionType.YIELD, "Yield")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Yield, Complete)
-    Start.connect(PipeType.FORWARD, Yield)
-    Yield.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Yield)
+    Yield.connect(PipeType.CALL, Complete)
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 
@@ -985,13 +1007,13 @@ async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Yield, Action1, Complete)
     StartToYield = Start.connect(
-        PipeType.FORWARD,
+        PipeType.CALL,
         Yield,
         run_options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_failed()]),
     )
-    Yield.connect(PipeType.FORWARD, Action1)
+    Yield.connect(PipeType.CALL, Action1)
     Action1ToComplete = Action1.connect(
-        PipeType.FORWARD,
+        PipeType.CALL,
         Complete,
         run_options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_completed()]),
     )
@@ -1042,9 +1064,9 @@ async def test_run_flow_pause_resume(local_runtime: RuntimeHandle):
     Action2 = Action.new(ActionType.CODE, "Action2", code=code("await sleep(0.2)"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow.actions.extend(Start, Action1, Action2, Complete)
-    Start.connect(PipeType.FORWARD, Action1)
-    Action1.connect(PipeType.FORWARD, Action2)
-    Action2.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Action1)
+    Action1.connect(PipeType.CALL, Action2)
+    Action2.connect(PipeType.CALL, Complete)
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 
@@ -1071,9 +1093,9 @@ async def test_run_flow_autoclose_interruptions(local_runtime: RuntimeHandle):
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Pass = Action.new(ActionType.CODE, "Pass", code=code("pass"))
     Flow.actions.extend(Start, Yield, Pass, Complete)
-    Start.connect(PipeType.FORWARD, Yield)
-    Start.connect(PipeType.FORWARD, Pass)
-    Pass.connect(PipeType.FORWARD, Complete)
+    Start.connect(PipeType.CALL, Yield)
+    Start.connect(PipeType.CALL, Pass)
+    Pass.connect(PipeType.CALL, Complete)
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 

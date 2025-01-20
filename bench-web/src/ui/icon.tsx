@@ -326,9 +326,8 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
 });
 
 export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons<PipeType>({
-  [PipeType.FORWARD]: "fas fa-arrow-right-long",
+  [PipeType.CALL]: "fas fa-arrow-right-long",
   [PipeType.SELECT]: "fas fa-arrow-right-from-line",
-  [PipeType.SELECT_AND_BACK]: "fas fa-arrows-left-right-to-line",
 });
 
 export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons<ViewType>({
@@ -549,7 +548,7 @@ export const ICON_BY_LOG_LEVEL: Record<LogLevel, IconData> = {
   [LogLevel.INFO]: makeIcon({ faName: "fas fa-circle-check" }),
   [LogLevel.WARNING]: makeIcon({ faName: "fas fa-circle-exclamation" }),
   [LogLevel.ERROR]: makeIcon({ faName: "fas fa-circle-exclamation" }),
-  [LogLevel.CRITICAL]: makeIcon({ faName: "fas fa-skull" }),
+  [LogLevel.PANIC]: makeIcon({ faName: "fas fa-skull" }),
 };
 
 export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
@@ -570,6 +569,7 @@ export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
 export const ICON_BY_RUN_SPAN_TYPE: Record<RunSpanType, IconData> = {
   [RunSpanType.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
   [RunSpanType.ATTEMPT]: makeIcon({ faName: "fas fa-play" }),
+  [RunSpanType.DELEGATE]: makeIcon({ faName: "fas fa-play" }),
   [RunSpanType.WAIT]: makeIcon({ faName: "fas fa-hourglass-end" }),
   [RunSpanType.FLOW_GENERATE_CALLS]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
   [RunSpanType.MODEL_PREPARE]: makeIcon({ faName: "fas fa-hexagon-nodes" }),

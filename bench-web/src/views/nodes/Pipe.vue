@@ -45,9 +45,9 @@ const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const isInspected = computed(() => canvas.isInspected(pipePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
 const isSelected = computed(() => state.isSelected(pipePtr.value));
-const isBack = computed(() => pipe.value?.type == PipeType.SELECT_AND_BACK);
+const isBack = computed(() => pipe.value?.type == PipeType.SELECT);
 const strokeDashArray = computed(() => {
-  if (pipe.value?.type === PipeType.SELECT || pipe.value?.type === PipeType.SELECT_AND_BACK) {
+  if (pipe.value?.type === PipeType.SELECT) {
     // dashed
     return `${PIPE_WIDTH * 3},${PIPE_WIDTH * 2}`;
   } else {

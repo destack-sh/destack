@@ -185,7 +185,7 @@ export const COLOR_BY_LOG_LEVEL: Record<LogLevel, ColorType> = {
   [LogLevel.INFO]: ColorType.GRAY,
   [LogLevel.WARNING]: ColorType.ORANGE,
   [LogLevel.ERROR]: ColorType.RED,
-  [LogLevel.CRITICAL]: ColorType.RED,
+  [LogLevel.PANIC]: ColorType.RED,
 };
 
 export const COLOR_BY_RUN_STATUS: Record<RunStatus, ColorType> = {

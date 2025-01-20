@@ -96,7 +96,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     default_factory: Callable[[], Any] | None = None
     default_sql: Any = UNSET
     constraint: "TypeConstraint | TypeConstraintIn | None" = None
-    field_type: FieldType | None = None
+    field_type: FieldType | None = None  # what field type this property pretends to be
 
     # flags
     is_list: bool = UNSET
@@ -106,7 +106,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     is_kernel: bool = False  # only viewable by system
     is_autoset: bool = False  # set automatically by system, cannot set directly
     is_computed: bool = False
-    is_runtime: bool = UNSET  # exists on runtime instance
+    is_runtime: bool = UNSET  # exists on runtime object
     is_ephemeral: bool = False  # runtime-only in-memory property
     is_wired: bool = UNSET  # serialized onto wire (in proto)
     is_stored: bool = UNSET  # stored in DB
@@ -123,7 +123,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     value_packed_ptr: Union[int, "Property", None] = None  # the packed value
     value_runtime_ptr: Union["Property", None] = None  # the runtime value
     value_type_info_getter: Callable[["BuiltinObject"], "TypeBase | None"] | None = None
-    value_field_type: FieldType | None = None
+    value_field_type: FieldType | None = None  # what field type this value represents
     value_is_partial: bool = False
 
     # subtype

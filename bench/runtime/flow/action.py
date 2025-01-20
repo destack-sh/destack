@@ -122,36 +122,6 @@ class ActionRunner[A: Action = Action](Runner[A], ABC):
                     return True
         return False
 
-    def _get_resumable_subrunner(
-        self,
-        node: RunnableNode,
-        variables: CustomObject | None,
-        inputs: CustomObject | None,
-        output_type: TypeBase | None = None,
-    ):
-        """
-        Gets the Runner for the given Node within this Runner.
-        If there is an interrupted Run inside the current Run for the node, we'll just return that.
-        Assumes there will only be on Runner for a given RunAttempt and Node.
-        """
-        assert self.tracked_run is not None, f"{self!r} must be tracked"
-        for run in self.tracked_run.runs:
-            # try to resume interrupted Run
-            if run.status.is_interrupted and run.runnable == node:
-                return restore_runner(self.runtime, run)
-        else:
-            # make new Runner
-            runner = make_runner(
-                runtime=self.runtime,
-                node=node,
-                run="track",
-                context=self.context,
-                variables=variables,
-                inputs=inputs,
-                outputs=output_type,
-            )
-            return runner
-
 
 # nocheckin: generate calls (and run for all Actions in Flows when needed)
 # we need to generate a few things:
@@ -191,19 +161,18 @@ class DynamicActionRunner[A: Action = Action](ActionRunner[A]):
             raise NotSupportedError(f"unsupported model developer {model_developer!r}")
 
         # run model
-        model_kwargs: dict[str, Any] = {
-            "runtime": self.runtime,
-            "node": self.node,
-            "model_type": model_type,
-            "options": self.options,
-            "context": self.context,
-            "variables": self.variables,
-            "inputs": self.inputs,
-            "output_type": self.output_type,
-            "track": False,
-            "parent": self,
-        }
-        model_runner = model_runner_cls(**model_kwargs)
+        model_runner = model_runner_cls(
+            runtime=self.runtime,
+            node=self.node,
+            model_type=model_type,
+            options=self.options,
+            context=self.context,
+            variables=self.variables,
+            inputs=self.inputs,
+            outputs=self.outputs or self.output_type,
+            parent=cast(Runner[Any], self),
+            run=RunSpanType.MODEL_GENERATE,
+        )
         await self.runtime.run_runner(model_runner)
         self.outputs = model_runner.outputs
 
@@ -261,19 +230,71 @@ class CodeActionRunner(StaticActionRunner[CodeAction]):
 
 
 class ToolActionRunner(StaticActionRunner[ToolAction]):
+    def _get_resumable_subrunner(
+        self,
+        node: RunnableNode,
+        variables: CustomObject | None,
+        inputs: CustomObject | None,
+        output_type: TypeBase | None = None,
+    ):
+        """
+        Gets the Runner for the given Node within this Runner.
+        If there is an interrupted Run inside the current Run for the node, we'll just return that.
+        NOTE: we assume there will only be one Runner for a given RunAttempt and Node.
+        """
+        assert self.tracked_run is not None, f"{self!r} must be tracked"
+        for run in self.tracked_run.runs:
+            # try to resume interrupted Run
+            if run.status.is_interrupted and run.runnable == node:
+                return restore_runner(self.runtime, run)
+        else:
+            # make new Runner
+            runner = make_runner(
+                runtime=self.runtime,
+                node=node,
+                run="track",
+                context=self.context,
+                variables=variables,
+                inputs=inputs,
+                outputs=output_type,
+            )
+            return runner
+
     @override
     async def run_static(self) -> None:
-        tool = self.action.tool
-        if not tool:
-            raise RunImpossibleError("no tool")
-        tool_runner = self._get_resumable_subrunner(
-            node=tool,
-            # inputs/variables are both PartialAction with node=tool
-            variables=self.inputs,
-            inputs=self.inputs,
-            output_type=self.output_type,
-        )
-        await self.runtime.run_runner(tool_runner)
+        if (tool := self.action.tool) is not None:
+            # delegate to tool node
+            if tool.type == ActionType.TOOL:
+                # this should work but it just seems wonky and confusing
+                raise RunImpossibleError(f"cannot invoke tool {tool!r} from tool")
+            tool_runner: Runner[Any] = self._get_resumable_subrunner(
+                node=tool,
+                # inputs/variables are both PartialAction with node=tool
+                variables=self.inputs,
+                inputs=self.inputs,
+                output_type=self.output_type,
+            )
+            await self.runtime.run_runner(tool_runner)
+            self.outputs = tool_runner.outputs
+        elif (tool_type := self.action.type) != ActionType.TOOL:
+            # delegate to built-in action
+            tool_runner_cls = ACTION_RUNNER_BY_ACTION_TYPE[tool_type]
+            tool_runner: Runner[Any] = tool_runner_cls(
+                runtime=self.runtime,
+                node=self.node,
+                run=RunSpanType.DELEGATE,
+                options=self.options,
+                context=self.context,
+                parent=cast(Runner[Any], self),
+                variables=self.inputs,
+                inputs=self.inputs,
+                outputs=self.output_type or self.outputs,
+                flow=self.flow,
+            )
+            await self.runtime.run_runner(tool_runner)
+            self.outputs = tool_runner.outputs
+        else:
+            raise RunImpossibleError("no tool given")
 
 
 #
