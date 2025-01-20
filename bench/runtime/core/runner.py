@@ -7,6 +7,7 @@ from typing import (
     Callable,
     ClassVar,
     Iterable,
+    Literal,
     Sequence,
     assert_never,
     cast,
@@ -35,10 +36,11 @@ from bench.language import (
     Resource,
     ResourceStatus,
     Run,
-    RunAttempt,
     RunError,
     RunnableNode,
     RunOptions,
+    RunSpan,
+    RunSpanType,
     RunStatus,
     RunType,
     Session,
@@ -70,6 +72,7 @@ class Interrupted(Exception):  # noqa: N818
         self.interruption = interruption
 
 
+RunIn = Run | RunSpan | RunSpanType | Literal["track"]
 RunnerHook = Callable[["Runner", BaseException | None], None]
 
 
@@ -83,7 +86,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     """
 
     __slots__ = (
-        "attempts",
         "context",
         "error",
         "id",
@@ -104,7 +106,9 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "runtime",
         "status",
         "task",
+        "tracked",
         "tracked_run",
+        "tracked_span",
         "variable_type",
         "variables",
     )
@@ -116,29 +120,35 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         *,
         runtime: "Runtime",
         node: N,
-        track: bool,
         options: RunOptions,
         context: HasContext,
+        run: RunIn,
         parent: "Runner | None" = None,
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
-        output_type: TypeBase | None = None,
+        outputs: TypeBase | CustomObject | None = None,
         mode: NodeMode | None = None,
-        run: Run | None = None,
     ) -> None:
-        self.id = run.id if run is not None else UUIDT()
+        self.id: UUIDT = run.id if run is not None else UUIDT()
         self.runtime = runtime
         self.node = node
         self.status = RunStatus.QUEUED
         self.options = options
 
-        self.context = context
+        self.context: HasContext = context
         self.variables = variables
         self.variable_type = node.variable_type
         self.inputs: CustomObject | None = inputs
         self.input_type = node.input_type
-        self.outputs: CustomObject | None = None
-        self.output_type = output_type or node.output_type
+        if isinstance(outputs, TypeBase):
+            self.outputs: CustomObject | None = None
+            self.output_type = outputs or node.output_type
+        elif isinstance(outputs, CustomObject):
+            self.outputs = outputs
+            self.output_type = outputs._type
+        else:
+            self.outputs = None
+            self.output_type = node.output_type
         self.error: RunError | None = None
         assert (
             self.variable_type is None or self.variables is not None
@@ -146,22 +156,21 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         assert self.input_type is None or self.inputs is not None, f"{self!r} has no inputs"
 
         self.parent = parent or runtime.active_runner
-        if run is not None:
-            self.attempts = list(run.attempts)
-        else:
-            self.attempts: list[RunAttempt] = []
         self.runners: list[Runner] = []
-        self.tracked_run = run
         self.task: asyncio.Task | None = None
         self.outer_task: asyncio.Task | None = None
         self.is_stopped = False
+
+        self.tracked_run: Run | None = None
+        self.tracked_span: RunSpan | None = None
+        self.tracked: RunSpan | Run
 
         # determine mode
         if mode is not None:
             self.mode = mode
         elif self.parent is not None:
             self.mode = self.parent.mode
-        elif run is not None:
+        elif isinstance(run, Node):
             self.mode = run.mode
         else:
             self.mode = NodeMode.PRODUCTION
@@ -198,14 +207,14 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                 self.variables = run.variables
                 self.options = run.options
             self.tracked_run = run
-        if run is not None:
+        if type(run) is Run:
             # Run and Runner *must* share the same objects (so we can apply computed values)
             assert run.variables is self.variables, f"{run!r} has other variables than {self!r}"
             assert run.inputs is self.inputs, f"{run!r} has other inputs than {self!r}"
             assert run.options is self.options, f"{run!r} has other options than {self!r}"
 
         # assume context
-        if self.context is None and run is not None:
+        if self.context is None:
             self.context = run
         assert self.context is not None, f"{self!r} has no context"
 
@@ -215,8 +224,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             f"node={self.node!r}",
             f"options={self.options!r}",
         ]
-        if self.attempts:
-            str_parts.append(f"attempts={self.attempts}")
         if self.runners:
             str_parts.append(f"runs={len(self.runners)}")
         if self.tracked_run:
@@ -243,10 +250,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     @property
     def is_active(self) -> bool:
         return self.outer_task is not None and not self.outer_task.done()
-
-    @property
-    def is_tracked(self) -> bool:
-        return self.tracked_run is not None
 
     @property
     def is_root(self) -> bool:
@@ -281,8 +284,18 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         return False
 
     @property
-    def current_attempt(self) -> RunAttempt | None:
-        return self.attempts[-1] if self.attempts else None
+    def attempts(self) -> Sequence[RunSpan]:
+        if self.tracked_run is None:
+            return ()
+        return tuple(span for span in self.tracked_run.spans if span.type == RunSpanType.ATTEMPT)
+
+    @property
+    def current_attempt(self) -> RunSpan | None:
+        if self.tracked_run is None:
+            return None
+        for span in reversed(self.tracked_run.spans):
+            if span.type == RunSpanType.ATTEMPT:
+                return span
 
     @property
     def ancestors(self):
@@ -534,32 +547,31 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
     return make_runner(
         runtime,
         node,
-        kind=run.type,
+        run=run,
+        type=run.type,
         context=run,
         variables=variables,
         inputs=inputs,
-        run=run,
-        track=True,
     )
 
 
 def make_runner(
     runtime: "Runtime",
     node: RunnableNode,
-    track: bool,
+    run: RunIn,
     *,
-    kind: RunType | None = None,
+    type: RunType | None = None,
     context: HasContext | None = None,
     variables: CustomObject | None = None,
     inputs: Any | None = None,
-    output_type: TypeBase | None = None,
+    outputs: TypeBase | CustomObject | None = None,
     options: RunOptions | None = None,
     parent: "Runner | None" = None,
-    run: Run | None = None,
+    span_type: RunSpanType | None = None,
 ) -> "Runner":
     """Make a Runner from a runnable Node."""
 
-    RUN_TYPE = kind or node.run_type
+    RUN_TYPE = type or node.run_type
     assert RUN_TYPE is not None, f"no run kind for {node!r}"
 
     # variables
@@ -573,11 +585,10 @@ def make_runner(
         inputs = CustomObject.new({}, typ=input_type, supergraph=runtime.session._supergraph)
 
     # options
-    if options is None:
-        if run is not None:
-            options = run.options
-        elif isinstance(run_options := getattr(node, "run_options", None), RunOptions):
-            options = run_options.clone()
+    if options is None and isinstance(
+        run_options := getattr(node, "run_options", None), RunOptions
+    ):
+        options = run_options.clone()
     if options is None:
         options = BASE_RUN_OPTIONS_BY_KIND[RUN_TYPE].clone()
     else:
@@ -590,11 +601,11 @@ def make_runner(
         "context": context or run,
         "variables": variables,
         "inputs": inputs,
-        "output_type": output_type,
+        "outputs": outputs,
         "run": run,
-        "track": track,
         "node": node,
         "parent": parent,
+        "span_type": span_type,
     }
 
     # map to runner

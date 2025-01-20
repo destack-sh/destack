@@ -241,7 +241,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                             NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION
                         ).get(run_ptr, live=True)
                     assert run.bench_id == self._bench_id, f"{run!r} is not in {self!r}"
-                    assert run.root_ptr is None, f"{run!r} is not a root Run"
+                    assert run.run_ptr is None, f"{run!r} is not a root Run"
                     assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
                     handle = RunHandle(run, run._connection, lock, self)
                     self._owned_runs[run_ptr.id] = handle
@@ -261,7 +261,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             # process run
             self._active_runs[handle.root.id] = handle
             try:
-                await self._runtime.run(handle.root, return_error=True, optimistic=True)
+                await self._runtime.run_run(handle.root, return_error=True, optimistic=True)
                 logger.info("thread.run", process=self, run=handle.root, span="current")
 
                 # done, close handle
@@ -272,20 +272,20 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
 
     def pause(self, run: Run):
         """Pause an owned Run."""
-        handle = self._owned_runs.get(run.root_id or run.id)
+        handle = self._owned_runs.get(run.run_id or run.id)
         assert handle is not None, f"no handle for {run!r} in {self!r}"
         handle.pause(run)
 
     def resume(self, run: Run):
         """Resume an owned Run."""
-        handle = self._owned_runs.get(run.root_id or run.id)
+        handle = self._owned_runs.get(run.run_id or run.id)
         assert handle is not None, f"no handle for {run!r} in {self!r}"
         handle.run()
         self.runtime.resume(run)
 
     def stop(self, run: Run):
         """Stop an owned Run."""
-        handle = self._owned_runs.get(run.root_id or run.id)
+        handle = self._owned_runs.get(run.run_id or run.id)
         assert handle is not None, f"no handle for {run!r} in {self!r}"
         handle.stop(run)
 

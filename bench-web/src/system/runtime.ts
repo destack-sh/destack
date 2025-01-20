@@ -37,6 +37,7 @@ import {
   PipeData,
   RunOptionsData,
   RunProperty,
+  RunSpanData,
   RunStatus,
   StructType,
   Timestamp,
@@ -67,7 +68,7 @@ export class RunTree {
   runGraph: ReadNodeGraph;
   runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
   runRef: Ref<RunData | null>;
-  runsRef: Ref<RunData[]>;
+  runsRef: Ref<(RunData | RunSpanData)[]>;
   runBasePtr: Ref<TypedNodeReferenceData<RunnableNodeType> | null>;
   runBaseRef: Ref<RunnableNode | null>;
   runConnection: Connection<"get", NodeType.RUN>;
@@ -92,7 +93,7 @@ export class RunTree {
     );
     this.runGraph = runGraph;
     this.runRef = runGraph.getRef(this.runPtr, { id: "runtime.run." + this.id, ignoreAncestors: false }); // :NodeRefStability
-    this.runsRef = runGraph.getDescendantsRef(this.runPtr, { metatypes: [NodeType.RUN], includeSelf: true });
+    this.runsRef = runGraph.getDescendantsRef(this.runPtr, { metatypes: [NodeType.RUN, NodeType.RUN_SPAN], includeSelf: true });
     this.runBasePtr = computedValue(
       () => (this.runRef.value?.actionPtr ?? this.runRef.value?.blockPtr) as TypedNodeReferenceData<RunnableNodeType>,
     );
@@ -101,6 +102,7 @@ export class RunTree {
     this.runsByBaseCk = computed(() => {
       const runByBaseCk: Record<string, RunData[]> = {};
       for (const run of this.runsRef.value) {
+        if (!isNode(run, NodeType.RUN)) continue;
         const base = getBaseFromNode(run);
         if (base?.ck != null) {
           if (runByBaseCk[base.ck] == null) {

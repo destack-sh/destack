@@ -34,7 +34,6 @@ from bench.language import (
     Resource,
     ResourceStatus,
     Run,
-    RunAttempt,
     RunError,
     RunErrorKind,
     RunnableNode,
@@ -55,6 +54,7 @@ from bench.language import (
     run_span,
     to_type_scalar,
 )
+from bench.language.runtime.run import RunSpan
 from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
 from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
@@ -109,6 +109,7 @@ class Runtime:
         assert session.bench is not None, f"{session!r} is not attached"
         assert session.bench is not None, f"{session!r} is not attached"
         self.session = session
+        self.session_ptr = session.to_ref()
         self.bench = session.bench
         self.cache = cache
         self.oracle = oracle
@@ -407,20 +408,38 @@ class Runtime:
                 logger.debug("runtime.acquire_resources.new", resource=resource)
         return resources_to_acquire
 
-    @tracer.start_as_current_span("runtime.run_runner.attempt")
-    async def _do_attempt(self, runner: Runner, retry: RetryState, attempt: RunAttempt):
-        trace.get_current_span().set_attribute("runner", repr(runner))
-        trace.get_current_span().set_attribute("attempt", retry.attempt)
-        log = logger.bind(runner=runner, attempt=attempt, retry=retry)
+    def _set_context(self, span: Run | RunSpan):
+        """Sets the current context on a RunSpan."""
+        if span.session_id != self.session.id:
+            span._do_set("session_ptr", self.session_ptr, validate=False)
+        if span.client_id != self.session.client_id:
+            span._do_set("client_ptr", self.session.client_ptr, validate=False)
+        if span.machine_id != self.session.machine_id:
+            span._do_set("machine_ptr", self.session.machine_ptr, validate=False)
+        if span.user_id != self.session.user_id:
+            span._do_set("user_ptr", self.session.user_ptr, validate=False)
+
+    @tracer.start_as_current_span("runtime.run.attempt")
+    async def _do_attempt(self, runner: Runner, retry: RetryState, span: RunSpan):
+        """
+        Perform a single attempt of a Runner in a given RunSpan.
+        If the Runner is is just the RunSpan, this is the only attempt.
+        """
+        trace_span = trace.get_current_span()
+        trace_span.set_attribute("runner", repr(runner))
+        trace_span.set_attribute("attempt", retry.attempt)
+
+        self._set_context(span)
+        log = logger.bind(runner=runner, attempt=span, retry=retry)
         started_at: datetime | None = None
         terminated_at: datetime | None = None
         try:
             if runner.is_stopped:
                 raise asyncio.CancelledError()
             with tracer.start_as_current_span("runtime.attempt.run"):
-                if attempt.started_at is None:
+                if span.started_at is None:
                     started_at = self.oracle.utc()
-                    attempt._do_set("started_at", started_at, validate=False)
+                    span._do_set("started_at", started_at, validate=False)
                 runner.task = asyncio.create_task(runner.run())
                 await runner.task
                 terminated_at = self.oracle.utc()
@@ -441,46 +460,46 @@ class Runtime:
                         options=CheckOptions(detached_is="invalid"),
                         invalid=on_invalid_raise,
                     )
-            attempt._do_set("status", RunStatus.COMPLETED, validate=False)
-            log.debug("runtime.attempt.completed", attempt=attempt, span="current")
+            span._do_set("status", RunStatus.COMPLETED, validate=False)
+            log.debug("runtime.attempt.completed", attempt=span, span="current")
         except asyncio.CancelledError as e:
             # cancelled
-            attempt._do_set("status", RunStatus.ABORTED, validate=False)
+            span._do_set("status", RunStatus.ABORTED, validate=False)
             error = RunError.from_exception(RunErrorKind.RUNTIME, e)
-            attempt._do_set("error", error, validate=False)
-            log.debug("runtime.attempt.aborted", attempt=attempt, span="current")
+            span._do_set("error", error, validate=False)
+            log.debug("runtime.attempt.aborted", attempt=span, span="current")
             raise
         except Interrupted as e:
             # interrupted
             status = RUN_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
-            attempt._do_set("status", status, validate=False)
-            attempt._do_set("interrupted_at", self.oracle.utc(), validate=False)
-            attempt._do_set("interruption", e.interruption, validate=False)
-            log.debug("runtime.attempt.interrupted", attempt=attempt, span="current")
+            span._do_set("status", status, validate=False)
+            span._do_set("interrupted_at", self.oracle.utc(), validate=False)
+            span._do_set("interruption", e.interruption, validate=False)
+            log.debug("runtime.attempt.interrupted", attempt=span, span="current")
             raise
         except BaseException as e:
             # error
-            attempt._do_set("status", RunStatus.FAILED, validate=False)
+            span._do_set("status", RunStatus.FAILED, validate=False)
             error = RunError.from_exception(RunErrorKind.RUNTIME, e)
-            attempt._do_set("error", error, validate=False)
-            log.debug("runtime.attempt.failed", attempt=attempt, exc_info=e, span="current")
+            span._do_set("error", error, validate=False)
+            log.debug("runtime.attempt.failed", attempt=span, exc_info=e, span="current")
             if not error.is_retryable or (
                 not retry.on_error(e) and not (error.type and error.type in runner.options.retry_on)
             ):
                 raise  # give up if not retryable (anymore)
         finally:
             runner.task = None
-            if attempt.status.is_terminal:
+            if span.status.is_terminal:
                 if terminated_at is None:
                     terminated_at = self.oracle.utc()
-                attempt._do_set("terminated_at", terminated_at, validate=False)
+                span._do_set("terminated_at", terminated_at, validate=False)
                 if started_at is not None:
-                    attempt._do_set("duration", terminated_at - started_at, validate=False)
+                    span._do_set("duration", terminated_at - started_at, validate=False)
 
-    @tracer.start_as_current_span("runtime.run_runner.run")
-    async def _do_run(self, runner: Runner):
-        """Runs a Runner, retrying automatically."""
-        # NOTE :Performance: track attempt as efficiently as possible :RuntimeHotPath
+    @tracer.start_as_current_span("runtime.prepare")
+    async def _prepare_run(self, runner: Runner):
+        """Prepare the Run for execution (only for Runs, not RunSpans)"""
+        assert type(runner.tracked) is Run, f"expected Run, got {runner.tracked!r}"
 
         # compute variables/inputs/options from context (on initial attempt)
         if runner.status < RunStatus.RUNNING:
@@ -571,169 +590,198 @@ class Runtime:
                     runner.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
                     return
 
-        # set status
+    @tracer.start_as_current_span("runtime.run")
+    async def _do_run(self, runner: Runner):
+        """Runs a Runner, retrying automatically for Runs if needed."""
+        # NOTE :Performance: track attempt as efficiently as possible :RuntimeHotPath
+
+        # status
         runner.status = RunStatus.RUNNING
-        retry = runner.options.to_retry().new(self.oracle, attempt=len(runner.attempts))
-        last_attempt = runner.current_attempt
-        for attempt in runner.attempts:  # 'restore' errors
-            if attempt.error is not None:
-                retry.on_error(attempt.error)
-        if last_attempt is not None:
-            if last_attempt.status.is_interrupted:
-                # resume interrupted attempt
-                retry.attempt -= 1  # don't count interrupted attempt (see above)
+        retry = runner.options.to_retry().new(self.oracle)
 
-        # breakpoint before
-        runner._trap_pause()
-        if last_attempt is None:
-            runner._trap_breakpoint(BreakpointSite.RUN_BEFORE)
+        if runner.tracked_run is not None:
+            # Runner is Run, retry with attempts (and breakpoints)
+            # recover run
+            attempts = runner.attempts
+            retry.attempt = len(attempts)
+            last_attempt = attempts[-1] if attempts else None
+            for attempt in attempts:  # 'restore' errors
+                if attempt.error is not None:
+                    retry.on_error(attempt.error)
+            if last_attempt is not None:
+                if last_attempt.status.is_interrupted:
+                    # resume interrupted attempt
+                    retry.attempt -= 1  # don't count interrupted attempt (see above)
+            # breakpoint before
+            runner._trap_pause()
+            if last_attempt is None:
+                runner._trap_breakpoint(BreakpointSite.RUN_BEFORE)
 
-        # run
-        active_run_runner_token = self._active_runner.set(runner)
-        try:
-            # make new attempts if we can/should
-            while retry.should_retry and not (
-                last_attempt is not None
-                and (last_attempt.status == RunStatus.COMPLETED or not last_attempt.is_retryable)
-            ):
-                retry.on_attempt()
-                if last_attempt is not None and last_attempt.status.is_interrupted:
-                    current_attempt = last_attempt
-                else:
-                    current_attempt = RunAttempt(status=RunStatus.RUNNING, _skip_validate_self=True)
-                    runner.attempts.append(current_attempt)
-                    if runner.tracked_run is not None:  # track attempt
-                        runner.tracked_run._do_set("attempts", runner.attempts, validate=False)
-                last_attempt = current_attempt
-                try:
-                    await self._do_attempt(runner=runner, retry=retry, attempt=current_attempt)
-                except (Interrupted, asyncio.CancelledError):
-                    raise
-                except Exception:
-                    pass  # swallow non-interrupted errors (let retry decide what to do)
-                finally:
-                    if runner.tracked_run is not None:  # track attempt
-                        runner.tracked_run._do_set("attempts", runner.attempts, validate=False)
-                    if last_attempt.error is not None:
-                        retry.on_error(last_attempt.error)
-
-            # give up if retry exhausted
-            if last_attempt is not None and last_attempt.status != RunStatus.COMPLETED:
-                if last_attempt.error:
-                    # re-raise last error
-                    raise RetryableError(title=last_attempt.error.title, error=last_attempt.error)
-                else:
-                    # no attempts, shouldn't actually get here if RetryOptions.max_attempts > 0
-                    raise NonRetryableError(title="retry exhausted")
-        finally:
-            # reset active run
-            self._active_runner.reset(active_run_runner_token)
-            last_attempt = runner.current_attempt
-            assert last_attempt is not None, f"missing last attempt for run {runner!r}"
-
-            # breakpoint after
-            if last_attempt.status.is_terminal:
-                if last_attempt.status == RunStatus.FAILED:
-                    runner._trap_breakpoint(
-                        BreakpointSite.RUN_AFTER, BreakpointSite.RUN_AFTER_FAILED
+            active_runner_token = self._active_runner.set(runner)
+            try:
+                # make new attempts if we can/should
+                while retry.should_retry and not (
+                    last_attempt is not None
+                    and (
+                        last_attempt.status == RunStatus.COMPLETED or not last_attempt.is_retryable
                     )
-                elif last_attempt.status == RunStatus.COMPLETED:
-                    runner._trap_breakpoint(
-                        BreakpointSite.RUN_AFTER, BreakpointSite.RUN_AFTER_COMPLETED
-                    )
-                else:
-                    runner._trap_breakpoint(BreakpointSite.RUN_AFTER)
+                ):
+                    retry.on_attempt()
+                    if last_attempt is not None and last_attempt.status.is_interrupted:
+                        # resume interrupted attempt
+                        current_attempt = last_attempt
+                    else:
+                        # create new attempt
+                        current_attempt = RunSpan(
+                            parent=runner.tracked_run,
+                            type=RunSpanType.ATTEMPT,
+                            status=RunStatus.RUNNING,
+                            _skip_validate_self=True,
+                        )
+                        self.session._create(current_attempt)
+                    last_attempt = current_attempt
+                    try:
+                        await self._do_attempt(runner=runner, retry=retry, span=current_attempt)
+                    except (Interrupted, asyncio.CancelledError):
+                        raise
+                    except Exception:
+                        pass  # swallow non-interrupted errors (let retry decide what to do)
+                    finally:
+                        if (error := last_attempt.error) is not None:
+                            retry.on_error(error)
 
-            # run status = last attempt
-            runner.status = last_attempt.status
-            runner.error = last_attempt.error
+                # give up if retry exhausted
+                if last_attempt is not None and last_attempt.status != RunStatus.COMPLETED:
+                    if last_attempt.error:
+                        # re-raise last error
+                        raise RetryableError(
+                            title=last_attempt.error.title, error=last_attempt.error
+                        )
+                    else:
+                        # no attempts, shouldn't actually get here if RetryOptions.max_attempts > 0
+                        raise NonRetryableError(title="retry exhausted")
+            finally:
+                # reset active run
+                self._active_runner.reset(active_runner_token)
 
-    @tracer.start_as_current_span("runtime.run_runner.track")
-    async def _do_run_tracked(self, runner: Runner):
+                # update from last attempt
+                last_attempt = runner.current_attempt
+                assert last_attempt is not None, f"missing last attempt for run {runner!r}"
+
+                # breakpoint after
+                if last_attempt.status.is_terminal:
+                    if last_attempt.status == RunStatus.FAILED:
+                        runner._trap_breakpoint(
+                            BreakpointSite.RUN_AFTER, BreakpointSite.RUN_AFTER_FAILED
+                        )
+                    elif last_attempt.status == RunStatus.COMPLETED:
+                        runner._trap_breakpoint(
+                            BreakpointSite.RUN_AFTER, BreakpointSite.RUN_AFTER_COMPLETED
+                        )
+                    else:
+                        runner._trap_breakpoint(BreakpointSite.RUN_AFTER)
+
+                # runner status = last attempt status
+                runner.status = last_attempt.status
+                runner.error = last_attempt.error
+
+        else:
+            # Runner is RunSpan, attempt only once (no breakpoints)
+            span = runner.tracked_span
+            assert span is not None, f"missing tracked span for {runner!r}"
+            active_runner_token = self._active_runner.set(runner)
+            try:
+                await self._do_attempt(runner=runner, retry=retry, span=span)
+            finally:
+                # reset active run
+                self._active_runner.reset(active_runner_token)
+                # update runner from span
+                runner.status = span.status
+                runner.error = span.error
+
+    @tracer.start_as_current_span("runtime.run_runner")
+    async def run_runner(self, runner: Runner[Any], hook: RunnerHook | None = None):
         """Runs a Runner, retrying automatically and updating the tracked Run along the way."""
         # NOTE :Performance: update the Run as efficiently as possible :RuntimeHotPath
         # NOTE :UX :Performance: commit optimistically ideally only while inside user code
         #  (while we're inside a leaf Runner.run, but not while updating/creating Runs,
         #   so for instance inside a Flow we should wait for all initial Steps to start somehow)
+        exc = None
+        async with self.session.active():
+            self._active_runners_by_id[runner.id] = runner
+            span = runner.tracked
+            context.attach(baggage.set_baggage("run_id", str(span.id)))
 
-        run = runner.tracked_run
-        assert run is not None, f"missing run in {runner!r}"
-        context.attach(baggage.set_baggage("run_id", str(run.id)))
+            # update context
+            self._set_context(span)
 
-        # update context
-        if run.session_id != self.session.id:
-            run._do_set("session", self.session, validate=False)
-        run._do_set("client_ptr", self.session.client_ptr, validate=False)
-        run._do_set("machine_ptr", self.session.machine_ptr, validate=False)
-        run._do_set("user_ptr", self.session.user_ptr, validate=False)
-
-        # mark started
-        if run.started_at is None:
-            run._do_set("started_at", self.oracle.utc(), validate=False)
-        run._do_set("status", RunStatus.RUNNING, validate=False)
-
-        # commit intermediate session edits
-        self.session.commit_optimistic()
-
-        # actually attempt Run
-        try:
-            await self._do_run(runner)
-        except Interrupted as e:
-            if not runner.status.is_interrupted:
-                # interruption not handled in attempt loop (probably from a breakpoint)
-                last_attempt = runner.current_attempt
-                interrupted_at = (
-                    last_attempt.interrupted_at if last_attempt is not None else self.oracle.utc()
-                )
-                runner.status = RUN_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
-                run._do_set("interrupted_at", interrupted_at, validate=False)
-            else:
-                run._do_set("interrupted_at", self.oracle.utc(), validate=False)
-            run._do_set("interruption", e.interruption, validate=False)
-            raise
-        finally:
-            run._do_set("attempts", runner.attempts, validate=False)
-            run._do_set("inputs", runner.inputs, validate=False)
-            run._do_set("outputs", runner.outputs, validate=False)
-            run._do_set("error", runner.error, validate=False)
-            run._do_set("status", runner.status, validate=False)
-            if runner.status.is_terminal:
-                # update terminal status
-                last_attempt = runner.current_attempt
-                if last_attempt is not None:
-                    # made an attempt
-                    run._do_set("terminated_at", last_attempt.terminated_at, validate=False)
-                    if last_attempt.duration is not None:
-                        run._do_set("duration", last_attempt.duration, validate=False)
-                elif run.terminated_at is not None:
-                    # didn't make an attempt, but we have a terminated_at
-                    run._do_set("duration", run.terminated_at - run.started_at)  # type: ignore
-                else:
-                    # didn't make an attempt
-                    run._do_set("terminated_at", self.oracle.utc(), validate=False)
-                    run._do_set("duration", run.terminated_at - run.started_at)  # type: ignore
-                # close any remaining (directly) contained open Interruptions
-                self.close(run)
+            # mark started
+            if span.started_at is None:
+                span._do_set("started_at", self.oracle.utc(), validate=False)
+            span._do_set("status", RunStatus.RUNNING, validate=False)
 
             # commit intermediate session edits
             self.session.commit_optimistic()
 
-    @tracer.start_as_current_span("runtime.run_runner")
-    async def run_runner(self, runner: Runner[Any], hook: RunnerHook | None = None):
-        """Runs a Runner until termination/interruption."""
-        async with self.session.active():
-            self._active_runners_by_id[runner.id] = runner
-            exc = None
+            # actually attempt Run
             try:
-                trace.get_current_span().set_attribute("runner", repr(runner))
                 if runner.tracked_run is not None:
-                    await self._do_run_tracked(runner)
+                    await self._prepare_run(runner)
+                await self._do_run(runner)
+            except Interrupted as e:
+                if not runner.status.is_interrupted:
+                    # interruption not handled in attempt loop (probably from a breakpoint)
+                    last_attempt = runner.current_attempt
+                    interrupted_at = (
+                        last_attempt.interrupted_at
+                        if last_attempt is not None
+                        else self.oracle.utc()
+                    )
+                    runner.status = RUN_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
+                    span._do_set("interrupted_at", interrupted_at, validate=False)
                 else:
-                    await self._do_run(runner)
+                    span._do_set("interrupted_at", self.oracle.utc(), validate=False)
+                span._do_set("interruption", e.interruption, validate=False)
+                exc = e
+                raise
             except BaseException as e:
                 exc = e
                 raise
             finally:
+                # update span from runner
+                if type(span) is Run:
+                    if span.variables is not runner.variables:
+                        span._do_set("variables", runner.variables, validate=False)
+                    if span.inputs is not runner.inputs:
+                        span._do_set("inputs", runner.inputs, validate=False)
+                    if span.outputs is not runner.outputs:
+                        span._do_set("outputs", runner.outputs, validate=False)
+                if span.error is not runner.error:
+                    span._do_set("error", runner.error, validate=False)
+                if span.status != runner.status:
+                    span._do_set("status", runner.status, validate=False)
+                if runner.status.is_terminal:
+                    # update terminal status
+                    last_attempt = runner.current_attempt
+                    if last_attempt is not None:
+                        # made an attempt
+                        span._do_set("terminated_at", last_attempt.terminated_at, validate=False)
+                        if last_attempt.duration is not None:
+                            span._do_set("duration", last_attempt.duration, validate=False)
+                    elif span.terminated_at is not None:
+                        # didn't make an attempt, but we have a terminated_at
+                        span._do_set("duration", span.terminated_at - span.started_at)  # type: ignore
+                    else:
+                        # didn't make an attempt
+                        span._do_set("terminated_at", self.oracle.utc(), validate=False)
+                        span._do_set("duration", span.terminated_at - span.started_at)  # type: ignore
+                    # close any remaining (directly) contained open Interruptions
+                    self.close(span)
+
+                # commit intermediate session edits
+                self.session.commit_optimistic()
+
+                # notify
                 self._active_runners_by_id.pop(runner.id, None)
                 if hook is not None:
                     hook(runner, exc)
@@ -752,8 +800,7 @@ class Runtime:
         runner.outer_task = asyncio.create_task(self._wrap_run_runner(runner, hook=on_stop))
         return runner
 
-    @tracer.start_as_current_span("runtime.run")
-    async def run(
+    async def run_run(
         self,
         run: Run | RunnableNode,
         *,
@@ -843,10 +890,10 @@ class Runtime:
                     self.close(runner.tracked_run, resume=not runner.is_root)
                 logger.debug("runtime.run.stop", runner=runner)
 
-    def close(self, run: Run, resume: bool = True):
+    def close(self, span: Run | RunSpan, resume: bool = True):
         """Close the Interruptions in a Run."""
         closed_interruptions: list[Interruption] | None = None
-        for interruption in run._graph.iter_descendants(run, NodeType.INTERRUPTION):
+        for interruption in span._graph.iter_descendants(span, NodeType.INTERRUPTION):
             interruption = cast(Interruption, interruption)
             if interruption.status.is_open:
                 interruption.cancel(_trigger_runtime=False)
@@ -855,6 +902,6 @@ class Runtime:
                 closed_interruptions.append(interruption)
 
         # trigger resume for Interruptions (if we can still run, i.e. not at root)
-        if resume and run.parent_ptr is not None and closed_interruptions:
-            runs_to_resume = self.get_interrupted_runs(run._graph, *closed_interruptions)
+        if resume and span.parent_ptr is not None and closed_interruptions:
+            runs_to_resume = self.get_interrupted_runs(span._graph, *closed_interruptions)
             self.resume(*runs_to_resume)

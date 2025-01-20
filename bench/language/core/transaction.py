@@ -434,8 +434,8 @@ class Transaction:
                 edit_context = EditContextData(metatype=pb2.OBJECT_TYPE_EDIT_CONTEXT)
                 run = edit_event.run
                 edit_context.run_ptr.CopyFrom(run._to_ref_data())
-                if run.root_ptr is not None:
-                    edit_context.run_root_ptr.CopyFrom(run.root_ptr._to_data())
+                if run.run_ptr is not None:
+                    edit_context.run_root_ptr.CopyFrom(run.run_ptr._to_data())
                 if run.block_ptr is not None:
                     edit_context.block_ptr.CopyFrom(run.block_ptr._to_data())
                 if run.action_ptr is not None:

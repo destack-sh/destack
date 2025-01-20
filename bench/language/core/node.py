@@ -93,6 +93,7 @@ from .property import (
     Property,
     PropertyReferenceType,
     p_internal,
+    p_node_ancestor,
     p_node_ancestor_with_self,
     p_node_parent,
     p_node_template,
@@ -1198,7 +1199,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 or prop.is_encrypted
                 or prop.is_value_packed  # compared in runtime value
                 or prop.name == "order_key"  # implicitly checked in lists
-                or prop.name in HasTracingContext.__properties__
+                or prop.name in HasTrace.__properties__
                 or prop._type_info is None
             ):
                 continue  # ignore identity/tracking
@@ -1731,7 +1732,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     ):
         # inject :Tracing context
         cls = type(self)
-        if isinstance(self, HasTracingContext):
+        if isinstance(self, HasTrace):
             if not kwargs.get("mode"):
                 tracing = get_tracing_context()
                 kwargs["mode"] = tracing.mode
@@ -2564,8 +2565,8 @@ class NodeSubtypeStub[NodeT: Node]:
 
 
 @object_()
-class HasTracingContext(BuiltinObject):
-    """Context for a Node in some Session."""
+class HasTrace(BuiltinObject):
+    """Context for tracing a Node."""
 
     # tracing :Tracing
     mode: NodeMode = p_internal(20, default=None, default_sql=str(NodeMode.PRODUCTION.value))
@@ -2603,7 +2604,7 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
 
 
 @node_component()
-class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContext, abc.ABC):
+class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC):
     """A Node inside a Package."""
 
     package: "Package | None" = p_node_ancestor_with_self(
@@ -2685,11 +2686,8 @@ class HasContext(BuiltinObject):
     session: Optional["Session"] = p_internal(
         90, require=False, array=False, references=NodeType.SESSION, same_bench=True
     )
-    run: Optional["Run"] = p_internal(
-        91, require=False, array=False, references=NodeType.RUN, same_bench=True
-    )
-    run_root: Optional["Run"] = p_internal(
-        92, require=False, array=False, references=NodeType.RUN, same_bench=True
+    run: "Run | None" = p_node_ancestor(
+        91, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
     client: Optional["Client"] = p_internal(
         93, require=False, array=False, references=NodeType.CLIENT, same_bench=True
@@ -2697,9 +2695,9 @@ class HasContext(BuiltinObject):
     machine: Optional["Machine"] = p_internal(
         94, require=False, array=False, references=NodeType.MACHINE, same_bench=True
     )
-    user: Optional["User"] = p_internal(96, require=False, array=False, references=NodeType.USER)
+    user: Optional["User"] = p_internal(95, require=False, array=False, references=NodeType.USER)
     identity: Optional["Block"] = p_internal(
-        97,
+        96,
         require=False,
         array=False,
         references=NodeType.BLOCK,
@@ -2710,8 +2708,6 @@ class HasContext(BuiltinObject):
         session_id: Optional[UUID] = None
         run_ptr: Optional[NodeReference] = None
         run_id: Optional[UUID] = None
-        run_root_ptr: Optional[NodeReference] = None
-        run_root_id: Optional[UUID] = None
         client_ptr: Optional[NodeReference] = None
         client_id: Optional[UUID] = None
         machine_ptr: Optional[NodeReference] = None
@@ -2720,6 +2716,7 @@ class HasContext(BuiltinObject):
         user_id: Optional[UUID] = None
         identity_ptr: Optional[NodeReference] = None
         identity_id: Optional[UUID] = None
+        identity_ck: Optional[UUID] = None
 
     @property
     def runtime(self):
@@ -2734,7 +2731,7 @@ class HasContext(BuiltinObject):
 
 @node_component()
 class RuntimeNode[NodeDataT: AnyNodeData](
-    HasTimeIdentity, BenchNode[NodeDataT], HasContext, HasTracingContext, abc.ABC
+    HasTimeIdentity, BenchNode[NodeDataT], HasContext, HasTrace, abc.ABC
 ):
     """A Node that exists only (conceptually) at/in a Runtime."""
 

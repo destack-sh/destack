@@ -18,6 +18,7 @@ from .error import (
 from .options import ATTEMPT_FOREVER, ATTEMPT_ONCE, ATTEMPT_THRICE, BASE_RUN_OPTIONS_BY_KIND
 from .runner import (
     Interrupted,
+    RunIn,
     Runner,
     RunnerHook,
     create_run_from_node,
@@ -48,6 +49,7 @@ __all__ = [
     "RedisCache",
     "RetryableError",
     "RunImpossibleError",
+    "RunIn",
     "Runner",
     "RunnerHook",
     "Runtime",

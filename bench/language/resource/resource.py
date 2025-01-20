@@ -10,7 +10,7 @@ from bench.language.core import (
     TITLE_CONSTRAINT,
     BenchNode,
     EnumType,
-    HasTracingContext,
+    HasTrace,
     Node,
     NodeType,
     Owner,
@@ -75,7 +75,7 @@ NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
 
 @node_component()
-class Resource[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContext, abc.ABC):
+class Resource[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC):
     """
     A Resource in a Bench.
     Resources generally work on the 'desired state' principle.

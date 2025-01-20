@@ -1049,8 +1049,8 @@ async def test_run_flow_pause_resume(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     # run, pause
-    runner = make_runner(local_runtime.runtime, Flow, track=True)
-    assert runner.tracked_run is not None
+    runner = make_runner(local_runtime.runtime, Flow, run="track")
+    assert runner.tracked_run
     asyncio.get_event_loop().call_later(0.1, runner.tracked_run.pause)
     try:
         _ = await local_runtime.runtime.run_runner(runner)
@@ -1079,7 +1079,7 @@ async def test_run_flow_autoclose_interruptions(local_runtime: RuntimeHandle):
 
     runner = await local_runtime.run(Flow)
     assert runner.status == RunStatus.COMPLETED
-    assert runner.tracked_run is not None
+    assert runner.tracked_run
 
     interruptions = runner.tracked_run._graph.nodes_of_type(Interruption)
     assert len(interruptions) == 1
