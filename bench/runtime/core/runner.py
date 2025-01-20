@@ -124,14 +124,19 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
-        mode: NodeMode | None = None,
     ) -> None:
         self.runtime = runtime
         self.node = node
         self.status = RunStatus.QUEUED
         self.options = options
-
         self.context: HasContext = context
+        self.parent = parent or runtime.active_runner
+        self.runners: list[Runner] = []
+        self.task: asyncio.Task | None = None
+        self.outer_task: asyncio.Task | None = None
+        self.is_stopped = False
+
+        # variables/inputs/outputs
         self.variables = variables
         self.variable_type = node.variable_type
         assert (
@@ -151,21 +156,23 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             self.output_type = node.output_type
         self.error: RunError | None = None
 
-        self.parent = parent or runtime.active_runner
-        self.runners: list[Runner] = []
-        self.task: asyncio.Task | None = None
-        self.outer_task: asyncio.Task | None = None
-        self.is_stopped = False
-
-        # track in Run/RunSpan
-        self.tracked_run: Run | None
-        self.tracked_span: RunSpan | None
-        self.tracked: RunSpan | Run
+        # context/tracing
         if self.parent is not None:
             self.parent.runners.append(self)  # register with parent Runner
             parent_run = self.parent.closest_tracked_run
         else:
             parent_run = None
+        if self.parent is not None:
+            self.mode = self.parent.mode
+        elif isinstance(run, Node):
+            self.mode = run.mode
+        else:
+            self.mode = NodeMode.PRODUCTION
+
+        # track in Run/RunSpan
+        self.tracked_run: Run | None
+        self.tracked_span: RunSpan | None
+        self.tracked: RunSpan | Run
         if type(run) is Run or run == "track":
             # Runner = Run
             if run == "track":
@@ -213,6 +220,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                     parent=parent_run,
                     type=run,
                     status=self.status,
+                    mode=self.mode,
                     _skip_validate_self=True,
                 )
                 self.session._create(tracked_span)
@@ -222,16 +230,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             self.tracked_span = tracked_span
             self.tracked = self.tracked_span
         self.id = self.tracked.id
-
-        # tracing
-        if mode is not None:
-            self.mode = mode
-        elif self.parent is not None:
-            self.mode = self.parent.mode
-        elif isinstance(run, Node):
-            self.mode = run.mode
-        else:
-            self.mode = NodeMode.PRODUCTION
 
         # context
         if self.context is None:
