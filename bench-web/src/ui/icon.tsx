@@ -1,4 +1,5 @@
 import {
+  ActionType,
   Alignment,
   Anchor,
   BenchType,
@@ -18,6 +19,7 @@ import {
   IconKind,
   InterruptionType,
   LogLevel,
+  NodeMode,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -28,17 +30,14 @@ import {
   Region,
   RegionContinent,
   ResourceStatus,
+  RunSpanType,
   RunStatus,
-  NodeMode,
-  ActionType,
   StructType,
   TypeFormat,
   TypeKind,
   ViewType,
   type AnyNodeData,
   type IconData,
-  RunSpanType,
-  RunEventType,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // fa-icons is generated with:
@@ -46,14 +45,14 @@ import type { FunctionalComponent } from "vue";
 //  | jq 'to_entries | map(select(.value.free | index("s@olid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, aliases: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
 //  > fa-icons.json
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
-import type { TypeIdentity } from "@/language/field";
-import { isNode } from "@/proto/wiring";
-import { getColorHex, makeColor } from "@/ui/style";
-import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 import { BASED_NODE_TYPES, getBaseFromNode } from "@/language/const";
-import { supergraph } from "@/system/globals";
+import type { TypeIdentity } from "@/language/field";
 import { unpackSubnodeProperty } from "@/language/node";
 import { unpackPartialNode } from "@/language/value";
+import { isNode } from "@/proto/wiring";
+import { supergraph } from "@/system/globals";
+import { getColorHex, makeColor } from "@/ui/style";
+import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 
 export type IconMetadata = {
   id: string;
@@ -196,6 +195,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   // runtime
   [NodeType.SESSION]: "fas fa-circle-play",
   [NodeType.RUN]: "fas fa-play",
+  [NodeType.RUN_SPAN]: "fas fa-play",
   [NodeType.LOG]: "fas fa-file-alt",
   [NodeType.INTERRUPTION]: "fas fa-hand",
 
@@ -235,12 +235,10 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.TEXT_LINE]: "fas fa-grip-lines",
   // run
   [StructType.RUN_OPTIONS]: "fas fa-play",
-  [StructType.RUN_ATTEMPT]: "fas fa-play",
   [StructType.RUN_ERROR]: "fas fa-play",
   [StructType.RUN_FRAME]: "fas fa-play",
   [StructType.RUN_TRACE]: "fas fa-play",
   [StructType.BREAKPOINT]: "fas fa-pause",
-  [StructType.LOG_INFO]: "fas fa-file-lines",
 });
 
 export const ICON_BY_OBJECT_TYPE: Partial<Record<ObjectType, IconData>> = {
@@ -571,21 +569,16 @@ export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
 
 export const ICON_BY_RUN_SPAN_TYPE: Record<RunSpanType, IconData> = {
   [RunSpanType.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
-  [RunSpanType.WAIT_FOR]: makeIcon({ faName: "fas fa-hourglass-end" }),
+  [RunSpanType.ATTEMPT]: makeIcon({ faName: "fas fa-play" }),
+  [RunSpanType.WAIT]: makeIcon({ faName: "fas fa-hourglass-end" }),
   [RunSpanType.FLOW_GENERATE_CALLS]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
-  [RunSpanType.ACTION_GENERATE_OUTPUT]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
-  [RunSpanType.APPLICATION_FIND_ELEMENT]: makeIcon({ faName: "fas fa-location-dot" }),
-  [RunSpanType.MODEL_INFERENCE]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
+  [RunSpanType.MODEL_PREPARE]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
+  [RunSpanType.MODEL_GENERATE]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
+  [RunSpanType.MODEL_PARSE]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
   [RunSpanType.FILE_DOWNLOAD]: makeIcon({ faName: "fas fa-download" }),
   [RunSpanType.FILE_PREPARE_DOWNLOAD]: makeIcon({ faName: "fas fa-download" }),
   [RunSpanType.FILE_UPLOAD]: makeIcon({ faName: "fas fa-upload" }),
   [RunSpanType.FILE_PREPARE_UPLOAD]: makeIcon({ faName: "fas fa-upload" }),
-};
-
-export const ICON_BY_RUN_EVENT_TYPE: Record<RunEventType, IconData> = {
-  [RunEventType.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
-  [RunEventType.CONNECTION_ESTABLISHED]: makeIcon({ faName: "fas fa-wifi" }),
-  [RunEventType.CONNECTION_LOST]: makeIcon({ faName: "fas fa-wifi-slash" }),
 };
 
 export const ICON_BY_INTERRUPTION_TYPE: Record<InterruptionType, IconData> = {

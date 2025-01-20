@@ -11,12 +11,11 @@ from bench.language import (
     HasContext,
     Pipe,
     PipeType,
-    Run,
     RunOptions,
     RunType,
     TypeBase,
 )
-from bench.runtime.core import Runner, Runtime
+from bench.runtime.core import RunIn, Runner, Runtime
 
 if TYPE_CHECKING:
     from .flow import FlowRunner
@@ -37,26 +36,24 @@ class PipeRunner(Runner[Pipe], ABC):
         *,
         runtime: Runtime,
         node: Pipe,
-        track: bool,
         options: RunOptions,
         context: HasContext,
+        run: RunIn,
         flow: "FlowRunner | None" = None,
         parent: Runner | None = None,
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
-        output_type: TypeBase | None = None,
-        run: Run | None = None,
+        outputs: TypeBase | CustomObject | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
             node=node,
-            track=track,
             options=options,
             context=context,
             parent=parent,
             variables=variables,
             inputs=inputs,
-            output_type=output_type,
+            outputs=outputs,
             run=run,
         )
         self.flow = flow

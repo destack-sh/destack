@@ -83,7 +83,7 @@ class RunPlugin(HostPlugin[Run]):
                 and run.interrupted_at is not None
                 and run.resumed_at > run.interrupted_at
             ):
-                self._queue_run(run.root or run)
+                self._queue_run(run.run or run)
 
     @tracer.start_as_current_span("scheduler.process_run")
     @connection_capture("seal")

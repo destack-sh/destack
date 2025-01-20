@@ -190,7 +190,6 @@ enum StructType {
   STRUCT_TYPE_COMPUTED_VALUE = 12241;
   STRUCT_TYPE_RUN_ERROR = 12700;
   STRUCT_TYPE_RUN_OPTIONS = 12701;
-  STRUCT_TYPE_RUN_ATTEMPT = 12702;
   STRUCT_TYPE_RUN_TRACE = 12703;
   STRUCT_TYPE_RUN_FRAME = 12704;
   STRUCT_TYPE_CALL = 12730;
@@ -282,7 +281,6 @@ enum ObjectType {
   OBJECT_TYPE_COMPUTED_VALUE = 12241;
   OBJECT_TYPE_RUN_ERROR = 12700;
   OBJECT_TYPE_RUN_OPTIONS = 12701;
-  OBJECT_TYPE_RUN_ATTEMPT = 12702;
   OBJECT_TYPE_RUN_TRACE = 12703;
   OBJECT_TYPE_RUN_FRAME = 12704;
   OBJECT_TYPE_CALL = 12730;
@@ -374,7 +372,6 @@ enum BenchType {
   BENCH_TYPE_COMPUTED_VALUE = 12241;
   BENCH_TYPE_RUN_ERROR = 12700;
   BENCH_TYPE_RUN_OPTIONS = 12701;
-  BENCH_TYPE_RUN_ATTEMPT = 12702;
   BENCH_TYPE_RUN_TRACE = 12703;
   BENCH_TYPE_RUN_FRAME = 12704;
   BENCH_TYPE_CALL = 12730;
@@ -2061,17 +2058,6 @@ message RunOptionsData {
   optional VideoOptionsData video_options = 86;
 }
 
-message RunAttemptData {
-  ObjectType metatype = 1;
-  RunStatus status = 40;
-  optional google.protobuf.Duration duration = 41;
-  optional google.protobuf.Timestamp started_at = 42;
-  optional google.protobuf.Timestamp terminated_at = 43;
-  optional google.protobuf.Timestamp interrupted_at = 44;
-  optional NodeReferenceData interruption_ptr = 45;
-  optional RunErrorData error = 50;
-}
-
 message RunTraceData {
   ObjectType metatype = 1;
   repeated RunFrameData frames = 30;
@@ -2801,12 +2787,15 @@ message RunSpanData {
   optional NodeReferenceData root_ptr = 31;
   LogLevel level = 33;
   RunStatus status = 40;
-  optional google.protobuf.Timestamp started_at = 41;
-  optional google.protobuf.Timestamp terminated_at = 42;
-  optional google.protobuf.Duration duration = 43;
-  optional string title = 50;
-  optional TextData text = 51;
-  repeated NodeReferenceData nodes_ptr = 52;
+  optional google.protobuf.Duration duration = 41;
+  optional google.protobuf.Timestamp started_at = 42;
+  optional google.protobuf.Timestamp terminated_at = 43;
+  optional google.protobuf.Timestamp interrupted_at = 44;
+  optional NodeReferenceData interruption_ptr = 53;
+  optional RunErrorData error = 54;
+  optional string title = 60;
+  optional TextData text = 61;
+  repeated NodeReferenceData nodes_ptr = 62;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
   optional NodeReferenceData run_root_ptr = 92;
@@ -2838,15 +2827,15 @@ message RunData {
   RunOptionsData options = 39;
   RunStatus status = 40;
   optional google.protobuf.Duration duration = 41;
-  optional RunErrorData error = 45;
-  optional google.protobuf.Timestamp scheduled_at = 46;
-  optional google.protobuf.Timestamp started_at = 47;
-  optional google.protobuf.Timestamp stopped_at = 48;
-  optional google.protobuf.Timestamp interrupted_at = 49;
+  optional google.protobuf.Timestamp scheduled_at = 45;
+  optional google.protobuf.Timestamp started_at = 46;
+  optional google.protobuf.Timestamp stopped_at = 47;
+  optional google.protobuf.Timestamp interrupted_at = 48;
   optional google.protobuf.Timestamp paused_at = 50;
   optional google.protobuf.Timestamp resumed_at = 51;
   optional google.protobuf.Timestamp terminated_at = 52;
-  optional NodeReferenceData interruption_ptr = 53;
+  optional RunErrorData error = 53;
+  optional NodeReferenceData interruption_ptr = 54;
   optional google.protobuf.Value variables_packed = 60;
   optional google.protobuf.Value inputs_packed = 61;
   optional google.protobuf.Value outputs_packed = 63;

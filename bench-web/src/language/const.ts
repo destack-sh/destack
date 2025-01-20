@@ -376,12 +376,10 @@ export const EXPOSED_STRUCT_TYPES = [
   StructType.TEXT,
   // run
   StructType.RUN_OPTIONS,
-  StructType.RUN_ATTEMPT,
   StructType.RUN_ERROR,
   StructType.RUN_FRAME,
   StructType.RUN_TRACE,
   StructType.BREAKPOINT,
-  StructType.LOG_INFO,
 ];
 export const EXPOSED_PRIMITIVE_TYPES = [
   PrimitiveType.BOOLEAN,

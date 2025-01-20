@@ -25,8 +25,7 @@ from bench.language import (
     TypeBase,
     run_span,
 )
-from bench.runtime.code import CodeFunctionRunner
-from bench.runtime.core import ATTEMPT_ONCE, Runner, Runtime
+from bench.runtime.core import ATTEMPT_ONCE, RunIn, Runner, Runtime
 
 from .model import ModelRunner
 from .prompt import (
@@ -60,26 +59,24 @@ class ChatModelRunner(ModelRunner[Action], ABC):
         runtime: Runtime,
         node: Action,
         model_type: ModelType,
-        track: bool,
         options: RunOptions,
         context: HasContext,
+        run: RunIn,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         variables: CustomObject | None = None,
-        output_type: TypeBase | None = None,
-        run: Run | None = None,
+        outputs: TypeBase | CustomObject | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
             node=node,
             model_type=model_type,
-            track=track,
             options=options,
             context=context,
             parent=parent,
             inputs=inputs,
             variables=variables,
-            output_type=output_type,
+            outputs=outputs,
             run=run,
         )
         self.prompt: Prompt | None = None
@@ -132,6 +129,8 @@ class ChatModelRunner(ModelRunner[Action], ABC):
     @final
     @override
     async def run(self) -> None:
+        from bench.runtime.code import CodeFunctionRunner
+
         # build prompt
         with run_span(tracer, "model.compile", RunSpanType.MODEL_PREPARE, level=LogLevel.DEBUG):
             prompt = make_chat_prompt(
@@ -144,31 +143,31 @@ class ChatModelRunner(ModelRunner[Action], ABC):
                 output_type=self.output_type,
             )
             parts = await self.build(prompt, 1000)
+
         # run model to generate code as response
-        with run_span(tracer, "model.generate", RunSpanType.MODEL_GENERATE, level=LogLevel.DEBUG):
-            code = await self.generate(
-                prompt,
-                parts,
-                self.model_type,
-                user_id=str(self.session.bench_id),
-                options=ATTEMPT_ONCE,
-            )
-            self.code = code
+        code = await self.generate(
+            prompt,
+            parts,
+            self.model_type,
+            user_id=str(self.session.bench_id),
+            options=ATTEMPT_ONCE,
+        )
+        self.code = code
+
         # run code to parse outputs
-        with run_span(tracer, "model.parse", RunSpanType.MODEL_PARSE, level=LogLevel.DEBUG):
-            code_runner = CodeFunctionRunner(
-                runtime=self.runtime,
-                node=self.node,
-                code=code,
-                track=False,
-                options=ATTEMPT_ONCE,
-                context=self.context,
-                variables=self.variables,
-                inputs=self.inputs,
-                output_type=self.output_type,
-                parent=cast(Runner[RunnableNode], self),
-            )
-            await self.runtime.run_runner(code_runner)
+        code_runner = CodeFunctionRunner(
+            runtime=self.runtime,
+            node=self.node,
+            code=code,
+            options=ATTEMPT_ONCE,
+            context=self.context,
+            variables=self.variables,
+            inputs=self.inputs,
+            outputs=self.output_type,
+            parent=cast(Runner[RunnableNode], self),
+            run=RunSpanType.MODEL_PARSE,
+        )
+        await self.runtime.run_runner(code_runner)
         self.outputs = code_runner.outputs
 
 

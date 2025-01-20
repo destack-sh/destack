@@ -13,7 +13,6 @@ from bench.language import (
     Field,
     HasContext,
     RenderOptions,
-    Run,
     RunnableNode,
     RunOptions,
     RunType,
@@ -25,7 +24,7 @@ from bench.language import (
     render,
     upload_file,
 )
-from bench.runtime.core import CodeInvalidError, Runner, Runtime
+from bench.runtime.core import CodeInvalidError, RunIn, Runner, Runtime
 
 from .capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE, LogSink, capture_logs
 from .compiler import CompiledCode, compile_code
@@ -49,25 +48,23 @@ class CodeRunner(Runner, ABC):
         runtime: Runtime,
         node: RunnableNode,
         code: Code,
-        track: bool,
         options: RunOptions,
         context: HasContext,
+        run: RunIn,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         variables: CustomObject | None = None,
-        output_type: TypeBase | None = None,
-        run: Run | None = None,
+        outputs: TypeBase | CustomObject | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
             node=node,
-            track=track,
             options=options,
             context=context,
             parent=parent,
             inputs=inputs,
             variables=variables,
-            output_type=output_type,
+            outputs=outputs,
             run=run,
         )
         self.code = code

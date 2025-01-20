@@ -21,6 +21,7 @@ from bench.language import (
     RunError,
     RunnableNode,
     RunOptions,
+    RunSpanType,
     RunStatus,
     RunType,
     TypeBase,
@@ -29,6 +30,7 @@ from bench.language import (
 from bench.runtime.core import (
     Interrupted,
     RetryableError,
+    RunIn,
     Runner,
     Runtime,
     make_runner,
@@ -56,26 +58,25 @@ class FlowRunner[N: FlowBlock = FlowBlock](Runner[N], ABC):
         *,
         runtime: Runtime,
         node: N,
-        track: bool,
         options: RunOptions,
         context: HasContext,
+        run: RunIn,
         parent: Runner[RunnableNode] | None = None,
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
-        output_type: TypeBase | None = None,
-        run: Run | None = None,
+        outputs: TypeBase | CustomObject | None = None,
+        span_type: RunSpanType | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
             node=node,
-            track=track,
             options=options,
             context=context,
+            run=run,
             parent=parent,
             inputs=inputs,
             variables=variables,
-            output_type=output_type,
-            run=run,
+            outputs=outputs,
         )
         self._interrupted_runners: list[Runner] = []
         self._active_runners_by_id: dict[UUID, PipeRunner | ActionRunner[Any]] = {}
@@ -159,11 +160,11 @@ class FlowRunner[N: FlowBlock = FlowBlock](Runner[N], ABC):
         runner = make_runner(
             runtime=self.runtime,
             node=node,
-            track=True,
             context=self.context,
             variables=variables,
             inputs=inputs,
             parent=cast(Runner[RunnableNode], self),
+            run="track",
         )
         assert isinstance(runner, (ActionRunner, PipeRunner)), f"unexpected {runner!r}"
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"

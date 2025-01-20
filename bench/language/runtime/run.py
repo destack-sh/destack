@@ -26,7 +26,6 @@ from bench.language.core import (
     ValidationError,
     enum_,
     p_internal,
-    p_node_ancestor,
     p_node_children,
     p_node_parent,
     p_regular,
@@ -36,8 +35,9 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
+from bench.language.core.list import RemoteNodeList
 from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
-from bench.pb2.lang_pb2 import RunSpanData
+from bench.pb2.lang_pb2 import LogData, RunSpanData
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
 from bench.utils.tenacity import RetryOptions
@@ -149,34 +149,6 @@ class RunOptions(Struct):
         )
 
 
-@struct_(StructType.RUN_ATTEMPT)
-class RunAttempt(Struct):
-    """A single attempt at a Run."""
-
-    status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)
-    duration: Optional[timedelta] = p_internal(41, default=None)
-    started_at: Optional[datetime] = p_internal(42, default=None)
-    terminated_at: Optional[datetime] = p_internal(43, default=None)
-    interrupted_at: Optional[datetime] = p_internal(44, default=None)
-    interruption: Optional["Interruption"] = p_internal(
-        45, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
-    )
-    error: Optional["RunError"] = p_internal(
-        50, require=False, array=False, struct=StructType.RUN_ERROR
-    )
-
-    @property
-    def is_retryable(self) -> bool:
-        return self.error is None or self.error.is_retryable
-
-    def __content_str__(self) -> str:
-        if self.duration is not None:
-            duration_str = f"{self.duration.total_seconds():.3f}s"
-            return f"{self.status.bench_name}, {duration_str}s"
-        else:
-            return f"{self.status.bench_name}"
-
-
 @struct_(StructType.RUN_TRACE)
 class RunTrace(Struct):
     """A stacktrace for a Run."""
@@ -280,29 +252,35 @@ class RunError(Struct, BenchError):
 
 @timed_node_(NodeType.RUN_SPAN)
 class RunSpan(RuntimeNode[RunSpanData]):
-    """A span in a Run (a sort of mini-Run inside a tracked Run)."""
+    """A RunSpan is a specific not-individually-controllable part of a Run."""
 
     # meta
     parent: Union["Run", None] = p_node_parent(4, NodeType.RUN)
     type: RunSpanType = p_regular(30)
-    root: "Run | None" = p_node_ancestor(
-        31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
-    )
-    if TYPE_CHECKING:
-        root_ptr: Optional[NodeReference] = None
-        root_id: Optional[UUID] = None
     level: "LogLevel" = p_regular(33, default=LogLevel.INFO)
 
     # status
     status: RunStatus = p_regular(40, default=RunStatus.SCHEDULED)
-    started_at: Optional[datetime] = p_regular(41, default=None)
-    terminated_at: Optional[datetime] = p_regular(42, default=None)
-    duration: Optional[timedelta] = p_regular(43, default=None)
+    duration: Optional[timedelta] = p_regular(41, default=None)
+    # cached_duration, active_duration, ...?
+    started_at: Optional[datetime] = p_regular(42, default=None)
+    terminated_at: Optional[datetime] = p_regular(43, default=None)
+    interrupted_at: Optional[datetime] = p_regular(44, default=None)
+    interruption: Optional["Interruption"] = p_internal(
+        53, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
+    )
+    error: Optional["RunError"] = p_internal(
+        54, require=False, array=False, struct=StructType.RUN_ERROR
+    )
 
     # content
-    title: str | None = p_regular(50, default=None)
-    text: Optional["Text"] = p_regular(51, default=None, struct=StructType.TEXT)
-    nodes: list["Node"] = p_regular(52, array=True, require=False, references="any")
+    title: str | None = p_regular(60, default=None)
+    text: Optional["Text"] = p_regular(61, default=None, struct=StructType.TEXT)
+    nodes: list["Node"] = p_regular(62, array=True, require=False, references="any")
+
+    @property
+    def is_retryable(self) -> bool:
+        return self.error is None or self.error.is_retryable
 
 
 @timed_node_(NodeType.RUN)
@@ -314,12 +292,6 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     # meta
     parent: Union["Bench", "Run", None] = p_node_parent(4, NodeType.BENCH, NodeType.RUN)
     type: RunType = p_system(30)
-    root: "Run | None" = p_node_ancestor(
-        31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
-    )
-    if TYPE_CHECKING:
-        root_ptr: Optional[NodeReference] = None
-        root_id: Optional[UUID] = None
     block: Optional["Block"] = p_internal(32, require=False, array=False, references=NodeType.BLOCK)
     action: Optional["Action"] = p_internal(
         33, require=False, array=False, references=NodeType.ACTION
@@ -354,18 +326,18 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         description="Duration from first attempt start to last attempt termination.",
     )
     # cached_duration, active_duration, ...?
-    error: Optional["RunError"] = p_internal(
-        45, default=None, require=False, array=False, struct=StructType.RUN_ERROR
-    )
-    scheduled_at: Optional[datetime] = p_system(46, default=None)
-    started_at: Optional[datetime] = p_internal(47, default=None)
-    stopped_at: Optional[datetime] = p_internal(48, default=None)
-    interrupted_at: Optional[datetime] = p_internal(49, default=None)
+    scheduled_at: Optional[datetime] = p_system(45, default=None)
+    started_at: Optional[datetime] = p_internal(46, default=None)
+    stopped_at: Optional[datetime] = p_internal(47, default=None)
+    interrupted_at: Optional[datetime] = p_internal(48, default=None)
     paused_at: Optional[datetime] = p_internal(50, default=None)
     resumed_at: Optional[datetime] = p_internal(51, default=None)
     terminated_at: Optional[datetime] = p_internal(52, default=None)
+    error: Optional["RunError"] = p_internal(
+        53, default=None, require=False, array=False, struct=StructType.RUN_ERROR
+    )
     interruption: Optional["Interruption"] = p_internal(
-        53, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
+        54, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
     )
 
     # content
@@ -386,8 +358,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
 
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
     spans: LocalNodeList["RunSpan"] = p_node_children(NodeType.RUN_SPAN)
-    logs: LocalNodeList["Log"] = p_node_children(NodeType.LOG)
     interruptions: LocalNodeList["Interruption"] = p_node_children(NodeType.INTERRUPTION)
+    logs: RemoteNodeList["Log", LogData] = p_node_children(NodeType.LOG)
 
     def __content_str__(self):
         node = self.runnable
@@ -481,6 +453,13 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         else:
             return cast(RunData, data).block_ptr
 
+    @property
+    def current_attempt(self) -> RunSpan | None:
+        for span in reversed(self.spans):
+            if span.type == RunSpanType.ATTEMPT:
+                return span
+        return None
+
     def has(self, *nodes: Node) -> bool:
         """Whether the Run has any of the given Nodes."""
         nodes_ck = tuple(n.ck for n in nodes)
@@ -528,8 +507,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         self.status = RunStatus.ABORTED if self.status.is_active else RunStatus.CANCELLED
 
         # last attempt
-        if self.attempts:
-            last_attempt = self.attempts[-1]
+        if (last_attempt := self.current_attempt) is not None:
             last_attempt.terminated_at = self.terminated_at
             if last_attempt.started_at:
                 last_attempt.duration = last_attempt.terminated_at - last_attempt.started_at

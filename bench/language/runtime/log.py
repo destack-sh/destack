@@ -8,6 +8,7 @@ from bench.language.core import (
     NodeType,
     RuntimeNode,
     StructType,
+    Text,
     p_node_parent,
     p_regular,
     p_system,
@@ -16,7 +17,7 @@ from bench.language.core import (
 from bench.pb2 import LogData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Edit, Run, Text
+    from bench.language import Bench, Run
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,6 +41,3 @@ class Log(RuntimeNode[LogData]):
 
     def __content_str__(self):
         return f"[{self.type.bench_name}:{self.level.bench_name}] ({self.created_at})"
-
-    def to_edit(self) -> "Edit":
-        raise NotImplementedError

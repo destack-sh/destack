@@ -35,9 +35,9 @@ from bench.language import (
     ModelType,
     NodeType,
     PressAction,
-    Run,
     RunnableNode,
     RunOptions,
+    RunSpanType,
     RunType,
     ScrollAction,
     SearchAction,
@@ -61,6 +61,7 @@ from bench.runtime.core import (
     NotSupportedError,
     RetryableError,
     RunImpossibleError,
+    RunIn,
     Runner,
     Runtime,
     make_runner,
@@ -87,26 +88,24 @@ class ActionRunner[A: Action = Action](Runner[A], ABC):
         *,
         runtime: Runtime,
         node: A,
-        track: bool,
+        run: RunIn,
         options: RunOptions,
         context: HasContext,
         parent: Runner | None = None,
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
-        output_type: TypeBase | None = None,
-        run: Run | None = None,
+        outputs: TypeBase | CustomObject | None = None,
         flow: "FlowRunner | None" = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
             node=node,
-            track=track,
             options=options,
             context=context,
             parent=parent,
             variables=variables,
             inputs=inputs,
-            output_type=output_type,
+            outputs=outputs,
             run=run,
         )
         assert self.inputs is not None, f"no inputs for {self!r}"
@@ -145,11 +144,11 @@ class ActionRunner[A: Action = Action](Runner[A], ABC):
             runner = make_runner(
                 runtime=self.runtime,
                 node=node,
-                track=True,
+                run="track",
                 context=self.context,
                 variables=variables,
                 inputs=inputs,
-                output_type=output_type,
+                outputs=output_type,
             )
             return runner
 
@@ -165,7 +164,7 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
     @final
     @override
     async def run(self) -> None:
-        """Run the Action and generate any missing slots."""
+        """Run the static Action and the dynamic parts."""
         await self.run_static()
 
     @abstractmethod
@@ -249,13 +248,13 @@ class CodeActionRunner(StaticActionRunner[CodeAction]):
         code_runner = CodeFunctionRunner(
             runtime=self.runtime,
             node=self.node,
+            options=ATTEMPT_ONCE,
+            context=self.context,
+            run=RunSpanType.DELEGATE,
             code=self.action.code or CODE_PASS,
             variables=self.variables,
             inputs=self.inputs,
-            output_type=self.output_type,
-            track=False,
-            options=ATTEMPT_ONCE,
-            context=self.context,
+            outputs=self.outputs or self.output_type,
         )
         await self.runtime.run_runner(code_runner)
         self.outputs = code_runner.outputs

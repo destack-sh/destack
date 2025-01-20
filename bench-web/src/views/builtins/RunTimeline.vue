@@ -11,14 +11,12 @@ import {
   NodeReferenceData,
   NodeType,
   Orientation,
-  RunAttemptData,
   RunData,
   RunSpanData,
   RunSpanType,
-  StructType,
-  ViewData,
+  ViewData
 } from "@/proto/wire";
-import { describeNode, isNode, isStruct, TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { RunTree } from "@/system/runtime";
 import { canvas } from "@/system/space";
 import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_SPAN_TYPE, IconInline } from "@/ui/icon";
@@ -76,7 +74,7 @@ type TimelineNode = {
   startedAtMs: number;
   durationMs: number;
   baseNode: AnyNodeData | null | undefined;
-  content: RunData | RunAttemptData | RunSpanData;
+  content: RunData | RunSpanData;
   offsetRelative: number;
   durationRelative: number;
   isActive: boolean;
@@ -105,7 +103,7 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
     // context
     const basePtr = isNode(run, NodeType.RUN) ? getBaseFromNode(run) : null;
     const baseNode = basePtr != null ? props.graph.get(basePtr) : null;
-    const color = !isStruct(run, StructType.RUN_SPAN)
+    const color = !isNode(run, NodeType.RUN_SPAN)
       ? getColorHex(COLOR_BY_RUN_STATUS[run.status], ColorShade.S500)!
       : getColorHex(ColorType.SUCCESS, ColorShade.S500)!;
     let icon: IconData | null | undefined = null;
@@ -113,7 +111,7 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
     if (isNode(run, NodeType.RUN)) {
       icon = baseNode != null ? getNodeIcon(baseNode) : ICON_BY_NODE_TYPE[NodeType.RUN];
       name = (baseNode as any)?.name ?? "Run";
-    } else if (isStruct(run, StructType.RUN_SPAN)) {
+    } else if (isNode(run, NodeType.RUN_SPAN)) {
       icon = ICON_BY_RUN_SPAN_TYPE[run.type];
       name = toCamelName(RunSpanType, run.type);
     } else {
@@ -153,15 +151,14 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
 
     // descend
     if (isNode(run, NodeType.RUN)) {
-      for (const child of run.spans) {
-        if (child.level < minLevel.value) continue;
-        walkRun(child, span, depth + 1);
-      }
       for (const child of runTree.runGraph.getChildren(run)) {
-        if (!isNode(child, NodeType.RUN)) continue;
-        const basePtr = getBaseFromNode(child);
-        if (basePtr != null && !BASE_TYPES.includes(basePtr.nodeType)) continue;
-        walkRun(child, span, depth + 1);
+        if (isNode(child, NodeType.RUN)) {
+          const basePtr = getBaseFromNode(child);
+          if (basePtr != null && !BASE_TYPES.includes(basePtr.nodeType)) continue;
+          walkRun(child, span, depth + 1);
+        } else if (isNode(child, NodeType.RUN_SPAN)) {
+          walkRun(child, span, depth + 1);
+        }
       }
     }
   }

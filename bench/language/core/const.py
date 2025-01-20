@@ -475,7 +475,6 @@ class StructType(IdEnum):
     # run (12700-13199)
     RUN_ERROR = 12700
     RUN_OPTIONS = 12701
-    RUN_ATTEMPT = 12702
     RUN_TRACE = 12703
     RUN_FRAME = 12704
     CALL = 12730
@@ -939,28 +938,6 @@ class LogLevel(IdEnum):  # :LogLevel
     CRITICAL = 6
 
 
-@enum_(EnumType.RUN_SPAN_TYPE)
-class RunSpanType(IdEnum):
-    # general
-    ATTEMPT = 1
-    WAIT = 10
-    # flow
-    FLOW_GENERATE_CALLS = 100
-    # action
-    # ...
-    # application (action)
-    # ...
-    # model
-    MODEL_PREPARE = 300
-    MODEL_GENERATE = 310
-    MODEL_PARSE = 320
-    # file
-    FILE_UPLOAD = 500
-    FILE_PREPARE_UPLOAD = 501
-    FILE_DOWNLOAD = 502
-    FILE_PREPARE_DOWNLOAD = 503
-
-
 @enum_(EnumType.POLICY_EFFECT)
 class PolicyEffect(IdEnum):
     ALLOW = 1
@@ -1150,6 +1127,29 @@ class RunType(IdEnum):
     ACTION = 10
     FLOW = 11
     PIPE = 12
+
+
+@enum_(EnumType.RUN_SPAN_TYPE)
+class RunSpanType(IdEnum):
+    # general
+    ATTEMPT = 1
+    DELEGATE = 10
+    WAIT = 11
+    # flow
+    FLOW_GENERATE_CALLS = 100
+    # action
+    # ...
+    # application (action)
+    # ...
+    # model
+    MODEL_PREPARE = 300
+    MODEL_GENERATE = 310
+    MODEL_PARSE = 320
+    # file
+    FILE_UPLOAD = 500
+    FILE_PREPARE_UPLOAD = 501
+    FILE_DOWNLOAD = 502
+    FILE_PREPARE_DOWNLOAD = 503
 
 
 @enum_(EnumType.RUN_ERROR_KIND)
@@ -1417,10 +1417,9 @@ def run_span(
     type: "RunSpanType",
     *,
     level: "LogLevel | None" = None,
-    name: str | None = None,
     nodes: list["Node"] | None = None,
+    title: str | None = None,
     text: "Text | None" = None,
-    text_plain: str | None = None,
     runner: "Runner | None" = None,
 ) -> Generator["RunSpan | None", None, None]:
     """Decorate or annotate a RunSpan in the current Run (noop if not inside a Run)."""
@@ -1443,11 +1442,10 @@ def run_span(
     else:
         span = RunSpan(
             type=type,
-            name=name,
             level=level or LogLevel.INFO,
             nodes=nodes or [],
+            title=title,
             text=text,
-            text_plain=text_plain,
             started_at=runtime.oracle.utc(),
             _skip_validate_self=True,
         )

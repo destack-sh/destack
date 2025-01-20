@@ -5,13 +5,12 @@ from bench.language import (
     CustomObject,
     HasContext,
     ModelType,
-    Run,
     RunnableNode,
     RunOptions,
     RunType,
     TypeBase,
 )
-from bench.runtime.core import Runner, Runtime
+from bench.runtime.core import RunIn, Runner, Runtime
 
 from .prompt import Prompt, PromptElement
 
@@ -32,25 +31,23 @@ class ModelRunner[R: RunnableNode = RunnableNode](Runner[R], ABC):
         runtime: Runtime,
         node: R,
         model_type: ModelType,
-        track: bool,
         options: RunOptions,
         context: HasContext,
+        run: RunIn,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         variables: CustomObject | None = None,
-        output_type: TypeBase | None = None,
-        run: Run | None = None,
+        outputs: TypeBase | CustomObject | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
             node=node,
-            track=track,
             options=options,
             context=context,
             parent=parent,
             inputs=inputs,
             variables=variables,
-            output_type=output_type,
+            outputs=outputs,
             run=run,
         )
         self.model_type = model_type

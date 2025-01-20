@@ -20,15 +20,7 @@ from .model import (
     TextOptions,
     VideoOptions,
 )
-from .run import (
-    Run,
-    RunAttempt,
-    RunError,
-    RunErrorType,
-    RunOptions,
-    RunSpan,
-    RunSpanType,
-)
+from .run import Run, RunError, RunErrorType, RunOptions, RunSpan, RunSpanType
 from .session import Context, EditContext, Session
 
 __all__ = [
@@ -53,7 +45,6 @@ __all__ = [
     "ModelProvider",
     "ModelType",
     "Run",
-    "RunAttempt",
     "RunError",
     "RunErrorType",
     "RunOptions",

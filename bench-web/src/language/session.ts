@@ -8,7 +8,6 @@ import {
   ObjectType,
   PipeData,
   PropertyReferenceData,
-  RunAttemptData,
   RunProperty,
   RunSpanData,
   RunType,
@@ -64,13 +63,11 @@ export function isRunPaused(run: RunData): boolean {
   return run.pausedAt != null && (run.resumedAt == null || compareTimestamps(run.pausedAt, run.resumedAt) > 0);
 }
 
-export function isRunTerminal(run: RunData | RunSpanData | RunAttemptData): boolean {
+export function isRunTerminal(run: RunData | RunSpanData): boolean {
   if (isNode(run, NodeType.RUN)) {
     return TERMINAL_RUN_STATUSES.includes(run.status);
-  } else if (isStruct(run, StructType.RUN_SPAN)) {
+  } else if (isNode(run, NodeType.RUN_SPAN)) {
     return run.terminatedAt != null;
-  } else if (isStruct(run, StructType.RUN_ATTEMPT)) {
-    return TERMINAL_RUN_STATUSES.includes(run.status);
   } else {
     assertNever(run);
   }
@@ -90,12 +87,10 @@ export function getRunType(runnable: RunnableObject): RunType {
 }
 
 /** Gets the startedAt timestamp of a Run */
-export function getRunStartedAtMs(run: RunData | RunSpanData | RunAttemptData): number {
+export function getRunStartedAtMs(run: RunData | RunSpanData): number {
   if (isNode(run, NodeType.RUN)) {
     return timestampToMs(run.startedAt ?? run.createdAt!);
-  } else if (isStruct(run, StructType.RUN_SPAN)) {
-    return timestampToMs(run.startedAt!);
-  } else if (isStruct(run, StructType.RUN_ATTEMPT)) {
+  } else if (isNode(run, NodeType.RUN_SPAN)) {
     return timestampToMs(run.startedAt!);
   } else {
     assertNever(run);
@@ -103,7 +98,7 @@ export function getRunStartedAtMs(run: RunData | RunSpanData | RunAttemptData): 
 }
 
 /** Gets the duration of a Run */
-export function getRunDurationMs(run: RunData | RunSpanData | RunAttemptData, nowMs: number): number {
+export function getRunDurationMs(run: RunData | RunSpanData, nowMs: number): number {
   if (isRunTerminal(run) && run.startedAt == null) {
     return 0; // never really started
   }

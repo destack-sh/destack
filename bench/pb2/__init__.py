@@ -91,7 +91,6 @@ AnyStructData = Union[
     ComputedValueData,
     RunErrorData,
     RunOptionsData,
-    RunAttemptData,
     RunTraceData,
     RunFrameData,
     CallData,
