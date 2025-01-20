@@ -57,11 +57,9 @@ from bench.language import (
 )
 from bench.language.runtime.run import RunSpan
 from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
-from bench.runtime.core.options import ATTEMPT_ONCE
 from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
 from bench.utils.oracle import Oracle
-from bench.utils.tenacity import RetryState
 
 from .runner import (
     Interrupted,
@@ -422,17 +420,17 @@ class Runtime:
             node._do_set("user_ptr", self.session.user_ptr, validate=False)
 
     @tracer.start_as_current_span("runtime.run.attempt")
-    async def _do_attempt(self, runner: Runner, retry: RetryState, span: RunSpan):
+    async def _do_attempt(self, runner: Runner, span: RunSpan, attempt: int):
         """
         Perform a single attempt of a Runner in a given RunSpan.
         If the Runner is is just the RunSpan, this is the only attempt.
         """
         trace_span = trace.get_current_span()
         trace_span.set_attribute("runner", repr(runner))
-        trace_span.set_attribute("attempt", retry.attempt)
+        trace_span.set_attribute("attempt", attempt)
 
         self._set_context(span)
-        log = logger.bind(runner=runner, attempt=span, retry=retry)
+        log = logger.bind(runner=runner, span=span, attempt=attempt)
         started_at: datetime | None = None
         terminated_at: datetime | None = None
         try:
@@ -485,10 +483,7 @@ class Runtime:
             error = RunError.from_exception(RunErrorKind.RUNTIME, e)
             span._do_set("error", error, validate=False)
             log.debug("runtime.attempt.failed", attempt=span, exc_info=e, span="current")
-            if not error.is_retryable or (
-                not retry.on_error(e) and not (error.type and error.type in runner.options.retry_on)
-            ):
-                raise  # give up if not retryable (anymore)
+            raise
         finally:
             runner.task = None
             if span.status.is_terminal:
@@ -639,14 +634,14 @@ class Runtime:
                     self.session._create(current_attempt)
                 last_attempt = current_attempt
                 try:
-                    await self._do_attempt(runner=runner, retry=retry, span=current_attempt)
+                    await self._do_attempt(
+                        runner=runner, span=current_attempt, attempt=retry.attempt
+                    )
                 except (Interrupted, asyncio.CancelledError):
                     raise
-                except Exception:
-                    pass  # swallow non-interrupted errors (let retry decide what to do)
-                finally:
-                    if (error := last_attempt.error) is not None:
-                        retry.on_error(error)
+                except BaseException:
+                    if (error := last_attempt.error) and not retry.on_error(error):
+                        raise
             # give up if retry exhausted
             if last_attempt is not None and last_attempt.status != RunStatus.COMPLETED:
                 if last_attempt.error:
@@ -686,8 +681,7 @@ class Runtime:
         assert span is not None, f"missing tracked span for {runner!r}"
         active_runner_token = self._active_runner.set(runner)
         try:
-            retry = ATTEMPT_ONCE.to_retry().new(self.oracle)
-            await self._do_attempt(runner=runner, retry=retry, span=span)
+            await self._do_attempt(runner=runner, span=span, attempt=0)
         finally:
             # reset active run
             self._active_runner.reset(active_runner_token)
@@ -703,10 +697,8 @@ class Runtime:
         async with self.session.active():
             self._active_runners_by_id[runner.id] = runner
             span = runner.tracked
-            context.attach(baggage.set_baggage("run_id", str(span.id)))
-
-            # update context
             self._set_context(span)
+            context.attach(baggage.set_baggage("run_id", str(span.id)))
 
             # mark started
             if span.started_at is None:
