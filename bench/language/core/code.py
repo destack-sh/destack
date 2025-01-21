@@ -8,8 +8,8 @@ from opentelemetry import trace
 from bench.utils.func import IdEnum
 
 from .const import EnumType, StructType, enum_
-from .node import Struct, struct_
 from .property import p_regular
+from .struct import Struct, struct_
 
 if TYPE_CHECKING:
     pass

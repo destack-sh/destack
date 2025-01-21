@@ -40,14 +40,9 @@ from .const import (
     active_session,
 )
 from .expression import Expression, coerce_conditional
-from .node import (
-    NODE_CLASS_BY_TYPE,
-    Node,
-    NodeReference,
-    Struct,
-    struct_,
-)
+from .node import NODE_CLASS_BY_TYPE, Node, NodeReference
 from .property import Property, p_regular
+from .struct import Struct, struct_
 
 if TYPE_CHECKING:
     from bench.language import (

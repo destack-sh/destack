@@ -12,6 +12,35 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench import pb2
+from bench.language.core import (
+    EDIT_SUBJECT_TYPES,
+    TK_LENGTH_B64,
+    BuiltinObject,
+    Channel,
+    CustomObject,
+    EditOperationType,
+    EditSubject,
+    EditType,
+    GraphScope,
+    Node,
+    NodeDataGraph,
+    NodeGraph,
+    NodeReference,
+    NodeType,
+    PrimitiveType,
+    Struct,
+    StructType,
+    WritableChannel,
+    p_internal,
+    p_system,
+    p_value_packed,
+    pack_proto_json,
+    pack_value_data,
+    struct_,
+    unpack_proto_json,
+    unpack_value,
+    unpack_value_data,
+)
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.pb2 import (
     AnyNodeData,
@@ -25,36 +54,6 @@ from bench.pb2 import (
 )
 from bench.utils.func import partition
 from bench.utils.uuidt import UUIDT
-
-from .connection import Channel, WritableChannel
-from .const import (
-    TK_LENGTH_B64,
-    EditOperationType,
-    EditType,
-    NodeType,
-    PrimitiveType,
-    StructType,
-)
-from .graph import NodeDataGraph, NodeGraph
-from .node import (
-    EDIT_SUBJECT_TYPES,
-    BuiltinObject,
-    EditSubject,
-    GraphScope,
-    Node,
-    NodeReference,
-    Struct,
-    struct_,
-)
-from .property import p_internal, p_system, p_value_packed
-from .value import (
-    CustomObject,
-    pack_proto_json,
-    pack_value_data,
-    unpack_proto_json,
-    unpack_value,
-    unpack_value_data,
-)
 
 if TYPE_CHECKING:
     from bench.language import (

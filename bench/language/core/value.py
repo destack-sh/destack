@@ -42,7 +42,7 @@ from bench.language.registry import (
     NODE_CLASS_BY_TYPE,
     _on_completing_setup,
 )
-from bench.pb2 import AnyNodeData, AnyStructData, Date, TimeOfDay
+from bench.pb2 import AnyNodeData, AnyStructData, Date, NodeReferenceData, TimeOfDay
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum, is_close
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
@@ -148,6 +148,8 @@ class CustomObject(Mapping[str, Any]):
         assert self._supergraph is not NULL_SUPERGRAPH, f"missing supergraph for {self!r}"
 
     def __str__(self) -> str:
+        from .node import StateNode
+
         set_fields: list[str] = []
         for prop in get_custom_object_properties(self._type, self._value):
             if prop.id is None or prop.id < 30:
@@ -271,9 +273,9 @@ class CustomObject(Mapping[str, Any]):
                 return default
             else:
                 return None
-        elif type(value) is NodeReference:
+        elif getattr(type(value), "metatype", None) == StructType.NODE_REFERENCE:
             # auto resolve references
-            resolved_value = self._supergraph.get(value)
+            resolved_value = self._supergraph.get(cast("NodeReference", value))
             if resolved_value is not None:
                 return resolved_value
             else:
@@ -318,7 +320,7 @@ class CustomObject(Mapping[str, Any]):
 
         # set/track
         if track:
-            from .node import _trace_edit_operation
+            from .object import _trace_edit_operation
 
             # apply
             old_value = self._value.get(storage_key)
@@ -636,6 +638,8 @@ def get_partial_object_type(
         node_cls = NODE_CLASS_BY_TYPE[bench_type]
     else:
         # no specific node type, so we can't resolve subtype properties
+        from .node import Node
+
         bench_type = None
         node_cls = Node
 
@@ -773,9 +777,9 @@ def _object_value_runtime(prop: Property) -> property:
             and value_type.default_packed
         ):
             return value_type.default
-        elif isinstance(value, NodeReference):
+        elif getattr(value, "metatype", None) == StructType.NODE_REFERENCE:
             # auto resolve references
-            resolved_value = self._supergraph.get(value)
+            resolved_value = self._supergraph.get(cast("NodeReference", value))
             if resolved_value is not None:
                 return resolved_value
             else:
@@ -1152,10 +1156,13 @@ def coerce_value_scalar(
                 ) from e
         return value
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
-        if not isinstance(value, (Node, NodeReference)):
+        if (
+            not getattr(type(value), "__is_node__", False)
+            and getattr(type(value), "metatype", None) != StructType.NODE_REFERENCE
+        ):
             raise TypeError(f"expected Node, got {value!r}")
         if as_packed:
-            value = value.to_ref()
+            value = cast("Node", value).to_ref()
         return value
     elif (
         typ.kind == TypeKind.CUSTOM_OBJECT
@@ -2069,11 +2076,4 @@ def unpack_proto_json(value: ProtoValue) -> JsonValue:
 
 
 # import later to avoid circular imports (Object is used in node.py)
-from .node import (  # noqa: E402
-    BuiltinObject,
-    Node,
-    NodeReference,
-    NodeReferenceData,
-    StateNode,
-    Struct,
-)
+from .object import BuiltinObject, Struct  # noqa: E402

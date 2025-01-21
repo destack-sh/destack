@@ -42,7 +42,6 @@ from bench.language.core import (
     SplitChannel,
     Struct,
     StructType,
-    Transaction,
     _active_session,
     p_internal,
     p_node_parent,
@@ -69,6 +68,8 @@ from bench.utils.func import async_shield, bittuple, uuid_to_str
 from bench.utils.oracle import Oracle
 from bench.utils.sync import CriticalLock
 from bench.utils.uuidt import UUIDT
+
+from .transaction import Transaction
 
 if TYPE_CHECKING:
     from bench.language import (

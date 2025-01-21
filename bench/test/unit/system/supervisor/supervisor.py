@@ -58,7 +58,7 @@ async def test_user_registration(supervisor: SupervisorClient):
     )
     client_in = ClientDataIn(
         id=str(uuid4()),
-        type=pb2.ClientType.CLIENT_TYPE_BENCH_WEB,
+        type=pb2.ClientType.CLIENT_TYPE_WEB,
         name=client_name,
         device_name=client_device_name,
     )

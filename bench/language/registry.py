@@ -65,9 +65,8 @@ def _on_completing_setup(func: Callable | None = None):
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     from bench.language import BuiltinObject, CustomObject, Node, Struct
-    from bench.language.core import const
-    from bench.language.core.node import (
-        HasNodeBase,
+    from bench.language.core import HasNodeBase, const
+    from bench.language.core.object import (
         _is_setup_complete,
         _set_setup_complete,
         _set_setup_finalizing,

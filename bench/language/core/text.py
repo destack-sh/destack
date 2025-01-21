@@ -7,16 +7,10 @@ import regex
 from bench.utils.func import IdEnum
 
 from .const import EnumType, NodeType, StructType, enum_
-from .node import (
-    BenchNode,
-    BuiltinObject,
-    Node,
-    NodeReference,
-    Struct,
-    object_,
-    struct_,
-)
+from .node import BenchNode, Node, NodeReference
+from .object import BuiltinObject, object_
 from .property import p_regular
+from .struct import Struct, struct_
 
 if TYPE_CHECKING:
     from bench.language import Code, ColorType

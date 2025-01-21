@@ -233,7 +233,8 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
         if self._cached_as_ref is None:
             assert self.component is not None, f"{self!r} is not finalized"
-            from .node import Node, PropertyReference
+            from .node import Node
+            from .object import PropertyReference
 
             ref = PropertyReference(
                 object_type=getattr(self.component, "metatype", None), id=self.id

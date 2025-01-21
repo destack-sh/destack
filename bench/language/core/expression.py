@@ -28,16 +28,11 @@ from .const import (
     StructType,
     enum_,
 )
-from .node import (
-    Node,
-    NodeReference,
-    Property,
-    PropertyReference,
-    Struct,
-    struct_,
-)
+from .node import Node, NodeReference
+from .object import Property, PropertyReference
 from .path import PathIn, to_path
 from .property import p_regular, p_value_packed, p_value_runtime
+from .struct import Struct, struct_
 from .validation import NAME_CONSTRAINT
 from .value import unpack_proto_json
 

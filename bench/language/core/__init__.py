@@ -179,14 +179,7 @@ from .graph import (
 )
 from .list import LocalNodeList, NodeList, RemoteNodeList, ValueList
 from .node import (
-    EDIT_SUBJECT_TYPES,
-    EMPTY_SCOPE_DATA,
-    OWNER_TYPES,
     BenchNode,
-    BuiltinObject,
-    EditOperationType,
-    EditSubject,
-    GraphScope,
     HasContext,
     HasNodeBase,
     HasTimeIdentity,
@@ -194,28 +187,34 @@ from .node import (
     Node,
     NodeReference,
     NodeSubtypeStub,
-    Owner,
     PackageNode,
-    PropertyReference,
     RunnableNode,
     RuntimeNode,
     SourceNode,
     StateNode,
-    Struct,
-    constraint,
-    get_tk_b64_from_ck,
-    get_tk_b64_from_ptr,
     get_tracing_context,
     node_,
     node_component,
     node_subtype_,
-    object_,
-    pad_ck_from_tk_b64,
     patch_graph,
-    repr_scope,
-    struct_,
     sync_node,
     timed_node_,
+)
+from .object import (
+    EDIT_SUBJECT_TYPES,
+    EMPTY_SCOPE_DATA,
+    OWNER_TYPES,
+    BuiltinObject,
+    EditOperationType,
+    EditSubject,
+    GraphScope,
+    Owner,
+    PropertyReference,
+    get_tk_b64_from_ck,
+    get_tk_b64_from_ptr,
+    object_,
+    pad_ck_from_tk_b64,
+    repr_scope,
 )
 from .path import (
     Path,
@@ -260,6 +259,7 @@ from .query import (
     SelectOptions,
     get_default_query_filter,
 )
+from .struct import Struct, struct_
 from .text import (
     Text,
     TextLine,
@@ -269,15 +269,6 @@ from .text import (
     md,
     text,
     text_to_markdown,
-)
-from .transaction import (
-    Change,
-    ChangeVignette,
-    Edit,
-    EditOperation,
-    Transaction,
-    edit_data_graph,
-    edit_graph,
 )
 from .type import (
     STORAGE_KEY_PREFIX_LENGTH,
@@ -308,6 +299,7 @@ from .validation import (
     TypeConstraintIn,
     ValidationError,
     clean_name,
+    constraint,
     on_invalid_raise,
 )
 from .value import (
@@ -431,9 +423,7 @@ __all__ = [
     "BlockType",
     "BuiltinObject",
     "C",
-    "Change",
     "ChangeCategory",
-    "ChangeVignette",
     "Channel",
     "ChannelIncapableError",
     "ChannelUnavailableError",
@@ -453,8 +443,6 @@ __all__ = [
     "ConnectionOptions",
     "CustomObject",
     "Day",
-    "Edit",
-    "EditOperation",
     "EditOperationType",
     "EditSubject",
     "EditType",
@@ -555,7 +543,6 @@ __all__ = [
     "TextLineType",
     "TextSpan",
     "TimeInterval",
-    "Transaction",
     "TriggerType",
     "Type",
     "TypeBase",
@@ -589,8 +576,6 @@ __all__ = [
     "constraint",
     "decode_b64vlq",
     "decode_type_identity",
-    "edit_data_graph",
-    "edit_graph",
     "encode_b64vlq",
     "encode_storage_key",
     "encode_type_identity",

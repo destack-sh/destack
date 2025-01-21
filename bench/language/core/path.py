@@ -19,19 +19,10 @@ from bench.utils.func import IdEnum
 from bench.utils.string import to_code_name
 
 from .const import EMPTY_DICT, BenchError, EnumType, NodeType, StructType, enum_
-from .node import (
-    BenchNode,
-    HasContext,
-    Node,
-    NodeReference,
-    PackageNode,
-    PropertyReference,
-    RunnableNode,
-    SourceNode,
-    Struct,
-    struct_,
-)
+from .node import BenchNode, HasContext, Node, NodeReference, PackageNode, RunnableNode, SourceNode
+from .object import PropertyReference
 from .property import Property, p_regular
+from .struct import Struct, struct_
 from .validation import NAME_REGEX_CHAR, SLUG_REGEX_CHAR
 
 if TYPE_CHECKING:
@@ -661,7 +652,7 @@ DEFAULT_EVALUATE_OPTIONS = PathOptions()
 def evaluate_path(
     current: Node | Any,
     scope: Node,
-    context: HasContext,
+    context: "HasContext",
     path: str | Path | Sequence[PathElement],
     *,
     options: PathOptions = DEFAULT_EVALUATE_OPTIONS,
@@ -790,7 +781,7 @@ def evaluate_path(
     return current
 
 
-def get_node(scope: Node, context: HasContext, path: str | Path) -> Node | None:
+def get_node(scope: Node, context: "HasContext", path: str | Path) -> Node | None:
     """
     Resolves a Node against the given scope.
     We try to be forgiving and just return None if we can't find the Node / the Path is weird.
@@ -807,7 +798,7 @@ def get_node(scope: Node, context: HasContext, path: str | Path) -> Node | None:
     return target
 
 
-def get_node_or_error(scope: Node, context: HasContext, path: str | Path) -> Node:
+def get_node_or_error(scope: Node, context: "HasContext", path: str | Path) -> Node:
     """Resolves a Node against the given scope or raises an error."""
     node = get_node(scope, context, path)
     if node is None:

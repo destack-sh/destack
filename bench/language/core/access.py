@@ -44,8 +44,9 @@ from .const import (
     new_struct_id,
 )
 from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
-from .node import NODE_CLASS_BY_TYPE, NodeReference, Struct, struct_
+from .node import NODE_CLASS_BY_TYPE, NodeReference
 from .property import Property, p_regular, p_runtime, p_system
+from .struct import Struct, struct_
 from .text import Text
 from .validation import NAME_CONSTRAINT, ValidationError, constraint
 
