@@ -2402,7 +2402,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         field_types: list[FieldType] | None = None,
     ) -> "Type":
         """Creates a Type object for a partial Node."""
-        from bench.language.source import Type, TypeConstraint
+        from bench.language.core import Type, TypeConstraint
 
         constraint = TypeConstraint(node_subtypes=[type]) if type is not None else None
         metatype = getattr(cls, "metatype", None)  # Node has no metatype

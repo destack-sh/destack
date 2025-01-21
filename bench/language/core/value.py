@@ -554,11 +554,7 @@ def value_equals(
 
 def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":
     """Converts the partial Node into a full Node."""
-    from bench.language.source import (
-        STORAGE_KEY_PREFIX_LENGTH,
-        decode_type_identity,
-        get_field_type,
-    )
+    from bench.language.core import STORAGE_KEY_PREFIX_LENGTH, decode_type_identity, get_field_type
 
     # figure out node type
     partial_type = partial_node._type
@@ -1248,7 +1244,7 @@ def coerce_value(
     NOTE :Performance: we re-create and copy lists during coercion even if the type was already good
     """
     if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
-        from bench.language.source import TypeBase
+        from bench.language.core import TypeBase
 
         assert typ.base_field_types, f"missing base field types for {typ!r}"
         assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
@@ -1712,7 +1708,7 @@ def pack_custom_object(value: CustomObject, typ: "TypeBase | TypeIdentity") -> d
     """
     Packs an object value into a JSON representation. :UnpackedCustomObject
     """
-    from bench.language.source import STORAGE_KEY_PREFIX_LENGTH, decode_type_identity
+    from bench.language.core import STORAGE_KEY_PREFIX_LENGTH, decode_type_identity
 
     value_packed: dict[str, JsonValue] = {}
     _value = value._value if isinstance(value, CustomObject) else value
@@ -1776,7 +1772,7 @@ def unpack_custom_object(
     """
     Unpacks an object value from a JSON packed representation. :UnpackedCustomObject
     """
-    from bench.language.source import STORAGE_KEY_PREFIX_LENGTH, decode_type_identity
+    from bench.language.core import STORAGE_KEY_PREFIX_LENGTH, decode_type_identity
 
     value: dict[str, SomeValue] = {}
 
@@ -1881,7 +1877,7 @@ def pack_value(
         else:
             value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
         if wrap_scalar:
-            from bench.language.source import TypeBase
+            from bench.language.core import TypeBase
 
             assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
             value_packed = {typ.identity_key: value_packed}
@@ -1905,7 +1901,7 @@ def pack_value_data(
     else:
         value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
     if wrap_scalar:
-        from bench.language.source import TypeBase
+        from bench.language.core import TypeBase
 
         assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
         value_packed = {typ.identity_key: value_packed}
@@ -1926,7 +1922,7 @@ def unpack_value(
     """
     if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
         # nested object
-        from bench.language.source import TypeBase
+        from bench.language.core import TypeBase
 
         assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
         if not typ.is_list:
@@ -1955,7 +1951,7 @@ def unpack_value(
     else:
         # unwrap scalar
         if wrap_scalar and isinstance(value_packed, dict):
-            from bench.language.source import TypeBase
+            from bench.language.core import TypeBase
 
             assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
             value_packed = value_packed.get(typ.identity_key)
@@ -1983,7 +1979,7 @@ def unpack_value_data(
     else:
         # scalar
         if wrap_scalar and isinstance(value_packed, dict):
-            from bench.language.source import TypeBase
+            from bench.language.core import TypeBase
 
             assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
             value_packed = value_packed.get(typ.identity_key)

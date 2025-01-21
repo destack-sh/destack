@@ -1,13 +1,13 @@
 <script lang="ts" setup>
-import { getBaseFromNode, toCamelName } from "@/language/const";
+import { getBaseFromNode } from "@/language/const";
 import { makeType } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
-import { getInterruptDurationString, isRunnable, RunnableNode } from "@/language/session";
+import { isRunnable, RunnableNode } from "@/language/session";
 import { getTransactionOptionsForType } from "@/language/transaction";
 import {
+  BenchType,
   FieldType,
   InterruptionData,
-  InterruptionStatus,
   InterruptionType,
   NodeType,
   RunData,
@@ -17,9 +17,8 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { getInterruptActions, runtime } from "@/system/runtime";
+import { runtime } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
-import { ICON_BY_INTERRUPTION_TYPE, IconInline } from "@/ui/icon";
 import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
@@ -81,7 +80,13 @@ const variableType = computed(() =>
 );
 const inputType = computed(() =>
   runBasePtr.value != null
-    ? makeType({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldTypes: [FieldType.INPUT] })
+    ? makeType({
+        kind: TypeKind.PARTIAL_OBJECT,
+        benchType: BenchType.ACTION,
+        baseTypePtr: runBasePtr.value,
+        baseFieldTypes: [FieldType.INPUT],
+        propertyFieldTypes: [FieldType.INPUT],
+      })
     : undefined,
 );
 const outputType = computed(() =>
@@ -152,20 +157,20 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
     <!-- TODO :UX: also turn this into collapsible sections like in Inspect & Hub (factor out Tabs & Sections?) -->
     <!-- New Run -->
     <div v-if="run == null" class="flex flex-col gap-y-2">
+      <h4
+        class="flex flex-row items-center font-semibold"
+        :style="{
+          height: `${SECTION_HEADER_HEIGHT}px`,
+        }"
+      >
+        <span>Variables</span>
+      </h4>
       <!-- Variables/Inputs -->
       <div
         v-for="fieldType in [FieldType.VARIABLE, FieldType.INPUT].filter((ft) => hasRunObjectFields(ft))"
         :key="fieldType"
         class="px-5"
       >
-        <h4
-          class="flex flex-row items-center font-semibold"
-          :style="{
-            height: `${SECTION_HEADER_HEIGHT}px`,
-          }"
-        >
-          <span>{{ toCamelName(FieldType, fieldType) }}s</span>
-        </h4>
         <SomeObject
           :id="`fields-${fieldType}`"
           class="w-full"
@@ -187,32 +192,36 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
       </div>
     </div>
     <!-- Existing Run -->
-    <div v-else class="flex flex-col gap-y-2">
+    <div v-else class="flex flex-col">
       <!-- Variables/Inputs/Outputs -->
-      <div
-        v-for="fieldType in [FieldType.VARIABLE, FieldType.INPUT, FieldType.OUTPUT].filter((ft) =>
-          hasRunObjectFields(ft),
-        )"
-        :key="fieldType"
-        class="px-5"
-      >
-        <div
-          class="flex flex-row items-center"
-          :style="{
-            height: `${SECTION_HEADER_HEIGHT}px`,
-          }"
-        >
-          <span class="font-semibold">{{ toCamelName(FieldType, fieldType) }}s</span>
-        </div>
-        <SomeObject
-          :id="`fields-${fieldType}`"
-          class="w-full"
-          :value-type="getRunObjectType(fieldType)"
-          is-inline
-          is-minimal
-          :model-value="getRunObjectValue(fieldType)"
-        />
+      <SomeObject
+        id="fields-variables"
+        class="w-full px-5"
+        :value-type="variableType"
+        is-inline
+        is-minimal
+        :model-value="run?.variablesPacked"
+      />
+      <SomeObject
+        id="fields-input"
+        class="w-full px-5"
+        :value-type="inputType"
+        is-inline
+        is-minimal
+        :model-value="run?.inputsPacked"
+      />
+      <!-- Arrow -->
+      <div v-if="hasOutputs" class="relative my-0.5 w-full text-center">
+        <span class="fas fa-arrow-down text-gray-400" />
       </div>
+      <SomeObject
+        id="fields-output"
+        class="w-full px-5"
+        :value-type="outputType"
+        is-inline
+        is-minimal
+        :model-value="run?.outputsPacked"
+      />
       <!-- Error -->
       <div v-if="run?.error != null" class="px-5">
         <div
@@ -238,81 +247,6 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         <!-- nocheckin: inline RunTimeline (as a list of Run/RunSpan?) -->
         <RunTimeline :graph="pkgGraph" :node-ptr="toNodeRef(run)" class="" />
       </div>
-      <!-- Interruptions -->
-      <div v-if="interruptions.length > 0" class="px-5">
-        <div
-          class="flex flex-row items-center"
-          :style="{
-            height: `${SECTION_HEADER_HEIGHT}px`,
-          }"
-        >
-          <span class="font-semibold">Interruptions</span>
-          <span
-            v-if="interruptions.some((i) => i.interruption.status == InterruptionStatus.OPEN)"
-            class="ml-1.5 text-gray-400"
-          >
-            ({{ interruptions.filter((i) => i.interruption.status == InterruptionStatus.OPEN).length }} open)
-          </span>
-        </div>
-        <div class="flex flex-col gap-y-1.5">
-          <!-- Interrupt -->
-          <div v-for="interrupt of interruptions" :key="interrupt.interruption.id" class="">
-            <!-- Interrupt Header -->
-            <div class="flex flex-row items-center gap-x-1.5">
-              <!-- Highlight -->
-              <IconInline
-                v-tooltip="{ title: 'Interrupted', small: true, group: 'run.status' }"
-                class="w-5 text-center transition-colors duration-150"
-                :class="interrupt.interruption.status == InterruptionStatus.OPEN ? 'text-pink-500' : 'text-gray-700'"
-                v-bind="ICON_BY_INTERRUPTION_TYPE[interrupt.interruption.type]"
-              />
-              <!-- Node -->
-              <span>{{ interrupt.base?.name ?? "???" }}</span>
-              <!-- Duration -->
-              <span class="ml-0.5 text-gray-400">
-                {{ getInterruptDurationString(interrupt.interruption, { minUnit: "s" }) }}
-              </span>
-              <!-- Meta/Controls -->
-              <div class="ml-auto flex flex-row items-center gap-x-1">
-                <!-- Actions -->
-              </div>
-            </div>
-            <!-- Interrupt Body -->
-            <div v-if="interrupt.interruption.status == InterruptionStatus.OPEN">
-              <!-- Interrupt Outputs -->
-              <SomeObject
-                id="interrupt-outputs"
-                class="w-full"
-                :value-type="interrupt.outputType"
-                is-inline
-                is-input
-                is-minimal
-                :model-value="interrupt.interruption.outputsPacked"
-                @update:model-value="
-                  (value) => {
-                    runTree.tx.update(interrupt.interruption, { outputsPacked: value }, { debounce: 'short' });
-                  }
-                "
-              />
-              <!-- Actions -->
-              <div class="ml-auto mt-1 flex flex-row justify-end gap-x-1 py-1">
-                <button
-                  v-for="action in getInterruptActions(interrupt.interruption)"
-                  :key="action.title"
-                  v-tooltip="{ title: action.title, small: true, group: 'run' }"
-                  class="rounded px-1 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
-                  @click="action.action()"
-                >
-                  <IconInline class="w-5 text-center" v-bind="action.icon" />
-                  <span v-if="action.isPrimary" class="ml-1">{{ action.title }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Events -->
-      <!-- ... -->
     </div>
   </div>
   <div v-else class="h-full w-full px-5">

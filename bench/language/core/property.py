@@ -334,7 +334,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         return True
 
     def _to_type_info(self) -> "Type":
-        from bench.language.source.field import Type, TypeConstraintIn
+        from bench.language.core import Type, TypeConstraintIn
 
         if isinstance(self.constraint, TypeConstraintIn):
             constraint = self.constraint.into()

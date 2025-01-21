@@ -15,8 +15,7 @@ from bench.pb2 import SecretData
 from .resource import DynamicResource
 
 if TYPE_CHECKING:
-    from bench.language import Bench
-    from bench.language.source import Type
+    from bench.language import Bench, Type
 
 # pyright: reportIncompatibleVariableOverride=false
 

@@ -574,7 +574,7 @@ class Transaction:
 
 def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
     """Applies an edit operation to a node."""
-    from bench.language.source import decode_type_identity
+    from bench.language.core import decode_type_identity
 
     root_prop = node.__properties_by_id__.get(int(op.path[0]))
     assert root_prop is not None, f"missing root property in {node!r} for {op!r}"
