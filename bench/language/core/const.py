@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.20.2"
+VERSION = "2025.01.21.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -177,6 +177,7 @@ class EnumType(IdEnum):
     TRIGGER_TYPE = 22020
     CACHE_MODE = 22030
     SCHEDULE_FREQUENCY = 22040
+    CALL_MODE = 22050
 
     # logging (22100-22199)
     LOG_TYPE = 22100
@@ -478,6 +479,7 @@ class StructType(IdEnum):
     RUN_TRACE = 12703
     RUN_FRAME = 12704
     CALL = 12730
+    CALL_PLAN = 12731
     BREAKPOINT = 12740
     # model
     TEXT_OPTIONS = 12800

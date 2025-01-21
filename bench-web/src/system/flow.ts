@@ -136,13 +136,8 @@ export class ActionState {
         } else {
           return this.actionFields.value;
         }
-      } else if (actionType == ActionType.CREATE) {
-        // TODO :Incomplete: builtin stub fields
-        return [];
-      } else if (actionType == ActionType.YIELD) {
-        return this.actionFields.value;
       } else {
-        return [];
+        return this.actionFields.value;
       }
     });
     // layout

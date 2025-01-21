@@ -77,6 +77,7 @@ enum EnumType {
   ENUM_TYPE_TRIGGER_TYPE = 22020;
   ENUM_TYPE_CACHE_MODE = 22030;
   ENUM_TYPE_SCHEDULE_FREQUENCY = 22040;
+  ENUM_TYPE_CALL_MODE = 22050;
   ENUM_TYPE_LOG_TYPE = 22100;
   ENUM_TYPE_LOG_LEVEL = 22101;
   ENUM_TYPE_BREAKPOINT_SITE = 22200;
@@ -193,6 +194,7 @@ enum StructType {
   STRUCT_TYPE_RUN_TRACE = 12703;
   STRUCT_TYPE_RUN_FRAME = 12704;
   STRUCT_TYPE_CALL = 12730;
+  STRUCT_TYPE_CALL_PLAN = 12731;
   STRUCT_TYPE_BREAKPOINT = 12740;
   STRUCT_TYPE_TEXT_OPTIONS = 12800;
   STRUCT_TYPE_AUDIO_OPTIONS = 12801;
@@ -284,6 +286,7 @@ enum ObjectType {
   OBJECT_TYPE_RUN_TRACE = 12703;
   OBJECT_TYPE_RUN_FRAME = 12704;
   OBJECT_TYPE_CALL = 12730;
+  OBJECT_TYPE_CALL_PLAN = 12731;
   OBJECT_TYPE_BREAKPOINT = 12740;
   OBJECT_TYPE_TEXT_OPTIONS = 12800;
   OBJECT_TYPE_AUDIO_OPTIONS = 12801;
@@ -375,6 +378,7 @@ enum BenchType {
   BENCH_TYPE_RUN_TRACE = 12703;
   BENCH_TYPE_RUN_FRAME = 12704;
   BENCH_TYPE_CALL = 12730;
+  BENCH_TYPE_CALL_PLAN = 12731;
   BENCH_TYPE_BREAKPOINT = 12740;
   BENCH_TYPE_TEXT_OPTIONS = 12800;
   BENCH_TYPE_AUDIO_OPTIONS = 12801;
@@ -457,6 +461,7 @@ enum BenchType {
   BENCH_TYPE_TRIGGER_TYPE = 22020;
   BENCH_TYPE_CACHE_MODE = 22030;
   BENCH_TYPE_SCHEDULE_FREQUENCY = 22040;
+  BENCH_TYPE_CALL_MODE = 22050;
   BENCH_TYPE_LOG_TYPE = 22100;
   BENCH_TYPE_LOG_LEVEL = 22101;
   BENCH_TYPE_BREAKPOINT_SITE = 22200;
@@ -1241,6 +1246,13 @@ enum ScheduleFrequency {
   SCHEDULE_FREQUENCY_HOUR = 5;
   SCHEDULE_FREQUENCY_MINUTE = 6;
   SCHEDULE_FREQUENCY_SECOND = 7;
+}
+
+enum CallMode {
+  CALL_MODE_UNSPECIFIED = 0;
+  CALL_MODE_FAIL_ON_FAIL = 1;
+  CALL_MODE_SKIP_ON_FAIL = 2;
+  CALL_MODE_RETURN_ON_FAIL = 3;
 }
 
 enum LogType {
@@ -2135,8 +2147,14 @@ message TypeData {
 message CallData {
   ObjectType metatype = 1;
   NodeReferenceData node_ptr = 31;
-  optional ActionType action_type = 32;
-  optional google.protobuf.Value value_packed = 36;
+  CallMode mode = 32;
+  optional google.protobuf.Value value_packed = 35;
+}
+
+message CallPlanData {
+  ObjectType metatype = 1;
+  CallMode mode = 31;
+  repeated CallData calls = 32;
 }
 
 message ColorData {
@@ -2953,7 +2971,7 @@ message ActionData {
   optional NodeReferenceData tool_ptr = 53;
   optional google.protobuf.Value variables_packed = 55;
   optional google.protobuf.Value inputs_packed = 56;
-  repeated CallData calls = 60;
+  optional CallPlanData call = 60;
   optional Vector2Data position = 80;
 }
 

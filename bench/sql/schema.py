@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.20.2"
+VERSION = "2025.01.21.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -848,7 +848,7 @@ ACTION_TABLE = Table(
         Column("tool_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("variables_packed", PrimitiveType.JSON, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("calls", PrimitiveType.JSON, is_array=True),
+        Column("call", PrimitiveType.JSON, is_nullable=True),
         Column("position", PrimitiveType.JSON, is_nullable=True),
     ),
 )

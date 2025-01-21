@@ -127,14 +127,14 @@ class ActionRunner[A: Action = Action](Runner[A], ABC):
 # we need to generate a few things:
 #   1. directly generated outputs (with call slots) for dynamic actions
 #   2. only call slots for non-dynamic actions
-#   [call slots = any selective pipes, pipes to actions with missing inputs (?)]
+#   [call slots = any select pipes, pipes to actions with missing inputs (?)]
 
 
 class StaticActionRunner[A: Action = Action](ActionRunner[A]):
     @final
     @override
     async def run(self) -> None:
-        """Run the static Action and the dynamic parts."""
+        """Run the static and the dynamic parts of the Action."""
         await self.run_static()
 
     @abstractmethod

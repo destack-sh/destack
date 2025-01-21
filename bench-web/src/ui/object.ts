@@ -24,7 +24,7 @@ import {
   typeIsNumeric,
 } from "@/language/field";
 import { ReadNodeGraph } from "@/language/graph";
-import { packSubnode, unpackSubnode } from "@/language/node";
+import { generateNodeName, packSubnode, unpackSubnode } from "@/language/node";
 import { getPathKey, makePath } from "@/language/path";
 import {
   getTransactionOptionsForType,
@@ -84,6 +84,10 @@ import {
   TypeKind,
   UpdateActionProperty,
   ViewType,
+  ClickActionProperty,
+  TypeActionProperty,
+  PressActionProperty,
+  ScrollActionProperty,
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
@@ -916,6 +920,11 @@ const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>
   [ActionType.CREATE]: [CreateActionProperty.nodePartialPacked],
   [ActionType.UPDATE]: [UpdateActionProperty.nodePtr, UpdateActionProperty.nodePartialPacked],
   [ActionType.DELETE]: [DeleteActionProperty.nodePtr],
+  // application
+  [ActionType.CLICK]: [ClickActionProperty.elementPosition],
+  [ActionType.TYPE]: [TypeActionProperty.string, TypeActionProperty.delay],
+  [ActionType.PRESS]: [PressActionProperty.keys, PressActionProperty.delay],
+  [ActionType.SCROLL]: [ScrollActionProperty.amount],
   // web
   [ActionType.GO_TO_URL]: [GoToUrlActionProperty.url],
 };
@@ -959,7 +968,15 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
     const commonRows: Row[] = [];
     this.section(undefined, commonRows);
     commonRows.push(this.rowProperty(ActionProperty.text, { title: false, props: { placeholder: "Text..." } }));
-    commonRows.push(this.rowProperty(ActionProperty.type));
+    commonRows.push(
+      this.rowProperty(ActionProperty.type, {
+        extendUpdate: (newValue) => {
+          // also update node name if action type changes
+          const name = generateNodeName({ ...node, type: newValue }, this.graph.getChildren(node.parentPtr!));
+          return name != null ? { name } : {};
+        },
+      }),
+    );
 
     // common rows
     if (node.type == ActionType.CODE) {

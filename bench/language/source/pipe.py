@@ -44,8 +44,9 @@ class PortSide(IdEnum):
 
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
-    CALL = 1, "Always go forward"
-    SELECT = 10, "Maybe go forward"
+    CALL = 1, "Always call"
+    # FAIL?
+    SELECT = 10, "Call only if selected"
     # MESSAGE?
     # WAIT?
     # STREAM?
