@@ -22,6 +22,15 @@ from .model import (
 )
 from .run import Run, RunError, RunErrorType, RunOptions, RunSpan, RunSpanType
 from .session import Context, EditContext, Session
+from .transaction import (
+    Change,
+    ChangeVignette,
+    Edit,
+    EditOperation,
+    Transaction,
+    edit_data_graph,
+    edit_graph,
+)
 
 __all__ = [
     "INTERRUPTION_TYPE_BY_RUN_STATUS",
@@ -31,8 +40,12 @@ __all__ = [
     "BreakpointAction",
     "BreakpointScope",
     "BreakpointSite",
+    "Change",
+    "ChangeVignette",
     "Context",
+    "Edit",
     "EditContext",
+    "EditOperation",
     "ImageOptions",
     "Interruption",
     "InterruptionStatus",
@@ -52,5 +65,8 @@ __all__ = [
     "RunSpanType",
     "Session",
     "TextOptions",
+    "Transaction",
     "VideoOptions",
+    "edit_data_graph",
+    "edit_graph",
 ]

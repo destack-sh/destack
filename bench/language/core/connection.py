@@ -58,7 +58,8 @@ from .const import (
 )
 from .expression import C
 from .graph import NodeDataGraph, NodeGraph
-from .node import Node, patch_graph, repr_scope
+from .node import Node, patch_graph
+from .object import repr_scope
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -774,7 +775,7 @@ class GetConnection[ChannelT: Channel, T: Node](
         update: WatchGetUpdateData,
         unpack_update: bool,
     ) -> WatchGetUpdate | None:
-        from .transaction import edit_data_graph, edit_graph
+        from ..runtime.transaction import edit_data_graph, edit_graph
 
         # filter edits
         if self.session._origin:
@@ -884,7 +885,7 @@ class SearchConnection[ChannelT: Channel, T: Node](
     ) -> WatchSearchUpdate | None:
         from bench.proto import wiring
 
-        from .transaction import edit_data_graph, edit_graph
+        from ..runtime.transaction import edit_data_graph, edit_graph
 
         # :ConnectionUpdateOrdering
         assert result_data is not None, f"{self!r} does not work without packed result"

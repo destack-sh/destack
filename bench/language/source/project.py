@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Collection, Sequence, assert_never, cast
+from typing import TYPE_CHECKING, Any, Collection, Sequence, assert_never, cast
 from uuid import UUID
 
 import structlog
@@ -165,7 +165,7 @@ class Projection:
 
         # visit values
         for prop in cls.__value_runtime_properties__.values():
-            value_type, wired_prop_value = _do_get_value_runtime(cast("Struct | Node", obj), prop)
+            value_type, wired_prop_value = _do_get_value_runtime(cast(Any, obj), prop)
             if value_type is not None:
                 self._collect_value(wired_prop_value, value_type)
 

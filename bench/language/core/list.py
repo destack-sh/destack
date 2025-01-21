@@ -435,7 +435,7 @@ class ValueList(list, Generic[ValueParentT]):
         *args,
         **kwargs,
     ):  # type: ignore
-        from .node import Property
+        from .object import Property
 
         super().__init__(*args, **kwargs)
         self.parent = parent

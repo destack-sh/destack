@@ -1744,6 +1744,15 @@ message GraphScopeData {
   optional string package_id = 31;
 }
 
+message PropertyReferenceData {
+  ObjectType metatype = 1;
+  optional ObjectType object_type = 30;
+  int32 id = 31;
+  optional int32 node_subtype = 32;
+  optional NodeType references_node_type = 35;
+  optional PropertyReferenceType references_meta = 36;
+}
+
 message NodeReferenceData {
   ObjectType metatype = 1;
   NodeType node_type = 30;
@@ -1752,15 +1761,6 @@ message NodeReferenceData {
   optional string bench_id = 33;
   optional string base_ck = 34;
   optional string base_bench_id = 35;
-}
-
-message PropertyReferenceData {
-  ObjectType metatype = 1;
-  optional ObjectType object_type = 30;
-  int32 id = 31;
-  optional int32 node_subtype = 32;
-  optional NodeType references_node_type = 35;
-  optional PropertyReferenceType references_meta = 36;
 }
 
 message TextSpanData {
@@ -1940,49 +1940,6 @@ message SelectOptionsData {
   repeated NodeReferenceData select_fields_ptr = 51;
 }
 
-message ChangeVignetteData {
-  ObjectType metatype = 1;
-  optional string name = 30;
-  optional string title = 31;
-  optional int32 subtype = 32;
-  optional IconData icon = 35;
-}
-
-message EditOperationData {
-  ObjectType metatype = 1;
-  EditOperationType type = 30;
-  repeated string path = 31;
-  optional google.protobuf.Value new_value_packed = 40;
-  optional google.protobuf.Value old_value_packed = 41;
-}
-
-message EditData {
-  ObjectType metatype = 1;
-  string id = 2;
-  EditType type = 30;
-  NodeReferenceData node_ptr = 31;
-  optional ChangeVignetteData vignette = 32;
-  google.protobuf.Timestamp edited_at = 33;
-  optional google.protobuf.Timestamp old_edited_at = 34;
-  optional SomeNodeData node_data = 40;
-  repeated EditOperationData operations = 41;
-  GraphScopeData scope = 60;
-  optional string change_key = 61;
-  optional ChangeCategory category = 62;
-  optional NodeReferenceData subject_ptr = 63;
-  optional ClientOriginData origin = 64;
-  optional EditContextData context = 65;
-  optional int64 epoch = 68;
-  optional NodeReferenceData undo_of_ptr = 69;
-}
-
-message ChangeData {
-  ObjectType metatype = 1;
-  string key = 30;
-  optional CodeData code = 33;
-  repeated EditData edits = 34;
-}
-
 message TypeConstraintData {
   ObjectType metatype = 1;
   optional float min_value = 40;
@@ -2124,6 +2081,49 @@ message RunErrorData {
   optional TextData text = 33;
   repeated NodeReferenceData nodes_ptr = 34;
   optional RunTraceData trace = 35;
+}
+
+message ChangeVignetteData {
+  ObjectType metatype = 1;
+  optional string name = 30;
+  optional string title = 31;
+  optional int32 subtype = 32;
+  optional IconData icon = 35;
+}
+
+message EditOperationData {
+  ObjectType metatype = 1;
+  EditOperationType type = 30;
+  repeated string path = 31;
+  optional google.protobuf.Value new_value_packed = 40;
+  optional google.protobuf.Value old_value_packed = 41;
+}
+
+message EditData {
+  ObjectType metatype = 1;
+  string id = 2;
+  EditType type = 30;
+  NodeReferenceData node_ptr = 31;
+  optional ChangeVignetteData vignette = 32;
+  google.protobuf.Timestamp edited_at = 33;
+  optional google.protobuf.Timestamp old_edited_at = 34;
+  optional SomeNodeData node_data = 40;
+  repeated EditOperationData operations = 41;
+  GraphScopeData scope = 60;
+  optional string change_key = 61;
+  optional ChangeCategory category = 62;
+  optional NodeReferenceData subject_ptr = 63;
+  optional ClientOriginData origin = 64;
+  optional EditContextData context = 65;
+  optional int64 epoch = 68;
+  optional NodeReferenceData undo_of_ptr = 69;
+}
+
+message ChangeData {
+  ObjectType metatype = 1;
+  string key = 30;
+  optional CodeData code = 33;
+  repeated EditData edits = 34;
 }
 
 message EditContextData {

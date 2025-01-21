@@ -12,8 +12,8 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType as MessageType$ } from "@protobuf-ts/runtime";
-import { Duration } from "../google/protobuf/duration";
 import { Timestamp } from "../google/protobuf/timestamp";
+import { Duration } from "../google/protobuf/duration";
 import { Value } from "../google/protobuf/struct";
 /**
  * @generated from protobuf message symbolx.bench.GraphScopeData
@@ -31,6 +31,35 @@ export interface GraphScopeData {
      * @generated from protobuf field: optional string package_id = 31;
      */
     packageId?: string;
+}
+/**
+ * @generated from protobuf message symbolx.bench.PropertyReferenceData
+ */
+export interface PropertyReferenceData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ObjectType object_type = 30;
+     */
+    objectType?: ObjectType;
+    /**
+     * @generated from protobuf field: int32 id = 31;
+     */
+    id: number;
+    /**
+     * @generated from protobuf field: optional int32 node_subtype = 32;
+     */
+    nodeSubtype?: number;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeType references_node_type = 35;
+     */
+    referencesNodeType?: NodeType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.PropertyReferenceType references_meta = 36;
+     */
+    referencesMeta?: PropertyReferenceType;
 }
 /**
  * @generated from protobuf message symbolx.bench.NodeReferenceData
@@ -64,35 +93,6 @@ export interface NodeReferenceData {
      * @generated from protobuf field: optional string base_bench_id = 35;
      */
     baseBenchId?: string;
-}
-/**
- * @generated from protobuf message symbolx.bench.PropertyReferenceData
- */
-export interface PropertyReferenceData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ObjectType object_type = 30;
-     */
-    objectType?: ObjectType;
-    /**
-     * @generated from protobuf field: int32 id = 31;
-     */
-    id: number;
-    /**
-     * @generated from protobuf field: optional int32 node_subtype = 32;
-     */
-    nodeSubtype?: number;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeType references_node_type = 35;
-     */
-    referencesNodeType?: NodeType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.PropertyReferenceType references_meta = 36;
-     */
-    referencesMeta?: PropertyReferenceType;
 }
 /**
  * @generated from protobuf message symbolx.bench.TextSpanData
@@ -670,150 +670,6 @@ export interface SelectOptionsData {
     selectFieldsPtr: NodeReferenceData[];
 }
 /**
- * @generated from protobuf message symbolx.bench.ChangeVignetteData
- */
-export interface ChangeVignetteData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional string name = 30;
-     */
-    name?: string;
-    /**
-     * @generated from protobuf field: optional string title = 31;
-     */
-    title?: string;
-    /**
-     * @generated from protobuf field: optional int32 subtype = 32;
-     */
-    subtype?: number;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.IconData icon = 35;
-     */
-    icon?: IconData;
-}
-/**
- * @generated from protobuf message symbolx.bench.EditOperationData
- */
-export interface EditOperationData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbolx.bench.EditOperationType type = 30;
-     */
-    type: EditOperationType;
-    /**
-     * @generated from protobuf field: repeated string path = 31;
-     */
-    path: string[];
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value new_value_packed = 40;
-     */
-    newValuePacked?: JsonValue;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value old_value_packed = 41;
-     */
-    oldValuePacked?: JsonValue;
-}
-/**
- * @generated from protobuf message symbolx.bench.EditData
- */
-export interface EditData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: symbolx.bench.EditType type = 30;
-     */
-    type: EditType;
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 31;
-     */
-    nodePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ChangeVignetteData vignette = 32;
-     */
-    vignette?: ChangeVignetteData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp edited_at = 33;
-     */
-    editedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp old_edited_at = 34;
-     */
-    oldEditedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.SomeNodeData node_data = 40;
-     */
-    nodeData?: SomeNodeData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.EditOperationData operations = 41;
-     */
-    operations: EditOperationData[];
-    /**
-     * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 60;
-     */
-    scope?: GraphScopeData;
-    /**
-     * @generated from protobuf field: optional string change_key = 61;
-     */
-    changeKey?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ChangeCategory category = 62;
-     */
-    category?: ChangeCategory;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData subject_ptr = 63;
-     */
-    subjectPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ClientOriginData origin = 64;
-     */
-    origin?: ClientOriginData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.EditContextData context = 65;
-     */
-    context?: EditContextData;
-    /**
-     * @generated from protobuf field: optional int64 epoch = 68;
-     */
-    epoch?: bigint;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData undo_of_ptr = 69;
-     */
-    undoOfPtr?: NodeReferenceData;
-}
-/**
- * @generated from protobuf message symbolx.bench.ChangeData
- */
-export interface ChangeData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: string key = 30;
-     */
-    key: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.CodeData code = 33;
-     */
-    code?: CodeData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.EditData edits = 34;
-     */
-    edits: EditData[];
-}
-/**
  * @generated from protobuf message symbolx.bench.TypeConstraintData
  */
 export interface TypeConstraintData {
@@ -1279,6 +1135,150 @@ export interface RunErrorData {
      * @generated from protobuf field: optional symbolx.bench.RunTraceData trace = 35;
      */
     trace?: RunTraceData;
+}
+/**
+ * @generated from protobuf message symbolx.bench.ChangeVignetteData
+ */
+export interface ChangeVignetteData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional string name = 30;
+     */
+    name?: string;
+    /**
+     * @generated from protobuf field: optional string title = 31;
+     */
+    title?: string;
+    /**
+     * @generated from protobuf field: optional int32 subtype = 32;
+     */
+    subtype?: number;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.IconData icon = 35;
+     */
+    icon?: IconData;
+}
+/**
+ * @generated from protobuf message symbolx.bench.EditOperationData
+ */
+export interface EditOperationData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbolx.bench.EditOperationType type = 30;
+     */
+    type: EditOperationType;
+    /**
+     * @generated from protobuf field: repeated string path = 31;
+     */
+    path: string[];
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value new_value_packed = 40;
+     */
+    newValuePacked?: JsonValue;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value old_value_packed = 41;
+     */
+    oldValuePacked?: JsonValue;
+}
+/**
+ * @generated from protobuf message symbolx.bench.EditData
+ */
+export interface EditData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.EditType type = 30;
+     */
+    type: EditType;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 31;
+     */
+    nodePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ChangeVignetteData vignette = 32;
+     */
+    vignette?: ChangeVignetteData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp edited_at = 33;
+     */
+    editedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp old_edited_at = 34;
+     */
+    oldEditedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.SomeNodeData node_data = 40;
+     */
+    nodeData?: SomeNodeData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.EditOperationData operations = 41;
+     */
+    operations: EditOperationData[];
+    /**
+     * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 60;
+     */
+    scope?: GraphScopeData;
+    /**
+     * @generated from protobuf field: optional string change_key = 61;
+     */
+    changeKey?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ChangeCategory category = 62;
+     */
+    category?: ChangeCategory;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData subject_ptr = 63;
+     */
+    subjectPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ClientOriginData origin = 64;
+     */
+    origin?: ClientOriginData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.EditContextData context = 65;
+     */
+    context?: EditContextData;
+    /**
+     * @generated from protobuf field: optional int64 epoch = 68;
+     */
+    epoch?: bigint;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData undo_of_ptr = 69;
+     */
+    undoOfPtr?: NodeReferenceData;
+}
+/**
+ * @generated from protobuf message symbolx.bench.ChangeData
+ */
+export interface ChangeData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: string key = 30;
+     */
+    key: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.CodeData code = 33;
+     */
+    code?: CodeData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.EditData edits = 34;
+     */
+    edits: EditData[];
 }
 /**
  * @generated from protobuf message symbolx.bench.EditContextData
@@ -12146,6 +12146,89 @@ class GraphScopeData$Type extends MessageType$<GraphScopeData> {
  */
 export const GraphScopeData = new GraphScopeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
+    constructor() {
+        super("symbolx.bench.PropertyReferenceData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "object_type", kind: "enum", opt: true, T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 31, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 32, name: "node_subtype", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 35, name: "references_node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 36, name: "references_meta", kind: "enum", opt: true, T: () => ["symbolx.bench.PropertyReferenceType", PropertyReferenceType, "PROPERTY_REFERENCE_TYPE_"] }
+        ]);
+    }
+    create(value?: PartialMessage<PropertyReferenceData>): PropertyReferenceData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        if (value !== undefined)
+            reflectionMergePartial<PropertyReferenceData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PropertyReferenceData): PropertyReferenceData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ObjectType object_type */ 30:
+                    message.objectType = reader.int32();
+                    break;
+                case /* int32 id */ 31:
+                    message.id = reader.int32();
+                    break;
+                case /* optional int32 node_subtype */ 32:
+                    message.nodeSubtype = reader.int32();
+                    break;
+                case /* optional symbolx.bench.NodeType references_node_type */ 35:
+                    message.referencesNodeType = reader.int32();
+                    break;
+                case /* optional symbolx.bench.PropertyReferenceType references_meta */ 36:
+                    message.referencesMeta = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PropertyReferenceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional symbolx.bench.ObjectType object_type = 30; */
+        if (message.objectType !== undefined)
+            writer.tag(30, WireType.Varint).int32(message.objectType);
+        /* int32 id = 31; */
+        if (message.id !== 0)
+            writer.tag(31, WireType.Varint).int32(message.id);
+        /* optional int32 node_subtype = 32; */
+        if (message.nodeSubtype !== undefined)
+            writer.tag(32, WireType.Varint).int32(message.nodeSubtype);
+        /* optional symbolx.bench.NodeType references_node_type = 35; */
+        if (message.referencesNodeType !== undefined)
+            writer.tag(35, WireType.Varint).int32(message.referencesNodeType);
+        /* optional symbolx.bench.PropertyReferenceType references_meta = 36; */
+        if (message.referencesMeta !== undefined)
+            writer.tag(36, WireType.Varint).int32(message.referencesMeta);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PropertyReferenceData
+ */
+export const PropertyReferenceData = new PropertyReferenceData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
     constructor() {
         super("symbolx.bench.NodeReferenceData", [
@@ -12235,89 +12318,6 @@ class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
  * @generated MessageType for protobuf message symbolx.bench.NodeReferenceData
  */
 export const NodeReferenceData = new NodeReferenceData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
-    constructor() {
-        super("symbolx.bench.PropertyReferenceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "object_type", kind: "enum", opt: true, T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 32, name: "node_subtype", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 35, name: "references_node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 36, name: "references_meta", kind: "enum", opt: true, T: () => ["symbolx.bench.PropertyReferenceType", PropertyReferenceType, "PROPERTY_REFERENCE_TYPE_"] }
-        ]);
-    }
-    create(value?: PartialMessage<PropertyReferenceData>): PropertyReferenceData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = 0;
-        if (value !== undefined)
-            reflectionMergePartial<PropertyReferenceData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PropertyReferenceData): PropertyReferenceData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ObjectType object_type */ 30:
-                    message.objectType = reader.int32();
-                    break;
-                case /* int32 id */ 31:
-                    message.id = reader.int32();
-                    break;
-                case /* optional int32 node_subtype */ 32:
-                    message.nodeSubtype = reader.int32();
-                    break;
-                case /* optional symbolx.bench.NodeType references_node_type */ 35:
-                    message.referencesNodeType = reader.int32();
-                    break;
-                case /* optional symbolx.bench.PropertyReferenceType references_meta */ 36:
-                    message.referencesMeta = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PropertyReferenceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional symbolx.bench.ObjectType object_type = 30; */
-        if (message.objectType !== undefined)
-            writer.tag(30, WireType.Varint).int32(message.objectType);
-        /* int32 id = 31; */
-        if (message.id !== 0)
-            writer.tag(31, WireType.Varint).int32(message.id);
-        /* optional int32 node_subtype = 32; */
-        if (message.nodeSubtype !== undefined)
-            writer.tag(32, WireType.Varint).int32(message.nodeSubtype);
-        /* optional symbolx.bench.NodeType references_node_type = 35; */
-        if (message.referencesNodeType !== undefined)
-            writer.tag(35, WireType.Varint).int32(message.referencesNodeType);
-        /* optional symbolx.bench.PropertyReferenceType references_meta = 36; */
-        if (message.referencesMeta !== undefined)
-            writer.tag(36, WireType.Varint).int32(message.referencesMeta);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PropertyReferenceData
- */
-export const PropertyReferenceData = new PropertyReferenceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TextSpanData$Type extends MessageType$<TextSpanData> {
     constructor() {
@@ -13987,390 +13987,6 @@ class SelectOptionsData$Type extends MessageType$<SelectOptionsData> {
  */
 export const SelectOptionsData = new SelectOptionsData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ChangeVignetteData$Type extends MessageType$<ChangeVignetteData> {
-    constructor() {
-        super("symbolx.bench.ChangeVignetteData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "subtype", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 35, name: "icon", kind: "message", T: () => IconData }
-        ]);
-    }
-    create(value?: PartialMessage<ChangeVignetteData>): ChangeVignetteData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        if (value !== undefined)
-            reflectionMergePartial<ChangeVignetteData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChangeVignetteData): ChangeVignetteData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional string name */ 30:
-                    message.name = reader.string();
-                    break;
-                case /* optional string title */ 31:
-                    message.title = reader.string();
-                    break;
-                case /* optional int32 subtype */ 32:
-                    message.subtype = reader.int32();
-                    break;
-                case /* optional symbolx.bench.IconData icon */ 35:
-                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ChangeVignetteData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional string name = 30; */
-        if (message.name !== undefined)
-            writer.tag(30, WireType.LengthDelimited).string(message.name);
-        /* optional string title = 31; */
-        if (message.title !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.title);
-        /* optional int32 subtype = 32; */
-        if (message.subtype !== undefined)
-            writer.tag(32, WireType.Varint).int32(message.subtype);
-        /* optional symbolx.bench.IconData icon = 35; */
-        if (message.icon)
-            IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ChangeVignetteData
- */
-export const ChangeVignetteData = new ChangeVignetteData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class EditOperationData$Type extends MessageType$<EditOperationData> {
-    constructor() {
-        super("symbolx.bench.EditOperationData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.EditOperationType", EditOperationType, "EDIT_OPERATION_TYPE_"] },
-            { no: 31, name: "path", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "new_value_packed", kind: "message", T: () => Value },
-            { no: 41, name: "old_value_packed", kind: "message", T: () => Value }
-        ]);
-    }
-    create(value?: PartialMessage<EditOperationData>): EditOperationData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.type = 0;
-        message.path = [];
-        if (value !== undefined)
-            reflectionMergePartial<EditOperationData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EditOperationData): EditOperationData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbolx.bench.EditOperationType type */ 30:
-                    message.type = reader.int32();
-                    break;
-                case /* repeated string path */ 31:
-                    message.path.push(reader.string());
-                    break;
-                case /* optional google.protobuf.Value new_value_packed */ 40:
-                    message.newValuePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* optional google.protobuf.Value old_value_packed */ 41:
-                    message.oldValuePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: EditOperationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.EditOperationType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* repeated string path = 31; */
-        for (let i = 0; i < message.path.length; i++)
-            writer.tag(31, WireType.LengthDelimited).string(message.path[i]);
-        /* optional google.protobuf.Value new_value_packed = 40; */
-        if (message.newValuePacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.newValuePacked), writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value old_value_packed = 41; */
-        if (message.oldValuePacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.oldValuePacked), writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.EditOperationData
- */
-export const EditOperationData = new EditOperationData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class EditData$Type extends MessageType$<EditData> {
-    constructor() {
-        super("symbolx.bench.EditData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.EditType", EditType, "EDIT_TYPE_"] },
-            { no: 31, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 32, name: "vignette", kind: "message", T: () => ChangeVignetteData },
-            { no: 33, name: "edited_at", kind: "message", T: () => Timestamp },
-            { no: 34, name: "old_edited_at", kind: "message", T: () => Timestamp },
-            { no: 40, name: "node_data", kind: "message", T: () => SomeNodeData },
-            { no: 41, name: "operations", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditOperationData },
-            { no: 60, name: "scope", kind: "message", T: () => GraphScopeData },
-            { no: 61, name: "change_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 62, name: "category", kind: "enum", opt: true, T: () => ["symbolx.bench.ChangeCategory", ChangeCategory, "CHANGE_CATEGORY_"] },
-            { no: 63, name: "subject_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 64, name: "origin", kind: "message", T: () => ClientOriginData },
-            { no: 65, name: "context", kind: "message", T: () => EditContextData },
-            { no: 68, name: "epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 69, name: "undo_of_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<EditData>): EditData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.type = 0;
-        message.operations = [];
-        if (value !== undefined)
-            reflectionMergePartial<EditData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EditData): EditData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* symbolx.bench.EditType type */ 30:
-                    message.type = reader.int32();
-                    break;
-                case /* symbolx.bench.NodeReferenceData node_ptr */ 31:
-                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                case /* optional symbolx.bench.ChangeVignetteData vignette */ 32:
-                    message.vignette = ChangeVignetteData.internalBinaryRead(reader, reader.uint32(), options, message.vignette);
-                    break;
-                case /* google.protobuf.Timestamp edited_at */ 33:
-                    message.editedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.editedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp old_edited_at */ 34:
-                    message.oldEditedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.oldEditedAt);
-                    break;
-                case /* optional symbolx.bench.SomeNodeData node_data */ 40:
-                    message.nodeData = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.nodeData);
-                    break;
-                case /* repeated symbolx.bench.EditOperationData operations */ 41:
-                    message.operations.push(EditOperationData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* symbolx.bench.GraphScopeData scope */ 60:
-                    message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
-                    break;
-                case /* optional string change_key */ 61:
-                    message.changeKey = reader.string();
-                    break;
-                case /* optional symbolx.bench.ChangeCategory category */ 62:
-                    message.category = reader.int32();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData subject_ptr */ 63:
-                    message.subjectPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.subjectPtr);
-                    break;
-                case /* optional symbolx.bench.ClientOriginData origin */ 64:
-                    message.origin = ClientOriginData.internalBinaryRead(reader, reader.uint32(), options, message.origin);
-                    break;
-                case /* optional symbolx.bench.EditContextData context */ 65:
-                    message.context = EditContextData.internalBinaryRead(reader, reader.uint32(), options, message.context);
-                    break;
-                case /* optional int64 epoch */ 68:
-                    message.epoch = reader.int64().toBigInt();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData undo_of_ptr */ 69:
-                    message.undoOfPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.undoOfPtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: EditData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.EditType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* symbolx.bench.NodeReferenceData node_ptr = 31; */
-        if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ChangeVignetteData vignette = 32; */
-        if (message.vignette)
-            ChangeVignetteData.internalBinaryWrite(message.vignette, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp edited_at = 33; */
-        if (message.editedAt)
-            Timestamp.internalBinaryWrite(message.editedAt, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp old_edited_at = 34; */
-        if (message.oldEditedAt)
-            Timestamp.internalBinaryWrite(message.oldEditedAt, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.SomeNodeData node_data = 40; */
-        if (message.nodeData)
-            SomeNodeData.internalBinaryWrite(message.nodeData, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.EditOperationData operations = 41; */
-        for (let i = 0; i < message.operations.length; i++)
-            EditOperationData.internalBinaryWrite(message.operations[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.GraphScopeData scope = 60; */
-        if (message.scope)
-            GraphScopeData.internalBinaryWrite(message.scope, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        /* optional string change_key = 61; */
-        if (message.changeKey !== undefined)
-            writer.tag(61, WireType.LengthDelimited).string(message.changeKey);
-        /* optional symbolx.bench.ChangeCategory category = 62; */
-        if (message.category !== undefined)
-            writer.tag(62, WireType.Varint).int32(message.category);
-        /* optional symbolx.bench.NodeReferenceData subject_ptr = 63; */
-        if (message.subjectPtr)
-            NodeReferenceData.internalBinaryWrite(message.subjectPtr, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ClientOriginData origin = 64; */
-        if (message.origin)
-            ClientOriginData.internalBinaryWrite(message.origin, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.EditContextData context = 65; */
-        if (message.context)
-            EditContextData.internalBinaryWrite(message.context, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
-        /* optional int64 epoch = 68; */
-        if (message.epoch !== undefined)
-            writer.tag(68, WireType.Varint).int64(message.epoch);
-        /* optional symbolx.bench.NodeReferenceData undo_of_ptr = 69; */
-        if (message.undoOfPtr)
-            NodeReferenceData.internalBinaryWrite(message.undoOfPtr, writer.tag(69, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.EditData
- */
-export const EditData = new EditData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class ChangeData$Type extends MessageType$<ChangeData> {
-    constructor() {
-        super("symbolx.bench.ChangeData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "code", kind: "message", T: () => CodeData },
-            { no: 34, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
-        ]);
-    }
-    create(value?: PartialMessage<ChangeData>): ChangeData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.key = "";
-        message.edits = [];
-        if (value !== undefined)
-            reflectionMergePartial<ChangeData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChangeData): ChangeData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string key */ 30:
-                    message.key = reader.string();
-                    break;
-                case /* optional symbolx.bench.CodeData code */ 33:
-                    message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
-                    break;
-                case /* repeated symbolx.bench.EditData edits */ 34:
-                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ChangeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string key = 30; */
-        if (message.key !== "")
-            writer.tag(30, WireType.LengthDelimited).string(message.key);
-        /* optional symbolx.bench.CodeData code = 33; */
-        if (message.code)
-            CodeData.internalBinaryWrite(message.code, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.EditData edits = 34; */
-        for (let i = 0; i < message.edits.length; i++)
-            EditData.internalBinaryWrite(message.edits[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ChangeData
- */
-export const ChangeData = new ChangeData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class TypeConstraintData$Type extends MessageType$<TypeConstraintData> {
     constructor() {
         super("symbolx.bench.TypeConstraintData", [
@@ -15720,6 +15336,390 @@ class RunErrorData$Type extends MessageType$<RunErrorData> {
  * @generated MessageType for protobuf message symbolx.bench.RunErrorData
  */
 export const RunErrorData = new RunErrorData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ChangeVignetteData$Type extends MessageType$<ChangeVignetteData> {
+    constructor() {
+        super("symbolx.bench.ChangeVignetteData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "subtype", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 35, name: "icon", kind: "message", T: () => IconData }
+        ]);
+    }
+    create(value?: PartialMessage<ChangeVignetteData>): ChangeVignetteData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<ChangeVignetteData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChangeVignetteData): ChangeVignetteData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional string name */ 30:
+                    message.name = reader.string();
+                    break;
+                case /* optional string title */ 31:
+                    message.title = reader.string();
+                    break;
+                case /* optional int32 subtype */ 32:
+                    message.subtype = reader.int32();
+                    break;
+                case /* optional symbolx.bench.IconData icon */ 35:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ChangeVignetteData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional string name = 30; */
+        if (message.name !== undefined)
+            writer.tag(30, WireType.LengthDelimited).string(message.name);
+        /* optional string title = 31; */
+        if (message.title !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.title);
+        /* optional int32 subtype = 32; */
+        if (message.subtype !== undefined)
+            writer.tag(32, WireType.Varint).int32(message.subtype);
+        /* optional symbolx.bench.IconData icon = 35; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ChangeVignetteData
+ */
+export const ChangeVignetteData = new ChangeVignetteData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class EditOperationData$Type extends MessageType$<EditOperationData> {
+    constructor() {
+        super("symbolx.bench.EditOperationData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.EditOperationType", EditOperationType, "EDIT_OPERATION_TYPE_"] },
+            { no: 31, name: "path", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "new_value_packed", kind: "message", T: () => Value },
+            { no: 41, name: "old_value_packed", kind: "message", T: () => Value }
+        ]);
+    }
+    create(value?: PartialMessage<EditOperationData>): EditOperationData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        message.path = [];
+        if (value !== undefined)
+            reflectionMergePartial<EditOperationData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EditOperationData): EditOperationData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbolx.bench.EditOperationType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* repeated string path */ 31:
+                    message.path.push(reader.string());
+                    break;
+                case /* optional google.protobuf.Value new_value_packed */ 40:
+                    message.newValuePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* optional google.protobuf.Value old_value_packed */ 41:
+                    message.oldValuePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: EditOperationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.EditOperationType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* repeated string path = 31; */
+        for (let i = 0; i < message.path.length; i++)
+            writer.tag(31, WireType.LengthDelimited).string(message.path[i]);
+        /* optional google.protobuf.Value new_value_packed = 40; */
+        if (message.newValuePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.newValuePacked), writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value old_value_packed = 41; */
+        if (message.oldValuePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.oldValuePacked), writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.EditOperationData
+ */
+export const EditOperationData = new EditOperationData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class EditData$Type extends MessageType$<EditData> {
+    constructor() {
+        super("symbolx.bench.EditData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.EditType", EditType, "EDIT_TYPE_"] },
+            { no: 31, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 32, name: "vignette", kind: "message", T: () => ChangeVignetteData },
+            { no: 33, name: "edited_at", kind: "message", T: () => Timestamp },
+            { no: 34, name: "old_edited_at", kind: "message", T: () => Timestamp },
+            { no: 40, name: "node_data", kind: "message", T: () => SomeNodeData },
+            { no: 41, name: "operations", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditOperationData },
+            { no: 60, name: "scope", kind: "message", T: () => GraphScopeData },
+            { no: 61, name: "change_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 62, name: "category", kind: "enum", opt: true, T: () => ["symbolx.bench.ChangeCategory", ChangeCategory, "CHANGE_CATEGORY_"] },
+            { no: 63, name: "subject_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 64, name: "origin", kind: "message", T: () => ClientOriginData },
+            { no: 65, name: "context", kind: "message", T: () => EditContextData },
+            { no: 68, name: "epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 69, name: "undo_of_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<EditData>): EditData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.type = 0;
+        message.operations = [];
+        if (value !== undefined)
+            reflectionMergePartial<EditData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EditData): EditData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* symbolx.bench.EditType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* symbolx.bench.NodeReferenceData node_ptr */ 31:
+                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                case /* optional symbolx.bench.ChangeVignetteData vignette */ 32:
+                    message.vignette = ChangeVignetteData.internalBinaryRead(reader, reader.uint32(), options, message.vignette);
+                    break;
+                case /* google.protobuf.Timestamp edited_at */ 33:
+                    message.editedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.editedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp old_edited_at */ 34:
+                    message.oldEditedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.oldEditedAt);
+                    break;
+                case /* optional symbolx.bench.SomeNodeData node_data */ 40:
+                    message.nodeData = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.nodeData);
+                    break;
+                case /* repeated symbolx.bench.EditOperationData operations */ 41:
+                    message.operations.push(EditOperationData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* symbolx.bench.GraphScopeData scope */ 60:
+                    message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                    break;
+                case /* optional string change_key */ 61:
+                    message.changeKey = reader.string();
+                    break;
+                case /* optional symbolx.bench.ChangeCategory category */ 62:
+                    message.category = reader.int32();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData subject_ptr */ 63:
+                    message.subjectPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.subjectPtr);
+                    break;
+                case /* optional symbolx.bench.ClientOriginData origin */ 64:
+                    message.origin = ClientOriginData.internalBinaryRead(reader, reader.uint32(), options, message.origin);
+                    break;
+                case /* optional symbolx.bench.EditContextData context */ 65:
+                    message.context = EditContextData.internalBinaryRead(reader, reader.uint32(), options, message.context);
+                    break;
+                case /* optional int64 epoch */ 68:
+                    message.epoch = reader.int64().toBigInt();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData undo_of_ptr */ 69:
+                    message.undoOfPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.undoOfPtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: EditData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* symbolx.bench.EditType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* symbolx.bench.NodeReferenceData node_ptr = 31; */
+        if (message.nodePtr)
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ChangeVignetteData vignette = 32; */
+        if (message.vignette)
+            ChangeVignetteData.internalBinaryWrite(message.vignette, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp edited_at = 33; */
+        if (message.editedAt)
+            Timestamp.internalBinaryWrite(message.editedAt, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp old_edited_at = 34; */
+        if (message.oldEditedAt)
+            Timestamp.internalBinaryWrite(message.oldEditedAt, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SomeNodeData node_data = 40; */
+        if (message.nodeData)
+            SomeNodeData.internalBinaryWrite(message.nodeData, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.EditOperationData operations = 41; */
+        for (let i = 0; i < message.operations.length; i++)
+            EditOperationData.internalBinaryWrite(message.operations[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.GraphScopeData scope = 60; */
+        if (message.scope)
+            GraphScopeData.internalBinaryWrite(message.scope, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional string change_key = 61; */
+        if (message.changeKey !== undefined)
+            writer.tag(61, WireType.LengthDelimited).string(message.changeKey);
+        /* optional symbolx.bench.ChangeCategory category = 62; */
+        if (message.category !== undefined)
+            writer.tag(62, WireType.Varint).int32(message.category);
+        /* optional symbolx.bench.NodeReferenceData subject_ptr = 63; */
+        if (message.subjectPtr)
+            NodeReferenceData.internalBinaryWrite(message.subjectPtr, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ClientOriginData origin = 64; */
+        if (message.origin)
+            ClientOriginData.internalBinaryWrite(message.origin, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.EditContextData context = 65; */
+        if (message.context)
+            EditContextData.internalBinaryWrite(message.context, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
+        /* optional int64 epoch = 68; */
+        if (message.epoch !== undefined)
+            writer.tag(68, WireType.Varint).int64(message.epoch);
+        /* optional symbolx.bench.NodeReferenceData undo_of_ptr = 69; */
+        if (message.undoOfPtr)
+            NodeReferenceData.internalBinaryWrite(message.undoOfPtr, writer.tag(69, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.EditData
+ */
+export const EditData = new EditData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ChangeData$Type extends MessageType$<ChangeData> {
+    constructor() {
+        super("symbolx.bench.ChangeData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "code", kind: "message", T: () => CodeData },
+            { no: 34, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
+        ]);
+    }
+    create(value?: PartialMessage<ChangeData>): ChangeData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.key = "";
+        message.edits = [];
+        if (value !== undefined)
+            reflectionMergePartial<ChangeData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChangeData): ChangeData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string key */ 30:
+                    message.key = reader.string();
+                    break;
+                case /* optional symbolx.bench.CodeData code */ 33:
+                    message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
+                    break;
+                case /* repeated symbolx.bench.EditData edits */ 34:
+                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ChangeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string key = 30; */
+        if (message.key !== "")
+            writer.tag(30, WireType.LengthDelimited).string(message.key);
+        /* optional symbolx.bench.CodeData code = 33; */
+        if (message.code)
+            CodeData.internalBinaryWrite(message.code, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.EditData edits = 34; */
+        for (let i = 0; i < message.edits.length; i++)
+            EditData.internalBinaryWrite(message.edits[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ChangeData
+ */
+export const ChangeData = new ChangeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class EditContextData$Type extends MessageType$<EditContextData> {
     constructor() {

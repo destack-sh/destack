@@ -15,7 +15,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language.registry import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS
-from bench.utils.func import decode_b64vlq, encode_b64vlq
+from bench.utils.func import IdEnum, decode_b64vlq, encode_b64vlq
 
 from .const import (
     PRIMITIVE_TYPE_BY_PY_TYPE,
@@ -34,18 +34,16 @@ from .const import (
     is_node_type,
     is_struct_type,
 )
-from .node import (
+from .node import Node, NodeReference
+from .object import (
     BuiltinObject,
-    Node,
-    NodeReference,
-    Struct,
     get_tk_b64_from_ck,
     get_tk_b64_from_ptr,
     object_,
     pad_ck_from_tk_b64,
-    struct_,
 )
 from .property import Property, p_internal, p_regular, p_runtime, p_value_packed, p_value_runtime
+from .struct import Struct, struct_
 from .validation import TypeConstraintIn
 from .value import SomeValue
 
@@ -489,9 +487,10 @@ TypeIn = Union[
     "BenchType",
     "TypeFormat",
     "FileType",
-    type[Struct],
-    type[Node],
+    type["Struct"],
+    type["Node"],
     type[PrimitiveValue],
+    type[IdEnum],
 ]
 
 
@@ -587,7 +586,7 @@ def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
             return Node
         assert typ.bench_type is not None, f"missing bench type for {typ!r}"
         bench_cls = BENCH_CLASS_BY_TYPE[typ.bench_type]
-        return bench_cls
+        return cast(TypeIn, bench_cls)
     elif typ.kind == TypeKind.BASED_NODE:
         assert typ.base_type is not None, f"missing base type for {typ!r}"
         return typ.base_type
