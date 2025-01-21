@@ -26,7 +26,7 @@ from bench.language import (
 )
 from bench.runtime.core import CodeInvalidError, RunIn, Runner, Runtime
 
-from .capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE, LogSink, capture_logs
+from .capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_RUN, LogSink, capture_logs
 from .compiler import CompiledCode, compile_code
 
 logger = structlog.get_logger(__name__)
@@ -71,7 +71,7 @@ class CodeRunner(Runner, ABC):
         self.compiled: CompiledCode | None = None
         self.log_sink = LogSink(
             runtime=self.runtime,
-            max_logs=MAX_LOGS_PER_CAPTURE,
+            max_logs=MAX_LOGS_PER_RUN,
             max_log_length=MAX_LOG_LINE_LENGTH,
         )
 

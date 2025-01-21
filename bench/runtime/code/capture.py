@@ -8,7 +8,7 @@ from bench.utils.utils import get_from_env
 
 TextIn = str | Text | Any
 
-MAX_LOGS_PER_CAPTURE = get_from_env(
+MAX_LOGS_PER_RUN = get_from_env(
     "MAX_LOGS_PER_CAPTURE",
     typ=int,
     default=20,

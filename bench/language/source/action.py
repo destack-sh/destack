@@ -783,3 +783,7 @@ def call(node: "Block | Action", **kwargs) -> "Call":
 
 def call_plan(*calls: Call, mode: CallMode = CallMode.RETURN_ON_FAIL) -> "CallPlan":
     return CallPlan.new(*calls, mode=mode)
+
+
+def call_sequential(*calls: Call, mode: CallMode = CallMode.RETURN_ON_FAIL) -> "CallPlan":
+    return CallPlan.new(*calls, mode=mode)

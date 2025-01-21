@@ -93,7 +93,6 @@ from .property import (
     Property,
     PropertyReferenceType,
     p_internal,
-    p_node_ancestor,
     p_node_ancestor_with_self,
     p_node_parent,
     p_node_template,
@@ -103,12 +102,7 @@ from .property import (
     p_subnode_packed,
     p_system,
 )
-from .validation import (
-    ValidationError,
-    ValidationHandler,
-    constraint,
-    on_invalid_raise,
-)
+from .validation import ValidationError, ValidationHandler, constraint, on_invalid_raise
 
 if TYPE_CHECKING:
     from bench.language import (

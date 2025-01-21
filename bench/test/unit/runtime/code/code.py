@@ -5,16 +5,17 @@ from bench.language import (
     ActionType,
     Block,
     BlockType,
+    Code,
     Field,
     Node,
     RunErrorType,
     RunOptions,
     RunStatus,
     Text,
+    TextLine,
     code,
 )
-from bench.runtime.code.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
-from bench.runtime.core import create_run_from_node
+from bench.runtime import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_RUN, create_run_from_node
 from bench.test.unit.conftest import RuntimeHandle
 
 
@@ -117,7 +118,7 @@ async def test_run_code_capture_log_size_overflow(local_runtime: RuntimeHandle):
         ActionType.CODE,
         "Logs103",
         code=code(f"""\
-for i in range(0, {MAX_LOGS_PER_CAPTURE + 5}):
+for i in range(0, {MAX_LOGS_PER_RUN + 5}):
     print('print', i)
 """),
     )
@@ -125,7 +126,7 @@ for i in range(0, {MAX_LOGS_PER_CAPTURE + 5}):
     await local_runtime.commit()
 
     runner = await local_runtime.run(Logs103)
-    assert len(runner.logs) == MAX_LOGS_PER_CAPTURE
+    assert len(runner.logs) == MAX_LOGS_PER_RUN
 
 
 async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
@@ -179,24 +180,46 @@ async def test_run_code_invalid_outputs(local_runtime: RuntimeHandle):
     assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
 
 
-async def test_run_code_coerce_inputs(local_runtime: RuntimeHandle):
-    """All the input fields values should be coerced to the correct type."""
-    Function = Action.new(
+async def test_run_code_coerce(local_runtime: RuntimeHandle):
+    """Inputs and outputs should be coerced to the correct type (if possible)."""
+    Code1 = Action.new(
         ActionType.CODE,
         "Function",
-        code=code("return {'Output1': Input1, 'Output2': Input2}"),
+        code=code("""\
+return {
+    "Output1": Input1,
+    "Output2": Input2,
+    "Output3": Input3,
+    "Output4": Input4,
+    "Output5": Input5,
+}
+"""),
         fields=(
             Field.input("Input1", int),
-            Field.input("Input2", int),
+            Field.input("Input2", float),
+            Field.input("Input3", str),
+            Field.input("Input4", Code),
+            Field.input("Input5", Text),
             Field.output("Output1", float),
-            Field.output("Output2", float),
+            Field.output("Output2", int),
+            Field.output("Output3", Code),
+            Field.output("Output4", Text),
+            Field.output("Output5", str),
         ),
     )
-    local_runtime.page().actions.append(Function)
+    local_runtime.page().actions.append(Code1)
     await local_runtime.commit()
 
-    runner = await local_runtime.run(Function, inputs={"Input1": 3.0, "Input2": 4.4})
-    assert runner.outputs and runner.outputs.Output1 == 3 and runner.outputs.Output2 == 4
+    runner = await local_runtime.run(
+        Code1,
+        inputs={"Input1": 3.3, "Input2": 4, "Input3": "hello", "Input4": "world", "Input5": "!"},
+    )
+    assert runner.outputs
+    assert runner.outputs.Output1 == 3.0
+    assert runner.outputs.Output2 == 4
+    assert runner.outputs.Output3 == code("hello")
+    assert runner.outputs.Output4 == Text(lines=[TextLine.code("world")])
+    assert runner.outputs.Output5 == "!"
 
 
 async def test_run_code_inputs_in_context(local_runtime: RuntimeHandle):

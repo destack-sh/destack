@@ -2,6 +2,8 @@ from .action import (
     Action,
     ActionType,
     Call,
+    CallMode,
+    CallPlan,
     ChangeAction,
     ClickAction,
     CodeAction,
@@ -30,6 +32,8 @@ from .action import (
     UpdateAction,
     WaitAction,
     call,
+    call_plan,
+    call_sequential,
 )
 from .block import Block, BlockType, DatabaseBlock, FlowBlock, TextBlock, VariableBlock
 from .field import (
@@ -105,6 +109,8 @@ __all__ = [
     "Block",
     "BlockType",
     "Call",
+    "CallMode",
+    "CallPlan",
     "ChangeAction",
     "ClickAction",
     "CodeAction",
@@ -174,6 +180,8 @@ __all__ = [
     "ViewType",
     "WaitAction",
     "call",
+    "call_plan",
+    "call_sequential",
     "constraint",
     "decode_b64vlq",
     "decode_type_identity",

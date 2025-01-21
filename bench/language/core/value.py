@@ -1,10 +1,13 @@
 import base64
+import dataclasses
 from collections.abc import Mapping
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     ClassVar,
     Collection,
     Iterable,
@@ -14,6 +17,7 @@ from typing import (
     Sequence,
     TypeGuard,
     Union,
+    assert_never,
     cast,
 )
 from uuid import UUID
@@ -31,10 +35,12 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench.language.registry import (
+    BENCH_CLASS_BY_TYPE,
     BENCH_TYPE_BY_CLASS,
     BUILTIN_OBJECT_CLASS_BY_TYPE,
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
+    _on_completing_setup,
 )
 from bench.pb2 import AnyNodeData, AnyStructData, Date, TimeOfDay
 from bench.utils.fractional import INTEGER_ZERO
@@ -55,13 +61,8 @@ from .const import (
     TypeKind,
 )
 from .graph import NULL_SUPERGRAPH, NodeSuperGraph
-from .property import (
-    Property,
-)
-from .validation import (
-    TYPE_CONSTRAINT_BY_FORMAT,
-    on_invalid_raise,
-)
+from .property import Property
+from .validation import TYPE_CONSTRAINT_BY_FORMAT, on_invalid_raise
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -806,172 +807,6 @@ def _object_value_runtime(prop: Property) -> property:
 
 
 #
-# Value coercion
-#
-
-
-def _coerce_value_scalar(
-    value: ScalarValue,
-    typ: "TypeBase | TypeIdentity",
-    *,
-    as_packed: bool = False,
-    parent: ValueParent | None = None,
-    parent_key: ValueParentKey | None = None,
-    supergraph: NodeSuperGraph | None = None,
-) -> ScalarValue:
-    """Coerces a scalar value (primitive, node, struct)"""
-    try:
-        if typ.kind == TypeKind.PRIMITIVE:
-            assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
-            if typ.primitive_type.is_numeric:
-                if typ.primitive_type.is_float:
-                    value = float(cast(Any, value))
-                elif typ.primitive_type.is_int:
-                    value = int(cast(Any, value))
-        elif typ.kind == TypeKind.STRUCT and parent is not None and isinstance(value, Struct):
-            assert parent_key is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
-            value = cast("Struct", value)._move_to(parent, parent_key)
-        elif as_packed and (typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE):
-            assert isinstance(value, (Node, NodeReference)), f"expected Node, got {value!r}"
-            value = value.to_ref()
-        return value
-    except (AssertionError, AttributeError, TypeError, ValueError, KeyError) as e:
-        raise ValueError(f"could not coerce {value!r} ({type(value)}) as {typ!r}") from e
-
-
-def coerce_custom_object_scalar(
-    value: Mapping[str, Any] | CustomObject | None,
-    typ: "TypeBase",
-    *,
-    as_packed: bool = False,
-    parent: ValueParent | None = None,
-    parent_prop: ValueParentKey | None = None,
-    supergraph: NodeSuperGraph | None = None,
-) -> CustomObject:
-    """Coerces a single object from its dict representation or existing CustomObject."""
-    if type(value) is CustomObject:
-        # NOTE :Robustness: not sure if _coerce_object_scalar is correct if given an existing object
-        if parent is not None:
-            assert parent_prop is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
-            return value._move_to(parent, parent_prop)
-        else:
-            return value
-    else:
-        if value is None:
-            value = {}
-        if not isinstance(value, Mapping):
-            raise TypeError(f"{value!r} is a {type(value).__name__}, expected {typ!r}")
-
-    # coerce
-    value = {**value}  # copy so we can pop and check extra keys cheaply
-    obj = CustomObject.new(
-        value={},
-        typ=typ,
-        parent=parent,
-        parent_property=parent_prop,
-        supergraph=supergraph,
-    )
-    properties = get_custom_object_properties(typ, value)
-    for prop in properties:
-        prop_value = value.pop(prop.name, None)
-        if prop_value is not None:
-            obj._do_set(prop, prop_value, track=False)
-    # NOTE :Incomplete: should support dynamic base type from value :DynamicBaseType
-    #  (for ToolAction, but also for Record and such would be nice to get the base from the value)
-    for field in typ._base_fields:
-        # try getting value by storage key, name and ident
-        field_value = value.pop(field.storage_key, None)
-        if field_value is None:
-            field_value = value.pop(field.name, None)
-        if field_value is None:
-            code_name = field.code_name
-            if code_name is not None:
-                field_value = value.pop(code_name, None)
-        if field_value is not None:
-            obj._do_set(field, field_value, track=False)
-
-    # check for extra keys
-    if value:
-        raise ValueError(f"extraneous values {value!r} for {typ!r}")
-
-    return obj
-
-
-def coerce_value(
-    value: Any,
-    typ: "TypeBase | TypeIdentity",
-    *,
-    as_packed: bool = False,
-    parent: ValueParent | None = None,
-    parent_key: ValueParentKey | None = None,
-    supergraph: NodeSuperGraph | None = None,
-) -> SomeValue:
-    """
-    Coerces the given value to the expected type (recursively).
-    Returns value as is if already of correct type, raises TypeError if coercion is not possible.
-    NOTE :Performance: we re-create and copy lists during coercion even if the type was already good
-    """
-    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
-        from bench.language.source import TypeBase
-
-        assert typ.base_field_types, f"missing base field types for {typ!r}"
-        assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
-        if not typ.is_list:
-            return coerce_custom_object_scalar(
-                cast(dict, value),
-                typ,
-                as_packed=as_packed,
-                parent=parent,
-                parent_prop=parent_key,
-                supergraph=supergraph,
-            )
-        else:
-            if not isinstance(value, Sequence):
-                raise TypeError(
-                    f"{value!r} ({type(value).__name__}) is not a sequence, expected {typ!r}"
-                )
-            return [
-                coerce_custom_object_scalar(
-                    cast(dict, element),
-                    typ,
-                    as_packed=as_packed,
-                    parent=parent,
-                    parent_prop=parent_key,
-                    supergraph=supergraph,
-                )
-                for element in value
-            ]
-    else:
-        if value is None:
-            return None
-        elif not typ.is_list:
-            return _coerce_value_scalar(
-                value,
-                typ,
-                as_packed=as_packed,
-                parent=parent,
-                parent_key=parent_key,
-                supergraph=supergraph,
-            )
-        else:
-            if not isinstance(value, Sequence):
-                raise TypeError(
-                    f"{value!r} ({type(value).__name__}) is not a sequence, expected {typ!r}"
-                )
-            return [
-                _coerce_value_scalar(
-                    element,
-                    typ,
-                    as_packed=as_packed,
-                    parent=parent,
-                    parent_key=parent_key,
-                    supergraph=supergraph,
-                )
-                for element in value
-            ]
-
-
-#
 # Type checking :TypeChecking
 #
 
@@ -1190,6 +1025,280 @@ def is_value(value: Any, typ: "TypeBase", options: CheckOptions = DEFAULT_CHECK_
         return True
     except Exception:
         return False
+
+
+#
+# Coercion
+#
+
+
+@dataclasses.dataclass(slots=True)
+class CoercionRule:
+    """A coercer for a specific target type."""
+
+    default: Callable[[Any], Any] | None = None
+    by_source: dict[type, Callable[[Any], Any]] = dataclasses.field(default_factory=dict)
+
+
+COERCION_RULE_BY_TYPE: dict[type, CoercionRule] = {}
+
+
+def register_coercion[T](
+    typ: type[T],
+    coerce_from: Mapping[type, Callable[[Any], T]] = EMPTY_DICT,
+    coerce_to: Mapping[type, Callable[[T], Any]] = EMPTY_DICT,
+    *,
+    default: Callable[[Any], T] | None = None,
+):
+    """Register a coercion rule for a specific target type."""
+    # add coercion rule for target type
+    if typ in COERCION_RULE_BY_TYPE:
+        raise ValueError(f"coercion rule already registered for {typ!r}")
+    COERCION_RULE_BY_TYPE[typ] = CoercionRule(default=default)
+
+    # source type to target type
+    for source_type, coercer in coerce_from.items():
+        COERCION_RULE_BY_TYPE[typ].by_source[source_type] = coercer
+
+    # target type to other types
+    for target_type, coercer in coerce_to.items():
+        if (coercion_rule := COERCION_RULE_BY_TYPE.get(target_type)) is None:
+            coercion_rule = CoercionRule()
+            COERCION_RULE_BY_TYPE[target_type] = coercion_rule
+        coercion_rule.by_source[typ] = coercer
+
+
+# primitive coercions
+register_coercion(bool)
+register_coercion(int, {float: int})
+register_coercion(Decimal)
+register_coercion(float, {int: float})
+register_coercion(str, {bytes: str})
+register_coercion(bytes, {str: bytes})
+register_coercion(UUID)
+register_coercion(datetime, {str: datetime.fromisoformat}, {str: datetime.isoformat})
+register_coercion(date, {str: date.fromisoformat}, {str: date.isoformat})
+
+
+@_on_completing_setup
+def _register_other_coercions():
+    from bench.language.core import Code, Text
+
+    register_coercion(Code, coerce_from={str: Code.from_string}, coerce_to={str: Code.to_string})
+    register_coercion(
+        Text,
+        coerce_from={str: Text.from_markdown, Code: Text.from_code},
+        coerce_to={str: Text.to_markdown},
+    )
+
+
+def _do_coerce(
+    value: ScalarValue, typ: "TypeBase | TypeIdentity", source_type: type, target_type: type
+) -> ScalarValue:
+    """Apply coercion rules to get from source type to target type."""
+    coercion = COERCION_RULE_BY_TYPE.get(target_type)
+    coercer = (
+        coercion.by_source.get(source_type, coercion.default) if coercion is not None else None
+    )
+    if coercer is None:
+        raise ValueError(
+            f"{value!r} ({source_type.__name__}) is not a {target_type.__name__}, expected {typ!r}"
+        )
+    try:
+        return coercer(value)
+    except Exception as e:
+        raise ValueError(
+            f"{value!r} ({source_type.__name__}) is not a {target_type.__name__}, expected {typ!r}"
+        ) from e
+
+
+def coerce_value_scalar(
+    value: ScalarValue,
+    typ: "TypeBase | TypeIdentity",
+    *,
+    as_packed: bool = False,
+    parent: ValueParent | None = None,
+    parent_key: ValueParentKey | None = None,
+) -> ScalarValue:
+    """Coerces a scalar value (primitive, node, struct)"""
+    # apply coercion/check rules
+    source_type = type(value)
+    if typ.kind == TypeKind.PRIMITIVE:
+        assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
+        if typ.primitive_type == PrimitiveType.JSON:
+            return value  # as is
+        target_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(typ.primitive_type)
+        assert target_type is not None, f"missing target type for {typ!r}"
+        if source_type is not target_type and not isinstance(value, target_type):
+            value = _do_coerce(value, typ, source_type, target_type)
+        return value
+    elif typ.kind == TypeKind.STRUCT:
+        assert typ.bench_type is not None, f"missing bench type for {typ!r}"
+        target_type = BENCH_CLASS_BY_TYPE[typ.bench_type]
+        if source_type is not target_type:
+            if source_type == Property and typ.bench_type == StructType.PROPERTY_REFERENCE:
+                return value  # Property is unpacked PropertyReference
+            value = _do_coerce(value, typ, source_type, target_type)
+        # move into parent
+        if parent is not None:
+            assert parent_key is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
+            value = cast("Struct", value)._move_to(parent, parent_key)
+        return value
+    elif typ.kind == TypeKind.ENUM:
+        assert typ.bench_type is not None, f"missing bench type for {typ!r}"
+        target_type = BENCH_CLASS_BY_TYPE[typ.bench_type]
+        if source_type is int or source_type is not target_type:
+            try:
+                value = target_type(value)  # type: ignore
+            except ValueError as e:
+                raise ValueError(
+                    f"{value!r} ({source_type.__name__}) is not a valid {target_type.__name__}, expected {typ!r}"
+                ) from e
+        return value
+    elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
+        if not isinstance(value, (Node, NodeReference)):
+            raise TypeError(f"expected Node, got {value!r}")
+        if as_packed:
+            value = value.to_ref()
+        return value
+    elif (
+        typ.kind == TypeKind.CUSTOM_OBJECT
+        or typ.kind == TypeKind.PARTIAL_OBJECT
+        or typ.kind == TypeKind.LITERAL
+        or typ.kind == TypeKind.UNION
+    ):
+        raise RuntimeError(f"cannot coerce {typ!r} to scalar")
+    else:
+        assert_never(typ.kind)
+
+
+def coerce_custom_object_scalar(
+    value: Mapping[str, Any] | CustomObject | None,
+    typ: "TypeBase",
+    *,
+    as_packed: bool = False,
+    parent: ValueParent | None = None,
+    parent_key: ValueParentKey | None = None,
+    supergraph: NodeSuperGraph | None = None,
+) -> CustomObject:
+    """Coerces a single object from its dict representation or existing CustomObject."""
+    if type(value) is CustomObject:
+        # NOTE :Robustness: not sure if _coerce_object_scalar is correct if given an existing object
+        if parent is not None:
+            assert parent_key is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
+            return value._move_to(parent, parent_key)
+        else:
+            return value
+    else:
+        if value is None:
+            value = {}
+        if not isinstance(value, Mapping):
+            raise TypeError(f"{value!r} is a {type(value).__name__}, expected {typ!r}")
+
+    # coerce
+    value = {**value}  # copy so we can pop and check extra keys cheaply
+    obj = CustomObject.new(
+        value={},
+        typ=typ,
+        parent=parent,
+        parent_property=parent_key,
+        supergraph=supergraph,
+    )
+    properties = get_custom_object_properties(typ, value)
+    for prop in properties:
+        prop_key = prop.subtype_key or prop.key
+        prop_value = value.pop(prop_key, None)
+        if prop_value is None:
+            prop_value = value.pop(prop.name, None)
+        if prop_value is not None:
+            obj._do_set(prop, prop_value, track=False)
+    # NOTE :Incomplete: should support dynamic base type from value :DynamicBaseType
+    #  (for ToolAction, but also for Record and such would be nice to get the base from the value)
+    for field in typ._base_fields:
+        # try getting value by storage key, name and ident
+        field_value = value.pop(field.storage_key, None)
+        if field_value is None:
+            field_value = value.pop(field.name, None)
+        if field_value is None:
+            code_name = field.code_name
+            if code_name is not None:
+                field_value = value.pop(code_name, None)
+        if field_value is not None:
+            obj._do_set(field, field_value, track=False)
+
+    # check for unused keys
+    if value:
+        raise ValueError(f"extraneous values {value!r} for {typ!r}")
+
+    return obj
+
+
+def coerce_value(
+    value: Any,
+    typ: "TypeBase | TypeIdentity",
+    *,
+    as_packed: bool = False,
+    parent: ValueParent | None = None,
+    parent_key: ValueParentKey | None = None,
+    supergraph: NodeSuperGraph | None = None,
+) -> SomeValue:
+    """
+    Coerces the given value to the expected type (recursively).
+    Returns value as is if already of correct type, raises TypeError if coercion is not possible.
+    NOTE :Performance: we re-create and copy lists during coercion even if the type was already good
+    """
+    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
+        from bench.language.source import TypeBase
+
+        assert typ.base_field_types, f"missing base field types for {typ!r}"
+        assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
+        if not typ.is_list:
+            return coerce_custom_object_scalar(
+                cast(dict, value),
+                typ,
+                as_packed=as_packed,
+                parent=parent,
+                parent_key=parent_key,
+                supergraph=supergraph,
+            )
+        else:
+            if not isinstance(value, Sequence):
+                raise TypeError(
+                    f"{value!r} ({type(value).__name__}) is not a sequence, expected {typ!r}"
+                )
+            return [
+                coerce_custom_object_scalar(
+                    cast(dict, element),
+                    typ,
+                    as_packed=as_packed,
+                    parent=parent,
+                    parent_key=parent_key,
+                    supergraph=supergraph,
+                )
+                for element in value
+            ]
+    else:
+        if value is None:
+            return None
+        elif not typ.is_list:
+            if isinstance(value, (list, tuple)):
+                raise TypeError(
+                    f"{value!r} ({type(value).__name__}) is a sequence, expected {typ!r}"
+                )
+            return coerce_value_scalar(
+                value, typ, as_packed=as_packed, parent=parent, parent_key=parent_key
+            )
+        else:
+            if not isinstance(value, Sequence):
+                raise TypeError(
+                    f"{value!r} ({type(value).__name__}) is not a sequence, expected {typ!r}"
+                )
+            return [
+                coerce_value_scalar(
+                    element, typ, as_packed=as_packed, parent=parent, parent_key=parent_key
+                )
+                for element in value
+            ]
 
 
 #
