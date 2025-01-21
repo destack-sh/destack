@@ -3,6 +3,7 @@ import enum
 import secrets
 import typing
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Generator, Mapping, Optional, TypeGuard, cast
 from uuid import UUID, uuid4, uuid5
 
@@ -997,6 +998,7 @@ PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
     PrimitiveType.INT16: int,
     PrimitiveType.INT32: int,
     PrimitiveType.INT64: int,
+    PrimitiveType.DECIMAL: Decimal,
     PrimitiveType.FLOAT32: float,
     PrimitiveType.FLOAT64: float,
     PrimitiveType.STRING: str,
@@ -1010,14 +1012,16 @@ PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
 PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     bool: PrimitiveType.BOOLEAN,
     int: PrimitiveType.INT32,
+    Decimal: PrimitiveType.DECIMAL,
     float: PrimitiveType.FLOAT32,
     str: PrimitiveType.STRING,
+    UUID: PrimitiveType.UUID,
+    dict: PrimitiveType.JSON,
     bytes: PrimitiveType.BYTES,
     datetime: PrimitiveType.DATETIME,
     date: PrimitiveType.DATE,
     time: PrimitiveType.TIME,
     timedelta: PrimitiveType.DURATION,
-    UUID: PrimitiveType.UUID,
 }
 
 

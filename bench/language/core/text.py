@@ -19,7 +19,7 @@ from .node import (
 from .property import p_regular
 
 if TYPE_CHECKING:
-    from bench.language import ColorType
+    from bench.language import Code, ColorType
 
 
 @object_()
@@ -227,6 +227,10 @@ class Text(Struct):
     @staticmethod
     def code(code: str) -> "Text":
         return Text(lines=[TextLine.code(line) for line in code.splitlines(keepends=False)])
+
+    @staticmethod
+    def from_code(code: "Code") -> "Text":
+        return Text(lines=[TextLine.code(line.content or "") for line in code.lines])
 
     @staticmethod
     def empty() -> "Text":

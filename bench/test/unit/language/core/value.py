@@ -295,6 +295,7 @@ UNGENERATABLE_STRUCT_TYPES = [
     StructType.PROPERTY_REFERENCE,
     # contain required references
     StructType.CALL,
+    StructType.CALL_PLAN,
 ]
 
 

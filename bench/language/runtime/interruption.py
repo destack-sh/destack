@@ -108,7 +108,7 @@ class Breakpoint(Struct):
 class InterruptionType(IdEnum):
     PAUSE = 1  # external pause
     YIELD = 2  # voluntary yield
-    WAIT = 3  # wait on trigger
+    WAIT = 3  # wait on something
 
 
 RUN_STATUS_BY_INTERRUPTION_TYPE: dict[InterruptionType, RunStatus] = {
