@@ -831,7 +831,7 @@ def _get_path_to_root(node: Node) -> list[Node]:
 
 
 def _get_bench_path(node: "Bench | Package") -> Path:
-    from .bench import Bench, Package
+    from bench.language import Bench, Package
 
     if isinstance(node, Bench):
         return Path(elements=[PathElement(type=PathElementType.BENCH, name=node.slug)])
@@ -856,7 +856,7 @@ def _get_bench_path(node: "Bench | Package") -> Path:
 
 def get_path(scope: Node, node: Node) -> Path:
     """Finds a path to the given node from a scope. The inverse of get_node."""
-    from .bench import Bench, Package
+    from bench.language import Bench, Package
 
     if scope == node:
         if isinstance(node, (Bench, Package)):

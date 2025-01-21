@@ -2,20 +2,25 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.pb2 import ClientData
-
-from .const import ClientType, NodeType
-from .node import BenchNode, ClientOrigin, node_
-from .property import p_kernel, p_node_parent, p_regular, p_system
-from .validation import TITLE_CONSTRAINT
+from bench.language.core import (
+    TITLE_CONSTRAINT,
+    BenchNode,
+    ClientType,
+    NodeType,
+    Struct,
+    StructType,
+    node_,
+    p_internal,
+    p_kernel,
+    p_node_parent,
+    p_regular,
+    p_system,
+    struct_,
+)
+from bench.pb2 import ClientData, ClientOriginData
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Bench,
-        Machine,
-        Space,
-        User,
-    )
+    from bench.language import Bench, Machine, Space, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -69,5 +74,14 @@ class Client(BenchNode[ClientData]):
                 value_parts.append(value)
         return ", ".join(value_parts)
 
-    def to_origin(self, *, nonce: UUID | None) -> ClientOrigin:
+    def to_origin(self, *, nonce: UUID | None) -> "ClientOrigin":
         return ClientOrigin(type=self.type, id=self.id, nonce=nonce or self.id)
+
+
+@struct_(StructType.CLIENT_ORIGIN)
+class ClientOrigin(Struct[ClientOriginData]):
+    """Information to identify a Client."""
+
+    type: ClientType = p_internal(30, require=True)
+    id: Optional[UUID] = p_internal(31, default=None)
+    nonce: Optional[UUID] = p_internal(32, default=None)

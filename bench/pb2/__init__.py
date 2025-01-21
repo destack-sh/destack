@@ -22,12 +22,12 @@ from .google.type.datetime_pb2 import *
 # extra utility types
 AnyNodeData = Union[
     BenchData,
-    UserData,
     HandleData,
-    ClientData,
+    UserData,
     OrganizationData,
     MembershipData,
     InviteData,
+    ClientData,
     ScalerData,
     StoreData,
     MachineData,
@@ -116,9 +116,9 @@ AnyObjectData = AnyNodeData | AnyStructData
 BenchNodeData = Union[
     BenchData,
     HandleData,
-    ClientData,
     MembershipData,
     InviteData,
+    ClientData,
     ScalerData,
     StoreData,
     MachineData,

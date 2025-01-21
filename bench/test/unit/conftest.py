@@ -256,7 +256,7 @@ async def local_runtime_async(global_store: Store, regional_store: Store):
         client = Client(
             parent=user,
             name="test",
-            type=ClientType.BENCH_MACHINE,
+            type=ClientType.MACHINE,
             seen_at=REAL_ORACLE.utc(),
         )
         session._create(client)
@@ -339,7 +339,7 @@ async def hosted_bench(global_store: Store, regional_store: Store):
         user_client = Client(
             parent=user,
             name="User",
-            type=ClientType.BENCH_WEB,
+            type=ClientType.WEB,
             seen_at=REAL_ORACLE.utc(),
             access_token="user",
             _is_new=True,  # force create
@@ -358,7 +358,7 @@ async def hosted_bench(global_store: Store, regional_store: Store):
         server_client = Client(
             parent=bench,
             name="Server",
-            type=ClientType.BENCH_MACHINE,
+            type=ClientType.MACHINE,
             access_token="server",
             _is_new=True,  # force create
         )

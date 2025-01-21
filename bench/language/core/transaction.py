@@ -39,7 +39,6 @@ from .graph import NodeDataGraph, NodeGraph
 from .node import (
     EDIT_SUBJECT_TYPES,
     BuiltinObject,
-    ClientOrigin,
     EditSubject,
     GraphScope,
     Node,
@@ -60,6 +59,7 @@ from .value import (
 if TYPE_CHECKING:
     from bench.language import (
         ChangeCategory,
+        ClientOrigin,
         Code,
         EditContext,
         Icon,
@@ -163,7 +163,7 @@ class Edit(Struct):
     subject: EditSubject | None = p_system(
         63, require=False, references=EDIT_SUBJECT_TYPES, description="Who made the Edit."
     )
-    origin: ClientOrigin | None = p_system(
+    origin: "ClientOrigin | None" = p_system(
         64, require=False, struct=StructType.CLIENT_ORIGIN, description="Where the Edit came from."
     )
     context: "EditContext | None" = p_system(

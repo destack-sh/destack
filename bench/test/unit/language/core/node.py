@@ -147,7 +147,7 @@ def test_node_pointers_consistency(session: "Session"):
     client_a = Client(
         parent=bench_a,
         seen_at=session._oracle.utc(),
-        type=ClientType.BENCH_MOBILE,
+        type=ClientType.MOBILE,
         name="Testificate's iPhone",
     )
     assert client_a.bench_id == bench_a.id

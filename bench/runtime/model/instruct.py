@@ -1,10 +1,11 @@
 from bench.language import (
     AUTH_NODE_TYPES,
+    COSMOS_NODE_TYPES,
     DYNAMIC_RESOURCE_NODE_TYPES,
     SOURCE_NODE_TYPES,
     STATIC_RESOURCE_NODE_TYPES,
-    UNIVERSE_NODE_TYPES,
 )
+from bench.language.core.const import FINANCE_NODE_TYPES
 
 from .prompt import Prompt
 
@@ -28,11 +29,12 @@ Bench is made of Nodes, and most Nodes have Structs in them -
  both Nodes and Structs inherit from BuiltinObject, but Structs lack identity.
 BuiltinObjects and Properties are hardcoded into the Bench codebase.
 
-1.1. Bench Universe
-Bench is one unified software universe, some Nodes are available globally:
- - Universe Nodes: ${', '.join(n.bench_name for n in UNIVERSE_NODE_TYPES)}
- - Authentication Nodes: ${', '.join(n.bench_name for n in AUTH_NODE_TYPES)}
-
+1.1. Bench Cosmos
+Bench is one unified software cosmos, some Nodes are available globally:
+ - Cosmos Nodes: ${', '.join(n.bench_name for n in COSMOS_NODE_TYPES)}
+ - Auth Nodes: ${', '.join(n.bench_name for n in AUTH_NODE_TYPES)}
+ - Finance Nodes: ${', '.join(n.bench_name for n in FINANCE_NODE_TYPES)}
+ 
 1.2. Bench Region
 Most Resources in Bench are specific to a Region (to keep latency low).
 Static Resources are higher level and not ephemeral like dynamic Resources:

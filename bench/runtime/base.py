@@ -89,7 +89,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         self._supervisor_url = supervisor_url
         self._supervisor = SupervisorClient(get_channel(supervisor_url))
         self._host: HostClient | None = None
-        if client_type == ClientType.BENCH_MACHINE and machine_id is None:
+        if client_type == ClientType.MACHINE and machine_id is None:
             raise ValueError(f"missing machine_id for {client_type} {client_id}")
         self._client_type = client_type
         self._client_id = client_id

@@ -50,7 +50,6 @@ from bench.pb2 import (
     AnyNodeData,
     AnyObjectData,
     AnyStructData,
-    ClientOriginData,
     GraphScopeData,
     NodeReferenceData,
     lang_pb2,
@@ -71,7 +70,6 @@ from .const import (
     TK_LENGTH_BYTES,
     UNSET,
     BlockType,
-    ClientType,
     EditOperationType,
     FieldType,
     NodeArea,
@@ -2329,7 +2327,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         self.active_session._restore(self)
 
     def erase(self):
-        """Wipe this Node from this universe forever."""
+        """Wipe this Node from this cosmos forever."""
         self.active_session._erase(self)
 
     def move(self, to: "Node"):
@@ -2784,15 +2782,6 @@ def repr_scope(scope: GraphScope | GraphScopeData) -> str:
 
 
 EMPTY_SCOPE_DATA = GraphScopeData(metatype=lang_pb2.OBJECT_TYPE_GRAPH_SCOPE)
-
-
-@struct_(StructType.CLIENT_ORIGIN)
-class ClientOrigin(Struct[ClientOriginData]):
-    """Information to identify a Client."""
-
-    type: ClientType = p_internal(30, require=True)
-    id: Optional[UUID] = p_internal(31, default=None)
-    nonce: Optional[UUID] = p_internal(32, default=None)
 
 
 @struct_(StructType.NODE_REFERENCE)

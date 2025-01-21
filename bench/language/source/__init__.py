@@ -38,7 +38,9 @@ from .action import (
     call_single,
 )
 from .block import Block, BlockType, DatabaseBlock, FlowBlock, TextBlock, VariableBlock
+from .dependency import Dependency
 from .field import Field, InputField, MemberField, OptionField, OutputField, VariableField
+from .package import Package, PackageType
 from .pipe import Pipe, PipeType, PortSide
 from .project import Projection, ProjectOptions, project
 from .render import (
@@ -98,6 +100,7 @@ __all__ = [
     "CreateAction",
     "DatabaseBlock",
     "DeleteAction",
+    "Dependency",
     "DuplicateAction",
     "FailAction",
     "Field",
@@ -123,6 +126,8 @@ __all__ = [
     "OptionField",
     "Orientation",
     "OutputField",
+    "Package",
+    "PackageType",
     "Pipe",
     "PipeType",
     "PortSide",

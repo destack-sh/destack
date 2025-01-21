@@ -1,4 +1,7 @@
+from .auth import *  # noqa: F403
 from .core import *  # noqa: F403
+from .cosmos import *  # noqa: F403
+from .finance import *  # noqa: F403
 from .registry import (
     ANCESTOR_NODE_TYPES,  # noqa: F401
     BENCH_CLASS_BY_NAME,  # noqa: F401
