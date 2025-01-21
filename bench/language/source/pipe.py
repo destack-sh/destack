@@ -9,6 +9,8 @@ from bench.language.core import (
     RunType,
     SourceNode,
     StructType,
+    TypeBase,
+    TypeConstraint,
     enum_,
     node_,
     node_subtype_,
@@ -19,8 +21,6 @@ from bench.language.core import (
 from bench.pb2 import PipeData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
-
-from .field import TypeBase, TypeConstraint
 
 if TYPE_CHECKING:
     from bench.language import (

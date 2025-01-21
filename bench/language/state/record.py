@@ -9,6 +9,7 @@ from bench.language.core import (
     NodeType,
     StateNode,
     StructType,
+    TypeBase,
     constraint,
     node_,
     p_internal,
@@ -17,7 +18,6 @@ from bench.language.core import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.source import TypeBase
 from bench.pb2 import AnyNodeData, NodeReferenceData, RecordData
 from bench.utils.fractional import INTEGER_ZERO
 

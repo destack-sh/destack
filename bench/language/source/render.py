@@ -37,6 +37,8 @@ from bench.language.core import (
     Struct,
     StructType,
     Text,
+    TypeBase,
+    TypeConstraint,
     TypeFormat,
     TypeKind,
     format_code,
@@ -45,13 +47,14 @@ from bench.language.core import (
     is_node_type,
     render_path,
     reverse_path_element,
+    reverse_type_scalar,
 )
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.utils.time import timedelta_to_isoformat
 
 from .action import Action
 from .block import Block
-from .field import Field, TypeBase, TypeConstraint, reverse_type_scalar
+from .field import Field
 from .pipe import Pipe
 from .view import Icon, View, reverse_icon
 

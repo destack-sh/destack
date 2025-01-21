@@ -21,6 +21,7 @@ from bench.language.core import (
     RunType,
     SourceNode,
     StructType,
+    TypeBase,
     TypeKind,
     node_,
     node_subtype_,
@@ -35,8 +36,6 @@ from bench.language.core import (
 from bench.pb2 import BlockData
 from bench.pb2.lang_pb2 import RecordData
 from bench.utils.fractional import INTEGER_ZERO
-
-from .field import TypeBase
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -134,7 +133,7 @@ class Block(SourceNode[BlockData]):
         field_types: list[FieldType] | None = None,
     ) -> "TypeBase | None":
         """Get a type represented by this Block (if any)"""
-        from bench.language.source.field import Type
+        from bench.language.core import Type
 
         if of == "instance":
             if self.type == BlockType.CHOICE:

@@ -79,7 +79,7 @@ class TypeConstraintIn:
     node_subtypes: "list[int]" = dataclasses.field(default_factory=list)
 
     def into(self) -> "TypeConstraint":
-        from bench.language.source.field import TypeConstraint
+        from bench.language.core import TypeConstraint
 
         return TypeConstraint(
             min_value=float(self.min_value) if self.min_value is not None else None,

@@ -59,6 +59,7 @@ if TYPE_CHECKING:
         SelectOptions,
     )
 
+# pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -81,8 +82,6 @@ def _init_default_query():
 def get_default_query_filter():
     return Node.get_property("deleted_at").not_exists()
 
-
-# pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 NodeT = TypeVar("NodeT", bound=Node)
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)

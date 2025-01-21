@@ -15,6 +15,8 @@ from bench.language.core import (
     NodeType,
     StateNode,
     StructType,
+    TypeBase,
+    constraint,
     enum_,
     p_internal,
     p_regular,
@@ -22,7 +24,6 @@ from bench.language.core import (
     p_value_runtime,
     timed_node_,
 )
-from bench.language.source import TypeBase, constraint
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 from bench.utils.func import IdEnum
 

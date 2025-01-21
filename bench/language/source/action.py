@@ -8,6 +8,7 @@ from bench.language.core import (
     NAME_CONSTRAINT,
     BlockType,
     BuiltinObject,
+    CustomObject,
     EnumType,
     FieldType,
     LocalNodeList,
@@ -19,6 +20,9 @@ from bench.language.core import (
     SourceNode,
     Struct,
     StructType,
+    Type,
+    TypeBase,
+    TypeConstraint,
     TypeKind,
     coerce_custom_object_scalar,
     constraint,
@@ -34,12 +38,9 @@ from bench.language.core import (
     p_value_runtime,
     struct_,
 )
-from bench.language.core.value import CustomObject
 from bench.pb2.lang_pb2 import ActionData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
-
-from .field import Type, TypeBase, TypeConstraint
 
 if TYPE_CHECKING:
     from bench.language import (

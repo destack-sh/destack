@@ -16,12 +16,12 @@ from bench.language.core import (
     SomeValue,
     SourceNode,
     Struct,
+    TypeBase,
     TypeKind,
 )
 from bench.language.core.value import _do_get_value_runtime
 
 from .block import Block
-from .field import TypeBase
 
 if TYPE_CHECKING:
     pass
