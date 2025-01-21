@@ -12,6 +12,7 @@ from bench.language import (
     CustomObject,
     HasContext,
     LogLevel,
+    ModelDeveloper,
     ModelType,
     Projection,
     ProjectOptions,
@@ -26,6 +27,7 @@ from bench.language import (
     run_span,
 )
 from bench.runtime.core import ATTEMPT_ONCE, RunIn, Runner, Runtime
+from bench.runtime.core.error import NotSupportedError
 
 from .model import ModelRunner
 from .prompt import (
@@ -308,6 +310,15 @@ def strip_code_completion(completion: str) -> str:
     return completion
 
 
-#
-# Prompting
-#
+def get_chat_model_runner_cls(
+    model_developer: ModelDeveloper, model_type: ModelType
+) -> type[ChatModelRunner]:
+    """Get the ChatModelRunner class for the given model type."""
+    from bench.runtime.model import AnthropicChatModelRunner, OpenaiChatModelRunner
+
+    if model_developer == ModelDeveloper.OPENAI:
+        return OpenaiChatModelRunner
+    elif model_developer == ModelDeveloper.ANTHROPIC:
+        return AnthropicChatModelRunner
+    else:
+        raise NotSupportedError(f"unsupported model developer {model_developer!r}")
