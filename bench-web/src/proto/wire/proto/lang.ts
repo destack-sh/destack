@@ -10530,29 +10530,29 @@ export enum ModelDeveloper {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_META = 1000;
+     * @generated from protobuf enum value: MODEL_DEVELOPER_META = 100;
      */
-    META = 1000,
+    META = 100,
     /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_OPENAI = 2000;
+     * @generated from protobuf enum value: MODEL_DEVELOPER_OPENAI = 200;
      */
-    OPENAI = 2000,
+    OPENAI = 200,
     /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_ANTHROPIC = 3000;
+     * @generated from protobuf enum value: MODEL_DEVELOPER_ANTHROPIC = 300;
      */
-    ANTHROPIC = 3000,
+    ANTHROPIC = 300,
     /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_GOOGLE = 4000;
+     * @generated from protobuf enum value: MODEL_DEVELOPER_GOOGLE = 400;
      */
-    GOOGLE = 4000,
+    GOOGLE = 400,
     /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_AMAZON = 5000;
+     * @generated from protobuf enum value: MODEL_DEVELOPER_AMAZON = 500;
      */
-    AMAZON = 5000,
+    AMAZON = 500,
     /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_MICROSOFT = 6000;
+     * @generated from protobuf enum value: MODEL_DEVELOPER_MICROSOFT = 600;
      */
-    MICROSOFT = 6000
+    MICROSOFT = 600
 }
 /**
  * @generated from protobuf enum symbolx.bench.ModelType
@@ -10563,41 +10563,41 @@ export enum ModelType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_META_LLAMA_3_1_80B = 1001;
+     * @generated from protobuf enum value: MODEL_TYPE_META_LLAMA_3_1_80B = 101;
      */
-    META_LLAMA_3_1_80B = 1001,
+    META_LLAMA_3_1_80B = 101,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_META_LLAMA_3_1_400B = 1002;
+     * @generated from protobuf enum value: MODEL_TYPE_META_LLAMA_3_1_400B = 102;
      */
-    META_LLAMA_3_1_400B = 1002,
+    META_LLAMA_3_1_400B = 102,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_GPT4_0 = 2001;
+     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_GPT4_0 = 201;
      */
-    OPENAI_GPT4_0 = 2001,
+    OPENAI_GPT4_0 = 201,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_GPT4_O_MINI = 2002;
+     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_GPT4_O_MINI = 202;
      */
-    OPENAI_GPT4_O_MINI = 2002,
+    OPENAI_GPT4_O_MINI = 202,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O1 = 2100;
+     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O1 = 210;
      */
-    OPENAI_O1 = 2100,
+    OPENAI_O1 = 210,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O1_MINI = 2101;
+     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O1_MINI = 211;
      */
-    OPENAI_O1_MINI = 2101,
+    OPENAI_O1_MINI = 211,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET = 3001;
+     * @generated from protobuf enum value: MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET = 301;
      */
-    ANTHROPIC_CLAUDE_3_5_SONNET = 3001,
+    ANTHROPIC_CLAUDE_3_5_SONNET = 301,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO = 4001;
+     * @generated from protobuf enum value: MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO = 401;
      */
-    GOOGLE_GEMINI_1_5_PRO = 4001,
+    GOOGLE_GEMINI_1_5_PRO = 401,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH = 4002;
+     * @generated from protobuf enum value: MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH = 402;
      */
-    GOOGLE_GEMINI_2_0_FLASH = 4002
+    GOOGLE_GEMINI_2_0_FLASH = 402
 }
 /**
  * @generated from protobuf enum symbolx.bench.ModelFamily
@@ -10608,25 +10608,25 @@ export enum ModelFamily {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MODEL_FAMILY_META_LLAMA = 1000;
+     * @generated from protobuf enum value: MODEL_FAMILY_META_LLAMA = 100;
      */
-    META_LLAMA = 1000,
+    META_LLAMA = 100,
     /**
-     * @generated from protobuf enum value: MODEL_FAMILY_OPENAI_GPT = 2000;
+     * @generated from protobuf enum value: MODEL_FAMILY_OPENAI_GPT = 200;
      */
-    OPENAI_GPT = 2000,
+    OPENAI_GPT = 200,
     /**
-     * @generated from protobuf enum value: MODEL_FAMILY_OPENAI_O = 2100;
+     * @generated from protobuf enum value: MODEL_FAMILY_OPENAI_O = 210;
      */
-    OPENAI_O = 2100,
+    OPENAI_O = 210,
     /**
-     * @generated from protobuf enum value: MODEL_FAMILY_ANTHROPIC_CLAUDE = 3000;
+     * @generated from protobuf enum value: MODEL_FAMILY_ANTHROPIC_CLAUDE = 300;
      */
-    ANTHROPIC_CLAUDE = 3000,
+    ANTHROPIC_CLAUDE = 300,
     /**
-     * @generated from protobuf enum value: MODEL_FAMILY_GOOGLE_GEMINI = 4000;
+     * @generated from protobuf enum value: MODEL_FAMILY_GOOGLE_GEMINI = 400;
      */
-    GOOGLE_GEMINI = 4000
+    GOOGLE_GEMINI = 400
 }
 /**
  * @generated from protobuf enum symbolx.bench.ModelProvider
@@ -10637,29 +10637,29 @@ export enum ModelProvider {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_META = 1000;
+     * @generated from protobuf enum value: MODEL_PROVIDER_META = 100;
      */
-    META = 1000,
+    META = 100,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_OPENAI = 2000;
+     * @generated from protobuf enum value: MODEL_PROVIDER_OPENAI = 200;
      */
-    OPENAI = 2000,
+    OPENAI = 200,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_ANTHROPIC = 3000;
+     * @generated from protobuf enum value: MODEL_PROVIDER_ANTHROPIC = 300;
      */
-    ANTHROPIC = 3000,
+    ANTHROPIC = 300,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_GOOGLE = 4000;
+     * @generated from protobuf enum value: MODEL_PROVIDER_GOOGLE = 400;
      */
-    GOOGLE = 4000,
+    GOOGLE = 400,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_AMAZON = 5000;
+     * @generated from protobuf enum value: MODEL_PROVIDER_AMAZON = 500;
      */
-    AMAZON = 5000,
+    AMAZON = 500,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_MICROSOFT = 6000;
+     * @generated from protobuf enum value: MODEL_PROVIDER_MICROSOFT = 600;
      */
-    MICROSOFT = 6000
+    MICROSOFT = 600
 }
 /**
  * The implicit 'type' of some Code.
@@ -10733,41 +10733,45 @@ export enum ActionType {
      */
     DO = 200,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_ROUTE = 201;
+     * @generated from protobuf enum value: ACTION_TYPE_THINK = 201;
      */
-    ROUTE = 201,
+    THINK = 201,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_GENERATE = 202;
+     * @generated from protobuf enum value: ACTION_TYPE_ROUTE = 202;
      */
-    GENERATE = 202,
+    ROUTE = 202,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_TRANSFORM = 203;
+     * @generated from protobuf enum value: ACTION_TYPE_GENERATE = 203;
      */
-    TRANSFORM = 203,
+    GENERATE = 203,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_EXTRACT = 204;
+     * @generated from protobuf enum value: ACTION_TYPE_TRANSFORM = 204;
      */
-    EXTRACT = 204,
+    TRANSFORM = 204,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_CLASSIFY = 205;
+     * @generated from protobuf enum value: ACTION_TYPE_EXTRACT = 205;
      */
-    CLASSIFY = 205,
+    EXTRACT = 205,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_SUMMARIZE = 206;
+     * @generated from protobuf enum value: ACTION_TYPE_CLASSIFY = 206;
      */
-    SUMMARIZE = 206,
+    CLASSIFY = 206,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_COMPARE = 207;
+     * @generated from protobuf enum value: ACTION_TYPE_SUMMARIZE = 207;
      */
-    COMPARE = 207,
+    SUMMARIZE = 207,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_TRANSLATE = 208;
+     * @generated from protobuf enum value: ACTION_TYPE_COMPARE = 208;
      */
-    TRANSLATE = 208,
+    COMPARE = 208,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_CHANGE = 209;
+     * @generated from protobuf enum value: ACTION_TYPE_TRANSLATE = 209;
      */
-    CHANGE = 209,
+    TRANSLATE = 209,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_CHANGE = 210;
+     */
+    CHANGE = 210,
     /**
      * @generated from protobuf enum value: ACTION_TYPE_GET = 300;
      */
@@ -10809,13 +10813,17 @@ export enum ActionType {
      */
     RECEIVE = 501,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_WAIT = 502;
+     * @generated from protobuf enum value: ACTION_TYPE_MESSAGE = 502;
      */
-    WAIT = 502,
+    MESSAGE = 502,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_YIELD = 503;
+     * @generated from protobuf enum value: ACTION_TYPE_WAIT = 505;
      */
-    YIELD = 503,
+    WAIT = 505,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_YIELD = 506;
+     */
+    YIELD = 506,
     /**
      * @generated from protobuf enum value: ACTION_TYPE_NOTIFY = 510;
      */
@@ -30441,7 +30449,7 @@ export const RouteActionDataInfo: Record<RouteActionProperty, PropertyInfo> = {
 
 }
 export const ChangeActionDataInfo: Record<ChangeActionProperty, PropertyInfo> = {
-  [ChangeActionProperty.nodesPtr]: { id: 120, name: 'nodes_ptr', component: ObjectType.ACTION, componentSubtype: 209, kind: 'reference', fieldType: FieldType.INPUT, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [ChangeActionProperty.nodesPtr]: { id: 120, name: 'nodes_ptr', component: ObjectType.ACTION, componentSubtype: 210, kind: 'reference', fieldType: FieldType.INPUT, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
 export const GetActionDataInfo: Record<GetActionProperty, PropertyInfo> = {
   [GetActionProperty.nodeType]: { id: 120, name: 'node_type', component: ObjectType.ACTION, componentSubtype: 300, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
@@ -30478,7 +30486,7 @@ export const ReceiveActionDataInfo: Record<ReceiveActionProperty, PropertyInfo> 
 
 }
 export const WaitActionDataInfo: Record<WaitActionProperty, PropertyInfo> = {
-  [WaitActionProperty.delay]: { id: 120, name: 'delay', component: ObjectType.ACTION, componentSubtype: 502, kind: 'primitive', primitiveType: PrimitiveType.DURATION, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [WaitActionProperty.delay]: { id: 120, name: 'delay', component: ObjectType.ACTION, componentSubtype: 505, kind: 'primitive', primitiveType: PrimitiveType.DURATION, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const LookActionDataInfo: Record<LookActionProperty, PropertyInfo> = {
   [LookActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 800, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
@@ -31262,17 +31270,18 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
   [ActionType.COMPLETE]: { id: 10, name: 'COMPLETE', text: 'Complete the entire Flow' },
   [ActionType.FAIL]: { id: 11, name: 'FAIL', text: 'Fail the entire Flow' },
   [ActionType.TOOL]: { id: 100, name: 'TOOL', text: 'Delegate to an implementation' },
-  [ActionType.CODE]: { id: 101, name: 'CODE', text: 'Run some code' },
+  [ActionType.CODE]: { id: 101, name: 'CODE', text: 'Run some Code' },
   [ActionType.DO]: { id: 200, name: 'DO', text: 'Perform an arbitrary action' },
-  [ActionType.ROUTE]: { id: 201, name: 'ROUTE', text: 'Route to other Actions' },
-  [ActionType.GENERATE]: { id: 202, name: 'GENERATE', text: 'Generate something new' },
-  [ActionType.TRANSFORM]: { id: 203, name: 'TRANSFORM', text: 'Change the form of something' },
-  [ActionType.EXTRACT]: { id: 204, name: 'EXTRACT', text: 'Extract structured data' },
-  [ActionType.CLASSIFY]: { id: 205, name: 'CLASSIFY', text: 'Classify or categorize' },
-  [ActionType.SUMMARIZE]: { id: 206, name: 'SUMMARIZE', text: 'Condense media content' },
-  [ActionType.COMPARE]: { id: 207, name: 'COMPARE', text: 'Compare multiple things' },
-  [ActionType.TRANSLATE]: { id: 208, name: 'TRANSLATE', text: 'Translate between languages' },
-  [ActionType.CHANGE]: { id: 209, name: 'CHANGE', text: 'Edit this Bench' },
+  [ActionType.THINK]: { id: 201, name: 'THINK', text: 'Reflect on the context' },
+  [ActionType.ROUTE]: { id: 202, name: 'ROUTE', text: 'Route between Actions' },
+  [ActionType.GENERATE]: { id: 203, name: 'GENERATE', text: 'Generate something new' },
+  [ActionType.TRANSFORM]: { id: 204, name: 'TRANSFORM', text: 'Change the form of something' },
+  [ActionType.EXTRACT]: { id: 205, name: 'EXTRACT', text: 'Extract structured data' },
+  [ActionType.CLASSIFY]: { id: 206, name: 'CLASSIFY', text: 'Classify or categorize' },
+  [ActionType.SUMMARIZE]: { id: 207, name: 'SUMMARIZE', text: 'Condense media content' },
+  [ActionType.COMPARE]: { id: 208, name: 'COMPARE', text: 'Compare multiple things' },
+  [ActionType.TRANSLATE]: { id: 209, name: 'TRANSLATE', text: 'Translate between languages' },
+  [ActionType.CHANGE]: { id: 210, name: 'CHANGE', text: 'Edit this Bench' },
   [ActionType.GET]: { id: 300, name: 'GET', text: 'Get a Node' },
   [ActionType.SEARCH]: { id: 301, name: 'SEARCH', text: 'Search for Nodes' },
   [ActionType.COPY]: { id: 302, name: 'COPY', text: 'Copy some Nodes' },
@@ -31283,8 +31292,9 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
   [ActionType.PASTE]: { id: 404, name: 'PASTE', text: 'Paste a Node' },
   [ActionType.SEND]: { id: 500, name: 'SEND', text: 'Send a Message' },
   [ActionType.RECEIVE]: { id: 501, name: 'RECEIVE', text: 'Receive a Message' },
-  [ActionType.WAIT]: { id: 502, name: 'WAIT', text: 'Wait for something' },
-  [ActionType.YIELD]: { id: 503, name: 'YIELD', text: 'Defer to someone' },
+  [ActionType.MESSAGE]: { id: 502, name: 'MESSAGE', text: 'Send & Receive a Message' },
+  [ActionType.WAIT]: { id: 505, name: 'WAIT', text: 'Wait for something' },
+  [ActionType.YIELD]: { id: 506, name: 'YIELD', text: 'Defer to someone' },
   [ActionType.NOTIFY]: { id: 510, name: 'NOTIFY', text: 'Notify someone' },
   [ActionType.LOOK]: { id: 800, name: 'LOOK', text: 'Look at the environment' },
   [ActionType.CLICK]: { id: 1000, name: 'CLICK', text: 'Click an element' },

@@ -20,25 +20,25 @@ class ModelDeveloper(IdEnum):
     # internal
     # ...
     # external
-    META = 1000
-    OPENAI = 2000
-    ANTHROPIC = 3000
-    GOOGLE = 4000
-    AMAZON = 5000
-    MICROSOFT = 6000
+    META = 100
+    OPENAI = 200
+    ANTHROPIC = 300
+    GOOGLE = 400
+    AMAZON = 500
+    MICROSOFT = 600
 
 
 @enum_(EnumType.MODEL_PROVIDER)
 class ModelProvider(IdEnum):
     # internal
     # ...
-    # external developers (1000-19999)
-    META = 1000
-    OPENAI = 2000
-    ANTHROPIC = 3000
-    GOOGLE = 4000
-    AMAZON = 5000
-    MICROSOFT = 6000
+    # external developers (100-19999)
+    META = 100
+    OPENAI = 200
+    ANTHROPIC = 300
+    GOOGLE = 400
+    AMAZON = 500
+    MICROSOFT = 600
     # external providers (20000-)
     # ...
 
@@ -49,14 +49,14 @@ class ModelFamily(IdEnum):
     # ...
     # external
     # meta
-    META_LLAMA = 1000
+    META_LLAMA = 100
     # openai
-    OPENAI_GPT = 2000
-    OPENAI_O = 2100
+    OPENAI_GPT = 200
+    OPENAI_O = 210
     # anthropic
-    ANTHROPIC_CLAUDE = 3000
+    ANTHROPIC_CLAUDE = 300
     # google
-    GOOGLE_GEMINI = 4000
+    GOOGLE_GEMINI = 400
     # amazon
     # ...
     # microsoft
@@ -69,19 +69,19 @@ class ModelType(IdEnum):  # :ModelType
     ...  # ?
     # external
     # meta-llama
-    META_LLAMA_3_1_80B = 1001
-    META_LLAMA_3_1_400B = 1002
+    META_LLAMA_3_1_80B = 101
+    META_LLAMA_3_1_400B = 102
     # openai-gpt
-    OPENAI_GPT4_0 = 2001
-    OPENAI_GPT4_O_MINI = 2002
+    OPENAI_GPT4_0 = 201
+    OPENAI_GPT4_O_MINI = 202
     # openai-o
-    OPENAI_O1 = 2100
-    OPENAI_O1_MINI = 2101
+    OPENAI_O1 = 210
+    OPENAI_O1_MINI = 211
     # anthropic-claude
-    ANTHROPIC_CLAUDE_3_5_SONNET = 3001
+    ANTHROPIC_CLAUDE_3_5_SONNET = 301
     # google-gemini
-    GOOGLE_GEMINI_1_5_PRO = 4001
-    GOOGLE_GEMINI_2_0_FLASH = 4002
+    GOOGLE_GEMINI_1_5_PRO = 401
+    GOOGLE_GEMINI_2_0_FLASH = 402
 
 
 @struct_(StructType.TEXT_OPTIONS)

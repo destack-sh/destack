@@ -14,6 +14,7 @@ from bench.language import (
     Browser,
     ClickAction,
     CodeAction,
+    CompleteAction,
     CreateAction,
     CustomObject,
     DeleteAction,
@@ -34,6 +35,7 @@ from bench.language import (
     ModelDeveloper,
     ModelType,
     NodeType,
+    PipeType,
     PressAction,
     RunnableNode,
     RunOptions,
@@ -123,19 +125,30 @@ class ActionRunner[A: Action = Action](Runner[A], ABC):
         return False
 
 
-# nocheckin: generate calls (and run for all Actions in Flows when needed)
-# we need to generate a few things:
-#   1. directly generated outputs (with call slots) for dynamic actions
-#   2. only call slots for non-dynamic actions
-#   [call slots = any select pipes, pipes to actions with missing inputs (?)]
-
-
 class StaticActionRunner[A: Action = Action](ActionRunner[A]):
     @final
     @override
     async def run(self) -> None:
         """Run the static and the dynamic parts of the Action."""
+        # static implementation
         await self.run_static()
+
+        # dynamic calls
+        has_call_plan = (
+            not self.node.type.is_boundary
+            and self.outputs is not None
+            and cast(Action, self.outputs).call is not None
+        )
+        if (
+            self.flow is not None
+            and not has_call_plan
+            and (outgoing_pipes := [p for p in self.flow.node.pipes if p.source_id == self.node.id])
+            # NOTE :Incomplete: we should also generate calls for other missing Action inputs
+            #  (Sometimes..? Only for application actions like click? For all static actions?)
+            and any(p.type == PipeType.SELECT for p in outgoing_pipes)
+        ):
+            # nocheckin
+            raise NotImplementedError(f"nocheckin: generate calls for {self!r}->{outgoing_pipes!r}")
 
     @abstractmethod
     async def run_static(self) -> None:
@@ -173,8 +186,12 @@ class DynamicActionRunner[A: Action = Action](ActionRunner[A]):
             parent=cast(Runner[Any], self),
             run=RunSpanType.MODEL_GENERATE,
         )
-        await self.runtime.run_runner(model_runner)
-        self.outputs = model_runner.outputs
+        try:
+            await self.runtime.run_runner(model_runner)
+        finally:
+            if model_runner.code is not None:
+                self.action.code = model_runner.code
+            self.outputs = model_runner.outputs
 
 
 #
@@ -188,17 +205,17 @@ class StartActionRunner(StaticActionRunner):
         self.outputs = self.inputs
 
 
-class CompleteActionRunner(StaticActionRunner):
+class CompleteActionRunner(ActionRunner[CompleteAction]):
     @override
-    async def run_static(self) -> None:
+    async def run(self) -> None:
         self.outputs = self.inputs
         if self.flow is not None:
             self.flow._complete(outputs=self.outputs)
 
 
-class FailActionRunner(StaticActionRunner[FailAction]):
+class FailActionRunner(ActionRunner[FailAction]):
     @override
-    async def run_static(self) -> None:
+    async def run(self) -> None:
         title = self.action.error_title or "Flow failed"
         text = self.action.error_text or Text.plain(f"Flow failed at {self.node!r}")
         raise RetryableError(title=title, text=text)
@@ -584,6 +601,7 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner[Any]]] = {
     ActionType.TOOL: ToolActionRunner,
     # dynamic
     ActionType.DO: DynamicActionRunner,
+    ActionType.THINK: DynamicActionRunner,
     ActionType.ROUTE: DynamicActionRunner,
     ActionType.GENERATE: DynamicActionRunner,
     ActionType.TRANSFORM: DynamicActionRunner,

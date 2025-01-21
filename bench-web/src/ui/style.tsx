@@ -131,9 +131,10 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   [ActionType.TOOL]: ColorType.SKY,
   // generic
   [ActionType.DO]: ColorType.VIOLET,
+  [ActionType.ROUTE]: ColorType.VIOLET,
+  [ActionType.THINK]: ColorType.VIOLET,
   [ActionType.GENERATE]: ColorType.VIOLET,
   [ActionType.TRANSFORM]: ColorType.VIOLET,
-  [ActionType.ROUTE]: ColorType.VIOLET,
   [ActionType.EXTRACT]: ColorType.VIOLET,
   [ActionType.CLASSIFY]: ColorType.VIOLET,
   [ActionType.SUMMARIZE]: ColorType.VIOLET,
@@ -153,6 +154,7 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   // async
   [ActionType.SEND]: ColorType.PINK,
   [ActionType.RECEIVE]: ColorType.PINK,
+  [ActionType.MESSAGE]: ColorType.PINK,
   [ActionType.WAIT]: ColorType.PINK,
   [ActionType.YIELD]: ColorType.PINK,
   [ActionType.NOTIFY]: ColorType.PINK,

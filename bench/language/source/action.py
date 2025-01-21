@@ -76,19 +76,20 @@ class ActionType(IdEnum):
 
     # tool
     TOOL = 100, "Delegate to an implementation"
-    CODE = 101, "Run some code"
+    CODE = 101, "Run some Code"
 
     # dynamic
     DO = 200, "Perform an arbitrary action"
-    ROUTE = 201, "Route to other Actions"
-    GENERATE = 202, "Generate something new"
-    TRANSFORM = 203, "Change the form of something"
-    EXTRACT = 204, "Extract structured data"
-    CLASSIFY = 205, "Classify or categorize"
-    SUMMARIZE = 206, "Condense media content"
-    COMPARE = 207, "Compare multiple things"
-    TRANSLATE = 208, "Translate between languages"
-    CHANGE = 209, "Edit this Bench"
+    THINK = 201, "Reflect on the context"
+    ROUTE = 202, "Route between Actions"
+    GENERATE = 203, "Generate something new"
+    TRANSFORM = 204, "Change the form of something"
+    EXTRACT = 205, "Extract structured data"
+    CLASSIFY = 206, "Classify or categorize"
+    SUMMARIZE = 207, "Condense media content"
+    COMPARE = 208, "Compare multiple things"
+    TRANSLATE = 209, "Translate between languages"
+    CHANGE = 210, "Edit this Bench"
 
     # read
     GET = 300, "Get a Node"
@@ -106,8 +107,9 @@ class ActionType(IdEnum):
     # async
     SEND = 500, "Send a Message"
     RECEIVE = 501, "Receive a Message"
-    WAIT = 502, "Wait for something"
-    YIELD = 503, "Defer to someone"
+    MESSAGE = 502, "Send & Receive a Message"
+    WAIT = 505, "Wait for something"
+    YIELD = 506, "Defer to someone"
     NOTIFY = 510, "Notify someone"
 
     # resource
@@ -405,6 +407,16 @@ class Action(SourceNode[ActionData]):
 #
 # Flow
 #
+
+
+@node_subtype_(ActionType.START)
+class StartAction(Action):
+    pass
+
+
+@node_subtype_(ActionType.COMPLETE)
+class CompleteAction(Action):
+    pass
 
 
 @node_subtype_(ActionType.FAIL)
@@ -781,9 +793,11 @@ def call(node: "Block | Action", **kwargs) -> "Call":
     return Call.new(node, **kwargs)
 
 
-def call_plan(*calls: Call, mode: CallMode = CallMode.RETURN_ON_FAIL) -> "CallPlan":
-    return CallPlan.new(*calls, mode=mode)
-
-
 def call_sequential(*calls: Call, mode: CallMode = CallMode.RETURN_ON_FAIL) -> "CallPlan":
     return CallPlan.new(*calls, mode=mode)
+
+
+def call_single(
+    node: "Block | Action", mode: CallMode = CallMode.RETURN_ON_FAIL, **kwargs
+) -> "CallPlan":
+    return CallPlan.new(call(node, mode=mode, **kwargs), mode=mode)

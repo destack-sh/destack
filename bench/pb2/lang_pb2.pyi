@@ -1359,6 +1359,7 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_TOOL: _ClassVar[ActionType]
     ACTION_TYPE_CODE: _ClassVar[ActionType]
     ACTION_TYPE_DO: _ClassVar[ActionType]
+    ACTION_TYPE_THINK: _ClassVar[ActionType]
     ACTION_TYPE_ROUTE: _ClassVar[ActionType]
     ACTION_TYPE_GENERATE: _ClassVar[ActionType]
     ACTION_TYPE_TRANSFORM: _ClassVar[ActionType]
@@ -1378,6 +1379,7 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_PASTE: _ClassVar[ActionType]
     ACTION_TYPE_SEND: _ClassVar[ActionType]
     ACTION_TYPE_RECEIVE: _ClassVar[ActionType]
+    ACTION_TYPE_MESSAGE: _ClassVar[ActionType]
     ACTION_TYPE_WAIT: _ClassVar[ActionType]
     ACTION_TYPE_YIELD: _ClassVar[ActionType]
     ACTION_TYPE_NOTIFY: _ClassVar[ActionType]
@@ -2828,6 +2830,7 @@ ACTION_TYPE_FAIL: ActionType
 ACTION_TYPE_TOOL: ActionType
 ACTION_TYPE_CODE: ActionType
 ACTION_TYPE_DO: ActionType
+ACTION_TYPE_THINK: ActionType
 ACTION_TYPE_ROUTE: ActionType
 ACTION_TYPE_GENERATE: ActionType
 ACTION_TYPE_TRANSFORM: ActionType
@@ -2847,6 +2850,7 @@ ACTION_TYPE_DELETE: ActionType
 ACTION_TYPE_PASTE: ActionType
 ACTION_TYPE_SEND: ActionType
 ACTION_TYPE_RECEIVE: ActionType
+ACTION_TYPE_MESSAGE: ActionType
 ACTION_TYPE_WAIT: ActionType
 ACTION_TYPE_YIELD: ActionType
 ACTION_TYPE_NOTIFY: ActionType
