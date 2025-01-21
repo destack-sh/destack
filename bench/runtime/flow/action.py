@@ -69,6 +69,7 @@ from bench.runtime.core import (
     make_runner,
     restore_runner,
 )
+from bench.runtime.model.chat import get_chat_model_runner_cls
 
 if TYPE_CHECKING:
     from .flow import FlowRunner
@@ -143,12 +144,33 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
             self.flow is not None
             and not has_call_plan
             and (outgoing_pipes := [p for p in self.flow.node.pipes if p.source_id == self.node.id])
-            # NOTE :Incomplete: we should also generate calls for other missing Action inputs
+            # NOTE :Incomplete: we could also generate calls for other missing Action inputs
             #  (Sometimes..? Only for application actions like click? For all static actions?)
             and any(p.type == PipeType.SELECT for p in outgoing_pipes)
         ):
-            # nocheckin
-            raise NotImplementedError(f"nocheckin: generate calls for {self!r}->{outgoing_pipes!r}")
+            model_developer = ModelDeveloper.OPENAI
+            model_type = ModelType.OPENAI_GPT4_0
+            model_runner_cls = get_chat_model_runner_cls(
+                model_developer=model_developer, model_type=model_type
+            )
+            model_runner = model_runner_cls(
+                runtime=self.runtime,
+                node=self.node,
+                model_type=model_type,
+                options=self.options,
+                context=self.context,
+                variables=self.variables,
+                inputs=self.inputs,
+                outputs=self.outputs or self.output_type,
+                parent=cast(Runner[Any], self),
+                run=RunSpanType.MODEL_GENERATE,
+            )
+            try:
+                await self.runtime.run_runner(model_runner)
+            finally:
+                if model_runner.code is not None:
+                    self.action.code = model_runner.code
+                self.outputs = model_runner.outputs
 
     @abstractmethod
     async def run_static(self) -> None:
