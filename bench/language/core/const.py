@@ -255,20 +255,20 @@ class NodeType(IdEnum):
     # Global (1-2000)
     #
 
-    # universe
+    # cosmos
     BENCH = 1
-    USER = 2
-    HANDLE = 4
-    CLIENT = 5
-    ORGANIZATION = 10
-    # TEAM/GROUP?
+    HANDLE = 2
 
     # auth
-    MEMBERSHIP = 100
-    INVITE = 101
+    USER = 100
+    ORGANIZATION = 101
+    # TEAM?
+    MEMBERSHIP = 110
+    INVITE = 111
+    CLIENT = 120
     # CHALLENGE?
 
-    # billing
+    # finance
     # BALANCE, BUDGET, TRANSFER, INVOICE, ...
 
     #
@@ -370,14 +370,17 @@ def _get_node_types(
         start = 0
     if end is None:
         end = 10000
-    node_types = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= start and nt.id < end))
+    node_types = bittuple(
+        *tuple(nt for nt in NODE_TYPES if nt.id >= start and nt.id < end), enum_cls=NodeType
+    )
     if extra_node_types:
         node_types = node_types | bittuple(*extra_node_types)
     return node_types
 
 
-UNIVERSE_NODE_TYPES = _get_node_types(None, 100)
+COSMOS_NODE_TYPES = _get_node_types(None, 100)
 AUTH_NODE_TYPES = _get_node_types(100, 200)
+FINANCE_NODE_TYPES = _get_node_types(200, 300)
 
 GLOBAL_NODE_TYPES = _get_node_types(None, 2000)
 REGIONAL_NODE_TYPES = _get_node_types(2000, 5000)
@@ -1343,29 +1346,13 @@ else:
 @enum_(EnumType.CLIENT_TYPE)
 class ClientType(IdEnum):
     # user
-    BENCH_WEB = 1
-    BENCH_BROWSER_PLUGIN = 2
-    BENCH_DESKTOP = 3
-    BENCH_MOBILE = 4
+    WEB = 1
+    BROWSER_PLUGIN = 2
+    DESKTOP = 3
+    MOBILE = 4
 
     # server
-    BENCH_MACHINE = 10
-
-
-@enum_(EnumType.USER_STATUS)
-class UserStatus(IdEnum):
-    INVITED = 1  # invited via email
-    RESERVED = 2  # reserved a handle, unconfirmed
-    WAITLISTED = 3  # got handle, confirmed email, waiting
-    REGISTERED = 4  # got handle, confirmed email, ready to activate
-    ACTIVATED = 10  # has bench, all ready to go
-
-
-@enum_(EnumType.ORGANIZATION_STATUS)
-class OrganizationStatus(IdEnum):
-    # NOTE UserStatus/OrganizationStatus ids for same statuses should match
-    REGISTERED = 4  # created org
-    ACTIVATED = 10  # has main bench
+    MACHINE = 10
 
 
 #

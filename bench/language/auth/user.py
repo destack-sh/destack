@@ -2,30 +2,38 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from bench.pb2 import InviteData, MembershipData, UserData
-
-from .const import (
+from bench.language.core import (
+    EMAIL_CONSTRAINT,
+    NAME_CONSTRAINT,
+    EnumType,
+    LocalNodeList,
+    Node,
     NodeType,
     Region,
     StructType,
-    UserStatus,
-)
-from .list import LocalNodeList
-from .node import BenchNode, Node, node_
-from .property import (
-    p_internal,
+    enum_,
+    node_,
     p_kernel,
     p_node_children,
-    p_node_parent,
     p_regular,
     p_system,
 )
-from .validation import EMAIL_CONSTRAINT, NAME_CONSTRAINT
+from bench.pb2 import UserData
+from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import Bench, Handle, Icon, NodeReference, Text, User
 
 # pyright: reportIncompatibleVariableOverride=false
+
+
+@enum_(EnumType.USER_STATUS)
+class UserStatus(IdEnum):
+    INVITED = 1  # invited via email
+    RESERVED = 2  # reserved a handle, unconfirmed
+    WAITLISTED = 3  # got handle, confirmed email, waiting
+    REGISTERED = 4  # got handle, confirmed email, ready to activate
+    ACTIVATED = 10  # has bench, all ready to go
 
 
 @node_(NodeType.USER, roots=())
@@ -77,27 +85,3 @@ class User(Node[UserData]):
     def bench(self) -> "Bench":
         assert self.main_bench is not None, f"{self!r} is not activated"
         return self.main_bench
-
-
-@node_(NodeType.MEMBERSHIP)
-class Membership(BenchNode[MembershipData]):
-    """
-    A membership to this Bench (and its owner if it's the main Bench).
-    """
-
-    parent: "Bench | None" = p_node_parent(4, NodeType.BENCH)
-    user: "User" = p_internal(30, require=True, array=False, references=NodeType.USER)
-    is_owner: bool = p_regular(31, default=False)
-
-
-@node_(NodeType.INVITE)
-class Invite(BenchNode[InviteData]):
-    """An invitation to become a member of this Bench."""
-
-    parent: "Bench | None" = p_node_parent(4, NodeType.BENCH)
-    user: Optional["User"] = p_internal(30, require=False, array=False, references=NodeType.USER)
-    user_email: Optional[str] = p_regular(31)
-
-    # membership properties once accepted
-    is_owner: bool = p_regular(32, default=False)
-    # roles, ...?

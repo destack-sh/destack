@@ -128,7 +128,7 @@ async def make_local_machine(
         clients = (
             await Client.where(
                 Client.get_property("parent").eq(machine)
-                & Client.get_property("type").eq(ClientType.BENCH_MACHINE)
+                & Client.get_property("type").eq(ClientType.MACHINE)
             )
             .select_all()
             .tolist()
@@ -137,7 +137,7 @@ async def make_local_machine(
         if client is None:
             client = Client(
                 parent=bench,
-                type=ClientType.BENCH_MACHINE,
+                type=ClientType.MACHINE,
                 name=title,
                 access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
                 machine=machine,

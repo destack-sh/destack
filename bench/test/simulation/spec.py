@@ -74,7 +74,7 @@ class ClientSpec:
 
     name: str
     username: str
-    type: ClientType = ClientType.BENCH_DESKTOP
+    type: ClientType = ClientType.DESKTOP
     time_offset: timedelta | None = None
 
 

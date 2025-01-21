@@ -1,17 +1,33 @@
 from typing import TYPE_CHECKING, Optional
 
+from bench.language.core import (
+    NAME_CONSTRAINT,
+    EnumType,
+    LocalNodeList,
+    Node,
+    NodeType,
+    Region,
+    StructType,
+    enum_,
+    node_,
+    p_node_children,
+    p_regular,
+    p_system,
+)
 from bench.pb2 import OrganizationData
-
-from .const import NodeType, OrganizationStatus, Region, StructType
-from .list import LocalNodeList
-from .node import Node, node_
-from .property import p_node_children, p_regular, p_system
-from .validation import NAME_CONSTRAINT
+from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import Bench, Handle, Icon, Text
 
 # pyright: reportIncompatibleVariableOverride=false
+
+
+@enum_(EnumType.ORGANIZATION_STATUS)
+class OrganizationStatus(IdEnum):
+    # NOTE UserStatus/OrganizationStatus ids for same statuses should match
+    REGISTERED = 4  # created org
+    ACTIVATED = 10  # has main bench
 
 
 @node_(NodeType.ORGANIZATION, roots=())

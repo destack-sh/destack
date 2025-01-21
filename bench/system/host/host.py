@@ -748,7 +748,7 @@ def validate_context(subject: Subject, context: HasContext, edits: Sequence[Edit
             GRPCStatus.INVALID_ARGUMENT,
             f"bad user context for {subject!r}: {context.user_ptr!r}",
         )
-    if subject.client.type == ClientType.BENCH_MACHINE:
+    if subject.client.type == ClientType.MACHINE:
         if not context.machine or context.machine != subject.machine:
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT,

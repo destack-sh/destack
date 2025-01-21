@@ -1,20 +1,7 @@
 from typing import TYPE_CHECKING, Union
 
-from bench.pb2 import (
-    HandleData,
-)
-
-from .const import (
-    NodeType,
-)
-from .node import BenchNode, node_
-from .property import (
-    p_node_parent,
-    p_system,
-)
-from .validation import (
-    SLUG_CONSTRAINT,
-)
+from bench.language.core import SLUG_CONSTRAINT, BenchNode, NodeType, node_, p_node_parent, p_system
+from bench.pb2 import HandleData
 
 if TYPE_CHECKING:
     from bench.language import Bench, Organization, User

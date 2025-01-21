@@ -47,18 +47,10 @@ from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from .node import NODE_CLASS_BY_TYPE, NodeReference, Struct, struct_
 from .property import Property, p_regular, p_runtime, p_system
 from .text import Text
-from .user import User
 from .validation import NAME_CONSTRAINT, ValidationError, constraint
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Bench,
-        Block,
-        Client,
-        Machine,
-        Organization,
-        Query,
-    )
+    from bench.language import Bench, Block, Client, Machine, Organization, Query, User
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

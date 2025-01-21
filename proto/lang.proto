@@ -120,12 +120,12 @@ enum EnumType {
 enum NodeType {
   NODE_TYPE_UNSPECIFIED = 0;
   NODE_TYPE_BENCH = 1;
-  NODE_TYPE_USER = 2;
-  NODE_TYPE_HANDLE = 4;
-  NODE_TYPE_CLIENT = 5;
-  NODE_TYPE_ORGANIZATION = 10;
-  NODE_TYPE_MEMBERSHIP = 100;
-  NODE_TYPE_INVITE = 101;
+  NODE_TYPE_HANDLE = 2;
+  NODE_TYPE_USER = 100;
+  NODE_TYPE_ORGANIZATION = 101;
+  NODE_TYPE_MEMBERSHIP = 110;
+  NODE_TYPE_INVITE = 111;
+  NODE_TYPE_CLIENT = 120;
   NODE_TYPE_SCALER = 2000;
   NODE_TYPE_STORE = 2001;
   NODE_TYPE_MACHINE = 2100;
@@ -216,12 +216,12 @@ enum StructType {
 enum ObjectType {
   OBJECT_TYPE_UNSPECIFIED = 0;
   OBJECT_TYPE_BENCH = 1;
-  OBJECT_TYPE_USER = 2;
-  OBJECT_TYPE_HANDLE = 4;
-  OBJECT_TYPE_CLIENT = 5;
-  OBJECT_TYPE_ORGANIZATION = 10;
-  OBJECT_TYPE_MEMBERSHIP = 100;
-  OBJECT_TYPE_INVITE = 101;
+  OBJECT_TYPE_HANDLE = 2;
+  OBJECT_TYPE_USER = 100;
+  OBJECT_TYPE_ORGANIZATION = 101;
+  OBJECT_TYPE_MEMBERSHIP = 110;
+  OBJECT_TYPE_INVITE = 111;
+  OBJECT_TYPE_CLIENT = 120;
   OBJECT_TYPE_SCALER = 2000;
   OBJECT_TYPE_STORE = 2001;
   OBJECT_TYPE_MACHINE = 2100;
@@ -308,12 +308,12 @@ enum ObjectType {
 enum BenchType {
   BENCH_TYPE_UNSPECIFIED = 0;
   BENCH_TYPE_BENCH = 1;
-  BENCH_TYPE_USER = 2;
-  BENCH_TYPE_HANDLE = 4;
-  BENCH_TYPE_CLIENT = 5;
-  BENCH_TYPE_ORGANIZATION = 10;
-  BENCH_TYPE_MEMBERSHIP = 100;
-  BENCH_TYPE_INVITE = 101;
+  BENCH_TYPE_HANDLE = 2;
+  BENCH_TYPE_USER = 100;
+  BENCH_TYPE_ORGANIZATION = 101;
+  BENCH_TYPE_MEMBERSHIP = 110;
+  BENCH_TYPE_INVITE = 111;
+  BENCH_TYPE_CLIENT = 120;
   BENCH_TYPE_SCALER = 2000;
   BENCH_TYPE_STORE = 2001;
   BENCH_TYPE_MACHINE = 2100;
@@ -766,11 +766,11 @@ enum StoreType {
 
 enum ClientType {
   CLIENT_TYPE_UNSPECIFIED = 0;
-  CLIENT_TYPE_BENCH_WEB = 1;
-  CLIENT_TYPE_BENCH_BROWSER_PLUGIN = 2;
-  CLIENT_TYPE_BENCH_DESKTOP = 3;
-  CLIENT_TYPE_BENCH_MOBILE = 4;
-  CLIENT_TYPE_BENCH_MACHINE = 10;
+  CLIENT_TYPE_WEB = 1;
+  CLIENT_TYPE_BROWSER_PLUGIN = 2;
+  CLIENT_TYPE_DESKTOP = 3;
+  CLIENT_TYPE_MOBILE = 4;
+  CLIENT_TYPE_MACHINE = 10;
 }
 
 enum FileRetentionMode {
@@ -1744,13 +1744,6 @@ message GraphScopeData {
   optional string package_id = 31;
 }
 
-message ClientOriginData {
-  ObjectType metatype = 1;
-  ClientType type = 30;
-  optional string id = 31;
-  optional string nonce = 32;
-}
-
 message NodeReferenceData {
   ObjectType metatype = 1;
   NodeType node_type = 30;
@@ -1990,6 +1983,47 @@ message ChangeData {
   repeated EditData edits = 34;
 }
 
+message TypeConstraintData {
+  ObjectType metatype = 1;
+  optional float min_value = 40;
+  optional float max_value = 41;
+  optional float step_value = 42;
+  optional int32 min_length = 50;
+  optional int32 max_length = 51;
+  optional string regex = 60;
+  optional string starts_with = 61;
+  optional string ends_with = 62;
+  repeated NodeType node_types = 70;
+  repeated NodeReferenceData node_scope_ptr = 71;
+  optional int32 node_max_depth = 72;
+  repeated int32 node_subtypes = 73;
+}
+
+message TypeData {
+  ObjectType metatype = 1;
+  TypeKind kind = 40;
+  optional PrimitiveType primitive_type = 41;
+  optional BenchType bench_type = 42;
+  optional NodeReferenceData base_type_ptr = 43;
+  repeated FieldType base_field_types = 44;
+  repeated FieldType property_field_types = 45;
+  optional NodeReferenceData oneof_ptr = 49;
+  optional google.protobuf.Value default_packed = 50;
+  optional TypeFormat format = 53;
+  optional ExpressionData condition = 54;
+  optional TypeConstraintData constraint = 55;
+  bool is_required = 60;
+  bool is_list = 61;
+  bool is_secret = 62;
+}
+
+message ClientOriginData {
+  ObjectType metatype = 1;
+  ClientType type = 30;
+  optional string id = 31;
+  optional string nonce = 32;
+}
+
 message DomNodeData {
   ObjectType metatype = 1;
   int32 id = 30;
@@ -2110,40 +2144,6 @@ message ContextData {
   optional NodeReferenceData machine_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
   optional NodeReferenceData identity_ptr = 96;
-}
-
-message TypeConstraintData {
-  ObjectType metatype = 1;
-  optional float min_value = 40;
-  optional float max_value = 41;
-  optional float step_value = 42;
-  optional int32 min_length = 50;
-  optional int32 max_length = 51;
-  optional string regex = 60;
-  optional string starts_with = 61;
-  optional string ends_with = 62;
-  repeated NodeType node_types = 70;
-  repeated NodeReferenceData node_scope_ptr = 71;
-  optional int32 node_max_depth = 72;
-  repeated int32 node_subtypes = 73;
-}
-
-message TypeData {
-  ObjectType metatype = 1;
-  TypeKind kind = 40;
-  optional PrimitiveType primitive_type = 41;
-  optional BenchType bench_type = 42;
-  optional NodeReferenceData base_type_ptr = 43;
-  repeated FieldType base_field_types = 44;
-  repeated FieldType property_field_types = 45;
-  optional NodeReferenceData oneof_ptr = 49;
-  optional google.protobuf.Value default_packed = 50;
-  optional TypeFormat format = 53;
-  optional ExpressionData condition = 54;
-  optional TypeConstraintData constraint = 55;
-  bool is_required = 60;
-  bool is_list = 61;
-  bool is_secret = 62;
 }
 
 message CallData {
@@ -2305,126 +2305,6 @@ message EmptyData {
   optional google.protobuf.Value subnode_packed = 29;
 }
 
-message UserData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional NodeReferenceData main_handle_ptr = 31;
-  optional string slug = 32;
-  string name = 33;
-  optional TextData text = 34;
-  optional string email = 35;
-  optional IconData icon = 36;
-  optional NodeReferenceData main_bench_ptr = 37;
-  Region region = 38;
-  UserStatus status = 39;
-  optional bytes password_salt = 50;
-  optional bytes password_hash = 51;
-  optional google.protobuf.Timestamp last_logged_in_at = 70;
-  bool is_staff = 90;
-}
-
-message MembershipData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  NodeReferenceData user_ptr = 30;
-  bool is_owner = 31;
-}
-
-message InviteData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional NodeReferenceData user_ptr = 30;
-  optional string user_email = 31;
-  bool is_owner = 32;
-}
-
-message BenchData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional NodeReferenceData main_handle_ptr = 31;
-  string slug = 32;
-  string name = 33;
-  optional TextData text = 34;
-  optional IconData icon = 35;
-  optional NodeReferenceData owner_ptr = 36;
-  Region region = 37;
-  optional string encryption_key = 38;
-  optional NodeReferenceData main_store_ptr = 40;
-  optional NodeReferenceData main_package_ptr = 50;
-}
-
-message PackageData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  PackageType type = 30;
-  string name = 32;
-  string slug = 33;
-  optional TextData text = 34;
-  optional IconData icon = 35;
-  optional NodeReferenceData owned_by_ptr = 36;
-  optional NodeReferenceData base_ptr = 40;
-}
-
-message DependencyData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Timestamp template_at = 16;
-  NodeMode mode = 20;
-  repeated ComputedValueData computed_values = 28;
-  optional google.protobuf.Value subnode_packed = 29;
-  NodeReferenceData depends_on_bench_ptr = 40;
-  repeated NodeReferenceData depends_on_packages_ptr = 41;
-}
-
 message ClientData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2451,7 +2331,7 @@ message ClientData {
   optional NodeReferenceData machine_ptr = 62;
 }
 
-message HandleData {
+message InviteData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
@@ -2462,7 +2342,24 @@ message HandleData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
   optional google.protobuf.Value subnode_packed = 29;
-  string slug = 30;
+  optional NodeReferenceData user_ptr = 30;
+  optional string user_email = 31;
+  bool is_owner = 32;
+}
+
+message MembershipData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  NodeReferenceData user_ptr = 30;
+  bool is_owner = 31;
 }
 
 message OrganizationData {
@@ -2483,6 +2380,68 @@ message OrganizationData {
   optional NodeReferenceData main_bench_ptr = 36;
   Region region = 37;
   OrganizationStatus status = 38;
+}
+
+message UserData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional NodeReferenceData main_handle_ptr = 31;
+  optional string slug = 32;
+  string name = 33;
+  optional TextData text = 34;
+  optional string email = 35;
+  optional IconData icon = 36;
+  optional NodeReferenceData main_bench_ptr = 37;
+  Region region = 38;
+  UserStatus status = 39;
+  optional bytes password_salt = 50;
+  optional bytes password_hash = 51;
+  optional google.protobuf.Timestamp last_logged_in_at = 70;
+  bool is_staff = 90;
+}
+
+message BenchData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional NodeReferenceData main_handle_ptr = 31;
+  string slug = 32;
+  string name = 33;
+  optional TextData text = 34;
+  optional IconData icon = 35;
+  optional NodeReferenceData owner_ptr = 36;
+  Region region = 37;
+  optional string encryption_key = 38;
+  optional NodeReferenceData main_store_ptr = 40;
+  optional NodeReferenceData main_package_ptr = 50;
+}
+
+message HandleData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  string slug = 30;
 }
 
 message BrowserData {
@@ -2887,64 +2846,6 @@ message SessionData {
   optional NodeReferenceData identity_ptr = 96;
 }
 
-message FieldData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Timestamp template_at = 16;
-  NodeMode mode = 20;
-  repeated ComputedValueData computed_values = 28;
-  optional google.protobuf.Value subnode_packed = 29;
-  FieldType type = 30;
-  string name = 31;
-  string order_key = 32;
-  optional TextData text = 33;
-  optional IconData icon = 34;
-  TypeKind kind = 40;
-  optional PrimitiveType primitive_type = 41;
-  optional BenchType bench_type = 42;
-  optional NodeReferenceData base_type_ptr = 43;
-  repeated FieldType base_field_types = 44;
-  repeated FieldType property_field_types = 45;
-  optional NodeReferenceData oneof_ptr = 49;
-  optional google.protobuf.Value default_packed = 50;
-  optional TypeFormat format = 53;
-  optional ExpressionData condition = 54;
-  optional TypeConstraintData constraint = 55;
-  bool is_required = 60;
-  bool is_list = 61;
-  bool is_secret = 62;
-}
-
-// An input field.
-message InputFieldData {
-}
-
-// An output field.
-message OutputFieldData {
-}
-
-// A member field.
-message MemberFieldData {
-}
-
-// A variable field.
-message VariableFieldData {
-}
-
-// An option field.
-message OptionFieldData {
-}
-
 message ActionData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2975,6 +2876,14 @@ message ActionData {
   optional google.protobuf.Value inputs_packed = 56;
   optional CallPlanData call = 60;
   optional Vector2Data position = 80;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message StartActionData {
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
+message CompleteActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -3204,6 +3113,105 @@ message FlowBlockData {
 
 // A building block with logic, types, UI, state, auth, AI, ...
 message DatabaseBlockData {
+}
+
+message DependencyData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
+  optional google.protobuf.Value subnode_packed = 29;
+  NodeReferenceData depends_on_bench_ptr = 40;
+  repeated NodeReferenceData depends_on_packages_ptr = 41;
+}
+
+message FieldData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
+  optional google.protobuf.Value subnode_packed = 29;
+  FieldType type = 30;
+  string name = 31;
+  string order_key = 32;
+  optional TextData text = 33;
+  optional IconData icon = 34;
+  TypeKind kind = 40;
+  optional PrimitiveType primitive_type = 41;
+  optional BenchType bench_type = 42;
+  optional NodeReferenceData base_type_ptr = 43;
+  repeated FieldType base_field_types = 44;
+  repeated FieldType property_field_types = 45;
+  optional NodeReferenceData oneof_ptr = 49;
+  optional google.protobuf.Value default_packed = 50;
+  optional TypeFormat format = 53;
+  optional ExpressionData condition = 54;
+  optional TypeConstraintData constraint = 55;
+  bool is_required = 60;
+  bool is_list = 61;
+  bool is_secret = 62;
+}
+
+// An input field.
+message InputFieldData {
+}
+
+// An output field.
+message OutputFieldData {
+}
+
+// A member field.
+message MemberFieldData {
+}
+
+// A variable field.
+message VariableFieldData {
+}
+
+// An option field.
+message OptionFieldData {
+}
+
+message PackageData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  PackageType type = 30;
+  string name = 32;
+  string slug = 33;
+  optional TextData text = 34;
+  optional IconData icon = 35;
+  optional NodeReferenceData owned_by_ptr = 36;
+  optional NodeReferenceData base_ptr = 40;
 }
 
 message PipeData {
@@ -3448,12 +3456,12 @@ enum ReferenceKind {
 message SomeNodeData {
   oneof node {
     BenchData bench = 1;
-    UserData user = 2;
-    HandleData handle = 3;
-    ClientData client = 4;
-    OrganizationData organization = 5;
-    MembershipData membership = 6;
-    InviteData invite = 7;
+    HandleData handle = 2;
+    UserData user = 3;
+    OrganizationData organization = 4;
+    MembershipData membership = 5;
+    InviteData invite = 6;
+    ClientData client = 7;
     ScalerData scaler = 8;
     StoreData store = 9;
     MachineData machine = 10;

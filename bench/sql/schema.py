@@ -56,6 +56,33 @@ BENCH_TABLE = Table(
     ),
 )
 
+HANDLE_TABLE = Table(
+    "bench_handle",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("slug", PrimitiveType.STRING, is_unique=True),
+    ),
+    indexes=(Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),),
+    constraints=(
+        Constraint(
+            "bench_idx_slug", ConstraintType.UNIQUE, columns=("slug",), index="bench_idx_slug"
+        ),
+    ),
+)
+
 USER_TABLE = Table(
     "bench_user",
     (
@@ -107,78 +134,6 @@ USER_TABLE = Table(
         ),
         Constraint(
             "bench_idx_email", ConstraintType.UNIQUE, columns=("email",), index="bench_idx_email"
-        ),
-    ),
-)
-
-HANDLE_TABLE = Table(
-    "bench_handle",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
-        Column("bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("slug", PrimitiveType.STRING, is_unique=True),
-    ),
-    indexes=(Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),),
-    constraints=(
-        Constraint(
-            "bench_idx_slug", ConstraintType.UNIQUE, columns=("slug",), index="bench_idx_slug"
-        ),
-    ),
-)
-
-CLIENT_TABLE = Table(
-    "bench_client",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
-        Column("bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("type", PrimitiveType.INT16),
-        Column("name", PrimitiveType.STRING),
-        Column("device_type", PrimitiveType.STRING, is_nullable=True),
-        Column("device_name", PrimitiveType.STRING, is_nullable=True),
-        Column("operating_system", PrimitiveType.STRING, is_nullable=True),
-        Column("browser_name", PrimitiveType.STRING, is_nullable=True),
-        Column("browser_version", PrimitiveType.STRING, is_nullable=True),
-        Column("place_id", PrimitiveType.STRING, is_nullable=True),
-        Column("access_token", PrimitiveType.STRING, is_unique=True, is_nullable=True),
-        Column("seen_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("space_id", PrimitiveType.UUID, is_nullable=True),
-        Column("space_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("space_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_bench_id", PrimitiveType.UUID, is_nullable=True),
-    ),
-    indexes=(Index("bench_idx_access_token", IndexType.BTREE, ("access_token",), is_unique=True),),
-    constraints=(
-        Constraint(
-            "bench_idx_access_token",
-            ConstraintType.UNIQUE,
-            columns=("access_token",),
-            index="bench_idx_access_token",
         ),
     ),
 )
@@ -267,6 +222,51 @@ INVITE_TABLE = Table(
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_email", PrimitiveType.STRING, is_nullable=True),
         Column("is_owner", PrimitiveType.BOOLEAN, default="false"),
+    ),
+)
+
+CLIENT_TABLE = Table(
+    "bench_client",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("type", PrimitiveType.INT16),
+        Column("name", PrimitiveType.STRING),
+        Column("device_type", PrimitiveType.STRING, is_nullable=True),
+        Column("device_name", PrimitiveType.STRING, is_nullable=True),
+        Column("operating_system", PrimitiveType.STRING, is_nullable=True),
+        Column("browser_name", PrimitiveType.STRING, is_nullable=True),
+        Column("browser_version", PrimitiveType.STRING, is_nullable=True),
+        Column("place_id", PrimitiveType.STRING, is_nullable=True),
+        Column("access_token", PrimitiveType.STRING, is_unique=True, is_nullable=True),
+        Column("seen_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("space_id", PrimitiveType.UUID, is_nullable=True),
+        Column("space_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("space_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
+        Column("machine_bench_id", PrimitiveType.UUID, is_nullable=True),
+    ),
+    indexes=(Index("bench_idx_access_token", IndexType.BTREE, ("access_token",), is_unique=True),),
+    constraints=(
+        Constraint(
+            "bench_idx_access_token",
+            ConstraintType.UNIQUE,
+            columns=("access_token",),
+            index="bench_idx_access_token",
+        ),
     ),
 )
 
