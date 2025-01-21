@@ -781,7 +781,7 @@ async def test_run_flow_calls_forward(hosted_runtime: RuntimeHandle):
     # Route: Code2 + Code3
     Route.code = code("""\
 return {
-    'calls': [call(Code2), call(Code3)],
+    'call': [call(Code2), call(Code3)],
 }
 """)
     runner = await hosted_runtime.run(Flow)
@@ -792,7 +792,7 @@ return {
     # Route: Code4
     Route.code = code("""\
 return {
-    'calls': [call(Code4)],
+    'call': [call(Code4)],
 }
 """)
     runner = await hosted_runtime.run(Flow)
@@ -803,7 +803,7 @@ return {
     # Route: Complete + Code2
     Route.code = code("""\
 return {
-    'calls': [call(Complete), call(Code2)],
+    'call': [call(Complete), call(Code2)],
 }
 """)
     runner = await hosted_runtime.run(Flow)
@@ -850,7 +850,7 @@ async def test_run_flow_calls_tool(hosted_runtime: RuntimeHandle):
     # run tool within flow via calls
     Code1.code = code("""\
 return {
-    'calls': [call(Tool1, type=ActionType.CODE, code=code("pass"))],
+    'call': [call(Tool1, type=ActionType.CODE, code=code("pass"))],
 }
 """)
     runner = await hosted_runtime.run(Flow)

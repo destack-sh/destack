@@ -47,8 +47,8 @@ tracer = trace.get_tracer(__name__)
 #
 
 
-class FlowRunner[N: FlowBlock = FlowBlock](Runner[N], ABC):
-    """Runs a Flow or sub-Flow."""
+class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
+    """Runs a Flow or sub-Flow (within an Action)."""
 
     runner_type: ClassVar[RunType] = RunType.FLOW
 
@@ -83,20 +83,6 @@ class FlowRunner[N: FlowBlock = FlowBlock](Runner[N], ABC):
             None
         )
         self._stop_event = Event()
-
-    def get_actions(self) -> Sequence[Action]:
-        """Get all Actions in this Flow."""
-        return self.node.actions
-
-    def get_pipes_at(self, action: Action) -> Sequence[Pipe]:
-        """Get all Pipes at the given Action."""
-        return tuple(
-            pipe
-            for pipe in self.node.pipes
-            if (pipe.target_id == action.id or pipe.source_id == action.id)
-            and pipe.source is not None
-            and pipe.target is not None
-        )
 
     def _abort(self):
         """Abort any contained Actions (and any relevant Interrupts)."""
@@ -189,17 +175,15 @@ class FlowRunner[N: FlowBlock = FlowBlock](Runner[N], ABC):
 
     def _on_stopped(self, runner: Runner, exc: BaseException | None) -> None:
         """
-        Tick this Flow on aan Action/Pipe event.
+        Tick this Flow on an Action/Pipe event.
         NOTE :Incomplete: Flow should handle on_output, on_yield (partial output) *and* on_stopped
         """
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.tick.stopped", flow=self.node, node=runner.node, runner=runner, exc=exc)
         self._active_runners_by_id.pop(runner.id)
 
-        # NOTE :Incomplete: support repeated Calls in Flows?
-        #  (so an Action can emit multiple successive Calls in one go that auto-trigger instead
-        #   of asking the Action again when they rebound to that same Action)
-
+        all_pipes = self.node.pipes.tolist()
+        # nocheckin: CallPlan
         if runner.status == RunStatus.COMPLETED:
             outgoing: list[Run] = []
             if isinstance(runner.node, Action):
@@ -207,13 +191,13 @@ class FlowRunner[N: FlowBlock = FlowBlock](Runner[N], ABC):
                 if (
                     runner.outputs is not None
                     and FieldType.OUTPUT in runner.outputs._type.base_field_types
-                    and runner.node.type != ActionType.COMPLETE
+                    and not runner.node.type.is_boundary
                 ):
-                    calls = cast(Action, runner.outputs).calls or ()
+                    call_plan = cast(Action, runner.outputs).call
+                    calls = call_plan.calls if call_plan is not None else ()
                 else:
                     calls = ()
-                available_pipes = self.get_pipes_at(runner.node)
-                for pipe in available_pipes:
+                for pipe in all_pipes:
                     if pipe.source_id != runner.node.id:
                         continue
                     is_called = any(c.node_id == pipe.target_id for c in calls)
@@ -223,12 +207,7 @@ class FlowRunner[N: FlowBlock = FlowBlock](Runner[N], ABC):
             elif isinstance(runner.node, Pipe):
                 # forward Pipe->Action
                 next_action = runner.node.target
-                next_run = self._start(
-                    next_action,
-                    variables=None,
-                    inputs=runner.outputs,
-                    incoming=(runner.tracked_run,),
-                )
+                next_run = self._start(next_action, incoming=(runner.tracked_run,))
                 outgoing.append(next_run)
             else:
                 raise RuntimeError(f"unexpected {runner!r}")
@@ -257,7 +236,7 @@ class FlowRunner[N: FlowBlock = FlowBlock](Runner[N], ABC):
         runs = self.tracked_run.runs.tolist()
         if not runs:
             # start from scratch
-            for action in self.get_actions():
+            for action in self.node.actions:
                 if action.type == ActionType.START:
                     self._start(action, variables=None, inputs=self.inputs, incoming=())
         else:

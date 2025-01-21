@@ -222,10 +222,15 @@ class Action(SourceNode[ActionData]):
     )
 
     # outputs
-    calls: list["Call"] = p_regular(
-        60, array=True, struct=StructType.CALL, field_type=FieldType.OUTPUT
+    call: Optional["CallPlan"] = p_regular(
+        60,
+        default=None,
+        require=False,
+        array=False,
+        struct=StructType.CALL_PLAN,
+        field_type=FieldType.OUTPUT,
     )
-    # fanout, ...?
+    # fanout/fanin, ...?
 
     # flags
     # is_streaming: bool = p_regular(80, default=False)
@@ -706,6 +711,13 @@ class GoToTabAction(Action, HasApplicationContext):
 #
 
 
+@enum_(EnumType.CALL_MODE)
+class CallMode(IdEnum):
+    FAIL_ON_FAIL = 1
+    SKIP_ON_FAIL = 2
+    RETURN_ON_FAIL = 3
+
+
 @struct_(StructType.CALL)
 class Call(Struct):
     """A Call to something."""
@@ -716,10 +728,10 @@ class Call(Struct):
         references=(NodeType.BLOCK, NodeType.ACTION),
         constraint=constraint(node_subtypes=[BlockType.FLOW]),
     )
-    action_type: ActionType | None = p_regular(32, default=None)
-    value_packed: Any = p_value_packed(36)
+    mode: CallMode = p_regular(32, default=CallMode.RETURN_ON_FAIL)
+    value_packed: Any = p_value_packed(35)
     value: Any = p_value_runtime(
-        36, type=FieldType.INPUT, typ=lambda self: cast(Call, self).value_type
+        35, type=FieldType.INPUT, typ=lambda self: cast(Call, self).value_type
     )
     if TYPE_CHECKING:
         node_ptr: NodeReference | None = None
@@ -735,17 +747,39 @@ class Call(Struct):
         )
 
     @staticmethod
-    def new(node: "Block | Action", value: CustomObject | None = None, **kwargs) -> "Call":
+    def new(
+        node: "Block | Action",
+        value: CustomObject | None = None,
+        mode: CallMode = CallMode.RETURN_ON_FAIL,
+        **kwargs,
+    ) -> "Call":
         value_type = node.to_type_maybe(
             of="value", field_types=[FieldType.VARIABLE, FieldType.INPUT]
         )
         assert value_type is not None, f"no call value type for {node!r}"
         return Call(
             node=node,
+            mode=mode,
             value=coerce_custom_object_scalar(value or {}, value_type),
             **kwargs,
         )
 
 
+@struct_(StructType.CALL_PLAN)
+class CallPlan(Struct):
+    """A plan for a series of (potentially interleaved) Calls."""
+
+    mode: CallMode = p_regular(31, default=CallMode.RETURN_ON_FAIL)
+    calls: list[Call] = p_regular(32, array=True, struct=StructType.CALL)
+
+    @staticmethod
+    def new(*calls: Call, mode: CallMode = CallMode.RETURN_ON_FAIL) -> "CallPlan":
+        return CallPlan(calls=list(calls), mode=mode)
+
+
 def call(node: "Block | Action", **kwargs) -> "Call":
     return Call.new(node, **kwargs)
+
+
+def call_plan(*calls: Call, mode: CallMode = CallMode.RETURN_ON_FAIL) -> "CallPlan":
+    return CallPlan.new(*calls, mode=mode)

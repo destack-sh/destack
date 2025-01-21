@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.01.20.2"
+VERSION = "2025.01.21.1"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -94,6 +94,7 @@ AnyStructData = Union[
     RunTraceData,
     RunFrameData,
     CallData,
+    CallPlanData,
     BreakpointData,
     TextOptionsData,
     AudioOptionsData,

@@ -45,7 +45,6 @@ const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const isInspected = computed(() => canvas.isInspected(pipePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
 const isSelected = computed(() => state.isSelected(pipePtr.value));
-const isBack = computed(() => pipe.value?.type == PipeType.SELECT);
 const strokeDashArray = computed(() => {
   if (pipe.value?.type === PipeType.SELECT) {
     // dashed
@@ -90,19 +89,6 @@ defineExpose<ViewExposed>({ self, id, actions });
         >
           <path d="M0,0 L12,4 L0,8 L2,4 Z" fill="currentColor" />
         </marker>
-
-        <!-- Inverted Start Marker -->
-        <marker
-          :id="'arrowhead-start-' + pipe.id"
-          markerWidth="10"
-          markerHeight="7"
-          refX="1"
-          refY="3.5"
-          orient="auto"
-          markerUnits="userSpaceOnUse"
-        >
-          <path d="M10,0 L0,3.5 L10,7 L7.5,3.5 Z" fill="currentColor" />
-        </marker>
       </defs>
 
       <!-- Background Hit Target -->
@@ -127,7 +113,6 @@ defineExpose<ViewExposed>({ self, id, actions });
         stroke-linejoin="bevel"
         stroke="currentColor"
         fill="none"
-        :marker-start="isBack ? 'url(#arrowhead-start-' + pipe.id + ')' : undefined"
         :marker-end="'url(#arrowhead-main-' + pipe.id + ')'"
         class="pointer-events-none transition-colors duration-150"
         :stroke-dasharray="strokeDashArray"
