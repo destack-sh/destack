@@ -272,12 +272,13 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   // flow
   [ActionType.START]: "fas fa-circle-play",
   [ActionType.COMPLETE]: "fas fa-flag-checkered",
-  [ActionType.FAIL]: "fas fa-circle-exclamation",
+  [ActionType.FAIL]: "fas fa-triangle-exclamation",
   // tool
   [ActionType.CODE]: "fas fa-code",
   [ActionType.TOOL]: "fas fa-screwdriver-wrench",
   // generic
   [ActionType.DO]: "fas fa-hammer",
+  [ActionType.THINK]: "fas fa-brain-circuit",
   [ActionType.ROUTE]: "fas fa-split",
   [ActionType.GENERATE]: "fas fa-wand-magic-sparkles",
   [ActionType.TRANSFORM]: "fas fa-arrows-rotate",
@@ -300,6 +301,7 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   // async
   [ActionType.SEND]: "fas fa-inbox-out",
   [ActionType.RECEIVE]: "fas fa-inbox-in",
+  [ActionType.MESSAGE]: "fas fa-inbox",
   [ActionType.WAIT]: "fas fa-clock",
   [ActionType.YIELD]: "fas fa-hand",
   [ActionType.NOTIFY]: "fas fa-bell",

@@ -235,6 +235,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         >
           <span class="font-semibold">Timeline</span>
         </div>
+        <!-- nocheckin: inline RunTimeline (as a list of Run/RunSpan?) -->
         <RunTimeline :graph="pkgGraph" :node-ptr="toNodeRef(run)" class="" />
       </div>
       <!-- Interruptions -->
