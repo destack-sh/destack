@@ -90,6 +90,11 @@ defineExpose<ViewExposed>({ self, id, actions });
       outlineColor: lastRun != null && isRunActive(lastRun) ? getRunColorHex(lastRun.status) : '',
     }"
     @mouseup="(e) => flowCtx.endDragging(e, { kind: 'action', action: action! })"
+    @mousedown.alt="
+      (e) => {
+        flowCtx.startDragging(e, { kind: 'port', action: action!, side: PortSide.OUTGOING });
+      }
+    "
   >
     <!-- Ports -->
     <div

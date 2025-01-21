@@ -932,15 +932,22 @@ export class FlowContext {
   }
 
   /** Checks if two ports can be connected. */
-  canPortsConnect(sourcePort: Port, targetPort: Port) {
-    return (
-      !portEquals(sourcePort, targetPort) /* can't connect same port */ &&
-      !SINK_ACTION_TYPES.includes(sourcePort.parent.type) /* can't go from sink */ &&
-      !SOURCE_ACTION_TYPES.includes(targetPort?.parent.type) /* can't go to source */ &&
-      !this.pipes.value.some(
+  canPortsConnect(sourcePort: Port, targetPort: Port): true | string {
+    if (portEquals(sourcePort, targetPort)) {
+      return "Cannot connect on same port.";
+    } else if (SINK_ACTION_TYPES.includes(sourcePort.parent.type)) {
+      return "Cannot connect from starting Action.";
+    } else if (SOURCE_ACTION_TYPES.includes(targetPort?.parent.type)) {
+      return "Cannot connect to ending Action.";
+    } else if (
+      this.pipes.value.some(
         (pipe) => pipe.sourcePtr?.ck == sourcePort.parent.ck && pipe.targetPtr?.ck == targetPort.parent.ck,
-      ) /* can't connect same two Actions twice */
-    );
+      )
+    ) {
+      return "Cannot connect same two Actions.";
+    } else {
+      return true;
+    }
   }
 
   /** Stop dragging a thing (if any). Triggers a 'release' event to connect things. */
@@ -1013,7 +1020,8 @@ export class FlowContext {
           return;
         }
 
-        if (this.canPortsConnect(sourcePort, targetPort)) {
+        const canConnect = this.canPortsConnect(sourcePort, targetPort);
+        if (canConnect === true) {
           // connect it up
           log.trace("flow.drag.connect", { from: sourcePort, to: targetPort });
           const pipe = this.createPipe({
@@ -1027,7 +1035,7 @@ export class FlowContext {
           // nothing to do?
           toaster.error({
             title: "Invalid Pipe",
-            text: `Cannot connect ${sourcePort.parent.name} to ${targetPort.parent.name}.`,
+            text: canConnect,
           });
         }
       }
@@ -1260,7 +1268,7 @@ export class FlowContext {
     // create
     const pipe = (options.tx ?? this.tx).create({
       metatype: NodeType.PIPE,
-      name: makeNodeName(this.graph, { ...options.pipe, metatype: ObjectType.PIPE, parentPtr }),
+      name: makeNodeName(this.graph, { ...options.pipe, metatype: ObjectType.PIPE, type, parentPtr }),
       orderKey,
       ...options.pipe,
       type,

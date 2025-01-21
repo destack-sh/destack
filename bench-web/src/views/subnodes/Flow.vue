@@ -104,9 +104,10 @@ const viewport = flowCtx.viewport;
 
 // pending
 const pendingPath: Ref<PipePath | null> = computed(() => {
-  if (flowCtx.draggable?.kind != "port") return null;
   // preview path between current dragged port and action (or point in canvas if nothing)
-  const sourceAction = flowCtx.draggable.action;
+  if (flowCtx.draggable?.kind != "port") return null;
+  const sourcePort = flowCtx.draggable;
+  const sourceAction = sourcePort.action;
   const sourceBounding = flowCtx.getActionBoundingBox(sourceAction);
   if (sourceBounding == null) return null;
   const cursor = flowCtx.cursorWorldPos.value;
@@ -119,12 +120,14 @@ const pendingPath: Ref<PipePath | null> = computed(() => {
   if (targetAction != null && targetAction.id === sourceAction.id && distance < SELF_PIPE_CONNECTION_DISTANCE) {
     return null; // ignore self-connections that are too close to starting point
   }
-  
+
   // make path
   const isValid =
     targetAction != null &&
-    !SOURCE_ACTION_TYPES.includes(targetAction.type) &&
-    !flowCtx.pipes.value.some((pipe) => pipe.sourcePtr?.ck == sourceAction.ck && pipe.targetPtr?.ck == targetAction.ck);
+    flowCtx.canPortsConnect(
+      { side: PortSide.OUTGOING, parent: sourceAction },
+      { side: PortSide.INCOMING, parent: targetAction },
+    ) === true;
   if (isValid) {
     // real path preview
     const target = flowCtx.getActionBoundingBox(targetAction);
