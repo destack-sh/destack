@@ -208,29 +208,42 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
   return value;
 }
 
-/** Gets the node type for a custom object (from type or current value for partials). */
-export function getPartialObjectNodeType(type: TypeIdentity, valuePacked: Record<string, JsonValue>): NodeType | null {
+/** Gets the node type and subtype for a custom object (from type or current value for partials). */
+export function getPartialObjectType(
+  type: TypeIdentity,
+  valuePacked: Record<string, JsonValue>,
+): { nodeType: NodeType | null; subtype: number | null } {
+  // node type
+  let nodeType: NodeType | null = null;
   if (type.kind == TypeKind.PARTIAL_OBJECT) {
-    let nodeType: NodeType;
     if (type.benchType != null) {
       nodeType = type.benchType as unknown as NodeType;
-    } else {
+    } else if ("1" in valuePacked) {
       nodeType = valuePacked["1"] as NodeType;
     }
-    if (isNodeType(nodeType)) {
-      return nodeType;
+    if (!isNodeType(nodeType)) {
+      nodeType = null;
     }
   }
-  return null;
-}
 
-/** Gets the subtype for a custom object (from type or current value for partials). */
-export function getPartialObjectSubtype(type: TypeIdentity, valuePacked: Record<string, JsonValue>): number | null {
-  const nodeType = getPartialObjectNodeType(type, valuePacked);
-  if (nodeType == null) return null;
-  const subtypePropertyId = NODE_SUBTYPE_PROPERTY_ID[nodeType];
-  if (subtypePropertyId == null) return null;
-  return valuePacked[subtypePropertyId.toString()] as number;
+  // subtype
+  let subtype: number | null = null;
+  if (nodeType != null) {
+    const subtypePropertyId = NODE_SUBTYPE_PROPERTY_ID[nodeType];
+    if (subtypePropertyId != null) {
+      subtype = valuePacked[subtypePropertyId.toString()] as number;
+      if (
+        subtype == null ||
+        (type.propertyFieldTypes && !type.propertyFieldTypes.includes(NODE_SUBTYPE_PROPERTY_ID[nodeType]!))
+      ) {
+        if (type.constraint?.nodeSubtypes?.length) {
+          subtype = type.constraint.nodeSubtypes[0];
+        }
+      }
+    }
+  }
+
+  return { nodeType, subtype };
 }
 
 /** Gets the properties for a custom object (from type or current value for partials). */
@@ -238,24 +251,20 @@ export function getCustomObjectProperties(type: TypeIdentity, valuePacked: Recor
   if (type.kind == TypeKind.PARTIAL_OBJECT) {
     let properties: PropertyInfo[] = [];
 
-    // figure out actual node type
-    const nodeType = getPartialObjectNodeType(type, valuePacked);
+    // node
+    const { nodeType, subtype } = getPartialObjectType(type, valuePacked);
     if (nodeType == null) return [];
     const nodeProperties = PROPERTY_INFOS_BY_TYPE[nodeType]!;
     for (const prop of Object.values(nodeProperties)) {
       properties.push(prop);
     }
 
-    // check subtype
-    const subtypePropertyId = NODE_SUBTYPE_PROPERTY_ID[nodeType];
-    if (subtypePropertyId != null) {
-      const subtype = getPartialObjectSubtype(type, valuePacked);
-      if (subtype != null) {
-        const subtypeProperties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[subtype];
-        if (subtypeProperties != null) {
-          for (const prop of Object.values(subtypeProperties)) {
-            properties.push(prop);
-          }
+    // subtype
+    if (subtype != null) {
+      const subtypeProperties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[subtype];
+      if (subtypeProperties != null) {
+        for (const prop of Object.values(subtypeProperties)) {
+          properties.push(prop);
         }
       }
     }

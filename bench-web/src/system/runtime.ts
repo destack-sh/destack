@@ -1,3 +1,5 @@
+import { actionToType } from "@/language/action";
+import { blockToType } from "@/language/block";
 import {
   ACTIVE_RUN_STATUSES,
   getBaseFromNode,
@@ -27,6 +29,7 @@ import {
   BlockData,
   ChangeCategory,
   ExpressionType,
+  FieldType,
   IconData,
   InterruptionData,
   InterruptionStatus,
@@ -93,7 +96,10 @@ export class RunTree {
     );
     this.runGraph = runGraph;
     this.runRef = runGraph.getRef(this.runPtr, { id: "runtime.run." + this.id, ignoreAncestors: false }); // :NodeRefStability
-    this.runsRef = runGraph.getDescendantsRef(this.runPtr, { metatypes: [NodeType.RUN, NodeType.RUN_SPAN], includeSelf: true });
+    this.runsRef = runGraph.getDescendantsRef(this.runPtr, {
+      metatypes: [NodeType.RUN, NodeType.RUN_SPAN],
+      includeSelf: true,
+    });
     this.runBasePtr = computedValue(
       () => (this.runRef.value?.actionPtr ?? this.runRef.value?.blockPtr) as TypedNodeReferenceData<RunnableNodeType>,
     );
@@ -456,6 +462,26 @@ export function getInterruptActions(interrupt: InterruptionData): RuntimeAction[
     });
   }
   return actions;
+}
+
+export function getInputType(node: RunnableNode) {
+  if (isNode(node, NodeType.ACTION)) {
+    return actionToType(node, "value", [FieldType.INPUT]);
+  } else if (isNode(node, NodeType.BLOCK)) {
+    return blockToType(node, "value", [FieldType.INPUT]);
+  } else {
+    return undefined;
+  }
+}
+
+export function getOutputType(node: RunnableNode) {
+  if (isNode(node, NodeType.ACTION)) {
+    return actionToType(node, "value", [FieldType.OUTPUT]);
+  } else if (isNode(node, NodeType.BLOCK)) {
+    return blockToType(node, "value", [FieldType.OUTPUT]);
+  } else {
+    return undefined;
+  }
 }
 
 // runtime

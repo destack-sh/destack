@@ -94,7 +94,7 @@ export function useLocal<T extends keyof LocalStorage>(key: T): Ref<LocalStorage
 // Auth
 //
 
-export const CLIENT_TYPE = ClientType.BENCH_WEB; // NOTE: will need to detect/change this later :HeterogenousClients
+export const CLIENT_TYPE = ClientType.WEB; // NOTE: will need to detect/change this later :HeterogenousClients
 export const nonce = v4(); // changes per page load
 export const origin: Readonly<Ref<ClientOriginData>> = pretendReadonly(
   computed(() => ({

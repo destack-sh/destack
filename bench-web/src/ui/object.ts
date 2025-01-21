@@ -32,13 +32,7 @@ import {
   Transaction,
   TransactionOptions,
 } from "@/language/transaction";
-import {
-  getPartialObjectNodeType,
-  getPartialObjectSubtype,
-  packValue,
-  unpackPartialNode,
-  unpackValue,
-} from "@/language/value";
+import { getPartialObjectType, packValue, unpackPartialNode, unpackValue } from "@/language/value";
 import {
   ActionData,
   ActionProperty,
@@ -347,6 +341,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
   // value
   protected valuePacked: Record<string, any> | null;
   protected valueType: TypeData | null;
+  protected propertyFieldTypes: FieldType[];
   protected computedType: TypeData | null;
   protected computedPath: PathData | null;
 
@@ -378,11 +373,13 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     if (options.kind == "partial") {
       this.valuePacked = options.valuePacked;
       this.valueType = options.valueType;
+      this.propertyFieldTypes = options.valueType.propertyFieldTypes ?? [];
       this.computedType = options.computedType ?? null;
       this.computedPath = options.computedPath ?? null;
     } else {
       this.valuePacked = null;
       this.valueType = null;
+      this.propertyFieldTypes = [];
       this.computedType = null;
       this.computedPath = null;
     }
@@ -929,11 +926,128 @@ const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>
   [ActionType.GO_TO_URL]: [GoToUrlActionProperty.url],
 };
 
+/**
+ * NOTE: ActionLayout is a bit complex because we need to support the default view, regular partials *and* input/output partials.
+ */
 export class ActionLayout extends NodeLayout<NodeType.ACTION> {
   sectionApplication() {
-    this.section("Application", [this.rowProperty(LookActionProperty.applicationPtr, { isComputable: true })], {
-      isDefaultCollapsed: true,
-    });
+    this.section("Application", this.applicationRows(), { isDefaultCollapsed: true });
+  }
+
+  applicationRows() {
+    return [this.rowProperty(LookActionProperty.applicationPtr, { isComputable: true })];
+  }
+
+  /** The schema(s) for this Action (for full node) */
+  sectionActionSchema() {
+    const node = this.node!;
+    const nodePtr = toNodeRef(node as ActionData);
+    let delegatePtr: NodeReferenceData | undefined = undefined;
+    if (node.type == ActionType.START || node.type == ActionType.COMPLETE) {
+      delegatePtr = node.parentPtr;
+    } else if (node.type == ActionType.TOOL) {
+      delegatePtr = node.toolPtr;
+    }
+    if (node.type == ActionType.START) {
+      // flow inputs
+      this.section("Schema", [{ type: "fields-list", fieldType: FieldType.INPUT, toolPtr: node.parentPtr }], {
+        subtitle: "(Flow)",
+        actions: [
+          this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT], { toolPtr: node.parentPtr }),
+        ],
+      });
+    } else if (node.type == ActionType.COMPLETE) {
+      // ƒlow outputs as action inputs
+      this.section(
+        "Schema",
+        [
+          ...this.rowObjectInline(
+            ActionProperty.inputsPacked,
+            makeType({
+              kind: TypeKind.CUSTOM_OBJECT,
+              baseFieldTypes: [FieldType.OUTPUT],
+              baseTypePtr: node.parentPtr,
+            }),
+            { isComputable: true },
+          ),
+        ],
+        {
+          subtitle: "(Flow)",
+          actions: [
+            this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT], {
+              toolPtr: node.parentPtr,
+            }),
+          ],
+        },
+      );
+    } else if (node.type == ActionType.TOOL && delegatePtr != null) {
+      // own schema with tool schema
+      this.section(
+        "Schema",
+        [
+          // tool variables & inputs
+          ...this.rowObjectInline(
+            ActionProperty.variablesPacked,
+            makeType({
+              kind: TypeKind.CUSTOM_OBJECT,
+              baseFieldTypes: [FieldType.VARIABLE],
+              baseTypePtr: delegatePtr,
+            }),
+            { isComputable: true },
+          ),
+          ...this.rowObjectInline(
+            ActionProperty.inputsPacked,
+            makeType({
+              kind: TypeKind.CUSTOM_OBJECT,
+              baseFieldTypes: [FieldType.INPUT],
+              baseTypePtr: delegatePtr,
+            }),
+            { isComputable: true },
+          ),
+          // arrow
+          this.rowIcon("fas fa-arrow-down"),
+          // outputs
+          { type: "fields-list", fieldType: FieldType.OUTPUT, toolPtr: delegatePtr },
+        ],
+        {
+          subtitle: "(Tool)",
+          actions: [
+            this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
+            this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
+          ],
+        },
+      );
+    } else if (DYNAMIC_ACTION_TYPES.includes(node.type as ActionType)) {
+      // variables
+      if (GENERIC_ACTION_TYPES.includes(node.type as ActionType)) {
+        this.section("Variables", [{ type: "fields-list", fieldType: FieldType.VARIABLE }], {
+          actions: [this.actionAddField(FieldType.VARIABLE)],
+        });
+      }
+      // own schema
+      this.section(
+        "Schema",
+        [
+          ...this.rowObjectInline(
+            ActionProperty.inputsPacked,
+            makeType({
+              kind: TypeKind.CUSTOM_OBJECT,
+              baseFieldTypes: [FieldType.INPUT],
+              baseTypePtr: nodePtr ?? undefined,
+            }),
+            { isComputable: true },
+          ),
+          this.rowIcon("fas fa-arrow-down"),
+          { type: "fields-list", fieldType: FieldType.OUTPUT },
+        ],
+        {
+          actions: [
+            this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
+            this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
+          ],
+        },
+      );
+    }
   }
 
   subproperties(...subproperties: number[]) {
@@ -967,16 +1081,24 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
 
     const commonRows: Row[] = [];
     this.section(undefined, commonRows);
-    commonRows.push(this.rowProperty(ActionProperty.text, { title: false, props: { placeholder: "Text..." } }));
-    commonRows.push(
-      this.rowProperty(ActionProperty.type, {
-        extendUpdate: (newValue) => {
-          // also update node name if action type changes
-          const name = generateNodeName({ ...node, type: newValue }, this.graph.getChildren(node.parentPtr!));
-          return name != null ? { name } : {};
-        },
-      }),
-    );
+
+    if (this.propertyFieldTypes.length == 0) {
+      commonRows.push(this.rowProperty(ActionProperty.text, { title: false, props: { placeholder: "Text..." } }));
+    }
+    if (
+      this.propertyFieldTypes.length == 0 ||
+      (this.subtype == ActionType.TOOL && this.propertyFieldTypes.includes(FieldType.INPUT))
+    ) {
+      commonRows.push(
+        this.rowProperty(ActionProperty.type, {
+          extendUpdate: (newValue) => {
+            // also update node name if action type changes
+            const name = generateNodeName({ ...node, type: newValue }, this.graph.getChildren(node.parentPtr!));
+            return name != null ? { name } : {};
+          },
+        }),
+      );
+    }
 
     // common rows
     if (node.type == ActionType.CODE) {
@@ -1001,124 +1123,24 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
 
     // schema
     if (!this.isPartial) {
-      const nodePtr = toNodeRef(node as ActionData);
-      let delegatePtr: NodeReferenceData | undefined = undefined;
-      if (node.type == ActionType.START || node.type == ActionType.COMPLETE) {
-        delegatePtr = node.parentPtr;
-      } else if (node.type == ActionType.TOOL) {
-        delegatePtr = node.toolPtr;
-      }
-      if (node.type == ActionType.START) {
-        // flow inputs
-        this.section("Schema", [{ type: "fields-list", fieldType: FieldType.INPUT, toolPtr: node.parentPtr }], {
-          subtitle: "(Flow)",
-          actions: [
-            this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT], { toolPtr: node.parentPtr }),
-          ],
-        });
-      } else if (node.type == ActionType.COMPLETE) {
-        // ƒlow outputs as action inputs
-        this.section(
-          "Schema",
-          [
-            ...this.rowObjectInline(
-              ActionProperty.inputsPacked,
-              makeType({
-                kind: TypeKind.CUSTOM_OBJECT,
-                baseFieldTypes: [FieldType.OUTPUT],
-                baseTypePtr: node.parentPtr,
-              }),
-              { isComputable: true },
-            ),
-          ],
-          {
-            subtitle: "(Flow)",
-            actions: [
-              this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT], {
-                toolPtr: node.parentPtr,
-              }),
-            ],
-          },
-        );
-      } else if (node.type == ActionType.TOOL && delegatePtr != null) {
-        // own schema with tool schema
-        this.section(
-          "Schema",
-          [
-            // tool variables & inputs
-            ...this.rowObjectInline(
-              ActionProperty.variablesPacked,
-              makeType({
-                kind: TypeKind.CUSTOM_OBJECT,
-                baseFieldTypes: [FieldType.VARIABLE],
-                baseTypePtr: delegatePtr,
-              }),
-              { isComputable: true },
-            ),
-            ...this.rowObjectInline(
-              ActionProperty.inputsPacked,
-              makeType({
-                kind: TypeKind.CUSTOM_OBJECT,
-                baseFieldTypes: [FieldType.INPUT],
-                baseTypePtr: delegatePtr,
-              }),
-              { isComputable: true },
-            ),
-            // arrow
-            this.rowIcon("fas fa-arrow-down"),
-            // outputs
-            { type: "fields-list", fieldType: FieldType.OUTPUT, toolPtr: delegatePtr },
-          ],
-          {
-            subtitle: "(Tool)",
-            actions: [
-              this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
-              this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
-            ],
-          },
-        );
-      } else if (DYNAMIC_ACTION_TYPES.includes(node.type as ActionType)) {
-        // variables
-        if (GENERIC_ACTION_TYPES.includes(node.type as ActionType)) {
-          this.section("Variables", [{ type: "fields-list", fieldType: FieldType.VARIABLE }], {
-            actions: [this.actionAddField(FieldType.VARIABLE)],
-          });
-        }
-        // own schema
-        this.section(
-          "Schema",
-          [
-            ...this.rowObjectInline(
-              ActionProperty.inputsPacked,
-              makeType({
-                kind: TypeKind.CUSTOM_OBJECT,
-                baseFieldTypes: [FieldType.INPUT],
-                baseTypePtr: nodePtr ?? undefined,
-              }),
-              { isComputable: true },
-            ),
-            this.rowIcon("fas fa-arrow-down"),
-            { type: "fields-list", fieldType: FieldType.OUTPUT },
-          ],
-          {
-            actions: [
-              this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
-              this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
-            ],
-          },
-        );
-      } else {
-        commonRows.push(...this.subproperties(...(DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE[node.type!] ?? [])));
-      }
+      this.sectionActionSchema();
+    } else {
+      // we can just use ActionProperty.inputsPacked since the exact property doesn't matter for partials (we use field storage keys)
+      commonRows.push(...this.rowObjectInline(ActionProperty.inputsPacked, this.valueType!));
     }
 
+    // default subproperties
+    commonRows.push(
+      ...this.subproperties(...(DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE[this.subtype as any as ActionType] ?? [])),
+    );
+
     // application options
-    if (APPLICATION_ACTION_TYPES.includes(node.type as ActionType)) {
+    if (APPLICATION_ACTION_TYPES.includes(this.subtype as any) && !this.isPartial) {
       this.sectionApplication();
     }
 
     // run options
-    if (!FLOW_ACTION_TYPES.includes(this.subtype as any)) {
+    if (!FLOW_ACTION_TYPES.includes(this.subtype as any) && !this.isPartial) {
       this.sectionRunOptions(ActionProperty.runOptions);
     }
   }
@@ -1290,8 +1312,7 @@ export function useObjectLayout(options: {
     } else if (kind.value == "partial") {
       if (options.valueType.value == null) return null;
       const valuePacked = options.valuePacked.value ?? {};
-      const nodeType = getPartialObjectNodeType(options.valueType.value, valuePacked);
-      const subtype = getPartialObjectSubtype(options.valueType.value, valuePacked);
+      const { nodeType, subtype } = getPartialObjectType(options.valueType.value, valuePacked);
 
       let partialNode: Partial<AnyNodeData> | null = null;
       let subnode: any | null = null;
@@ -1302,12 +1323,7 @@ export function useObjectLayout(options: {
             ? (unpackSubnode(nodeType, subtype as never, partialNode.subnodePacked) as any)
             : null;
       }
-      return {
-        node: partialNode,
-        subnode,
-        nodeType,
-        subtype,
-      };
+      return { node: partialNode, subnode, nodeType, subtype };
     }
     return null;
   });
@@ -1365,6 +1381,7 @@ export function useObjectLayout(options: {
     } else if (kind.value == "partial") {
       if (nodeInfo.value == null) return null;
       const valuePacked = options.valuePacked.value ?? {};
+      const propertyFieldTypes = options.valueType.value?.propertyFieldTypes ?? [];
 
       const partialInfo: PartialNodeInfo = {
         kind: "partial",
@@ -1394,8 +1411,10 @@ export function useObjectLayout(options: {
         return layout;
       } else {
         const layout = new nodeLayout(partialInfo as any);
-        // partial stuff
-        layout.section(undefined, [layout.rowProperty(EmptyProperty.metatype, { title: "Node Type" })]);
+        // partial prefix
+        if (propertyFieldTypes.length == 0) {
+          layout.section(undefined, [layout.rowProperty(EmptyProperty.metatype, { title: "Node Type" })]);
+        }
         // specific node layout
         layout.make();
         return layout;
