@@ -655,7 +655,7 @@ export function useFieldList(options: {
         }
       } else if (isNode(node, NodeType.BLOCK)) {
         // add field with block type
-        const type = blockToType(node);
+        const type = blockToType(node, "instance");
         const fieldIn = { ...type, type: fieldType.value! };
         if (target != null) {
           if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);

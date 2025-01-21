@@ -1021,7 +1021,13 @@ export class FlowContext {
         }
 
         const canConnect = this.canPortsConnect(sourcePort, targetPort);
-        if (canConnect === true) {
+        const existingPipe = this.pipes.value.find(
+          (pipe) => pipe.sourcePtr?.ck == sourcePort.parent.ck && pipe.targetPtr?.ck == targetPort.parent.ck,
+        );
+        if (existingPipe) {
+          // already connected
+          canvas.inspect({ node: existingPipe, view: this.view.value });
+        } else if (canConnect === true) {
           // connect it up
           log.trace("flow.drag.connect", { from: sourcePort, to: targetPort });
           const pipe = this.createPipe({

@@ -1,23 +1,13 @@
 <script lang="ts" setup>
+import { actionToType } from "@/language/action";
 import { getBaseFromNode } from "@/language/const";
 import { makeType } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
 import { isRunnable, RunnableNode } from "@/language/session";
 import { getTransactionOptionsForType } from "@/language/transaction";
-import {
-  BenchType,
-  FieldType,
-  InterruptionData,
-  InterruptionType,
-  NodeType,
-  RunData,
-  TypeData,
-  TypeKind,
-  ViewData,
-  ViewType,
-} from "@/proto/wire";
-import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { runtime } from "@/system/runtime";
+import { BenchType, FieldType, InterruptionType, NodeType, RunData, TypeKind, ViewData, ViewType } from "@/proto/wire";
+import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { getInputType, getOutputType, runtime } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
 import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
@@ -56,7 +46,7 @@ const run = computed(() => {
   }
 });
 const runBasePtr = computed(() => (run.value != null ? getBaseFromNode(run.value) : nodePtr.value));
-const runTree = computed(() => runtime.focusedRunTree);
+const runBase = pkgGraph.getRef(runBasePtr);
 const inputsPacked = useSubnodeProperty(NodeType.VIEW, ViewType.RUN, toRef(props, "subnodePacked"), "inputsPacked");
 const variablesPacked = useSubnodeProperty(
   NodeType.VIEW,
@@ -78,68 +68,8 @@ const variableType = computed(() =>
       })
     : undefined,
 );
-const inputType = computed(() =>
-  runBasePtr.value != null
-    ? makeType({
-        kind: TypeKind.PARTIAL_OBJECT,
-        benchType: BenchType.ACTION,
-        baseTypePtr: runBasePtr.value,
-        baseFieldTypes: [FieldType.INPUT],
-        propertyFieldTypes: [FieldType.INPUT],
-      })
-    : undefined,
-);
-const outputType = computed(() =>
-  runBasePtr.value != null
-    ? makeType({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldTypes: [FieldType.OUTPUT] })
-    : undefined,
-);
-function getRunObjectType(fieldType: FieldType) {
-  if (fieldType == FieldType.INPUT) return inputType.value;
-  else if (fieldType == FieldType.OUTPUT) return outputType.value;
-  else if (fieldType == FieldType.VARIABLE) return variableType.value;
-  else return undefined;
-}
-function hasRunObjectFields(fieldType: FieldType) {
-  if (fieldType == FieldType.INPUT) return hasInputs.value;
-  else if (fieldType == FieldType.OUTPUT) return hasOutputs.value;
-  else if (fieldType == FieldType.VARIABLE) return hasVariables.value;
-  else return false;
-}
-function getRunObjectValue(fieldType: FieldType) {
-  if (fieldType == FieldType.INPUT) return run.value?.inputsPacked;
-  else if (fieldType == FieldType.OUTPUT) return run.value?.outputsPacked;
-  else if (fieldType == FieldType.VARIABLE) return run.value?.variablesPacked;
-  else return undefined;
-}
-
-// interruptions
-type InterruptionInfo = {
-  base: RunnableNode | null;
-  interruption: InterruptionData;
-  inputType: TypeData;
-  outputType: TypeData;
-};
-const interruptions = computed(() => {
-  const interruptions: InterruptionInfo[] = [];
-  for (const interrupt of runTree.value.interruptions) {
-    if (!INTERRUPT_TYPES.includes(interrupt.type)) continue;
-    const base = runTree.value.getBase(getBaseFromNode(interrupt)!)!;
-    const inputType = makeType({
-      kind: TypeKind.CUSTOM_OBJECT,
-      baseTypePtr: getBaseFromNode(interrupt)!,
-      baseFieldTypes: [FieldType.INPUT],
-    });
-    const outputType = makeType({
-      kind: TypeKind.CUSTOM_OBJECT,
-      baseTypePtr: getBaseFromNode(interrupt)!,
-      baseFieldTypes: [FieldType.OUTPUT],
-    });
-
-    interruptions.push({ base, interruption: interrupt, inputType, outputType });
-  }
-  return interruptions;
-});
+const inputType = computed(() => (runBase.value != null ? getInputType(runBase.value as RunnableNode) : undefined));
+const outputType = computed(() => (runBase.value != null ? getOutputType(runBase.value as RunnableNode) : undefined));
 
 function start() {
   if (node.value == null || !isRunnable(node.value)) return;
@@ -154,27 +84,15 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
 </script>
 <template>
   <div v-if="node && nodeIsRunnable" class="h-full w-full">
-    <!-- TODO :UX: also turn this into collapsible sections like in Inspect & Hub (factor out Tabs & Sections?) -->
+    <!-- TODO :UX: turn Run into collapsible sections like in Inspect & Hub (factor out Tabs & Sections?) -->
     <!-- New Run -->
     <div v-if="run == null" class="flex flex-col gap-y-2">
-      <h4
-        class="flex flex-row items-center font-semibold"
-        :style="{
-          height: `${SECTION_HEADER_HEIGHT}px`,
-        }"
-      >
-        <span>Variables</span>
-      </h4>
       <!-- Variables/Inputs -->
-      <div
-        v-for="fieldType in [FieldType.VARIABLE, FieldType.INPUT].filter((ft) => hasRunObjectFields(ft))"
-        :key="fieldType"
-        class="px-5"
-      >
+      <div v-for="fieldType in [FieldType.VARIABLE, FieldType.INPUT]" :key="fieldType" class="px-5">
         <SomeObject
           :id="`fields-${fieldType}`"
           class="w-full"
-          :value-type="getRunObjectType(fieldType)"
+          :value-type="fieldType == FieldType.INPUT ? inputType : variableType"
           is-inline
           is-input
           is-minimal

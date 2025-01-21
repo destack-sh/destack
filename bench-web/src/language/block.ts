@@ -19,6 +19,7 @@ import {
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { generateOrderKey } from "@/utils/fractional";
+import { assertNever } from "@/utils/functools";
 
 /** Create a Block (relative to another). */
 export function createBlock(
@@ -82,35 +83,45 @@ export function createBlock(
         name: makeNodeName(graph, { metatype: ObjectType.ACTION, type: ActionType.START, parentPtr: toNodeRef(block) }),
         packagePtr,
       });
-    } 
+    }
   }
 
   return block;
 }
 
-/** Gets the (primary) type represented by the Block. */
-export function blockToType(block: BlockData): TypeData {
-  // NOTE: technically there is more than one possible mapping from node to type identity
-  //  (for instance Signal blocks could map to both Signal nodes based in that block or Values of that Signal type)
-  let kind: TypeKind;
-  let benchType: BenchType | undefined;
-  let baseFieldTypes: FieldType[] | undefined;
-  if (block.type == BlockType.CHOICE) {
-    benchType = BenchType.FIELD;
-    kind = TypeKind.BASED_NODE;
-    baseFieldTypes = [FieldType.OPTION];
-  } else if (block.type == BlockType.MESSAGE) {
-    benchType = BenchType.MESSAGE;
-    kind = TypeKind.BASED_NODE;
-    baseFieldTypes = [FieldType.MEMBER];
-  } else if (block.type == BlockType.DATABASE) {
-    benchType = BenchType.RECORD;
-    kind = TypeKind.BASED_NODE;
-    baseFieldTypes = [FieldType.MEMBER];
+/** Get the Type for a Block. */
+export function blockToType(block: BlockData, of: "instance" | "value", fieldTypes?: FieldType[]): TypeData {
+  if (of == "instance") {
+    let kind: TypeKind;
+    let benchType: BenchType | undefined;
+    let baseFieldTypes: FieldType[] | undefined;
+    if (block.type == BlockType.CHOICE) {
+      benchType = BenchType.FIELD;
+      kind = TypeKind.BASED_NODE;
+      baseFieldTypes = [FieldType.OPTION];
+    } else if (block.type == BlockType.MESSAGE) {
+      benchType = BenchType.MESSAGE;
+      kind = TypeKind.BASED_NODE;
+      baseFieldTypes = [FieldType.MEMBER];
+    } else if (block.type == BlockType.DATABASE) {
+      benchType = BenchType.RECORD;
+      kind = TypeKind.BASED_NODE;
+      baseFieldTypes = [FieldType.MEMBER];
+    } else {
+      throw new Error(`unsupported block type: ${block.type}`);
+    }
+    const type = makeType({ kind, benchType, baseFieldTypes });
+    type.baseTypePtr = toNodeRef(block);
+    return type;
+  } else if (of == "value") {
+    fieldTypes = fieldTypes ?? [FieldType.MEMBER];
+    return makeType({
+      kind: TypeKind.CUSTOM_OBJECT,
+      baseTypePtr: toNodeRef(block),
+      baseFieldTypes: fieldTypes,
+      propertyFieldTypes: fieldTypes,
+    });
   } else {
-    throw new Error(`unsupported block type: ${block.type}`);
+    assertNever(of);
   }
-  const type = makeType({ kind, benchType, baseFieldTypes });
-  type.baseTypePtr = toNodeRef(block);
-  return type;
 }
