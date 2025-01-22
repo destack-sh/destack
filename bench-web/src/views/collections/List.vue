@@ -102,6 +102,7 @@ defineExpose<ViewExposed & { total: Ref<number | undefined>; roots: Ref<AnyNodeD
             v-for="action of nodeActions?.filter((a) => isActionEnabled(a, { nodes: [node] }))"
             :key="action.id"
             v-tooltip="{ small: true, text: action.title, group: 'list.item' }"
+            aria-hidden
             class="rounded-sm px-1 py-0.5 text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/node:opacity-100"
             @click.stop="(e) => action.action?.(action, { event: e, nodes: [node] })"
           >

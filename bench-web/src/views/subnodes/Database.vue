@@ -505,7 +505,7 @@ function onDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | nu
       }
     } else if (isNode(node, NodeType.BLOCK)) {
       // add field with block type
-      const type = blockToType(node);
+      const type = blockToType(node, "instance");
       const fieldIn = { ...type, zone: FieldType.MEMBER };
       if (target != null) {
         if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
@@ -708,7 +708,9 @@ defineExpose<ViewExposed>({ self, id, actions });
                   offset: 'referenceWidth',
                   props: {
                     valueType: makeType({ benchType: BenchType.TYPE }),
-                    subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
+                    subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, {
+                      variant: PickerVariant.DROPDOWN_LARGE,
+                    }),
                   },
                   onApply: (typeInfo: TypeIdentity) => {
                     createField(connection.tx, graph, { anchor: 'inside', target: block!, field: typeInfo });

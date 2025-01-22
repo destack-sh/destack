@@ -918,7 +918,7 @@ export function typeIndex(idx: {
   }
 
   function typeItemFromNode(nodeItem: NodeItem): TypeItem {
-    const blockAsType = blockToType(nodeItem.node as BlockData);
+    const blockAsType = blockToType(nodeItem.node as BlockData, "instance");
     const item: TypeItem = {
       ...nodeItem,
       ...blockAsType,

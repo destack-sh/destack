@@ -532,7 +532,7 @@ function isElementIncluded(element: Element): boolean {
 /**
  * Checks if the given element is considered interactive.
  */
-function isInteractiveElement(element: Element): boolean {
+function isElementInteractive(element: Element): boolean {
     const tagName = element.tagName.toLowerCase();
     const role = element.getAttribute("role");
     const ariaRole = element.getAttribute("aria-role");
@@ -577,14 +577,15 @@ function isElementVisible(element: Element): boolean {
         (element as HTMLElement).offsetWidth > 0 &&
         (element as HTMLElement).offsetHeight > 0 &&
         style.visibility !== "hidden" &&
-        style.display !== "none"
+        style.display !== "none" &&
+        !(element.hasAttribute("hidden") || element.hasAttribute("aria-hidden"))
     );
 }
 
 /**
  * Checks if the given element is at the top of the stacking order at its own center point.
  */
-function isTopElement(element: Element): boolean {
+function isElementTop(element: Element): boolean {
     const doc = element.ownerDocument;
     if (doc !== window.document) {
         // inside iframe or different root, assume top there
@@ -671,9 +672,9 @@ function extract(
         }
 
         // flags
-        const isInteractive = isInteractiveElement(element);
+        const isInteractive = isElementInteractive(element);
         const isVisible = isElementVisible(element);
-        const isTop = isTopElement(element);
+        const isTop = isElementTop(element);
         if (isInteractive) nodeData.isInteractive = true;
         if (isVisible) nodeData.isVisible = true;
         if (isTop) nodeData.isTop = true;

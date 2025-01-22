@@ -133,6 +133,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       :data-node-type="pipe.metatype"
       :data-node-id="pipe.id"
       :data-node-ck="pipe.ck"
+      aria-hidden
     >
       <!-- Type -->
       <IconInline
@@ -147,6 +148,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         is-input
         is-minimal
         placeholder="Name..."
+        aria-hidden
         :placeholder-color="pathColorHex"
         :value-type="NAME_TYPE"
         :model-value="pipe.name"

@@ -344,6 +344,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           v-model="query"
           class="max-w-60 cursor-default rounded border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-3 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           spellcheck="false"
+          aria-hidden
           :data-suppress-actions="'space.navigate' /* allow select & move */"
           @keydown.enter.stop.prevent="
             () => {
@@ -423,7 +424,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             }"
           />
           <!-- Icon/Expand button -->
-          <button class="group/icon relative mr-1.5 flex-shrink-0" @click.stop="() => toggleExpanded(node)">
+          <button class="group/icon relative mr-1.5 flex-shrink-0" aria-hidden @click.stop="() => toggleExpanded(node)">
             <IconInline
               v-bind="getNodeIcon(node)"
               class="w-5 text-center transition-colors duration-75"
@@ -466,6 +467,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                   },
                 })
               "
+              aria-hidden
               class="text-gray-400 opacity-0 hover:text-gray-400 group-hover/node:opacity-100"
             >
               <i class="fas fa-plus" />

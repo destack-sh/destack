@@ -397,7 +397,7 @@ function getXPath(element, stopAtBoundary) {
 function isElementIncluded(element) {
     return !LEAF_DENY_LIST.has(element.tagName.toLowerCase());
 }
-function isInteractiveElement(element) {
+function isElementInteractive(element) {
     var tagName = element.tagName.toLowerCase();
     var role = element.getAttribute("role");
     var ariaRole = element.getAttribute("aria-role");
@@ -429,9 +429,10 @@ function isElementVisible(element) {
     return (element.offsetWidth > 0 &&
         element.offsetHeight > 0 &&
         style.visibility !== "hidden" &&
-        style.display !== "none");
+        style.display !== "none" &&
+        !(element.hasAttribute("hidden") || element.hasAttribute("aria-hidden")));
 }
-function isTopElement(element) {
+function isElementTop(element) {
     var doc = element.ownerDocument;
     if (doc !== window.document) {
         return true;
@@ -501,9 +502,9 @@ function extract(node, highlight, iframe, context) {
                 nodeData.attributes[name_1] = attrVal;
             }
         }
-        var isInteractive = isInteractiveElement(element_1);
+        var isInteractive = isElementInteractive(element_1);
         var isVisible = isElementVisible(element_1);
-        var isTop = isTopElement(element_1);
+        var isTop = isElementTop(element_1);
         if (isInteractive)
             nodeData.isInteractive = true;
         if (isVisible)
