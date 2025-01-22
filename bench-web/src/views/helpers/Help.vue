@@ -97,10 +97,10 @@ defineExpose<ViewExposed>({ self });
       <!-- Run status -->
       <div v-if="containingRun != null" class="flex flex-row px-1.5">
         <template v-if="selfRun != null && selfRun.id != containingRun.id">
-          <RunStatus :run="selfRun" />
+          <RunStatus :run="selfRun" icon="dot" />
           <span class="ml-2 mr-2 text-gray-400">/</span>
         </template>
-        <RunStatus :run="containingRun" />
+        <RunStatus :run="containingRun" icon="dot" />
       </div>
 
       <!-- Meta/Controls -->

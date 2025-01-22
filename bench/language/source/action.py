@@ -28,7 +28,6 @@ from bench.language.core import (
     constraint,
     enum_,
     node_,
-    node_subtype_,
     object_,
     p_internal,
     p_node_children,
@@ -37,6 +36,7 @@ from bench.language.core import (
     p_value_packed,
     p_value_runtime,
     struct_,
+    subnode_,
 )
 from bench.pb2.lang_pb2 import ActionData
 from bench.utils.fractional import INTEGER_ZERO
@@ -410,17 +410,17 @@ class Action(SourceNode[ActionData]):
 #
 
 
-@node_subtype_(ActionType.START)
+@subnode_(ActionType.START)
 class StartAction(Action):
     pass
 
 
-@node_subtype_(ActionType.COMPLETE)
+@subnode_(ActionType.COMPLETE)
 class CompleteAction(Action):
     pass
 
 
-@node_subtype_(ActionType.FAIL)
+@subnode_(ActionType.FAIL)
 class FailAction(Action):
     error_title: str | None = p_regular(
         120, default=None, require=False, field_type=FieldType.INPUT
@@ -440,32 +440,32 @@ class FailAction(Action):
 #
 
 
-@node_subtype_(ActionType.CODE)
+@subnode_(ActionType.CODE)
 class CodeAction(Action):
     pass
 
 
-@node_subtype_(ActionType.TOOL)
+@subnode_(ActionType.TOOL)
 class ToolAction(Action):
     pass
 
 
-@node_subtype_(ActionType.GENERATE)
+@subnode_(ActionType.GENERATE)
 class GenerateAction(Action):
     pass
 
 
-@node_subtype_(ActionType.TRANSFORM)
+@subnode_(ActionType.TRANSFORM)
 class TransformAction(Action):
     pass
 
 
-@node_subtype_(ActionType.ROUTE)
+@subnode_(ActionType.ROUTE)
 class RouteAction(Action):
     pass
 
 
-@node_subtype_(ActionType.CHANGE)
+@subnode_(ActionType.CHANGE)
 class ChangeAction(Action):
     nodes: list[Node] = p_regular(
         120, array=True, require=False, references="any", field_type=FieldType.INPUT
@@ -477,7 +477,7 @@ class ChangeAction(Action):
 #
 
 
-@node_subtype_(ActionType.GET)
+@subnode_(ActionType.GET)
 class GetAction(Action):
     """Get a single Node."""
 
@@ -495,7 +495,7 @@ class GetAction(Action):
     )
 
 
-@node_subtype_(ActionType.SEARCH)
+@subnode_(ActionType.SEARCH)
 class SearchAction(Action):
     """Search for Nodes."""
 
@@ -521,7 +521,7 @@ class SearchAction(Action):
 #
 
 
-@node_subtype_(ActionType.CREATE)
+@subnode_(ActionType.CREATE)
 class CreateAction(Action):
     node_partial_packed: Any = p_value_packed(120, field_type=FieldType.INPUT, partial=True)
     node_partial: Any = p_value_runtime(
@@ -538,7 +538,7 @@ class CreateAction(Action):
         return Type(kind=TypeKind.PARTIAL_OBJECT)
 
 
-@node_subtype_(ActionType.DUPLICATE)
+@subnode_(ActionType.DUPLICATE)
 class DuplicateAction(Action):
     node: Node | None = p_regular(120, require=False, references="any", field_type=FieldType.INPUT)
     if TYPE_CHECKING:
@@ -558,7 +558,7 @@ class DuplicateAction(Action):
         return Type(kind=TypeKind.PARTIAL_OBJECT)
 
 
-@node_subtype_(ActionType.UPDATE)
+@subnode_(ActionType.UPDATE)
 class UpdateAction(Action):
     node: Node | None = p_regular(120, require=False, references="any", field_type=FieldType.INPUT)
     if TYPE_CHECKING:
@@ -577,7 +577,7 @@ class UpdateAction(Action):
         return Type(kind=TypeKind.PARTIAL_OBJECT)
 
 
-@node_subtype_(ActionType.DELETE)
+@subnode_(ActionType.DELETE)
 class DeleteAction(Action):
     node: Node | None = p_regular(120, require=False, references="any", field_type=FieldType.INPUT)
     if TYPE_CHECKING:
@@ -589,7 +589,7 @@ class DeleteAction(Action):
 #
 
 
-@node_subtype_(ActionType.SEND)
+@subnode_(ActionType.SEND)
 class SendAction(Action):
     message_type: "Block | None" = p_regular(
         120, require=False, default=None, references=NodeType.BLOCK, field_type=FieldType.INPUT
@@ -607,12 +607,12 @@ class SendAction(Action):
         return Type(kind=TypeKind.PARTIAL_OBJECT, base_type=self.message_type)
 
 
-@node_subtype_(ActionType.RECEIVE)
+@subnode_(ActionType.RECEIVE)
 class ReceiveAction(Action):
     pass
 
 
-@node_subtype_(ActionType.WAIT)
+@subnode_(ActionType.WAIT)
 class WaitAction(Action):
     delay: timedelta | None = p_regular(120, default=None, field_type=FieldType.INPUT)
 
@@ -635,7 +635,7 @@ class HasApplicationContext(BuiltinObject):
     element_text: str | None = p_regular(113, default=None, field_type=FieldType.INPUT)
 
 
-@node_subtype_(ActionType.LOOK)
+@subnode_(ActionType.LOOK)
 class LookAction(Action, HasApplicationContext):  # move out of application?
     exclude_image: bool | None = p_regular(120, default=False, field_type=FieldType.INPUT)
     screenshot: Optional["File"] = p_regular(
@@ -654,24 +654,24 @@ class LookAction(Action, HasApplicationContext):  # move out of application?
     )
 
 
-@node_subtype_(ActionType.CLICK)
+@subnode_(ActionType.CLICK)
 class ClickAction(Action, HasApplicationContext):
     pass
 
 
-@node_subtype_(ActionType.PRESS)
+@subnode_(ActionType.PRESS)
 class PressAction(Action, HasApplicationContext):
     keys: str | None = p_regular(120, default=None, field_type=FieldType.INPUT)
     delay: float | None = p_regular(121, default=None, field_type=FieldType.INPUT)
 
 
-@node_subtype_(ActionType.TYPE)
+@subnode_(ActionType.TYPE)
 class TypeAction(Action, HasApplicationContext):
     string: str | None = p_regular(120, default=None, field_type=FieldType.INPUT)
     delay: float | None = p_regular(121, default=None, field_type=FieldType.INPUT)
 
 
-@node_subtype_(ActionType.SCROLL)
+@subnode_(ActionType.SCROLL)
 class ScrollAction(Action, HasApplicationContext):
     amount: Optional["Vector2"] = p_regular(
         120,
@@ -683,17 +683,17 @@ class ScrollAction(Action, HasApplicationContext):
     )
 
 
-@node_subtype_(ActionType.SELECT)
+@subnode_(ActionType.SELECT)
 class SelectAction(Action, HasApplicationContext):
     pass
 
 
-@node_subtype_(ActionType.GO_BACKWARD)
+@subnode_(ActionType.GO_BACKWARD)
 class GoBackwardAction(Action, HasApplicationContext):
     pass
 
 
-@node_subtype_(ActionType.GO_FORWARD)
+@subnode_(ActionType.GO_FORWARD)
 class GoForwardAction(Action, HasApplicationContext):
     pass
 
@@ -703,12 +703,12 @@ class GoForwardAction(Action, HasApplicationContext):
 #
 
 
-@node_subtype_(ActionType.GO_TO_URL)
+@subnode_(ActionType.GO_TO_URL)
 class GoToUrlAction(Action, HasApplicationContext):
     url: str | None = p_regular(120, default=None, field_type=FieldType.INPUT)
 
 
-@node_subtype_(ActionType.GO_TO_TAB)
+@subnode_(ActionType.GO_TO_TAB)
 class GoToTabAction(Action, HasApplicationContext):
     tab_index: int | None = p_regular(120, default=None, field_type=FieldType.INPUT)
 

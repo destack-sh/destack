@@ -24,7 +24,6 @@ from bench.language.core import (
     TypeBase,
     TypeKind,
     node_,
-    node_subtype_,
     p_internal,
     p_node_children,
     p_node_parent,
@@ -32,6 +31,7 @@ from bench.language.core import (
     p_system,
     p_value_packed,
     p_value_runtime,
+    subnode_,
 )
 from bench.pb2 import BlockData
 from bench.pb2.lang_pb2 import RecordData
@@ -192,7 +192,7 @@ class Block(SourceNode[BlockData]):
         return Block(type=typ, name=name, **kwargs)  # type: ignore
 
 
-@node_subtype_(BlockType.VARIABLE, passthrough_get=("value",), passthrough_set=("value",))
+@subnode_(BlockType.VARIABLE, passthrough_get=("value",), passthrough_set=("value",))
 class VariableBlock(Block):
     value_type: Optional["Type"] = p_regular(100, default=None, struct=StructType.TYPE)
     value_packed: Any = p_value_packed(101)
@@ -201,18 +201,18 @@ class VariableBlock(Block):
     )
 
 
-@node_subtype_(BlockType.TEXT)
+@subnode_(BlockType.TEXT)
 class TextBlock(Block):
     pass
 
 
-@node_subtype_(BlockType.FLOW)
+@subnode_(BlockType.FLOW)
 class FlowBlock(Block):
     run_options: Optional["RunOptions"] = p_regular(
         100, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
 
 
-@node_subtype_(BlockType.DATABASE)
+@subnode_(BlockType.DATABASE)
 class DatabaseBlock(Block):
     pass

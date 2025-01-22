@@ -13,10 +13,10 @@ from bench.language.core import (
     TypeConstraint,
     enum_,
     node_,
-    node_subtype_,
     p_internal,
     p_node_parent,
     p_regular,
+    subnode_,
 )
 from bench.pb2 import PipeData
 from bench.utils.fractional import INTEGER_ZERO
@@ -147,7 +147,7 @@ class Pipe(SourceNode[PipeData]):
         return Pipe(type=type, name=name, **kwargs)
 
 
-@node_subtype_(PipeType.SELECT)
+@subnode_(PipeType.SELECT)
 class SelectPipe(Pipe):
     text: Optional["Text"] = p_regular(
         100, default=None, require=False, array=False, struct=StructType.TEXT

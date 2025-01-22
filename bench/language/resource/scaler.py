@@ -4,9 +4,9 @@ from bench.language.core import (
     constraint,
     enum_,
     node_,
-    node_subtype_,
     p_regular,
     p_system,
+    subnode_,
 )
 from bench.pb2.lang_pb2 import ScalerData
 from bench.utils.func import IdEnum
@@ -51,11 +51,11 @@ class Scaler(StaticResource[ScalerData]):
     )
 
 
-@node_subtype_(NodeType.MACHINE)
+@subnode_(NodeType.MACHINE)
 class MachineScaler(Scaler):
     pass
 
 
-@node_subtype_(NodeType.BROWSER)
+@subnode_(NodeType.BROWSER)
 class BrowserScaler(Scaler):
     pass

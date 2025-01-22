@@ -264,10 +264,12 @@ defineExpose<ViewExposed>({
       ref="containerRef"
       class="group relative flex h-full w-full flex-col justify-center rounded border-gray-200"
       :class="[
-        !isMinimal ? 'border py-1' : '',
+        !isMinimal ? 'border' : '',
+        !isMinimal && !optimisticValue ? 'py-1' : '',
         isMinimal && isInDropZone ? 'bg-gray-100' : '',
         isInDropZone ? 'border-gray-700 outline outline-2 outline-gray-700' : '',
       ]"
+      data-suppress-drag="select"
     >
       <!-- NOTE :Incomplete: proper file content views (image with proper size & thumbnail, audio, ...) -->
       <!-- Image File -->

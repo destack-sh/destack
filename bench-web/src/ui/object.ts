@@ -913,7 +913,7 @@ export class FieldLayout extends NodeLayout<NodeType.FIELD> {
 
 const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>> = {
   // write
-  [ActionType.CREATE]: [CreateActionProperty.nodePartialPacked],
+  [ActionType.CREATE]: [CreateActionProperty.nodePartialPacked, CreateActionProperty.nodePtr],
   [ActionType.UPDATE]: [UpdateActionProperty.nodePtr, UpdateActionProperty.nodePartialPacked],
   [ActionType.DELETE]: [DeleteActionProperty.nodePtr],
   // application
@@ -1051,13 +1051,21 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
   /** Rows for Action subproperties */
   actionSubproperties(...subproperties: number[]) {
     const rows: Row[] = [];
+    const isComputable = !(this.isPartial && this.propertyFieldTypes.length > 0);
     subproperties = subproperties ?? Object.values(this.subpropertyEnum ?? {});
     for (let i = 0; i < subproperties.length; i++) {
       const subproperty = subproperties[i];
-      if (typeof subproperty !== "number") continue;
+      if (typeof subproperty !== "number") {
+        continue;
+      }
       const { prop } = this.getProperty(subproperty as any);
-      if (prop == null) continue;
-      if (this.propertyFieldTypes.length > 0 && !this.propertyFieldTypes.includes(prop.fieldType!)) continue;
+      if (
+        prop == null ||
+        (this.propertyFieldTypes.length > 0 && !this.propertyFieldTypes.includes(prop.fieldType!)) ||
+        (this.propertyFieldTypes.length == 0 && prop.fieldType == FieldType.OUTPUT)
+      ) {
+        continue; // hide properties of different types (and hide output properties by default unless explicitly shown)
+      }
 
       if (prop.valueIsPartial) {
         // no nested partials
@@ -1065,12 +1073,12 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
           this.section("Node", [
             this.rowObjectNested(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), {
               title: false,
-              isComputable: true,
+              isComputable,
             }),
           ]);
         }
       } else {
-        rows.push(this.rowProperty(subproperty, { isComputable: true }));
+        rows.push(this.rowProperty(subproperty, { isComputable }));
       }
     }
     return rows;

@@ -236,6 +236,7 @@ export const FULL_WIDTH_VIEW_TYPES = [
   ViewType.OBJECT,
   ViewType.TEXT,
   ViewType.CODE,
+  ViewType.FILE,
   ViewType.IMAGE,
   ViewType.AUDIO,
   ViewType.VIDEO,
