@@ -155,8 +155,8 @@ export class NodeAutoloader {
       this.onFailed(...nodeRefs);
       log.trace("autoload.load.fail", { batchId, nodeRefs });
       const basePtr = { nodeType: NodeType.BLOCK, ck: baseCk };
-      // NOTE :Cleanup: technically we're leaking this wait-to-auto-reload subscription, but it shouldn't matter for now
-      //  (it should stop if none of the missing nodes are subscribed to anymore)
+      // NOTE :Cleanup: we're leaking this wait-to-auto-reload subscription, but it shouldn't matter for now
+      //  (it _should_ stop when none of the missing nodes are subscribed to anymore)
       this.supergraph.subscribeUntilFound(basePtr, () => {
         // remove from failed
         nodeRefs.forEach((ptr) => delete this.failedNodesById[ptr.id!]);

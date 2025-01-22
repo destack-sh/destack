@@ -159,6 +159,9 @@ export const BASED_NODE_TYPES = [
   NodeType.MESSAGE,
   NodeType.RUN,
 ];
+export const COSMOS_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType < 100);
+export const AUTH_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType >= 100 && nodeType < 200);
+export const FINANCE_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType >= 200 && nodeType < 300);
 export const SOURCE_NODE_TYPES = NODE_TYPES.filter(isSourceNodeType);
 export const STATE_NODE_TYPES = NODE_TYPES.filter(isStateNodeType);
 export const RUNTIME_NODE_TYPES = NODE_TYPES.filter(isRuntimeNodeType);

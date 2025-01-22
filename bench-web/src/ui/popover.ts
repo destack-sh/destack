@@ -519,6 +519,11 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
   // gather stack of nodes and actions
   let element = e.target as HTMLElement;
   while (element != null) {
+    // skip explicitly ignored elements
+    if (element.dataset?.["contextmenu"] == "ignore") {
+      element = element.parentElement!;
+      continue;
+    }
     // find new node at element
     let nextNodePtr: NodeReferenceData | null = null;
     let isNodeContainer = false; // whether the referenced node is a container
@@ -573,6 +578,7 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
     if (nextNode != null && !isNodeContainer) {
       const nodeActions = getNodeActions(nextNode);
       nodeActions.forEach((action) => addAction(element, action));
+      // break; // NOTE :UX: maybe we should ignore other nodes to reduce possible confusion about which node the action relates to?
     }
 
     // and up we go

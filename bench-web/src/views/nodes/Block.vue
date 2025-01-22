@@ -109,10 +109,6 @@ const actions: Partial<ActionMapImplementation<"space">> & ActionMapImplementati
       nextTick(() => NodeReferenceRef.value?.focusIdentifier());
     },
   },
-  "space.navigate.open": (action, ctx) => {
-    if (block.value == null) return false;
-    canvas.goToNode(block.value);
-  },
 };
 
 // focus
@@ -134,6 +130,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       isPage && !isSelected ? 'hover:bg-gray-100' : '',
     ]"
     :data-suppress-drag="isPage ? 'select' : undefined"
+    data-contextmenu-items="space.navigate.open"
     @click="() => isPage && canvas.goToNode(block!)"
   >
     <!-- Header -->

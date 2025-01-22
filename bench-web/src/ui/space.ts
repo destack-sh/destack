@@ -1338,6 +1338,14 @@ declareActions<"space">({
     title: "Open",
     text: "Open this node in a new view",
     shortcuts: ["mod+enter"],
+    action: (action, ctx) => {
+      const { connection, graph, nodes } = getNodesForAction(action, ctx);
+      if (connection == null || graph == null || nodes.length == 0) {
+        return false; // bubble up
+      }
+      canvas.goToNode(nodes[0]);
+      return true;
+    },
   },
   "space.navigate.up": {
     icon: "fas fa-arrow-up",
