@@ -142,8 +142,12 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         </div>
         <RunError class="" :run="run" :error="run.error" />
       </div>
+      <!-- Line -->
+      <div v-if="run?.error" class="w-full py-1">
+        <div class="mx-5 h-[1px] bg-gray-200" />
+      </div>
       <!-- Timeline -->
-      <div v-if="run != null" class="px-5">
+      <div v-if="run != null" class="px-5 mb-5">
         <RunTimeline :graph="pkgGraph" :node-ptr="toNodeRef(run)" class="" layout="linear" />
       </div>
     </div>

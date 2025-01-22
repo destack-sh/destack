@@ -197,6 +197,7 @@ export const ACTIVE_RUN_STATUSES = [
   RunStatus.PAUSED,
   ...INTERRUPTED_RUN_STATUSES,
 ];
+export const BAD_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, RunStatus.FAILED];
 
 // view
 export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "number" && v > 0) as ViewType[];
