@@ -406,6 +406,11 @@ class DuplicateActionRunner(StaticActionRunner[DuplicateAction]):
         cloned_node_parent.append(cloned_node)
         logger.debug("action.clone", action=self.node, node=cloned_node, partial=node_partial)
 
+        assert self.output_type is not None, f"no output type for {self!r}"
+        self.outputs = coerce_custom_object_scalar(
+            {"duplicated_node": cloned_node}, self.output_type, as_packed=True
+        )
+
 
 class UpdateActionRunner(StaticActionRunner[UpdateAction]):
     @override

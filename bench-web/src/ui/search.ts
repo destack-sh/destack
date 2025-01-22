@@ -520,7 +520,10 @@ export function useValueSearch(options: {
       if (remoteGraphIndex.value != null) {
         // remote graph
         return remoteGraphIndex.value;
-      } else if (isNodeType(valueType.value?.benchType) && isUnloadedNodeType(valueType.value?.benchType)) {
+      } else if (
+        ([TypeKind.NODE, TypeKind.BASED_NODE].includes(valueType.value?.kind!) && valueType.value?.benchType == null) ||
+        (isNodeType(valueType.value?.benchType) && isUnloadedNodeType(valueType.value?.benchType))
+      ) {
         // remote supergraph
         return SUPERGRAPH_INDEX;
       } else {
@@ -578,7 +581,7 @@ export function useValueSearch(options: {
     return null;
   }
 
-  return { candidates, results, resultsTotal, isLoading, update, getItemFromValue, getValueFromItem };
+  return { index, candidates, results, resultsTotal, isLoading, update, getItemFromValue, getValueFromItem };
 }
 
 //
