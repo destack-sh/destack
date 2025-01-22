@@ -187,7 +187,6 @@ const focusedNode = computed(() => focusedItem.value?.node);
 // Interaction
 //
 
-const editingNameRef: Ref<InstanceType<typeof NativeInput>[]> = ref([]);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
@@ -385,7 +384,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           v-for="({ node, depth, hasChildren }, i) in expandedItems"
           :ref="(ref?: any) => (ref != null ? (expandedNodesRefs[node.id] = ref) : delete expandedNodesRefs[node.id])"
           :key="node.id"
-          data-contextmenu-items="space.navigate.open*"
+          data-contextmenu-items="space.navigate.open"
           :data-node-id="node.id"
           :data-node-ck="(node as any).ck"
           :data-node-type="node.metatype"

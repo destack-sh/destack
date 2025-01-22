@@ -80,6 +80,7 @@ defineExpose({
     :data-node-ck="(node as any).ck"
     :data-node-type="node.metatype"
     aria-role="button"
+    data-contextmenu-items="space.navigate.open"
   >
     <IconInline
       ref="iconRef"

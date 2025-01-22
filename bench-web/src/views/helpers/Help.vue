@@ -182,6 +182,7 @@ defineExpose<ViewExposed>({ self });
           ref="startRef"
           :node-ptr="nodePtr"
           v-bind="state.getChildState('scroll.start', { nodePtr })"
+          data-contextmenu="ignore"
         />
         <!-- ... -->
         <div v-else class="mx-5">

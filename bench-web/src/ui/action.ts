@@ -1,4 +1,11 @@
-import { isResourceNodeType, isRuntimeNodeType, RESOURCE_NODE_TYPES } from "@/language/const";
+import {
+  COSMOS_NODE_TYPES,
+  FINANCE_NODE_TYPES,
+  isResourceNodeType,
+  isRuntimeNodeType,
+  RESOURCE_NODE_TYPES,
+  RUNTIME_NODE_TYPES,
+} from "@/language/const";
 import { ReadNodeGraph } from "@/language/graph";
 import { NodeType, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
@@ -540,7 +547,13 @@ export function getNodesForAction(
 // Node context actions
 //
 
-export const NON_DUPLICATABLE_NODE_TYPES = [NodeType.PIPE];
+export const NON_DUPLICATABLE_NODE_TYPES = [
+  NodeType.PIPE,
+  ...RUNTIME_NODE_TYPES,
+  ...RESOURCE_NODE_TYPES,
+  ...COSMOS_NODE_TYPES,
+];
+export const NON_DELETABLE_NODE_TYPES = [...RUNTIME_NODE_TYPES, ...RESOURCE_NODE_TYPES, ...COSMOS_NODE_TYPES];
 
 export const SCALAR_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.rename"];
 export const NODE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.duplicate", "space.edit.delete"];
@@ -576,13 +589,11 @@ for (const nodeType of RESOURCE_NODE_TYPES) {
 export function getNodeActions(node: AnyNodeData): Action[] {
   const actions: ActionBuiltinId[] = [];
   const nodeType = node.metatype as unknown as NodeType;
-  const isResource = isResourceNodeType(nodeType);
-  const isRuntime = isRuntimeNodeType(nodeType);
   // duplicate/delete
-  if (!isResource && !isRuntime) {
-    if (!NON_DUPLICATABLE_NODE_TYPES.includes(nodeType)) {
-      actions.push("space.edit.duplicate");
-    }
+  if (!NON_DUPLICATABLE_NODE_TYPES.includes(nodeType)) {
+    actions.push("space.edit.duplicate");
+  }
+  if (!NON_DELETABLE_NODE_TYPES.includes(nodeType)) {
     actions.push("space.edit.delete");
   }
   // rename
