@@ -1142,8 +1142,9 @@ class RunType(IdEnum):
 class RunSpanType(IdEnum):
     # general
     ATTEMPT = 1
+    WAIT = 2
+    ACQUIRE = 3
     DELEGATE = 10
-    WAIT = 11
     # flow
     FLOW_GENERATE_CALLS = 100
     # action

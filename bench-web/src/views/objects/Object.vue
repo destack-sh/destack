@@ -159,7 +159,7 @@ defineExpose<ViewExposed>({ self, id });
             <span v-if="row.subtitle" class="ml-1.5 text-gray-400">{{ row.subtitle }}</span>
             <!-- Actions -->
             <div class="ml-auto pr-1">
-              <!-- Computed actions :ComputedView -->
+              <!-- Computed actions -->
               <button
                 v-if="(row.type == 'property' || row.type == 'field') && row.isComputable"
                 v-tooltip="{ title: `Set ${row.title} dynamically`, small: true, group: 'section.header' }"
@@ -187,7 +187,7 @@ defineExpose<ViewExposed>({ self, id });
               is-minimal
             />
           </div>
-          <!-- Computed View :ComputedView -->
+          <!-- Computed View -->
           <ComputedValue
             v-else-if="(row.type == 'property' || row.type == 'field') && computer.has(row.computedPathKey)"
             :id="i + '.computed.value'"

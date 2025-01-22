@@ -1170,8 +1170,9 @@ class RunSpanType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     RUN_SPAN_TYPE_UNSPECIFIED: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_ATTEMPT: _ClassVar[RunSpanType]
-    RUN_SPAN_TYPE_DELEGATE: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_WAIT: _ClassVar[RunSpanType]
+    RUN_SPAN_TYPE_ACQUIRE: _ClassVar[RunSpanType]
+    RUN_SPAN_TYPE_DELEGATE: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_FLOW_GENERATE_CALLS: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_MODEL_PREPARE: _ClassVar[RunSpanType]
     RUN_SPAN_TYPE_MODEL_GENERATE: _ClassVar[RunSpanType]
@@ -2704,8 +2705,9 @@ RUN_TYPE_FLOW: RunType
 RUN_TYPE_PIPE: RunType
 RUN_SPAN_TYPE_UNSPECIFIED: RunSpanType
 RUN_SPAN_TYPE_ATTEMPT: RunSpanType
-RUN_SPAN_TYPE_DELEGATE: RunSpanType
 RUN_SPAN_TYPE_WAIT: RunSpanType
+RUN_SPAN_TYPE_ACQUIRE: RunSpanType
+RUN_SPAN_TYPE_DELEGATE: RunSpanType
 RUN_SPAN_TYPE_FLOW_GENERATE_CALLS: RunSpanType
 RUN_SPAN_TYPE_MODEL_PREPARE: RunSpanType
 RUN_SPAN_TYPE_MODEL_GENERATE: RunSpanType

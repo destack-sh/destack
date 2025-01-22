@@ -116,6 +116,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
           is-inline
           is-minimal
           :model-value="run?.variablesPacked"
+          
         />
         <SomeObject
           id="fields-input"
@@ -126,8 +127,8 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
           :model-value="run?.inputsPacked"
         />
         <!-- Arrow -->
-        <template v-if="run?.outputsPacked != null">
-          <div  class="relative my-0.5 w-full text-center">
+        <template v-if="false && run?.outputsPacked != null">
+          <div class="relative my-0.5 w-full text-center">
             <span class="fas fa-arrow-down text-gray-400" />
           </div>
           <SomeObject
@@ -153,17 +154,8 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         </div>
       </div>
       <!-- Timeline -->
-      <div v-if="run != null" class="px-5">
-        <div
-          class="flex flex-row items-center"
-          :style="{
-            height: `${SECTION_HEADER_HEIGHT}px`,
-          }"
-        >
-          <span class="font-semibold">Timeline</span>
-        </div>
-        <!-- nocheckin: inline RunTimeline (as a list of Run/RunSpan?) -->
-        <RunTimeline :graph="pkgGraph" :node-ptr="toNodeRef(run)" class="" />
+      <div v-if="run != null" class="mt-3 px-5">
+        <RunTimeline :graph="pkgGraph" :node-ptr="toNodeRef(run)" class="" layout="linear" />
       </div>
     </div>
   </div>

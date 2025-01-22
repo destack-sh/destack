@@ -89,7 +89,7 @@ export class RunTree {
         scope: graph.scope,
         roots: [this.runPtr.value!],
         ancestorTypes: [NodeType.RUN],
-        descendantTypes: [NodeType.RUN, NodeType.INTERRUPTION],
+        descendantTypes: [NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION],
         isOptional: true,
         isEnabled: this.runPtr.value != null,
       })),

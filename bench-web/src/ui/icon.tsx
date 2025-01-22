@@ -561,7 +561,7 @@ export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
   [RunStatus.RUNNING]: makeIcon({ faName: "fas fa-circle-notch" }),
   [RunStatus.PAUSED]: makeIcon({ faName: "fas fa-pause" }),
   [RunStatus.YIELDED]: makeIcon({ faName: "fas fa-hand" }),
-  [RunStatus.WAITING]: makeIcon({ faName: "fas fa-bolt-lightning" }),
+  [RunStatus.WAITING]: makeIcon({ faName: "fas fa-hourglass-start" }),
   [RunStatus.COMPLETED]: makeIcon({ faName: "fas fa-check" }),
   [RunStatus.CANCELLED]: makeIcon({ faName: "fas fa-circle-xmark" }),
   [RunStatus.ABORTED]: makeIcon({ faName: "fas fa-skull" }),
@@ -571,8 +571,9 @@ export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
 export const ICON_BY_RUN_SPAN_TYPE: Record<RunSpanType, IconData> = {
   [RunSpanType.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
   [RunSpanType.ATTEMPT]: makeIcon({ faName: "fas fa-play" }),
-  [RunSpanType.DELEGATE]: makeIcon({ faName: "fas fa-play" }),
+  [RunSpanType.ACQUIRE]: makeIcon({ faName: "fas fa-toolbox" }),
   [RunSpanType.WAIT]: makeIcon({ faName: "fas fa-hourglass-end" }),
+  [RunSpanType.DELEGATE]: makeIcon({ faName: "fas fa-play" }),
   [RunSpanType.FLOW_GENERATE_CALLS]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
   [RunSpanType.MODEL_PREPARE]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
   [RunSpanType.MODEL_GENERATE]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
@@ -587,7 +588,7 @@ export const ICON_BY_INTERRUPTION_TYPE: Record<InterruptionType, IconData> = {
   [InterruptionType.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
   [InterruptionType.YIELD]: makeIcon({ faName: "fas fa-hand" }),
   [InterruptionType.PAUSE]: makeIcon({ faName: "fas fa-pause" }),
-  [InterruptionType.WAIT]: makeIcon({ faName: "fas fa-bolt-lightning" }),
+  [InterruptionType.WAIT]: makeIcon({ faName: "fas fa-hourglass-start" }),
 };
 
 export const ICON_BY_EDIT_TYPE: Partial<Record<EditType, IconData>> = _makeIcons<EditType>({
@@ -769,7 +770,7 @@ export function getNodeIcon(
     );
     const nodePartialType = (nodePartialPacked as any)?.["1"] as NodeType | undefined;
     if (nodePartialType != null) {
-      const nodePartial = unpackPartialNode(nodePartialPacked, nodePartialType, 0);
+      const { node: nodePartial } = unpackPartialNode(nodePartialPacked, nodePartialType, 0);
       if (isNode(nodePartial, nodePartialType)) {
         const icon = getNodeIcon(nodePartial, options);
         if (icon != null) return icon;
