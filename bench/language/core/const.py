@@ -31,7 +31,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.22.0"
+VERSION = "2025.01.22.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -178,8 +178,9 @@ class EnumType(IdEnum):
     TRIGGER_TYPE = 22020
     CACHE_MODE = 22030
     SCHEDULE_FREQUENCY = 22040
-    CALL_MODE = 22050
-
+    CALL_ERROR_MODE = 22050
+    CALL_EXECUTION_MODE = 22051
+    CALL_TERMINATION_MODE = 22052
     # logging (22100-22199)
     LOG_TYPE = 22100
     LOG_LEVEL = 22101
@@ -340,6 +341,18 @@ class NodeType(IdEnum):
     @property
     def area(self) -> NodeArea:
         return AREA_BY_NODE_TYPE[self]
+
+    @property
+    def is_cosmos(self) -> bool:
+        return self.id < 100
+
+    @property
+    def is_auth(self) -> bool:
+        return self.id >= 100 and self.id < 200
+
+    @property
+    def is_finance(self) -> bool:
+        return self.id >= 200 and self.id < 300
 
     @property
     def is_resource(self) -> bool:

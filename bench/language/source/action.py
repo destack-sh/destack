@@ -76,11 +76,11 @@ class ActionType(IdEnum):
     # ABORT?
 
     # tool
-    TOOL = 100, "Delegate to an implementation"
+    TOOL = 100, "Delegate to a tool"
     CODE = 101, "Run some Code"
 
     # dynamic
-    DO = 200, "Perform an arbitrary action"
+    ACT = 200, "Perform an arbitrary action"
     THINK = 201, "Reflect on the context"
     ROUTE = 202, "Route between Actions"
     GENERATE = 203, "Generate something new"
@@ -727,11 +727,23 @@ class GoToTabAction(Action, HasApplicationContext):
 #
 
 
-@enum_(EnumType.CALL_MODE)
-class CallMode(IdEnum):
-    FAIL_ON_FAIL = 1
-    SKIP_ON_FAIL = 2
-    RETURN_ON_FAIL = 3
+@enum_(EnumType.CALL_ERROR_MODE)
+class CallErrorMode(IdEnum):
+    FAIL = 1
+    IGNORE = 2
+    TERMINATE = 3
+
+
+@enum_(EnumType.CALL_EXECUTION_MODE)
+class CallExecutionMode(IdEnum):
+    SERIAL = 1
+    PARALLEL = 2
+
+
+@enum_(EnumType.CALL_TERMINATION_MODE)
+class CallTerminationMode(IdEnum):
+    IGNORE = 1
+    RETURN = 2
 
 
 @struct_(StructType.CALL)
@@ -744,14 +756,14 @@ class Call(Struct):
         references=(NodeType.BLOCK, NodeType.ACTION),
         constraint=constraint(node_subtypes=[BlockType.FLOW]),
     )
-    mode: CallMode = p_regular(32, default=CallMode.RETURN_ON_FAIL)
-    value_packed: Any = p_value_packed(35)
-    value: Any = p_value_runtime(
-        35, type=FieldType.INPUT, typ=lambda self: cast(Call, self).value_type
-    )
     if TYPE_CHECKING:
         node_ptr: NodeReference | None = None
         node_id: str | None = None
+    value_packed: Any = p_value_packed(33)
+    value: Any = p_value_runtime(
+        33, type=FieldType.INPUT, typ=lambda self: cast(Call, self).value_type
+    )
+    on_terminate: CallTerminationMode = p_regular(35, default=CallTerminationMode.IGNORE)
 
     @cached_property
     def value_type(self) -> Optional["TypeBase"]:
@@ -766,7 +778,6 @@ class Call(Struct):
     def new(
         node: "Block | Action",
         value: CustomObject | None = None,
-        mode: CallMode = CallMode.RETURN_ON_FAIL,
         **kwargs,
     ) -> "Call":
         value_type = node.to_type_maybe(
@@ -775,7 +786,6 @@ class Call(Struct):
         assert value_type is not None, f"no call value type for {node!r}"
         return Call(
             node=node,
-            mode=mode,
             value=coerce_custom_object_scalar(value or {}, value_type),
             **kwargs,
         )
@@ -783,25 +793,63 @@ class Call(Struct):
 
 @struct_(StructType.CALL_PLAN)
 class CallPlan(Struct):
-    """A plan for a series of (potentially interleaved) Calls."""
+    """A plan for some (potentially interleaved) Calls."""
 
-    mode: CallMode = p_regular(31, default=CallMode.RETURN_ON_FAIL)
-    calls: list[Call] = p_regular(32, array=True, struct=StructType.CALL)
+    execution: CallExecutionMode = p_regular(31, default=CallExecutionMode.SERIAL)
+    on_terminate: CallTerminationMode = p_regular(33, default=CallTerminationMode.IGNORE)
+    on_error: CallErrorMode = p_regular(34, default=CallErrorMode.TERMINATE)
+
+    calls: list[Call] = p_regular(40, array=True, struct=StructType.CALL)
+
+    @classmethod
+    def from_call(cls, call: Call) -> "CallPlan":
+        return CallPlan(calls=[call])
 
     @staticmethod
-    def new(*calls: Call, mode: CallMode = CallMode.RETURN_ON_FAIL) -> "CallPlan":
-        return CallPlan(calls=list(calls), mode=mode)
+    def new(
+        *calls: Call,
+        execution: CallExecutionMode = CallExecutionMode.SERIAL,
+        on_error: CallErrorMode = CallErrorMode.TERMINATE,
+        on_return: CallTerminationMode = CallTerminationMode.IGNORE,
+    ) -> "CallPlan":
+        return CallPlan(
+            calls=list(calls), execution=execution, on_error=on_error, on_terminate=on_return
+        )
 
 
 def call(node: "Block | Action", **kwargs) -> "Call":
     return Call.new(node, **kwargs)
 
 
-def call_sequential(*calls: Call, mode: CallMode = CallMode.RETURN_ON_FAIL) -> "CallPlan":
-    return CallPlan.new(*calls, mode=mode)
+def call_serial(
+    *calls: Call,
+    on_error: CallErrorMode = CallErrorMode.TERMINATE,
+    on_complete: CallTerminationMode = CallTerminationMode.IGNORE,
+) -> "CallPlan":
+    return CallPlan.new(
+        *calls, execution=CallExecutionMode.SERIAL, on_error=on_error, on_return=on_complete
+    )
+
+
+def call_parallel(
+    *calls: Call,
+    on_error: CallErrorMode = CallErrorMode.FAIL,
+    on_complete: CallTerminationMode = CallTerminationMode.IGNORE,
+) -> "CallPlan":
+    return CallPlan.new(
+        *calls, execution=CallExecutionMode.PARALLEL, on_error=on_error, on_return=on_complete
+    )
 
 
 def call_single(
-    node: "Block | Action", mode: CallMode = CallMode.RETURN_ON_FAIL, **kwargs
+    node: "Block | Action",
+    on_error: CallErrorMode = CallErrorMode.FAIL,
+    on_complete: CallTerminationMode = CallTerminationMode.IGNORE,
+    **kwargs,
 ) -> "CallPlan":
-    return CallPlan.new(call(node, mode=mode, **kwargs), mode=mode)
+    return CallPlan.new(
+        call(node, **kwargs),
+        execution=CallExecutionMode.SERIAL,
+        on_error=on_error,
+        on_return=on_complete,
+    )
