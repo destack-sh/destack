@@ -154,7 +154,7 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   // async
   [ActionType.SEND]: ColorType.PINK,
   [ActionType.RECEIVE]: ColorType.PINK,
-  [ActionType.MESSAGE]: ColorType.PINK,
+  [ActionType.RECEIVE]: ColorType.PINK,
   [ActionType.WAIT]: ColorType.PINK,
   [ActionType.YIELD]: ColorType.PINK,
   [ActionType.NOTIFY]: ColorType.PINK,

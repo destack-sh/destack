@@ -1,7 +1,16 @@
 <script lang="ts" setup>
 import { getBaseFromNode, toCamelName } from "@/language/const";
 import { ReadNodeGraph } from "@/language/graph";
-import { getRunDurationMs, getRunStartedAtMs, isRunActive, isRunTerminal, RunnableNode } from "@/language/session";
+import {
+  getRunDurationMs,
+  getRunDurationString,
+  getRunStartedAtMs,
+  isRunActive,
+  isRunBad,
+  isRunInterrupted,
+  isRunTerminal,
+  RunnableNode,
+} from "@/language/session";
 import {
   AnyNodeData,
   ColorShade,
@@ -16,12 +25,14 @@ import {
   RunSpanData,
   RunSpanType,
   ViewData,
+  InterruptionData,
+  InterruptionStatus,
 } from "@/proto/wire";
 import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
-import { getInputType, getOutputType, RunTree } from "@/system/runtime";
+import { getInputType, getOutputType, runtime, RunTree } from "@/system/runtime";
 import { canvas } from "@/system/space";
 import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_SPAN_TYPE, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
-import { COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
+import { COLOR_BY_RUN_STATUS, getColorHex, getRunColorHex } from "@/ui/style";
 import { assertNever } from "@/utils/functools";
 import { formatDuration, getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
 import RunStatusView from "@/views/builtins/RunStatus.vue";
@@ -29,6 +40,7 @@ import { useElementSize } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, onMounted, ref, Ref, shallowRef, toRef, watchEffect } from "vue";
 import SomeObject from "@/views/objects/Object.vue";
+import RunError from "@/views/builtins/RunError.vue";
 
 const DEPTH_OFFSET = 12;
 const ROW_HEIGHT = 28;
@@ -80,10 +92,13 @@ type TimelineSpan = {
   startedAtMs: number;
   durationMs: number;
   baseNode: AnyNodeData | null | undefined;
-  content: RunData | RunSpanData;
+  span: RunData | RunSpanData;
+  interruption: InterruptionData | null | undefined;
   offsetRelative: number;
   durationRelative: number;
-  isActive: boolean;
+  isTerminal: boolean;
+  isBad: boolean;
+  isInterrupted: boolean;
 };
 
 type TimelineEvent = {
@@ -109,7 +124,7 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
     const startedAtMs = getRunStartedAtMs(run);
     const durationMs = getRunDurationMs(run, nowMs);
 
-    // context
+    // content
     const basePtr = isNode(run, NodeType.RUN) ? getBaseFromNode(run) : null;
     const baseNode = basePtr != null ? props.graph.get(basePtr) : null;
     const color = !isNode(run, NodeType.RUN_SPAN)
@@ -126,6 +141,10 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
     } else {
       assertNever(run);
     }
+    const interruption =
+      isNode(run, NodeType.RUN) && run.interruptionPtr != null
+        ? (runTree.runGraph.get(run.interruptionPtr) as InterruptionData | null)
+        : null;
 
     // span
     let offsetRelative: number;
@@ -152,10 +171,13 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
       startedAtMs: startedAtMs,
       durationMs: durationMs,
       baseNode: baseNode,
-      content: run,
+      span: run,
+      interruption,
       offsetRelative,
       durationRelative: durationRelative,
-      isActive: !isRunTerminal(run),
+      isTerminal: isRunTerminal(run),
+      isBad: isRunBad(run),
+      isInterrupted: isRunInterrupted(run),
     };
     spans.push(span);
 
@@ -177,7 +199,7 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
 
   const descendants = [...spans.slice(1) /* skip root */, ...events];
   descendants.sort((a, b) => a.startedAtMs - b.startedAtMs);
-  const hasActive = spans.some((span) => span.isActive);
+  const hasActive = spans.some((span) => !span.isTerminal);
   return { root, spans, events, descendants, hasActive };
 }
 
@@ -199,10 +221,11 @@ watchEffect(() => {
 </script>
 <template>
   <div v-if="layout == 'linear'" ref="containerRef" class="flex w-full flex-1 flex-col">
+    <!-- NOTE :UX :Architecture: maybe RunTimeline should be a more general Feed view? -->
     <!-- Linear -->
     <div v-for="thing in timeline.descendants" :key="thing.id" class="w-full">
       <!-- Run -->
-      <div v-if="thing.metatype == 'span' && isNode(thing.content, NodeType.RUN)" class="w-full py-0.5">
+      <div v-if="thing.metatype == 'span' && isNode(thing.span, NodeType.RUN)" class="w-full py-0.5">
         <!-- Header -->
         <div class="flex w-full flex-row items-center py-0.5">
           <!-- Node -->
@@ -212,53 +235,84 @@ watchEffect(() => {
           >
             <!-- Icon (from Run if active) -->
             <IconInline
-              v-if="isRunActive(thing.content)"
-              v-bind="ICON_BY_RUN_STATUS[thing.content.status]"
+              v-if="isRunActive(thing.span)"
+              v-bind="ICON_BY_RUN_STATUS[thing.span.status]"
               class="mr-1.5 w-5 text-center text-gray-700"
-              :class="[thing.content.status == RunStatus.RUNNING ? 'animate-spin' : '']"
+              :class="[thing.span.status == RunStatus.RUNNING ? 'animate-spin' : '']"
             />
             <IconInline v-else v-bind="thing.icon" class="mr-1.5 w-5 text-center text-gray-700" />
+            <!-- Name -->
             <span class="truncate font-medium underline-offset-3 group-hover/node:underline">{{ thing.name }}</span>
+            <!-- Icon -->
+            <IconInline
+              v-if="thing.isBad || thing.isInterrupted"
+              v-bind="ICON_BY_RUN_STATUS[thing.span.status]"
+              :style="{ color: getRunColorHex(thing.span.status) }"
+              class="ml-1 w-5 text-center"
+            />
           </button>
           <!-- Status -->
-          <RunStatusView
-            class="ml-auto"
-            :run="thing.content"
-            :orientation="Orientation.HORIZONTAL_REVERSED"
-            icon="hide"
-          />
+          <div class="ml-auto">
+            <span class="text-gray-400">
+              {{ getRunDurationString(thing.span, { minUnit: "s" }) }}
+            </span>
+          </div>
         </div>
         <!-- Body -->
         <div class="ml-2 flex flex-row gap-x-3">
           <!-- Connecting line -->
-          <div class="w-1 rounded-full bg-gray-200"></div>
+          <div
+            class="w-1 rounded-full"
+            :class="[thing.isBad ? 'bg-red-500' : thing.isInterrupted ? 'bg-pink-500' : 'bg-gray-200']"
+          />
           <!-- Content -->
           <div class="flex flex-1 flex-col pb-1.5 pt-1">
+            <!-- Inputs/Outputs -->
             <SomeObject
-              v-if="thing.content.inputsPacked != null"
+              v-if="thing.span.inputsPacked != null"
               :id="`object-inputs-${thing.id}`"
               class=""
               :value-type="getInputType(thing.baseNode as RunnableNode)"
               is-inline
               is-minimal
-              :model-value="thing.content.inputsPacked"
+              :model-value="thing.span.inputsPacked"
             />
             <SomeObject
-              v-if="thing.content.outputsPacked != null"
+              v-if="thing.span.outputsPacked != null"
               :id="`object-outputs-${thing.id}`"
               class=""
               :value-type="getOutputType(thing.baseNode as RunnableNode)"
               is-inline
+              :is-input="thing.interruption != null"
               is-minimal
-              :model-value="thing.content.outputsPacked"
+              :model-value="thing.span.outputsPacked"
             />
+            <!-- Interruption -->
+            <div v-if="thing.interruption != null" class="">
+              <span>The Run was interrupted.</span>
+              <div
+                v-if="thing.interruption.status == InterruptionStatus.OPEN"
+                class="flex flex-row items-center justify-end gap-x-2 py-1"
+              >
+                <button
+                  class="rounded px-0.5 text-pink-700 transition-colors duration-75 hover:bg-gray-100"
+                  @click="runtime.complete(thing.interruption)"
+                >
+                  <i class="fas fa-check" />
+                  <span class="ml-1.5">Continue</span>
+                </button>
+                <button
+                  class="rounded px-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
+                  @click="runtime.cancel(thing.interruption)"
+                >
+                  <i class="fas fa-xmark" />
+                  <span class="ml-1.5">Cancel</span>
+                </button>
+              </div>
+            </div>
+            <!-- Error -->
+            <RunError v-if="thing.span.error != null" :error="thing.span.error" />
           </div>
-        </div>
-      </div>
-      <!-- Event -->
-      <div v-else-if="thing.metatype == 'event'">
-        <div>
-          <span>{{ thing.title }}</span>
         </div>
       </div>
     </div>
@@ -315,8 +369,8 @@ watchEffect(() => {
         <!-- Meta -->
         <div class="ml-auto flex-shrink-0 pl-1.5">
           <RunStatus
-            v-if="isNode(span.content, NodeType.RUN)"
-            :run="span.content"
+            v-if="isNode(span.span, NodeType.RUN)"
+            :run="span.span"
             :orientation="Orientation.HORIZONTAL_REVERSED"
           />
           <div v-else class="flex flex-row items-center gap-x-1.5">

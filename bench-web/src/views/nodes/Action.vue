@@ -78,7 +78,7 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="action"
     ref="containerRef"
-    class="group/action rounded border outline outline-1 transition-colors duration-150"
+    class="group/action rounded border outline outline-2 transition-colors duration-150"
     :class="[
       isSelected ? 'border-gray-400 bg-orange-100' : '',
       !isSelected && (isInspected || isHighlighted) ? 'border-gray-400 bg-gray-100' : '',

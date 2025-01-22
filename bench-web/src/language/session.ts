@@ -1,4 +1,4 @@
-import { ACTIVE_RUN_STATUSES, INTERRUPTED_RUN_STATUSES, TERMINAL_RUN_STATUSES } from "@/language/const";
+import { ACTIVE_RUN_STATUSES, BAD_RUN_STATUSES, INTERRUPTED_RUN_STATUSES, TERMINAL_RUN_STATUSES } from "@/language/const";
 import {
   BlockType,
   CodeData,
@@ -11,13 +11,12 @@ import {
   RunProperty,
   RunSpanData,
   RunType,
-  StructType,
   TextData,
   type ActionData,
   type BlockData,
   type RunData
 } from "@/proto/wire";
-import { describeNode, isNode, isStruct, propertyReference } from "@/proto/wiring";
+import { describeNode, isNode, propertyReference } from "@/proto/wiring";
 import { assertNever } from "@/utils/functools";
 import {
   compareTimestamps,
@@ -50,15 +49,20 @@ export function isRunnable(node: any | null | undefined): node is RunnableNode {
   }
 }
 
-export function isRunActive(run: RunData): boolean {
+export function isRunActive(run: RunData | RunSpanData): boolean {
   return ACTIVE_RUN_STATUSES.includes(run.status);
 }
 
-export function isRunInterrupted(run: RunData): boolean {
+export function isRunInterrupted(run: RunData | RunSpanData): boolean {
   return INTERRUPTED_RUN_STATUSES.includes(run.status);
 }
 
-export function isRunPaused(run: RunData): boolean {
+export function isRunBad(run: RunData | RunSpanData): boolean {
+  return BAD_RUN_STATUSES.includes(run.status);
+}
+
+export function isRunPaused(run: RunData | RunSpanData): boolean {
+  if (!isNode(run, NodeType.RUN)) return false;
   if (isRunTerminal(run)) return false;
   return run.pausedAt != null && (run.resumedAt == null || compareTimestamps(run.pausedAt, run.resumedAt) > 0);
 }
