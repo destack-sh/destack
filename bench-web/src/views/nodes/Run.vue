@@ -1,12 +1,11 @@
 <script lang="ts" setup>
-import { actionToType } from "@/language/action";
 import { getBaseFromNode } from "@/language/const";
 import { makeType } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
 import { isRunnable, RunnableNode } from "@/language/session";
 import { getTransactionOptionsForType } from "@/language/transaction";
-import { BenchType, FieldType, InterruptionType, NodeType, RunData, TypeKind, ViewData, ViewType } from "@/proto/wire";
-import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { FieldType, InterruptionType, NodeType, RunData, TypeKind, ViewData, ViewType } from "@/proto/wire";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getInputType, getOutputType, runtime } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
 import { computedValue } from "@/utils/ref";
@@ -19,7 +18,6 @@ import { computed, toRef, type Ref } from "vue";
 const HEADER_HEIGHT = 32;
 const SECTION_HEADER_HEIGHT = 32;
 const ROW_HEIGHT = 28;
-const INTERRUPT_TYPES = [InterruptionType.YIELD]; // NOTE :UX: make shown interrupt types configurable
 
 const props = defineProps<
   {
@@ -56,8 +54,6 @@ const variablesPacked = useSubnodeProperty(
 );
 // schema
 const fields = pkgGraph.getChildrenRef(runBasePtr, NodeType.FIELD);
-const hasVariables = computed(() => fields.value.some((f) => f.type == FieldType.VARIABLE));
-const hasInputs = computed(() => fields.value.some((f) => f.type == FieldType.INPUT));
 const hasOutputs = computed(() => fields.value.some((f) => f.type == FieldType.OUTPUT));
 const variableType = computed(() =>
   runBasePtr.value != null
@@ -86,7 +82,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
   <div v-if="node && nodeIsRunnable" class="h-full w-full">
     <!-- TODO :UX: turn Run into collapsible sections like in Inspect & Hub (factor out Tabs & Sections?) -->
     <!-- New Run -->
-    <div v-if="run == null" class="flex flex-col gap-y-2">
+    <div v-if="run == null" class="flex flex-col">
       <!-- Variables/Inputs -->
       <div v-for="fieldType in [FieldType.VARIABLE, FieldType.INPUT]" :key="fieldType" class="px-5">
         <SomeObject
@@ -111,46 +107,50 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
     </div>
     <!-- Existing Run -->
     <div v-else class="flex flex-col">
-      <!-- Variables/Inputs/Outputs -->
-      <SomeObject
-        id="fields-variables"
-        class="w-full px-5"
-        :value-type="variableType"
-        is-inline
-        is-minimal
-        :model-value="run?.variablesPacked"
-      />
-      <SomeObject
-        id="fields-input"
-        class="w-full px-5"
-        :value-type="inputType"
-        is-inline
-        is-minimal
-        :model-value="run?.inputsPacked"
-      />
-      <!-- Arrow -->
-      <div v-if="hasOutputs" class="relative my-0.5 w-full text-center">
-        <span class="fas fa-arrow-down text-gray-400" />
-      </div>
-      <SomeObject
-        id="fields-output"
-        class="w-full px-5"
-        :value-type="outputType"
-        is-inline
-        is-minimal
-        :model-value="run?.outputsPacked"
-      />
-      <!-- Error -->
-      <div v-if="run?.error != null" class="px-5">
-        <div
-          class="flex flex-row items-center"
-          :style="{
-            height: `${SECTION_HEADER_HEIGHT}px`,
-          }"
-        >
-          <span class="font-semibold">Error</span>
+      <div class="">
+        <!-- Variables/Inputs/Outputs -->
+        <SomeObject
+          id="fields-variables"
+          class="w-full px-5"
+          :value-type="variableType"
+          is-inline
+          is-minimal
+          :model-value="run?.variablesPacked"
+        />
+        <SomeObject
+          id="fields-input"
+          class="w-full px-5"
+          :value-type="inputType"
+          is-inline
+          is-minimal
+          :model-value="run?.inputsPacked"
+        />
+        <!-- Arrow -->
+        <template v-if="run?.outputsPacked != null">
+          <div  class="relative my-0.5 w-full text-center">
+            <span class="fas fa-arrow-down text-gray-400" />
+          </div>
+          <SomeObject
+            id="fields-output"
+            class="w-full px-5"
+            :value-type="outputType"
+            is-inline
+            is-minimal
+            :model-value="run?.outputsPacked"
+          />
+        </template>
+        <!-- Error -->
+        <div v-if="run?.error != null" class="px-5">
+          <div
+            class="flex flex-row items-center"
+            :style="{
+              height: `${SECTION_HEADER_HEIGHT}px`,
+            }"
+          >
+            <span class="font-semibold">Error</span>
+          </div>
+          <RunError class="" :run="run" :error="run.error" />
         </div>
-        <RunError class="" :run="run" :error="run.error" />
       </div>
       <!-- Timeline -->
       <div v-if="run != null" class="px-5">

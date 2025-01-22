@@ -281,6 +281,7 @@ defineExpose<ViewExposed>({ self });
             v-for="action in [...getRunActions(runtime.focusedRun), CLEAR_RUN_ACTION]"
             :key="action.title"
             v-tooltip="{ title: action.title, small: true, group: 'run' }"
+            aria-hidden
             class="rounded px-1 text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/run:opacity-100"
             @click="action.action()"
           >

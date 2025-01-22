@@ -11,7 +11,7 @@ import { useElementSize } from "@vueuse/core";
 import { computed, Ref, ref, toRef, watch } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; placeholder?: string } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; placeholder?: string, ariaHidden?: boolean } & Partial<
     Partial<
       Pick<
         ViewData,
@@ -158,6 +158,7 @@ defineExpose<ViewExposed & { select: () => void }>({
         }"
         v-bind="getNativeConstraintProps(valueType?.constraint)"
         :disabled="isDisabled"
+        :aria-hidden="ariaHidden"
         @keydown.enter.stop.prevent="emit('apply')"
         @input="currentValue = ($event.target as HTMLInputElement).value"
       />
@@ -169,6 +170,7 @@ defineExpose<ViewExposed & { select: () => void }>({
       <button
         v-if="!isMinimal && !isDisabled && !valueType?.isRequired && hasValue"
         class="ml-auto pl-1 text-gray-400 opacity-0 outline-none transition-colors duration-75 hover:text-gray-700 focus:ring-0 group-hover:opacity-100"
+        aria-hidden
         tabindex="-1"
         @click.stop="clear"
       >
@@ -183,6 +185,8 @@ defineExpose<ViewExposed & { select: () => void }>({
         <button
           v-if="!isDisabled"
           class="ml-1.5 text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover:opacity-100"
+          aria-hidden
+          tabindex="-1"
           @click.stop="remove(i)"
         >
           <i class="fas fa-xmark" />
@@ -199,6 +203,7 @@ defineExpose<ViewExposed & { select: () => void }>({
         v-bind="getNativeConstraintProps(valueType?.constraint)"
         :size="isMinimal ? size : undefined"
         :disabled="isDisabled"
+        :aria-hidden="ariaHidden"
         @keydown.enter.stop.prevent="addCurrentValue(), $nextTick(() => inputRef?.focus())"
         @input="currentValue = ($event.target as HTMLInputElement).value"
       />
@@ -206,6 +211,8 @@ defineExpose<ViewExposed & { select: () => void }>({
       <button
         v-else-if="!isDisabled"
         class="hover:text-pgrayrimary-700 mr-2 self-center text-gray-400 opacity-0 group-hover:opacity-100"
+        aria-hidden
+        tabindex="-1"
         @click.stop="addNewValue(), $nextTick(() => inputRef?.focus())"
       >
         <i class="fas fa-plus" />

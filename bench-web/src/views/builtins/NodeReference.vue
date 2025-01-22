@@ -79,6 +79,7 @@ defineExpose({
     :data-node-id="node.id"
     :data-node-ck="(node as any).ck"
     :data-node-type="node.metatype"
+    aria-role="button"
   >
     <IconInline
       ref="iconRef"
@@ -102,6 +103,7 @@ defineExpose({
         isIconLight ? '' : 'text-gray-700',
       ]"
       role="button"
+      aria-hidden
     />
     <!-- Identifier -->
     <NativeInput
@@ -116,6 +118,7 @@ defineExpose({
       :value-type="identifierKind == 'name' ? NAME_TYPE : TITLE_TYPE"
       is-minimal
       :model-value="identifier"
+      aria-hidden
       @update:model-value="
         (newValue) => getTx().update(node!, { [identifierKind!]: newValue as string }, { debounce: 'long' })
       "

@@ -89,6 +89,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       borderColor: lastRun != null ? getRunColorHex(lastRun.status) : '',
       outlineColor: lastRun != null && isRunActive(lastRun) ? getRunColorHex(lastRun.status) : '',
     }"
+    aria-role="button"
     @mouseup="(e) => flowCtx.endDragging(e, { kind: 'action', action: action! })"
     @mousedown.alt="
       (e) => {
@@ -100,6 +101,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <div
       v-for="side in ['top', 'bottom', 'left', 'right']"
       v-if="action.type != ActionType.TEXT && !SINK_ACTION_TYPES.includes(action.type)"
+      aria-hidden
       class="absolute"
       :class="[
         side == 'top' ? '-top-2.5 left-1/2 -translate-x-1/2' : '',
@@ -115,6 +117,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           width: (side == 'top' || side == 'bottom' ? FLOW_PORT_SIZE * 2 : FLOW_PORT_SIZE) + 'px',
           height: (side == 'top' || side == 'bottom' ? FLOW_PORT_SIZE : FLOW_PORT_SIZE * 2) + 'px',
         }"
+        aria-hidden
         @mousedown="(e) => flowCtx.startDragging(e, { kind: 'port', action: action!, side: PortSide.OUTGOING })"
         @mouseup="(e) => flowCtx.endDragging(e, { kind: 'port', action: action!, side: PortSide.INCOMING })"
       />
@@ -190,17 +193,15 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Controls/Meta -->
           <div class="ml-auto flex flex-row pl-2 pr-1.5">
             <!-- Run status -->
-            <button v-if="lastRun != null" class="rounded hover:bg-gray-100">
+            <button v-if="lastRun != null" class="rounded hover:bg-gray-100" aria-hidden>
               <RunStatus :run="lastRun" :orientation="Orientation.HORIZONTAL_REVERSED" />
             </button>
           </div>
         </div>
         <!-- Body -->
         <div class="flex max-w-full flex-row items-center gap-x-1 truncate text-gray-700">
-          <!-- TOOL -->
-          <!-- ...? -->
-          <!-- Fields -->
           <!-- NOTE :Incomplete: better Action body -->
+          <!-- Fields -->
           <span
             v-for="field in fields.filter((f) => f.type == FieldType.INPUT)"
             :key="field.id"
@@ -244,6 +245,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- Floating Menu -->
     <div class="absolute -left-5 top-0 flex -translate-x-1 flex-row gap-x-1.5">
       <button
+        aria-hidden
         class="text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover/action:opacity-100 data-[popover=true]:text-gray-700 data-[popover=true]:opacity-100"
         @click="(e) => pushDefaultMenu('main', action!, e)"
       >
