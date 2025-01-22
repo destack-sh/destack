@@ -2,7 +2,6 @@ import {
   APPLICATION_ACTION_TYPES,
   DYNAMIC_ACTION_TYPES,
   FLOW_ACTION_TYPES,
-  GENERIC_ACTION_TYPES,
   getBaseFromNode,
   getPropertyTitle,
   isNodeType,
@@ -922,6 +921,7 @@ const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>
   [ActionType.TYPE]: [TypeActionProperty.string, TypeActionProperty.delay],
   [ActionType.PRESS]: [PressActionProperty.keys, PressActionProperty.delay],
   [ActionType.SCROLL]: [ScrollActionProperty.amount],
+  [ActionType.LOOK]: [LookActionProperty.screenshotPtr],
   // web
   [ActionType.GO_TO_URL]: [GoToUrlActionProperty.url],
 };
@@ -1019,11 +1019,9 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
       );
     } else if (DYNAMIC_ACTION_TYPES.includes(node.type as ActionType)) {
       // variables
-      if (GENERIC_ACTION_TYPES.includes(node.type as ActionType)) {
-        this.section("Variables", [{ type: "fields-list", fieldType: FieldType.VARIABLE }], {
-          actions: [this.actionAddField(FieldType.VARIABLE)],
-        });
-      }
+      this.section("Variables", [{ type: "fields-list", fieldType: FieldType.VARIABLE }], {
+        actions: [this.actionAddField(FieldType.VARIABLE)],
+      });
       // own schema
       this.section(
         "Schema",
@@ -1050,18 +1048,20 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
     }
   }
 
-  subproperties(...subproperties: number[]) {
+  /** Rows for Action subproperties */
+  actionSubproperties(...subproperties: number[]) {
     const rows: Row[] = [];
     subproperties = subproperties ?? Object.values(this.subpropertyEnum ?? {});
     for (let i = 0; i < subproperties.length; i++) {
       const subproperty = subproperties[i];
       if (typeof subproperty !== "number") continue;
       const { prop } = this.getProperty(subproperty as any);
-      if (prop == null || prop.fieldType == FieldType.OUTPUT) continue;
+      if (prop == null) continue;
+      if (this.propertyFieldTypes.length > 0 && !this.propertyFieldTypes.includes(prop.fieldType!)) continue;
 
       if (prop.valueIsPartial) {
+        // no nested partials
         if (!this.isPartial) {
-          // no nested partials
           this.section("Node", [
             this.rowObjectNested(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), {
               title: false,
@@ -1131,7 +1131,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
 
     // default subproperties
     commonRows.push(
-      ...this.subproperties(...(DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE[this.subtype as any as ActionType] ?? [])),
+      ...this.actionSubproperties(...(DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE[this.subtype as any as ActionType] ?? [])),
     );
 
     // application options
@@ -1186,6 +1186,7 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
   }
 }
 
+/** CustomObject layout with only Fields */
 export class CustomLayout extends BaseObjectLayout {
   valuePacked: Record<string, any>;
   valueType: TypeData;
@@ -1215,6 +1216,7 @@ export class CustomLayout extends BaseObjectLayout {
   }
 }
 
+/** PartialNode layout where we don't know the node type yet */
 export class PartialStubLayout extends BaseObjectLayout {
   nodeType: NodeType | null;
   subtype: number | null;
@@ -1245,6 +1247,7 @@ export class PartialStubLayout extends BaseObjectLayout {
   }
 }
 
+/** Eternal empty nothingness as a layout */
 export class EmptyLayout extends BaseObjectLayout {
   make() {
     // deliberately empty
@@ -1314,16 +1317,12 @@ export function useObjectLayout(options: {
       const valuePacked = options.valuePacked.value ?? {};
       const { nodeType, subtype } = getPartialObjectType(options.valueType.value, valuePacked);
 
-      let partialNode: Partial<AnyNodeData> | null = null;
-      let subnode: any | null = null;
       if (nodeType != null) {
-        partialNode = unpackPartialNode(valuePacked, nodeType, subtype);
-        subnode =
-          (partialNode.subnodePacked as any)?.[subtype?.toString()!] != null
-            ? (unpackSubnode(nodeType, subtype as never, partialNode.subnodePacked) as any)
-            : null;
+        const { node, subnode } = unpackPartialNode(valuePacked, nodeType, subtype);
+        return { node, subnode, nodeType, subtype };
+      } else {
+        return { node: null, subnode: null, nodeType: null, subtype: null };
       }
-      return { node: partialNode, subnode, nodeType, subtype };
     }
     return null;
   });

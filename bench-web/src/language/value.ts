@@ -390,11 +390,12 @@ export function unpackPartialNode(
   valuePacked: any,
   nodeType: NodeType,
   subtype: number | null | undefined,
-): Partial<AnyNodeData> {
+): { node: Partial<AnyNodeData>; subnode: any } {
   const node = { metatype: nodeType as unknown as ObjectType } as Partial<AnyNodeData>;
   if (subtype != null) {
     (node as any).type = subtype;
   }
+  const subnode: any = {};
   const properties = PROPERTY_INFOS_BY_TYPE[nodeType]!;
   const propertiesEnum = PROPERTY_ENUM_BY_TYPE[nodeType]!;
   const subtypeProperties = subtype != null ? PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[subtype] : null;
@@ -436,16 +437,13 @@ export function unpackPartialNode(
         const prop = subtypeProperties[propId];
         const propName = subtypePropertiesEnum[prop.id];
         const propType = getPropertyType(prop);
-        if ((node as EmptyData).subnodePacked == null) {
-          (node as any).subnodePacked = {};
-        }
-        (node as any)[propName] = unpackValue(valuePacked[key], propType);
+        (subnode)[propName] = unpackValue(valuePacked[key], propType);
       } else {
-        // subtype field not needed?
+        // subtype field not needed yet?
       }
     }
   }
-  return node;
+  return { node, subnode };
 }
 
 /**
