@@ -130,7 +130,7 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   [ActionType.CODE]: ColorType.SKY,
   [ActionType.TOOL]: ColorType.SKY,
   // generic
-  [ActionType.DO]: ColorType.VIOLET,
+  [ActionType.ACT]: ColorType.VIOLET,
   [ActionType.ROUTE]: ColorType.VIOLET,
   [ActionType.THINK]: ColorType.VIOLET,
   [ActionType.GENERATE]: ColorType.VIOLET,

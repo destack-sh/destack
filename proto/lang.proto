@@ -77,7 +77,9 @@ enum EnumType {
   ENUM_TYPE_TRIGGER_TYPE = 22020;
   ENUM_TYPE_CACHE_MODE = 22030;
   ENUM_TYPE_SCHEDULE_FREQUENCY = 22040;
-  ENUM_TYPE_CALL_MODE = 22050;
+  ENUM_TYPE_CALL_ERROR_MODE = 22050;
+  ENUM_TYPE_CALL_EXECUTION_MODE = 22051;
+  ENUM_TYPE_CALL_TERMINATION_MODE = 22052;
   ENUM_TYPE_LOG_TYPE = 22100;
   ENUM_TYPE_LOG_LEVEL = 22101;
   ENUM_TYPE_BREAKPOINT_SITE = 22200;
@@ -461,7 +463,9 @@ enum BenchType {
   BENCH_TYPE_TRIGGER_TYPE = 22020;
   BENCH_TYPE_CACHE_MODE = 22030;
   BENCH_TYPE_SCHEDULE_FREQUENCY = 22040;
-  BENCH_TYPE_CALL_MODE = 22050;
+  BENCH_TYPE_CALL_ERROR_MODE = 22050;
+  BENCH_TYPE_CALL_EXECUTION_MODE = 22051;
+  BENCH_TYPE_CALL_TERMINATION_MODE = 22052;
   BENCH_TYPE_LOG_TYPE = 22100;
   BENCH_TYPE_LOG_LEVEL = 22101;
   BENCH_TYPE_BREAKPOINT_SITE = 22200;
@@ -1249,11 +1253,23 @@ enum ScheduleFrequency {
   SCHEDULE_FREQUENCY_SECOND = 7;
 }
 
-enum CallMode {
-  CALL_MODE_UNSPECIFIED = 0;
-  CALL_MODE_FAIL_ON_FAIL = 1;
-  CALL_MODE_SKIP_ON_FAIL = 2;
-  CALL_MODE_RETURN_ON_FAIL = 3;
+enum CallErrorMode {
+  CALL_ERROR_MODE_UNSPECIFIED = 0;
+  CALL_ERROR_MODE_FAIL = 1;
+  CALL_ERROR_MODE_IGNORE = 2;
+  CALL_ERROR_MODE_TERMINATE = 3;
+}
+
+enum CallExecutionMode {
+  CALL_EXECUTION_MODE_UNSPECIFIED = 0;
+  CALL_EXECUTION_MODE_SERIAL = 1;
+  CALL_EXECUTION_MODE_PARALLEL = 2;
+}
+
+enum CallTerminationMode {
+  CALL_TERMINATION_MODE_UNSPECIFIED = 0;
+  CALL_TERMINATION_MODE_IGNORE = 1;
+  CALL_TERMINATION_MODE_RETURN = 2;
 }
 
 enum LogType {
@@ -1372,7 +1388,7 @@ enum ActionType {
   ACTION_TYPE_FAIL = 11;
   ACTION_TYPE_TOOL = 100;
   ACTION_TYPE_CODE = 101;
-  ACTION_TYPE_DO = 200;
+  ACTION_TYPE_ACT = 200;
   ACTION_TYPE_THINK = 201;
   ACTION_TYPE_ROUTE = 202;
   ACTION_TYPE_GENERATE = 203;
@@ -2150,14 +2166,16 @@ message ContextData {
 message CallData {
   ObjectType metatype = 1;
   NodeReferenceData node_ptr = 31;
-  CallMode mode = 32;
-  optional google.protobuf.Value value_packed = 35;
+  optional google.protobuf.Value value_packed = 33;
+  CallTerminationMode on_terminate = 35;
 }
 
 message CallPlanData {
   ObjectType metatype = 1;
-  CallMode mode = 31;
-  repeated CallData calls = 32;
+  CallExecutionMode execution = 31;
+  CallTerminationMode on_terminate = 33;
+  CallErrorMode on_error = 34;
+  repeated CallData calls = 40;
 }
 
 message ColorData {
@@ -2798,8 +2816,9 @@ message RunData {
   optional NodeReferenceData block_ptr = 32;
   optional NodeReferenceData action_ptr = 33;
   optional NodeReferenceData pipe_ptr = 34;
-  repeated NodeReferenceData incoming_ptr = 36;
-  repeated NodeReferenceData outgoing_ptr = 37;
+  optional NodeReferenceData caller_ptr = 36;
+  repeated NodeReferenceData incoming_ptr = 37;
+  repeated NodeReferenceData outgoing_ptr = 38;
   RunOptionsData options = 39;
   RunStatus status = 40;
   optional google.protobuf.Duration duration = 41;

@@ -89,7 +89,9 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_TRIGGER_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CACHE_MODE: _ClassVar[EnumType]
     ENUM_TYPE_SCHEDULE_FREQUENCY: _ClassVar[EnumType]
-    ENUM_TYPE_CALL_MODE: _ClassVar[EnumType]
+    ENUM_TYPE_CALL_ERROR_MODE: _ClassVar[EnumType]
+    ENUM_TYPE_CALL_EXECUTION_MODE: _ClassVar[EnumType]
+    ENUM_TYPE_CALL_TERMINATION_MODE: _ClassVar[EnumType]
     ENUM_TYPE_LOG_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_LOG_LEVEL: _ClassVar[EnumType]
     ENUM_TYPE_BREAKPOINT_SITE: _ClassVar[EnumType]
@@ -473,7 +475,9 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_TRIGGER_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_CACHE_MODE: _ClassVar[BenchType]
     BENCH_TYPE_SCHEDULE_FREQUENCY: _ClassVar[BenchType]
-    BENCH_TYPE_CALL_MODE: _ClassVar[BenchType]
+    BENCH_TYPE_CALL_ERROR_MODE: _ClassVar[BenchType]
+    BENCH_TYPE_CALL_EXECUTION_MODE: _ClassVar[BenchType]
+    BENCH_TYPE_CALL_TERMINATION_MODE: _ClassVar[BenchType]
     BENCH_TYPE_LOG_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_LOG_LEVEL: _ClassVar[BenchType]
     BENCH_TYPE_BREAKPOINT_SITE: _ClassVar[BenchType]
@@ -1238,12 +1242,24 @@ class ScheduleFrequency(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SCHEDULE_FREQUENCY_MINUTE: _ClassVar[ScheduleFrequency]
     SCHEDULE_FREQUENCY_SECOND: _ClassVar[ScheduleFrequency]
 
-class CallMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class CallErrorMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    CALL_MODE_UNSPECIFIED: _ClassVar[CallMode]
-    CALL_MODE_FAIL_ON_FAIL: _ClassVar[CallMode]
-    CALL_MODE_SKIP_ON_FAIL: _ClassVar[CallMode]
-    CALL_MODE_RETURN_ON_FAIL: _ClassVar[CallMode]
+    CALL_ERROR_MODE_UNSPECIFIED: _ClassVar[CallErrorMode]
+    CALL_ERROR_MODE_FAIL: _ClassVar[CallErrorMode]
+    CALL_ERROR_MODE_IGNORE: _ClassVar[CallErrorMode]
+    CALL_ERROR_MODE_TERMINATE: _ClassVar[CallErrorMode]
+
+class CallExecutionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CALL_EXECUTION_MODE_UNSPECIFIED: _ClassVar[CallExecutionMode]
+    CALL_EXECUTION_MODE_SERIAL: _ClassVar[CallExecutionMode]
+    CALL_EXECUTION_MODE_PARALLEL: _ClassVar[CallExecutionMode]
+
+class CallTerminationMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CALL_TERMINATION_MODE_UNSPECIFIED: _ClassVar[CallTerminationMode]
+    CALL_TERMINATION_MODE_IGNORE: _ClassVar[CallTerminationMode]
+    CALL_TERMINATION_MODE_RETURN: _ClassVar[CallTerminationMode]
 
 class LogType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1359,7 +1375,7 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_FAIL: _ClassVar[ActionType]
     ACTION_TYPE_TOOL: _ClassVar[ActionType]
     ACTION_TYPE_CODE: _ClassVar[ActionType]
-    ACTION_TYPE_DO: _ClassVar[ActionType]
+    ACTION_TYPE_ACT: _ClassVar[ActionType]
     ACTION_TYPE_THINK: _ClassVar[ActionType]
     ACTION_TYPE_ROUTE: _ClassVar[ActionType]
     ACTION_TYPE_GENERATE: _ClassVar[ActionType]
@@ -1801,7 +1817,9 @@ ENUM_TYPE_SESSION_STATUS: EnumType
 ENUM_TYPE_TRIGGER_TYPE: EnumType
 ENUM_TYPE_CACHE_MODE: EnumType
 ENUM_TYPE_SCHEDULE_FREQUENCY: EnumType
-ENUM_TYPE_CALL_MODE: EnumType
+ENUM_TYPE_CALL_ERROR_MODE: EnumType
+ENUM_TYPE_CALL_EXECUTION_MODE: EnumType
+ENUM_TYPE_CALL_TERMINATION_MODE: EnumType
 ENUM_TYPE_LOG_TYPE: EnumType
 ENUM_TYPE_LOG_LEVEL: EnumType
 ENUM_TYPE_BREAKPOINT_SITE: EnumType
@@ -2173,7 +2191,9 @@ BENCH_TYPE_SESSION_STATUS: BenchType
 BENCH_TYPE_TRIGGER_TYPE: BenchType
 BENCH_TYPE_CACHE_MODE: BenchType
 BENCH_TYPE_SCHEDULE_FREQUENCY: BenchType
-BENCH_TYPE_CALL_MODE: BenchType
+BENCH_TYPE_CALL_ERROR_MODE: BenchType
+BENCH_TYPE_CALL_EXECUTION_MODE: BenchType
+BENCH_TYPE_CALL_TERMINATION_MODE: BenchType
 BENCH_TYPE_LOG_TYPE: BenchType
 BENCH_TYPE_LOG_LEVEL: BenchType
 BENCH_TYPE_BREAKPOINT_SITE: BenchType
@@ -2754,10 +2774,16 @@ SCHEDULE_FREQUENCY_DAY: ScheduleFrequency
 SCHEDULE_FREQUENCY_HOUR: ScheduleFrequency
 SCHEDULE_FREQUENCY_MINUTE: ScheduleFrequency
 SCHEDULE_FREQUENCY_SECOND: ScheduleFrequency
-CALL_MODE_UNSPECIFIED: CallMode
-CALL_MODE_FAIL_ON_FAIL: CallMode
-CALL_MODE_SKIP_ON_FAIL: CallMode
-CALL_MODE_RETURN_ON_FAIL: CallMode
+CALL_ERROR_MODE_UNSPECIFIED: CallErrorMode
+CALL_ERROR_MODE_FAIL: CallErrorMode
+CALL_ERROR_MODE_IGNORE: CallErrorMode
+CALL_ERROR_MODE_TERMINATE: CallErrorMode
+CALL_EXECUTION_MODE_UNSPECIFIED: CallExecutionMode
+CALL_EXECUTION_MODE_SERIAL: CallExecutionMode
+CALL_EXECUTION_MODE_PARALLEL: CallExecutionMode
+CALL_TERMINATION_MODE_UNSPECIFIED: CallTerminationMode
+CALL_TERMINATION_MODE_IGNORE: CallTerminationMode
+CALL_TERMINATION_MODE_RETURN: CallTerminationMode
 LOG_TYPE_UNSPECIFIED: LogType
 LOG_TYPE_PRINT: LogType
 LOG_TYPE_CHANGE: LogType
@@ -2831,7 +2857,7 @@ ACTION_TYPE_COMPLETE: ActionType
 ACTION_TYPE_FAIL: ActionType
 ACTION_TYPE_TOOL: ActionType
 ACTION_TYPE_CODE: ActionType
-ACTION_TYPE_DO: ActionType
+ACTION_TYPE_ACT: ActionType
 ACTION_TYPE_THINK: ActionType
 ACTION_TYPE_ROUTE: ActionType
 ACTION_TYPE_GENERATE: ActionType
@@ -3863,26 +3889,30 @@ class ContextData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class CallData(_message.Message):
-    __slots__ = ("metatype", "node_ptr", "mode", "value_packed")
+    __slots__ = ("metatype", "node_ptr", "value_packed", "on_terminate")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
-    MODE_FIELD_NUMBER: _ClassVar[int]
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
+    ON_TERMINATE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     node_ptr: NodeReferenceData
-    mode: CallMode
     value_packed: _struct_pb2.Value
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[CallMode, str]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    on_terminate: CallTerminationMode
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., on_terminate: _Optional[_Union[CallTerminationMode, str]] = ...) -> None: ...
 
 class CallPlanData(_message.Message):
-    __slots__ = ("metatype", "mode", "calls")
+    __slots__ = ("metatype", "execution", "on_terminate", "on_error", "calls")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    MODE_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    ON_TERMINATE_FIELD_NUMBER: _ClassVar[int]
+    ON_ERROR_FIELD_NUMBER: _ClassVar[int]
     CALLS_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    mode: CallMode
+    execution: CallExecutionMode
+    on_terminate: CallTerminationMode
+    on_error: CallErrorMode
     calls: _containers.RepeatedCompositeFieldContainer[CallData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., mode: _Optional[_Union[CallMode, str]] = ..., calls: _Optional[_Iterable[_Union[CallData, _Mapping]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., execution: _Optional[_Union[CallExecutionMode, str]] = ..., on_terminate: _Optional[_Union[CallTerminationMode, str]] = ..., on_error: _Optional[_Union[CallErrorMode, str]] = ..., calls: _Optional[_Iterable[_Union[CallData, _Mapping]]] = ...) -> None: ...
 
 class ColorData(_message.Message):
     __slots__ = ("metatype", "type", "shade", "hex")
@@ -5055,7 +5085,7 @@ class RunSpanData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[RunSpanType, str]] = ..., root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., level: _Optional[_Union[LogLevel, str]] = ..., status: _Optional[_Union[RunStatus, str]] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., interrupted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., error: _Optional[_Union[RunErrorData, _Mapping]] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class RunData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "mode", "subnode_packed", "type", "root_ptr", "block_ptr", "action_ptr", "pipe_ptr", "incoming_ptr", "outgoing_ptr", "options", "status", "duration", "scheduled_at", "started_at", "stopped_at", "interrupted_at", "paused_at", "resumed_at", "terminated_at", "error", "interruption_ptr", "variables_packed", "inputs_packed", "outputs_packed", "session_ptr", "run_ptr", "client_ptr", "machine_ptr", "user_ptr", "identity_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "mode", "subnode_packed", "type", "root_ptr", "block_ptr", "action_ptr", "pipe_ptr", "caller_ptr", "incoming_ptr", "outgoing_ptr", "options", "status", "duration", "scheduled_at", "started_at", "stopped_at", "interrupted_at", "paused_at", "resumed_at", "terminated_at", "error", "interruption_ptr", "variables_packed", "inputs_packed", "outputs_packed", "session_ptr", "run_ptr", "client_ptr", "machine_ptr", "user_ptr", "identity_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -5072,6 +5102,7 @@ class RunData(_message.Message):
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     ACTION_PTR_FIELD_NUMBER: _ClassVar[int]
     PIPE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CALLER_PTR_FIELD_NUMBER: _ClassVar[int]
     INCOMING_PTR_FIELD_NUMBER: _ClassVar[int]
     OUTGOING_PTR_FIELD_NUMBER: _ClassVar[int]
     OPTIONS_FIELD_NUMBER: _ClassVar[int]
@@ -5111,6 +5142,7 @@ class RunData(_message.Message):
     block_ptr: NodeReferenceData
     action_ptr: NodeReferenceData
     pipe_ptr: NodeReferenceData
+    caller_ptr: NodeReferenceData
     incoming_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     outgoing_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     options: RunOptionsData
@@ -5134,7 +5166,7 @@ class RunData(_message.Message):
     machine_ptr: NodeReferenceData
     user_ptr: NodeReferenceData
     identity_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[RunType, str]] = ..., root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., action_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., pipe_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., incoming_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., outgoing_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., options: _Optional[_Union[RunOptionsData, _Mapping]] = ..., status: _Optional[_Union[RunStatus, str]] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., scheduled_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., stopped_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., interrupted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., paused_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., resumed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[_Union[RunErrorData, _Mapping]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., variables_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., outputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[RunType, str]] = ..., root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., action_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., pipe_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., caller_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., incoming_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., outgoing_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., options: _Optional[_Union[RunOptionsData, _Mapping]] = ..., status: _Optional[_Union[RunStatus, str]] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., scheduled_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., stopped_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., interrupted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., paused_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., resumed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[_Union[RunErrorData, _Mapping]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., variables_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., outputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class SessionData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "mode", "subnode_packed", "status", "duration", "opened_at", "closed_at", "session_ptr", "run_ptr", "client_ptr", "machine_ptr", "user_ptr", "identity_ptr")

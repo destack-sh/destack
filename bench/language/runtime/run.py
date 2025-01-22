@@ -319,11 +319,14 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         pipe_ptr: Optional[NodeReference] = None
         pipe_id: Optional[UUID] = None
         pipe_ck: Optional[UUID] = None
+    caller: Optional["Run"] = p_internal(
+        36, require=False, array=False, references=NodeType.RUN, same_bench=True
+    )
     incoming: list["Run"] = p_internal(
-        36, require=False, array=True, references=NodeType.RUN, same_bench=True
+        37, require=False, array=True, references=NodeType.RUN, same_bench=True
     )
     outgoing: list["Run"] = p_internal(
-        37, require=False, array=True, references=NodeType.RUN, same_bench=True
+        38, require=False, array=True, references=NodeType.RUN, same_bench=True
     )
     if TYPE_CHECKING:
         incoming_ptr: tuple["NodeReference", ...] = ()

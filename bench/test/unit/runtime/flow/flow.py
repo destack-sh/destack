@@ -740,7 +740,7 @@ async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
     assert runner.tracked_run and len(runner.tracked_run.runs) <= 10  # should complete quickly
 
 
-async def test_run_flow_calls_none(hosted_runtime: RuntimeHandle):
+async def test_run_flow_call_none(hosted_runtime: RuntimeHandle):
     """Runs a Flow with no calls selected."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -761,7 +761,7 @@ async def test_run_flow_calls_none(hosted_runtime: RuntimeHandle):
     assert not runner.tracked_run.has(Code2, Code3, Complete)
 
 
-async def test_run_flow_calls_forward(hosted_runtime: RuntimeHandle):
+async def test_run_flow_call_route(hosted_runtime: RuntimeHandle):
     """Runs a Flow with forward calls selected."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -781,7 +781,7 @@ async def test_run_flow_calls_forward(hosted_runtime: RuntimeHandle):
     # Route: Code2 + Code3
     Route.code = code("""\
 return {
-    'call': call_sequential(call(Code2), call(Code3)),
+    "call": call_serial(call(Code2), call(Code3)),
 }
 """)
     runner = await hosted_runtime.run(Flow)
@@ -792,7 +792,7 @@ return {
     # Route: Code4
     Route.code = code("""\
 return {
-    'call': call_sequential(call(Code4)),
+    "call": call_serial(call(Code4)),
 }
 """)
     runner = await hosted_runtime.run(Flow)
@@ -803,7 +803,7 @@ return {
     # Route: Complete + Code2
     Route.code = code("""\
 return {
-    'call': call_sequential(call(Complete), call(Code2)),
+    "call": call_serial(call(Complete), call(Code2)),
 }
 """)
     runner = await hosted_runtime.run(Flow)
@@ -812,7 +812,7 @@ return {
     assert not runner.tracked_run.has(Code3, Code4)
 
 
-async def test_run_flow_calls_tool(hosted_runtime: RuntimeHandle):
+async def test_run_flow_call_tool(hosted_runtime: RuntimeHandle):
     """Run a Flow with a tool call."""
     Flow = Block.new(
         BlockType.FLOW,
@@ -850,11 +850,35 @@ async def test_run_flow_calls_tool(hosted_runtime: RuntimeHandle):
     # run tool within flow via calls
     Code1.code = code("""\
 return {
-    'call': call_sequential(call(Tool1, type=ActionType.CODE, code=code("pass"))),
+    "call": call(Tool1, type=ActionType.CODE, code=code("pass")),
 }
 """)
     runner = await hosted_runtime.run(Flow)
     assert runner.tracked_run
+
+
+async def test_run_flow_call_plan(hosted_runtime: RuntimeHandle):
+    """Run a Flow with a CallPlan."""
+    Flow = Block.new(BlockType.FLOW, "Flow1")
+    Start = Action.new(ActionType.START, "Start")
+    Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
+    Code2 = Action.new(ActionType.CODE, "Code2", code=code("pass"))
+    Code3 = Action.new(ActionType.CODE, "Code3", code=code("pass"))
+    Code4 = Action.new(ActionType.CODE, "Code4", code=code("pass"))
+    Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Flow.actions.extend(Start, Code1, Code2, Code3, Code4, Complete)
+    Start.connect(PipeType.CALL, Code1)
+    Code1.connect(PipeType.CALL, Code2)
+    Code1.connect(PipeType.SELECT, Code3)
+    Code1.connect(PipeType.SELECT, Code4)
+    Code1.connect(PipeType.SELECT, Complete)
+    await hosted_runtime.commit()
+
+    # run flow with call plan
+    runner = await hosted_runtime.run(Flow)
+    assert runner.tracked_run
+
+    # nocheckin
 
 
 async def test_run_flow_abort(hosted_runtime: RuntimeHandle):

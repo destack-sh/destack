@@ -277,7 +277,7 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   [ActionType.CODE]: "fas fa-code",
   [ActionType.TOOL]: "fas fa-screwdriver-wrench",
   // generic
-  [ActionType.DO]: "fas fa-hammer",
+  [ActionType.ACT]: "fas fa-hammer",
   [ActionType.THINK]: "fas fa-brain-circuit",
   [ActionType.ROUTE]: "fas fa-split",
   [ActionType.GENERATE]: "fas fa-wand-magic-sparkles",

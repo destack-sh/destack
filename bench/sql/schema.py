@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.22.0"
+VERSION = "2025.01.22.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1065,6 +1065,8 @@ RUN_TABLE = Table(
         Column("pipe_id", PrimitiveType.UUID, is_nullable=True),
         Column("pipe_ck", PrimitiveType.UUID, is_nullable=True),
         Column("pipe_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("caller_id", PrimitiveType.UUID, is_nullable=True),
+        Column("caller_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("incoming_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("incoming_base_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("outgoing_id", PrimitiveType.UUID, is_array=True, is_nullable=True),

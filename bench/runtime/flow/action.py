@@ -627,7 +627,7 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner[Any]]] = {
     ActionType.CODE: CodeActionRunner,
     ActionType.TOOL: ToolActionRunner,
     # dynamic
-    ActionType.DO: DynamicActionRunner,
+    ActionType.ACT: DynamicActionRunner,
     ActionType.THINK: DynamicActionRunner,
     ActionType.ROUTE: DynamicActionRunner,
     ActionType.GENERATE: DynamicActionRunner,
