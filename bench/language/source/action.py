@@ -551,6 +551,9 @@ class DuplicateAction(Action):
         partial=True,
     )
     is_shallow: bool | None = p_regular(122, default=False, field_type=FieldType.INPUT)
+    duplicated_node: Node | None = p_regular(
+        123, require=False, references="any", field_type=FieldType.OUTPUT
+    )
 
     @classmethod
     @cachetools.cached({})  # :CachedTypeInfo

@@ -140,32 +140,32 @@ export class NodeAutoloader {
   }
 
   /** Load a batch of missing nodes with new connections */
-  private async load(missingNodes: NodeReferenceData[]) {
+  private async load(nodeRefs: NodeReferenceData[]) {
     const batchId = this.batchId++;
-    log.trace("autoload.load", { batchId, missingNodes });
+    log.trace("autoload.load", { batchId, nodeRefs });
 
     // build query
-    const nodeType = missingNodes[0].nodeType;
-    const baseCk = missingNodes[0].baseCk;
+    const nodeType = nodeRefs[0].nodeType;
+    const baseCk = nodeRefs[0].baseCk;
     const block = baseCk != null ? this.supergraph.get({ nodeType: NodeType.BLOCK, ck: baseCk }) : null;
     const blockPtr = block != null ? toNodeRef(block) : block;
 
     // retry later if base is missing
     if (baseCk != null && blockPtr == null) {
-      this.onFailed(...missingNodes);
-      log.trace("autoload.load.fail", { batchId, missingNodes });
+      this.onFailed(...nodeRefs);
+      log.trace("autoload.load.fail", { batchId, nodeRefs });
       const basePtr = { nodeType: NodeType.BLOCK, ck: baseCk };
       // NOTE :Cleanup: technically we're leaking this wait-to-auto-reload subscription, but it shouldn't matter for now
       //  (it should stop if none of the missing nodes are subscribed to anymore)
       this.supergraph.subscribeUntilFound(basePtr, () => {
         // remove from failed
-        missingNodes.forEach((ptr) => delete this.failedNodesById[ptr.id!]);
+        nodeRefs.forEach((ptr) => delete this.failedNodesById[ptr.id!]);
         // add to pending again (if still missing)
-        missingNodes = missingNodes.filter((ptr) => this.missingNodeById[ptr.id!] != null);
-        if (missingNodes.length > 0) {
-          this.addPending(...missingNodes);
+        nodeRefs = nodeRefs.filter((ptr) => this.missingNodeById[ptr.id!] != null);
+        if (nodeRefs.length > 0) {
+          this.addPending(...nodeRefs);
         }
-        log.trace("autoload.load.retry", { batchId, basePtr, missingNodes });
+        log.trace("autoload.load.retry", { batchId, basePtr, nodeRefs });
       });
 
       return; // can't load this right now
@@ -174,7 +174,7 @@ export class NodeAutoloader {
     // load
     const scope = isBenchNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
     const params: GetConnectionParams<any> = {
-      roots: missingNodes as NodeReferenceData[],
+      roots: nodeRefs as NodeReferenceData[],
       scope,
       blockPtr: blockPtr as NodeReferenceData | undefined,
       isOptional: true,
@@ -183,15 +183,16 @@ export class NodeAutoloader {
       const connection = await acquireConnection("get", { name: `autoload.${batchId}`, live: true }, params);
       const batch: AutoloadedBatch = {
         id: batchId,
-        nodesById: groupByScalar(missingNodes, (ptr) => ptr.id!),
+        nodesById: groupByScalar(nodeRefs, (ptr) => ptr.id!),
         connection: connection as RemoteGetConnection<any>,
       };
       this.loadedBatches.push(batch);
-      log.trace("autoload.load.complete", { batchId, missingNodes });
-      this.onLoaded(...missingNodes);
+      const nodes = nodeRefs.map((ptr) => this.supergraph.get(ptr));
+      log.trace("autoload.load.complete", { batchId, nodeRefs, nodes });
+      this.onLoaded(...nodeRefs);
     } catch (e) {
-      log.trace("autoload.load.fail", { e, batchId, missingNodes });
-      this.onFailed(...missingNodes);
+      log.trace("autoload.load.fail", { e, batchId, nodeRefs });
+      this.onFailed(...nodeRefs);
     }
   }
 

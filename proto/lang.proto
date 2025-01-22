@@ -2944,6 +2944,7 @@ message DuplicateActionData {
   optional NodeReferenceData node_ptr = 120;
   optional google.protobuf.Value node_partial_packed = 121;
   optional bool is_shallow = 122;
+  optional NodeReferenceData duplicated_node_ptr = 123;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.

@@ -81,6 +81,7 @@ import {
   TypeActionProperty,
   PressActionProperty,
   ScrollActionProperty,
+  DuplicateActionProperty,
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
@@ -436,7 +437,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     return { prop, propNames, path, rootProp, rootPropName, isSubnode: isRootSubnode };
   }
 
-  /** Read a node proeprty */
+  /** Read a node property */
   readProperty(propNames: [string] | [string, string], isSubnode: boolean) {
     let val;
     if (propNames.length == 1) {
@@ -915,12 +916,17 @@ const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>
   // write
   [ActionType.CREATE]: [CreateActionProperty.nodePartialPacked, CreateActionProperty.nodePtr],
   [ActionType.UPDATE]: [UpdateActionProperty.nodePtr, UpdateActionProperty.nodePartialPacked],
+  [ActionType.DUPLICATE]: [
+    DuplicateActionProperty.nodePtr,
+    DuplicateActionProperty.nodePartialPacked,
+    DuplicateActionProperty.duplicatedNodePtr,
+  ],
   [ActionType.DELETE]: [DeleteActionProperty.nodePtr],
   // application
-  [ActionType.CLICK]: [ClickActionProperty.elementPosition],
-  [ActionType.TYPE]: [TypeActionProperty.string, TypeActionProperty.delay],
-  [ActionType.PRESS]: [PressActionProperty.keys, PressActionProperty.delay],
-  [ActionType.SCROLL]: [ScrollActionProperty.amount],
+  [ActionType.CLICK]: [ClickActionProperty.elementId, ClickActionProperty.elementPosition],
+  [ActionType.TYPE]: [ClickActionProperty.elementId, TypeActionProperty.string, TypeActionProperty.delay],
+  [ActionType.PRESS]: [ClickActionProperty.elementId, PressActionProperty.keys, PressActionProperty.delay],
+  [ActionType.SCROLL]: [ClickActionProperty.elementId, ScrollActionProperty.amount],
   [ActionType.LOOK]: [LookActionProperty.screenshotPtr],
   // web
   [ActionType.GO_TO_URL]: [GoToUrlActionProperty.url],

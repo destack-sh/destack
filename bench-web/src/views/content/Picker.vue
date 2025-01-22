@@ -109,7 +109,7 @@ const facetName = computed(() => {
 
 // register node references in supergraph (for autoloading / reactivity)
 // NOTE :Architecture: needing to subscribe to supergraph for nodes (e.g., in Picker) seems unwieldy
-//  (but we need to signal to autoloader somehow that we need these nodes loaded...)
+//  (but we need to signal to somehow inform the autoloader that we need these nodes loaded...)
 const nodePtrs: Ref<NodeReferenceData[]> = computedValue(() => {
   if (
     props.modelValue == null ||
@@ -153,7 +153,7 @@ function getItemVignette(value: any): ItemVignette {
 }
 const currentItems: Ref<ItemVignette[]> = computed(() => {
   // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-  nodes.value; // 'borrow' reactivity from nodes (not great but search index isn't reactive, see above)
+  nodes.value; // 'borrow' reactivity from nodes (not great but search index isn't reactive)
   if (!hasValue.value) {
     return [];
   } else if (!props.valueType?.isList) {
@@ -167,7 +167,7 @@ const currentItems: Ref<ItemVignette[]> = computed(() => {
 // Search
 //
 
-const { candidates, results, resultsTotal, isLoading, update, getItemFromValue, getValueFromItem } = useValueSearch({
+const { index, candidates, results, resultsTotal, isLoading, update, getItemFromValue, getValueFromItem } = useValueSearch({
   query,
   valueType: toValueRef(toRef(props, "valueType")),
   isEnabled: toRef(props, "isInline"),

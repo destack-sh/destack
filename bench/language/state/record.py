@@ -37,7 +37,7 @@ logger = structlog.get_logger(__name__)
 )
 class Record(StateNode[RecordData], HasNodeBase):
     """
-    A Record from a DatabaseBlock. May references other Records (except for :ManyToManyRecords).
+    A Record from a DatabaseBlock. May reference other Records (except for :ManyToManyRecords).
     """
 
     # type: RecordType?
@@ -64,12 +64,11 @@ class Record(StateNode[RecordData], HasNodeBase):
     def __repr__(self):  # type: ignore
         # override the default __repr__ for records
         block = self.block
-        type_name = block.code_name if block is not None else "?"
+        type_name = block.code_name if block is not None else "???"
         return f"<{type_name}Record {self!s}>"
 
     def __content_str__(self):
-        value = self.value
-        if value is not None:
+        if (value := self.value) is not None:
             return str(value)
         else:
             return ""

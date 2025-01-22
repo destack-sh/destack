@@ -5317,14 +5317,16 @@ class CreateActionData(_message.Message):
     def __init__(self, node_partial_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class DuplicateActionData(_message.Message):
-    __slots__ = ("node_ptr", "node_partial_packed", "is_shallow")
+    __slots__ = ("node_ptr", "node_partial_packed", "is_shallow", "duplicated_node_ptr")
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     NODE_PARTIAL_PACKED_FIELD_NUMBER: _ClassVar[int]
     IS_SHALLOW_FIELD_NUMBER: _ClassVar[int]
+    DUPLICATED_NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     node_ptr: NodeReferenceData
     node_partial_packed: _struct_pb2.Value
     is_shallow: bool
-    def __init__(self, node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., node_partial_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., is_shallow: bool = ...) -> None: ...
+    duplicated_node_ptr: NodeReferenceData
+    def __init__(self, node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., node_partial_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., is_shallow: bool = ..., duplicated_node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class UpdateActionData(_message.Message):
     __slots__ = ("node_ptr", "node_partial_packed")
