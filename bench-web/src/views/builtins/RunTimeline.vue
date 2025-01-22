@@ -198,13 +198,13 @@ watchEffect(() => {
 });
 </script>
 <template>
-  <div v-if="layout == 'linear'" ref="containerRef" class="flex w-full flex-1 flex-col gap-y-1">
+  <div v-if="layout == 'linear'" ref="containerRef" class="flex w-full flex-1 flex-col">
     <!-- Linear -->
     <div v-for="thing in timeline.descendants" :key="thing.id" class="w-full">
       <!-- Run -->
       <div v-if="thing.metatype == 'span' && isNode(thing.content, NodeType.RUN)" class="w-full py-0.5">
         <!-- Header -->
-        <div class="flex w-full flex-row items-center">
+        <div class="flex w-full flex-row items-center py-0.5">
           <!-- Node -->
           <button
             class="group/node truncate hover:cursor-pointer"
@@ -221,26 +221,38 @@ watchEffect(() => {
             <span class="truncate font-medium underline-offset-3 group-hover/node:underline">{{ thing.name }}</span>
           </button>
           <!-- Status -->
-          <RunStatusView class="ml-auto" :run="thing.content" :orientation="Orientation.HORIZONTAL_REVERSED" />
+          <RunStatusView
+            class="ml-auto"
+            :run="thing.content"
+            :orientation="Orientation.HORIZONTAL_REVERSED"
+            icon="hide"
+          />
         </div>
-        <!-- Content -->
-        <div>
-          <SomeObject
-            id="fields-variables"
-            class="w-full"
-            :value-type="getInputType(thing.baseNode as RunnableNode)"
-            is-inline
-            is-minimal
-            :model-value="thing.content.inputsPacked"
-          />
-          <SomeObject
-            id="fields-variables"
-            class="w-full"
-            :value-type="getOutputType(thing.baseNode as RunnableNode)"
-            is-inline
-            is-minimal
-            :model-value="thing.content.outputsPacked"
-          />
+        <!-- Body -->
+        <div class="ml-2 flex flex-row gap-x-3">
+          <!-- Connecting line -->
+          <div class="w-1 rounded-full bg-gray-200"></div>
+          <!-- Content -->
+          <div class="flex flex-1 flex-col pb-1.5 pt-1">
+            <SomeObject
+              v-if="thing.content.inputsPacked != null"
+              :id="`object-inputs-${thing.id}`"
+              class=""
+              :value-type="getInputType(thing.baseNode as RunnableNode)"
+              is-inline
+              is-minimal
+              :model-value="thing.content.inputsPacked"
+            />
+            <SomeObject
+              v-if="thing.content.outputsPacked != null"
+              :id="`object-outputs-${thing.id}`"
+              class=""
+              :value-type="getOutputType(thing.baseNode as RunnableNode)"
+              is-inline
+              is-minimal
+              :model-value="thing.content.outputsPacked"
+            />
+          </div>
         </div>
       </div>
       <!-- Event -->

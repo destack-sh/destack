@@ -434,7 +434,7 @@ export function getRunActions(run: RunData): RuntimeAction[] {
 }
 
 export const CLEAR_RUN_ACTION: RuntimeAction = {
-  title: "Clear",
+  title: "Hide",
   icon: makeIcon("fas fa-xmark"),
   action: () => {
     if (space.value == null) throw new Error("no current space");

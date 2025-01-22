@@ -19,11 +19,11 @@ from bench.language.core import (
     _IntoQuery,
     encode_storage_key,
     node_,
-    node_subtype_,
     p_internal,
     p_node_parent,
     p_regular,
     p_runtime,
+    subnode_,
     to_type,
     to_type_scalar,
 )
@@ -152,7 +152,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _IntoQuery):
         return Field.new(name, typ, type=FieldType.OUTPUT, constraint=constraint, **kwargs)
 
 
-@node_subtype_(FieldType.INPUT)
+@subnode_(FieldType.INPUT)
 class InputField(Field):
     """An input field."""
 
@@ -160,7 +160,7 @@ class InputField(Field):
     pass
 
 
-@node_subtype_(FieldType.OUTPUT)
+@subnode_(FieldType.OUTPUT)
 class OutputField(Field):
     """An output field."""
 
@@ -168,7 +168,7 @@ class OutputField(Field):
     pass
 
 
-@node_subtype_(FieldType.MEMBER)
+@subnode_(FieldType.MEMBER)
 class MemberField(Field):
     """A member field."""
 
@@ -178,14 +178,14 @@ class MemberField(Field):
     pass
 
 
-@node_subtype_(FieldType.VARIABLE)
+@subnode_(FieldType.VARIABLE)
 class VariableField(Field):
     """A variable field."""
 
     pass
 
 
-@node_subtype_(FieldType.OPTION)
+@subnode_(FieldType.OPTION)
 class OptionField(Field):
     """An option field."""
 

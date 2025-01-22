@@ -82,7 +82,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
   <div v-if="node && nodeIsRunnable" class="h-full w-full">
     <!-- TODO :UX: turn Run into collapsible sections like in Inspect & Hub (factor out Tabs & Sections?) -->
     <!-- New Run -->
-    <div v-if="run == null" class="flex flex-col">
+    <div v-if="run == null" class="flex flex-col gap-y-1">
       <!-- Variables/Inputs -->
       <div v-for="fieldType in [FieldType.VARIABLE, FieldType.INPUT]" :key="fieldType" class="px-5">
         <SomeObject
@@ -106,55 +106,44 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
       </div>
     </div>
     <!-- Existing Run -->
-    <div v-else class="flex flex-col">
-      <div class="">
-        <!-- Variables/Inputs/Outputs -->
-        <SomeObject
-          id="fields-variables"
-          class="w-full px-5"
-          :value-type="variableType"
-          is-inline
-          is-minimal
-          :model-value="run?.variablesPacked"
-          
-        />
-        <SomeObject
-          id="fields-input"
-          class="w-full px-5"
-          :value-type="inputType"
-          is-inline
-          is-minimal
-          :model-value="run?.inputsPacked"
-        />
-        <!-- Arrow -->
-        <template v-if="false && run?.outputsPacked != null">
-          <div class="relative my-0.5 w-full text-center">
-            <span class="fas fa-arrow-down text-gray-400" />
-          </div>
-          <SomeObject
-            id="fields-output"
-            class="w-full px-5"
-            :value-type="outputType"
-            is-inline
-            is-minimal
-            :model-value="run?.outputsPacked"
-          />
-        </template>
-        <!-- Error -->
-        <div v-if="run?.error != null" class="px-5">
-          <div
-            class="flex flex-row items-center"
-            :style="{
-              height: `${SECTION_HEADER_HEIGHT}px`,
-            }"
-          >
-            <span class="font-semibold">Error</span>
-          </div>
-          <RunError class="" :run="run" :error="run.error" />
+    <div v-else class="flex flex-col gap-y-1">
+      <!-- Variables/Inputs/Outputs -->
+      <SomeObject
+        v-if="run?.variablesPacked != null"
+        id="fields-variables"
+        class="w-full px-5"
+        :value-type="variableType"
+        is-inline
+        is-minimal
+        :model-value="run?.variablesPacked"
+      />
+      <SomeObject
+        v-if="run?.inputsPacked != null"
+        id="fields-input"
+        class="w-full px-5"
+        :value-type="inputType"
+        is-inline
+        is-minimal
+        :model-value="run?.inputsPacked"
+      />
+      <!-- Line -->
+      <div v-if="run?.inputsPacked || run?.outputsPacked" class="w-full py-1">
+        <div class="mx-5 h-[1px] bg-gray-200" />
+      </div>
+      <!-- Error -->
+      <div v-if="run?.error != null" class="px-5">
+        <div
+          class="flex flex-row items-center"
+          :style="{
+            height: `${SECTION_HEADER_HEIGHT}px`,
+          }"
+        >
+          <span class="font-semibold">Error</span>
         </div>
+        <RunError class="" :run="run" :error="run.error" />
       </div>
       <!-- Timeline -->
-      <div v-if="run != null" class="mt-3 px-5">
+      <div v-if="run != null" class="px-5">
         <RunTimeline :graph="pkgGraph" :node-ptr="toNodeRef(run)" class="" layout="linear" />
       </div>
     </div>

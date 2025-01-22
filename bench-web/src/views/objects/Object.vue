@@ -122,6 +122,7 @@ defineExpose<ViewExposed>({ self, id });
             v-for="action in section.actions"
             :key="action.title"
             v-tooltip="{ title: action.title, small: true, group: 'section.header' }"
+            aria-hidden
             class="mt-1 rounded px-1 text-gray-400 hover:bg-gray-100 group-hover/section-header:text-gray-700"
             @click.stop="
               (e) => {
@@ -135,7 +136,7 @@ defineExpose<ViewExposed>({ self, id });
         </div>
       </div>
       <!-- Section content -->
-      <div v-if="section.rows.length > 0 && isSectionExpanded(section)" class="flex flex-col gap-y-1.5 py-1">
+      <div v-if="section.rows.length > 0 && isSectionExpanded(section)" class="flex flex-col gap-y-1.5">
         <!-- Row -->
         <div
           v-for="(row, i) in section.rows"
@@ -143,16 +144,11 @@ defineExpose<ViewExposed>({ self, id });
           class=""
           :class="[
             !isMinimal ? 'mx-4' : '',
-            row.type == 'view' || row.type == 'property' || row.type == 'object' || row.type == 'field'
-              ? row.isFullWidth ||
-                ((row.type == 'property' || row.type == 'field') && computer.has(row.computedPathKey))
-                ? 'flex flex-col gap-y-1'
-                : 'flex flex-row flex-wrap items-center gap-x-1'
-              : '',
+            (row as any).isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row items-start gap-x-1 gap-y-1',
           ]"
         >
           <!-- Header -->
-          <div v-if="row.title" class="flex flex-1 flex-row items-center py-0.5">
+          <div v-if="row.title" class="flex flex-1 flex-row items-center pt-1">
             <!-- Title -->
             <span v-if="row.type != 'field'" class="">{{ row.title }}</span>
             <Field v-else :id="i + '.value'" :node-ptr="toNodeRef(row.field)" is-minimal />
@@ -178,7 +174,7 @@ defineExpose<ViewExposed>({ self, id });
 
           <!-- Body -->
           <!-- Fields -->
-          <div v-if="row.type == 'fields-list'" class="rounded border border-gray-200">
+          <div v-if="row.type == 'fields-list'" class="w-full rounded border border-gray-200">
             <FieldList
               :id="row.title ?? `type-${i}`"
               :orientation="Orientation.VERTICAL"
@@ -192,6 +188,7 @@ defineExpose<ViewExposed>({ self, id });
             v-else-if="(row.type == 'property' || row.type == 'field') && computer.has(row.computedPathKey)"
             :id="i + '.computed.value'"
             class="w-full"
+            :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
             is-input
             :model-value="computer.get(row.computedPathKey)"
             :value-type="computedType"

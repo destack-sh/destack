@@ -241,7 +241,7 @@ def node_(
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def node_subtype_(
+def subnode_(
     subtype: IdEnum,
     passthrough_get: str | tuple[str, ...] | None = None,
     passthrough_set: str | tuple[str, ...] | None = None,

@@ -19,13 +19,13 @@ from bench.language.core import (
     StructType,
     enum_,
     node_,
-    node_subtype_,
     p_internal,
     p_node_children,
     p_node_parent,
     p_regular,
     p_value_packed,
     struct_,
+    subnode_,
 )
 from bench.pb2 import SpaceData, ViewData
 from bench.utils.fractional import INTEGER_ZERO
@@ -556,7 +556,7 @@ class View(SourceNode[ViewData]):
 # nodes (0-10000)
 
 
-@node_subtype_(ViewType.RUN)
+@subnode_(ViewType.RUN)
 class RunView(View):
     variables_packed: Any = p_value_packed(100)
     inputs_packed: Any = p_value_packed(101)
@@ -567,7 +567,7 @@ class RunView(View):
 # objects (20000-30000)
 
 
-@node_subtype_(ViewType.OBJECT)
+@subnode_(ViewType.OBJECT)
 class ObjectView(View):
     expanded_sections: list[str] = p_regular(100, array=True)
     collapsed_sections: list[str] = p_regular(101, array=True)
@@ -584,7 +584,7 @@ class UserWizardViewStage(IdEnum):
     LOG_IN = 2
 
 
-@node_subtype_(ViewType.USER_WIZARD)
+@subnode_(ViewType.USER_WIZARD)
 class UserWizardView(View):
     stage: UserWizardViewStage | None = p_regular(100)
 
@@ -597,7 +597,7 @@ class HubAspect(IdEnum):
     LIBRARY = 4
 
 
-@node_subtype_(ViewType.HUB)
+@subnode_(ViewType.HUB)
 class HubView(View):
     aspect: HubAspect = p_regular(100)
 
@@ -610,7 +610,7 @@ class HelpAspect(IdEnum):
     VERSION = 4
 
 
-@node_subtype_(ViewType.HELP)
+@subnode_(ViewType.HELP)
 class HelpView(View):
     aspect: HelpAspect = p_regular(100)
 
@@ -622,7 +622,7 @@ class HelpView(View):
 # collections (40300-40400)
 
 
-@node_subtype_(ViewType.LIST)
+@subnode_(ViewType.LIST)
 class ListView(View):
     query_node_type: NodeType | None = p_regular(100, require=False)
     filter: "Expression | None" = p_regular(
@@ -639,7 +639,7 @@ class TreeViewPreset(IdEnum):
     OUTLINE = 2
 
 
-@node_subtype_(ViewType.TREE)
+@subnode_(ViewType.TREE)
 class TreeView(View):
     node_types: list[NodeType] = p_regular(100, array=True)
     filter_is_page: Optional[bool] = p_regular(101, default=None, require=False)
@@ -650,7 +650,7 @@ class TreeView(View):
     preset: Optional[TreeViewPreset] = p_regular(110, default=None, require=False)
 
 
-@node_subtype_(ViewType.FEED)
+@subnode_(ViewType.FEED)
 class FeedView(View):
     query_node_type: NodeType | None = p_regular(100, require=False)
     filter: "Expression | None" = p_regular(
@@ -681,7 +681,7 @@ class ButtonVariant(IdEnum):
     LINK = 3
 
 
-@node_subtype_(ViewType.BUTTON)
+@subnode_(ViewType.BUTTON)
 class ButtonView(View):
     variant: ButtonVariant | None = p_regular(100)
 
@@ -704,17 +704,17 @@ class PickerVariant(IdEnum):
     DROPDOWN_LARGE = 3
 
 
-@node_subtype_(ViewType.PICKER)
+@subnode_(ViewType.PICKER)
 class PickerView(View):
     variant: PickerVariant | None = p_regular(100)
 
 
-@node_subtype_(ViewType.DATETIME)
+@subnode_(ViewType.DATETIME)
 class DatetimeView(View):
     is_relative: bool | None = p_regular(100, default=False)
 
 
-@node_subtype_(ViewType.ICON)
+@subnode_(ViewType.ICON)
 class IconView(View):
     include_color: bool = p_regular(100, default=False)
 

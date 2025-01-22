@@ -194,7 +194,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <div class="ml-auto flex flex-row pl-2 pr-1.5">
             <!-- Run status -->
             <button v-if="lastRun != null" class="rounded hover:bg-gray-100" aria-hidden>
-              <RunStatus :run="lastRun" :orientation="Orientation.HORIZONTAL_REVERSED" />
+              <RunStatus :run="lastRun" :orientation="Orientation.HORIZONTAL_REVERSED" icon="dot" />
             </button>
           </div>
         </div>

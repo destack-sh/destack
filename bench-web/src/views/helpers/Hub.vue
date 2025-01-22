@@ -274,7 +274,7 @@ defineExpose<ViewExposed>({ self });
         <NodeReference v-if="runtime.focusedRunTree.base" isLight size="regular" :node="runtime.focusedRunTree.base" />
         <span v-else class="text-gray-400">Run</span>
         <!-- Status -->
-        <RunStatus :run="runtime.focusedRun" />
+        <RunStatus :run="runtime.focusedRun" icon="dot" />
         <!-- Controls -->
         <div class="ml-auto flex flex-row gap-x-1">
           <button
