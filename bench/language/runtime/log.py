@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, Optional, Union
 import structlog
 
 from bench.language.core import (
-    LogLevel,
     LogType,
     NodeType,
     RuntimeNode,
+    Severity,
     StructType,
     Text,
     p_node_parent,
@@ -33,11 +33,11 @@ class Log(RuntimeNode[LogData]):
     # meta
     parent: Union["Bench", "Run", None] = p_node_parent(4, NodeType.BENCH, NodeType.RUN)
     type: LogType = p_system(30)
-    level: LogLevel = p_system(31)
+    severity: Severity = p_system(31)
     title: Optional[str] = p_regular(32, default=None)
     text: Optional["Text"] = p_regular(33, default=None, array=False, struct=StructType.TEXT)
     # context
     # ...HasRuntimeContext[80-99]
 
     def __content_str__(self):
-        return f"[{self.type.bench_name}:{self.level.bench_name}] ({self.created_at})"
+        return f"[{self.type.bench_name}:{self.severity.bench_name}] ({self.created_at})"

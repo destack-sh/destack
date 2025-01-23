@@ -11,7 +11,6 @@ from bench.language import (
     Code,
     CustomObject,
     HasContext,
-    LogLevel,
     ModelDeveloper,
     ModelType,
     Projection,
@@ -23,6 +22,7 @@ from bench.language import (
     RunOptions,
     RunSpanType,
     RunType,
+    Severity,
     TypeBase,
     run_span,
 )
@@ -134,7 +134,7 @@ class ChatModelRunner(ModelRunner[Action], ABC):
         from bench.runtime.code import CodeFunctionRunner
 
         # build prompt
-        with run_span(tracer, "model.compile", RunSpanType.MODEL_PREPARE, level=LogLevel.DEBUG):
+        with run_span(tracer, "model.compile", RunSpanType.MODEL_PREPARE, level=Severity.DEBUG):
             prompt = make_chat_prompt(
                 action=self.node,
                 runner=cast(Runner[RunnableNode], self),
@@ -184,8 +184,7 @@ def make_chat_prompt(
 ) -> "Prompt":
     """Build a Prompt from the given context."""
     # general context
-    # nocheckin: include all relevant enums, classes, examples
-    # nocheckin: dynamically? render general examples at runtime
+    # nocheckin: examples, relevant enums, classes, ...
     general_parts: list[PromptPart] = [
         PromptText(
             title="Example: Extract Action",

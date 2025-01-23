@@ -25,11 +25,11 @@ from bench.language.core import (
     TITLE_CONSTRAINT,
     BuiltinObject,
     EnumType,
-    LogLevel,
     NodeReference,
     NodeType,
     PrimitiveType,
     RunSpanType,
+    Severity,
     Struct,
     StructType,
     active_session,
@@ -817,7 +817,7 @@ async def upload_file_batch(
 
     # get upload URLs
     with run_span(
-        tracer, "file.prepare_upload", RunSpanType.FILE_PREPARE_UPLOAD, level=LogLevel.DEBUG
+        tracer, "file.prepare_upload", RunSpanType.FILE_PREPARE_UPLOAD, level=Severity.DEBUG
     ):
         upload_req = UploadFilesRequest(
             scope=session._get_scope_for_node(files[0]),
@@ -998,7 +998,7 @@ async def extract_file_info(  # noqa: RUF029
     return file, content
 
 
-@run_span(tracer, "file.upload", RunSpanType.FILE_UPLOAD, level=LogLevel.DEBUG)
+@run_span(tracer, "file.upload", RunSpanType.FILE_UPLOAD, level=Severity.DEBUG)
 async def upload_file(
     file_in: FileIn,
     name: str,

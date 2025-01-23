@@ -14,7 +14,7 @@ from bench.utils.func import IdEnum, bittuple
 from bench.utils.utils import frozendict, get_from_env
 
 if TYPE_CHECKING:
-    from bench.language import LogLevel, Node, Session, Text, Transaction
+    from bench.language import Node, Session, Severity, Text, Transaction
     from bench.language.runtime.run import RunSpan, RunSpanType
     from bench.runtime.core import Runner
 
@@ -172,18 +172,17 @@ class EnumType(IdEnum):
     RUN_STATUS = 22000
     RUN_TYPE = 22001
     RUN_SPAN_TYPE = 22002
-    RUN_ERROR_KIND = 22003
-    RUN_ERROR_TYPE = 22004
+    RUN_PLAN_TYPE = 22003
     SESSION_STATUS = 22010
     TRIGGER_TYPE = 22020
     CACHE_MODE = 22030
     SCHEDULE_FREQUENCY = 22040
     CALL_ERROR_MODE = 22050
-    CALL_EXECUTION_MODE = 22051
     CALL_TERMINATION_MODE = 22052
-    # logging (22100-22199)
-    LOG_TYPE = 22100
-    LOG_LEVEL = 22101
+    LOG_TYPE = 22060
+    SEVERITY = 22070
+    ERROR_KIND = 22100
+    ERROR_TYPE = 22101
 
     # debugging (22200-22299)
     BREAKPOINT_SITE = 22200
@@ -316,6 +315,7 @@ class NodeType(IdEnum):
     SESSION = 6000  # (timed)
     RUN = 6010  # (based, timed)
     RUN_SPAN = 6011  # (timed)
+    RUN_PLAN = 6012  # (timed)
     INTERRUPTION = 6020  # (timed)
     LOG = 6030  # (timed)
 
@@ -491,7 +491,7 @@ class StructType(IdEnum):
     COMPUTED_VALUE = 12241
 
     # run (12700-13199)
-    RUN_ERROR = 12700
+    ERROR = 12700
     RUN_OPTIONS = 12701
     RUN_TRACE = 12703
     RUN_FRAME = 12704
@@ -938,6 +938,16 @@ class AccessMode(IdEnum):
 #
 
 
+@enum_(EnumType.SEVERITY)
+class Severity(IdEnum):  # :LogLevel
+    TRACE = 1
+    DEBUG = 2
+    INFO = 3
+    WARNING = 4
+    ERROR = 5
+    PANIC = 6
+
+
 @enum_(EnumType.LOG_TYPE)
 class LogType(IdEnum):
     # code
@@ -945,16 +955,6 @@ class LogType(IdEnum):
     # access
     CHANGE = 200
     EDIT = 201
-
-
-@enum_(EnumType.LOG_LEVEL)
-class LogLevel(IdEnum):  # :LogLevel
-    TRACE = 1
-    DEBUG = 2
-    INFO = 3
-    WARNING = 4
-    ERROR = 5
-    PANIC = 6
 
 
 @enum_(EnumType.POLICY_EFFECT)
@@ -1175,8 +1175,8 @@ class RunSpanType(IdEnum):
     FILE_PREPARE_DOWNLOAD = 503
 
 
-@enum_(EnumType.RUN_ERROR_KIND)
-class RunErrorKind(IdEnum):
+@enum_(EnumType.ERROR_KIND)
+class ErrorKind(IdEnum):
     INTERNAL = 1
     RUNTIME = 5
 
@@ -1423,14 +1423,14 @@ def run_span(
     key: str,
     type: "RunSpanType",
     *,
-    level: "LogLevel | None" = None,
+    level: "Severity | None" = None,
     nodes: list["Node"] | None = None,
     title: str | None = None,
     text: "Text | None" = None,
     runner: "Runner[Any] | None" = None,
 ) -> Generator["RunSpan | None", None, None]:
     """Decorate or annotate a RunSpan in the current Run (noop if not inside a Run)."""
-    from bench.language import LogLevel, RunSpan
+    from bench.language import RunSpan, Severity
 
     if runner is None:
         session = _active_session.get()
@@ -1449,7 +1449,7 @@ def run_span(
     else:
         span = RunSpan(
             type=type,
-            level=level or LogLevel.INFO,
+            severity=level or Severity.INFO,
             nodes=nodes or [],
             title=title,
             text=text,

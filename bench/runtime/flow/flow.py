@@ -12,15 +12,16 @@ from bench.language import (
     Call,
     CallPlan,
     CustomObject,
+    Error,
     FlowBlock,
     HasContext,
     Interruption,
     Pipe,
     PipeType,
     Run,
-    RunError,
     RunnableNode,
     RunOptions,
+    RunPlan,
     RunSpanType,
     RunStatus,
     RunType,
@@ -82,9 +83,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         )
         self._interrupted_runners: list[Runner] = []
         self._active_runners_by_id: dict[UUID, PipeRunner | ActionRunner[Any]] = {}
-        self._stop_result: CustomObject | Literal["completed"] | RunError | Interruption | None = (
-            None
-        )
+        self._stop_result: CustomObject | Literal["completed"] | Error | Interruption | None = None
         self._stop_event = Event()
 
     def _abort(self):
@@ -113,7 +112,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         self._stop_event.set()
         logger.debug("flow.complete", flow=self.node, runner=self, outputs=outputs)
 
-    def _fail(self, error: RunError) -> None:
+    def _fail(self, error: Error) -> None:
         """Fail this Flow, aborting all active Actions."""
         if self._stop_result is not None:
             logger.debug("flow.fail.skip", flow=self.node, runner=self, error=error)
@@ -143,6 +142,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
         caller: Run | None = None,
+        plan: RunPlan | None = None,
         incoming: Sequence[Run],
     ) -> Run:
         """Run a Action or Pipe in this Flow."""
@@ -156,14 +156,16 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
             run="track",
         )
         assert isinstance(runner, (ActionRunner, PipeRunner)), f"unexpected {runner!r}"
-        assert runner.tracked_run is not None, f"{runner!r} must be tracked"
+        run = runner.tracked_run
+        assert run is not None, f"{runner!r} must be tracked"
         runner.flow = cast(FlowRunner, self)
-        runner.tracked_run.caller = caller
-        runner.tracked_run.incoming_ptr = tuple(run.to_ref() for run in incoming)
+        run.caller = caller
+        run.plan = plan
+        run.incoming_ptr = tuple(run.to_ref() for run in incoming)
         logger.debug("flow.tick.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
         self.runtime.schedule_runner(cast(Runner, runner), on_stop=self._on_stopped)
-        return runner.tracked_run
+        return run
 
     def _resume(self, run: Run | Runner) -> Run:
         """Resume a Run in this Flow."""
@@ -190,9 +192,9 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
 
         if runner.status == RunStatus.COMPLETED:
             if isinstance(runner.node, Action):
-                run.outgoing = self._tick_action(runner, runner.node)
+                self._tick_action(runner, runner.node)
             elif isinstance(runner.node, Pipe):
-                run.outgoing = self._tick_pipe(runner, runner.node)
+                self._tick_pipe(runner, runner.node)
             else:
                 raise RuntimeError(f"unexpected {runner!r}")
         elif runner.status.is_interrupted:
@@ -209,28 +211,31 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
 
         self._stop_if_needed()
 
-    def _tick_call_plan(self, runner: Runner, call_plan: CallPlan) -> Sequence[Call]:
-        """Get the next Calls to tick."""
+    def _get_next_calls(self, runner: Runner, call_plan: CallPlan) -> Sequence[Call]:
+        """Get the next Calls to tick (if any)."""
         return call_plan.calls  # nocheckin
 
     def _tick_action(self, runner: Runner, action: Action) -> list[Run]:
         """Ticks the Action to progress the Flow."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
-        outgoing_pipes = [p for p in self.node.pipes if p.source_id == action.id]
 
         # tick caller plan
-        if (caller := runner.tracked_run.caller) is not None and isinstance(
-            call_plan := getattr(caller.outputs, "call", None), CallPlan
+        if (
+            (caller := runner.tracked_run.caller) is not None
+            and isinstance(call_plan := getattr(caller.outputs, "call", None), CallPlan)
+            and (caller_action := caller.action) is not None
         ):
-            calls = self._tick_call_plan(runner, call_plan)
+            calls = self._get_next_calls(runner, call_plan)
+            outgoing_pipes = [p for p in self.node.pipes if p.source_id == caller_action.id]
             for call in calls:
                 pass  # nocheckin
 
         # tick own pipes (according to own call plan)
         call_plan = getattr(runner.outputs, "call", None) or DEFAULT_CALL_PLAN
         assert isinstance(call_plan, CallPlan), f"unexpected {call_plan!r} for {runner!r}"
-        calls = self._tick_call_plan(runner, call_plan)
+        calls = self._get_next_calls(runner, call_plan)
         outgoing: list[Run] = []
+        outgoing_pipes = [p for p in self.node.pipes if p.source_id == action.id]
         for pipe in outgoing_pipes:
             call = next((c for c in calls if c.node_id == pipe.target_id), None)
             if pipe.type == PipeType.CALL or (pipe.type == PipeType.SELECT and call is not None):
@@ -250,13 +255,14 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         assert runner.tracked_run.caller is not None, f"{runner!r} must have a caller"
         call_plan = getattr(runner.tracked_run.caller.outputs, "call", None) or DEFAULT_CALL_PLAN
         assert isinstance(call_plan, CallPlan), f"unexpected {call_plan!r} for {runner!r}"
-        calls = self._tick_call_plan(runner, call_plan)
+        calls = self._get_next_calls(runner, call_plan)
 
         # start next action
         next_action = pipe.target
         call = next((c for c in calls if c.node_id == next_action.id), None)
         next_run = self._start(
             next_action,
+            caller=runner.tracked_run.caller,
             incoming=(runner.tracked_run,),
             variables=call.value if call is not None else None,
             inputs=call.value if call is not None else None,
@@ -280,7 +286,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
             # resume from interrupted
             # NOTE :Performance: technically we only need to resume Runs with updated Interrupts?
             for run in runs:
-                if not run.outgoing_ptr and run.status.is_interrupted:
+                if run.status.is_interrupted:
                     self._resume(run)
 
         # stop immediately if no progress is possible
@@ -297,7 +303,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
             pass  # no outputs
         elif isinstance(self._stop_result, CustomObject):
             self.outputs = self._stop_result
-        elif isinstance(self._stop_result, RunError):
+        elif isinstance(self._stop_result, Error):
             raise RetryableError(title=self._stop_result.title, error=self._stop_result)
         elif isinstance(self._stop_result, Interruption):
             raise Interrupted(cast(Runner[RunnableNode], self), self.tracked_run, self._stop_result)

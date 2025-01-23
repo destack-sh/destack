@@ -6,9 +6,9 @@ from bench.language import (
     Block,
     BlockType,
     Code,
+    ErrorType,
     Field,
     Node,
-    RunErrorType,
     RunOptions,
     RunStatus,
     Text,
@@ -41,7 +41,7 @@ async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
 
     runner = await local_runtime.run(InvalidCode, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.error is not None and runner.error.type == RunErrorType.CODE_INVALID
+    assert runner.error is not None and runner.error.type == ErrorType.CODE_INVALID
     assert runner.error.text and "!!invalid!!" in runner.error.text
 
 
@@ -159,7 +159,7 @@ async def test_run_code_invalid_inputs(local_runtime: RuntimeHandle):
     runner = await local_runtime.run(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert len(runner.attempts) == 0
-    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
+    assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
     assert runner.tracked_run and runner.tracked_run.duration is not None
 
 
@@ -177,7 +177,7 @@ async def test_run_code_invalid_outputs(local_runtime: RuntimeHandle):
     run = create_run_from_node(Code1)
     runner = await local_runtime.run(run, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
+    assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
 
 
 async def test_run_code_coerce(local_runtime: RuntimeHandle):
@@ -362,7 +362,7 @@ async def test_run_code_return_detached_node(hosted_runtime: RuntimeHandle):
     await hosted_runtime.commit()
     runner = await hosted_runtime.run(Function, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
+    assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
 
     # detached nested node
     Function.code = code("""\
@@ -373,7 +373,7 @@ return {'Text': text}
     await hosted_runtime.commit()
     runner = await hosted_runtime.run(Function, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
+    assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
 
 
 async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):
@@ -389,7 +389,7 @@ async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):
 
     runner = await local_runtime.run(CodeBlock, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.RETRYABLE
+    assert runner.error and runner.error.type == ErrorType.RETRYABLE
     assert len(runner.attempts) == 3
 
 
@@ -406,7 +406,7 @@ async def test_run_code_raise_unretryable_error(local_runtime: RuntimeHandle):
 
     runner = await local_runtime.run(CodeBlock, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.NON_RETRYABLE
+    assert runner.error and runner.error.type == ErrorType.NON_RETRYABLE
     assert len(runner.attempts) == 1
 
 

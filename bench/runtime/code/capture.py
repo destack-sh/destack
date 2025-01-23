@@ -2,7 +2,7 @@ import contextlib
 import io
 from typing import Any, Iterable, override
 
-from bench.language import Log, LogLevel, LogType, Text
+from bench.language import Log, LogType, Severity, Text
 from bench.runtime.core import Runtime
 from bench.utils.utils import get_from_env
 
@@ -39,7 +39,7 @@ class LogSink:
         self.is_open = len(self.logs) < self.max_logs
         self.max_log_length = max_log_length
 
-    def _capture(self, *, level: LogLevel, text_in: TextIn, **kwargs):
+    def _capture(self, *, level: Severity, text_in: TextIn, **kwargs):
         if not self.is_open:
             return
 
@@ -74,7 +74,7 @@ class LogSink:
             parent=run,
             created_at=self.runtime.oracle.utc(),
             type=LogType.PRINT,
-            level=level,
+            severity=level,
             title=title,
             text=text,
             _skip_validate_self=True,
@@ -95,14 +95,14 @@ class LogSink:
     # Log methods
     #
 
-    def log(self, _arg1: TextIn | LogLevel, _arg2: TextIn | LogLevel = LogLevel.INFO, **kwargs):
+    def log(self, _arg1: TextIn | Severity, _arg2: TextIn | Severity = Severity.INFO, **kwargs):
         """Log a message at the given level with optional kwargs."""
-        if isinstance(_arg1, LogLevel):
+        if isinstance(_arg1, Severity):
             level = _arg1
-            assert not isinstance(_arg2, LogLevel), "cannot have two LogLevel arguments"
+            assert not isinstance(_arg2, Severity), "cannot have two LogLevel arguments"
             text = _arg2
         else:
-            assert isinstance(_arg2, LogLevel), "second argument must be LogLevel if first isn't"
+            assert isinstance(_arg2, Severity), "second argument must be LogLevel if first isn't"
             level = _arg2
             text = _arg1
         self._capture(level=level, text_in=text, **kwargs)
@@ -111,29 +111,29 @@ class LogSink:
 
     def trace(self, text: TextIn, **kwargs):
         """Log a trace message."""
-        self._capture(level=LogLevel.TRACE, text_in=text, **kwargs)
+        self._capture(level=Severity.TRACE, text_in=text, **kwargs)
 
     def debug(self, text: TextIn, **kwargs):
         """Log a debug message."""
-        self._capture(level=LogLevel.DEBUG, text_in=text, **kwargs)
+        self._capture(level=Severity.DEBUG, text_in=text, **kwargs)
 
     def info(self, text: TextIn, **kwargs):
         """Log an info message."""
-        self._capture(level=LogLevel.INFO, text_in=text, **kwargs)
+        self._capture(level=Severity.INFO, text_in=text, **kwargs)
 
     def warn(self, text: TextIn, **kwargs):
         """Log a warning message."""
-        self._capture(level=LogLevel.WARNING, text_in=text, **kwargs)
+        self._capture(level=Severity.WARNING, text_in=text, **kwargs)
 
     warning = warn
 
     def error(self, text: TextIn, **kwargs):
         """Log an error message."""
-        self._capture(level=LogLevel.ERROR, text_in=text, **kwargs)
+        self._capture(level=Severity.ERROR, text_in=text, **kwargs)
 
     def panic(self, text: TextIn, **kwargs):
         """Log a critical message."""
-        self._capture(level=LogLevel.PANIC, text_in=text, **kwargs)
+        self._capture(level=Severity.PANIC, text_in=text, **kwargs)
 
     #
     # Print wrapper
@@ -147,7 +147,7 @@ class LogSink:
         end="\n",
         file=None,
         flush=False,
-        level: LogLevel = LogLevel.INFO,
+        level: Severity = Severity.INFO,
         **kwargs,
     ):
         """Print to the log."""
@@ -171,7 +171,7 @@ class BoundLogSink(LogSink):
         return BoundLogSink(self.sink, combined_kwargs)
 
     @override
-    def _capture(self, *, level: LogLevel, text_in: TextIn, **kwargs):
+    def _capture(self, *, level: Severity, text_in: TextIn, **kwargs):
         combined_kwargs = {**self.kwargs}
         combined_kwargs.update(kwargs)
         self.sink._capture(level=level, text_in=text_in, **combined_kwargs)
@@ -184,7 +184,7 @@ class LogStringIO(io.StringIO):
      that wasn't logged through that interface - so we do a best effort to make nice logs.
     """
 
-    def __init__(self, sink: LogSink, level: LogLevel):
+    def __init__(self, sink: LogSink, level: Severity):
         super().__init__()
         self.sink = sink
         self.level = level
@@ -209,7 +209,7 @@ class LogStringIO(io.StringIO):
 @contextlib.contextmanager
 def capture_logs(sink: LogSink):
     """Redirect stdout/stderr to the given log sink."""
-    stdout_sink = LogStringIO(sink, LogLevel.INFO)
-    stderr_sink = LogStringIO(sink, LogLevel.ERROR)
+    stdout_sink = LogStringIO(sink, Severity.INFO)
+    stderr_sink = LogStringIO(sink, Severity.ERROR)
     with contextlib.redirect_stdout(stdout_sink), contextlib.redirect_stderr(stderr_sink):
         yield

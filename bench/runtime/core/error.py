@@ -1,12 +1,12 @@
 from asyncio import CancelledError
 
 from bench.language import BenchError, Code, ComputedValue, Text
-from bench.language.runtime.run import RunError, RunErrorType
+from bench.language.runtime.run import Error, ErrorType
 
 
 class RuntimeError(BenchError, RuntimeError):
     def __init__(
-        self, title: str | None = None, text: Text | None = None, error: RunError | None = None
+        self, title: str | None = None, text: Text | None = None, error: Error | None = None
     ) -> None:
         super().__init__(title)
         self.title = title
@@ -17,35 +17,35 @@ class RuntimeError(BenchError, RuntimeError):
 class RetryableError(RuntimeError):
     """An error we can retry "immediately" at runtime (in the same runtime)."""
 
-    run_error_type = RunErrorType.RETRYABLE
+    run_error_type = ErrorType.RETRYABLE
 
 
 class NonRetryableError(RuntimeError):
     """An error we cannot retry "immediately" at runtime (in the same runtime)."""
 
-    run_error_type = RunErrorType.NON_RETRYABLE
+    run_error_type = ErrorType.NON_RETRYABLE
 
 
 class RunImpossibleError(NonRetryableError):
-    run_error_type = RunErrorType.RUN_IMPOSSIBLE
+    run_error_type = ErrorType.RUN_IMPOSSIBLE
 
 
 class NotSupportedError(RunImpossibleError):
-    run_error_type = RunErrorType.NOT_SUPPORTED
+    run_error_type = ErrorType.NOT_SUPPORTED
 
 
 class InvalidValueError(RunImpossibleError):
-    run_error_type = RunErrorType.INVALID_VALUE
+    run_error_type = ErrorType.INVALID_VALUE
 
 
 class InvalidComputedError(RunImpossibleError):
-    run_error_type = RunErrorType.INVALID_COMPUTED
+    run_error_type = ErrorType.INVALID_COMPUTED
 
     def __init__(
         self,
         title: str | None = None,
         text: Text | None = None,
-        error: RunError | None = None,
+        error: Error | None = None,
         computed_value: ComputedValue | None = None,
     ) -> None:
         super().__init__(title, text, error)
@@ -53,13 +53,13 @@ class InvalidComputedError(RunImpossibleError):
 
 
 class CodeInvalidError(RunImpossibleError, SyntaxError):
-    run_error_type = RunErrorType.CODE_INVALID
+    run_error_type = ErrorType.CODE_INVALID
 
     def __init__(
         self,
         title: str | None = None,
         text: Text | None = None,
-        error: RunError | None = None,
+        error: Error | None = None,
         code: Code | None = None,
     ) -> None:
         super().__init__(title, text, error)
@@ -67,20 +67,20 @@ class CodeInvalidError(RunImpossibleError, SyntaxError):
 
 
 class AbortedError(CancelledError, NonRetryableError):
-    run_error_type = RunErrorType.ABORTED
+    run_error_type = ErrorType.ABORTED
 
 
 class ModelIncapableError(NonRetryableError):
-    run_error_type = RunErrorType.MODEL_INCAPABLE
+    run_error_type = ErrorType.MODEL_INCAPABLE
 
 
 class ModelRefusedError(NonRetryableError):
-    run_error_type = RunErrorType.MODEL_REFUSED
+    run_error_type = ErrorType.MODEL_REFUSED
 
 
 class InterruptionCancelledError(RetryableError):
-    run_error_type = RunErrorType.INTERRUPTION_CANCELLED
+    run_error_type = ErrorType.INTERRUPTION_CANCELLED
 
 
 class ModelFailedError(RetryableError):
-    run_error_type = RunErrorType.MODEL_FAILED
+    run_error_type = ErrorType.MODEL_FAILED

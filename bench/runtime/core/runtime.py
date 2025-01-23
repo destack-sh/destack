@@ -22,6 +22,8 @@ from bench.language import (
     ComputedValueMode,
     Connection,
     CustomObject,
+    Error,
+    ErrorKind,
     Field,
     HasContext,
     Interruption,
@@ -35,8 +37,6 @@ from bench.language import (
     Resource,
     ResourceStatus,
     Run,
-    RunError,
-    RunErrorKind,
     RunnableNode,
     RunOptions,
     RunSpanType,
@@ -465,7 +465,7 @@ class Runtime:
         except asyncio.CancelledError as e:
             # cancelled
             span._do_set("status", RunStatus.ABORTED, validate=False)
-            error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+            error = Error.from_exception(ErrorKind.RUNTIME, e)
             span._do_set("error", error, validate=False)
             log.debug("runtime.attempt.aborted", attempt=span, span="current")
             raise
@@ -480,7 +480,7 @@ class Runtime:
         except BaseException as e:
             # error
             span._do_set("status", RunStatus.FAILED, validate=False)
-            error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+            error = Error.from_exception(ErrorKind.RUNTIME, e)
             span._do_set("error", error, validate=False)
             log.debug("runtime.attempt.failed", attempt=span, exc_info=e, span="current")
             raise
@@ -515,7 +515,7 @@ class Runtime:
                         self._apply_computed_value(runner, computed_value)
             except Exception as e:
                 runner.status = RunStatus.FAILED
-                runner.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+                runner.error = Error.from_exception(ErrorKind.RUNTIME, e)
                 raise
 
         # check variables
@@ -543,7 +543,7 @@ class Runtime:
                             )
                 except ValidationError as e:
                     runner.status = RunStatus.FAILED
-                    runner.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+                    runner.error = Error.from_exception(ErrorKind.RUNTIME, e)
                     raise
 
             # acquire missing resource variables
@@ -583,7 +583,7 @@ class Runtime:
                     )
                 except ValidationError as e:
                     runner.status = RunStatus.FAILED
-                    runner.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+                    runner.error = Error.from_exception(ErrorKind.RUNTIME, e)
                     raise
 
     @tracer.start_as_current_span("runtime.run.run")
@@ -824,7 +824,7 @@ class Runtime:
                 # re-raised inner user error
                 if run.status != RunStatus.FAILED:
                     run.status = RunStatus.FAILED
-                    run.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+                    run.error = Error.from_exception(ErrorKind.RUNTIME, e)
                 self.session.commit_optimistic()
                 logger.info("runtime.run.error", run=run, exc_info=e, span="current")
                 if not return_error:
@@ -833,7 +833,7 @@ class Runtime:
                 # some unexpected internal error
                 if run.status != RunStatus.FAILED:
                     run.status = RunStatus.FAILED
-                    run.error = RunError.from_exception(RunErrorKind.INTERNAL, e)
+                    run.error = Error.from_exception(ErrorKind.INTERNAL, e)
                 self.session.commit_optimistic()
                 logger.error("runtime.run.internal_error", run=run, exc_info=e, span="current")
                 if not return_error:
