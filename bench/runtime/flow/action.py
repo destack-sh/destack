@@ -135,14 +135,14 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
         await self.run_static()
 
         # dynamic calls
-        has_call_plan = (
+        has_plan = (
             not self.node.type.is_boundary
             and self.outputs is not None
             and cast(Action, self.outputs).plans
         )
         if (
             self.flow is not None
-            and not has_call_plan
+            and not has_plan
             and (outgoing_pipes := [p for p in self.flow.node.pipes if p.source_id == self.node.id])
             # NOTE :Incomplete: we could also generate calls for other missing Action inputs
             #  (Sometimes..? Only for application actions like click? For all static actions?)
@@ -163,14 +163,18 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
                 inputs=self.inputs,
                 outputs=self.outputs or self.output_type,
                 parent=cast(Runner[Any], self),
-                run=RunSpanType.MODEL_GENERATE,
+                run=RunSpanType.FLOW_PLAN,
             )
             try:
                 await self.runtime.run_runner(model_runner)
             finally:
                 if model_runner.code is not None:
                     self.action.code = model_runner.code
-                self.outputs = model_runner.outputs
+                assert model_runner.outputs is not None, f"no outputs for {model_runner!r}"
+                if self.outputs is not None:
+                    self.outputs.set_default(model_runner.outputs)
+                else:
+                    self.outputs = model_runner.outputs
 
     @abstractmethod
     async def run_static(self) -> None:

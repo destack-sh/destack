@@ -71,8 +71,6 @@ enum EnumType {
   ENUM_TYPE_RUN_STATUS = 22000;
   ENUM_TYPE_RUN_TYPE = 22001;
   ENUM_TYPE_RUN_SPAN_TYPE = 22002;
-  ENUM_TYPE_RUN_ERROR_KIND = 22003;
-  ENUM_TYPE_RUN_ERROR_TYPE = 22004;
   ENUM_TYPE_SESSION_STATUS = 22010;
   ENUM_TYPE_TRIGGER_TYPE = 22020;
   ENUM_TYPE_CACHE_MODE = 22030;
@@ -80,8 +78,10 @@ enum EnumType {
   ENUM_TYPE_CALL_ERROR_MODE = 22050;
   ENUM_TYPE_CALL_EXECUTION_MODE = 22051;
   ENUM_TYPE_CALL_TERMINATION_MODE = 22052;
-  ENUM_TYPE_LOG_TYPE = 22100;
-  ENUM_TYPE_LOG_LEVEL = 22101;
+  ENUM_TYPE_LOG_TYPE = 22060;
+  ENUM_TYPE_SEVERITY = 22070;
+  ENUM_TYPE_ERROR_KIND = 22100;
+  ENUM_TYPE_ERROR_TYPE = 22101;
   ENUM_TYPE_BREAKPOINT_SITE = 22200;
   ENUM_TYPE_BREAKPOINT_ACTION = 22201;
   ENUM_TYPE_BREAKPOINT_TARGET = 22202;
@@ -148,6 +148,7 @@ enum NodeType {
   NODE_TYPE_SESSION = 6000;
   NODE_TYPE_RUN = 6010;
   NODE_TYPE_RUN_SPAN = 6011;
+  NODE_TYPE_RUN_PLAN = 6012;
   NODE_TYPE_INTERRUPTION = 6020;
   NODE_TYPE_LOG = 6030;
   NODE_TYPE_SKIP = 9000;
@@ -191,7 +192,7 @@ enum StructType {
   STRUCT_TYPE_SELECT_OPTIONS = 12230;
   STRUCT_TYPE_VALUE = 12240;
   STRUCT_TYPE_COMPUTED_VALUE = 12241;
-  STRUCT_TYPE_RUN_ERROR = 12700;
+  STRUCT_TYPE_ERROR = 12700;
   STRUCT_TYPE_RUN_OPTIONS = 12701;
   STRUCT_TYPE_RUN_TRACE = 12703;
   STRUCT_TYPE_RUN_FRAME = 12704;
@@ -244,6 +245,7 @@ enum ObjectType {
   OBJECT_TYPE_SESSION = 6000;
   OBJECT_TYPE_RUN = 6010;
   OBJECT_TYPE_RUN_SPAN = 6011;
+  OBJECT_TYPE_RUN_PLAN = 6012;
   OBJECT_TYPE_INTERRUPTION = 6020;
   OBJECT_TYPE_LOG = 6030;
   OBJECT_TYPE_SKIP = 9000;
@@ -283,7 +285,7 @@ enum ObjectType {
   OBJECT_TYPE_SELECT_OPTIONS = 12230;
   OBJECT_TYPE_VALUE = 12240;
   OBJECT_TYPE_COMPUTED_VALUE = 12241;
-  OBJECT_TYPE_RUN_ERROR = 12700;
+  OBJECT_TYPE_ERROR = 12700;
   OBJECT_TYPE_RUN_OPTIONS = 12701;
   OBJECT_TYPE_RUN_TRACE = 12703;
   OBJECT_TYPE_RUN_FRAME = 12704;
@@ -336,6 +338,7 @@ enum BenchType {
   BENCH_TYPE_SESSION = 6000;
   BENCH_TYPE_RUN = 6010;
   BENCH_TYPE_RUN_SPAN = 6011;
+  BENCH_TYPE_RUN_PLAN = 6012;
   BENCH_TYPE_INTERRUPTION = 6020;
   BENCH_TYPE_LOG = 6030;
   BENCH_TYPE_SKIP = 9000;
@@ -375,7 +378,7 @@ enum BenchType {
   BENCH_TYPE_SELECT_OPTIONS = 12230;
   BENCH_TYPE_VALUE = 12240;
   BENCH_TYPE_COMPUTED_VALUE = 12241;
-  BENCH_TYPE_RUN_ERROR = 12700;
+  BENCH_TYPE_ERROR = 12700;
   BENCH_TYPE_RUN_OPTIONS = 12701;
   BENCH_TYPE_RUN_TRACE = 12703;
   BENCH_TYPE_RUN_FRAME = 12704;
@@ -457,8 +460,6 @@ enum BenchType {
   BENCH_TYPE_RUN_STATUS = 22000;
   BENCH_TYPE_RUN_TYPE = 22001;
   BENCH_TYPE_RUN_SPAN_TYPE = 22002;
-  BENCH_TYPE_RUN_ERROR_KIND = 22003;
-  BENCH_TYPE_RUN_ERROR_TYPE = 22004;
   BENCH_TYPE_SESSION_STATUS = 22010;
   BENCH_TYPE_TRIGGER_TYPE = 22020;
   BENCH_TYPE_CACHE_MODE = 22030;
@@ -466,8 +467,10 @@ enum BenchType {
   BENCH_TYPE_CALL_ERROR_MODE = 22050;
   BENCH_TYPE_CALL_EXECUTION_MODE = 22051;
   BENCH_TYPE_CALL_TERMINATION_MODE = 22052;
-  BENCH_TYPE_LOG_TYPE = 22100;
-  BENCH_TYPE_LOG_LEVEL = 22101;
+  BENCH_TYPE_LOG_TYPE = 22060;
+  BENCH_TYPE_SEVERITY = 22070;
+  BENCH_TYPE_ERROR_KIND = 22100;
+  BENCH_TYPE_ERROR_TYPE = 22101;
   BENCH_TYPE_BREAKPOINT_SITE = 22200;
   BENCH_TYPE_BREAKPOINT_ACTION = 22201;
   BENCH_TYPE_BREAKPOINT_TARGET = 22202;
@@ -1195,32 +1198,6 @@ enum RunSpanType {
   RUN_SPAN_TYPE_FILE_PREPARE_DOWNLOAD = 503;
 }
 
-enum RunErrorKind {
-  RUN_ERROR_KIND_UNSPECIFIED = 0;
-  RUN_ERROR_KIND_INTERNAL = 1;
-  RUN_ERROR_KIND_RUNTIME = 5;
-}
-
-enum RunErrorType {
-  RUN_ERROR_TYPE_UNSPECIFIED = 0;
-  RUN_ERROR_TYPE_ABORTED = 2;
-  RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE = 3;
-  RUN_ERROR_TYPE_RUN_IMPOSSIBLE = 4;
-  RUN_ERROR_TYPE_NOT_SUPPORTED = 5;
-  RUN_ERROR_TYPE_INVALID_VALUE = 10;
-  RUN_ERROR_TYPE_INVALID_COMPUTED = 11;
-  RUN_ERROR_TYPE_CODE_INVALID = 20;
-  RUN_ERROR_TYPE_TEXT_INVALID = 21;
-  RUN_ERROR_TYPE_MODEL_INCAPABLE = 100;
-  RUN_ERROR_TYPE_MODEL_REFUSED = 101;
-  RUN_ERROR_TYPE_NON_RETRYABLE = 499;
-  RUN_ERROR_TYPE_MODEL_FAILED = 500;
-  RUN_ERROR_TYPE_INVALID_CONTINUATION = 502;
-  RUN_ERROR_TYPE_INVALID_CALL = 503;
-  RUN_ERROR_TYPE_INTERRUPTION_CANCELLED = 504;
-  RUN_ERROR_TYPE_RETRYABLE = 999;
-}
-
 enum SessionStatus {
   SESSION_STATUS_UNSPECIFIED = 0;
   SESSION_STATUS_PENDING = 1;
@@ -1253,6 +1230,7 @@ enum ScheduleFrequency {
   SCHEDULE_FREQUENCY_SECOND = 7;
 }
 
+// What to do when a Call fails.
 enum CallErrorMode {
   CALL_ERROR_MODE_UNSPECIFIED = 0;
   CALL_ERROR_MODE_FAIL = 1;
@@ -1260,16 +1238,19 @@ enum CallErrorMode {
   CALL_ERROR_MODE_TERMINATE = 3;
 }
 
+// How to execute Calls.
 enum CallExecutionMode {
   CALL_EXECUTION_MODE_UNSPECIFIED = 0;
   CALL_EXECUTION_MODE_SERIAL = 1;
   CALL_EXECUTION_MODE_PARALLEL = 2;
 }
 
+// What to do when a Call terminates.
 enum CallTerminationMode {
   CALL_TERMINATION_MODE_UNSPECIFIED = 0;
-  CALL_TERMINATION_MODE_IGNORE = 1;
+  CALL_TERMINATION_MODE_STOP = 1;
   CALL_TERMINATION_MODE_RETURN = 2;
+  CALL_TERMINATION_MODE_DEFER = 3;
 }
 
 enum LogType {
@@ -1279,14 +1260,41 @@ enum LogType {
   LOG_TYPE_EDIT = 201;
 }
 
-enum LogLevel {
-  LOG_LEVEL_UNSPECIFIED = 0;
-  LOG_LEVEL_TRACE = 1;
-  LOG_LEVEL_DEBUG = 2;
-  LOG_LEVEL_INFO = 3;
-  LOG_LEVEL_WARNING = 4;
-  LOG_LEVEL_ERROR = 5;
-  LOG_LEVEL_PANIC = 6;
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_TRACE = 1;
+  SEVERITY_DEBUG = 2;
+  SEVERITY_INFO = 3;
+  SEVERITY_WARNING = 4;
+  SEVERITY_ERROR = 5;
+  SEVERITY_PANIC = 6;
+}
+
+enum ErrorKind {
+  ERROR_KIND_UNSPECIFIED = 0;
+  ERROR_KIND_INTERNAL = 1;
+  ERROR_KIND_RUNTIME = 5;
+}
+
+enum ErrorType {
+  ERROR_TYPE_UNSPECIFIED = 0;
+  ERROR_TYPE_ABORTED = 2;
+  ERROR_TYPE_RUNTIME_UNAVAILABLE = 3;
+  ERROR_TYPE_RUN_IMPOSSIBLE = 4;
+  ERROR_TYPE_NOT_SUPPORTED = 5;
+  ERROR_TYPE_INVALID_VALUE = 10;
+  ERROR_TYPE_INVALID_COMPUTED = 11;
+  ERROR_TYPE_CODE_INVALID = 20;
+  ERROR_TYPE_TEXT_INVALID = 21;
+  ERROR_TYPE_MODEL_INCAPABLE = 100;
+  ERROR_TYPE_MODEL_REFUSED = 101;
+  ERROR_TYPE_NON_RETRYABLE = 499;
+  ERROR_TYPE_MODEL_FAILED = 500;
+  ERROR_TYPE_INVALID_CONTINUATION = 502;
+  ERROR_TYPE_INVALID_CALL = 503;
+  ERROR_TYPE_INVALID_PLAN = 504;
+  ERROR_TYPE_INTERRUPTION_CANCELLED = 510;
+  ERROR_TYPE_RETRYABLE = 999;
 }
 
 enum BreakpointSite {
@@ -2032,6 +2040,40 @@ message MachineImageData {
   ObjectType metatype = 1;
 }
 
+message CallData {
+  ObjectType metatype = 1;
+  NodeReferenceData node_ptr = 31;
+  optional google.protobuf.Value value_packed = 33;
+  CallTerminationMode on_terminate = 35;
+}
+
+message CallPlanData {
+  ObjectType metatype = 1;
+  CallExecutionMode execution = 31;
+  CallTerminationMode on_terminate = 33;
+  CallErrorMode on_error = 34;
+  repeated CallData calls = 40;
+}
+
+message RunTraceData {
+  ObjectType metatype = 1;
+  repeated RunFrameData frames = 30;
+}
+
+message RunFrameData {
+  ObjectType metatype = 1;
+}
+
+message ErrorData {
+  ObjectType metatype = 1;
+  ErrorKind kind = 30;
+  ErrorType type = 31;
+  optional string title = 32;
+  optional TextData text = 33;
+  repeated NodeReferenceData nodes_ptr = 34;
+  optional RunTraceData trace = 35;
+}
+
 message BreakpointData {
   ObjectType metatype = 1;
   BreakpointSite site = 30;
@@ -2065,7 +2107,7 @@ message RunOptionsData {
   optional google.protobuf.Duration retry_interval = 40;
   optional float backoff = 41;
   optional google.protobuf.Duration max_retry_interval = 42;
-  repeated RunErrorType retry_on = 44;
+  repeated ErrorType retry_on = 44;
   optional bool suppress_fail = 45;
   optional bool suppress_abort = 46;
   optional bool suppress_pause = 47;
@@ -2079,25 +2121,6 @@ message RunOptionsData {
   optional AudioOptionsData audio_options = 84;
   optional ImageOptionsData image_options = 85;
   optional VideoOptionsData video_options = 86;
-}
-
-message RunTraceData {
-  ObjectType metatype = 1;
-  repeated RunFrameData frames = 30;
-}
-
-message RunFrameData {
-  ObjectType metatype = 1;
-}
-
-message RunErrorData {
-  ObjectType metatype = 1;
-  RunErrorKind kind = 30;
-  RunErrorType type = 31;
-  optional string title = 32;
-  optional TextData text = 33;
-  repeated NodeReferenceData nodes_ptr = 34;
-  optional RunTraceData trace = 35;
 }
 
 message ChangeVignetteData {
@@ -2161,21 +2184,6 @@ message ContextData {
   optional NodeReferenceData machine_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
   optional NodeReferenceData identity_ptr = 96;
-}
-
-message CallData {
-  ObjectType metatype = 1;
-  NodeReferenceData node_ptr = 31;
-  optional google.protobuf.Value value_packed = 33;
-  CallTerminationMode on_terminate = 35;
-}
-
-message CallPlanData {
-  ObjectType metatype = 1;
-  CallExecutionMode execution = 31;
-  CallTerminationMode on_terminate = 33;
-  CallErrorMode on_error = 34;
-  repeated CallData calls = 40;
 }
 
 message ColorData {
@@ -2755,9 +2763,42 @@ message LogData {
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   LogType type = 30;
-  LogLevel level = 31;
+  Severity severity = 31;
   optional string title = 32;
   optional TextData text = 33;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData run_ptr = 91;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData user_ptr = 95;
+  optional NodeReferenceData identity_ptr = 96;
+}
+
+message RunPlanData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  NodeMode mode = 20;
+  optional google.protobuf.Value subnode_packed = 29;
+  CallExecutionMode execution = 31;
+  CallTerminationMode on_terminate = 33;
+  CallErrorMode on_error = 34;
+  RunStatus status = 40;
+  optional google.protobuf.Duration duration = 41;
+  optional google.protobuf.Timestamp started_at = 42;
+  optional google.protobuf.Timestamp terminated_at = 43;
+  optional ErrorData error = 44;
+  optional string title = 50;
+  optional TextData text = 51;
+  repeated CallData calls = 52;
+  repeated NodeReferenceData runs_ptr = 53;
+  optional int32 step = 54;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
   optional NodeReferenceData client_ptr = 93;
@@ -2780,14 +2821,14 @@ message RunSpanData {
   optional google.protobuf.Value subnode_packed = 29;
   RunSpanType type = 30;
   optional NodeReferenceData root_ptr = 31;
-  LogLevel level = 33;
+  Severity severity = 33;
   RunStatus status = 40;
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp started_at = 42;
   optional google.protobuf.Timestamp terminated_at = 43;
   optional google.protobuf.Timestamp interrupted_at = 44;
   optional NodeReferenceData interruption_ptr = 53;
-  optional RunErrorData error = 54;
+  optional ErrorData error = 54;
   optional string title = 60;
   optional TextData text = 61;
   repeated NodeReferenceData nodes_ptr = 62;
@@ -2816,24 +2857,25 @@ message RunData {
   optional NodeReferenceData block_ptr = 32;
   optional NodeReferenceData action_ptr = 33;
   optional NodeReferenceData pipe_ptr = 34;
-  optional NodeReferenceData caller_ptr = 36;
-  repeated NodeReferenceData incoming_ptr = 37;
-  repeated NodeReferenceData outgoing_ptr = 38;
   RunOptionsData options = 39;
-  RunStatus status = 40;
-  optional google.protobuf.Duration duration = 41;
-  optional google.protobuf.Timestamp scheduled_at = 45;
-  optional google.protobuf.Timestamp started_at = 46;
-  optional google.protobuf.Timestamp stopped_at = 47;
-  optional google.protobuf.Timestamp interrupted_at = 48;
-  optional google.protobuf.Timestamp paused_at = 50;
-  optional google.protobuf.Timestamp resumed_at = 51;
-  optional google.protobuf.Timestamp terminated_at = 52;
-  optional RunErrorData error = 53;
-  optional NodeReferenceData interruption_ptr = 54;
-  optional google.protobuf.Value variables_packed = 60;
-  optional google.protobuf.Value inputs_packed = 61;
-  optional google.protobuf.Value outputs_packed = 63;
+  repeated NodeReferenceData incoming_ptr = 40;
+  optional NodeReferenceData plan_ptr = 41;
+  optional int32 plan_step = 42;
+  RunStatus status = 50;
+  optional int32 attempt = 51;
+  optional google.protobuf.Duration duration = 52;
+  optional google.protobuf.Timestamp scheduled_at = 55;
+  optional google.protobuf.Timestamp started_at = 56;
+  optional google.protobuf.Timestamp stopped_at = 57;
+  optional google.protobuf.Timestamp interrupted_at = 58;
+  optional google.protobuf.Timestamp paused_at = 59;
+  optional google.protobuf.Timestamp resumed_at = 60;
+  optional google.protobuf.Timestamp terminated_at = 61;
+  optional ErrorData error = 62;
+  optional NodeReferenceData interruption_ptr = 63;
+  optional google.protobuf.Value variables_packed = 70;
+  optional google.protobuf.Value inputs_packed = 71;
+  optional google.protobuf.Value outputs_packed = 72;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
   optional NodeReferenceData client_ptr = 93;
@@ -2894,7 +2936,7 @@ message ActionData {
   optional NodeReferenceData tool_ptr = 53;
   optional google.protobuf.Value variables_packed = 55;
   optional google.protobuf.Value inputs_packed = 56;
-  optional CallPlanData call = 60;
+  repeated CallPlanData plans = 60;
   optional Vector2Data position = 80;
 }
 
@@ -3503,10 +3545,11 @@ message SomeNodeData {
     SessionData session = 25;
     RunData run = 26;
     RunSpanData run_span = 27;
-    InterruptionData interruption = 28;
-    LogData log = 29;
-    SkipData skip = 30;
-    EmptyData empty = 31;
+    RunPlanData run_plan = 28;
+    InterruptionData interruption = 29;
+    LogData log = 30;
+    SkipData skip = 31;
+    EmptyData empty = 32;
   };
 }
 

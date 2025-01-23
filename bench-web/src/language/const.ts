@@ -379,7 +379,6 @@ export const EXPOSED_STRUCT_TYPES = [
   StructType.TEXT,
   // run
   StructType.RUN_OPTIONS,
-  StructType.RUN_ERROR,
   StructType.RUN_FRAME,
   StructType.RUN_TRACE,
   StructType.BREAKPOINT,

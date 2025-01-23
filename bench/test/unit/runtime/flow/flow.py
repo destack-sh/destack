@@ -753,6 +753,7 @@ async def test_run_flow_call_none(hosted_runtime: RuntimeHandle):
     Route.connect(PipeType.SELECT, Complete)
     Route.connect(PipeType.SELECT, Code2)
     Route.connect(PipeType.SELECT, Code3)
+    hosted_runtime.page().blocks.append(Flow)
     await hosted_runtime.commit()
 
     Route.code = code("pass")
@@ -776,40 +777,47 @@ async def test_run_flow_call_route(hosted_runtime: RuntimeHandle):
     Route.connect(PipeType.SELECT, Code2)
     Route.connect(PipeType.SELECT, Code3)
     Route.connect(PipeType.SELECT, Code4)
+    hosted_runtime.page().blocks.append(Flow)
     await hosted_runtime.commit()
 
     # Route: Code2 + Code3
     Route.code = code("""\
 return {
-    "call": call_serial(call(Code2), call(Code3)),
+    "plans": [call_serial(call(Code2), call(Code3))],
 }
 """)
     runner = await hosted_runtime.run(Flow)
     assert runner.tracked_run
-    assert runner.tracked_run.has(Code2, Code3)
-    assert not runner.tracked_run.has(Complete, Code4)
+    assert runner.tracked_run.has(Code2)
+    assert runner.tracked_run.has(Code3)
+    assert not runner.tracked_run.has(Complete)
+    assert not runner.tracked_run.has(Code4)
 
     # Route: Code4
     Route.code = code("""\
 return {
-    "call": call_serial(call(Code4)),
+    "plans": [call_serial(call(Code4))],
 }
 """)
     runner = await hosted_runtime.run(Flow)
     assert runner.tracked_run
     assert runner.tracked_run.has(Code4)
-    assert not runner.tracked_run.has(Complete, Code2, Code3)
+    assert not runner.tracked_run.has(Complete)
+    assert not runner.tracked_run.has(Code2)
+    assert not runner.tracked_run.has(Code3)
 
     # Route: Complete + Code2
     Route.code = code("""\
 return {
-    "call": call_serial(call(Complete), call(Code2)),
+    "plans": [call_serial(call(Complete), call(Code2))],
 }
 """)
     runner = await hosted_runtime.run(Flow)
     assert runner.tracked_run
-    assert runner.tracked_run.has(Complete, Code2)
-    assert not runner.tracked_run.has(Code3, Code4)
+    assert runner.tracked_run.has(Complete)
+    assert runner.tracked_run.has(Code2)
+    assert not runner.tracked_run.has(Code3)
+    assert not runner.tracked_run.has(Code4)
 
 
 async def test_run_flow_call_tool(hosted_runtime: RuntimeHandle):
@@ -850,7 +858,7 @@ async def test_run_flow_call_tool(hosted_runtime: RuntimeHandle):
     # run tool within flow via calls
     Code1.code = code("""\
 return {
-    "call": call(Tool1, type=ActionType.CODE, code=code("pass")),
+    "plans": [call(Tool1, type=ActionType.CODE, code=code("pass"))],
 }
 """)
     runner = await hosted_runtime.run(Flow)

@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
-import { RunErrorKind, RunErrorType, type RunData, type RunErrorData } from "@/proto/wire";
+import { ErrorKind, ErrorType, type RunData, type ErrorData } from "@/proto/wire";
 import Text from "@/views/content/Text.vue";
 
-const props = defineProps<{ run?: RunData; error: RunErrorData }>();
+const props = defineProps<{ run?: RunData; error: ErrorData }>();
 </script>
 <template>
   <div class="">
@@ -13,9 +13,9 @@ const props = defineProps<{ run?: RunData; error: RunErrorData }>();
       <span class="max-w-60 truncate font-medium">{{ error.title ?? "Error" }}</span>
       <!-- Details -->
       <div class="ml-auto flex-shrink-0 pl-4 text-gray-400">
-        <span>{{ toCamelName(RunErrorKind, error.kind) }}</span>
+        <span>{{ toCamelName(ErrorKind, error.kind) }}</span>
         <template v-if="error.type">
-          / <span>{{ toCamelName(RunErrorType, error.type) }}</span></template
+          / <span>{{ toCamelName(ErrorType, error.type) }}</span></template
         >
       </div>
     </div>

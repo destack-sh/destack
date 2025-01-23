@@ -9,7 +9,7 @@ from opentelemetry import trace
 from bench.language import (
     Action,
     ActionType,
-    Call,
+    CallExecutionMode,
     CallPlan,
     CustomObject,
     Error,
@@ -47,8 +47,6 @@ tracer = trace.get_tracer(__name__)
 #
 # Flow
 #
-
-DEFAULT_CALL_PLAN = CallPlan(calls=[])
 
 
 class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
@@ -141,8 +139,8 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         *,
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
-        caller: Run | None = None,
         plan: RunPlan | None = None,
+        plan_step: int | None = None,
         incoming: Sequence[Run],
     ) -> Run:
         """Run a Action or Pipe in this Flow."""
@@ -159,8 +157,8 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
         runner.flow = cast(FlowRunner, self)
-        run.caller = caller
         run.plan = plan
+        run.plan_step = plan_step
         run.incoming_ptr = tuple(run.to_ref() for run in incoming)
         logger.debug("flow.tick.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
@@ -211,58 +209,52 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
 
         self._stop_if_needed()
 
-    def _get_next_calls(self, runner: Runner, call_plan: CallPlan) -> Sequence[Call]:
-        """Get the next Calls to tick (if any)."""
-        return call_plan.calls  # nocheckin
-
     def _tick_action(self, runner: Runner, action: Action) -> list[Run]:
         """Ticks the Action to progress the Flow."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
+        outgoing: list[Run] = []
+        outgoing_pipes = tuple(p for p in self.node.pipes if p.source_id == action.id)
+        call_pipes = tuple(p for p in outgoing_pipes if p.type == PipeType.CALL)
+        uncalled_call_pipes = set(call_pipes)
 
         # tick caller plan
-        if (
-            (caller := runner.tracked_run.caller) is not None
-            and isinstance(call_plan := getattr(caller.outputs, "call", None), CallPlan)
-            and (caller_action := caller.action) is not None
-        ):
-            calls = self._get_next_calls(runner, call_plan)
-            outgoing_pipes = [p for p in self.node.pipes if p.source_id == caller_action.id]
-            for call in calls:
-                pass  # nocheckin
+        if (plan := runner.tracked_run.plan) is not None:
+            pass  # nocheckin
 
-        # tick own pipes (according to own call plan)
-        call_plan = getattr(runner.outputs, "call", None) or DEFAULT_CALL_PLAN
-        assert isinstance(call_plan, CallPlan), f"unexpected {call_plan!r} for {runner!r}"
-        calls = self._get_next_calls(runner, call_plan)
-        outgoing: list[Run] = []
-        outgoing_pipes = [p for p in self.node.pipes if p.source_id == action.id]
-        for pipe in outgoing_pipes:
-            call = next((c for c in calls if c.node_id == pipe.target_id), None)
-            if pipe.type == PipeType.CALL or (pipe.type == PipeType.SELECT and call is not None):
-                next_run = self._start(
-                    pipe, caller=runner.tracked_run, incoming=(runner.tracked_run,)
-                )
-                outgoing.append(next_run)
+        # tick own plans
+        call_plans: Sequence[CallPlan] = getattr(runner.outputs, "plans", None) or []
+        run_plans = [RunPlan.new(runner.tracked_run, plan) for plan in call_plans]
+        self.session._create(*run_plans)
+        for plan in run_plans:
+            calls = plan.calls if plan.execution == CallExecutionMode.PARALLEL else (plan.calls[0],)
+            for step, call in enumerate(calls):
+                pipe = next((p for p in outgoing_pipes if p.target_id == call.node_id), None)
+                if pipe is None:
+                    continue  # ignore, can't call arbitrary nodes
+                self._start(pipe, plan=plan, plan_step=step, incoming=(runner.tracked_run,))
+                uncalled_call_pipes.discard(pipe)
+
+        # call call pipes not yet called
+        for pipe in uncalled_call_pipes:
+            self._start(pipe, incoming=(runner.tracked_run,))
+
         return outgoing
 
     def _tick_pipe(self, runner: Runner, pipe: Pipe) -> list[Run]:
         """Ticks the Pipe to progress the Flow."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
 
-        # get call plan
-        # NOTE :Architecture: the FLow needs to check the call plan in tick action & pipe
-        #  -- are we sure this always results in the intended call?
-        assert runner.tracked_run.caller is not None, f"{runner!r} must have a caller"
-        call_plan = getattr(runner.tracked_run.caller.outputs, "call", None) or DEFAULT_CALL_PLAN
-        assert isinstance(call_plan, CallPlan), f"unexpected {call_plan!r} for {runner!r}"
-        calls = self._get_next_calls(runner, call_plan)
+        # check plan
+        plan = runner.tracked_run.plan
+        plan_step = runner.tracked_run.plan_step
+        call = plan.calls[plan_step] if plan is not None and plan_step is not None else None
 
         # start next action
         next_action = pipe.target
-        call = next((c for c in calls if c.node_id == next_action.id), None)
         next_run = self._start(
             next_action,
-            caller=runner.tracked_run.caller,
+            plan=plan,
+            plan_step=plan_step,
             incoming=(runner.tracked_run,),
             variables=call.value if call is not None else None,
             inputs=call.value if call is not None else None,

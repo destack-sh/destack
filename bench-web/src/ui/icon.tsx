@@ -18,7 +18,7 @@ import {
   HubAspect,
   IconKind,
   InterruptionType,
-  LogLevel,
+  Severity,
   NodeMode,
   NodeReferenceData,
   NodeType,
@@ -235,7 +235,6 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.TEXT_LINE]: "fas fa-grip-lines",
   // run
   [StructType.RUN_OPTIONS]: "fas fa-play",
-  [StructType.RUN_ERROR]: "fas fa-play",
   [StructType.RUN_FRAME]: "fas fa-play",
   [StructType.RUN_TRACE]: "fas fa-play",
   [StructType.BREAKPOINT]: "fas fa-pause",
@@ -543,14 +542,14 @@ export const ICON_BY_FIELD_TYPE: Partial<Record<FieldType, IconData>> = _makeIco
   [FieldType.OPTION]: "fas fa-circle-small",
 });
 
-export const ICON_BY_LOG_LEVEL: Record<LogLevel, IconData> = {
-  [LogLevel.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
-  [LogLevel.TRACE]: makeIcon({ faName: "fas fa-bug" }),
-  [LogLevel.DEBUG]: makeIcon({ faName: "fas fa-bug" }),
-  [LogLevel.INFO]: makeIcon({ faName: "fas fa-circle-check" }),
-  [LogLevel.WARNING]: makeIcon({ faName: "fas fa-circle-exclamation" }),
-  [LogLevel.ERROR]: makeIcon({ faName: "fas fa-circle-exclamation" }),
-  [LogLevel.PANIC]: makeIcon({ faName: "fas fa-skull" }),
+export const ICON_BY_SEVERITY: Record<Severity, IconData> = {
+  [Severity.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
+  [Severity.TRACE]: makeIcon({ faName: "fas fa-bug" }),
+  [Severity.DEBUG]: makeIcon({ faName: "fas fa-bug" }),
+  [Severity.INFO]: makeIcon({ faName: "fas fa-circle-check" }),
+  [Severity.WARNING]: makeIcon({ faName: "fas fa-circle-exclamation" }),
+  [Severity.ERROR]: makeIcon({ faName: "fas fa-circle-exclamation" }),
+  [Severity.PANIC]: makeIcon({ faName: "fas fa-skull" }),
 };
 
 export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
@@ -682,7 +681,7 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.FILE_TYPE]: ICON_BY_FILE_TYPE,
   [EnumType.FILE_FORMAT]: ICON_BY_FILE_FORMAT,
   [EnumType.FIELD_ZONE]: ICON_BY_FIELD_TYPE,
-  [EnumType.LOG_LEVEL]: ICON_BY_LOG_LEVEL,
+  [EnumType.SEVERITY]: ICON_BY_SEVERITY,
   [EnumType.EDIT_TYPE]: ICON_BY_EDIT_TYPE,
   [EnumType.NODE_MODE]: ICON_BY_NODE_MODE,
   [EnumType.REGION_CONTINENT]: ICON_BY_REGION_CONTINENT,

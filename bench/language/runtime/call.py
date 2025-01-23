@@ -29,13 +29,25 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.CALL_ERROR_MODE)
 class CallErrorMode(IdEnum):
+    """What to do when a Call fails."""
+
     FAIL = 1
     IGNORE = 2
     TERMINATE = 3
 
 
+@enum_(EnumType.CALL_EXECUTION_MODE)
+class CallExecutionMode(IdEnum):
+    """How to execute Calls."""
+
+    SERIAL = 1
+    PARALLEL = 2
+
+
 @enum_(EnumType.CALL_TERMINATION_MODE)
 class CallTerminationMode(IdEnum):
+    """What to do when a Call terminates."""
+
     STOP = 1
     RETURN = 2
     DEFER = 3
@@ -95,6 +107,7 @@ class Call(Struct):
 class CallPlan(Struct):
     """A plan for some (potentially interleaved) Calls."""
 
+    execution: CallExecutionMode = p_internal(31, default=CallExecutionMode.SERIAL)
     on_terminate: CallTerminationMode = p_internal(33, default=CallTerminationMode.STOP)
     on_error: CallErrorMode = p_internal(34, default=CallErrorMode.TERMINATE)
 
@@ -107,10 +120,16 @@ class CallPlan(Struct):
     @staticmethod
     def new(
         *calls: Call,
+        execution: CallExecutionMode = CallExecutionMode.SERIAL,
         on_error: CallErrorMode = CallErrorMode.TERMINATE,
         on_terminate: CallTerminationMode = CallTerminationMode.STOP,
     ) -> "CallPlan":
-        return CallPlan(calls=list(calls), on_error=on_error, on_terminate=on_terminate)
+        return CallPlan(
+            calls=list(calls),
+            execution=execution,
+            on_error=on_error,
+            on_terminate=on_terminate,
+        )
 
 
 def call(node: "Block | Action", **kwargs) -> "Call":
@@ -125,14 +144,26 @@ def call_serial(
     return CallPlan.new(*calls, on_error=on_error, on_terminate=on_terminate)
 
 
+def call_parallel(
+    *calls: Call,
+    on_error: CallErrorMode = CallErrorMode.TERMINATE,
+    on_terminate: CallTerminationMode = CallTerminationMode.STOP,
+) -> "CallPlan":
+    return CallPlan.new(
+        *calls, execution=CallExecutionMode.PARALLEL, on_error=on_error, on_terminate=on_terminate
+    )
+
+
 def call_single(
     node: "Block | Action",
+    *,
     on_error: CallErrorMode = CallErrorMode.FAIL,
     on_terminate: CallTerminationMode = CallTerminationMode.STOP,
     **kwargs,
 ) -> "CallPlan":
     return CallPlan.new(
         call(node, **kwargs),
+        execution=CallExecutionMode.SERIAL,
         on_error=on_error,
         on_terminate=on_terminate,
     )

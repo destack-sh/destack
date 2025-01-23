@@ -1,7 +1,6 @@
 from asyncio import CancelledError
 
-from bench.language import BenchError, Code, ComputedValue, Text
-from bench.language.runtime.run import Error, ErrorType
+from bench.language import BenchError, Code, ComputedValue, Error, ErrorType, Text
 
 
 class RuntimeError(BenchError, RuntimeError):
