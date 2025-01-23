@@ -1,7 +1,7 @@
 from .call import (
     Call,
-    CallFailureMode,
     CallExecutionMode,
+    CallFailureMode,
     CallPlan,
     CallTerminationMode,
     call,
@@ -52,8 +52,8 @@ __all__ = [
     "BreakpointScope",
     "BreakpointSite",
     "Call",
-    "CallFailureMode",
     "CallExecutionMode",
+    "CallFailureMode",
     "CallPlan",
     "CallTerminationMode",
     "Change",

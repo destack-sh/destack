@@ -41,6 +41,7 @@ from bench.runtime.core import (
     make_runner,
     restore_runner,
 )
+from bench.runtime.core.runner import RunnerCancelledEvent
 
 from .action import ActionRunner
 from .pipe import PipeRunner
@@ -123,7 +124,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         self._stop_event.set()
         logger.debug("flow.fail", flow=self.node, runner=self, error=error)
 
-    def _stop_if_needed(self) -> None:
+    def _try_stop(self) -> None:
         """Checks whether this Flow should stop (and stops it)."""
         if self._stop_result is None and len(self._active_runners_by_id) == 0:
             if self._interrupted_runners:
@@ -165,8 +166,8 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         run.incoming_ptr = tuple(run.to_ref() for run in incoming)
         logger.debug("flow.tick.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
-        self._hook_runner(runner)
-        self.runtime.schedule_runner(cast(Runner, runner))
+        runner.on_event(self._on_event)
+        self.runtime.schedule_runner(runner)
         return run
 
     def _resume(self, run: Run | Runner) -> Run:
@@ -179,41 +180,43 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.tick.resume", flow=self.node, node=runner.node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
-        self._hook_runner(runner)
-        self.runtime.schedule_runner(cast(Runner, runner))
+        runner.on_event(self._on_event)
+        self.runtime.schedule_runner(runner)
         return runner.tracked_run
 
-    def _hook_runner(self, runner: Runner):
-        """Hook into the Runner for this Flow."""
-        pass
-
-    def _on_event(self, runner: Runner, event: RunnerEvent) -> None:
-        """
-        Tick this Flow on an Action/Pipe event.
-        NOTE :Incomplete: Flow should handle on_output, on_stream, ...
-        """
+    def _on_event(self, event: RunnerEvent) -> None:
+        """Tick this Flow on an Action/Pipe event."""
+        runner = event.runner
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
-        logger.debug(
-            "flow.tick.event", flow=self.node, node=runner.node, runner=runner, event=event
-        )
-
+        logger.debug("flow.tick.event", flow=self.node, node=runner.node, runner=runner)
         if isinstance(event, RunnerInterruptedEvent):
             self._interrupted_runners.append(runner)
             self._active_runners_by_id.pop(runner.id)
-        elif isinstance(event, (RunnerCompletedEvent, RunnerFailedEvent, RunnerAbortedEvent)):
+        elif isinstance(event, RunnerCompletedEvent):
             if isinstance(runner.node, Action):
-                self._tick_action(runner, runner.node, event)
+                self._tick_action(cast(ActionRunner, runner), runner.node, event)
             elif isinstance(runner.node, Pipe):
-                self._tick_pipe(runner, runner.node, event)
+                self._tick_pipe(cast(PipeRunner, runner), runner.node, event)
             self._active_runners_by_id.pop(runner.id)
-        self._stop_if_needed()
+        elif isinstance(event, RunnerFailedEvent):
+            # nocheckin: handle failed event somehow
+            assert runner.error is not None, f"missing error for {runner!r}"
+            if isinstance(runner.node, Action):
+                if not self._tick_action(cast(ActionRunner, runner), runner.node, event):
+                    self._fail(runner.error)  # fail on unhandled action error
+            elif isinstance(runner.node, Pipe):
+                self._fail(runner.error)  # fail on any pipe fail?
+            self._active_runners_by_id.pop(runner.id)
+        elif isinstance(event, (RunnerAbortedEvent, RunnerCancelledEvent)):
+            self._active_runners_by_id.pop(runner.id)
+        self._try_stop()
 
     def _tick_action(
         self,
-        runner: Runner,
+        runner: ActionRunner,
         action: Action,
-        event: RunnerEvent,
+        event: RunnerCompletedEvent | RunnerFailedEvent,
     ) -> list[Run]:
         """Ticks the Action to progress the Flow."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
@@ -241,13 +244,13 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
                 self._start(pipe, plan=plan, plan_step=step, incoming=(runner.tracked_run,))
                 uncalled_call_pipes.discard(pipe)
 
-        # call call pipes not yet called
+        # call call pipes that were not called
         for pipe in uncalled_call_pipes:
             self._start(pipe, incoming=(runner.tracked_run,))
 
         return outgoing
 
-    def _tick_pipe(self, runner: Runner, pipe: Pipe, event: RunnerEvent) -> list[Run]:
+    def _tick_pipe(self, runner: PipeRunner, pipe: Pipe, event: RunnerEvent) -> list[Run]:
         """Ticks the Pipe to progress the Flow."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
 
@@ -289,7 +292,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
                     self._resume(run)
 
         # stop immediately if no progress is possible
-        self._stop_if_needed()
+        self._try_stop()
 
         # wait for stop
         try:
