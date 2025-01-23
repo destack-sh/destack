@@ -31,7 +31,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.22.2"
+VERSION = "2025.01.23.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -172,12 +172,12 @@ class EnumType(IdEnum):
     RUN_STATUS = 22000
     RUN_TYPE = 22001
     RUN_SPAN_TYPE = 22002
-    RUN_PLAN_TYPE = 22003
     SESSION_STATUS = 22010
     TRIGGER_TYPE = 22020
     CACHE_MODE = 22030
     SCHEDULE_FREQUENCY = 22040
     CALL_ERROR_MODE = 22050
+    CALL_EXECUTION_MODE = 22051
     CALL_TERMINATION_MODE = 22052
     LOG_TYPE = 22060
     SEVERITY = 22070
@@ -1159,7 +1159,7 @@ class RunSpanType(IdEnum):
     ACQUIRE = 3
     DELEGATE = 10
     # flow
-    FLOW_GENERATE_CALLS = 100
+    FLOW_PLAN = 100
     # action
     # ...
     # application (action)

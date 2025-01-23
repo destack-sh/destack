@@ -32,8 +32,7 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
-from bench.pb2.lang_pb2 import RunSpanData
+from bench.pb2 import AnyNodeData, NodeReferenceData, RunData, RunPlanData, RunSpanData
 from bench.utils.func import IdEnum
 from bench.utils.tenacity import RetryOptions
 
@@ -46,6 +45,7 @@ if TYPE_CHECKING:
         Breakpoint,
         Call,
         CallErrorMode,
+        CallExecutionMode,
         CallPlan,
         CallTerminationMode,
         CustomObject,
@@ -150,20 +150,13 @@ class RunOptions(Struct):
         )
 
 
-@enum_(EnumType.RUN_PLAN_TYPE)
-class RunPlanType(IdEnum):
-    """The type of a RunPlan."""
-
-    pass
-
-
 @timed_node_(NodeType.RUN_PLAN)
-class RunPlan(RuntimeNode):  # nocheckin
+class RunPlan(RuntimeNode[RunPlanData]):
     """A RunPlan is a plan for a sequence of Runs."""
 
     # meta
     parent: Union["Run", None] = p_node_parent(4, NodeType.RUN)
-    type: RunPlanType = p_regular(31)
+    execution: "CallExecutionMode" = p_internal(31)
     on_terminate: "CallTerminationMode" = p_internal(33)
     on_error: "CallErrorMode" = p_internal(34)
 
@@ -179,6 +172,7 @@ class RunPlan(RuntimeNode):  # nocheckin
     text: Optional["Text"] = p_regular(51, default=None, struct=StructType.TEXT)
     calls: list["Call"] = p_internal(52, require=True, array=True, struct=StructType.CALL)
     runs: list["Run"] = p_internal(53, require=True, array=True, references=NodeType.RUN)
+    step: int | None = p_internal(54)
     if TYPE_CHECKING:
         runs_ptr: tuple["NodeReference", ...] = ()
 
@@ -259,53 +253,54 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         pipe_ptr: Optional[NodeReference] = None
         pipe_id: Optional[UUID] = None
         pipe_ck: Optional[UUID] = None
-    caller: Optional["Run"] = p_internal(
-        36, require=False, array=False, references=NodeType.RUN, same_bench=True
-    )
-    plan: Optional["RunPlan"] = p_internal(
-        37, require=False, array=False, references=NodeType.RUN_PLAN, same_bench=True
-    )
-    incoming: list["Run"] = p_internal(
-        38, require=False, array=True, references=NodeType.RUN, same_bench=True
-    )
-    if TYPE_CHECKING:
-        incoming_ptr: tuple["NodeReference", ...] = ()
     options: "RunOptions" = p_internal(39, require=True, array=False, struct=StructType.RUN_OPTIONS)
 
+    # flow
+    incoming: list["Run"] = p_internal(
+        40, require=False, array=True, references=NodeType.RUN, same_bench=True
+    )
+    plan: Optional["RunPlan"] = p_internal(
+        41, require=False, array=False, references=NodeType.RUN_PLAN, same_bench=True
+    )
+    plan_step: int | None = p_internal(42)
+    if TYPE_CHECKING:
+        incoming_ptr: tuple["NodeReference", ...] = ()
+
     # status
-    status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)
+    status: RunStatus = p_internal(50, default=RunStatus.SCHEDULED)
+    attempt: int | None = p_internal(51)
     duration: Optional[timedelta] = p_internal(
-        41,
+        52,
         default=None,
         description="Duration from first attempt start to last attempt termination.",
     )
     # cached_duration, active_duration, ...?
-    scheduled_at: Optional[datetime] = p_system(45, default=None)
-    started_at: Optional[datetime] = p_internal(46, default=None)
-    stopped_at: Optional[datetime] = p_internal(47, default=None)
-    interrupted_at: Optional[datetime] = p_internal(48, default=None)
-    paused_at: Optional[datetime] = p_internal(50, default=None)
-    resumed_at: Optional[datetime] = p_internal(51, default=None)
-    terminated_at: Optional[datetime] = p_internal(52, default=None)
+    scheduled_at: Optional[datetime] = p_system(55, default=None)
+    started_at: Optional[datetime] = p_internal(56, default=None)
+    stopped_at: Optional[datetime] = p_internal(57, default=None)
+    interrupted_at: Optional[datetime] = p_internal(58, default=None)
+    paused_at: Optional[datetime] = p_internal(59, default=None)
+    resumed_at: Optional[datetime] = p_internal(60, default=None)
+    terminated_at: Optional[datetime] = p_internal(61, default=None)
     error: Optional["Error"] = p_internal(
-        53, default=None, require=False, array=False, struct=StructType.ERROR
+        62, default=None, require=False, array=False, struct=StructType.ERROR
     )
     interruption: Optional["Interruption"] = p_internal(
-        54, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
+        63, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
     )
 
     # content
-    variables_packed: Any = p_value_packed(60)
+    variables_packed: Any = p_value_packed(70)
     variables: "CustomObject | None" = p_value_runtime(
-        60, type=FieldType.VARIABLE, typ=lambda self: cast("Run", self).variable_type
+        70, type=FieldType.VARIABLE, typ=lambda self: cast("Run", self).variable_type
     )
-    inputs_packed: Any = p_value_packed(61)
+    inputs_packed: Any = p_value_packed(71)
     inputs: "CustomObject | None" = p_value_runtime(
-        61, type=FieldType.INPUT, typ=lambda self: cast("Run", self).input_type
+        71, type=FieldType.INPUT, typ=lambda self: cast("Run", self).input_type
     )
-    outputs_packed: Any = p_value_packed(63)
+    outputs_packed: Any = p_value_packed(72)
     outputs: "CustomObject | None" = p_value_runtime(
-        63, type=FieldType.OUTPUT, typ=lambda self: cast("Run", self).output_type
+        72, type=FieldType.OUTPUT, typ=lambda self: cast("Run", self).output_type
     )
 
     # ...HasContext[90-99]

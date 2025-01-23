@@ -16,17 +16,17 @@ import {
   ColorShade,
   ColorType,
   IconData,
-  LogLevel,
-  RunStatus,
+  InterruptionData,
+  InterruptionStatus,
+  Severity,
   NodeReferenceData,
   NodeType,
   Orientation,
   RunData,
   RunSpanData,
   RunSpanType,
+  RunStatus,
   ViewData,
-  InterruptionData,
-  InterruptionStatus,
 } from "@/proto/wire";
 import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { getInputType, getOutputType, runtime, RunTree } from "@/system/runtime";
@@ -35,12 +35,11 @@ import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_SPAN_TYPE, ICON_BY_RUN_STAT
 import { COLOR_BY_RUN_STATUS, getColorHex, getRunColorHex } from "@/ui/style";
 import { assertNever } from "@/utils/functools";
 import { formatDuration, getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
-import RunStatusView from "@/views/builtins/RunStatus.vue";
+import RunError from "@/views/builtins/RunError.vue";
+import SomeObject from "@/views/objects/Object.vue";
 import { useElementSize } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, onMounted, ref, Ref, shallowRef, toRef, watchEffect } from "vue";
-import SomeObject from "@/views/objects/Object.vue";
-import RunError from "@/views/builtins/RunError.vue";
 
 const DEPTH_OFFSET = 12;
 const ROW_HEIGHT = 28;
@@ -70,7 +69,7 @@ onMounted(() => {
 //
 
 const runTree = new RunTree(props.graph, nodePtr);
-const minLevel: Ref<LogLevel> = ref(LogLevel.INFO);
+const minLevel: Ref<Severity> = ref(Severity.INFO);
 
 type Timeline = {
   root: RunData | null;

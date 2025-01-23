@@ -4,7 +4,7 @@ import {
   ColorData,
   ColorShade,
   ColorType,
-  LogLevel,
+  Severity,
   NodeType,
   ObjectType,
   ResourceStatus,
@@ -131,8 +131,8 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   [ActionType.TOOL]: ColorType.SKY,
   // generic
   [ActionType.ACT]: ColorType.VIOLET,
-  [ActionType.ROUTE]: ColorType.VIOLET,
   [ActionType.THINK]: ColorType.VIOLET,
+  [ActionType.ROUTE]: ColorType.VIOLET,
   [ActionType.GENERATE]: ColorType.VIOLET,
   [ActionType.TRANSFORM]: ColorType.VIOLET,
   [ActionType.EXTRACT]: ColorType.VIOLET,
@@ -154,7 +154,7 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   // async
   [ActionType.SEND]: ColorType.PINK,
   [ActionType.RECEIVE]: ColorType.PINK,
-  [ActionType.RECEIVE]: ColorType.PINK,
+  [ActionType.MESSAGE]: ColorType.PINK,
   [ActionType.WAIT]: ColorType.PINK,
   [ActionType.YIELD]: ColorType.PINK,
   [ActionType.NOTIFY]: ColorType.PINK,
@@ -180,14 +180,14 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   [ActionType.TEXT]: ColorType.GRAY,
 };
 
-export const COLOR_BY_LOG_LEVEL: Record<LogLevel, ColorType> = {
-  [LogLevel.UNSPECIFIED]: ColorType.GRAY,
-  [LogLevel.TRACE]: ColorType.GRAY,
-  [LogLevel.DEBUG]: ColorType.GRAY,
-  [LogLevel.INFO]: ColorType.GRAY,
-  [LogLevel.WARNING]: ColorType.ORANGE,
-  [LogLevel.ERROR]: ColorType.RED,
-  [LogLevel.PANIC]: ColorType.RED,
+export const COLOR_BY_SEVERITY: Record<Severity, ColorType> = {
+  [Severity.UNSPECIFIED]: ColorType.GRAY,
+  [Severity.TRACE]: ColorType.GRAY,
+  [Severity.DEBUG]: ColorType.GRAY,
+  [Severity.INFO]: ColorType.GRAY,
+  [Severity.WARNING]: ColorType.ORANGE,
+  [Severity.ERROR]: ColorType.RED,
+  [Severity.PANIC]: ColorType.RED,
 };
 
 export const COLOR_BY_RUN_STATUS: Record<RunStatus, ColorType> = {
@@ -219,13 +219,13 @@ export const COLORS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, ColorType
   [EnumType.NODE_TYPE]: COLOR_BY_NODE_TYPE,
   [EnumType.BLOCK_TYPE]: COLOR_BY_BLOCK_TYPE,
   [EnumType.ACTION_TYPE]: COLOR_BY_ACTION_TYPE,
-  [EnumType.LOG_LEVEL]: COLOR_BY_LOG_LEVEL,
+  [EnumType.SEVERITY]: COLOR_BY_SEVERITY,
   [EnumType.RUN_STATUS]: COLOR_BY_RUN_STATUS,
   [EnumType.RESOURCE_STATUS]: COLOR_BY_RESOURCE_STATUS,
 };
 
-export function getLogColorHex(level: LogLevel, shade?: ColorShade): string | undefined {
-  return getColorHex(COLOR_BY_LOG_LEVEL[level], shade);
+export function getSeverityHex(level: Severity, shade?: ColorShade): string | undefined {
+  return getColorHex(COLOR_BY_SEVERITY[level], shade);
 }
 
 export function getNodeColor(node: AnyNodeData): ColorType | undefined {

@@ -619,6 +619,8 @@ class Runtime:
                 last_attempt is not None
                 and (last_attempt.status == RunStatus.COMPLETED or not last_attempt.is_retryable)
             ):
+                if run.attempt != retry.attempt:
+                    run._do_set("attempt", retry.attempt, validate=False)
                 retry.on_attempt()
                 if last_attempt is not None and last_attempt.status.is_interrupted:
                     # resume interrupted attempt
