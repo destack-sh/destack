@@ -302,7 +302,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             self.context = self.tracked
 
         # hooks
-        self.hooks: dict[type[RunnerEvent], list[Callable[[RunnerEvent], None]]] | None = None
+        self.hooks: list[Callable[[RunnerEvent], None]] = []
 
     def __str__(self):
         str_parts: list[str] = [
@@ -402,27 +402,14 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     # Hooks
     #
 
-    def on_event[E: RunnerEvent](
-        self, event_types: type[E] | tuple[type[E], ...], handler: Callable[[E], None]
-    ):
+    def on_event(self, handler: Callable[[RunnerEvent], None]):
         """Subscribe to a Runner event."""
-        if self.hooks is None:
-            self.hooks = {}
-        if not isinstance(event_types, tuple):
-            event_types = (event_types,)
-        for event_type in event_types:
-            if event_type not in self.hooks:
-                self.hooks[event_type] = []
-            self.hooks[event_type].append(cast(Callable[[RunnerEvent], None], handler))
+        self.hooks.append(handler)
 
     def fire_event(self, event: RunnerEvent):
         """Fire a Runner event."""
-        if self.hooks is None:
-            return
-        event_type = type(event)
-        if handlers := self.hooks.get(event_type):
-            for handler in handlers:
-                handler(event)
+        for handler in self.hooks:
+            handler(event)
 
     #
     # Interruptions

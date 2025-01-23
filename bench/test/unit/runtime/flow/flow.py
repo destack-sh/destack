@@ -513,7 +513,7 @@ async def test_run_flow_error(hosted_runtime: RuntimeHandle):
 
 async def test_run_flow_fail_action(hosted_runtime: RuntimeHandle):
     """Run a Flow with a Fail action."""
-    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Flow1 = Block.new(BlockType.FLOW, "git add .Flow1")
     Start = Action.new(ActionType.START, "Start")
     Fail = Action.new(
         ActionType.FAIL, "Fail", error_title="Fail title", error_text=Text.plain("Fail text")
@@ -743,6 +743,51 @@ async def test_run_flow_call_none(hosted_runtime: RuntimeHandle):
     assert not runner.tracked_run.has(Code2, Code3, Complete)
 
 
+async def test_run_flow_call_tool(hosted_runtime: RuntimeHandle):
+    """Run a Flow with a tool call."""
+    Flow = Block.new(
+        BlockType.FLOW,
+        "Flow1",
+        fields=(
+            Field.input("Input1", str),
+            Field.output("Output1", str),
+        ),
+    )
+    Start = Action.new(ActionType.START, "Start")
+    Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
+    Tool1 = Action.new(ActionType.TOOL, "Tool1")
+    Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Flow.actions.extend(Start, Code1, Tool1, Complete)
+    Start.connect(PipeType.CALL, Code1)
+    Code1.connect(PipeType.CALL, Tool1)
+    Tool1.connect(PipeType.CALL, Complete)
+    hosted_runtime.page().blocks.append(Flow)
+    await hosted_runtime.commit()
+
+    # # run tool action directly
+    runner = await hosted_runtime.run(
+        Tool1,
+        inputs={"type": ActionType.CODE, "code": code("pass")},
+    )
+    assert len(runner.runners) == 1
+    assert isinstance(runner.runners[0], CodeActionRunner)
+    assert runner.runners[0].inputs.code == code("pass")
+
+    # running flow as is should fail (at tool, because tool is unset)
+    runner = await hosted_runtime.run(Flow, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == ErrorType.RUN_IMPOSSIBLE
+
+    # run tool within flow via calls
+    Code1.code = code("""\
+return {
+    "plans": [call(Tool1, type=ActionType.CODE, code=code("pass"))],
+}
+""")
+    runner = await hosted_runtime.run(Flow)
+    assert runner.tracked_run
+
+
 async def test_run_flow_call_route(hosted_runtime: RuntimeHandle):
     """Runs a Flow with forward calls selected."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
@@ -799,51 +844,6 @@ return {
     assert runner.tracked_run.has(Code2)
     assert not runner.tracked_run.has(Code3)
     assert not runner.tracked_run.has(Code4)
-
-
-async def test_run_flow_call_tool(hosted_runtime: RuntimeHandle):
-    """Run a Flow with a tool call."""
-    Flow = Block.new(
-        BlockType.FLOW,
-        "Flow1",
-        fields=(
-            Field.input("Input1", str),
-            Field.output("Output1", str),
-        ),
-    )
-    Start = Action.new(ActionType.START, "Start")
-    Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
-    Tool1 = Action.new(ActionType.TOOL, "Tool1")
-    Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow.actions.extend(Start, Code1, Tool1, Complete)
-    Start.connect(PipeType.CALL, Code1)
-    Code1.connect(PipeType.CALL, Tool1)
-    Tool1.connect(PipeType.CALL, Complete)
-    hosted_runtime.page().blocks.append(Flow)
-    await hosted_runtime.commit()
-
-    # run tool action directly
-    runner = await hosted_runtime.run(
-        Tool1,
-        inputs={"type": ActionType.CODE, "code": code("pass")},
-    )
-    assert len(runner.runners) == 1
-    assert isinstance(runner.runners[0], CodeActionRunner)
-    assert runner.runners[0].inputs.code == code("pass")
-
-    # running flow as is should fail (at tool, because tool is unset)
-    runner = await hosted_runtime.run(Flow, return_error=True)
-    assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == ErrorType.RUN_IMPOSSIBLE
-
-    # run tool within flow via calls
-    Code1.code = code("""\
-return {
-    "plans": [call(Tool1, type=ActionType.CODE, code=code("pass"))],
-}
-""")
-    runner = await hosted_runtime.run(Flow)
-    assert runner.tracked_run
 
 
 async def test_run_flow_call_plan(hosted_runtime: RuntimeHandle):

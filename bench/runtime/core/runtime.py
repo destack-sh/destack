@@ -61,7 +61,17 @@ from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
 from bench.utils.oracle import Oracle
 
-from .runner import Interrupted, Runner, create_run_from_node, restore_runner
+from .runner import (
+    Interrupted,
+    Runner,
+    RunnerAbortedEvent,
+    RunnerCancelledEvent,
+    RunnerCompletedEvent,
+    RunnerFailedEvent,
+    RunnerInterruptedEvent,
+    create_run_from_node,
+    restore_runner,
+)
 
 if TYPE_CHECKING:
     from bench.runtime.thread import RuntimeThread
@@ -689,7 +699,6 @@ class Runtime:
     async def run_runner(self, runner: Runner[Any]):
         """Runs a Runner, retrying automatically and updating the tracked Run along the way."""
         # NOTE :Performance: update the Run as efficiently as possible :RuntimeHotPath
-        exc = None
         async with self.session.active():
             self._active_runners_by_id[runner.id] = runner
             span = runner.tracked
@@ -728,10 +737,8 @@ class Runtime:
                 else:
                     span._do_set("interrupted_at", self.oracle.utc(), validate=False)
                 span._do_set("interruption", e.interruption, validate=False)
-                exc = e
                 raise
-            except BaseException as e:
-                exc = e
+            except BaseException:
                 raise
             finally:
                 # update span from runner
@@ -769,8 +776,20 @@ class Runtime:
 
                 # notify
                 self._active_runners_by_id.pop(runner.id, None)
-                if hook is not None:
-                    hook(runner, exc)
+                if runner.status.is_interrupted:
+                    assert runner.interruption is not None, f"missing interruption for {runner!r}"
+                    runner.fire_event(
+                        RunnerInterruptedEvent(runner, interruption=runner.interruption)
+                    )
+                elif runner.status == RunStatus.COMPLETED:
+                    runner.fire_event(RunnerCompletedEvent(runner, outputs=runner.outputs))
+                elif runner.status == RunStatus.FAILED:
+                    assert runner.error is not None, f"missing error for {runner!r}"
+                    runner.fire_event(RunnerFailedEvent(runner, error=runner.error))
+                elif runner.status == RunStatus.ABORTED:
+                    runner.fire_event(RunnerAbortedEvent(runner))
+                elif runner.status == RunStatus.CANCELLED:
+                    runner.fire_event(RunnerCancelledEvent(runner))
 
     async def _wrap_run_runner(self, runner: Runner):
         """Run the runner at the top-level, handling any exceptions."""
