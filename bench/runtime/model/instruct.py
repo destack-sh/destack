@@ -169,3 +169,6 @@ You are entrusted with an important task, private data and a proprietary Bench.
 
 def get_system_prompt(prompt: Prompt) -> str:
     return SYSTEM_PROMPT
+
+
+# nocheckin: dynamically render general examples at runtime

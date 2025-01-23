@@ -1,3 +1,13 @@
+from .call import (
+    Call,
+    CallErrorMode,
+    CallPlan,
+    CallTerminationMode,
+    call,
+    call_serial,
+    call_single,
+)
+from .error import Error, ErrorType
 from .interruption import (
     INTERRUPTION_TYPE_BY_RUN_STATUS,
     RUN_STATUS_BY_INTERRUPTION_TYPE,
@@ -9,7 +19,7 @@ from .interruption import (
     InterruptionStatus,
     InterruptionType,
 )
-from .log import Log, LogLevel, LogType
+from .log import Log, LogType, Severity
 from .model import (
     AudioOptions,
     ImageOptions,
@@ -20,7 +30,7 @@ from .model import (
     TextOptions,
     VideoOptions,
 )
-from .run import Run, RunError, RunErrorType, RunOptions, RunSpan, RunSpanType
+from .run import Run, RunOptions, RunPlan, RunSpan, RunSpanType
 from .session import Context, EditContext, Session
 from .transaction import (
     Change,
@@ -40,33 +50,41 @@ __all__ = [
     "BreakpointAction",
     "BreakpointScope",
     "BreakpointSite",
+    "Call",
+    "CallErrorMode",
+    "CallPlan",
+    "CallTerminationMode",
     "Change",
     "ChangeVignette",
     "Context",
     "Edit",
     "EditContext",
     "EditOperation",
+    "Error",
+    "ErrorType",
     "ImageOptions",
     "Interruption",
     "InterruptionStatus",
     "InterruptionType",
     "Log",
-    "LogLevel",
     "LogType",
     "ModelDeveloper",
     "ModelFamily",
     "ModelProvider",
     "ModelType",
     "Run",
-    "RunError",
-    "RunErrorType",
     "RunOptions",
+    "RunPlan",
     "RunSpan",
     "RunSpanType",
     "Session",
+    "Severity",
     "TextOptions",
     "Transaction",
     "VideoOptions",
+    "call",
+    "call_serial",
+    "call_single",
     "edit_data_graph",
     "edit_graph",
 ]

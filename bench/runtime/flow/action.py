@@ -138,7 +138,7 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
         has_call_plan = (
             not self.node.type.is_boundary
             and self.outputs is not None
-            and cast(Action, self.outputs).call is not None
+            and cast(Action, self.outputs).plans
         )
         if (
             self.flow is not None

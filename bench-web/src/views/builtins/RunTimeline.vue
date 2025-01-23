@@ -111,7 +111,7 @@ type TimelineEvent = {
   atMs: number;
 };
 
-function makeTimeline(now: DateTime, root: RunData): Timeline {
+function makeTimeline(now: DateTime, root: RunData, maxDepth: number | undefined): Timeline {
   const spans: TimelineSpan[] = [];
   const events: TimelineEvent[] = [];
 
@@ -182,7 +182,7 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
     spans.push(span);
 
     // descend
-    if (isNode(run, NodeType.RUN)) {
+    if (isNode(run, NodeType.RUN) && (maxDepth == null || depth < maxDepth)) {
       for (const child of runTree.runGraph.getChildren(run)) {
         if (isNode(child, NodeType.RUN)) {
           const basePtr = getBaseFromNode(child);
@@ -212,7 +212,8 @@ watchEffect(() => {
       //  (but right now, it doesn't always work and that looks really bad.. so we re-fetch the root node)
       const root = runTree.runGraph.get(runTree.run);
       if (!isNode(root, NodeType.RUN)) throw new Error(`expected run node for ${describeNode(runTree.run)}`);
-      timeline.value = makeTimeline(now.value, root);
+      const maxDepth = props.layout == "linear" ? 1 : undefined;
+      timeline.value = makeTimeline(now.value, root, maxDepth);
     } else {
       timeline.value = EMPTY_TIMELINE;
     }

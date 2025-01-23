@@ -26,6 +26,7 @@ from bench.language import (
     BreakpointSite,
     Code,
     CustomObject,
+    Error,
     HasContext,
     Interruption,
     InterruptionStatus,
@@ -37,7 +38,6 @@ from bench.language import (
     Resource,
     ResourceStatus,
     Run,
-    RunError,
     RunnableNode,
     RunOptions,
     RunSpan,
@@ -154,7 +154,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         else:
             self.outputs = None
             self.output_type = node.output_type
-        self.error: RunError | None = None
+        self.error: Error | None = None
 
         # context/tracing
         if self.parent is not None:

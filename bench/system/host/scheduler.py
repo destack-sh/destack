@@ -10,14 +10,14 @@ from opentelemetry import trace
 
 from bench.language import (
     Bench,
+    Error,
+    ErrorKind,
+    ErrorType,
     Machine,
     MachineType,
     NodeType,
     ResourceStatus,
     Run,
-    RunError,
-    RunErrorKind,
-    RunErrorType,
     RunStatus,
     Session,
     Text,
@@ -130,9 +130,9 @@ class RunPlugin(HostPlugin[Run]):
         # failed to process run
         if not op.retry.should_retry:
             # give up
-            error = RunError(
-                kind=RunErrorKind.RUNTIME,
-                type=RunErrorType.RUNTIME_UNAVAILABLE,
+            error = Error(
+                kind=ErrorKind.RUNTIME,
+                type=ErrorType.RUNTIME_UNAVAILABLE,
                 title="Failed to queue run",
                 text=Text.from_markdown("Could not reach any applicable Machine."),
             )

@@ -1,29 +1,25 @@
-from asyncio import CancelledError
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Optional, Sequence, Union, cast
 from uuid import UUID
 
 from bench.language.core import (
     TERMINAL_RUN_STATUSES,
-    BenchError,
+    CustomObject,
     EnumType,
     FieldType,
     HasNodeBase,
     LocalNodeList,
-    LogLevel,
     Node,
     NodeType,
-    RunErrorKind,
     RunSpanType,
     RunStatus,
     RuntimeNode,
     RunType,
+    Severity,
     Struct,
     StructType,
     Text,
-    TextLine,
     TypeConstraintIn,
-    ValidationError,
     enum_,
     p_internal,
     p_node_ancestor,
@@ -39,7 +35,6 @@ from bench.language.core import (
 from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
 from bench.pb2.lang_pb2 import RunSpanData
 from bench.utils.func import IdEnum
-from bench.utils.string import Casing, to_casing
 from bench.utils.tenacity import RetryOptions
 
 if TYPE_CHECKING:
@@ -49,7 +44,13 @@ if TYPE_CHECKING:
         Bench,
         Block,
         Breakpoint,
+        Call,
+        CallErrorMode,
+        CallPlan,
+        CallTerminationMode,
         CustomObject,
+        Error,
+        ErrorType,
         ImageOptions,
         Interruption,
         Log,
@@ -104,7 +105,7 @@ class RunOptions(Struct):
     retry_interval: Optional[timedelta] = p_regular(40)
     backoff: Optional[float] = p_regular(41, constraint=TypeConstraintIn(min_value=1))
     max_retry_interval: Optional[timedelta] = p_regular(42)
-    retry_on: list["RunErrorType"] = p_regular(44, array=True)
+    retry_on: list["ErrorType"] = p_regular(44, array=True)
     suppress_fail: Optional[bool] = p_regular(45, default=None)
     suppress_abort: Optional[bool] = p_regular(46, default=None)
     suppress_pause: Optional[bool] = p_regular(47, default=None)
@@ -145,109 +146,50 @@ class RunOptions(Struct):
             max_retry_interval=self.max_retry_interval.total_seconds()
             if self.max_retry_interval
             else 30,
-            # retry_on is handled separately in runtime because we need the specific RunErrorType
+            # retry_on is handled separately in runtime because we need the specific ErrorType
         )
 
 
-@struct_(StructType.RUN_TRACE)
-class RunTrace(Struct):
-    """A stacktrace for a Run."""
-
-    frames: list["RunFrame"] = p_regular(30, array=True, struct=StructType.RUN_FRAME)
-
-
-@struct_(StructType.RUN_FRAME)
-class RunFrame(Struct):
-    """A single frame in a stacktrace."""
+@enum_(EnumType.RUN_PLAN_TYPE)
+class RunPlanType(IdEnum):
+    """The type of a RunPlan."""
 
     pass
 
 
-@enum_(EnumType.RUN_ERROR_TYPE)
-class RunErrorType(IdEnum):
-    # unretryable
-    ABORTED = 2
-    RUNTIME_UNAVAILABLE = 3
-    RUN_IMPOSSIBLE = 4
-    NOT_SUPPORTED = 5
-    INVALID_VALUE = 10
-    INVALID_COMPUTED = 11
-    CODE_INVALID = 20
-    TEXT_INVALID = 21
-    MODEL_INCAPABLE = 100
-    MODEL_REFUSED = 101
-    NON_RETRYABLE = 499
-    # retryable
-    MODEL_FAILED = 500
-    INVALID_CONTINUATION = 502
-    INVALID_CALL = 503
-    INTERRUPTION_CANCELLED = 504
-    RETRYABLE = 999
+@timed_node_(NodeType.RUN_PLAN)
+class RunPlan(RuntimeNode):  # nocheckin
+    """A RunPlan is a plan for a sequence of Runs."""
 
-    @property
-    def is_retryable(self) -> bool:
-        """Whether this error type is retryable *at runtime*"""
-        return self > 500
+    # meta
+    parent: Union["Run", None] = p_node_parent(4, NodeType.RUN)
+    type: RunPlanType = p_regular(31)
+    on_terminate: "CallTerminationMode" = p_internal(33)
+    on_error: "CallErrorMode" = p_internal(34)
 
+    # status
+    status: RunStatus = p_regular(40, default=RunStatus.SCHEDULED)
+    duration: Optional[timedelta] = p_regular(41, default=None)
+    started_at: Optional[datetime] = p_regular(42, default=None)
+    terminated_at: Optional[datetime] = p_regular(43, default=None)
+    error: Optional["Error"] = p_internal(44, require=False, array=False, struct=StructType.ERROR)
 
-@struct_(StructType.RUN_ERROR)
-class RunError(Struct, BenchError):
-    """An error that occurred in the context of a Run."""
-
-    kind: RunErrorKind = p_internal(30)
-    type: RunErrorType = p_internal(31, default=None)
-    title: Optional[str] = p_internal(32, default=None)
-    text: Optional["Text"] = p_internal(33, default=None, struct=StructType.TEXT)
-    nodes: list["Node"] = p_internal(34, array=True, require=False, references="any")
-    trace: Optional[RunTrace] = p_internal(
-        35, require=False, array=False, struct=StructType.RUN_TRACE
-    )
-
-    def __content_str__(self) -> str:
-        parts = [self.kind.bench_name]
-        if self.type is not None:
-            parts.append(self.type.bench_name)
-        parts.append(self.title or "<no title>")
-        return ", ".join(parts)
-
-    @property
-    def is_retryable(self) -> bool:
-        return self.type is None or self.type.is_retryable
+    # content
+    title: str | None = p_regular(50, default=None)
+    text: Optional["Text"] = p_regular(51, default=None, struct=StructType.TEXT)
+    calls: list["Call"] = p_internal(52, require=True, array=True, struct=StructType.CALL)
+    runs: list["Run"] = p_internal(53, require=True, array=True, references=NodeType.RUN)
+    if TYPE_CHECKING:
+        runs_ptr: tuple["NodeReference", ...] = ()
 
     @staticmethod
-    def from_exception(kind: RunErrorKind, e: BaseException) -> "RunError":
-        # NOTE :Incomplete: get run error trace/frames/node/...
-        # pass on inner error if there is one
-        if isinstance(getattr(e, "error", None), RunError):
-            return getattr(e, "error")  # manual error
-
-        # title/text
-        title = getattr(e, "title", None) or to_casing(
-            e.__class__.__name__, Casing.CAMEL, allow_whitespace=True
+    def new(run: "Run", call_plan: "CallPlan") -> "RunPlan":
+        return RunPlan(
+            parent=run,
+            on_terminate=call_plan.on_terminate,
+            on_error=call_plan.on_error,
+            calls=call_plan.calls,
         )
-        if isinstance(getattr(e, "text", None), Text):
-            text = getattr(e, "text")
-        elif isinstance(e, SyntaxError):
-            header_line = TextLine.plain(f"Syntax error at line {e.lineno}, column {e.offset}:")
-            code_lines = Text.code(e.args[0])
-            text = Text(lines=[header_line, *code_lines.lines])
-        else:
-            text = Text.plain(str(e))
-
-        # kind/type
-        if hasattr(e, "run_error_type"):
-            typ = getattr(e, "run_error_type")
-            assert isinstance(typ, RunErrorType), f"unexpected {typ!r} from {e!r}"
-        elif kind == RunErrorKind.RUNTIME:
-            if isinstance(e, CancelledError):
-                typ = RunErrorType.ABORTED
-            elif isinstance(e, (TypeError, ValueError, ValidationError)):
-                typ = RunErrorType.INVALID_VALUE
-            else:
-                typ = RunErrorType.NON_RETRYABLE
-        else:
-            typ = RunErrorType.NON_RETRYABLE
-        return RunError(kind=kind, type=typ, title=title, text=text)
 
 
 @timed_node_(NodeType.RUN_SPAN)
@@ -263,7 +205,7 @@ class RunSpan(RuntimeNode[RunSpanData]):
     if TYPE_CHECKING:
         root_ptr: Optional[NodeReference] = None
         root_id: Optional[UUID] = None
-    level: "LogLevel" = p_regular(33, default=LogLevel.INFO)
+    severity: "Severity" = p_regular(33, default=Severity.INFO)
 
     # status
     status: RunStatus = p_regular(40, default=RunStatus.SCHEDULED)
@@ -275,9 +217,7 @@ class RunSpan(RuntimeNode[RunSpanData]):
     interruption: Optional["Interruption"] = p_internal(
         53, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
     )
-    error: Optional["RunError"] = p_internal(
-        54, require=False, array=False, struct=StructType.RUN_ERROR
-    )
+    error: Optional["Error"] = p_internal(54, require=False, array=False, struct=StructType.ERROR)
 
     # content
     title: str | None = p_regular(60, default=None)
@@ -322,15 +262,14 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     caller: Optional["Run"] = p_internal(
         36, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
-    incoming: list["Run"] = p_internal(
-        37, require=False, array=True, references=NodeType.RUN, same_bench=True
+    plan: Optional["RunPlan"] = p_internal(
+        37, require=False, array=False, references=NodeType.RUN_PLAN, same_bench=True
     )
-    outgoing: list["Run"] = p_internal(
+    incoming: list["Run"] = p_internal(
         38, require=False, array=True, references=NodeType.RUN, same_bench=True
     )
     if TYPE_CHECKING:
         incoming_ptr: tuple["NodeReference", ...] = ()
-        outgoing_ptr: tuple["NodeReference", ...] = ()
     options: "RunOptions" = p_internal(39, require=True, array=False, struct=StructType.RUN_OPTIONS)
 
     # status
@@ -348,8 +287,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     paused_at: Optional[datetime] = p_internal(50, default=None)
     resumed_at: Optional[datetime] = p_internal(51, default=None)
     terminated_at: Optional[datetime] = p_internal(52, default=None)
-    error: Optional["RunError"] = p_internal(
-        53, default=None, require=False, array=False, struct=StructType.RUN_ERROR
+    error: Optional["Error"] = p_internal(
+        53, default=None, require=False, array=False, struct=StructType.ERROR
     )
     interruption: Optional["Interruption"] = p_internal(
         54, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
@@ -535,3 +474,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
             )
 
     cancel = abort = stop
+
+
+#
+# Control flow
+#

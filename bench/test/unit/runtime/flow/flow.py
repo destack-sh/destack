@@ -9,6 +9,7 @@ from bench.language import (
     BreakpointScope,
     Code,
     ComputedValueMode,
+    ErrorType,
     Field,
     Interruption,
     InterruptionStatus,
@@ -17,7 +18,6 @@ from bench.language import (
     PipeType,
     Record,
     Run,
-    RunErrorType,
     RunOptions,
     RunStatus,
     Text,
@@ -231,7 +231,7 @@ async def test_run_flow_invalid_computed_source(hosted_runtime: RuntimeHandle):
 
     runner = await hosted_runtime.run(Flow1, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.INVALID_COMPUTED
+    assert runner.error and runner.error.type == ErrorType.INVALID_COMPUTED
 
 
 async def test_run_flow_invalid_computed_target(hosted_runtime: RuntimeHandle):
@@ -467,7 +467,7 @@ async def test_run_flow_force_invalid_output(hosted_runtime: RuntimeHandle):
 
     runner = await hosted_runtime.run(Flow1, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
+    assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
 
 
 async def test_run_flow_force_invalid_input(hosted_runtime: RuntimeHandle):
@@ -491,7 +491,7 @@ async def test_run_flow_force_invalid_input(hosted_runtime: RuntimeHandle):
 
     runner = await hosted_runtime.run(Flow1, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
+    assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
 
 
 async def test_run_flow_error(hosted_runtime: RuntimeHandle):
@@ -845,7 +845,7 @@ async def test_run_flow_call_tool(hosted_runtime: RuntimeHandle):
     # running flow as is should fail (at tool, because tool is unset)
     runner = await hosted_runtime.run(Flow, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.RUN_IMPOSSIBLE
+    assert runner.error and runner.error.type == ErrorType.RUN_IMPOSSIBLE
 
     # run tool within flow via calls
     Code1.code = code("""\
@@ -1006,7 +1006,7 @@ async def test_run_flow_yield_cancelled(local_runtime: RuntimeHandle):
     runner.tracked_run.interruption.cancel()
     runner = await local_runtime.run(runner.tracked_run, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.INTERRUPTION_CANCELLED
+    assert runner.error and runner.error.type == ErrorType.INTERRUPTION_CANCELLED
 
 
 async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
