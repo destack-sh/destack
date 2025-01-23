@@ -1,5 +1,6 @@
 import abc
 import asyncio
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
@@ -73,7 +74,71 @@ class Interrupted(Exception):  # noqa: N818
 
 
 RunIn = Run | RunSpan | RunSpanType | Literal["track"]
-RunnerHook = Callable[["Runner", BaseException | None], None]
+
+
+@dataclass(slots=True)
+class RunnerFailedEvent:
+    """Runner failed."""
+
+    runner: "Runner"
+    error: Error
+
+
+@dataclass(slots=True)
+class RunnerAbortedEvent:
+    """Runner aborted."""
+
+    runner: "Runner"
+
+
+@dataclass(slots=True)
+class RunnerCancelledEvent:
+    """Runner cancelled."""
+
+    runner: "Runner"
+
+
+@dataclass(slots=True)
+class RunnerOutputEvent:
+    """Runner now has an output (may not be complete yet)."""
+
+    runner: "Runner"
+    outputs: CustomObject | None
+
+
+@dataclass(slots=True)
+class RunnerStreamEvent:
+    """Runner now has some more (partial?) output."""
+
+    runner: "Runner"
+    outputs: CustomObject | None
+
+
+@dataclass(slots=True)
+class RunnerInterruptedEvent:
+    """Runner yielded."""
+
+    runner: "Runner"
+    interruption: Interruption
+
+
+@dataclass(slots=True)
+class RunnerCompletedEvent:
+    """Runner completed."""
+
+    runner: "Runner"
+    outputs: CustomObject | None
+
+
+RunnerEvent = (
+    RunnerAbortedEvent
+    | RunnerCancelledEvent
+    | RunnerFailedEvent
+    | RunnerOutputEvent
+    | RunnerStreamEvent
+    | RunnerInterruptedEvent
+    | RunnerCompletedEvent
+)
 
 
 class Runner[N: RunnableNode = RunnableNode](abc.ABC):
@@ -88,6 +153,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     __slots__ = (
         "context",
         "error",
+        "hooks",
         "id",
         "input_type",
         "inputs",
@@ -235,6 +301,9 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if self.context is None:
             self.context = self.tracked
 
+        # hooks
+        self.hooks: dict[type[RunnerEvent], list[Callable[[RunnerEvent], None]]] | None = None
+
     def __str__(self):
         str_parts: list[str] = [
             self.status.bench_name,
@@ -283,14 +352,13 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
 
     @property
     def should_pause(self) -> bool:
-        if self.options.suppress_pause or self.tracked_run is None:
+        if self.tracked_run is None:
             return False
         runner = self
         while runner is not None:
             if (
                 runner.tracked_run is not None
                 and runner.tracked_run.paused_at
-                and not runner.options.suppress_pause
                 and (
                     not runner.tracked_run.resumed_at
                     or runner.tracked_run.resumed_at < runner.tracked_run.paused_at
@@ -329,6 +397,32 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         while parent is not None:
             yield parent
             parent = parent.parent
+
+    #
+    # Hooks
+    #
+
+    def on_event[E: RunnerEvent](
+        self, event_types: type[E] | tuple[type[E], ...], handler: Callable[[E], None]
+    ):
+        """Subscribe to a Runner event."""
+        if self.hooks is None:
+            self.hooks = {}
+        if not isinstance(event_types, tuple):
+            event_types = (event_types,)
+        for event_type in event_types:
+            if event_type not in self.hooks:
+                self.hooks[event_type] = []
+            self.hooks[event_type].append(cast(Callable[[RunnerEvent], None], handler))
+
+    def fire_event(self, event: RunnerEvent):
+        """Fire a Runner event."""
+        if self.hooks is None:
+            return
+        event_type = type(event)
+        if handlers := self.hooks.get(event_type):
+            for handler in handlers:
+                handler(event)
 
     #
     # Interruptions

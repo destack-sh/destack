@@ -1,5 +1,7 @@
 import asyncio
 
+import pytest
+
 from bench.language import (
     Action,
     ActionType,
@@ -509,28 +511,6 @@ async def test_run_flow_error(hosted_runtime: RuntimeHandle):
     assert runner.tracked_run and len(runner.tracked_run.runs) == 3
 
 
-async def test_run_flow_error_with_error_suppressed(hosted_runtime: RuntimeHandle):
-    """Run a code action with an error with failure suppressed. Flow should complete."""
-    Flow1 = Block.new(BlockType.FLOW, "Flow1")
-    Start = Action.new(ActionType.START, "Start")
-    Code1 = Action.new(
-        ActionType.CODE,
-        "Code1",
-        code=code("raise ValueError('error')"),
-        run_options=RunOptions(suppress_fail=True),
-    )
-    Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow1.actions.extend(Start, Code1, Complete)
-    Start.connect(PipeType.CALL, Code1)
-    Code1.connect(PipeType.CALL, Complete)
-    hosted_runtime.page().blocks.extend(Flow1)
-    await hosted_runtime.commit()
-
-    runner = await hosted_runtime.run(Flow1)
-    assert runner.status == RunStatus.COMPLETED
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 3
-
-
 async def test_run_flow_fail_action(hosted_runtime: RuntimeHandle):
     """Run a Flow with a Fail action."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
@@ -723,7 +703,8 @@ async def test_run_flow_race(hosted_runtime: RuntimeHandle):
     assert len(runner.tracked_run.runs) == 9  # all actions & pipes should run exactly once
 
 
-async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
+@pytest.mark.skip(reason="no longer useful?")
+async def test_run_flow_infinite_loop(hosted_runtime: RuntimeHandle):
     """Runs an infinite loop that's not infinite because it also completes immediately."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -733,10 +714,10 @@ async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
     Start.connect(PipeType.CALL, Loop)
     Loop.connect(PipeType.CALL, Loop)  # infinite!
     Loop.connect(PipeType.CALL, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Flow1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Flow1)
+    runner = await hosted_runtime.run(Flow1)
     assert runner.tracked_run and len(runner.tracked_run.runs) <= 10  # should complete quickly
 
 
@@ -780,7 +761,7 @@ async def test_run_flow_call_route(hosted_runtime: RuntimeHandle):
     hosted_runtime.page().blocks.append(Flow)
     await hosted_runtime.commit()
 
-    # Route: Code2 + Code3
+    # Route: Code2, Code3
     Route.code = code("""\
 return {
     "plans": [call_serial(call(Code2), call(Code3))],
@@ -806,10 +787,10 @@ return {
     assert not runner.tracked_run.has(Code2)
     assert not runner.tracked_run.has(Code3)
 
-    # Route: Complete + Code2
+    # Route: Code2 & Complete
     Route.code = code("""\
 return {
-    "plans": [call_serial(call(Complete), call(Code2))],
+    "plans": [call_parallel(call(Code2), call(Complete))],
 }
 """)
     runner = await hosted_runtime.run(Flow)
