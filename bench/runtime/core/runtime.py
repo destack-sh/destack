@@ -61,13 +61,7 @@ from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
 from bench.utils.oracle import Oracle
 
-from .runner import (
-    Interrupted,
-    Runner,
-    RunnerHook,
-    create_run_from_node,
-    restore_runner,
-)
+from .runner import Interrupted, Runner, create_run_from_node, restore_runner
 
 if TYPE_CHECKING:
     from bench.runtime.thread import RuntimeThread
@@ -692,7 +686,7 @@ class Runtime:
             runner.error = span.error
 
     @tracer.start_as_current_span("runtime.run")
-    async def run_runner(self, runner: Runner[Any], hook: RunnerHook | None = None):
+    async def run_runner(self, runner: Runner[Any]):
         """Runs a Runner, retrying automatically and updating the tracked Run along the way."""
         # NOTE :Performance: update the Run as efficiently as possible :RuntimeHotPath
         exc = None
@@ -778,18 +772,18 @@ class Runtime:
                 if hook is not None:
                     hook(runner, exc)
 
-    async def _wrap_run_runner(self, runner: Runner, hook: RunnerHook | None = None):
+    async def _wrap_run_runner(self, runner: Runner):
         """Run the runner at the top-level, handling any exceptions."""
         try:
-            await self.run_runner(runner, hook=hook)
+            await self.run_runner(runner)
         except (Interrupted, asyncio.CancelledError):
             pass  # already handled, not a top-level error
         except Exception as e:
             logger.error("runtime.run_runner.error", runner=runner, exc_info=e)
 
-    def schedule_runner(self, runner: Runner, on_stop: RunnerHook | None = None) -> Runner:
+    def schedule_runner(self, runner: Runner) -> Runner:
         """Schedule a Runner to run asynchronously."""
-        runner.outer_task = asyncio.create_task(self._wrap_run_runner(runner, hook=on_stop))
+        runner.outer_task = asyncio.create_task(self._wrap_run_runner(runner))
         return runner
 
     async def run(

@@ -44,7 +44,7 @@ if TYPE_CHECKING:
         Block,
         Breakpoint,
         Call,
-        CallErrorMode,
+        CallFailureMode,
         CallExecutionMode,
         CallPlan,
         CallTerminationMode,
@@ -106,9 +106,6 @@ class RunOptions(Struct):
     backoff: Optional[float] = p_regular(41, constraint=TypeConstraintIn(min_value=1))
     max_retry_interval: Optional[timedelta] = p_regular(42)
     retry_on: list["ErrorType"] = p_regular(44, array=True)
-    suppress_fail: Optional[bool] = p_regular(45, default=None)
-    suppress_abort: Optional[bool] = p_regular(46, default=None)
-    suppress_pause: Optional[bool] = p_regular(47, default=None)
 
     # context
     # ...
@@ -158,7 +155,7 @@ class RunPlan(RuntimeNode[RunPlanData]):
     parent: Union["Run", None] = p_node_parent(4, NodeType.RUN)
     execution: "CallExecutionMode" = p_internal(31)
     on_terminate: "CallTerminationMode" = p_internal(33)
-    on_error: "CallErrorMode" = p_internal(34)
+    on_error: "CallFailureMode" = p_internal(34)
 
     # status
     status: RunStatus = p_regular(40, default=RunStatus.SCHEDULED)
@@ -180,9 +177,11 @@ class RunPlan(RuntimeNode[RunPlanData]):
     def new(run: "Run", call_plan: "CallPlan") -> "RunPlan":
         return RunPlan(
             parent=run,
+            execution=call_plan.execution,
             on_terminate=call_plan.on_terminate,
             on_error=call_plan.on_error,
             calls=call_plan.calls,
+            _skip_validate_self=True,
         )
 
 
