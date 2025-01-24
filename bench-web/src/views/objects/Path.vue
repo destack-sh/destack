@@ -2,7 +2,7 @@
 import { isSourceNode } from "@/language/const";
 import { makeTypeConstraint, makeType } from "@/language/field";
 import { makePath } from "@/language/path";
-import { RUN_PROPERTY_BY_FIELD_TYPE } from "@/language/session";
+import { RUN_PROPERTY_BY_FIELD_TYPE } from "@/language/run";
 import {
   BenchType,
   FieldType,

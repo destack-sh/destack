@@ -2,14 +2,17 @@
 import { getBaseFromNode } from "@/language/const";
 import { makeType } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
-import { isRunnable, RunnableNode } from "@/language/session";
+import { isRunnable, RunnableNode, VERB_BY_RUN_STATUS } from "@/language/run";
 import { getTransactionOptionsForType } from "@/language/transaction";
-import { FieldType, InterruptionType, NodeType, RunData, TypeKind, ViewData, ViewType } from "@/proto/wire";
+import { ColorShade, FieldType, NodeType, RunData, RunStatus, TypeKind, ViewData, ViewType } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { getInputType, getOutputType, runtime } from "@/system/runtime";
+import { CLEAR_RUN_ACTION, getInputType, getOutputType, runtime } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
+import { ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
+import { getRunColorHex } from "@/ui/style";
 import { computedValue } from "@/utils/ref";
-import RunError from "@/views/builtins/RunError.vue";
+import { formatAbsoluteDate } from "@/utils/time";
+import Error from "@/views/builtins/Error.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
 import { ModelValueOptions, viewEmits, type ViewExposed } from "@/views/common";
 import SomeObject from "@/views/objects/Object.vue";
@@ -107,6 +110,33 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
     </div>
     <!-- Existing Run -->
     <div v-else class="flex flex-col gap-y-1">
+      <!-- Banner -->
+      <div
+        class="group/banner mx-5 mb-2 flex flex-row items-center rounded border px-2.5 py-1.5 transition-colors duration-150"
+        :style="{
+          backgroundColor: getRunColorHex(run.status, ColorShade.S100),
+          borderColor: getRunColorHex(run.status, ColorShade.S500),
+        }"
+      >
+        <IconInline
+          v-bind="ICON_BY_RUN_STATUS[run.status]"
+          :style="{ color: getRunColorHex(run.status, ColorShade.S600) }"
+          :class="[run.status == RunStatus.RUNNING ? 'animate-spin' : '']"
+        />
+        <div class="ml-1.5">
+          <span class="font-medium">This Run {{ VERB_BY_RUN_STATUS[run.status] }}.</span>
+          <span v-if="run.startedAt" class="text-gray-700"> It started {{ formatAbsoluteDate(run.startedAt) }}.</span>
+        </div>
+        <div class="ml-auto">
+          <button
+            v-tooltip="{ title: 'Clear this Run', small: true, group: 'run.header' }"
+            class="rounded px-0.5 text-gray-400 opacity-0 transition-opacity duration-150 hover:text-gray-700 group-hover/banner:opacity-100"
+            @click="() => CLEAR_RUN_ACTION.action()"
+          >
+            <span class="fas fa-xmark" />
+          </button>
+        </div>
+      </div>
       <!-- Variables/Inputs/Outputs -->
       <SomeObject
         v-if="run?.variablesPacked != null"
@@ -140,14 +170,14 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         >
           <span class="font-semibold">Error</span>
         </div>
-        <RunError class="" :run="run" :error="run.error" />
+        <Error class="" :run="run" :error="run.error" />
       </div>
       <!-- Line -->
       <div v-if="run?.error" class="w-full py-1">
         <div class="mx-5 h-[1px] bg-gray-200" />
       </div>
       <!-- Timeline -->
-      <div v-if="run != null" class="px-5 mb-5">
+      <div v-if="run != null" class="mb-5 px-5">
         <RunTimeline :graph="pkgGraph" :node-ptr="toNodeRef(run)" class="" layout="linear" />
       </div>
     </div>

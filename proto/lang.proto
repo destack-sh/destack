@@ -1166,7 +1166,6 @@ enum RunStatus {
   RUN_STATUS_SCHEDULED = 1;
   RUN_STATUS_QUEUED = 2;
   RUN_STATUS_RUNNING = 10;
-  RUN_STATUS_PREPARING = 11;
   RUN_STATUS_PAUSED = 20;
   RUN_STATUS_YIELDED = 21;
   RUN_STATUS_WAITING = 22;
@@ -1244,12 +1243,13 @@ enum CallFailureMode {
   CALL_FAILURE_MODE_UNSPECIFIED = 0;
   CALL_FAILURE_MODE_FAIL = 1;
   CALL_FAILURE_MODE_CONTINUE = 2;
+  CALL_FAILURE_MODE_COMPLETE = 3;
 }
 
 // What to do when a Call terminates.
 enum CallTerminationMode {
   CALL_TERMINATION_MODE_UNSPECIFIED = 0;
-  CALL_TERMINATION_MODE_STOP = 1;
+  CALL_TERMINATION_MODE_PASS = 1;
   CALL_TERMINATION_MODE_RETURN = 2;
 }
 
@@ -1486,7 +1486,6 @@ enum ViewType {
   VIEW_TYPE_EMPTY = 30100;
   VIEW_TYPE_CREATE = 30201;
   VIEW_TYPE_CHAT = 30202;
-  VIEW_TYPE_TIMELINE = 30204;
   VIEW_TYPE_HUB = 30205;
   VIEW_TYPE_HELP = 30206;
   VIEW_TYPE_ACTIVITY = 30207;
@@ -3373,6 +3372,10 @@ message ObjectViewData {
 // A view of a user interface in a Bench.
 message UserWizardViewData {
   optional UserWizardViewStage stage = 100;
+}
+
+// A view of a user interface in a Bench.
+message ChatViewData {
 }
 
 // A view of a user interface in a Bench.

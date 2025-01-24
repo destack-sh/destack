@@ -205,10 +205,10 @@ export function formatAbsoluteDate(dt: Timestamp | DateTime) {
 
   if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
     // if it's today, say "Today at <time>"
-    return `Today at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+    return `today at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
   } else if (dt.day == yesterday.day && dt.month == yesterday.month && dt.year == yesterday.year) {
     // if it's yesterday, say "Yesterday at <time>"
-    return `Yesterday at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+    return `yesterday at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
   } else if (diff <= 6 && dt.year == now.year) {
     // if it's within the last week in same year, say "<weekday> at <time>"
     return `${dt.toFormat("cccc")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;

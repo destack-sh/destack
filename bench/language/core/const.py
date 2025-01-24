@@ -31,7 +31,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.24.0"
+VERSION = "2025.01.24.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -1188,7 +1188,6 @@ class RunStatus(IdEnum):
     QUEUED = 2
     # active
     RUNNING = 10
-    PREPARING = 11
     # interrupted
     PAUSED = 20
     YIELDED = 21

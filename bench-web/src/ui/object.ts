@@ -83,6 +83,7 @@ import {
   ScrollActionProperty,
   DuplicateActionProperty,
   PipeType,
+  WaitActionProperty,
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
@@ -917,6 +918,8 @@ const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>
     DuplicateActionProperty.duplicatedNodePtr,
   ],
   [ActionType.DELETE]: [DeleteActionProperty.nodePtr],
+  // async
+  [ActionType.WAIT]: [WaitActionProperty.delay],
   // application
   [ActionType.CLICK]: [ClickActionProperty.elementId, ClickActionProperty.elementPosition],
   [ActionType.TYPE]: [ClickActionProperty.elementId, TypeActionProperty.string, TypeActionProperty.delay],

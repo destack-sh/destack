@@ -367,7 +367,6 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.CREATE]: "fas fa-plus",
   [ViewType.CHAT]: "fas fa-message",
   [ViewType.FEED]: "fas fa-list-timeline",
-  [ViewType.TIMELINE]: "fas fa-timeline",
 
   //
   // Organization
@@ -563,12 +562,11 @@ export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
   [RunStatus.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
   [RunStatus.SCHEDULED]: makeIcon({ faName: "fas fa-clock" }),
   [RunStatus.QUEUED]: makeIcon({ faName: "fas fa-hourglass" }),
-  [RunStatus.PREPARING]: makeIcon({ faName: "fas fa-circle-notch" }),
   [RunStatus.RUNNING]: makeIcon({ faName: "fas fa-circle-notch" }),
-  [RunStatus.PAUSED]: makeIcon({ faName: "fas fa-pause" }),
-  [RunStatus.YIELDED]: makeIcon({ faName: "fas fa-hand" }),
-  [RunStatus.WAITING]: makeIcon({ faName: "fas fa-hourglass-start" }),
-  [RunStatus.COMPLETED]: makeIcon({ faName: "fas fa-check" }),
+  [RunStatus.PAUSED]: makeIcon({ faName: "fas fa-circle-pause" }),
+  [RunStatus.YIELDED]: makeIcon({ faName: "fas fa-circle-pause" }),
+  [RunStatus.WAITING]: makeIcon({ faName: "fas fa-circle-pause" }),
+  [RunStatus.COMPLETED]: makeIcon({ faName: "fas fa-circle-check" }),
   [RunStatus.CANCELLED]: makeIcon({ faName: "fas fa-circle-xmark" }),
   [RunStatus.ABORTED]: makeIcon({ faName: "fas fa-skull" }),
   [RunStatus.FAILED]: makeIcon({ faName: "fas fa-circle-exclamation" }),

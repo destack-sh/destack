@@ -194,12 +194,7 @@ export const APPLICATION_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 1000 &
 // run
 export const TERMINAL_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, RunStatus.FAILED, RunStatus.COMPLETED];
 export const INTERRUPTED_RUN_STATUSES = [RunStatus.PAUSED, RunStatus.YIELDED, RunStatus.WAITING];
-export const ACTIVE_RUN_STATUSES = [
-  RunStatus.PREPARING,
-  RunStatus.RUNNING,
-  RunStatus.PAUSED,
-  ...INTERRUPTED_RUN_STATUSES,
-];
+export const ACTIVE_RUN_STATUSES = [RunStatus.RUNNING, RunStatus.PAUSED, ...INTERRUPTED_RUN_STATUSES];
 export const BAD_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, RunStatus.FAILED];
 
 // view

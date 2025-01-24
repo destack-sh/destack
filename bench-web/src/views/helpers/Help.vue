@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { getBaseFromNode, toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
-import { isRunnable } from "@/language/session";
+import { isRunnable } from "@/language/run";
 import { HelpAspect, NodeType, Orientation, RunData, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";

@@ -1,4 +1,9 @@
-import { ACTIVE_RUN_STATUSES, BAD_RUN_STATUSES, INTERRUPTED_RUN_STATUSES, TERMINAL_RUN_STATUSES } from "@/language/const";
+import {
+  ACTIVE_RUN_STATUSES,
+  BAD_RUN_STATUSES,
+  INTERRUPTED_RUN_STATUSES,
+  TERMINAL_RUN_STATUSES,
+} from "@/language/const";
 import {
   BlockType,
   CodeData,
@@ -10,11 +15,12 @@ import {
   PropertyReferenceData,
   RunProperty,
   RunSpanData,
+  RunStatus,
   RunType,
   TextData,
   type ActionData,
   type BlockData,
-  type RunData
+  type RunData,
 } from "@/proto/wire";
 import { describeNode, isNode, propertyReference } from "@/proto/wiring";
 import { assertNever } from "@/utils/functools";
@@ -31,6 +37,19 @@ import {
 export type RunnableNode = BlockData | ActionData | PipeData;
 export type RunnableNodeType = NodeType.BLOCK | NodeType.ACTION | NodeType.PIPE;
 export type RunnableObject = RunnableNode | TextData | CodeData;
+
+export const VERB_BY_RUN_STATUS: Partial<Record<RunStatus, string>> = {
+  [RunStatus.UNSPECIFIED]: "???",
+  [RunStatus.SCHEDULED]: "is scheduled",
+  [RunStatus.RUNNING]: "is running",
+  [RunStatus.COMPLETED]: "has completed",
+  [RunStatus.FAILED]: "has failed",
+  [RunStatus.ABORTED]: "was aborted",
+  [RunStatus.CANCELLED]: "was cancelled",
+  [RunStatus.WAITING]: "is waiting",
+  [RunStatus.YIELDED]: "has yielded",
+  [RunStatus.PAUSED]: "is paused",
+};
 
 export const RUN_PROPERTY_BY_FIELD_TYPE: Partial<Record<FieldType, PropertyReferenceData>> = {
   [FieldType.VARIABLE]: propertyReference(ObjectType.RUN, RunProperty.variablesPacked),

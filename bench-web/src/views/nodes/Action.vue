@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { SINK_ACTION_TYPES, toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
-import { isRunActive } from "@/language/session";
+import { isRunActive } from "@/language/run";
 import {
   ActionType,
   ActionTypeOptionInfo,
