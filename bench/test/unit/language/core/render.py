@@ -10,6 +10,8 @@ from bench.language import (
     Block,
     BlockType,
     BuiltinObject,
+    CallFailureMode,
+    CallTerminationMode,
     ComputedValue,
     ComputedValueMode,
     CustomObject,
@@ -31,6 +33,10 @@ from bench.language import (
     Session,
     View,
     ViewType,
+    call,
+    call_none,
+    call_parallel,
+    call_serial,
     constraint,
     md,
     path,
@@ -38,6 +44,7 @@ from bench.language import (
     render_expression,
     to_type,
 )
+from bench.language.core import code
 from bench.language.core.code import format_code
 from bench.runtime.code import BUILTIN_GLOBALS, STATIC_CODE_GLOBALS
 
@@ -300,6 +307,46 @@ def test_render_flow_computed_value(session: Session, package: Package):
     Flow1.actions.extend(Start, Complete)
     Forward1 = Start.connect(PipeType.CALL, Complete, "Forward1")
     return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Forward1": Forward1}
+
+
+@_render_test
+def test_render_call(session: Session, package: Package):
+    Action1 = Action.new(
+        ActionType.CODE,
+        "Action1",
+        code=code("pass"),
+        fields=[Field.input("Input1", int), Field.input("Input2", str)],
+    )
+    Call1 = call(Action1)
+    Call2 = call(Action1, title="Test Call", Input1=123, Input2="hello!")
+    return {"Action1": Action1, "Call1": Call1, "Call2": Call2}
+
+
+@_render_test
+def test_render_call_plan(session: Session, package: Package):
+    Action1 = Action.new(
+        ActionType.CODE,
+        "Action1",
+        code=code("pass"),
+        fields=[
+            Field.input("Input1", int),
+            Field.input("Input2", str),
+            Field.output("Output1", str),
+        ],
+    )
+    Plan1 = call_none()
+    Plan2 = call_serial(
+        call(Action1, Input1=123, Input2="hello!"),
+        call(Action1, title="Test Call", Input2="world!"),
+    )
+    Plan3 = call_parallel(
+        call(Action1, Input1=456, Input2="hi!"),
+        call(Action1, title="Another Call", Input1=789),
+        call(Action1, Input2="test"),
+        on_error=CallFailureMode.CONTINUE,
+        on_terminate=CallTerminationMode.RETURN,
+    )
+    return {"Action1": Action1, "Plan1": Plan1, "Plan2": Plan2, "Plan3": Plan3}
 
 
 #

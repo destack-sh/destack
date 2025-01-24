@@ -3676,16 +3676,18 @@ class MachineImageData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
 
 class CallData(_message.Message):
-    __slots__ = ("metatype", "node_ptr", "value_packed", "on_terminate")
+    __slots__ = ("metatype", "title", "text", "node_ptr", "value_packed")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
-    ON_TERMINATE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
+    title: str
+    text: TextData
     node_ptr: NodeReferenceData
     value_packed: _struct_pb2.Value
-    on_terminate: CallTerminationMode
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., on_terminate: _Optional[_Union[CallTerminationMode, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class CallPlanData(_message.Message):
     __slots__ = ("metatype", "execution", "on_error", "on_terminate", "calls")

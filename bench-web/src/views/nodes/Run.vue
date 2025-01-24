@@ -157,7 +157,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         :model-value="run?.inputsPacked"
       />
       <!-- Line -->
-      <div v-if="run?.inputsPacked || run?.outputsPacked" class="w-full py-1">
+      <div v-if="run?.inputsPacked || run?.outputsPacked" class="w-full py-2">
         <div class="mx-5 h-[1px] bg-gray-200" />
       </div>
       <!-- Error -->

@@ -27,6 +27,7 @@ from bench.language import (
     RunSpanType,
     RunStatus,
     RunType,
+    Text,
     TypeBase,
     coerce_custom_object_scalar,
 )
@@ -155,11 +156,13 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         self,
         node: Action | Pipe,
         *,
-        variables: CustomObject | None = None,
-        inputs: CustomObject | None = None,
+        incoming: Sequence[Run],
         plan: RunPlan | None = None,
         plan_step: int | None = None,
-        incoming: Sequence[Run],
+        variables: CustomObject | None = None,
+        inputs: CustomObject | None = None,
+        title: str | None = None,
+        text: Text | None = None,
     ) -> Run:
         """Run a Action or Pipe in this Flow."""
         runner = make_runner(
@@ -172,9 +175,11 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
             run="track",
         )
         assert isinstance(runner, (ActionRunner, PipeRunner)), f"unexpected {runner!r}"
+        runner.flow = cast(FlowRunner, self)
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
-        runner.flow = cast(FlowRunner, self)
+        run.title = title
+        run.text = text
         run.plan = plan
         run.plan_step = plan_step
         run.incoming_ptr = tuple(run.to_ref() for run in incoming)
@@ -334,11 +339,13 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
             return TickPipeResult(new_runs=(), is_handled=False)
         next_run = self._start(
             next_action,
+            incoming=(runner.tracked_run,),
             plan=plan,
             plan_step=plan_step,
-            incoming=(runner.tracked_run,),
             variables=call.value if call is not None else None,
             inputs=call.value if call is not None else None,
+            title=call.title if call is not None else None,
+            text=call.text if call is not None else None,
         )
         return TickPipeResult(new_runs=(next_run,), is_handled=True)
 
