@@ -35,6 +35,7 @@ from bench.language import (
     Log,
     Node,
     NodeMode,
+    NodeType,
     Pipe,
     Resource,
     ResourceStatus,
@@ -447,10 +448,13 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     ):
         """Gets an Interrupt in the current Runner of the given shape (or creates one)."""
         assert self.tracked_run is not None, f"{self!r} is not tracked"
-        for interruption in self.tracked_run.interruptions:
+        for interruption in self.tracked_run._graph.iter_descendants(
+            self.tracked_run, NodeType.INTERRUPTION
+        ):
+            interruption = cast(Interruption, interruption)
             if (
                 interruption.type == kind
-                and interruption.attempt_no == attempt
+                and interruption.attempt == attempt
                 and interruption.breakpoint_site == breakpoint
             ):
                 return interruption

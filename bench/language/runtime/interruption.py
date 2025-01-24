@@ -123,17 +123,17 @@ INTERRUPTION_TYPE_BY_RUN_STATUS: dict[RunStatus, InterruptionType] = {
 
 @enum_(EnumType.INTERRUPTION_STATUS)
 class InterruptionStatus(IdEnum):
-    OPEN = 1
-    CANCELLED = 7
-    COMPLETED = 10
+    OPEN = 10
+    CANCELLED = 30
+    COMPLETED = 31
 
     @property
     def is_open(self) -> bool:
-        return self < 7
+        return self > 10 and self < 30
 
     @property
     def is_closed(self) -> bool:
-        return self >= 7
+        return self >= 30
 
 
 @timed_node_(NodeType.INTERRUPTION, has_subtypes=True)
@@ -157,7 +157,7 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
         block_ptr: Optional[NodeReference] = None
         action_ptr: Optional[NodeReference] = None
         pipe_ptr: Optional[NodeReference] = None
-    attempt_no: Optional[int] = p_internal(37, require=False, default=None)
+    attempt: Optional[int] = p_internal(37, require=False, default=None)
     breakpoint_site: BreakpointSite | None = p_internal(38)
 
     # status
@@ -278,7 +278,7 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
             block=run.block,
             action=run.action,
             pipe=run.pipe,
-            attempt_no=attempt,
+            attempt=attempt,
             breakpoint_site=breakpoint,
             mode=run.mode,
         )

@@ -5,6 +5,7 @@ from .call import (
     CallPlan,
     CallTerminationMode,
     call,
+    call_parallel,
     call_serial,
     call_single,
 )
@@ -85,6 +86,7 @@ __all__ = [
     "Transaction",
     "VideoOptions",
     "call",
+    "call_parallel",
     "call_serial",
     "call_single",
     "edit_data_graph",

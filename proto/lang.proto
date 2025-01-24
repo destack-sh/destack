@@ -75,8 +75,8 @@ enum EnumType {
   ENUM_TYPE_TRIGGER_TYPE = 22020;
   ENUM_TYPE_CACHE_MODE = 22030;
   ENUM_TYPE_SCHEDULE_FREQUENCY = 22040;
-  ENUM_TYPE_CALL_ERROR_MODE = 22050;
-  ENUM_TYPE_CALL_EXECUTION_MODE = 22051;
+  ENUM_TYPE_CALL_EXECUTION_MODE = 22050;
+  ENUM_TYPE_CALL_FAILURE_MODE = 22051;
   ENUM_TYPE_CALL_TERMINATION_MODE = 22052;
   ENUM_TYPE_LOG_TYPE = 22060;
   ENUM_TYPE_SEVERITY = 22070;
@@ -94,8 +94,9 @@ enum EnumType {
   ENUM_TYPE_CODE_TYPE = 22400;
   ENUM_TYPE_CODE_LANGUAGE = 22401;
   ENUM_TYPE_ACTION_TYPE = 22500;
-  ENUM_TYPE_PORT_SIDE = 22501;
-  ENUM_TYPE_PIPE_TYPE = 22502;
+  ENUM_TYPE_PORT_SIDE = 22510;
+  ENUM_TYPE_PIPE_TYPE = 22511;
+  ENUM_TYPE_PIPE_TRIGGER = 22512;
   ENUM_TYPE_SPACE_TYPE = 22600;
   ENUM_TYPE_VIEW_TYPE = 22601;
   ENUM_TYPE_COLOR_TYPE = 22602;
@@ -464,8 +465,8 @@ enum BenchType {
   BENCH_TYPE_TRIGGER_TYPE = 22020;
   BENCH_TYPE_CACHE_MODE = 22030;
   BENCH_TYPE_SCHEDULE_FREQUENCY = 22040;
-  BENCH_TYPE_CALL_ERROR_MODE = 22050;
-  BENCH_TYPE_CALL_EXECUTION_MODE = 22051;
+  BENCH_TYPE_CALL_EXECUTION_MODE = 22050;
+  BENCH_TYPE_CALL_FAILURE_MODE = 22051;
   BENCH_TYPE_CALL_TERMINATION_MODE = 22052;
   BENCH_TYPE_LOG_TYPE = 22060;
   BENCH_TYPE_SEVERITY = 22070;
@@ -483,8 +484,9 @@ enum BenchType {
   BENCH_TYPE_CODE_TYPE = 22400;
   BENCH_TYPE_CODE_LANGUAGE = 22401;
   BENCH_TYPE_ACTION_TYPE = 22500;
-  BENCH_TYPE_PORT_SIDE = 22501;
-  BENCH_TYPE_PIPE_TYPE = 22502;
+  BENCH_TYPE_PORT_SIDE = 22510;
+  BENCH_TYPE_PIPE_TYPE = 22511;
+  BENCH_TYPE_PIPE_TRIGGER = 22512;
   BENCH_TYPE_SPACE_TYPE = 22600;
   BENCH_TYPE_VIEW_TYPE = 22601;
   BENCH_TYPE_COLOR_TYPE = 22602;
@@ -1188,7 +1190,7 @@ enum RunSpanType {
   RUN_SPAN_TYPE_WAIT = 2;
   RUN_SPAN_TYPE_ACQUIRE = 3;
   RUN_SPAN_TYPE_DELEGATE = 10;
-  RUN_SPAN_TYPE_FLOW_GENERATE_CALLS = 100;
+  RUN_SPAN_TYPE_FLOW_PLAN = 100;
   RUN_SPAN_TYPE_MODEL_PREPARE = 300;
   RUN_SPAN_TYPE_MODEL_GENERATE = 310;
   RUN_SPAN_TYPE_MODEL_PARSE = 320;
@@ -1230,14 +1232,6 @@ enum ScheduleFrequency {
   SCHEDULE_FREQUENCY_SECOND = 7;
 }
 
-// What to do when a Call fails.
-enum CallErrorMode {
-  CALL_ERROR_MODE_UNSPECIFIED = 0;
-  CALL_ERROR_MODE_FAIL = 1;
-  CALL_ERROR_MODE_IGNORE = 2;
-  CALL_ERROR_MODE_TERMINATE = 3;
-}
-
 // How to execute Calls.
 enum CallExecutionMode {
   CALL_EXECUTION_MODE_UNSPECIFIED = 0;
@@ -1245,12 +1239,18 @@ enum CallExecutionMode {
   CALL_EXECUTION_MODE_PARALLEL = 2;
 }
 
+// What to do when a Call fails.
+enum CallFailureMode {
+  CALL_FAILURE_MODE_UNSPECIFIED = 0;
+  CALL_FAILURE_MODE_FAIL = 1;
+  CALL_FAILURE_MODE_CONTINUE = 2;
+}
+
 // What to do when a Call terminates.
 enum CallTerminationMode {
   CALL_TERMINATION_MODE_UNSPECIFIED = 0;
   CALL_TERMINATION_MODE_STOP = 1;
   CALL_TERMINATION_MODE_RETURN = 2;
-  CALL_TERMINATION_MODE_DEFER = 3;
 }
 
 enum LogType {
@@ -1327,9 +1327,9 @@ enum InterruptionType {
 
 enum InterruptionStatus {
   INTERRUPTION_STATUS_UNSPECIFIED = 0;
-  INTERRUPTION_STATUS_OPEN = 1;
-  INTERRUPTION_STATUS_CANCELLED = 7;
-  INTERRUPTION_STATUS_COMPLETED = 10;
+  INTERRUPTION_STATUS_OPEN = 10;
+  INTERRUPTION_STATUS_CANCELLED = 30;
+  INTERRUPTION_STATUS_COMPLETED = 31;
 }
 
 enum ModelDeveloper {
@@ -1447,6 +1447,13 @@ enum PipeType {
   PIPE_TYPE_UNSPECIFIED = 0;
   PIPE_TYPE_CALL = 1;
   PIPE_TYPE_SELECT = 10;
+}
+
+enum PipeTrigger {
+  PIPE_TRIGGER_UNSPECIFIED = 0;
+  PIPE_TRIGGER_ON_COMPLETED = 1;
+  PIPE_TRIGGER_ON_FAILED = 2;
+  PIPE_TRIGGER_ON_TERMINATED = 3;
 }
 
 enum SpaceType {
@@ -2050,8 +2057,8 @@ message CallData {
 message CallPlanData {
   ObjectType metatype = 1;
   CallExecutionMode execution = 31;
-  CallTerminationMode on_terminate = 33;
-  CallErrorMode on_error = 34;
+  CallFailureMode on_error = 33;
+  CallTerminationMode on_terminate = 34;
   repeated CallData calls = 40;
 }
 
@@ -2108,9 +2115,6 @@ message RunOptionsData {
   optional float backoff = 41;
   optional google.protobuf.Duration max_retry_interval = 42;
   repeated ErrorType retry_on = 44;
-  optional bool suppress_fail = 45;
-  optional bool suppress_abort = 46;
-  optional bool suppress_pause = 47;
   repeated BreakpointData breakpoints = 60;
   optional CacheMode cache_mode = 70;
   optional google.protobuf.Duration cache_retention = 71;
@@ -2735,7 +2739,7 @@ message InterruptionData {
   optional NodeReferenceData block_ptr = 32;
   optional NodeReferenceData action_ptr = 33;
   optional NodeReferenceData pipe_ptr = 34;
-  optional int32 attempt_no = 37;
+  optional int32 attempt = 37;
   optional BreakpointSite breakpoint_site = 38;
   InterruptionStatus status = 40;
   optional google.protobuf.Duration duration = 41;
@@ -2788,17 +2792,15 @@ message RunPlanData {
   optional google.protobuf.Value subnode_packed = 29;
   CallExecutionMode execution = 31;
   CallTerminationMode on_terminate = 33;
-  CallErrorMode on_error = 34;
+  CallFailureMode on_error = 34;
   RunStatus status = 40;
-  optional google.protobuf.Duration duration = 41;
-  optional google.protobuf.Timestamp started_at = 42;
-  optional google.protobuf.Timestamp terminated_at = 43;
-  optional ErrorData error = 44;
+  optional NodeReferenceData started_by_ptr = 41;
+  optional NodeReferenceData terminated_by_ptr = 42;
   optional string title = 50;
   optional TextData text = 51;
   repeated CallData calls = 52;
-  repeated NodeReferenceData runs_ptr = 53;
-  optional int32 step = 54;
+  optional ErrorData error = 53;
+  optional int32 step = 55;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
   optional NodeReferenceData client_ptr = 93;
@@ -2876,6 +2878,8 @@ message RunData {
   optional google.protobuf.Value variables_packed = 70;
   optional google.protobuf.Value inputs_packed = 71;
   optional google.protobuf.Value outputs_packed = 72;
+  optional string title = 74;
+  optional TextData text = 75;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
   optional NodeReferenceData client_ptr = 93;
@@ -3300,10 +3304,9 @@ message PipeData {
   optional TextData text = 34;
   NodeReferenceData source_ptr = 35;
   NodeReferenceData target_ptr = 36;
-  optional RunOptionsData run_options = 40;
-  optional ExpressionData condition = 50;
-  optional TypeConstraintData constraint = 51;
-  optional google.protobuf.Duration delay = 52;
+  optional RunOptionsData run_options = 39;
+  PipeTrigger trigger = 40;
+  optional google.protobuf.Duration delay = 50;
   optional ColorData color = 80;
 }
 

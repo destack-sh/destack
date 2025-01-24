@@ -31,7 +31,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.23.1"
+VERSION = "2025.01.24.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -203,8 +203,9 @@ class EnumType(IdEnum):
 
     # flow (22500-22599)
     ACTION_TYPE = 22500
-    PORT_SIDE = 22501
-    PIPE_TYPE = 22502
+    PORT_SIDE = 22510
+    PIPE_TYPE = 22511
+    PIPE_TRIGGER = 22512
 
     # views (22600-22699)
     SPACE_TYPE = 22600

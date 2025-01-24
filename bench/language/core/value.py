@@ -1126,9 +1126,9 @@ def coerce_value_scalar(
     # apply coercion/check rules
     source_type = type(value)
     if typ.kind == TypeKind.PRIMITIVE:
-        assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
         if typ.primitive_type == PrimitiveType.JSON:
             return value  # as is
+        assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
         target_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(typ.primitive_type)
         assert target_type is not None, f"missing target type for {typ!r}"
         if source_type is not target_type and not isinstance(value, target_type):

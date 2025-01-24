@@ -593,8 +593,6 @@ class Runtime:
     @tracer.start_as_current_span("runtime.run.run")
     async def _do_run_run(self, runner: Runner):
         """Runs a Runner, retrying automatically for Runs if needed."""
-        # NOTE :Performance: track attempt as efficiently as possible :RuntimeHotPath
-
         # Runner = Run, retry with attempts & breakpoints
         runner.status = RunStatus.RUNNING
         # recover run
@@ -698,7 +696,6 @@ class Runtime:
     @tracer.start_as_current_span("runtime.run")
     async def run_runner(self, runner: Runner[Any]):
         """Runs a Runner, retrying automatically and updating the tracked Run along the way."""
-        # NOTE :Performance: update the Run as efficiently as possible :RuntimeHotPath
         async with self.session.active():
             self._active_runners_by_id[runner.id] = runner
             span = runner.tracked
@@ -706,6 +703,7 @@ class Runtime:
             context.attach(baggage.set_baggage("run_id", str(span.id)))
 
             # mark started
+            # nocheckin: the whole _do_set thing is a mess
             if span.started_at is None:
                 span._do_set("started_at", self.oracle.utc(), validate=False)
             span._do_set("status", RunStatus.RUNNING, validate=False)
@@ -769,7 +767,8 @@ class Runtime:
                         span._do_set("terminated_at", self.oracle.utc(), validate=False)
                         span._do_set("duration", span.terminated_at - span.started_at)  # type: ignore
                     # close any remaining (directly) contained open Interruptions
-                    self.close(span)
+                    if type(span) is Run:
+                        self.close(span)
 
                 # commit intermediate session edits
                 self.session.commit_optimistic()

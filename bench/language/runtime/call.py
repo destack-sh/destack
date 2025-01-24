@@ -40,8 +40,7 @@ class CallFailureMode(IdEnum):
     """What to do when a Call fails."""
 
     FAIL = 1
-    IGNORE = 2
-    TERMINATE = 3
+    CONTINUE = 2
 
 
 @enum_(EnumType.CALL_TERMINATION_MODE)
@@ -50,7 +49,6 @@ class CallTerminationMode(IdEnum):
 
     STOP = 1
     RETURN = 2
-    DEFER = 3
 
 
 @struct_(StructType.CALL)
@@ -108,7 +106,7 @@ class CallPlan(Struct):
     """A plan for some (potentially interleaved) Calls."""
 
     execution: CallExecutionMode = p_internal(31, default=CallExecutionMode.SERIAL)
-    on_error: CallFailureMode = p_internal(33, default=CallFailureMode.TERMINATE)
+    on_error: CallFailureMode = p_internal(33, default=CallFailureMode.FAIL)
     on_terminate: CallTerminationMode = p_internal(34, default=CallTerminationMode.STOP)
 
     calls: list[Call] = p_internal(40, array=True, struct=StructType.CALL)
@@ -121,7 +119,7 @@ class CallPlan(Struct):
     def new(
         *calls: Call,
         execution: CallExecutionMode = CallExecutionMode.SERIAL,
-        on_error: CallFailureMode = CallFailureMode.TERMINATE,
+        on_error: CallFailureMode = CallFailureMode.FAIL,
         on_terminate: CallTerminationMode = CallTerminationMode.STOP,
     ) -> "CallPlan":
         return CallPlan(
@@ -138,7 +136,7 @@ def call(node: "Block | Action", **kwargs) -> "Call":
 
 def call_serial(
     *calls: Call,
-    on_error: CallFailureMode = CallFailureMode.TERMINATE,
+    on_error: CallFailureMode = CallFailureMode.FAIL,
     on_terminate: CallTerminationMode = CallTerminationMode.STOP,
 ) -> "CallPlan":
     return CallPlan.new(*calls, on_error=on_error, on_terminate=on_terminate)
@@ -146,7 +144,7 @@ def call_serial(
 
 def call_parallel(
     *calls: Call,
-    on_error: CallFailureMode = CallFailureMode.TERMINATE,
+    on_error: CallFailureMode = CallFailureMode.FAIL,
     on_terminate: CallTerminationMode = CallTerminationMode.STOP,
 ) -> "CallPlan":
     return CallPlan.new(

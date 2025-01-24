@@ -159,24 +159,42 @@ class RunPlan(RuntimeNode[RunPlanData]):
 
     # status
     status: RunStatus = p_regular(40, default=RunStatus.SCHEDULED)
-    duration: Optional[timedelta] = p_regular(41, default=None)
-    started_at: Optional[datetime] = p_regular(42, default=None)
-    terminated_at: Optional[datetime] = p_regular(43, default=None)
-    error: Optional["Error"] = p_internal(44, require=False, array=False, struct=StructType.ERROR)
+    started_by: "Run" = p_internal(41, require=False, array=False, references=NodeType.RUN)
+    terminated_by: Optional["Run"] = p_internal(
+        42, require=False, array=False, references=NodeType.RUN
+    )
+    error: Optional["Error"] = p_internal(53, require=False, array=False, struct=StructType.ERROR)
+    if TYPE_CHECKING:
+        started_by_ptr: Optional[NodeReference] = None
+        started_by_id: Optional[UUID] = None
+        terminated_by_ptr: Optional[NodeReference] = None
+        terminated_by_id: Optional[UUID] = None
 
     # content
     title: str | None = p_regular(50, default=None)
     text: Optional["Text"] = p_regular(51, default=None, struct=StructType.TEXT)
     calls: list["Call"] = p_internal(52, require=True, array=True, struct=StructType.CALL)
-    runs: list["Run"] = p_internal(53, require=True, array=True, references=NodeType.RUN)
-    step: int | None = p_internal(54)
-    if TYPE_CHECKING:
-        runs_ptr: tuple["NodeReference", ...] = ()
+    step: int | None = p_internal(55)
+
+    def complete(self, by: "Run") -> None:
+        self.terminated_by = by
+        self.status = RunStatus.COMPLETED
+
+    def fail(self, by: "Run") -> None:
+        self.terminated_by = by
+        self.error = by.error
+        self.status = RunStatus.FAILED
 
     @staticmethod
-    def new(run: "Run", call_plan: "CallPlan") -> "RunPlan":
+    def new(
+        run: "Run",
+        call_plan: "CallPlan",
+        status: RunStatus = RunStatus.SCHEDULED,
+    ) -> "RunPlan":
         return RunPlan(
             parent=run,
+            status=status,
+            started_by=run,
             execution=call_plan.execution,
             on_terminate=call_plan.on_terminate,
             on_error=call_plan.on_error,
@@ -301,12 +319,13 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     outputs: "CustomObject | None" = p_value_runtime(
         72, type=FieldType.OUTPUT, typ=lambda self: cast("Run", self).output_type
     )
+    title: str | None = p_regular(74, default=None)
+    text: Optional["Text"] = p_regular(75, default=None, struct=StructType.TEXT)
 
     # ...HasContext[90-99]
 
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
     spans: LocalNodeList["RunSpan"] = p_node_children(NodeType.RUN_SPAN)
-    interruptions: LocalNodeList["Interruption"] = p_node_children(NodeType.INTERRUPTION)
     logs: LocalNodeList["Log"] = p_node_children(NodeType.LOG)
 
     def __content_str__(self):
