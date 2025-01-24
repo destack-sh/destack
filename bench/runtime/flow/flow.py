@@ -1,6 +1,6 @@
 from abc import ABC
 from asyncio import Event
-from typing import Any, ClassVar, Literal, Sequence, assert_never, cast, override
+from typing import Any, ClassVar, Literal, NamedTuple, Sequence, assert_never, cast, override
 from uuid import UUID
 
 import structlog
@@ -56,6 +56,16 @@ tracer = trace.get_tracer(__name__)
 #
 # Flow
 #
+
+
+class TickActionResult(NamedTuple):
+    new_runs: Sequence[Run]
+    is_handled: bool
+
+
+class TickPipeResult(NamedTuple):
+    new_runs: Sequence[Run]
+    is_handled: bool
 
 
 class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
@@ -206,7 +216,8 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         elif isinstance(event, RunnerFailedEvent):
             assert runner.error is not None, f"missing error for {runner!r}"
             if isinstance(runner.node, Action):
-                if not self._tick_action(cast(ActionRunner, runner), runner.node, event):
+                tick = self._tick_action(cast(ActionRunner, runner), runner.node, event)
+                if not tick.is_handled:
                     self._fail(runner.error)  # fail on unhandled action error
             elif isinstance(runner.node, Pipe):
                 self._fail(runner.error)  # fail on any pipe fail?
@@ -220,13 +231,14 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         runner: ActionRunner,
         action: Action,
         event: RunnerCompletedEvent | RunnerFailedEvent,
-    ) -> Sequence[Run]:
+    ) -> TickActionResult:
         """Ticks the Action to progress the Flow."""
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
         new_runs: list[Run] = []
         is_completed = isinstance(event, RunnerCompletedEvent)
         is_failed = isinstance(event, RunnerFailedEvent)
+        handled_fail = False
 
         # tick caller plan
         if (plan := run.plan) is not None and plan.status == RunStatus.RUNNING:
@@ -256,8 +268,12 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
                     plan.complete(by=run)
 
             # terminate plan on failure
-            if is_failed and plan.on_error == CallFailureMode.FAIL:
-                plan.fail(by=run)
+            if is_failed:
+                if plan.on_error == CallFailureMode.FAIL:
+                    plan.fail(by=run)
+                elif plan.on_error == CallFailureMode.COMPLETE:
+                    plan.complete(by=run)
+                    handled_fail = True
 
             # handle plan termination
             if plan.status.is_terminal and plan.on_terminate == CallTerminationMode.RETURN:
@@ -276,8 +292,12 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         # tick own plans (on success only)
         if is_completed:
             call_plans: Sequence[CallPlan] = getattr(runner.outputs, "plans", None) or ()
-            run_plans = [RunPlan.new(run, plan, status=RunStatus.RUNNING) for plan in call_plans]
-            for run_plan in run_plans:
+            run_plans: list[RunPlan] = []
+            for plan in call_plans:
+                if not plan.calls:
+                    continue
+                run_plan = RunPlan.new(run, plan, status=RunStatus.RUNNING)
+                run_plans.append(run_plan)
                 self.runtime._set_context(run_plan)
             self.session._create(*run_plans)
             for plan in run_plans:
@@ -297,19 +317,21 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         for pipe in uncalled_call_pipes:
             self._start(pipe, incoming=(run,))
 
-        return new_runs
+        return TickActionResult(new_runs=(), is_handled=len(new_runs) > 0 or handled_fail)
 
-    def _tick_pipe(self, runner: PipeRunner, pipe: Pipe, event: RunnerEvent) -> Sequence[Run]:
+    def _tick_pipe(self, runner: PipeRunner, pipe: Pipe, event: RunnerEvent) -> TickPipeResult:
         """Ticks the Pipe to progress the Flow."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
 
-        # check plan
+        # check plan for
         plan = runner.tracked_run.plan
         plan_step = runner.tracked_run.plan_step
         call = plan.calls[plan_step] if plan is not None and plan_step is not None else None
 
         # start next action
         next_action = pipe.target
+        if next_action is None:
+            return TickPipeResult(new_runs=(), is_handled=False)
         next_run = self._start(
             next_action,
             plan=plan,
@@ -318,7 +340,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
             variables=call.value if call is not None else None,
             inputs=call.value if call is not None else None,
         )
-        return (next_run,)
+        return TickPipeResult(new_runs=(next_run,), is_handled=True)
 
     @override
     async def run(self) -> None:
