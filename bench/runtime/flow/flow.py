@@ -23,10 +23,12 @@ from bench.language import (
     RunOptions,
     RunPlan,
     RunSpanType,
+    RunStatus,
     RunType,
     TypeBase,
     coerce_custom_object_scalar,
 )
+from bench.language.runtime.call import CallFailureMode, CallTerminationMode
 from bench.runtime.core import (
     Interrupted,
     RetryableError,
@@ -41,6 +43,7 @@ from bench.runtime.core import (
     make_runner,
     restore_runner,
 )
+from bench.runtime.core.error import RunImpossibleError
 from bench.runtime.core.runner import RunnerCancelledEvent
 
 from .action import ActionRunner
@@ -217,40 +220,86 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         runner: ActionRunner,
         action: Action,
         event: RunnerCompletedEvent | RunnerFailedEvent,
-    ) -> list[Run]:
+    ) -> Sequence[Run]:
         """Ticks the Action to progress the Flow."""
-        assert runner.tracked_run is not None, f"{runner!r} must be tracked"
-        outgoing: list[Run] = []
-        outgoing_pipes = tuple(p for p in self.node.pipes if p.source_id == action.id)
-        call_pipes = tuple(p for p in outgoing_pipes if p.type == PipeType.CALL)
-        uncalled_call_pipes = set(call_pipes)
+        run = runner.tracked_run
+        assert run is not None, f"{runner!r} must be tracked"
+        new_runs: list[Run] = []
+        is_completed = isinstance(event, RunnerCompletedEvent)
+        is_failed = isinstance(event, RunnerFailedEvent)
 
         # tick caller plan
-        if (plan := runner.tracked_run.plan) is not None:
-            pass  # nocheckin
+        if (plan := run.plan) is not None and plan.status == RunStatus.RUNNING:
+            parent_run = plan.parent
+            assert parent_run is not None, f"{plan!r} has no parent"
+            assert run.plan_step is not None, f"{run!r} has no step for {plan!r}"
 
-        # tick own plans
-        call_plans: Sequence[CallPlan] = getattr(runner.outputs, "plans", None) or []
-        run_plans = [RunPlan.new(runner.tracked_run, plan) for plan in call_plans]
-        for run_plan in run_plans:
-            self.runtime._set_context(run_plan)
-        self.session._create(*run_plans)
-        for plan in run_plans:
-            calls = plan.calls if plan.execution == CallExecutionMode.PARALLEL else (plan.calls[0],)
-            for step, call in enumerate(calls):
-                pipe = next((p for p in outgoing_pipes if p.target_id == call.node_id), None)
-                if pipe is None:
-                    continue  # ignore, can't call arbitrary nodes
-                self._start(pipe, plan=plan, plan_step=step, incoming=(runner.tracked_run,))
-                uncalled_call_pipes.discard(pipe)
+            # try to start next call
+            if plan.execution == CallExecutionMode.SERIAL and (
+                is_completed or plan.on_error == CallFailureMode.CONTINUE
+            ):
+                next_run = None
+                step = run.plan_step + 1
+                while next_run is None and step < len(plan.calls):
+                    next_call = plan.calls[step]
+                    for pipe in self.node.pipes:
+                        if (
+                            pipe.target_id == next_call.node_id
+                            and pipe.source_id == parent_run.action_id
+                        ):
+                            next_run = self._start(
+                                pipe, plan=plan, plan_step=step, incoming=(parent_run,)
+                            )
+                            break
+                    step += 1
+                if next_run is None:  # nothing left to call, complete plan
+                    plan.complete(by=run)
+
+            # terminate plan on failure
+            if is_failed and plan.on_error == CallFailureMode.FAIL:
+                plan.fail(by=run)
+
+            # handle plan termination
+            if plan.status.is_terminal and plan.on_terminate == CallTerminationMode.RETURN:
+                parent_action = parent_run.action
+                if parent_action is None:
+                    raise RunImpossibleError(f"no action to return to for {plan!r}")
+                self._start(parent_action, incoming=(parent_run,))
+
+        # own plans
+        outgoing_pipes = tuple(p for p in self.node.pipes if p.source_id == action.id)
+        call_pipes = tuple(
+            p for p in outgoing_pipes if p.type == PipeType.CALL and p.is_triggered_by(run.status)
+        )
+        uncalled_call_pipes = set(call_pipes)
+
+        # tick own plans (on success only)
+        if is_completed:
+            call_plans: Sequence[CallPlan] = getattr(runner.outputs, "plans", None) or ()
+            run_plans = [RunPlan.new(run, plan, status=RunStatus.RUNNING) for plan in call_plans]
+            for run_plan in run_plans:
+                self.runtime._set_context(run_plan)
+            self.session._create(*run_plans)
+            for plan in run_plans:
+                # run calls via pipes
+                calls = (
+                    plan.calls if plan.execution == CallExecutionMode.PARALLEL else (plan.calls[0],)
+                )
+                for step, call in enumerate(calls):
+                    pipe = next((p for p in outgoing_pipes if p.target_id == call.node_id), None)
+                    if pipe is None:
+                        continue  # ignore, can't call arbitrary nodes
+                    self._start(pipe, plan=plan, plan_step=step, incoming=(run,))
+                    uncalled_call_pipes.discard(pipe)
+                plan.step = len(calls)
 
         # call call pipes that were not called
         for pipe in uncalled_call_pipes:
-            self._start(pipe, incoming=(runner.tracked_run,))
+            self._start(pipe, incoming=(run,))
 
-        return outgoing
+        return new_runs
 
-    def _tick_pipe(self, runner: PipeRunner, pipe: Pipe, event: RunnerEvent) -> list[Run]:
+    def _tick_pipe(self, runner: PipeRunner, pipe: Pipe, event: RunnerEvent) -> Sequence[Run]:
         """Ticks the Pipe to progress the Flow."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
 
@@ -269,7 +318,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
             variables=call.value if call is not None else None,
             inputs=call.value if call is not None else None,
         )
-        return [next_run]
+        return (next_run,)
 
     @override
     async def run(self) -> None:

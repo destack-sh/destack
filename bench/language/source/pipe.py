@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, assert_never
 from uuid import UUID
 
 from bench.language.core import (
@@ -10,7 +10,6 @@ from bench.language.core import (
     SourceNode,
     StructType,
     TypeBase,
-    TypeConstraint,
     enum_,
     node_,
     p_internal,
@@ -18,6 +17,7 @@ from bench.language.core import (
     p_regular,
     subnode_,
 )
+from bench.language.core.const import RunStatus
 from bench.pb2 import PipeData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
@@ -27,7 +27,6 @@ if TYPE_CHECKING:
         Action,
         Block,
         Color,
-        Expression,
         NodeReference,
         RunOptions,
         Text,
@@ -52,6 +51,13 @@ class PipeType(IdEnum):
     # STREAM?
 
 
+@enum_(EnumType.PIPE_TRIGGER)
+class PipeTrigger(IdEnum):
+    ON_COMPLETED = 1
+    ON_FAILED = 2
+    ON_TERMINATED = 3
+
+
 SIGN_BY_PIPE_TYPE: dict[PipeType, str] = {
     PipeType.CALL: "->",
     PipeType.SELECT: "-?>",
@@ -68,7 +74,7 @@ class Pipe(SourceNode[PipeData]):
 
     parent: Union["Block", "Action", None] = p_node_parent(4, NodeType.BLOCK, NodeType.ACTION)
 
-    # connection
+    # meta
     type: PipeType = p_internal(30)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
@@ -84,20 +90,15 @@ class Pipe(SourceNode[PipeData]):
         target_ptr: Optional[NodeReference] = None
         target_id: Optional[UUID] = None
         target_ck: Optional[str] = None
-
-    # meta
     run_options: Optional["RunOptions"] = p_regular(
-        40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+        39, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
+
+    # trigger
+    trigger: PipeTrigger = p_regular(40, default=PipeTrigger.ON_COMPLETED)
 
     # modulation
-    condition: Optional["Expression"] = p_regular(
-        50, default=None, require=False, array=False, struct=StructType.EXPRESSION
-    )
-    constraint: Optional["TypeConstraint"] = p_regular(
-        51, default=None, array=False, struct=StructType.TYPE_CONSTRAINT
-    )
-    delay: Optional[timedelta] = p_regular(52, default=None)
+    delay: Optional[timedelta] = p_regular(50, default=None)
 
     # flags
     # is_automap? (dynamically generate inputs?)
@@ -141,6 +142,17 @@ class Pipe(SourceNode[PipeData]):
     @property
     def output_type(self) -> "TypeBase | None":
         return None  # Pipes don't have outputs (?)
+
+    def is_triggered_by(self, status: RunStatus):
+        """Whether this Pipe is triggered by the given status."""
+        if self.trigger == PipeTrigger.ON_COMPLETED:
+            return status == RunStatus.COMPLETED
+        elif self.trigger == PipeTrigger.ON_FAILED:
+            return status == RunStatus.FAILED
+        elif self.trigger == PipeTrigger.ON_TERMINATED:
+            return status.is_terminal
+        else:
+            assert_never(self.trigger)
 
     @staticmethod
     def new(type: PipeType, name: str, **kwargs) -> "Pipe":

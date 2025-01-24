@@ -961,13 +961,13 @@ export interface CallPlanData {
      */
     execution: CallExecutionMode;
     /**
-     * @generated from protobuf field: symbolx.bench.CallTerminationMode on_terminate = 33;
+     * @generated from protobuf field: symbolx.bench.CallFailureMode on_error = 33;
+     */
+    onError: CallFailureMode;
+    /**
+     * @generated from protobuf field: symbolx.bench.CallTerminationMode on_terminate = 34;
      */
     onTerminate: CallTerminationMode;
-    /**
-     * @generated from protobuf field: symbolx.bench.CallErrorMode on_error = 34;
-     */
-    onError: CallErrorMode;
     /**
      * @generated from protobuf field: repeated symbolx.bench.CallData calls = 40;
      */
@@ -1129,18 +1129,6 @@ export interface RunOptionsData {
      * @generated from protobuf field: repeated symbolx.bench.ErrorType retry_on = 44;
      */
     retryOn: ErrorType[];
-    /**
-     * @generated from protobuf field: optional bool suppress_fail = 45;
-     */
-    suppressFail?: boolean;
-    /**
-     * @generated from protobuf field: optional bool suppress_abort = 46;
-     */
-    suppressAbort?: boolean;
-    /**
-     * @generated from protobuf field: optional bool suppress_pause = 47;
-     */
-    suppressPause?: boolean;
     /**
      * @generated from protobuf field: repeated symbolx.bench.BreakpointData breakpoints = 60;
      */
@@ -3368,9 +3356,9 @@ export interface InterruptionData {
      */
     pipePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional int32 attempt_no = 37;
+     * @generated from protobuf field: optional int32 attempt = 37;
      */
-    attemptNo?: number;
+    attempt?: number;
     /**
      * @generated from protobuf field: optional symbolx.bench.BreakpointSite breakpoint_site = 38;
      */
@@ -3566,29 +3554,21 @@ export interface RunPlanData {
      */
     onTerminate: CallTerminationMode;
     /**
-     * @generated from protobuf field: symbolx.bench.CallErrorMode on_error = 34;
+     * @generated from protobuf field: symbolx.bench.CallFailureMode on_error = 34;
      */
-    onError: CallErrorMode;
+    onError: CallFailureMode;
     /**
      * @generated from protobuf field: symbolx.bench.RunStatus status = 40;
      */
     status: RunStatus;
     /**
-     * @generated from protobuf field: optional google.protobuf.Duration duration = 41;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData started_by_ptr = 41;
      */
-    duration?: Duration;
+    startedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 42;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData terminated_by_ptr = 42;
      */
-    startedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 43;
-     */
-    terminatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 44;
-     */
-    error?: ErrorData;
+    terminatedByPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional string title = 50;
      */
@@ -3602,11 +3582,11 @@ export interface RunPlanData {
      */
     calls: CallData[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData runs_ptr = 53;
+     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 53;
      */
-    runsPtr: NodeReferenceData[];
+    error?: ErrorData;
     /**
-     * @generated from protobuf field: optional int32 step = 54;
+     * @generated from protobuf field: optional int32 step = 55;
      */
     step?: number;
     /**
@@ -3903,6 +3883,14 @@ export interface RunData {
      * @generated from protobuf field: optional google.protobuf.Value outputs_packed = 72;
      */
     outputsPacked?: JsonValue;
+    /**
+     * @generated from protobuf field: optional string title = 74;
+     */
+    title?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 75;
+     */
+    text?: TextData;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 90;
      */
@@ -5218,19 +5206,15 @@ export interface PipeData {
      */
     targetPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 40;
+     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 39;
      */
     runOptions?: RunOptionsData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 50;
+     * @generated from protobuf field: symbolx.bench.PipeTrigger trigger = 40;
      */
-    condition?: ExpressionData;
+    trigger: PipeTrigger;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TypeConstraintData constraint = 51;
-     */
-    constraint?: TypeConstraintData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Duration delay = 52;
+     * @generated from protobuf field: optional google.protobuf.Duration delay = 50;
      */
     delay?: Duration;
     /**
@@ -6322,13 +6306,13 @@ export enum EnumType {
      */
     SCHEDULE_FREQUENCY = 22040,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CALL_ERROR_MODE = 22050;
+     * @generated from protobuf enum value: ENUM_TYPE_CALL_EXECUTION_MODE = 22050;
      */
-    CALL_ERROR_MODE = 22050,
+    CALL_EXECUTION_MODE = 22050,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CALL_EXECUTION_MODE = 22051;
+     * @generated from protobuf enum value: ENUM_TYPE_CALL_FAILURE_MODE = 22051;
      */
-    CALL_EXECUTION_MODE = 22051,
+    CALL_FAILURE_MODE = 22051,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_CALL_TERMINATION_MODE = 22052;
      */
@@ -6398,13 +6382,17 @@ export enum EnumType {
      */
     ACTION_TYPE = 22500,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 22501;
+     * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 22510;
      */
-    PORT_SIDE = 22501,
+    PORT_SIDE = 22510,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TYPE = 22502;
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TYPE = 22511;
      */
-    PIPE_TYPE = 22502,
+    PIPE_TYPE = 22511,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TRIGGER = 22512;
+     */
+    PIPE_TRIGGER = 22512,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 22600;
      */
@@ -7850,13 +7838,13 @@ export enum BenchType {
      */
     SCHEDULE_FREQUENCY = 22040,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CALL_ERROR_MODE = 22050;
+     * @generated from protobuf enum value: BENCH_TYPE_CALL_EXECUTION_MODE = 22050;
      */
-    CALL_ERROR_MODE = 22050,
+    CALL_EXECUTION_MODE = 22050,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CALL_EXECUTION_MODE = 22051;
+     * @generated from protobuf enum value: BENCH_TYPE_CALL_FAILURE_MODE = 22051;
      */
-    CALL_EXECUTION_MODE = 22051,
+    CALL_FAILURE_MODE = 22051,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_CALL_TERMINATION_MODE = 22052;
      */
@@ -7926,13 +7914,17 @@ export enum BenchType {
      */
     ACTION_TYPE = 22500,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 22501;
+     * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 22510;
      */
-    PORT_SIDE = 22501,
+    PORT_SIDE = 22510,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TYPE = 22502;
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TYPE = 22511;
      */
-    PIPE_TYPE = 22502,
+    PIPE_TYPE = 22511,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TRIGGER = 22512;
+     */
+    PIPE_TRIGGER = 22512,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 22600;
      */
@@ -10320,9 +10312,9 @@ export enum RunSpanType {
      */
     DELEGATE = 10,
     /**
-     * @generated from protobuf enum value: RUN_SPAN_TYPE_FLOW_GENERATE_CALLS = 100;
+     * @generated from protobuf enum value: RUN_SPAN_TYPE_FLOW_PLAN = 100;
      */
-    FLOW_GENERATE_CALLS = 100,
+    FLOW_PLAN = 100,
     /**
      * @generated from protobuf enum value: RUN_SPAN_TYPE_MODEL_PREPARE = 300;
      */
@@ -10449,29 +10441,6 @@ export enum ScheduleFrequency {
     SECOND = 7
 }
 /**
- * What to do when a Call fails.
- *
- * @generated from protobuf enum symbolx.bench.CallErrorMode
- */
-export enum CallErrorMode {
-    /**
-     * @generated from protobuf enum value: CALL_ERROR_MODE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CALL_ERROR_MODE_FAIL = 1;
-     */
-    FAIL = 1,
-    /**
-     * @generated from protobuf enum value: CALL_ERROR_MODE_IGNORE = 2;
-     */
-    IGNORE = 2,
-    /**
-     * @generated from protobuf enum value: CALL_ERROR_MODE_TERMINATE = 3;
-     */
-    TERMINATE = 3
-}
-/**
  * How to execute Calls.
  *
  * @generated from protobuf enum symbolx.bench.CallExecutionMode
@@ -10491,6 +10460,25 @@ export enum CallExecutionMode {
     PARALLEL = 2
 }
 /**
+ * What to do when a Call fails.
+ *
+ * @generated from protobuf enum symbolx.bench.CallFailureMode
+ */
+export enum CallFailureMode {
+    /**
+     * @generated from protobuf enum value: CALL_FAILURE_MODE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CALL_FAILURE_MODE_FAIL = 1;
+     */
+    FAIL = 1,
+    /**
+     * @generated from protobuf enum value: CALL_FAILURE_MODE_CONTINUE = 2;
+     */
+    CONTINUE = 2
+}
+/**
  * What to do when a Call terminates.
  *
  * @generated from protobuf enum symbolx.bench.CallTerminationMode
@@ -10507,11 +10495,7 @@ export enum CallTerminationMode {
     /**
      * @generated from protobuf enum value: CALL_TERMINATION_MODE_RETURN = 2;
      */
-    RETURN = 2,
-    /**
-     * @generated from protobuf enum value: CALL_TERMINATION_MODE_DEFER = 3;
-     */
-    DEFER = 3
+    RETURN = 2
 }
 /**
  * @generated from protobuf enum symbolx.bench.LogType
@@ -10754,17 +10738,17 @@ export enum InterruptionStatus {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: INTERRUPTION_STATUS_OPEN = 1;
+     * @generated from protobuf enum value: INTERRUPTION_STATUS_OPEN = 10;
      */
-    OPEN = 1,
+    OPEN = 10,
     /**
-     * @generated from protobuf enum value: INTERRUPTION_STATUS_CANCELLED = 7;
+     * @generated from protobuf enum value: INTERRUPTION_STATUS_CANCELLED = 30;
      */
-    CANCELLED = 7,
+    CANCELLED = 30,
     /**
-     * @generated from protobuf enum value: INTERRUPTION_STATUS_COMPLETED = 10;
+     * @generated from protobuf enum value: INTERRUPTION_STATUS_COMPLETED = 31;
      */
-    COMPLETED = 10
+    COMPLETED = 31
 }
 /**
  * @generated from protobuf enum symbolx.bench.ModelDeveloper
@@ -11163,6 +11147,27 @@ export enum PipeType {
      * @generated from protobuf enum value: PIPE_TYPE_SELECT = 10;
      */
     SELECT = 10
+}
+/**
+ * @generated from protobuf enum symbolx.bench.PipeTrigger
+ */
+export enum PipeTrigger {
+    /**
+     * @generated from protobuf enum value: PIPE_TRIGGER_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PIPE_TRIGGER_ON_COMPLETED = 1;
+     */
+    ON_COMPLETED = 1,
+    /**
+     * @generated from protobuf enum value: PIPE_TRIGGER_ON_FAILED = 2;
+     */
+    ON_FAILED = 2,
+    /**
+     * @generated from protobuf enum value: PIPE_TRIGGER_ON_TERMINATED = 3;
+     */
+    ON_TERMINATED = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.SpaceType
@@ -14978,8 +14983,8 @@ class CallPlanData$Type extends MessageType$<CallPlanData> {
         super("symbolx.bench.CallPlanData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 31, name: "execution", kind: "enum", T: () => ["symbolx.bench.CallExecutionMode", CallExecutionMode, "CALL_EXECUTION_MODE_"] },
-            { no: 33, name: "on_terminate", kind: "enum", T: () => ["symbolx.bench.CallTerminationMode", CallTerminationMode, "CALL_TERMINATION_MODE_"] },
-            { no: 34, name: "on_error", kind: "enum", T: () => ["symbolx.bench.CallErrorMode", CallErrorMode, "CALL_ERROR_MODE_"] },
+            { no: 33, name: "on_error", kind: "enum", T: () => ["symbolx.bench.CallFailureMode", CallFailureMode, "CALL_FAILURE_MODE_"] },
+            { no: 34, name: "on_terminate", kind: "enum", T: () => ["symbolx.bench.CallTerminationMode", CallTerminationMode, "CALL_TERMINATION_MODE_"] },
             { no: 40, name: "calls", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => CallData }
         ]);
     }
@@ -14987,8 +14992,8 @@ class CallPlanData$Type extends MessageType$<CallPlanData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.execution = 0;
-        message.onTerminate = 0;
         message.onError = 0;
+        message.onTerminate = 0;
         message.calls = [];
         if (value !== undefined)
             reflectionMergePartial<CallPlanData>(this, message, value);
@@ -15005,11 +15010,11 @@ class CallPlanData$Type extends MessageType$<CallPlanData> {
                 case /* symbolx.bench.CallExecutionMode execution */ 31:
                     message.execution = reader.int32();
                     break;
-                case /* symbolx.bench.CallTerminationMode on_terminate */ 33:
-                    message.onTerminate = reader.int32();
-                    break;
-                case /* symbolx.bench.CallErrorMode on_error */ 34:
+                case /* symbolx.bench.CallFailureMode on_error */ 33:
                     message.onError = reader.int32();
+                    break;
+                case /* symbolx.bench.CallTerminationMode on_terminate */ 34:
+                    message.onTerminate = reader.int32();
                     break;
                 case /* repeated symbolx.bench.CallData calls */ 40:
                     message.calls.push(CallData.internalBinaryRead(reader, reader.uint32(), options));
@@ -15032,12 +15037,12 @@ class CallPlanData$Type extends MessageType$<CallPlanData> {
         /* symbolx.bench.CallExecutionMode execution = 31; */
         if (message.execution !== 0)
             writer.tag(31, WireType.Varint).int32(message.execution);
-        /* symbolx.bench.CallTerminationMode on_terminate = 33; */
-        if (message.onTerminate !== 0)
-            writer.tag(33, WireType.Varint).int32(message.onTerminate);
-        /* symbolx.bench.CallErrorMode on_error = 34; */
+        /* symbolx.bench.CallFailureMode on_error = 33; */
         if (message.onError !== 0)
-            writer.tag(34, WireType.Varint).int32(message.onError);
+            writer.tag(33, WireType.Varint).int32(message.onError);
+        /* symbolx.bench.CallTerminationMode on_terminate = 34; */
+        if (message.onTerminate !== 0)
+            writer.tag(34, WireType.Varint).int32(message.onTerminate);
         /* repeated symbolx.bench.CallData calls = 40; */
         for (let i = 0; i < message.calls.length; i++)
             CallData.internalBinaryWrite(message.calls[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -15524,9 +15529,6 @@ class RunOptionsData$Type extends MessageType$<RunOptionsData> {
             { no: 41, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 42, name: "max_retry_interval", kind: "message", T: () => Duration },
             { no: 44, name: "retry_on", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ErrorType", ErrorType, "ERROR_TYPE_"] },
-            { no: 45, name: "suppress_fail", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 46, name: "suppress_abort", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 47, name: "suppress_pause", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 60, name: "breakpoints", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => BreakpointData },
             { no: 70, name: "cache_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.CacheMode", CacheMode, "CACHE_MODE_"] },
             { no: 71, name: "cache_retention", kind: "message", T: () => Duration },
@@ -15583,15 +15585,6 @@ class RunOptionsData$Type extends MessageType$<RunOptionsData> {
                             message.retryOn.push(reader.int32());
                     else
                         message.retryOn.push(reader.int32());
-                    break;
-                case /* optional bool suppress_fail */ 45:
-                    message.suppressFail = reader.bool();
-                    break;
-                case /* optional bool suppress_abort */ 46:
-                    message.suppressAbort = reader.bool();
-                    break;
-                case /* optional bool suppress_pause */ 47:
-                    message.suppressPause = reader.bool();
                     break;
                 case /* repeated symbolx.bench.BreakpointData breakpoints */ 60:
                     message.breakpoints.push(BreakpointData.internalBinaryRead(reader, reader.uint32(), options));
@@ -15666,15 +15659,6 @@ class RunOptionsData$Type extends MessageType$<RunOptionsData> {
                 writer.int32(message.retryOn[i]);
             writer.join();
         }
-        /* optional bool suppress_fail = 45; */
-        if (message.suppressFail !== undefined)
-            writer.tag(45, WireType.Varint).bool(message.suppressFail);
-        /* optional bool suppress_abort = 46; */
-        if (message.suppressAbort !== undefined)
-            writer.tag(46, WireType.Varint).bool(message.suppressAbort);
-        /* optional bool suppress_pause = 47; */
-        if (message.suppressPause !== undefined)
-            writer.tag(47, WireType.Varint).bool(message.suppressPause);
         /* repeated symbolx.bench.BreakpointData breakpoints = 60; */
         for (let i = 0; i < message.breakpoints.length; i++)
             BreakpointData.internalBinaryWrite(message.breakpoints[i], writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -20758,7 +20742,7 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
             { no: 32, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "action_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 34, name: "pipe_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "attempt_no", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 37, name: "attempt", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 38, name: "breakpoint_site", kind: "enum", opt: true, T: () => ["symbolx.bench.BreakpointSite", BreakpointSite, "BREAKPOINT_SITE_"] },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.InterruptionStatus", InterruptionStatus, "INTERRUPTION_STATUS_"] },
             { no: 41, name: "duration", kind: "message", T: () => Duration },
@@ -20837,8 +20821,8 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
                 case /* optional symbolx.bench.NodeReferenceData pipe_ptr */ 34:
                     message.pipePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.pipePtr);
                     break;
-                case /* optional int32 attempt_no */ 37:
-                    message.attemptNo = reader.int32();
+                case /* optional int32 attempt */ 37:
+                    message.attempt = reader.int32();
                     break;
                 case /* optional symbolx.bench.BreakpointSite breakpoint_site */ 38:
                     message.breakpointSite = reader.int32();
@@ -20936,9 +20920,9 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         /* optional symbolx.bench.NodeReferenceData pipe_ptr = 34; */
         if (message.pipePtr)
             NodeReferenceData.internalBinaryWrite(message.pipePtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 attempt_no = 37; */
-        if (message.attemptNo !== undefined)
-            writer.tag(37, WireType.Varint).int32(message.attemptNo);
+        /* optional int32 attempt = 37; */
+        if (message.attempt !== undefined)
+            writer.tag(37, WireType.Varint).int32(message.attempt);
         /* optional symbolx.bench.BreakpointSite breakpoint_site = 38; */
         if (message.breakpointSite !== undefined)
             writer.tag(38, WireType.Varint).int32(message.breakpointSite);
@@ -21193,17 +21177,15 @@ class RunPlanData$Type extends MessageType$<RunPlanData> {
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 31, name: "execution", kind: "enum", T: () => ["symbolx.bench.CallExecutionMode", CallExecutionMode, "CALL_EXECUTION_MODE_"] },
             { no: 33, name: "on_terminate", kind: "enum", T: () => ["symbolx.bench.CallTerminationMode", CallTerminationMode, "CALL_TERMINATION_MODE_"] },
-            { no: 34, name: "on_error", kind: "enum", T: () => ["symbolx.bench.CallErrorMode", CallErrorMode, "CALL_ERROR_MODE_"] },
+            { no: 34, name: "on_error", kind: "enum", T: () => ["symbolx.bench.CallFailureMode", CallFailureMode, "CALL_FAILURE_MODE_"] },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
-            { no: 41, name: "duration", kind: "message", T: () => Duration },
-            { no: 42, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 43, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 44, name: "error", kind: "message", T: () => ErrorData },
+            { no: 41, name: "started_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 42, name: "terminated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "text", kind: "message", T: () => TextData },
             { no: 52, name: "calls", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => CallData },
-            { no: 53, name: "runs_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 54, name: "step", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 53, name: "error", kind: "message", T: () => ErrorData },
+            { no: 55, name: "step", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 90, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 91, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
@@ -21222,7 +21204,6 @@ class RunPlanData$Type extends MessageType$<RunPlanData> {
         message.onError = 0;
         message.status = 0;
         message.calls = [];
-        message.runsPtr = [];
         if (value !== undefined)
             reflectionMergePartial<RunPlanData>(this, message, value);
         return message;
@@ -21271,23 +21252,17 @@ class RunPlanData$Type extends MessageType$<RunPlanData> {
                 case /* symbolx.bench.CallTerminationMode on_terminate */ 33:
                     message.onTerminate = reader.int32();
                     break;
-                case /* symbolx.bench.CallErrorMode on_error */ 34:
+                case /* symbolx.bench.CallFailureMode on_error */ 34:
                     message.onError = reader.int32();
                     break;
                 case /* symbolx.bench.RunStatus status */ 40:
                     message.status = reader.int32();
                     break;
-                case /* optional google.protobuf.Duration duration */ 41:
-                    message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
+                case /* optional symbolx.bench.NodeReferenceData started_by_ptr */ 41:
+                    message.startedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.startedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp started_at */ 42:
-                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 43:
-                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
-                    break;
-                case /* optional symbolx.bench.ErrorData error */ 44:
-                    message.error = ErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
+                case /* optional symbolx.bench.NodeReferenceData terminated_by_ptr */ 42:
+                    message.terminatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.terminatedByPtr);
                     break;
                 case /* optional string title */ 50:
                     message.title = reader.string();
@@ -21298,10 +21273,10 @@ class RunPlanData$Type extends MessageType$<RunPlanData> {
                 case /* repeated symbolx.bench.CallData calls */ 52:
                     message.calls.push(CallData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData runs_ptr */ 53:
-                    message.runsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* optional symbolx.bench.ErrorData error */ 53:
+                    message.error = ErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
-                case /* optional int32 step */ 54:
+                case /* optional int32 step */ 55:
                     message.step = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData session_ptr */ 90:
@@ -21373,24 +21348,18 @@ class RunPlanData$Type extends MessageType$<RunPlanData> {
         /* symbolx.bench.CallTerminationMode on_terminate = 33; */
         if (message.onTerminate !== 0)
             writer.tag(33, WireType.Varint).int32(message.onTerminate);
-        /* symbolx.bench.CallErrorMode on_error = 34; */
+        /* symbolx.bench.CallFailureMode on_error = 34; */
         if (message.onError !== 0)
             writer.tag(34, WireType.Varint).int32(message.onError);
         /* symbolx.bench.RunStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
-        /* optional google.protobuf.Duration duration = 41; */
-        if (message.duration)
-            Duration.internalBinaryWrite(message.duration, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp started_at = 42; */
-        if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 43; */
-        if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ErrorData error = 44; */
-        if (message.error)
-            ErrorData.internalBinaryWrite(message.error, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData started_by_ptr = 41; */
+        if (message.startedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.startedByPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData terminated_by_ptr = 42; */
+        if (message.terminatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.terminatedByPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional string title = 50; */
         if (message.title !== undefined)
             writer.tag(50, WireType.LengthDelimited).string(message.title);
@@ -21400,12 +21369,12 @@ class RunPlanData$Type extends MessageType$<RunPlanData> {
         /* repeated symbolx.bench.CallData calls = 52; */
         for (let i = 0; i < message.calls.length; i++)
             CallData.internalBinaryWrite(message.calls[i], writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData runs_ptr = 53; */
-        for (let i = 0; i < message.runsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.runsPtr[i], writer.tag(53, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 step = 54; */
+        /* optional symbolx.bench.ErrorData error = 53; */
+        if (message.error)
+            ErrorData.internalBinaryWrite(message.error, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 step = 55; */
         if (message.step !== undefined)
-            writer.tag(54, WireType.Varint).int32(message.step);
+            writer.tag(55, WireType.Varint).int32(message.step);
         /* optional symbolx.bench.NodeReferenceData session_ptr = 90; */
         if (message.sessionPtr)
             NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
@@ -21729,6 +21698,8 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 70, name: "variables_packed", kind: "message", T: () => Value },
             { no: 71, name: "inputs_packed", kind: "message", T: () => Value },
             { no: 72, name: "outputs_packed", kind: "message", T: () => Value },
+            { no: 74, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 75, name: "text", kind: "message", T: () => TextData },
             { no: 90, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 91, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
@@ -21858,6 +21829,12 @@ class RunData$Type extends MessageType$<RunData> {
                     break;
                 case /* optional google.protobuf.Value outputs_packed */ 72:
                     message.outputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* optional string title */ 74:
+                    message.title = reader.string();
+                    break;
+                case /* optional symbolx.bench.TextData text */ 75:
+                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData session_ptr */ 90:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
@@ -21994,6 +21971,12 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional google.protobuf.Value outputs_packed = 72; */
         if (message.outputsPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.outputsPacked), writer.tag(72, WireType.LengthDelimited).fork(), options).join();
+        /* optional string title = 74; */
+        if (message.title !== undefined)
+            writer.tag(74, WireType.LengthDelimited).string(message.title);
+        /* optional symbolx.bench.TextData text = 75; */
+        if (message.text)
+            TextData.internalBinaryWrite(message.text, writer.tag(75, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData session_ptr = 90; */
         if (message.sessionPtr)
             NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
@@ -25169,10 +25152,9 @@ class PipeData$Type extends MessageType$<PipeData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "source_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 36, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "run_options", kind: "message", T: () => RunOptionsData },
-            { no: 50, name: "condition", kind: "message", T: () => ExpressionData },
-            { no: 51, name: "constraint", kind: "message", T: () => TypeConstraintData },
-            { no: 52, name: "delay", kind: "message", T: () => Duration },
+            { no: 39, name: "run_options", kind: "message", T: () => RunOptionsData },
+            { no: 40, name: "trigger", kind: "enum", T: () => ["symbolx.bench.PipeTrigger", PipeTrigger, "PIPE_TRIGGER_"] },
+            { no: 50, name: "delay", kind: "message", T: () => Duration },
             { no: 80, name: "color", kind: "message", T: () => ColorData }
         ]);
     }
@@ -25186,6 +25168,7 @@ class PipeData$Type extends MessageType$<PipeData> {
         message.type = 0;
         message.name = "";
         message.orderKey = "";
+        message.trigger = 0;
         if (value !== undefined)
             reflectionMergePartial<PipeData>(this, message, value);
         return message;
@@ -25261,16 +25244,13 @@ class PipeData$Type extends MessageType$<PipeData> {
                 case /* symbolx.bench.NodeReferenceData target_ptr */ 36:
                     message.targetPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.targetPtr);
                     break;
-                case /* optional symbolx.bench.RunOptionsData run_options */ 40:
+                case /* optional symbolx.bench.RunOptionsData run_options */ 39:
                     message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
                     break;
-                case /* optional symbolx.bench.ExpressionData condition */ 50:
-                    message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
+                case /* symbolx.bench.PipeTrigger trigger */ 40:
+                    message.trigger = reader.int32();
                     break;
-                case /* optional symbolx.bench.TypeConstraintData constraint */ 51:
-                    message.constraint = TypeConstraintData.internalBinaryRead(reader, reader.uint32(), options, message.constraint);
-                    break;
-                case /* optional google.protobuf.Duration delay */ 52:
+                case /* optional google.protobuf.Duration delay */ 50:
                     message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
                     break;
                 case /* optional symbolx.bench.ColorData color */ 80:
@@ -25354,18 +25334,15 @@ class PipeData$Type extends MessageType$<PipeData> {
         /* symbolx.bench.NodeReferenceData target_ptr = 36; */
         if (message.targetPtr)
             NodeReferenceData.internalBinaryWrite(message.targetPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunOptionsData run_options = 40; */
+        /* optional symbolx.bench.RunOptionsData run_options = 39; */
         if (message.runOptions)
-            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData condition = 50; */
-        if (message.condition)
-            ExpressionData.internalBinaryWrite(message.condition, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TypeConstraintData constraint = 51; */
-        if (message.constraint)
-            TypeConstraintData.internalBinaryWrite(message.constraint, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Duration delay = 52; */
+            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.PipeTrigger trigger = 40; */
+        if (message.trigger !== 0)
+            writer.tag(40, WireType.Varint).int32(message.trigger);
+        /* optional google.protobuf.Duration delay = 50; */
         if (message.delay)
-            Duration.internalBinaryWrite(message.delay, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+            Duration.internalBinaryWrite(message.delay, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ColorData color = 80; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
@@ -27738,8 +27715,8 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.TRIGGER_TYPE]: TriggerType,
   [EnumType.CACHE_MODE]: CacheMode,
   [EnumType.SCHEDULE_FREQUENCY]: ScheduleFrequency,
-  [EnumType.CALL_ERROR_MODE]: CallErrorMode,
   [EnumType.CALL_EXECUTION_MODE]: CallExecutionMode,
+  [EnumType.CALL_FAILURE_MODE]: CallFailureMode,
   [EnumType.CALL_TERMINATION_MODE]: CallTerminationMode,
   [EnumType.LOG_TYPE]: LogType,
   [EnumType.SEVERITY]: Severity,
@@ -27759,6 +27736,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.ACTION_TYPE]: ActionType,
   [EnumType.PORT_SIDE]: PortSide,
   [EnumType.PIPE_TYPE]: PipeType,
+  [EnumType.PIPE_TRIGGER]: PipeTrigger,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.COLOR_TYPE]: ColorType,
@@ -28122,8 +28100,8 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.TRIGGER_TYPE]: TriggerType,
   [EnumType.CACHE_MODE]: CacheMode,
   [EnumType.SCHEDULE_FREQUENCY]: ScheduleFrequency,
-  [EnumType.CALL_ERROR_MODE]: CallErrorMode,
   [EnumType.CALL_EXECUTION_MODE]: CallExecutionMode,
+  [EnumType.CALL_FAILURE_MODE]: CallFailureMode,
   [EnumType.CALL_TERMINATION_MODE]: CallTerminationMode,
   [EnumType.LOG_TYPE]: LogType,
   [EnumType.SEVERITY]: Severity,
@@ -28143,6 +28121,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.ACTION_TYPE]: ActionType,
   [EnumType.PORT_SIDE]: PortSide,
   [EnumType.PIPE_TYPE]: PipeType,
+  [EnumType.PIPE_TRIGGER]: PipeTrigger,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.COLOR_TYPE]: ColorType,
@@ -28748,10 +28727,9 @@ export enum PipeProperty {
   text = 34,
   sourcePtr = 35,
   targetPtr = 36,
-  runOptions = 40,
-  condition = 50,
-  constraint = 51,
-  delay = 52,
+  runOptions = 39,
+  trigger = 40,
+  delay = 50,
   color = 80,
 }
 
@@ -28888,6 +28866,8 @@ export enum RunProperty {
   variablesPacked = 70,
   inputsPacked = 71,
   outputsPacked = 72,
+  title = 74,
+  text = 75,
   sessionPtr = 90,
   runPtr = 91,
   clientPtr = 93,
@@ -28945,15 +28925,13 @@ export enum RunPlanProperty {
   onTerminate = 33,
   onError = 34,
   status = 40,
-  duration = 41,
-  startedAt = 42,
-  terminatedAt = 43,
-  error = 44,
+  startedByPtr = 41,
+  terminatedByPtr = 42,
   title = 50,
   text = 51,
   calls = 52,
-  runsPtr = 53,
-  step = 54,
+  error = 53,
+  step = 55,
   sessionPtr = 90,
   runPtr = 91,
   clientPtr = 93,
@@ -28979,7 +28957,7 @@ export enum InterruptionProperty {
   blockPtr = 32,
   actionPtr = 33,
   pipePtr = 34,
-  attemptNo = 37,
+  attempt = 37,
   breakpointSite = 38,
   status = 40,
   duration = 41,
@@ -29705,9 +29683,6 @@ export enum RunOptionsProperty {
   backoff = 41,
   maxRetryInterval = 42,
   retryOn = 44,
-  suppressFail = 45,
-  suppressAbort = 46,
-  suppressPause = 47,
   breakpoints = 60,
   cacheMode = 70,
   cacheRetention = 71,
@@ -29739,8 +29714,8 @@ export enum CallProperty {
 export enum CallPlanProperty {
   metatype = 1,
   execution = 31,
-  onTerminate = 33,
-  onError = 34,
+  onError = 33,
+  onTerminate = 34,
   calls = 40,
 }
 
@@ -30389,8 +30364,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30421,8 +30396,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.23.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.24.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30763,10 +30738,9 @@ export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
   [PipeProperty.text]: { id: 34, name: 'text', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [PipeProperty.sourcePtr]: { id: 35, name: 'source_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.targetPtr]: { id: 36, name: 'target_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.runOptions]: { id: 40, name: 'run_options', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [PipeProperty.condition]: { id: 50, name: 'condition', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [PipeProperty.constraint]: { id: 51, name: 'constraint', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
-  [PipeProperty.delay]: { id: 52, name: 'delay', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.runOptions]: { id: 39, name: 'run_options', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
+  [PipeProperty.trigger]: { id: 40, name: 'trigger', component: ObjectType.PIPE, enumType: EnumType.PIPE_TRIGGER, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.delay]: { id: 50, name: 'delay', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.color]: { id: 80, name: 'color', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
 }
 export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
@@ -30898,6 +30872,8 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.variablesPacked]: { id: 70, name: 'variables_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.inputsPacked]: { id: 71, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.outputsPacked]: { id: 72, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.title]: { id: 74, name: 'title', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.text]: { id: 75, name: 'text', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [RunProperty.sessionPtr]: { id: 90, name: 'session_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.runPtr]: { id: 91, name: 'run_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
@@ -30951,17 +30927,15 @@ export const RunPlanDataInfo: Record<RunPlanProperty, PropertyInfo> = {
   [RunPlanProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.RUN_PLAN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunPlanProperty.execution]: { id: 31, name: 'execution', component: ObjectType.RUN_PLAN, enumType: EnumType.CALL_EXECUTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunPlanProperty.onTerminate]: { id: 33, name: 'on_terminate', component: ObjectType.RUN_PLAN, enumType: EnumType.CALL_TERMINATION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunPlanProperty.onError]: { id: 34, name: 'on_error', component: ObjectType.RUN_PLAN, enumType: EnumType.CALL_ERROR_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunPlanProperty.onError]: { id: 34, name: 'on_error', component: ObjectType.RUN_PLAN, enumType: EnumType.CALL_FAILURE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunPlanProperty.status]: { id: 40, name: 'status', component: ObjectType.RUN_PLAN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RunPlanProperty.duration]: { id: 41, name: 'duration', component: ObjectType.RUN_PLAN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
-  [RunPlanProperty.startedAt]: { id: 42, name: 'started_at', component: ObjectType.RUN_PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [RunPlanProperty.terminatedAt]: { id: 43, name: 'terminated_at', component: ObjectType.RUN_PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [RunPlanProperty.error]: { id: 44, name: 'error', component: ObjectType.RUN_PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
+  [RunPlanProperty.startedByPtr]: { id: 41, name: 'started_by_ptr', component: ObjectType.RUN_PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [RunPlanProperty.terminatedByPtr]: { id: 42, name: 'terminated_by_ptr', component: ObjectType.RUN_PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunPlanProperty.title]: { id: 50, name: 'title', component: ObjectType.RUN_PLAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [RunPlanProperty.text]: { id: 51, name: 'text', component: ObjectType.RUN_PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [RunPlanProperty.calls]: { id: 52, name: 'calls', component: ObjectType.RUN_PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CALL },
-  [RunPlanProperty.runsPtr]: { id: 53, name: 'runs_ptr', component: ObjectType.RUN_PLAN, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [RunPlanProperty.step]: { id: 54, name: 'step', component: ObjectType.RUN_PLAN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunPlanProperty.error]: { id: 53, name: 'error', component: ObjectType.RUN_PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
+  [RunPlanProperty.step]: { id: 55, name: 'step', component: ObjectType.RUN_PLAN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunPlanProperty.sessionPtr]: { id: 90, name: 'session_ptr', component: ObjectType.RUN_PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
   [RunPlanProperty.runPtr]: { id: 91, name: 'run_ptr', component: ObjectType.RUN_PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunPlanProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.RUN_PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
@@ -30986,9 +30960,9 @@ export const InterruptionDataInfo: Record<InterruptionProperty, PropertyInfo> = 
   [InterruptionProperty.blockPtr]: { id: 32, name: 'block_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.actionPtr]: { id: 33, name: 'action_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.pipePtr]: { id: 34, name: 'pipe_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PIPE], referenceStruct: StructType.NODE_REFERENCE },
-  [InterruptionProperty.attemptNo]: { id: 37, name: 'attempt_no', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [InterruptionProperty.attempt]: { id: 37, name: 'attempt', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.breakpointSite]: { id: 38, name: 'breakpoint_site', component: ObjectType.INTERRUPTION, enumType: EnumType.BREAKPOINT_SITE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [InterruptionProperty.status]: { id: 40, name: 'status', component: ObjectType.INTERRUPTION, enumType: EnumType.INTERRUPTION_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [InterruptionProperty.status]: { id: 40, name: 'status', component: ObjectType.INTERRUPTION, enumType: EnumType.INTERRUPTION_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.duration]: { id: 41, name: 'duration', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.closedAt]: { id: 42, name: 'closed_at', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.inputsPacked]: { id: 51, name: 'inputs_packed', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -31620,9 +31594,6 @@ export const RunOptionsDataInfo: Record<RunOptionsProperty, PropertyInfo> = {
   [RunOptionsProperty.backoff]: { id: 41, name: 'backoff', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.maxRetryInterval]: { id: 42, name: 'max_retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.retryOn]: { id: 44, name: 'retry_on', component: ObjectType.RUN_OPTIONS, enumType: EnumType.ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.suppressFail]: { id: 45, name: 'suppress_fail', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.suppressAbort]: { id: 46, name: 'suppress_abort', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.suppressPause]: { id: 47, name: 'suppress_pause', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.breakpoints]: { id: 60, name: 'breakpoints', component: ObjectType.RUN_OPTIONS, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BREAKPOINT },
   [RunOptionsProperty.cacheMode]: { id: 70, name: 'cache_mode', component: ObjectType.RUN_OPTIONS, enumType: EnumType.CACHE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.cacheRetention]: { id: 71, name: 'cache_retention', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
@@ -31650,8 +31621,8 @@ export const CallDataInfo: Record<CallProperty, PropertyInfo> = {
 export const CallPlanDataInfo: Record<CallPlanProperty, PropertyInfo> = {
   [CallPlanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CALL_PLAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [CallPlanProperty.execution]: { id: 31, name: 'execution', component: ObjectType.CALL_PLAN, enumType: EnumType.CALL_EXECUTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [CallPlanProperty.onTerminate]: { id: 33, name: 'on_terminate', component: ObjectType.CALL_PLAN, enumType: EnumType.CALL_TERMINATION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [CallPlanProperty.onError]: { id: 34, name: 'on_error', component: ObjectType.CALL_PLAN, enumType: EnumType.CALL_ERROR_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 3, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [CallPlanProperty.onError]: { id: 33, name: 'on_error', component: ObjectType.CALL_PLAN, enumType: EnumType.CALL_FAILURE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [CallPlanProperty.onTerminate]: { id: 34, name: 'on_terminate', component: ObjectType.CALL_PLAN, enumType: EnumType.CALL_TERMINATION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [CallPlanProperty.calls]: { id: 40, name: 'calls', component: ObjectType.CALL_PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CALL },
 }
 export const BreakpointDataInfo: Record<BreakpointProperty, PropertyInfo> = {
