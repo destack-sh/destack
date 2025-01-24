@@ -1158,7 +1158,6 @@ class RunStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_STATUS_SCHEDULED: _ClassVar[RunStatus]
     RUN_STATUS_QUEUED: _ClassVar[RunStatus]
     RUN_STATUS_RUNNING: _ClassVar[RunStatus]
-    RUN_STATUS_PREPARING: _ClassVar[RunStatus]
     RUN_STATUS_PAUSED: _ClassVar[RunStatus]
     RUN_STATUS_YIELDED: _ClassVar[RunStatus]
     RUN_STATUS_WAITING: _ClassVar[RunStatus]
@@ -1232,11 +1231,12 @@ class CallFailureMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CALL_FAILURE_MODE_UNSPECIFIED: _ClassVar[CallFailureMode]
     CALL_FAILURE_MODE_FAIL: _ClassVar[CallFailureMode]
     CALL_FAILURE_MODE_CONTINUE: _ClassVar[CallFailureMode]
+    CALL_FAILURE_MODE_COMPLETE: _ClassVar[CallFailureMode]
 
 class CallTerminationMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     CALL_TERMINATION_MODE_UNSPECIFIED: _ClassVar[CallTerminationMode]
-    CALL_TERMINATION_MODE_STOP: _ClassVar[CallTerminationMode]
+    CALL_TERMINATION_MODE_PASS: _ClassVar[CallTerminationMode]
     CALL_TERMINATION_MODE_RETURN: _ClassVar[CallTerminationMode]
 
 class LogType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -1470,7 +1470,6 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_EMPTY: _ClassVar[ViewType]
     VIEW_TYPE_CREATE: _ClassVar[ViewType]
     VIEW_TYPE_CHAT: _ClassVar[ViewType]
-    VIEW_TYPE_TIMELINE: _ClassVar[ViewType]
     VIEW_TYPE_HUB: _ClassVar[ViewType]
     VIEW_TYPE_HELP: _ClassVar[ViewType]
     VIEW_TYPE_ACTIVITY: _ClassVar[ViewType]
@@ -2727,7 +2726,6 @@ RUN_STATUS_UNSPECIFIED: RunStatus
 RUN_STATUS_SCHEDULED: RunStatus
 RUN_STATUS_QUEUED: RunStatus
 RUN_STATUS_RUNNING: RunStatus
-RUN_STATUS_PREPARING: RunStatus
 RUN_STATUS_PAUSED: RunStatus
 RUN_STATUS_YIELDED: RunStatus
 RUN_STATUS_WAITING: RunStatus
@@ -2777,8 +2775,9 @@ CALL_EXECUTION_MODE_PARALLEL: CallExecutionMode
 CALL_FAILURE_MODE_UNSPECIFIED: CallFailureMode
 CALL_FAILURE_MODE_FAIL: CallFailureMode
 CALL_FAILURE_MODE_CONTINUE: CallFailureMode
+CALL_FAILURE_MODE_COMPLETE: CallFailureMode
 CALL_TERMINATION_MODE_UNSPECIFIED: CallTerminationMode
-CALL_TERMINATION_MODE_STOP: CallTerminationMode
+CALL_TERMINATION_MODE_PASS: CallTerminationMode
 CALL_TERMINATION_MODE_RETURN: CallTerminationMode
 LOG_TYPE_UNSPECIFIED: LogType
 LOG_TYPE_PRINT: LogType
@@ -2949,7 +2948,6 @@ VIEW_TYPE_BENCH_WIZARD: ViewType
 VIEW_TYPE_EMPTY: ViewType
 VIEW_TYPE_CREATE: ViewType
 VIEW_TYPE_CHAT: ViewType
-VIEW_TYPE_TIMELINE: ViewType
 VIEW_TYPE_HUB: ViewType
 VIEW_TYPE_HELP: ViewType
 VIEW_TYPE_ACTIVITY: ViewType
@@ -6040,6 +6038,10 @@ class UserWizardViewData(_message.Message):
     STAGE_FIELD_NUMBER: _ClassVar[int]
     stage: UserWizardViewStage
     def __init__(self, stage: _Optional[_Union[UserWizardViewStage, str]] = ...) -> None: ...
+
+class ChatViewData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
 
 class HubViewData(_message.Message):
     __slots__ = ("aspect",)

@@ -10,7 +10,7 @@ import {
   isRunInterrupted,
   isRunTerminal,
   RunnableNode,
-} from "@/language/session";
+} from "@/language/run";
 import {
   AnyNodeData,
   ColorShade,
@@ -35,7 +35,7 @@ import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_SPAN_TYPE, ICON_BY_RUN_STAT
 import { COLOR_BY_RUN_STATUS, getColorHex, getRunColorHex } from "@/ui/style";
 import { assertNever } from "@/utils/functools";
 import { formatDuration, getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
-import RunError from "@/views/builtins/RunError.vue";
+import Error from "@/views/builtins/Error.vue";
 import SomeObject from "@/views/objects/Object.vue";
 import { useElementSize } from "@vueuse/core";
 import { DateTime } from "luxon";
@@ -311,7 +311,7 @@ watchEffect(() => {
               </div>
             </div>
             <!-- Error -->
-            <RunError v-if="thing.span.error != null" :error="thing.span.error" />
+            <Error v-if="thing.span.error != null" :error="thing.span.error" class="mt-1.5" />
           </div>
         </div>
       </div>

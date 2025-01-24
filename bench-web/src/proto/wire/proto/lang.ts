@@ -5439,6 +5439,13 @@ export interface UserWizardViewData {
 /**
  * A view of a user interface in a Bench.
  *
+ * @generated from protobuf message symbolx.bench.ChatViewData
+ */
+export interface ChatViewData {
+}
+/**
+ * A view of a user interface in a Bench.
+ *
  * @generated from protobuf message symbolx.bench.HubViewData
  */
 export interface HubViewData {
@@ -10230,10 +10237,6 @@ export enum RunStatus {
      */
     RUNNING = 10,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_PREPARING = 11;
-     */
-    PREPARING = 11,
-    /**
      * @generated from protobuf enum value: RUN_STATUS_PAUSED = 20;
      */
     PAUSED = 20,
@@ -10476,7 +10479,11 @@ export enum CallFailureMode {
     /**
      * @generated from protobuf enum value: CALL_FAILURE_MODE_CONTINUE = 2;
      */
-    CONTINUE = 2
+    CONTINUE = 2,
+    /**
+     * @generated from protobuf enum value: CALL_FAILURE_MODE_COMPLETE = 3;
+     */
+    COMPLETE = 3
 }
 /**
  * What to do when a Call terminates.
@@ -10489,9 +10496,9 @@ export enum CallTerminationMode {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: CALL_TERMINATION_MODE_STOP = 1;
+     * @generated from protobuf enum value: CALL_TERMINATION_MODE_PASS = 1;
      */
-    STOP = 1,
+    PASS = 1,
     /**
      * @generated from protobuf enum value: CALL_TERMINATION_MODE_RETURN = 2;
      */
@@ -11282,10 +11289,6 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_CHAT = 30202;
      */
     CHAT = 30202,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_TIMELINE = 30204;
-     */
-    TIMELINE = 30204,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_HUB = 30205;
      */
@@ -25869,6 +25872,31 @@ class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
  */
 export const UserWizardViewData = new UserWizardViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class ChatViewData$Type extends MessageType$<ChatViewData> {
+    constructor() {
+        super("symbolx.bench.ChatViewData", []);
+    }
+    create(value?: PartialMessage<ChatViewData>): ChatViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<ChatViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChatViewData): ChatViewData {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: ChatViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ChatViewData
+ */
+export const ChatViewData = new ChatViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class HubViewData$Type extends MessageType$<HubViewData> {
     constructor() {
         super("symbolx.bench.HubViewData", [
@@ -27880,11 +27908,12 @@ export interface FieldSubtypeMapping extends Record<FieldType, FieldSubtype> {
   [FieldType.OPTION]: OptionFieldData,
 }
 
-export type ViewSubtype = RunViewData | ObjectViewData | UserWizardViewData | HubViewData | HelpViewData | ListViewData | TreeViewData | FeedViewData | ButtonViewData | PickerViewData | DatetimeViewData | IconViewData;
+export type ViewSubtype = RunViewData | ObjectViewData | UserWizardViewData | ChatViewData | HubViewData | HelpViewData | ListViewData | TreeViewData | FeedViewData | ButtonViewData | PickerViewData | DatetimeViewData | IconViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.RUN]: RunViewData,
   [ViewType.OBJECT]: ObjectViewData,
   [ViewType.USER_WIZARD]: UserWizardViewData,
+  [ViewType.CHAT]: ChatViewData,
   [ViewType.HUB]: HubViewData,
   [ViewType.HELP]: HelpViewData,
   [ViewType.LIST]: ListViewData,
@@ -29081,6 +29110,10 @@ export enum UserWizardViewProperty {
   stage = 100,
 }
 
+export enum ChatViewProperty {
+
+}
+
 export enum HubViewProperty {
   aspect = 100,
 }
@@ -30063,6 +30096,7 @@ export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
   [ViewType.RUN]: RunViewProperty,
   [ViewType.OBJECT]: ObjectViewProperty,
   [ViewType.USER_WIZARD]: UserWizardViewProperty,
+  [ViewType.CHAT]: ChatViewProperty,
   [ViewType.HUB]: HubViewProperty,
   [ViewType.HELP]: HelpViewProperty,
   [ViewType.LIST]: ListViewProperty,
@@ -30364,8 +30398,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.24.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.24.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30396,8 +30430,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.24.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.24.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.24.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31065,6 +31099,9 @@ export const ObjectViewDataInfo: Record<ObjectViewProperty, PropertyInfo> = {
 }
 export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo> = {
   [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, componentSubtype: 30001, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+}
+export const ChatViewDataInfo: Record<ChatViewProperty, PropertyInfo> = {
+
 }
 export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
   [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 30205, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -31845,6 +31882,7 @@ export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, Prope
   [ViewType.RUN]: RunViewDataInfo,
   [ViewType.OBJECT]: ObjectViewDataInfo,
   [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
+  [ViewType.CHAT]: ChatViewDataInfo,
   [ViewType.HUB]: HubViewDataInfo,
   [ViewType.HELP]: HelpViewDataInfo,
   [ViewType.LIST]: ListViewDataInfo,
@@ -31946,6 +31984,22 @@ export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
   [BlockType.IDENTITY]: { id: 51, name: 'IDENTITY', text: 'Unique Identity' },
 }
 
+export const CallExecutionModeOptionInfo: Partial<Record<CallExecutionMode, EnumOptionInfo>> = {
+  [CallExecutionMode.SERIAL]: { id: 1, name: 'SERIAL', text: 'Run calls after each other' },
+  [CallExecutionMode.PARALLEL]: { id: 2, name: 'PARALLEL', text: 'Run calls at the same time' },
+}
+
+export const CallFailureModeOptionInfo: Partial<Record<CallFailureMode, EnumOptionInfo>> = {
+  [CallFailureMode.FAIL]: { id: 1, name: 'FAIL', text: 'Fail the plan' },
+  [CallFailureMode.CONTINUE]: { id: 2, name: 'CONTINUE', text: 'Continue the plan' },
+  [CallFailureMode.COMPLETE]: { id: 3, name: 'COMPLETE', text: 'Complete the plan' },
+}
+
+export const CallTerminationModeOptionInfo: Partial<Record<CallTerminationMode, EnumOptionInfo>> = {
+  [CallTerminationMode.PASS]: { id: 1, name: 'PASS', text: 'Do nothing' },
+  [CallTerminationMode.RETURN]: { id: 2, name: 'RETURN', text: 'Return to the caller' },
+}
+
 export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> = {
   [ActionType.START]: { id: 1, name: 'START', text: 'Begin the Flow' },
   [ActionType.COMPLETE]: { id: 10, name: 'COMPLETE', text: 'Complete the entire Flow' },
@@ -32007,6 +32061,9 @@ export const PipeTriggerOptionInfo: Partial<Record<PipeTrigger, EnumOptionInfo>>
 
 export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, EnumOptionInfo>>> = {
   [EnumType.BLOCK_TYPE]: BlockTypeOptionInfo,
+  [EnumType.CALL_EXECUTION_MODE]: CallExecutionModeOptionInfo,
+  [EnumType.CALL_FAILURE_MODE]: CallFailureModeOptionInfo,
+  [EnumType.CALL_TERMINATION_MODE]: CallTerminationModeOptionInfo,
   [EnumType.ACTION_TYPE]: ActionTypeOptionInfo,
   [EnumType.PIPE_TYPE]: PipeTypeOptionInfo,
   [EnumType.PIPE_TRIGGER]: PipeTriggerOptionInfo,

@@ -140,6 +140,7 @@ def call_serial(
     on_error: CallFailureMode = CallFailureMode.FAIL,
     on_terminate: CallTerminationMode = CallTerminationMode.PASS,
 ) -> "CallPlan":
+    """Call the given nodes in series."""
     return CallPlan.new(*calls, on_error=on_error, on_terminate=on_terminate)
 
 
@@ -148,6 +149,7 @@ def call_parallel(
     on_error: CallFailureMode = CallFailureMode.FAIL,
     on_terminate: CallTerminationMode = CallTerminationMode.PASS,
 ) -> "CallPlan":
+    """Call the given nodes in parallel."""
     return CallPlan.new(
         *calls, execution=CallExecutionMode.PARALLEL, on_error=on_error, on_terminate=on_terminate
     )
@@ -160,6 +162,7 @@ def call_single(
     on_terminate: CallTerminationMode = CallTerminationMode.PASS,
     **kwargs,
 ) -> "CallPlan":
+    """Call the given node in series."""
     return CallPlan.new(
         call(node, **kwargs),
         execution=CallExecutionMode.SERIAL,
@@ -169,4 +172,5 @@ def call_single(
 
 
 def call_none() -> "CallPlan":
+    """Call nothing. Useful when you need *some* plan (like for Action.plans as output)."""
     return CallPlan.new()

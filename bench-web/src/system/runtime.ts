@@ -21,7 +21,7 @@ import {
   RunnableNode,
   RunnableNodeType,
   type RunnableObject,
-} from "@/language/session";
+} from "@/language/run";
 import { newChangeId, type Transaction } from "@/language/transaction";
 import { unpackValue } from "@/language/value";
 import {
