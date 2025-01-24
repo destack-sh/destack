@@ -791,9 +791,9 @@ def edit_graph(
             )
             node._do_set("updated_by_ptr", updated_by_ptr, track=False)
             if edit_type == EditType.DELETE:
-                node._do_set("deleted_at", edit.edited_at, track=False, validate=False)
+                node._do_set("deleted_at", edit.edited_at, track=False)
             elif edit_type == EditType.RESTORE:
-                node._do_set("deleted_at", None, track=False, validate=False)
+                node._do_set("deleted_at", None, track=False)
             graph.update(node)
 
 

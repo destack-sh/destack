@@ -43,9 +43,11 @@ from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
 
 from .const import (
+    ACTIVE_SESSION,
     BASED_NODE_TYPES,
     BENCH_NODE_TYPES,
     EMPTY_DICT,
+    IS_IN_USER_CODE,
     NODE_TYPES,
     PACKAGE_NODE_TYPES,
     UNSET,
@@ -59,7 +61,6 @@ from .const import (
     ReferenceKind,
     StructType,
     TypeKind,
-    _active_session,
     active_session,
 )
 from .graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph
@@ -625,7 +626,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                             continue  # skip optional None
                     else:
                         raise ValueError(f"missing required property: {prop!r}")
-                self._do_set(prop.name, prop_value, track=False, validate=False)
+                self._do_set(prop.name, prop_value, track=False)
 
     def __default_content_str__(self) -> str:
         """Default __content_str__ for Nodes with all set properties (incl. subtypes)."""
@@ -845,15 +846,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         raise AttributeError(f"{self_str} has no attribute '{key}'")
 
     @override
-    def _do_set(
-        self,
-        key: str,
-        new_value: Any,
-        *,
-        track: bool = True,
-        coerce: bool = True,
-        validate: bool = True,
-    ):
+    def _do_set(self, key: str, new_value: Any, *, track: bool = True, validate: bool = False):
         """Sets *any* attribute on this builtin object."""
         if self.__has_subtypes__ and key not in self.__properties__:
             # set subtype property
@@ -865,15 +858,25 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 # set regular subtype property
                 prop = subtype_cls.__properties__.get(key)
                 if prop is not None:
-                    if validate:
-                        # coerce & check type
-                        if prop._type_info is not None and prop.reference_source is None:
-                            new_value = coerce_value(
+                    # move value
+                    if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
+                        if not prop.is_list:
+                            if new_value is not None:
+                                new_value = new_value._move_to(self, prop)
+                        else:
+                            new_value = [v._move_to(self, prop) for v in new_value]
+
+                    # coerce & check type
+                    if prop._type_info is not None and prop.reference_source is None:
+                        if IS_IN_USER_CODE.get():
+                            new_value = coerce_value(new_value, prop._type_info)
+                            check_value(
                                 new_value,
                                 prop._type_info,
-                                parent=self,
-                                parent_key=prop,
+                                options=DEFAULT_CHECK_OPTIONS,
+                                invalid=on_invalid_raise,
                             )
+                        elif validate:
                             check_value(
                                 new_value,
                                 prop._type_info,
@@ -923,7 +926,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
                     return  # success
 
-        super()._do_set(key, new_value, track=track, coerce=coerce, validate=validate)
+        super()._do_set(key, new_value, track=track)
 
     if not TYPE_CHECKING:  # (see above in BuiltinObject)
         __getattr__ = _do_get
@@ -1400,7 +1403,7 @@ class TracingContext(NamedTuple):  # :Tracing
 
 def get_tracing_context() -> TracingContext:
     """Gather the current runtime tracing context."""
-    session = _active_session.get(None)
+    session = ACTIVE_SESSION.get(None)
     if session is not None:
         mode = session.active_mode
         return TracingContext(mode=mode)
@@ -1597,7 +1600,7 @@ class NodeReference(Struct[NodeReferenceData]):
             bench_id = node.bench_id
             if bench_id is None:
                 # maybe just creating, try from context
-                session = _active_session.get()
+                session = ACTIVE_SESSION.get()
                 if session is not None and session.bench_id is not None:
                     bench_id = session.bench_id
 
@@ -1611,7 +1614,7 @@ class NodeReference(Struct[NodeReferenceData]):
                 base_bench_id = base.bench_id
                 if base_bench_id is None:
                     # maybe also just creating, try from context
-                    session = _active_session.get()
+                    session = ACTIVE_SESSION.get()
                     if session is not None and session.bench_id is not None:
                         base_bench_id = session.bench_id
                 base_bench_id = base_bench_id
@@ -1730,7 +1733,7 @@ def patch_graph(*, old_graph: NodeGraph, new_graph: NodeGraph) -> None:
                 if prop.is_computed:
                     continue  # ignore computed properties
                 prop_value = getattr(existing_node, prop.name)
-                existing_node._do_set(prop.name, prop_value, track=False, validate=False)
+                existing_node._do_set(prop.name, prop_value, track=False)
     for patch_node in tuple(new_graph.nodes):
         if patch_node.id not in old_graph:
             # node added: add to existing graph
@@ -1753,7 +1756,7 @@ def sync_node(*, parent: Node, old_root: SourceNode | None, new_root: SourceNode
             old_value = getattr(old, prop.name)
             new_value = getattr(new, prop.name)
             if old_value != new_value:
-                old._do_set(prop.name, new_value, track=True, validate=False)
+                old._do_set(prop.name, new_value, track=True)
 
     if old_root is None:
         old_root = _copy(new_root, detach=False)

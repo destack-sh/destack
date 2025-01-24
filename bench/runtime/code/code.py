@@ -24,6 +24,7 @@ from bench.language import (
     render,
     upload_file,
 )
+from bench.language.core.const import IS_IN_USER_CODE
 from bench.runtime.core import CodeInvalidError, RunIn, Runner, Runtime
 
 from .capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_RUN, LogSink, capture_logs
@@ -218,6 +219,7 @@ class CodeFunctionRunner(CodeRunner):
         func = glbls[compiled.function_name]
         with self._capture_logs(), tracer.start_as_current_span("code.run.function") as span:
             span.set_attribute("code", compiled.code)
+            token = IS_IN_USER_CODE.set(True)
             try:
                 if compiled.is_coroutine:
                     outputs_raw = await func()
@@ -235,4 +237,6 @@ class CodeFunctionRunner(CodeRunner):
                     exc_info=e,
                 )
                 raise
+            finally:
+                IS_IN_USER_CODE.reset(token)
         self.outputs = self._coerce_outputs(outputs_raw)

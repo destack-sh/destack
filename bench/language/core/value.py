@@ -306,17 +306,10 @@ class CustomObject(Mapping[str, Any]):
         storage_key, key_typ = self._get_storage(key)
         if coerce:
             new_value = coerce_value(
-                new_value,
-                key_typ,
-                as_packed=True,
-                parent=self,
-                parent_key=key,
-                supergraph=self._supergraph,
+                new_value, key_typ, as_packed=True, supergraph=self._supergraph
             )
-            if validate:
-                check_value(
-                    new_value, key_typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise
-                )
+        elif validate:
+            check_value(new_value, key_typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise)
 
         # set/track
         if track:
@@ -610,7 +603,7 @@ def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
             continue  # ignore internal
         new_prop_value = partial_node._do_get(prop)
         if new_prop_value is not None:
-            node._do_set(prop.name, new_prop_value, track=True, validate=False)
+            node._do_set(prop.name, new_prop_value, track=True)
 
     # apply value
     if node.__value_runtime_properties__:
@@ -719,7 +712,7 @@ def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
             # init custom objects to empty value object instead of None
             #  (so we can track modifications properly)
             value_packed = {}
-            obj._do_set(wired_prop.name, value_packed, track=False, validate=False)
+            obj._do_set(wired_prop.name, value_packed, track=False)
             value = CustomObject(
                 value_type,
                 value_packed,
@@ -794,7 +787,7 @@ def _object_value_runtime(prop: Property) -> property:
         if value is not None and value_type is not None:
             if type(value) is CustomObject:
                 value = value._move_to(self, wired_prop)
-            elif isinstance(value, list) and value and type(value[0]) is CustomObject:
+            elif isinstance(value, list) and len(value) > 0 and type(value[0]) is CustomObject:
                 value = [v._move_to(self, wired_prop) for v in value]  # type: ignore
             value_packed = pack_value(value, value_type, wrap_scalar=True)
             self._do_set(wired_prop.name, value_packed, track=False)
@@ -1115,12 +1108,7 @@ def _do_coerce(
 
 
 def coerce_value_scalar(
-    value: ScalarValue,
-    typ: "TypeBase | TypeIdentity",
-    *,
-    as_packed: bool = False,
-    parent: ValueParent | None = None,
-    parent_key: ValueParentKey | None = None,
+    value: ScalarValue, typ: "TypeBase | TypeIdentity", *, as_packed: bool = False
 ) -> ScalarValue:
     """Coerces a scalar value (primitive, node, struct)"""
     # apply coercion/check rules
@@ -1141,10 +1129,6 @@ def coerce_value_scalar(
             if source_type == Property and typ.bench_type == StructType.PROPERTY_REFERENCE:
                 return value  # Property is unpacked PropertyReference
             value = _do_coerce(value, typ, source_type, target_type)
-        # move into parent
-        if parent is not None:
-            assert parent_key is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
-            value = cast("Struct", value)._move_to(parent, parent_key)
         return value
     elif typ.kind == TypeKind.ENUM:
         assert typ.bench_type is not None, f"missing bench type for {typ!r}"
@@ -1182,18 +1166,12 @@ def coerce_custom_object_scalar(
     typ: "TypeBase",
     *,
     as_packed: bool = False,
-    parent: ValueParent | None = None,
-    parent_key: ValueParentKey | None = None,
     supergraph: NodeSuperGraph | None = None,
 ) -> CustomObject:
     """Coerces a single object from its dict representation or existing CustomObject."""
     if type(value) is CustomObject:
         # NOTE :Robustness: not sure if _coerce_object_scalar is correct if given an existing object
-        if parent is not None:
-            assert parent_key is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
-            return value._move_to(parent, parent_key)
-        else:
-            return value
+        return value
     else:
         if value is None:
             value = {}
@@ -1202,13 +1180,7 @@ def coerce_custom_object_scalar(
 
     # coerce
     value = {**value}  # copy so we can pop and check extra keys cheaply
-    obj = CustomObject.new(
-        value={},
-        typ=typ,
-        parent=parent,
-        parent_property=parent_key,
-        supergraph=supergraph,
-    )
+    obj = CustomObject.new(value={}, typ=typ, supergraph=supergraph)
     properties = get_custom_object_properties(typ, value)
     for prop in properties:
         prop_key = prop.subtype_key or prop.key
@@ -1243,8 +1215,6 @@ def coerce_value(
     typ: "TypeBase | TypeIdentity",
     *,
     as_packed: bool = False,
-    parent: ValueParent | None = None,
-    parent_key: ValueParentKey | None = None,
     supergraph: NodeSuperGraph | None = None,
 ) -> SomeValue:
     """
@@ -1259,12 +1229,7 @@ def coerce_value(
         assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
         if not typ.is_list:
             return coerce_custom_object_scalar(
-                cast(dict, value),
-                typ,
-                as_packed=as_packed,
-                parent=parent,
-                parent_key=parent_key,
-                supergraph=supergraph,
+                cast(dict, value), typ, as_packed=as_packed, supergraph=supergraph
             )
         else:
             if not isinstance(value, Sequence):
@@ -1273,12 +1238,7 @@ def coerce_value(
                 )
             return [
                 coerce_custom_object_scalar(
-                    cast(dict, element),
-                    typ,
-                    as_packed=as_packed,
-                    parent=parent,
-                    parent_key=parent_key,
-                    supergraph=supergraph,
+                    cast(dict, element), typ, as_packed=as_packed, supergraph=supergraph
                 )
                 for element in value
             ]
@@ -1290,20 +1250,13 @@ def coerce_value(
                 raise TypeError(
                     f"{value!r} ({type(value).__name__}) is a sequence, expected {typ!r}"
                 )
-            return coerce_value_scalar(
-                value, typ, as_packed=as_packed, parent=parent, parent_key=parent_key
-            )
+            return coerce_value_scalar(value, typ, as_packed=as_packed)
         else:
             if not isinstance(value, Sequence):
                 raise TypeError(
                     f"{value!r} ({type(value).__name__}) is not a sequence, expected {typ!r}"
                 )
-            return [
-                coerce_value_scalar(
-                    element, typ, as_packed=as_packed, parent=parent, parent_key=parent_key
-                )
-                for element in value
-            ]
+            return [coerce_value_scalar(element, typ, as_packed=as_packed) for element in value]
 
 
 #

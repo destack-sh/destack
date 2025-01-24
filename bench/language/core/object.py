@@ -37,7 +37,9 @@ from bench.utils.func import dualmethod, stable_hash
 from bench.utils.utils import frozendict
 
 from .const import (
+    ACTIVE_SESSION,
     EMPTY_DICT,
+    IS_IN_USER_CODE,
     TK_LENGTH_BYTES,
     UNSET,
     EditOperationType,
@@ -46,7 +48,6 @@ from .const import (
     ObjectType,
     ReferenceKind,
     StructType,
-    _active_session,
 )
 from .graph import NULL_SUPERGRAPH, NodeSuperGraph
 from .list import RemoteNodeList
@@ -60,7 +61,7 @@ from .property import (
     p_runtime,
     p_struct_parent,
 )
-from .validation import ValidationError, ValidationHandler, on_invalid_raise
+from .validation import ValidationHandler, on_invalid_raise
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -474,9 +475,9 @@ def _object_property_ref(prop: Property) -> property:
 
         def _set_property_scalar(self: BuiltinObject, value: Property | None):
             if value is None:
-                self._do_set(wired_prop.name, None, track=False, validate=False)
+                self._do_set(wired_prop.name, None, track=False)
             else:
-                self._do_set(wired_prop.name, value.to_ref(), track=False, validate=False)
+                self._do_set(wired_prop.name, value.to_ref(), track=False)
 
         return property(_get_property_scalar, _set_property_scalar)
 
@@ -488,7 +489,7 @@ def _object_property_ref(prop: Property) -> property:
             return tuple(p.resolve_or_error() for p in value_ptrs)
 
         def _set_properties_many(self: BuiltinObject, values: Collection[Property]):
-            self._do_set(wired_prop.name, [p.to_ref() for p in values], track=False, validate=False)
+            self._do_set(wired_prop.name, [p.to_ref() for p in values], track=False)
 
         return property(_get_properties_many, _set_properties_many)
 
@@ -516,9 +517,9 @@ def _object_node_ref(prop: Property) -> property:
 
         def _set_node_scalar(self: BuiltinObject, value: "Node | None"):
             if value is None:
-                self._do_set(wired_prop.name, None, track=False, validate=False)
+                self._do_set(wired_prop.name, None, track=False)
             else:
-                self._do_set(wired_prop.name, value.to_ref(), track=False, validate=False)
+                self._do_set(wired_prop.name, value.to_ref(), track=False)
 
         return property(_get_node_scalar, _set_node_scalar)
 
@@ -541,7 +542,7 @@ def _object_node_ref(prop: Property) -> property:
         def _set_node_many(self: BuiltinObject, values: Collection["Node"]):
             values = tuple(values)
             value_ptrs = [p.to_ref() for p in values]
-            self._do_set(wired_prop.name, value_ptrs, track=False, validate=False)
+            self._do_set(wired_prop.name, value_ptrs, track=False)
 
         return property(_get_node_many, _set_node_many)
 
@@ -777,7 +778,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         self_dict = self.__dict__
 
         # init session / supergraph context (first)
-        self_dict["_session"] = kwargs.pop("_session", None) or _active_session.get()
+        self_dict["_session"] = kwargs.pop("_session", None) or ACTIVE_SESSION.get()
         supergraph: NodeSuperGraph
         if "_supergraph" in kwargs:
             supergraph = cast(NodeSuperGraph, kwargs.pop("_supergraph"))
@@ -977,7 +978,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
             if prop.is_computed:
                 continue  # ignore computed properties
             prop_value = getattr(other, prop.name)
-            self._do_set(prop.name, prop_value, track=False, validate=False)
+            self._do_set(prop.name, prop_value, track=False)
 
     def _do_get(self, key):
         """Called if an attribute doesn't exist in __dict__ / the usual places."""
@@ -1008,8 +1009,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         new_value: Any,
         *,
         track: bool = True,
-        coerce: bool = True,
-        validate: bool = True,
+        validate: bool = False,
     ):
         """Sets *any* attribute on this builtin object."""
         prop = self.__properties__.get(key)
@@ -1019,37 +1019,34 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 object.__setattr__(self, key, new_value)
                 return
 
-            # validate/set
+            # check (if it's not a contributed property, which are system-only)
+            if (typ := prop._type_info) is not None and prop.reference_source is None:
+                # move
+                if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
+                    if not prop.is_list:
+                        if new_value is not None:
+                            new_value = new_value._move_to(self, prop)
+                    else:
+                        new_value = [v._move_to(self, prop) for v in new_value]
+
+                # coerce value
+                if IS_IN_USER_CODE.get():
+                    new_value = coerce_value(new_value, typ, supergraph=self._supergraph)
+                    check_value(
+                        new_value, typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise
+                    )
+                elif validate:
+                    check_value(
+                        new_value, typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise
+                    )
+
+            # set
             if track:
                 if prop.is_value_runtime:
                     old_value = getattr(self, prop.value_packed_ptr.name)  # type: ignore
                 else:
                     old_value = getattr(self, key)
-                if validate:
-                    # coerce & check type (if it's not a contributed property, which only we edit)
-                    if prop._type_info is not None and prop.reference_source is None:
-                        if coerce:
-                            new_value = coerce_value(
-                                new_value,
-                                prop._type_info,
-                                parent=cast("Struct | Node", self),
-                                parent_key=prop,
-                                supergraph=self._supergraph,
-                            )
-                        check_value(
-                            new_value,
-                            prop._type_info,
-                            options=DEFAULT_CHECK_OPTIONS,
-                            invalid=on_invalid_raise,
-                        )
-                    object.__setattr__(self, key, new_value)
-                    try:
-                        self._validate_self((prop,), invalid=on_invalid_raise)
-                    except ValidationError:  # reset on error
-                        object.__setattr__(self, key, old_value)
-                        raise
-                else:
-                    object.__setattr__(self, key, new_value)
+                object.__setattr__(self, key, new_value)
                 if prop.is_value_runtime:
                     _trace_edit_operation(
                         cast("Struct | Node", self),

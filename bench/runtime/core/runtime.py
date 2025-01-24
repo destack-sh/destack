@@ -250,7 +250,7 @@ class Runtime:
                 target_obj, (BuiltinObject, CustomObject)
             ), f"bad target {target_obj!r} in {computed_value!r}"
             mapped_value = coerce_value(source_value, prop.type_info)
-            target_obj._do_set(prop.name, mapped_value, coerce=False)
+            target_obj._do_set(prop.name, mapped_value)
         else:
             raise InvalidComputedError(computed_value=computed_value)
         logger.debug(
@@ -415,13 +415,13 @@ class Runtime:
     def _set_context(self, node: HasContext):
         """Sets the current context on a RunSpan."""
         if node.session_id != self.session.id:
-            node._do_set("session_ptr", self.session_ptr, validate=False)
+            node.session_ptr = self.session_ptr
         if node.client_id != self.session.client_id:
-            node._do_set("client_ptr", self.session.client_ptr, validate=False)
+            node.client_ptr = self.session.client_ptr
         if node.machine_id != self.session.machine_id:
-            node._do_set("machine_ptr", self.session.machine_ptr, validate=False)
+            node.machine_ptr = self.session.machine_ptr
         if node.user_id != self.session.user_id:
-            node._do_set("user_ptr", self.session.user_ptr, validate=False)
+            node.user_ptr = self.session.user_ptr
 
     @tracer.start_as_current_span("runtime.run.attempt")
     async def _do_attempt(self, runner: Runner, span: RunSpan, attempt: int):
@@ -443,7 +443,7 @@ class Runtime:
             with tracer.start_as_current_span("runtime.attempt.run"):
                 if span.started_at is None:
                     started_at = self.oracle.utc()
-                    span._do_set("started_at", started_at, validate=False)
+                    span.started_at = started_at
                 runner.task = asyncio.create_task(runner.run())
                 await runner.task
                 terminated_at = self.oracle.utc()
@@ -464,28 +464,28 @@ class Runtime:
                         options=CheckOptions(detached_is="invalid"),
                         invalid=on_invalid_raise,
                     )
-            span._do_set("status", RunStatus.COMPLETED, validate=False)
+            span.status = RunStatus.COMPLETED
             log.debug("runtime.attempt.completed", attempt=span, span="current")
         except asyncio.CancelledError as e:
             # cancelled
-            span._do_set("status", RunStatus.ABORTED, validate=False)
+            span.status = RunStatus.ABORTED
             error = Error.from_exception(ErrorKind.RUNTIME, e)
-            span._do_set("error", error, validate=False)
+            span.error = error
             log.debug("runtime.attempt.aborted", attempt=span, span="current")
             raise
         except Interrupted as e:
             # interrupted
             status = RUN_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
-            span._do_set("status", status, validate=False)
-            span._do_set("interrupted_at", self.oracle.utc(), validate=False)
-            span._do_set("interruption", e.interruption, validate=False)
+            span.status = status
+            span.interrupted_at = self.oracle.utc()
+            span.interruption = e.interruption
             log.debug("runtime.attempt.interrupted", attempt=span, span="current")
             raise
         except BaseException as e:
             # error
-            span._do_set("status", RunStatus.FAILED, validate=False)
+            span.status = RunStatus.FAILED
             error = Error.from_exception(ErrorKind.RUNTIME, e)
-            span._do_set("error", error, validate=False)
+            span.error = error
             log.debug("runtime.attempt.failed", attempt=span, exc_info=e, span="current")
             raise
         finally:
@@ -493,9 +493,9 @@ class Runtime:
             if span.status.is_terminal:
                 if terminated_at is None:
                     terminated_at = self.oracle.utc()
-                span._do_set("terminated_at", terminated_at, validate=False)
+                span.terminated_at = terminated_at
                 if started_at is not None:
-                    span._do_set("duration", terminated_at - started_at, validate=False)
+                    span.duration = terminated_at - started_at
 
     @tracer.start_as_current_span("runtime.prepare")
     async def _prepare_run(self, runner: Runner):
@@ -622,7 +622,7 @@ class Runtime:
                 and (last_attempt.status == RunStatus.COMPLETED or not last_attempt.is_retryable)
             ):
                 if run.attempt != retry.attempt:
-                    run._do_set("attempt", retry.attempt, validate=False)
+                    run.attempt = retry.attempt
                 retry.on_attempt()
                 if last_attempt is not None and last_attempt.status.is_interrupted:
                     # resume interrupted attempt
@@ -703,14 +703,12 @@ class Runtime:
             context.attach(baggage.set_baggage("run_id", str(span.id)))
 
             # mark started
-            # nocheckin: the whole _do_set thing is a mess
             if span.started_at is None:
-                span._do_set("started_at", self.oracle.utc(), validate=False)
-            span._do_set("status", RunStatus.RUNNING, validate=False)
+                span.started_at = self.oracle.utc()
+            span.status = RunStatus.RUNNING
 
             # commit intermediate session edits
             self.session.commit_optimistic()
-
             # actually attempt Run
             try:
                 if runner.tracked_span is not None:
@@ -731,41 +729,41 @@ class Runtime:
                         else self.oracle.utc()
                     )
                     runner.status = RUN_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
-                    span._do_set("interrupted_at", interrupted_at, validate=False)
+                    span.interrupted_at = interrupted_at
                 else:
-                    span._do_set("interrupted_at", self.oracle.utc(), validate=False)
-                span._do_set("interruption", e.interruption, validate=False)
+                    span.interrupted_at = self.oracle.utc()
+                span.interruption = e.interruption
                 raise
             except BaseException:
                 raise
             finally:
                 # update span from runner
                 if span.error is not runner.error:
-                    span._do_set("error", runner.error, validate=False)
+                    span.error = runner.error
                 if span.status != runner.status:
-                    span._do_set("status", runner.status, validate=False)
+                    span.status = runner.status
                 if type(span) is Run:
                     if span.variables is not runner.variables:
-                        span._do_set("variables", runner.variables, validate=False)
+                        span.variables = runner.variables
                     if span.inputs is not runner.inputs:
-                        span._do_set("inputs", runner.inputs, validate=False)
+                        span.inputs = runner.inputs
                     if span.outputs is not runner.outputs:
-                        span._do_set("outputs", runner.outputs, validate=False)
+                        span.outputs = runner.outputs
                 if runner.status.is_terminal:
                     # update terminal status
                     last_attempt = runner.current_attempt
                     if last_attempt is not None:
                         # made an attempt
-                        span._do_set("terminated_at", last_attempt.terminated_at, validate=False)
+                        span.terminated_at = last_attempt.terminated_at
                         if last_attempt.duration is not None:
-                            span._do_set("duration", last_attempt.duration, validate=False)
+                            span.duration = last_attempt.duration
                     elif span.terminated_at is not None:
                         # didn't make an attempt, but we have a terminated_at
-                        span._do_set("duration", span.terminated_at - span.started_at)  # type: ignore
+                        span.duration = span.terminated_at - span.started_at  # type: ignore
                     else:
                         # didn't make an attempt
-                        span._do_set("terminated_at", self.oracle.utc(), validate=False)
-                        span._do_set("duration", span.terminated_at - span.started_at)  # type: ignore
+                        span.terminated_at = self.oracle.utc()
+                        span.duration = span.terminated_at - span.started_at  # type: ignore
                     # close any remaining (directly) contained open Interruptions
                     if type(span) is Run:
                         self.close(span)
