@@ -31998,11 +31998,18 @@ export const PipeTypeOptionInfo: Partial<Record<PipeType, EnumOptionInfo>> = {
   [PipeType.SELECT]: { id: 10, name: 'SELECT', text: 'Call only if selected' },
 }
 
+export const PipeTriggerOptionInfo: Partial<Record<PipeTrigger, EnumOptionInfo>> = {
+  [PipeTrigger.ON_COMPLETED]: { id: 1, name: 'ON_COMPLETED', text: 'If the action succeeds' },
+  [PipeTrigger.ON_FAILED]: { id: 2, name: 'ON_FAILED', text: 'If the action fails' },
+  [PipeTrigger.ON_TERMINATED]: { id: 3, name: 'ON_TERMINATED', text: 'Always, success or failure' },
+}
+
 
 export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, EnumOptionInfo>>> = {
   [EnumType.BLOCK_TYPE]: BlockTypeOptionInfo,
   [EnumType.ACTION_TYPE]: ActionTypeOptionInfo,
   [EnumType.PIPE_TYPE]: PipeTypeOptionInfo,
+  [EnumType.PIPE_TRIGGER]: PipeTriggerOptionInfo,
 }
 
 
