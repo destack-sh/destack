@@ -8,7 +8,6 @@ from .call import (
     call_none,
     call_parallel,
     call_serial,
-    call_single,
 )
 from .error import Error, ErrorType
 from .interruption import (
@@ -90,7 +89,6 @@ __all__ = [
     "call_none",
     "call_parallel",
     "call_serial",
-    "call_single",
     "edit_data_graph",
     "edit_graph",
 ]

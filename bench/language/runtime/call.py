@@ -21,7 +21,7 @@ from bench.language.core import (
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Action, Block, CustomObject, NodeReference, TypeBase
+    from bench.language import Action, Block, CustomObject, NodeReference, Text, TypeBase
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -54,10 +54,10 @@ class CallTerminationMode(IdEnum):
 
 @struct_(StructType.CALL)
 class Call(Struct):
-    """A Call to something."""
+    """A Call to something (to be materialized into a Run)."""
 
     node: Union["Block", "Action", None] = p_regular(
-        31,
+        33,
         require=True,
         references=(NodeType.BLOCK, NodeType.ACTION),
         constraint=constraint(node_subtypes=[BlockType.FLOW]),
@@ -65,11 +65,13 @@ class Call(Struct):
     if TYPE_CHECKING:
         node_ptr: NodeReference | None = None
         node_id: str | None = None
-    value_packed: Any = p_value_packed(33)
+    value_packed: Any = p_value_packed(34)
     value: Any = p_value_runtime(
-        33, type=FieldType.INPUT, typ=lambda self: cast(Call, self).value_type
+        34, type=FieldType.INPUT, typ=lambda self: cast(Call, self).value_type
     )
-    on_terminate: CallTerminationMode = p_regular(35, default=CallTerminationMode.PASS)
+
+    title: str | None = p_regular(40, default=None)
+    text: Optional["Text"] = p_regular(41, default=None, struct=StructType.TEXT)
 
     @cached_property
     def value_type(self) -> Optional["TypeBase"]:
@@ -84,17 +86,17 @@ class Call(Struct):
     def new(
         node: "Block | Action",
         value: CustomObject | None = None,
+        *,
+        title: str | None = None,
+        text: "Text | None" = None,
         **kwargs,
     ) -> "Call":
         value_type = node.to_type_maybe(
             of="value", field_types=[FieldType.VARIABLE, FieldType.INPUT]
         )
         assert value_type is not None, f"no call value type for {node!r}"
-        return Call(
-            node=node,
-            value=coerce_custom_object_scalar(value or {}, value_type),
-            **kwargs,
-        )
+        value = coerce_custom_object_scalar(value or kwargs, value_type)
+        return Call(node=node, title=title, text=text, value=value, **kwargs)
 
 
 #
@@ -131,8 +133,13 @@ class CallPlan(Struct):
         )
 
 
-def call(node: "Block | Action", **kwargs) -> "Call":
-    return Call.new(node, **kwargs)
+def call(
+    node: "Block | Action",
+    title: str | None = None,
+    text: "Text | None" = None,
+    **kwargs,
+) -> "Call":
+    return Call.new(node, title=title, text=text, **kwargs)
 
 
 def call_serial(
@@ -152,22 +159,6 @@ def call_parallel(
     """Call the given nodes in parallel."""
     return CallPlan.new(
         *calls, execution=CallExecutionMode.PARALLEL, on_error=on_error, on_terminate=on_terminate
-    )
-
-
-def call_single(
-    node: "Block | Action",
-    *,
-    on_error: CallFailureMode = CallFailureMode.FAIL,
-    on_terminate: CallTerminationMode = CallTerminationMode.PASS,
-    **kwargs,
-) -> "CallPlan":
-    """Call the given node in series."""
-    return CallPlan.new(
-        call(node, **kwargs),
-        execution=CallExecutionMode.SERIAL,
-        on_error=on_error,
-        on_terminate=on_terminate,
     )
 
 

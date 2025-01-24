@@ -936,17 +936,21 @@ export interface CallData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 31;
+     * @generated from protobuf field: optional string title = 33;
+     */
+    title?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
+     */
+    text?: TextData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 40;
      */
     nodePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Value value_packed = 33;
+     * @generated from protobuf field: optional google.protobuf.Value value_packed = 41;
      */
     valuePacked?: JsonValue;
-    /**
-     * @generated from protobuf field: symbolx.bench.CallTerminationMode on_terminate = 35;
-     */
-    onTerminate: CallTerminationMode;
 }
 /**
  * @generated from protobuf message symbolx.bench.CallPlanData
@@ -14916,15 +14920,15 @@ class CallData$Type extends MessageType$<CallData> {
     constructor() {
         super("symbolx.bench.CallData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 33, name: "value_packed", kind: "message", T: () => Value },
-            { no: 35, name: "on_terminate", kind: "enum", T: () => ["symbolx.bench.CallTerminationMode", CallTerminationMode, "CALL_TERMINATION_MODE_"] }
+            { no: 33, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "text", kind: "message", T: () => TextData },
+            { no: 40, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "value_packed", kind: "message", T: () => Value }
         ]);
     }
     create(value?: PartialMessage<CallData>): CallData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.onTerminate = 0;
         if (value !== undefined)
             reflectionMergePartial<CallData>(this, message, value);
         return message;
@@ -14937,14 +14941,17 @@ class CallData$Type extends MessageType$<CallData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbolx.bench.NodeReferenceData node_ptr */ 31:
+                case /* optional string title */ 33:
+                    message.title = reader.string();
+                    break;
+                case /* optional symbolx.bench.TextData text */ 34:
+                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* symbolx.bench.NodeReferenceData node_ptr */ 40:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* optional google.protobuf.Value value_packed */ 33:
+                case /* optional google.protobuf.Value value_packed */ 41:
                     message.valuePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* symbolx.bench.CallTerminationMode on_terminate */ 35:
-                    message.onTerminate = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -14961,15 +14968,18 @@ class CallData$Type extends MessageType$<CallData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.NodeReferenceData node_ptr = 31; */
+        /* optional string title = 33; */
+        if (message.title !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.title);
+        /* optional symbolx.bench.TextData text = 34; */
+        if (message.text)
+            TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData node_ptr = 40; */
         if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value value_packed = 33; */
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value value_packed = 41; */
         if (message.valuePacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.valuePacked), writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.CallTerminationMode on_terminate = 35; */
-        if (message.onTerminate !== 0)
-            writer.tag(35, WireType.Varint).int32(message.onTerminate);
+            Value.internalBinaryWrite(Value.fromJson(message.valuePacked), writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29739,9 +29749,10 @@ export enum RunFrameProperty {
 
 export enum CallProperty {
   metatype = 1,
-  nodePtr = 31,
-  valuePacked = 33,
-  onTerminate = 35,
+  title = 33,
+  text = 34,
+  nodePtr = 40,
+  valuePacked = 41,
 }
 
 export enum CallPlanProperty {
@@ -31651,9 +31662,10 @@ export const RunFrameDataInfo: Record<RunFrameProperty, PropertyInfo> = {
 }
 export const CallDataInfo: Record<CallProperty, PropertyInfo> = {
   [CallProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CALL, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [CallProperty.nodePtr]: { id: 31, name: 'node_ptr', component: ObjectType.CALL, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [22] }, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
-  [CallProperty.valuePacked]: { id: 33, name: 'value_packed', component: ObjectType.CALL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [CallProperty.onTerminate]: { id: 35, name: 'on_terminate', component: ObjectType.CALL, enumType: EnumType.CALL_TERMINATION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [CallProperty.title]: { id: 33, name: 'title', component: ObjectType.CALL, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [CallProperty.text]: { id: 34, name: 'text', component: ObjectType.CALL, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [CallProperty.nodePtr]: { id: 40, name: 'node_ptr', component: ObjectType.CALL, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [22] }, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
+  [CallProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.CALL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const CallPlanDataInfo: Record<CallPlanProperty, PropertyInfo> = {
   [CallPlanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CALL_PLAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

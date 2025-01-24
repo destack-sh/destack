@@ -2048,9 +2048,10 @@ message MachineImageData {
 
 message CallData {
   ObjectType metatype = 1;
-  NodeReferenceData node_ptr = 31;
-  optional google.protobuf.Value value_packed = 33;
-  CallTerminationMode on_terminate = 35;
+  optional string title = 33;
+  optional TextData text = 34;
+  NodeReferenceData node_ptr = 40;
+  optional google.protobuf.Value value_packed = 41;
 }
 
 message CallPlanData {
