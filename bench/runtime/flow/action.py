@@ -48,6 +48,7 @@ from bench.language import (
     ToolAction,
     TypeAction,
     TypeBase,
+    TypeKind,
     UpdateAction,
     ValidationError,
     WaitAction,
@@ -138,6 +139,7 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
         has_plan = (
             not self.node.type.is_boundary
             and self.outputs is not None
+            and self.outputs._type.kind == TypeKind.PARTIAL_OBJECT
             and cast(Action, self.outputs).plans
         )
         if (

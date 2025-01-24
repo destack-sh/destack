@@ -573,7 +573,7 @@ export const ICON_BY_RUN_SPAN_TYPE: Record<RunSpanType, IconData> = {
   [RunSpanType.ACQUIRE]: makeIcon({ faName: "fas fa-toolbox" }),
   [RunSpanType.WAIT]: makeIcon({ faName: "fas fa-hourglass-end" }),
   [RunSpanType.DELEGATE]: makeIcon({ faName: "fas fa-play" }),
-  [RunSpanType.FLOW_GENERATE_CALLS]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
+  [RunSpanType.FLOW_PLAN]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
   [RunSpanType.MODEL_PREPARE]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
   [RunSpanType.MODEL_GENERATE]: makeIcon({ faName: "fas fa-hexagon-nodes" }),
   [RunSpanType.MODEL_PARSE]: makeIcon({ faName: "fas fa-hexagon-nodes" }),

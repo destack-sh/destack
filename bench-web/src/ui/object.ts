@@ -740,15 +740,9 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
 
   /** Run options section */
   sectionRunOptions(baseProperty: number) {
-    this.section(
-      "Run",
-      [
-        this.rowProperty([baseProperty, RunOptionsProperty.maxAttempts], { title: "Attempts" }),
-        this.rowProperty([baseProperty, RunOptionsProperty.suppressFail]),
-        this.rowProperty([baseProperty, RunOptionsProperty.suppressPause]),
-      ],
-      { isDefaultCollapsed: true },
-    );
+    this.section("Run", [this.rowProperty([baseProperty, RunOptionsProperty.maxAttempts], { title: "Attempts" })], {
+      isDefaultCollapsed: true,
+    });
   }
 }
 
