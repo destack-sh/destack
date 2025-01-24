@@ -10,7 +10,9 @@ from bench.language import (
     Action,
     ActionType,
     CallExecutionMode,
+    CallFailureMode,
     CallPlan,
+    CallTerminationMode,
     CustomObject,
     Error,
     FlowBlock,
@@ -28,13 +30,14 @@ from bench.language import (
     TypeBase,
     coerce_custom_object_scalar,
 )
-from bench.language.runtime.call import CallFailureMode, CallTerminationMode
 from bench.runtime.core import (
     Interrupted,
     RetryableError,
+    RunImpossibleError,
     RunIn,
     Runner,
     RunnerAbortedEvent,
+    RunnerCancelledEvent,
     RunnerCompletedEvent,
     RunnerEvent,
     RunnerFailedEvent,
@@ -43,8 +46,6 @@ from bench.runtime.core import (
     make_runner,
     restore_runner,
 )
-from bench.runtime.core.error import RunImpossibleError
-from bench.runtime.core.runner import RunnerCancelledEvent
 
 from .action import ActionRunner
 from .pipe import PipeRunner
@@ -203,7 +204,6 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
                 self._tick_pipe(cast(PipeRunner, runner), runner.node, event)
             self._active_runners_by_id.pop(runner.id)
         elif isinstance(event, RunnerFailedEvent):
-            # nocheckin: handle failed event somehow
             assert runner.error is not None, f"missing error for {runner!r}"
             if isinstance(runner.node, Action):
                 if not self._tick_action(cast(ActionRunner, runner), runner.node, event):

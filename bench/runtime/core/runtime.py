@@ -740,6 +740,10 @@ class Runtime:
                 raise
             finally:
                 # update span from runner
+                if span.error is not runner.error:
+                    span._do_set("error", runner.error, validate=False)
+                if span.status != runner.status:
+                    span._do_set("status", runner.status, validate=False)
                 if type(span) is Run:
                     if span.variables is not runner.variables:
                         span._do_set("variables", runner.variables, validate=False)
@@ -747,10 +751,6 @@ class Runtime:
                         span._do_set("inputs", runner.inputs, validate=False)
                     if span.outputs is not runner.outputs:
                         span._do_set("outputs", runner.outputs, validate=False)
-                if span.error is not runner.error:
-                    span._do_set("error", runner.error, validate=False)
-                if span.status != runner.status:
-                    span._do_set("status", runner.status, validate=False)
                 if runner.status.is_terminal:
                     # update terminal status
                     last_attempt = runner.current_attempt
