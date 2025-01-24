@@ -79,7 +79,6 @@ class ViewType(IdEnum):
     EMPTY = 30100
     CREATE = 30201
     CHAT = 30202
-    TIMELINE = 30204
     HUB = 30205
     HELP = 30206
     ACTIVITY = 30207
@@ -587,6 +586,10 @@ class UserWizardViewStage(IdEnum):
 @subnode_(ViewType.USER_WIZARD)
 class UserWizardView(View):
     stage: UserWizardViewStage | None = p_regular(100)
+
+
+@subnode_(ViewType.CHAT)
+class ChatView(View): ...
 
 
 @enum_(EnumType.HUB_ASPECT)

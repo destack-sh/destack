@@ -715,7 +715,11 @@ async def test_run_flow_call_none(hosted_runtime: RuntimeHandle):
     hosted_runtime.page().blocks.append(Flow)
     await hosted_runtime.commit()
 
-    Route.code = code("pass")
+    Route.code = code("""
+return {
+    "plans": [call_none()],
+}
+""")
     runner = await hosted_runtime.run(Flow)
     assert runner.tracked_run
     assert not runner.tracked_run.has(Code2, Code3, Complete)
@@ -767,15 +771,16 @@ return {
 
 
 async def test_run_flow_call_route(hosted_runtime: RuntimeHandle):
-    """Runs a Flow with forward calls selected."""
+    """Runs a Flow with some basic routing plans."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
     Route = Action.new(ActionType.CODE, "Router", code=code("pass"))
     Code2 = Action.new(ActionType.CODE, "Code2", code=code("pass"))
     Code3 = Action.new(ActionType.CODE, "Code3", code=code("pass"))
     Code4 = Action.new(ActionType.CODE, "Code4", code=code("pass"))
+    Code5 = Action.new(ActionType.CODE, "Code5", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow.actions.extend(Start, Route, Code2, Code3, Code4, Complete)
+    Flow.actions.extend(Start, Route, Code2, Code3, Code4, Code5, Complete)
     Start.connect(PipeType.CALL, Route)
     Route.connect(PipeType.SELECT, Complete)
     Route.connect(PipeType.SELECT, Code2)
@@ -823,29 +828,69 @@ return {
     assert not runner.tracked_run.has(Code3)
     assert not runner.tracked_run.has(Code4)
 
+    # Route: Code5 (is not connected, so should be skipped)
+    Route.code = code("""\
+return {
+    "plans": [call_serial(call(Code5))],
+}
+""")
+    runner = await hosted_runtime.run(Flow)
+    assert runner.tracked_run
+    assert not runner.tracked_run.has(Code5)
+
 
 async def test_run_flow_call_plan(hosted_runtime: RuntimeHandle):
-    """Run a Flow with a CallPlan."""
+    """Run a Flow with more complex call plans."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
+    Plan1 = Action.new(ActionType.CODE, "Plan1", code=code("pass"))
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
     Code2 = Action.new(ActionType.CODE, "Code2", code=code("pass"))
     Code3 = Action.new(ActionType.CODE, "Code3", code=code("pass"))
     Code4 = Action.new(ActionType.CODE, "Code4", code=code("pass"))
+    Fail = Action.new(ActionType.FAIL, "Fail")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow.actions.extend(Start, Code1, Code2, Code3, Code4, Complete)
-    Start.connect(PipeType.CALL, Code1)
-    Code1.connect(PipeType.CALL, Code2)
-    Code1.connect(PipeType.SELECT, Code3)
-    Code1.connect(PipeType.SELECT, Code4)
-    Code1.connect(PipeType.SELECT, Complete)
+    Flow.actions.extend(Start, Plan1, Code1, Code2, Code3, Code4, Fail, Complete)
+    Start.connect(PipeType.CALL, Plan1)
+    # Plan1 -?> Code1, Code2, Code3, Code4, Complete, Fail
+    Plan1.connect(PipeType.SELECT, Code1)
+    Plan1.connect(PipeType.SELECT, Code2)
+    Plan1.connect(PipeType.SELECT, Code3)
+    Plan1.connect(PipeType.SELECT, Code4)
+    Plan1.connect(PipeType.SELECT, Complete)
+    Plan1.connect(PipeType.SELECT, Fail)
     await hosted_runtime.commit()
 
-    # run flow with call plan
+    # Plan: Code1 + Code1, Code2 + Code2
+    Plan1.code = code("""\
+return {
+    "plans": [
+        call_serial(call(Code1), call(Code1)),
+        call_serial(call(Code2), call(Code2)),
+        call_parallel(call(Code1), call(Code2)),
+    ],
+}
+""")
     runner = await hosted_runtime.run(Flow)
     assert runner.tracked_run
+    assert len(runner.tracked_run.get_runs(Code1)) == 3
+    assert len(runner.tracked_run.get_runs(Code2)) == 3
 
-    # nocheckin
+    # Plan: Code1, Code2, Fail, Code3
+    #  -> Code3 should be skipped after fail
+    Plan1.code = code("""\
+return {
+    "plans": [
+        call_serial(call(Code1), call(Code2), call(Fail), call(Code3), on_error=CallFailureMode.COMPLETE),
+    ],
+}
+""")
+    runner = await hosted_runtime.run(Flow)
+    assert runner.tracked_run
+    assert runner.tracked_run.has(Code1)
+    assert runner.tracked_run.has(Code2)
+    assert runner.tracked_run.has(Fail)
+    assert not runner.tracked_run.has(Code3)
 
 
 async def test_run_flow_abort(hosted_runtime: RuntimeHandle):

@@ -31,24 +31,25 @@ if TYPE_CHECKING:
 class CallExecutionMode(IdEnum):
     """How to execute Calls."""
 
-    SERIAL = 1
-    PARALLEL = 2
+    SERIAL = 1, "Run calls after each other"
+    PARALLEL = 2, "Run calls at the same time"
 
 
 @enum_(EnumType.CALL_FAILURE_MODE)
 class CallFailureMode(IdEnum):
     """What to do when a Call fails."""
 
-    FAIL = 1
-    CONTINUE = 2
+    FAIL = 1, "Fail the plan"
+    CONTINUE = 2, "Continue the plan"
+    COMPLETE = 3, "Complete the plan"
 
 
 @enum_(EnumType.CALL_TERMINATION_MODE)
 class CallTerminationMode(IdEnum):
     """What to do when a Call terminates."""
 
-    STOP = 1
-    RETURN = 2
+    PASS = 1, "Do nothing"
+    RETURN = 2, "Return to the caller"
 
 
 @struct_(StructType.CALL)
@@ -68,7 +69,7 @@ class Call(Struct):
     value: Any = p_value_runtime(
         33, type=FieldType.INPUT, typ=lambda self: cast(Call, self).value_type
     )
-    on_terminate: CallTerminationMode = p_regular(35, default=CallTerminationMode.STOP)
+    on_terminate: CallTerminationMode = p_regular(35, default=CallTerminationMode.PASS)
 
     @cached_property
     def value_type(self) -> Optional["TypeBase"]:
@@ -107,7 +108,7 @@ class CallPlan(Struct):
 
     execution: CallExecutionMode = p_internal(31, default=CallExecutionMode.SERIAL)
     on_error: CallFailureMode = p_internal(33, default=CallFailureMode.FAIL)
-    on_terminate: CallTerminationMode = p_internal(34, default=CallTerminationMode.STOP)
+    on_terminate: CallTerminationMode = p_internal(34, default=CallTerminationMode.PASS)
 
     calls: list[Call] = p_internal(40, array=True, struct=StructType.CALL)
 
@@ -120,7 +121,7 @@ class CallPlan(Struct):
         *calls: Call,
         execution: CallExecutionMode = CallExecutionMode.SERIAL,
         on_error: CallFailureMode = CallFailureMode.FAIL,
-        on_terminate: CallTerminationMode = CallTerminationMode.STOP,
+        on_terminate: CallTerminationMode = CallTerminationMode.PASS,
     ) -> "CallPlan":
         return CallPlan(
             calls=list(calls),
@@ -137,7 +138,7 @@ def call(node: "Block | Action", **kwargs) -> "Call":
 def call_serial(
     *calls: Call,
     on_error: CallFailureMode = CallFailureMode.FAIL,
-    on_terminate: CallTerminationMode = CallTerminationMode.STOP,
+    on_terminate: CallTerminationMode = CallTerminationMode.PASS,
 ) -> "CallPlan":
     return CallPlan.new(*calls, on_error=on_error, on_terminate=on_terminate)
 
@@ -145,7 +146,7 @@ def call_serial(
 def call_parallel(
     *calls: Call,
     on_error: CallFailureMode = CallFailureMode.FAIL,
-    on_terminate: CallTerminationMode = CallTerminationMode.STOP,
+    on_terminate: CallTerminationMode = CallTerminationMode.PASS,
 ) -> "CallPlan":
     return CallPlan.new(
         *calls, execution=CallExecutionMode.PARALLEL, on_error=on_error, on_terminate=on_terminate
@@ -156,7 +157,7 @@ def call_single(
     node: "Block | Action",
     *,
     on_error: CallFailureMode = CallFailureMode.FAIL,
-    on_terminate: CallTerminationMode = CallTerminationMode.STOP,
+    on_terminate: CallTerminationMode = CallTerminationMode.PASS,
     **kwargs,
 ) -> "CallPlan":
     return CallPlan.new(
@@ -165,3 +166,7 @@ def call_single(
         on_error=on_error,
         on_terminate=on_terminate,
     )
+
+
+def call_none() -> "CallPlan":
+    return CallPlan.new()

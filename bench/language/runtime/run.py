@@ -143,7 +143,7 @@ class RunOptions(Struct):
             max_retry_interval=self.max_retry_interval.total_seconds()
             if self.max_retry_interval
             else 30,
-            # retry_on is handled separately in runtime because we need the specific ErrorType
+            # NOTE: retry_on is handled separately in runtime because we need the specific ErrorType
         )
 
 
@@ -431,15 +431,25 @@ class Run(RuntimeNode[RunData], HasNodeBase):
                 return span
         return None
 
-    def has(self, *nodes: Node) -> bool:
+    def has(self, *nodes: Node, recursive: bool = True) -> bool:
         """Whether the Run has any of the given Nodes."""
         nodes_ck = tuple(n.ck for n in nodes)
         if self.base_ck in nodes_ck:
             return True
-        for run in self._graph.get_descendants(self, NodeType.RUN, recursive=True):
-            if cast(Run, run).base_ck in nodes_ck:
+        for run in self._graph.get_descendants(self, NodeType.RUN, recursive=recursive):
+            run = cast(Run, run)
+            if run.base_ck in nodes_ck:
                 return True
         return False
+
+    def get_runs(self, runnable: "RunnableNode", recursive: bool = True) -> list["Run"]:
+        """Find all Runs of a Node in this Runtime."""
+        matching_runs: list[Run] = []
+        for run in self._graph.get_descendants(self, NodeType.RUN, recursive=recursive):
+            run = cast(Run, run)
+            if run.base_ck == runnable.ck:
+                matching_runs.append(run)
+        return matching_runs
 
     def pause(self):
         """Mark this Run as paused."""
