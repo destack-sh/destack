@@ -8,7 +8,6 @@ from bench.language import (
     CustomObject,
     FileBase,
     HasContext,
-    Node,
     Projection,
     Renderer,
     RenderOptions,
@@ -112,29 +111,6 @@ class PromptRegion(PromptCompound):
 
 
 @dataclass
-class PromptExample(PromptCompound):
-    """An example of a prompt."""
-
-    text: str
-    source: list[Node]
-    output: str | None
-
-    @override
-    async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
-        rendered = context.renderer.render_statement(*self.source)
-        if self.output is not None:
-            rendered = f"{rendered}\n # -> \n{self.output}"
-        return (
-            PromptRegion(
-                title=self.title,
-                weight=1,
-                text=self.text,
-                content=[PromptText(title=None, text=rendered)],
-            ),
-        )
-
-
-@dataclass
 class PromptRun(PromptCompound):
     """A Run. Expands to Runs variables, inputs and outputs."""
 
@@ -189,6 +165,7 @@ class PromptCustomObject(PromptCompound):
 
     @override
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
+        # nocheckin: render custom object better
         code = render_expression(self.object, options=context.render_options)
         return [PromptText(title=self.title, text=code)]
 

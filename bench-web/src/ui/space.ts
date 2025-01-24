@@ -46,7 +46,7 @@ import { canvas, supergraph } from "@/system/globals";
 import { inspectionBasePtr, inspectionPtr, pkg, space } from "@/system/space";
 import { declareActions, getNodesForAction } from "@/ui/action";
 import type { SplitAnchor } from "@/ui/drag";
-import { getNodeIcon, toIconMaybe } from "@/ui/icon";
+import { getNodeIcon, getNodeName, toIconMaybe } from "@/ui/icon";
 import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
 import { PopoverInfoIn, PopoverInstance, pushPopover } from "@/ui/popover";
 import { toaster } from "@/ui/toast";
@@ -962,7 +962,10 @@ export class SpaceCanvas {
       const basePtr = getBaseFromNode(node);
       const base = basePtr != null ? graph.get(basePtr) : null;
       if (base == null) {
-        toaster.error({ title: "Cannot Open Node", text: `Cannot find base node for Run` });
+        toaster.error({
+          title: `Can't Open ${getNodeName(node as AnyNodeData) ?? toCamelName(ObjectType, node.metatype)}`,
+          text: `The base node is missing`,
+        });
         return;
       }
       this.goToNode(base, options);
@@ -983,8 +986,8 @@ export class SpaceCanvas {
       // can't go there
       toaster.error({
         icon: getNodeIcon(node),
-        title: `Cannot Open ${toCamelName(NodeType, node.metatype)}`,
-        text: `There is no default view for this node`,
+        title: `Can't Open ${getNodeName(node as AnyNodeData) ?? "This Node"}`,
+        text: `There is no view for ${toCamelName(ObjectType, node.metatype)}s`,
       });
     }
   }

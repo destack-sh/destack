@@ -1458,6 +1458,7 @@ def run_span(
             started_at=runtime.oracle.utc(),
             _skip_validate_self=True,
         )
+        runtime._set_context(span)
         run.spans.append(span)
         try:
             with tracer.start_as_current_span(key):

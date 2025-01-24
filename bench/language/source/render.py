@@ -266,9 +266,10 @@ class Renderer:
         else:
             raise RuntimeError(f"unexpected type {typ!r}")
 
-    def render_custom_object_scalar(self, value: "CustomObject", typ: "TypeBase") -> str:
+    def render_custom_object(self, value: "CustomObject") -> str:
         """Renders single Object into an expression."""
         # collect kwargs
+        typ = value._type
         kwargs = _deconstruct_custom_object(value)
         rendered_kwargs = _render_custom_object_kwargs(self, value, kwargs)
         if value._type.kind == TypeKind.PARTIAL_OBJECT:
@@ -316,9 +317,9 @@ class Renderer:
         if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
             # nested object
             if not typ.is_list:
-                return self.render_custom_object_scalar(cast(CustomObject, value), typ)
+                return self.render_custom_object(cast(CustomObject, value))
             else:
-                return f"[{', '.join(self.render_custom_object_scalar(cast(CustomObject, v), typ) for v in cast(list, value))}]"
+                return f"[{', '.join(self.render_custom_object(cast(CustomObject, v)) for v in cast(list, value))}]"
         else:
             # scalar
             if not typ.is_list:
@@ -342,7 +343,7 @@ class Renderer:
     def render_object(self, obj: BuiltinObject | CustomObject):
         """Renders the given objects to a Python expression."""
         if isinstance(obj, CustomObject):
-            return self.render_custom_object_scalar(obj, obj._type)
+            return self.render_custom_object(obj)
         elif isinstance(obj, BuiltinObject):
             return self.render_builtin_object(obj)
         else:
@@ -353,7 +354,7 @@ class Renderer:
     ) -> str:
         """Renders a value into an expression."""
         if isinstance(value, CustomObject):
-            rendered = self.render_custom_object_scalar(value, value._type)
+            rendered = self.render_custom_object(value)
         elif isinstance(value, BuiltinObject):
             if isinstance(value, Node) and as_ref:
                 rendered = self.render_node_ref(value)

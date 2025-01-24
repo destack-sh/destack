@@ -105,8 +105,8 @@ const absoluteStyle = computed(() => {
       <!-- Main -->
       <div class="max-w-full min-w-0 py-1.5">
         <!-- Header -->
-        <div class="flex flex-row">
-          <span class="font-medium text-gray-700">{{ toast.title }}</span>
+        <div class="flex flex-row max-w-full">
+          <span class="font-medium text-gray-700 truncate">{{ toast.title }}</span>
         </div>
         <!-- Content -->
         <p v-if="toast.text" class="max-w-full truncate text-gray-400">

@@ -7,7 +7,6 @@ from opentelemetry import trace
 
 from bench.language import (
     Action,
-    Block,
     Code,
     CustomObject,
     HasContext,
@@ -17,32 +16,18 @@ from bench.language import (
     ProjectOptions,
     Renderer,
     RenderOptions,
-    Run,
     RunnableNode,
     RunOptions,
     RunSpanType,
-    RunType,
     Severity,
     TypeBase,
     run_span,
 )
-from bench.runtime.core import ATTEMPT_ONCE, RunIn, Runner, Runtime
-from bench.runtime.core.error import NotSupportedError
+from bench.runtime.core import ATTEMPT_ONCE, NotSupportedError, RunIn, Runner, Runtime
 
+from .instruct import make_chat_prompt
 from .model import ModelRunner
-from .prompt import (
-    CompilationContext,
-    Prompt,
-    PromptCompound,
-    PromptCustomObject,
-    PromptElement,
-    PromptNode,
-    PromptPart,
-    PromptRegion,
-    PromptRun,
-    PromptText,
-    PromptType,
-)
+from .prompt import CompilationContext, Prompt, PromptCompound, PromptElement, PromptPart
 
 if TYPE_CHECKING:
     pass
@@ -133,6 +118,8 @@ class ChatModelRunner(ModelRunner[Action], ABC):
     async def run(self) -> None:
         from bench.runtime.code import CodeFunctionRunner
 
+        assert self.output_type is not None, f"{self!r} has no output type"
+
         # build prompt
         with run_span(tracer, "model.compile", RunSpanType.MODEL_PREPARE, level=Severity.DEBUG):
             prompt = make_chat_prompt(
@@ -171,120 +158,6 @@ class ChatModelRunner(ModelRunner[Action], ABC):
         )
         await self.runtime.run_runner(code_runner)
         self.outputs = code_runner.outputs
-
-
-def make_chat_prompt(
-    action: Action,
-    runner: "Runner",
-    context: "HasContext",
-    variables: CustomObject | None,
-    inputs: CustomObject | None,
-    outputs: CustomObject | None,
-    output_type: TypeBase | None,
-) -> "Prompt":
-    """Build a Prompt from the given context."""
-    # general context
-    # nocheckin: examples, relevant enums, classes, ...
-    general_parts: list[PromptPart] = [
-        PromptText(
-            title="Example: Extract Action",
-            text="""
-Action1 = Action.new("Action1", fields=(Field.output("Output1", str), Field.output("Output2", int)))
-return {
-    "Output1": "Value1",
-    "Output2": 17,
-}
-""",
-        )
-    ]
-
-    # run
-    run_items: list[PromptPart] = []
-    seen_runs: set[Run] = set()
-    for i, ancestor in enumerate(reversed(tuple(runner.ancestors))):
-        if ancestor.tracked_run is not None:
-            run_items.append(
-                PromptRun(title=f"Parent Run {i}", weight=10, node=ancestor.tracked_run)
-            )
-    if (tracked_run := runner.closest_tracked_run) is not None:
-        # collect all incoming Runs up to the root (with decreasing weight)
-        max_depth = 10  # nocheckin: tunable
-        incoming_depth = 0
-        current_incoming: list[Run] = tracked_run.incoming
-        next_incoming: list[Run] = []
-        while current_incoming and incoming_depth < max_depth:
-            for run in current_incoming:
-                if run in seen_runs:
-                    continue
-                weight = max(1, max_depth - incoming_depth)
-                if run.type != RunType.PIPE:  # ignore pipes
-                    run_prompt = PromptRun(title=None, weight=1, node=run)
-                    run_region = PromptRegion(
-                        title=f"Incoming Run #{incoming_depth}",
-                        weight=weight,
-                        content=[run_prompt],
-                    )
-                    run_items.append(run_region)
-                seen_runs.add(run)
-                next_incoming.extend(run.incoming)
-            current_incoming = next_incoming
-            next_incoming = []
-            incoming_depth += 1
-
-    # local context
-    # nocheckin: tunable
-    context_blocks: set[Block] = set()
-    for run in seen_runs:
-        if (block := run.block) is not None:
-            context_blocks.add(block)
-    context_parts: list[PromptPart] = [
-        PromptNode(title=None, weight=1, node=block) for block in context_blocks
-    ]
-
-    # action
-    action_parts: list[PromptPart] = [
-        PromptNode(title="Action", weight=1, node=action),
-    ]
-    if variables is not None:
-        action_parts.append(PromptCustomObject(title="Variables", weight=1, object=variables))
-    if inputs is not None:
-        action_parts.append(PromptCustomObject(title="Inputs", weight=1, object=inputs))
-    if output_type is not None:
-        action_parts.append(PromptType(title="Output Type", weight=1, type=output_type))
-    if outputs is not None:
-        action_parts.append(PromptCustomObject(title="Outputs", weight=1, object=outputs))
-
-    prompt = Prompt(
-        action=action,
-        context=context,
-        items=[
-            PromptRegion(
-                title="General",
-                text="General system-provided examples and info that may be relevant",
-                weight=1,
-                content=general_parts,
-            ),
-            PromptRegion(
-                title="Context",
-                weight=3,
-                text="Other stuff from this specific Bench that may be relevant",
-                content=context_parts,
-            ),
-            PromptRegion(
-                title="Run",
-                text="The Run we're in (with all the parent and incoming Runs and their inputs/variables)",
-                weight=5,
-                content=run_items,
-            ),
-            PromptRegion(
-                title="Action",
-                text="The current Action that we need to complete",
-                weight=10,
-                content=action_parts,
-            ),
-        ],
-    )
-    return prompt
 
 
 def strip_code_completion(completion: str) -> str:
