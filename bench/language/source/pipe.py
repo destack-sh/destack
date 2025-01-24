@@ -53,9 +53,9 @@ class PipeType(IdEnum):
 
 @enum_(EnumType.PIPE_TRIGGER)
 class PipeTrigger(IdEnum):
-    ON_COMPLETED = 1
-    ON_FAILED = 2
-    ON_TERMINATED = 3
+    ON_COMPLETED = 1, "If the action succeeds"
+    ON_FAILED = 2, "If the action fails"
+    ON_TERMINATED = 3, "Always, success or failure"
 
 
 SIGN_BY_PIPE_TYPE: dict[PipeType, str] = {

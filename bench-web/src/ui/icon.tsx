@@ -38,6 +38,7 @@ import {
   ViewType,
   type AnyNodeData,
   type IconData,
+  PipeTrigger,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // fa-icons is generated with:
@@ -328,7 +329,13 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
 
 export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons<PipeType>({
   [PipeType.CALL]: "fas fa-arrow-right-long",
-  [PipeType.SELECT]: "fas fa-arrow-right-from-line",
+  [PipeType.SELECT]: "fas fa-square-dashed",
+});
+
+export const ICON_BY_PIPE_TRIGGER: Partial<Record<PipeTrigger, IconData>> = _makeIcons<PipeTrigger>({
+  [PipeTrigger.ON_COMPLETED]: "fas fa-circle-check",
+  [PipeTrigger.ON_FAILED]: "fas fa-circle-exclamation",
+  [PipeTrigger.ON_TERMINATED]: "fas fa-circle-stop",
 });
 
 export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons<ViewType>({
@@ -672,6 +679,7 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.BLOCK_TYPE]: ICON_BY_BLOCK_TYPE,
   [EnumType.ACTION_TYPE]: ICON_BY_ACTION_TYPE,
   [EnumType.PIPE_TYPE]: ICON_BY_PIPE_TYPE,
+  [EnumType.PIPE_TRIGGER]: ICON_BY_PIPE_TRIGGER,
   [EnumType.VIEW_TYPE]: ICON_BY_VIEW_TYPE,
   [EnumType.ALIGNMENT]: ICON_BY_ALIGNMENT,
   [EnumType.ANCHOR]: ICON_BY_ANCHOR,

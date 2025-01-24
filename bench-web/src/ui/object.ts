@@ -82,6 +82,7 @@ import {
   PressActionProperty,
   ScrollActionProperty,
   DuplicateActionProperty,
+  PipeType,
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
@@ -1156,12 +1157,15 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
 
 export class PipeLayout extends NodeLayout<NodeType.PIPE> {
   make() {
-    this.section(undefined, [
+    const commonRows = [
       this.rowProperty(PipeProperty.text, { title: false, props: { placeholder: "Text..." } }),
       this.rowProperty(PipeProperty.type),
-      this.rowProperty(PipeProperty.color),
-      this.rowProperty(PipeProperty.delay),
-    ]);
+    ];
+    if (this.node.type == PipeType.CALL) {
+      commonRows.push(this.rowProperty(PipeProperty.trigger));
+    }
+    commonRows.push(this.rowProperty(PipeProperty.color), this.rowProperty(PipeProperty.delay));
+    this.section(undefined, commonRows);
   }
 }
 
