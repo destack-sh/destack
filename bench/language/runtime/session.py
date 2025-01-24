@@ -18,6 +18,7 @@ from opentelemetry import trace
 
 from bench import pb2
 from bench.language.core import (
+    ACTIVE_SESSION,
     EMPTY_SCOPE_DATA,
     NODE_TYPES,
     BenchError,
@@ -42,7 +43,6 @@ from bench.language.core import (
     SplitChannel,
     Struct,
     StructType,
-    _active_session,
     p_internal,
     p_node_parent,
     p_runtime,
@@ -378,7 +378,7 @@ class Session(RuntimeNode[SessionData]):
                 bench_id=uuid_to_str(self.parent.bench_id), package_id=uuid_to_str(self.parent.id)
             )
         if _set_in_context:
-            self._active_session_tokens.append(_active_session.set(self))
+            self._active_session_tokens.append(ACTIVE_SESSION.set(self))
 
         # start flush loop
         self._commit_loop_task = asyncio.create_task(self._run_commit_loop())
@@ -413,7 +413,7 @@ class Session(RuntimeNode[SessionData]):
         self.duration = self.closed_at - self.opened_at
         for token in self._active_session_tokens:
             with suppress(ValueError):  # ignore error if token is from other context
-                _active_session.reset(token)
+                ACTIVE_SESSION.reset(token)
         self._active_session_tokens.clear()
 
         # remove dangling graph if this was a solo session
@@ -617,7 +617,7 @@ class Session(RuntimeNode[SessionData]):
         was_active = self._active_session_tokens is not None
         self._is_readonly = readonly
         self.unsuspend()
-        active_session_token = _active_session.set(self)
+        active_session_token = ACTIVE_SESSION.set(self)
         self._active_session_tokens.append(active_session_token)
         try:
             yield self
@@ -626,7 +626,7 @@ class Session(RuntimeNode[SessionData]):
                 self.suspend()
             elif not was_active and active_session_token in self._active_session_tokens:
                 with suppress(ValueError):  # ignore error from bad token
-                    _active_session.reset(active_session_token)
+                    ACTIVE_SESSION.reset(active_session_token)
                 self._active_session_tokens.remove(active_session_token)
             self._is_readonly = was_readonly
 

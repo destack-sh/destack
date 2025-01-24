@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bench.language import (
+    ACTIVE_SESSION,
     BENCH_NODE_TYPES,
     EMPTY_SCOPE_DATA,
     NODE_TYPES,
@@ -49,7 +50,6 @@ from bench.language import (
     Store,
     User,
     UserStatus,
-    _active_session,
 )
 from bench.proto import HostClient, RpcMetadata
 from bench.runtime import Runner
@@ -140,9 +140,9 @@ def make_package(session: Session):
 
 @pytest.fixture
 def session(session_async: Session):
-    _active_session.set(session_async)
+    ACTIVE_SESSION.set(session_async)
     yield session_async
-    _active_session.set(None)
+    ACTIVE_SESSION.set(None)
 
 
 @pytest.fixture
@@ -156,12 +156,12 @@ SHARED_SESSION = make_session("shared")
 
 # init shared builtin objects (in shared session)
 with warnings.catch_warnings(action="ignore"):
-    _active_session.set(SHARED_SESSION)
+    ACTIVE_SESSION.set(SHARED_SESSION)
     BUILTIN_OBJECTS = [
         draw_direct(from_object_type(object_type, reject_invalid=False))
         for object_type in OBJECT_TYPES
     ]
-    _active_session.set(None)
+    ACTIVE_SESSION.set(None)
 
 BUILTIN_OBJECTS_BY_TYPE: Mapping[ObjectType, BuiltinObject] = {
     obj.metatype: obj for obj in BUILTIN_OBJECTS
@@ -310,9 +310,9 @@ async def local_runtime_async(global_store: Store, regional_store: Store):
 
 @pytest.fixture
 def local_runtime(local_runtime_async: RuntimeHandle):  # :PytestAsyncContext
-    _active_session.set(local_runtime_async.session)
+    ACTIVE_SESSION.set(local_runtime_async.session)
     yield local_runtime_async
-    _active_session.set(None)
+    ACTIVE_SESSION.set(None)
 
 
 #
@@ -322,7 +322,7 @@ def local_runtime(local_runtime_async: RuntimeHandle):  # :PytestAsyncContext
 
 @pytest.fixture
 async def hosted_bench(global_store: Store, regional_store: Store):
-    _active_session.set(None)
+    ACTIVE_SESSION.set(None)
     async with create_global_session(global_store, regional_store, REAL_ORACLE) as session:
         user = User(
             slug="user",
@@ -386,7 +386,7 @@ async def hosted_bench(global_store: Store, regional_store: Store):
 
 @pytest.fixture
 async def host_service(global_store: Store, regional_store: Store, hosted_bench: Bench):
-    _active_session.set(None)
+    ACTIVE_SESSION.set(None)
     host = HostService(
         bench_id=hosted_bench.id,
         global_store=global_store,
@@ -477,6 +477,6 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
 
 @pytest.fixture
 def hosted_runtime(hosted_runtime_async: RuntimeHandle):  # :PytestAsyncContext
-    _active_session.set(hosted_runtime_async.session)
+    ACTIVE_SESSION.set(hosted_runtime_async.session)
     yield hosted_runtime_async
-    _active_session.set(None)
+    ACTIVE_SESSION.set(None)

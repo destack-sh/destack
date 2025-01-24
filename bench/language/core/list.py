@@ -435,14 +435,9 @@ class ValueList(list, Generic[ValueParentT]):
         *args,
         **kwargs,
     ):  # type: ignore
-        from .object import Property
-
         super().__init__(*args, **kwargs)
         self.parent = parent
         self.parent_key = parent_key
-        self.is_property_reference = (
-            isinstance(parent_key, Property) and parent_key.is_property_reference
-        )
 
     def append(
         self,
@@ -450,13 +445,17 @@ class ValueList(list, Generic[ValueParentT]):
         after: ValueT | None = None,
         before: ValueT | None = None,
     ) -> None:
-        if not self.is_property_reference:
+        from .property import Property
+
+        if not (type(self.parent_key) is Property and self.parent_key.is_property_reference):
             item = item._move_to(self.parent, self.parent_key)  # type: ignore
         super().append(item)
 
     def extend(self, items: Collection[ValueT]):  # type: ignore
         super().extend(items)
-        if not self.is_property_reference:
+        from .property import Property
+
+        if not (type(self.parent_key) is Property and self.parent_key.is_property_reference):
             values = cast(list[Union["CustomObject", "Struct"]], items)
             if any(item.parent is not None for item in values):
                 values = [e._copy_to(self.parent, self.parent_key) for e in items]  # type: ignore

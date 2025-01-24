@@ -1385,26 +1385,27 @@ class BenchError(Exception):
     pass
 
 
-_active_session: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
+IS_IN_USER_CODE = contextvars.ContextVar("is_in_user_code", default=False)
+ACTIVE_SESSION: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
     "active_session", default=None
 )
 
 
 def active_session() -> "Session":
     """Gets the currently active Session (error if none)."""
-    session = _active_session.get()
+    session = ACTIVE_SESSION.get()
     assert session is not None, "no active session"
     return session
 
 
 def get_active_session() -> Optional["Session"]:
     """Gets the currently active Session (if any)."""
-    return _active_session.get()
+    return ACTIVE_SESSION.get()
 
 
 def active_tx() -> "Transaction":
     """Gets the currently active Transaction (error if none)."""
-    session = _active_session.get()
+    session = ACTIVE_SESSION.get()
     assert session is not None, "no active session"
     assert session._tx is not None, f"no active transaction in {session!r}"
     return session._tx
@@ -1412,7 +1413,7 @@ def active_tx() -> "Transaction":
 
 def get_active_tx() -> Optional["Transaction"]:
     """Gets the currently active Transaction (if any)."""
-    session = _active_session.get()
+    session = ACTIVE_SESSION.get()
     if session is None:
         return None
     return session._tx
@@ -1434,7 +1435,7 @@ def run_span(
     from bench.language import RunSpan, Severity
 
     if runner is None:
-        session = _active_session.get()
+        session = ACTIVE_SESSION.get()
         runtime = session._runtime if session is not None else None
         runner = runtime.active_runner if runtime is not None else None
         run = runner.closest_tracked_run if runner is not None else None
@@ -1462,5 +1463,6 @@ def run_span(
             with tracer.start_as_current_span(key):
                 yield span
         finally:
-            span._do_set("terminated_at", runtime.oracle.utc(), validate=False)
-            span._do_set("duration", span.terminated_at - span.started_at, validate=False)  # type: ignore
+            assert span.started_at is not None, f"no started_at for {span!r}"
+            span.terminated_at = runtime.oracle.utc()
+            span.duration = span.terminated_at - span.started_at
