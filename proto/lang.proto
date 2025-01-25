@@ -2048,10 +2048,10 @@ message MachineImageData {
 
 message CallData {
   ObjectType metatype = 1;
-  optional string title = 33;
-  optional TextData text = 34;
-  NodeReferenceData node_ptr = 40;
-  optional google.protobuf.Value value_packed = 41;
+  NodeReferenceData node_ptr = 33;
+  optional google.protobuf.Value value_packed = 34;
+  optional string title = 40;
+  optional TextData text = 41;
 }
 
 message CallPlanData {
@@ -2833,7 +2833,8 @@ message RunSpanData {
   optional ErrorData error = 54;
   optional string title = 60;
   optional TextData text = 61;
-  repeated NodeReferenceData nodes_ptr = 62;
+  optional CodeData code = 62;
+  repeated NodeReferenceData nodes_ptr = 65;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
   optional NodeReferenceData client_ptr = 93;
@@ -2880,6 +2881,7 @@ message RunData {
   optional google.protobuf.Value outputs_packed = 72;
   optional string title = 74;
   optional TextData text = 75;
+  optional CodeData code = 76;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
   optional NodeReferenceData client_ptr = 93;

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { getBaseFromNode, toCamelName } from "@/language/const";
+import { DYNAMIC_ACTION_TYPES, getBaseFromNode, toCamelName } from "@/language/const";
 import { ReadNodeGraph } from "@/language/graph";
 import {
   getRunDurationMs,
@@ -11,6 +11,7 @@ import {
   isRunTerminal,
   RunnableNode,
 } from "@/language/run";
+import { unpackBuiltinObjectProperty, unpackValue } from "@/language/value";
 import {
   AnyNodeData,
   ColorShade,
@@ -27,15 +28,20 @@ import {
   RunSpanType,
   RunStatus,
   ViewData,
+  ActionProperty,
+  ActionData,
+  ActionType,
 } from "@/proto/wire";
-import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
-import { getInputType, getOutputType, runtime, RunTree } from "@/system/runtime";
+import { describeNode, isNode, propertyInfo, TypedNodeReferenceData } from "@/proto/wiring";
+import { getInputType, getOutputType, getRunActions, runtime, RunTree } from "@/system/runtime";
 import { canvas } from "@/system/space";
 import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_SPAN_TYPE, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { COLOR_BY_RUN_STATUS, getColorHex, getRunColorHex } from "@/ui/style";
 import { assertNever } from "@/utils/functools";
+import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import { formatDuration, getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
 import Error from "@/views/builtins/Error.vue";
+import Code from "@/views/content/Code.vue";
 import SomeObject from "@/views/objects/Object.vue";
 import { useElementSize } from "@vueuse/core";
 import { DateTime } from "luxon";
@@ -55,6 +61,7 @@ const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.R
 const containerRef = ref<HTMLElement | null>(null);
 const { width: containerWidth, height: containerHeight } = useElementSize(containerRef);
 const spanContainerWidth = computed(() => containerWidth.value);
+const codeExpandedSpanIds: Ref<string[]> = ref([]);
 
 // wait for initial render to complete so the transition-all doesn't look glitchy on mount
 const isInitialRender = ref(true);
@@ -63,10 +70,6 @@ onMounted(() => {
     isInitialRender.value = false;
   }, 100);
 });
-
-//
-// Run
-//
 
 const runTree = new RunTree(props.graph, nodePtr);
 const minLevel: Ref<Severity> = ref(Severity.INFO);
@@ -251,8 +254,33 @@ watchEffect(() => {
               class="ml-1 w-5 text-center"
             />
           </button>
-          <!-- Status -->
-          <div class="ml-auto">
+          <!-- Status / Actions -->
+          <div class="ml-auto flex flex-row items-center gap-x-1.5">
+            <button
+              v-if="
+                IS_DEVELOPER_MODE && (thing.baseNode as ActionData).type != ActionType.CODE && thing.span.code != null
+              "
+              class="rounded px-0.5 transition-colors duration-150 hover:bg-gray-100"
+              :class="[
+                codeExpandedSpanIds.includes(thing.id) ? 'text-primary-700' : 'text-gray-400 hover:text-gray-700',
+              ]"
+              @click="
+                codeExpandedSpanIds.includes(thing.id)
+                  ? codeExpandedSpanIds.splice(codeExpandedSpanIds.indexOf(thing.id), 1)
+                  : codeExpandedSpanIds.push(thing.id)
+              "
+            >
+              <span class="fas fa-code" />
+            </button>
+            <button
+              v-for="action in getRunActions(thing.span)"
+              :key="action.title"
+              v-tooltip="{ title: action.title, small: true, group: 'run.header' }"
+              class="rounded px-0.5 text-gray-400 transition-colors duration-150 hover:text-gray-700"
+              @click="action.action()"
+            >
+              <IconInline v-bind="action.icon" />
+            </button>
             <span class="text-gray-400">
               {{ getRunDurationString(thing.span, { minUnit: "s" }) }}
             </span>
@@ -287,6 +315,22 @@ watchEffect(() => {
               is-minimal
               :model-value="thing.span.outputsPacked"
             />
+            <!-- Model logic for dynamic actions -->
+            <div
+              v-if="
+                IS_DEVELOPER_MODE &&
+                (thing.baseNode as any).type != ActionType.CODE &&
+                (thing.span.code as any) != null &&
+                codeExpandedSpanIds.includes(thing.id)
+              "
+              class="mt-2"
+            >
+              <div>
+                <span class="fas fa-code mr-1.5 text-gray-700" />
+                <span class="">Code</span>
+              </div>
+              <Code id="code" class="mt-1" :model-value="thing.span.code" />
+            </div>
             <!-- Interruption -->
             <div v-if="thing.interruption != null" class="">
               <span>The Run was interrupted.</span>

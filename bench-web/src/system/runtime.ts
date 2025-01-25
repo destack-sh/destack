@@ -420,7 +420,7 @@ export function getRunActions(run: RunData): RuntimeAction[] {
         runtime.stop(run);
       },
     });
-  } else if (isRunTerminal(run)) {
+  } else if (isRunTerminal(run) && run.rootPtr == null) {
     actions.push({
       title: "Replay",
       isPrimary: true,
