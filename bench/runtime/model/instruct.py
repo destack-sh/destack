@@ -17,13 +17,15 @@ from bench.runtime.core import Runner
 
 from .prompt import (
     Prompt,
+    PromptBreak,
     PromptCustomObject,
     PromptNode,
     PromptPart,
     PromptRegion,
     PromptRun,
+    PromptRunPlan,
+    PromptSeparator,
     PromptText,
-    PromptType,
 )
 
 SYSTEM_PROMPT = f"""\
@@ -128,10 +130,10 @@ Generally, Resources are automatically acquired and released as needed.
 Actions are what you're here to do, and Actions are the only way a Bench can act.
 Essentially, Actions are more or less open-ended small tasks.
 
-7.1. Implementation [YOUR TASK]
+7.1. Implementation
 Your one and only job is to complete the specific Action you're given.
 This may mean mean just returning a simple answer directly as a dict,
- doing more fancy stuff in Python, and/or editing the Bench directly.
+ doing more fancy stuff in Python, or modifying the Bench directly.
  - You MUST complete the Action by generating inline code that will be executed in your Bench shell.
  - You MAY interpret the Action when it's vague according to the action type
    (guess less the more specific the instructions are).
@@ -139,21 +141,20 @@ This may mean mean just returning a simple answer directly as a dict,
 
 7.2. ActionTypes
 Actions have a type that SHOULD be respected. 
-Your default stance and degree of freedom is determined by the context and the action type.
 You SHOULD NOT edit the Bench directly in any way unless you are explicitly asked to do so. 
-Dynamic actions have an open-ended implementation, like:
+Your default approach and degree of freedom is determined by the context and the action type:
   - ActionType.EXTRACT means you MUST NOT produce outputs that aren't grounded in the inputs or context.
   - ActionType.GENERATE means you SHOULD generate outputs more freeform.
   - ActionType.CHANGE means you SHOULD edit the Bench.
   - ActionType.DO means you can do anything.
 You MUST adhere to the action type and the context.
 Sometimes, part of the Action was already completed for you and you're given existing outputs,
- in that case, you MUST complete the missing/required outgoing calls (leaving the rest untouched).
+ in that case, you MUST complete the missing/required outgoing plans (leaving the rest untouched).
 
 7.3. Action Calling
 You MAY delegate to other Actions by 'calling' them if they are connected via outgoing Pipes.
- - Actions 'call' other Actions they are connected by returning an array of Calls
-  (You MUST NOT call any Actions directly like a Python function, that DOES NOT WORK.).
+ - Actions 'call' other Actions they are connected by returning CallPlans.
+  (You MUST NOT invoke Actions directly like a Python function, that DOES NOT WORK.).
  - If you Action is connected to a Tool Action, you may 'call' a generic tool (Action/Block) there.
 
 7.4. Action Guidelines
@@ -168,8 +169,8 @@ You have access to most of Python, common libraries, the internet and the Bench.
 
 7.5. Bench Python Shell
 You live in a Python shell and are expected to use Bench-native stuff.
-- You MUST NOT alias given globals; you MUST use alternative names to avoid shadowing.
-- You MUST `return` your outputs (inline, at the end).
+- You MUST NOT alias built-in objects or functions; you MUST use alternative names to avoid shadowing.
+- You MUST `return` your final outputs (inline, at the end).
 - You SHOULD use built-in Actions where possible (like to control a Browser).
   - If there is something specific you need to do that isn't provided, you SHOULD raise ModelIncapableError.
 - You cannot prompt the user directly, but you MAY yield by calling a YieldAction. 
@@ -213,30 +214,38 @@ def make_chat_prompt(
             run_items.append(
                 PromptRun(title=f"Parent Run {i}", weight=10, node=ancestor.tracked_run)
             )
-    if (tracked_run := runner.closest_tracked_run) is not None:
+    if (run := runner.closest_tracked_run) is not None:
         # collect all incoming Runs up to the root (with decreasing weight)
         max_depth = 10  # :Tunable
         incoming_depth = 0
-        current_incoming: list[Run] = tracked_run.incoming
+        current_incoming: list[Run] = run.incoming
         next_incoming: list[Run] = []
+        all_incoming: list[Run] = []
         while current_incoming and incoming_depth < max_depth:
             for run in current_incoming:
                 if run in seen_runs:
                     continue
-                weight = max(1, max_depth - incoming_depth)
-                if run.type != RunType.PIPE:  # ignore pipes
-                    run_prompt = PromptRun(title=None, weight=1, node=run)
-                    run_region = PromptRegion(
-                        title=f"Incoming Run #{incoming_depth}",
-                        weight=weight,
-                        content=[run_prompt],
-                    )
-                    run_items.append(run_region)
+                if run.type != RunType.PIPE:  # skip pipes
+                    all_incoming.append(run)
                 seen_runs.add(run)
                 next_incoming.extend(run.incoming)
             current_incoming = next_incoming
             next_incoming = []
             incoming_depth += 1
+        for run in reversed(all_incoming):
+            weight = max(1, max_depth - incoming_depth)
+            run_prompt = PromptRun(title=None, weight=1, node=run)
+            run_region = PromptRegion(
+                title=f"Incoming Run -{incoming_depth}",
+                weight=weight,
+                content=[run_prompt],
+            )
+            run_items.append(run_region)
+        # plan
+        if (plan := runner.plan) is not None:
+            run_items.append(
+                PromptRunPlan(title="The Current Run Plan", weight=1, plan=plan, run=run)
+            )
 
     # local context :Tunable
     context_blocks: set[Block] = set()
@@ -250,43 +259,42 @@ def make_chat_prompt(
     # action
     action_parts: list[PromptPart] = [
         PromptNode(title="Action", weight=1, node=action),
+        PromptBreak(title=None),
+        PromptSeparator(title=None),
         PromptText(
             None,
-            """\
-Remember, it's an {action.type.name}Action, so conform to its type: 
+            f"""\
+Remember, it's a {action.type.name} Action, so conform to its type: 
 "{action.type.text}".
 """,
         ),
     ]
-    if variables is not None:
+    if variables is not None and variables.any():
         action_parts.append(PromptCustomObject(title="Variables", weight=1, object=variables))
-    if inputs is not None:
+    if inputs is not None and inputs.any():
         action_parts.append(PromptCustomObject(title="Inputs", weight=1, object=inputs))
     if outputs is None:
         # no existing outputs, planning
-        action_parts.append(  # noqa: FURB113
+        action_parts.append(
             PromptText(
-                "Extra Action Instructions",
-                """\
-You MUST complete the Action and generate the outputs including the call plan (if any).
-The schema for the ActionType is given below.
+                title=None,
+                text="""\
+You MUST complete the Action and generate the outputs including the call plans (if any).
 """,
             )
         )
-        action_parts.append(PromptType(title="Output Type", weight=1, type=output_type))
     else:
         # existing outputs, only planning
         action_parts.append(  # noqa: FURB113
             PromptText(
-                "Extra Action Instructions",
-                """\
-You MUST generate the call plan (if any).
+                title=None,
+                text="""\
+You MUST generate the call plans (if any).
 You are already given existing outputs, so you MUST return the existing outputs *as is*.
  - You MUST NOT edit the existing outputs, just do `return { **outputs, ...}`.
 """,
             )
         )
-        action_parts.append(PromptType(title="Output Type", weight=1, type=output_type))
         action_parts.append(PromptCustomObject(title="Outputs", weight=2, object=outputs))
 
     # general context (relative to all the other stuff)
@@ -294,40 +302,46 @@ You are already given existing outputs, so you MUST return the existing outputs 
     general_parts: list[PromptPart] = []
     general_examples = get_examples(action, runner)
 
-    prompt = Prompt(
-        action=action,
-        context=context,
-        items=[
-            PromptRegion(
-                title="General info",
-                text="General system info",
-                weight=1,
-                content=general_parts,
-            ),
-            PromptRegion(
-                title="General examples",
-                text="General system-provided examples",
-                weight=1,
-                content=general_examples,
-            ),
-            PromptRegion(
-                title="Context",
-                weight=3,
-                text="Other stuff from the involved Benches",
-                content=context_parts,
-            ),
-            PromptRegion(
-                title="Run",
-                text="The Run you're in (with all the parent and incoming Runs and their inputs/variables)",
-                weight=5,
-                content=run_items,
-            ),
-            PromptRegion(
-                title="Action",
-                text="The current Action to complete",
-                weight=10,
-                content=action_parts,
-            ),
-        ],
-    )
+    # assemble
+    prompt_items: list[PromptPart] = [
+        PromptRegion(
+            title="General info",
+            text="General system info",
+            weight=1,
+            content=general_parts,
+        ),
+        PromptRegion(
+            title="General examples",
+            text="General system-provided examples",
+            weight=1,
+            content=general_examples,
+        ),
+        PromptRegion(
+            title="Context",
+            weight=3,
+            text="Other stuff from the involved Benches",
+            content=context_parts,
+        ),
+        PromptRegion(
+            title="Run",
+            text="The Run you're in (with all the parent and incoming Runs and their inputs/variables)",
+            weight=5,
+            content=run_items,
+        ),
+        PromptRegion(
+            title="Action",
+            text="The current Action to complete",
+            weight=10,
+            content=action_parts,
+        ),
+        PromptBreak(title=None),
+        PromptText(
+            title=None,
+            text="""\
+Now it's your turn. Complete the Action as specified in your Bench Python shell.
+""",
+        ),
+        PromptBreak(title=None),
+    ]
+    prompt = Prompt(action=action, context=context, items=prompt_items)
     return prompt

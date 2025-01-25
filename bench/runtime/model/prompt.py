@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Sequence, override
 
 from bench.language import (
     Action,
-    Code,
+    ActionType,
     CustomObject,
     FileBase,
     HasContext,
@@ -12,12 +12,10 @@ from bench.language import (
     Renderer,
     RenderOptions,
     Run,
+    RunPlan,
     SourceNode,
-    Text,
-    TypeBase,
     render_expression,
     render_statement,
-    sample_value,
 )
 from bench.utils.func import IdEnum
 
@@ -60,6 +58,11 @@ class PromptElement(PromptPart, ABC):
 
 @dataclass
 class PromptBreak(PromptElement):
+    """A gap in the prompt."""
+
+
+@dataclass
+class PromptSeparator(PromptElement):
     """A semantic break in the prompt."""
 
     text: str | None = None
@@ -69,7 +72,14 @@ class PromptBreak(PromptElement):
 class PromptText(PromptElement):
     """Arbitrary text in the prompt."""
 
-    text: str | Text | Code
+    text: str
+
+
+@dataclass
+class PromptCode(PromptElement):
+    """Arbitrary code in the prompt."""
+
+    code: str
 
 
 @dataclass
@@ -78,6 +88,8 @@ class PromptFile(PromptElement):
 
     file: FileBase
 
+
+BasicPromptPart = PromptBreak | PromptSeparator | PromptText | PromptFile
 
 #
 # Compound Prompt elements
@@ -104,9 +116,10 @@ class PromptRegion(PromptCompound):
     @override
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
         return (
-            PromptBreak(title=self.title, text=self.text),
-            *self.content,
             PromptBreak(title=None),
+            PromptSeparator(title=self.title, text=self.text),
+            *self.content,
+            PromptSeparator(title=None),
         )
 
 
@@ -121,22 +134,35 @@ class PromptRun(PromptCompound):
         parts: list[PromptPart] = [
             PromptText(title="Run", text=f"Run {self.node.base!r} ({self.node.status.bench_name})"),
         ]
-        if self.node.variables:
+        if self.node.variables and self.node.variables.any():
             parts.append(
                 PromptCustomObject(title="Variables", weight=1, object=self.node.variables)
             )
-        if self.node.inputs:
+        if (
+            self.node.inputs
+            and self.node.inputs.any()
+            and not (isinstance(self.node, Action) and self.node.type == ActionType.START)
+        ):
             parts.append(PromptCustomObject(title="Inputs", weight=1, object=self.node.inputs))
-        else:
-            parts.append(PromptText(title="Inputs", text="No inputs"))
-        if self.node.status.is_terminal:
-            if self.node.outputs:
-                parts.append(
-                    PromptCustomObject(title="Outputs", weight=1, object=self.node.outputs)
-                )
-            else:
-                parts.append(PromptText(title="Outputs", text="No outputs"))
+        if self.node.outputs and self.node.outputs.any():
+            parts.append(PromptCustomObject(title="Outputs", weight=1, object=self.node.outputs))
         return parts
+
+
+@dataclass
+class PromptRunPlan(PromptCompound):
+    """A RunPlan. Expands to RunPlan variables, inputs and outputs."""
+
+    plan: RunPlan
+    run: Run
+
+    @override
+    async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
+        plan_code = render_statement(self.plan, options=context.render_options)
+        return [
+            PromptText(title=self.title, text=f"You are at step {self.run.plan_step} of this plan"),
+            PromptCode(title=None, code=plan_code),
+        ]
 
 
 @dataclass
@@ -154,7 +180,7 @@ class PromptNode(PromptCompound):
             if n.metatype not in context.render_options.folded_child_types and n != self.node
         )
         node_code = render_statement(self.node, options=context.render_options)
-        return [PromptText(title=self.title, text=f"{context_code}\n\n{node_code}")]
+        return [PromptCode(title=self.title, code=f"{context_code}\n\n{node_code}")]
 
 
 @dataclass
@@ -165,26 +191,8 @@ class PromptCustomObject(PromptCompound):
 
     @override
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
-        # nocheckin: render custom object better
         code = render_expression(self.object, options=context.render_options)
-        return [PromptText(title=self.title, text=code)]
-
-
-@dataclass
-class PromptType(PromptCompound):
-    """A Type. Expands to definition, references and examples."""
-
-    type: TypeBase
-
-    @override
-    async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
-        code = render_expression(self.type, options=context.render_options)
-        sample_object = sample_value(self.type)
-        assert isinstance(sample_object, CustomObject), f"bad sample object {sample_object!r}"
-        return [
-            PromptText(title=self.title, text=code),
-            PromptCustomObject(title="Example value", weight=1, object=sample_object),
-        ]
+        return [PromptCode(title=self.title, code=code)]
 
 
 class Prompt:

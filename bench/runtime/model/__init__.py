@@ -4,13 +4,13 @@ from .model import ModelRunner
 from .openai import OpenaiChatModelRunner
 from .prompt import (
     Prompt,
-    PromptBreak,
     PromptElement,
     PromptFile,
     PromptNode,
     PromptPart,
     PromptRegion,
     PromptRun,
+    PromptSeparator,
     PromptText,
 )
 
@@ -20,13 +20,13 @@ __all__ = [
     "ModelRunner",
     "OpenaiChatModelRunner",
     "Prompt",
-    "PromptBreak",
     "PromptElement",
     "PromptFile",
     "PromptNode",
     "PromptPart",
     "PromptRegion",
     "PromptRun",
+    "PromptSeparator",
     "PromptText",
     "make_chat_prompt",
 ]
