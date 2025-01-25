@@ -23,9 +23,11 @@ from .prompt import (
     PromptPart,
     PromptRegion,
     PromptRun,
+    PromptRunAttempt,
     PromptRunPlan,
     PromptSeparator,
     PromptText,
+    prompt_region,
 )
 
 SYSTEM_PROMPT = f"""\
@@ -206,46 +208,59 @@ def make_chat_prompt(
     """Build a Prompt from the given context."""
     from .example import get_examples
 
+    run = runner.closest_tracked_run
+    assert run is not None, f"{runner!r} is not tracked"
+
     # run
     run_items: list[PromptPart] = []
     seen_runs: set[Run] = set()
-    for i, ancestor in enumerate(reversed(tuple(runner.ancestors))):
+    run_ancestors = tuple(runner.ancestors)
+    for i, ancestor in enumerate(reversed(run_ancestors)):
         if ancestor.tracked_run is not None:
-            run_items.append(
-                PromptRun(title=f"Parent Run {i}", weight=10, node=ancestor.tracked_run)
-            )
-    if (run := runner.closest_tracked_run) is not None:
-        # collect all incoming Runs up to the root (with decreasing weight)
-        max_depth = 10  # :Tunable
-        incoming_depth = 0
-        current_incoming: list[Run] = run.incoming
-        next_incoming: list[Run] = []
-        all_incoming: list[Run] = []
-        while current_incoming and incoming_depth < max_depth:
-            for run in current_incoming:
-                if run in seen_runs:
-                    continue
-                if run.type != RunType.PIPE:  # skip pipes
-                    all_incoming.append(run)
-                seen_runs.add(run)
-                next_incoming.extend(run.incoming)
-            current_incoming = next_incoming
-            next_incoming = []
-            incoming_depth += 1
-        for run in reversed(all_incoming):
-            weight = max(1, max_depth - incoming_depth)
-            run_prompt = PromptRun(title=None, weight=1, node=run)
-            run_region = PromptRegion(
-                title=f"Incoming Run -{incoming_depth}",
-                weight=weight,
-                content=[run_prompt],
-            )
+            offset = len(run_ancestors) - i
+            run_part = PromptRun(title=None, weight=10, node=ancestor.tracked_run)
+            run_region = prompt_region(run_part, title=f"Ancestor Run -{offset}", weight=10)
             run_items.append(run_region)
-        # plan
-        if (plan := runner.plan) is not None:
-            run_items.append(
-                PromptRunPlan(title="The Current Run Plan", weight=1, plan=plan, run=run)
-            )
+    # collect all incoming Runs up to the root (with decreasing weight)
+    max_depth = 20  # :Tunable
+    incoming_depth = 0
+    current_incoming: list[Run] = run.incoming
+    next_incoming: list[Run] = []
+    all_incoming: list[Run] = []
+    while current_incoming and incoming_depth < max_depth:
+        for r in current_incoming:
+            if r in seen_runs:
+                continue
+            if r.type != RunType.PIPE:  # skip pipes
+                all_incoming.append(r)
+            seen_runs.add(r)
+            next_incoming.extend(r.incoming)
+        current_incoming = next_incoming
+        next_incoming = []
+        incoming_depth += 1
+    for i, r in enumerate(reversed(all_incoming)):
+        offset = len(all_incoming) - i
+        weight = max(1, max_depth - offset)
+        run_part = PromptRun(title=None, weight=1, node=r)
+        run_region = prompt_region(run_part, title=f"Incoming Run -{offset}", weight=weight)
+        run_items.append(run_region)
+    # plan
+    if (plan := runner.plan) is not None:
+        plan_part = PromptRunPlan(title="Current Run Plan", weight=10, plan=plan, run=run)
+        plan_region = prompt_region(plan_part, title="Run Plan", weight=10)
+        run_items.append(plan_region)
+    # attempts
+    if len(attempts := runner.attempts) > 1:
+        for i, attempt in enumerate(attempts):
+            if attempt.status.is_active:
+                continue  # ignore active attempts
+            attempt_part = PromptRunAttempt(title=None, weight=1, attempt=attempt)
+            attempt_region = prompt_region(attempt_part, title=f"Attempt {i}", weight=10)
+            run_items.append(attempt_region)
+    # current run
+    run_part = PromptRun(title=None, weight=10, node=run)
+    run_region = prompt_region(run_part, title="Current Run", weight=10)
+    run_items.append(run_region)
 
     # local context :Tunable
     context_blocks: set[Block] = set()
@@ -339,6 +354,7 @@ You are already given existing outputs, so you MUST return the existing outputs 
             title=None,
             text="""\
 Now it's your turn. Complete the Action as specified in your Bench Python shell.
+Valid inline Python; as concise as possible; minimal comments.
 """,
         ),
         PromptBreak(title=None),

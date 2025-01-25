@@ -69,7 +69,6 @@ class AnthropicChatModelRunner(ChatModelRunner):
                 text = f"# {part.title}\n{part.code}" if part.title else part.code
                 content.append({"role": "user", "content": text})
             elif isinstance(part, PromptFile):
-                # nocheckin: handle files
                 raise NotSupportedError(f"file {part.file!r} not supported yet")
             else:
                 raise RuntimeError(f"unexpected part {part!r}")
