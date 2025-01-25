@@ -152,8 +152,15 @@ class ActionType(IdEnum):
         return self < 40
 
     @property
+    def is_dynamic(self) -> bool:
+        return self >= 200 and self < 300
+
+    @property
     def is_container(self) -> bool:
         return self >= 8000 and self < 9000
+
+
+DYNAMIC_ACTION_TYPES = [t for t in ActionType if t.is_dynamic]
 
 
 @node_(NodeType.ACTION, passthrough_get=("value", "fields"), has_subtypes=True)

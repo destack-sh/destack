@@ -1,3 +1,4 @@
+import math
 from datetime import datetime
 from typing import cast
 
@@ -241,6 +242,39 @@ def test_roundtrip_scalar_value(session: Session, package: Package) -> None:
     block.value = 42
     assert block.value == 42
     assert unpack_value(block.value_packed, type_info, wrap_scalar=True) == 42
+
+
+def test_unpack_custom_object(session: Session, package: Package) -> None:
+    """Unpack a custom object with a nested value."""
+
+    Action1 = Action.new(
+        ActionType.CODE,
+        "Action1",
+        fields=[
+            Field.input("Input1", int),
+            Field.input("Input2", float),
+            Field.input("Input3", str),
+            Field.output("Output1", int),
+        ],
+    )
+    input_type = Action1.input_type_field_only
+    assert input_type is not None, f"no input_type for {Action1!r}"
+    obj = coerce_custom_object_scalar(
+        {
+            "Input1": 42,
+            "Input2": math.pi,
+            "Input3": "hello bench!",
+        },
+        input_type,
+    )
+    assert obj.Input1 == 42
+
+    obj_unpacked = {**obj}
+    assert obj_unpacked == {
+        "Input1": 42,
+        "Input2": math.pi,
+        "Input3": "hello bench!",
+    }
 
 
 @given(obj=builtin_objects())
