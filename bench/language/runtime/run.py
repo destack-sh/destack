@@ -48,6 +48,7 @@ if TYPE_CHECKING:
         CallFailureMode,
         CallPlan,
         CallTerminationMode,
+        Code,
         CustomObject,
         Error,
         ErrorType,
@@ -233,7 +234,8 @@ class RunSpan(RuntimeNode[RunSpanData]):
     # content
     title: str | None = p_regular(60, default=None)
     text: Optional["Text"] = p_regular(61, default=None, struct=StructType.TEXT)
-    nodes: list["Node"] = p_regular(62, array=True, require=False, references="any")
+    code: Optional["Code"] = p_regular(62, default=None, struct=StructType.CODE)
+    nodes: list["Node"] = p_regular(65, array=True, require=False, references="any")
 
     @property
     def is_retryable(self) -> bool:
@@ -321,7 +323,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     )
     title: str | None = p_regular(74, default=None)
     text: Optional["Text"] = p_regular(75, default=None, struct=StructType.TEXT)
-
+    code: Optional["Code"] = p_regular(76, default=None, struct=StructType.CODE)
     # ...HasContext[90-99]
 
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)

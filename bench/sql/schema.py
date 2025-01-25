@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.24.1"
+VERSION = "2025.01.25.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1087,6 +1087,7 @@ RUN_TABLE = Table(
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("title", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1132,6 +1133,7 @@ RUN_SPAN_TABLE = Table(
         Column("error", PrimitiveType.JSON, is_nullable=True),
         Column("title", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("nodes_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("nodes_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("nodes_type", PrimitiveType.INT16, is_array=True, is_nullable=True),

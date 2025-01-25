@@ -171,7 +171,10 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
                 await self.runtime.run_runner(model_runner)
             finally:
                 if model_runner.code is not None:
-                    self.action.code = model_runner.code
+                    # track code in both RunSpan and Run
+                    self.tracked.code = model_runner.code
+                    if self.tracked_run is not None and self.tracked_run is not self.tracked:
+                        self.tracked_run.code = model_runner.code
                 assert model_runner.outputs is not None, f"no outputs for {model_runner!r}"
                 if self.outputs is not None:
                     self.outputs.set_default(model_runner.outputs)
@@ -218,7 +221,10 @@ class DynamicActionRunner[A: Action = Action](ActionRunner[A]):
             await self.runtime.run_runner(model_runner)
         finally:
             if model_runner.code is not None:
-                self.action.code = model_runner.code
+                # track code in both RunSpan and Run
+                self.tracked.code = model_runner.code
+                if self.tracked_run is not None and self.tracked_run is not self.tracked:
+                    self.tracked_run.code = model_runner.code
             self.outputs = model_runner.outputs
 
 
@@ -254,9 +260,12 @@ class FailActionRunner(ActionRunner[FailAction]):
 #
 
 
-class CodeActionRunner(StaticActionRunner[CodeAction]):
+class CodeActionRunner(ActionRunner[CodeAction]):
+    # NOTE: Code runner is static and must generate its own Plans
+    #  (so we don't auto-generate them to simplify things, thus we don't inherit StaticActionRunner)
+
     @override
-    async def run_static(self) -> None:
+    async def run(self) -> None:
         from bench.runtime.code import CodeFunctionRunner
 
         code_runner = CodeFunctionRunner(
