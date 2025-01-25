@@ -8,7 +8,15 @@ from bench.runtime.model.instruct import get_system_prompt
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner, strip_code_completion
-from .prompt import Prompt, PromptBreak, PromptElement, PromptFile, PromptText
+from .prompt import (
+    Prompt,
+    PromptBreak,
+    PromptCode,
+    PromptElement,
+    PromptFile,
+    PromptSeparator,
+    PromptText,
+)
 
 if TYPE_CHECKING:
     pass
@@ -44,18 +52,24 @@ class AnthropicChatModelRunner(ChatModelRunner):
         content: list[anthropic_types.MessageParam] = []
         for part in parts:
             if isinstance(part, PromptBreak):
+                content.append({"role": "user", "content": "\n\n"})
+            elif isinstance(part, PromptSeparator):
                 content.append({"role": "user", "content": self.SEPARATOR})
                 if part.title:
-                    content.append({"role": "user", "content": f"{part.title}"})
+                    content.append({"role": "user", "content": f"# {part.title}"})
                     if part.text:
-                        content.append({"role": "user", "content": part.text})
+                        content.append({"role": "user", "content": f"# {part.text}"})
                     content.append({"role": "user", "content": self.SEPARATOR})
             elif isinstance(part, PromptText):
-                text = part.text.to_string() if not isinstance(part.text, str) else part.text
-                if part.title:
-                    text = f"{part.title}\n{text}"
+                # prepend every text line
+                text = "\n".join([f"# {line}" for line in part.text.splitlines()])
+                text = f"# {part.title}\n{text}" if part.title else text
+                content.append({"role": "user", "content": text})
+            elif isinstance(part, PromptCode):
+                text = f"# {part.title}\n{part.code}" if part.title else part.code
                 content.append({"role": "user", "content": text})
             elif isinstance(part, PromptFile):
+                # nocheckin: handle files
                 raise NotSupportedError(f"file {part.file!r} not supported yet")
             else:
                 raise RuntimeError(f"unexpected part {part!r}")

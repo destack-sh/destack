@@ -9,7 +9,15 @@ from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner, strip_code_completion
 from .instruct import get_system_prompt
-from .prompt import Prompt, PromptBreak, PromptElement, PromptFile, PromptText
+from .prompt import (
+    Prompt,
+    PromptBreak,
+    PromptCode,
+    PromptElement,
+    PromptFile,
+    PromptSeparator,
+    PromptText,
+)
 
 openai_client = openai.AsyncClient(
     api_key=get_from_env("OPENAI_API_KEY", description="OpenAI API key")
@@ -37,22 +45,28 @@ class OpenaiChatModelRunner(ChatModelRunner):
         user_id: str,
         options: RunOptions,
     ) -> Code:
-        # assemble
+        # compile
         content: list[openai_chat_types.ChatCompletionContentPartParam] = []
         for part in parts:
             if isinstance(part, PromptBreak):
+                content.append({"type": "text", "text": "\n\n"})
+            elif isinstance(part, PromptSeparator):
                 content.append({"type": "text", "text": self.SEPARATOR})
                 if part.title:
                     content.append({"type": "text", "text": f"# {part.title}"})
                     if part.text:
-                        content.append({"type": "text", "text": part.text})
+                        content.append({"type": "text", "text": f"# {part.text}"})
                     content.append({"type": "text", "text": self.SEPARATOR})
             elif isinstance(part, PromptText):
-                text = part.text.to_string() if not isinstance(part.text, str) else part.text
-                if part.title:
-                    text = f"{part.title}\n{text}"
+                # prepend every text line
+                text = "\n".join([f"# {line}" for line in part.text.splitlines()])
+                text = f"# {part.title}\n{text}" if part.title else text
+                content.append({"type": "text", "text": text})
+            elif isinstance(part, PromptCode):
+                text = f"# {part.title}\n{part.code}" if part.title else part.code
                 content.append({"type": "text", "text": text})
             elif isinstance(part, PromptFile):
+                # nocheckin: handle files
                 raise NotSupportedError(f"file {part.file!r} not supported yet")
             else:
                 raise RuntimeError(f"unexpected part {part!r}")
@@ -65,6 +79,13 @@ class OpenaiChatModelRunner(ChatModelRunner):
             {"role": "developer", "content": get_system_prompt(prompt)},
             {"role": "user", "content": content},
         ]
+        # nocheckin: debug print
+        print("---")
+        for part in content:
+            if part["type"] == "text":
+                print(part["text"])
+        print("---")
+
         temperature = options.text_options.temperature if options.text_options else 0.1
         completion = await openai_client.chat.completions.create(
             messages=messages,

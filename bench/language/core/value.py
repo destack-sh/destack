@@ -218,6 +218,9 @@ class CustomObject(Mapping[str, Any]):
     def __bool__(self) -> bool:
         return True  # always True
 
+    def any(self) -> bool:
+        return len(self._value) > 0
+
     def _get_key(self, item: str) -> "Field | Property | None":
         prop = get_custom_object_property(self._type, self._value, item)
         if prop is not None:

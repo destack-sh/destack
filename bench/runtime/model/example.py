@@ -39,10 +39,10 @@ from bench.utils.oracle import REAL_ORACLE
 
 from .prompt import (
     CompilationContext,
+    PromptCode,
     PromptCompound,
     PromptPart,
     PromptRegion,
-    PromptText,
 )
 
 
@@ -62,8 +62,8 @@ class PromptExample(PromptCompound):
                 weight=1,
                 text=self.text,
                 content=[
-                    PromptText(title="Request", text=self.request),
-                    PromptText(title="Response", text=self.response),
+                    PromptCode(title="Request", code=self.request),
+                    PromptCode(title="Response", code=self.response),
                 ],
             ),
         )

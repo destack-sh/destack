@@ -80,6 +80,7 @@ class RenderOptions:
     simplify_paths: bool = True
     format: bool = True
     format_line_length: int = 100
+    implicit_partials: bool = True
 
     def replace(self, **kwargs) -> "RenderOptions":
         return dataclasses.replace(self, **kwargs)
@@ -272,7 +273,7 @@ class Renderer:
         typ = value._type
         kwargs = _deconstruct_custom_object(value)
         rendered_kwargs = _render_custom_object_kwargs(self, value, kwargs)
-        if value._type.kind == TypeKind.PARTIAL_OBJECT:
+        if value._type.kind == TypeKind.PARTIAL_OBJECT and not self.options.implicit_partials:
             node_cls = (
                 NODE_CLASS_BY_TYPE[cast(NodeType, value._type.bench_type)]
                 if value._type.bench_type
