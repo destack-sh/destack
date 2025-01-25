@@ -11,6 +11,7 @@ from bench import language
 from bench.language import (
     BENCH_CLASS_BY_NAME,
     NODE_CLASS_STUBS_BY_NAME,
+    Aliasing,
     Bench,
     CustomObject,
     Node,
@@ -22,10 +23,11 @@ from bench.language import (
     render,
     upload_file,
 )
-from bench.runtime.code.capture import LogSink
-from bench.runtime.core.runtime import Runtime
+from bench.runtime.core import Runtime
 from bench.utils.func import get_subclasses
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
+
+from .capture import LogSink
 
 RUNTIME_ERROR_CLASSES = get_subclasses(RuntimeError)
 
@@ -61,6 +63,7 @@ DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
     "runtime": Runtime,
     "bench": Bench,
     "run": Run,
+    "aliasing": Aliasing,
     "variables": CustomObject,
     "inputs": CustomObject,
     "outputs": CustomObject,
@@ -78,3 +81,5 @@ DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
     "panic": LogSink.panic,
     "print": LogSink.print,
 }
+
+CODE_GLOBALS = {**STATIC_CODE_GLOBALS, **DYNAMIC_CODE_GLOBALS}

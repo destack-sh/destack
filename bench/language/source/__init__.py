@@ -39,6 +39,7 @@ from .package import Package, PackageType
 from .pipe import Pipe, PipeType, PortSide
 from .project import Projection, ProjectOptions, project
 from .render import (
+    Aliasing,
     Renderer,
     RenderOptions,
     render,
@@ -79,6 +80,7 @@ __all__ = [
     "DYNAMIC_ACTION_TYPES",
     "Action",
     "ActionType",
+    "Aliasing",
     "Alignment",
     "Anchor",
     "Block",

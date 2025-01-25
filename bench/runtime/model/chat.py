@@ -12,10 +12,6 @@ from bench.language import (
     HasContext,
     ModelDeveloper,
     ModelType,
-    Projection,
-    ProjectOptions,
-    Renderer,
-    RenderOptions,
     RunnableNode,
     RunOptions,
     RunSpanType,
@@ -27,7 +23,7 @@ from bench.runtime.core import ATTEMPT_ONCE, NotSupportedError, RunIn, Runner, R
 
 from .instruct import make_chat_prompt
 from .model import ModelRunner
-from .prompt import CompilationContext, Prompt, PromptCompound, PromptElement, PromptPart
+from .prompt import Prompt, PromptCompound, PromptElement, PromptPart
 
 if TYPE_CHECKING:
     pass
@@ -71,21 +67,11 @@ class ChatModelRunner(ModelRunner[Action], ABC):
 
     @override
     async def build(self, prompt: Prompt, budget: float) -> Sequence[PromptElement]:
-        projection = Projection(options=ProjectOptions())
-        render_options = RenderOptions(scope=prompt.action)
-        renderer = Renderer(options=render_options)
-        context = CompilationContext(
-            prompt=prompt,
-            projection=projection,
-            renderer=renderer,
-            render_options=render_options,
-        )
-
         # expand (recursively, depth-first)
         async def expand(part: PromptPart) -> list[PromptElement]:
             elements: list[PromptElement] = []
             if isinstance(part, PromptCompound):
-                parts = await part.expand(context)
+                parts = await part.expand(prompt)
                 for part in parts:
                     elements.extend(await expand(part))
             else:
@@ -148,6 +134,7 @@ class ChatModelRunner(ModelRunner[Action], ABC):
             runtime=self.runtime,
             node=self.node,
             code=code,
+            aliasing=prompt.aliasing,
             options=ATTEMPT_ONCE,
             context=self.context,
             variables=self.variables,
