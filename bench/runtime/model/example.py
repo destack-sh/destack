@@ -42,6 +42,7 @@ from bench.language import (
     coerce_custom_object_scalar,
     text,
 )
+from bench.language.core.code import format_code
 from bench.runtime.core import Runner
 from bench.utils.oracle import REAL_ORACLE
 
@@ -189,6 +190,7 @@ def example_(title: str, weight: int = 1):
                 renderer = Renderer(options=RenderOptions(scope=EXAMPLE_PACKAGE))
                 response = renderer.render_custom_object(response)
                 response = f"return {response}"
+                response = format_code(response)
         finally:
             ACTIVE_SESSION.reset(token)
 
@@ -301,8 +303,9 @@ def basic_planning(package: Package):
     Think1.connect(PipeType.SELECT, Look1)
     Think1.connect(PipeType.SELECT, Complete)
     # Runs/Inputs
-    ...  # some website with dom nodes and element ids
+    ...  # some application with obvious element ids provided
     # We're at Think1, assume we know the next few steps
+    # ---
     plans = [
         call_serial(
             call(Click1, element_id="7"),

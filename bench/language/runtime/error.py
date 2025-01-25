@@ -51,8 +51,8 @@ class ErrorType(IdEnum):
     INVALID_COMPUTED = 11
     CODE_INVALID = 20
     TEXT_INVALID = 21
-    MODEL_INCAPABLE = 100
-    MODEL_REFUSED = 101
+    INCAPABLE = 100
+    REFUSED = 101
     NON_RETRYABLE = 499
     # retryable
     MODEL_FAILED = 500

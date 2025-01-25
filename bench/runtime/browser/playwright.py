@@ -287,7 +287,7 @@ class PlaywrightActivityMonitor:
 
 def parse_dom_node(dom_node_js: dict[str, Any]) -> DomNode:
     """Parse a DOM node from the Playwright DOM tree :DomNode."""
-    kwargs: dict[str, Any] = {"id": dom_node_js.get("id")}
+    kwargs: dict[str, Any] = {}
     for key, value in dom_node_js.items():
         if value:
             kwargs[key] = value

@@ -27,7 +27,7 @@ class DomNode(Struct):
     """A DOM node."""
 
     # :DomNode
-    id: int = p_regular(30)
+    id: str = p_regular(30)
     tag: str | None = p_regular(31, default=None)
     xpath: str | None = p_regular(33, default=None)
     text: str | None = p_regular(34, default=None)

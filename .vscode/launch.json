@@ -39,6 +39,15 @@
       "justMyCode": true
     },
     {
+      "name": "bench.example",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/bench.py",
+      "args": ["examples"],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    },
+    {
       "name": "bench.system",
       "type": "debugpy",
       "request": "launch",
