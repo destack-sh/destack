@@ -1,12 +1,55 @@
 from datetime import date, datetime, time, timedelta
+from random import Random
+from typing import Any
 from uuid import UUID
 
 import pytest
+import pytz
 from grpclib import GRPCError, Status
 
-from bench.language import Block, BlockType, Field, FileType, Text, md, sample_value
+from bench.language import Block, BlockType, Field, FileType, PrimitiveType, Text, TypeBase, md
+from bench.language.core.const import TypeKind
 from bench.test.unit.conftest import RuntimeHandle
 from bench.utils.string import Casing, to_casing
+
+
+class SampleGenerator:
+    def __init__(self, random: Random):
+        self.random = random
+
+    def generate(self, typ: TypeBase) -> Any:
+        if not typ.is_list:
+            return self.generate_scalar(typ)
+        else:
+            return [self.generate_scalar(typ) for _ in range(self.random.randint(1, 3))]
+
+    def generate_scalar(self, typ: TypeBase) -> Any:
+        if typ.kind == TypeKind.PRIMITIVE:
+            assert typ.primitive_type is not None, f"primitive type is None for {typ!r}"
+            if typ.primitive_type == PrimitiveType.STRING:
+                return self.random.choice(("a", "b", "c"))
+            elif typ.primitive_type.is_int:
+                return self.random.randint(0, 100)
+            elif typ.primitive_type.is_float:
+                return self.random.uniform(0, 100)
+            elif typ.primitive_type == PrimitiveType.BOOLEAN:
+                return self.random.choice([True, False])
+            elif typ.primitive_type == PrimitiveType.BYTES:
+                return self.random.randbytes(10)
+            elif typ.primitive_type == PrimitiveType.UUID:
+                return UUID(int=self.random.randint(0, 0xFFFFFFFFFFFFFFFF))
+            elif typ.primitive_type == PrimitiveType.JSON:
+                return {"a": "b", "c": "d"}
+            elif typ.primitive_type == PrimitiveType.DATETIME:
+                return datetime.now(pytz.utc)
+            elif typ.primitive_type == PrimitiveType.DATE:
+                return datetime.now(pytz.utc).date()
+            elif typ.primitive_type == PrimitiveType.TIME:
+                return datetime.now(pytz.utc).time()
+            elif typ.primitive_type == PrimitiveType.DURATION:
+                return timedelta(seconds=self.random.randint(0, 1000000))
+
+        raise RuntimeError(f"unsupported type {typ.primitive_type!r}")
 
 
 def test_create_record_kwargs(local_runtime: RuntimeHandle):
@@ -89,6 +132,7 @@ async def test_update_database_and_record(hosted_runtime: RuntimeHandle):
     """Updates a database and records within and across transactions."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Id", int)])
     hosted_runtime.page().blocks.append(Database1)
+    sampler = SampleGenerator(Random(0))
 
     # create records with value for every field type
     cached_records = []
@@ -107,7 +151,7 @@ async def test_update_database_and_record(hosted_runtime: RuntimeHandle):
         for is_list in (False, True):
             field_name = f"{to_casing(sample_type.__name__, Casing.CAMEL)}{'s' if is_list else ''}"
             field = Database1.fields.append(Field.member(field_name, sample_type, is_list=is_list))
-            sample_field_value = sample_value(field)
+            sample_field_value = sampler.generate(field)
             record = Database1.records.create(Id=i, **{field_name: sample_field_value})
             cached_records.append(record)
             await hosted_runtime.session.commit()
@@ -119,7 +163,7 @@ async def test_update_database_and_record(hosted_runtime: RuntimeHandle):
 
     # update
     for field, record in zip(Database1.fields, stored_records):
-        sample_field_value = sample_value(field)
+        sample_field_value = sampler.generate(field)
         setattr(record, field.name, sample_field_value)
     await hosted_runtime.session.commit()
 

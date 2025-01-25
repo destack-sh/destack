@@ -6,8 +6,6 @@ import pytz
 from hypothesis import HealthCheck, given, settings
 
 from bench.language import (
-    DEFAULT_CHECK_OPTIONS,
-    STRUCT_TYPES,
     Action,
     ActionType,
     Block,
@@ -27,19 +25,14 @@ from bench.language import (
     PrimitiveType,
     Record,
     Session,
-    StructType,
     Text,
     Type,
     TypeKind,
     VariableBlock,
-    check_value,
     coerce_custom_object_scalar,
-    constraint,
-    on_invalid_raise,
     pack_builtin_object,
     pack_builtin_object_data,
     pack_custom_object,
-    sample_value,
     to_type_scalar,
     unpack_builtin_object,
     unpack_builtin_object_data,
@@ -280,57 +273,3 @@ def test_roundtrip_builtin_object_value(obj: BuiltinObject, session: Session, pa
 
 
 # TODO :Test: auto generate :Test types & values
-
-#
-# Sampling
-#
-
-UNGENERATABLE_STRUCT_TYPES = [
-    # Edit/Change have old/new_node_packed data
-    StructType.EDIT,
-    StructType.EDIT_OPERATION,
-    StructType.CHANGE,
-    # nodes have special handling
-    StructType.NODE_REFERENCE,
-    StructType.PROPERTY_REFERENCE,
-    # contain required references
-    StructType.CALL,
-    StructType.CALL_PLAN,
-]
-
-
-def test_sample_value_scalar(session: Session, package: Package):
-    typ = Type.from_type(bool)
-    val = sample_value(typ)
-    check_value(val, typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise)
-
-
-def test_sample_value_scalar_constrained(session: Session, package: Package):
-    typ = Type.from_type(int, constraint=constraint(min_value=10.0, max_value=20.0))
-    val = sample_value(typ)
-    check_value(val, typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise)
-
-
-@pytest.mark.parametrize(
-    "struct_type",
-    [st for st in STRUCT_TYPES if st not in UNGENERATABLE_STRUCT_TYPES],
-    ids=lambda t: t.bench_name,
-)
-def test_sample_value_struct(struct_type: StructType, session: Session, package: Package):
-    typ = Type(kind=TypeKind.STRUCT, bench_type=struct_type)
-    val = sample_value(typ)
-    check_value(val, typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise)
-
-
-def test_sample_choice_block(session: Session, package: Package):
-    page = package.blocks.append(Block.new(BlockType.PAGE, "Page1"))
-    choice = Block.new(
-        BlockType.CHOICE,
-        "Choice1",
-        fields=[Field.option("Option1"), Field.option("Option2"), Field.option("Option3")],
-    )
-    page.blocks.append(choice)
-    typ = choice.to_type_maybe(of="instance")
-    assert typ is not None, f"{choice!r} has no type"
-    sampled_field = sample_value(typ)
-    assert sampled_field in choice.fields
