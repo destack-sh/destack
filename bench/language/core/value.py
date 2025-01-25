@@ -354,18 +354,29 @@ class CustomObject(Mapping[str, Any]):
                 yield field
 
     def __iter__(self):
-        for field in self._type._base_fields:
-            if not self._type.base_field_types or field.type in self._type.base_field_types:
+        for prop in get_custom_object_properties(self._type, self._value):
+            if self.is_set(prop):
+                yield prop.name
+        for field in self.fields:
+            if self.is_set(field):
                 yield field.name
 
     def __len__(self) -> int:
-        return len(self._type._base_fields)
+        count = 0
+        for prop in get_custom_object_properties(self._type, self._value):
+            if self.is_set(prop):
+                count += 1
+        for field in self.fields:
+            if self.is_set(field):
+                count += 1
+        return count
 
     def __contains__(self, item: object) -> bool:
-        for field in self._type._base_fields:
-            if not self._type.base_field_types or field.type in self._type.base_field_types:
-                continue
-            if field.code_name == item or field.name == item:
+        for prop in get_custom_object_properties(self._type, self._value):
+            if prop.name == item and self.is_set(prop):
+                return True
+        for field in self.fields:
+            if (field.code_name == item or field.name == item) and self.is_set(field):
                 return True
         return False
 

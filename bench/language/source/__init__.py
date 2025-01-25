@@ -1,4 +1,5 @@
 from .action import (
+    DYNAMIC_ACTION_TYPES,
     Action,
     ActionType,
     ChangeAction,
@@ -75,6 +76,7 @@ from .view import (
 )
 
 __all__ = [
+    "DYNAMIC_ACTION_TYPES",
     "Action",
     "ActionType",
     "Alignment",
