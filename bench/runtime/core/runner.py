@@ -395,7 +395,8 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
 
     @property
     def ancestors(self):
-        parent = self
+        """Yields all ancestor Runners (excluding self)."""
+        parent = self.parent
         while parent is not None:
             yield parent
             parent = parent.parent

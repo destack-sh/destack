@@ -13,6 +13,8 @@ from bench.language import (
     RenderOptions,
     Run,
     RunPlan,
+    RunSpan,
+    RunSpanType,
     SourceNode,
     render_expression,
     render_statement,
@@ -123,6 +125,12 @@ class PromptRegion(PromptCompound):
         )
 
 
+def prompt_region(
+    *parts: PromptPart, title: str | None = None, text: str | None = None, weight: int = 1
+) -> PromptRegion:
+    return PromptRegion(title=title, text=text, content=list(parts), weight=weight)
+
+
 @dataclass
 class PromptRun(PromptCompound):
     """A Run. Expands to Runs variables, inputs and outputs."""
@@ -146,6 +154,22 @@ class PromptRun(PromptCompound):
             parts.append(PromptCustomObject(title="Inputs", weight=1, object=self.node.inputs))
         if self.node.outputs and self.node.outputs.any():
             parts.append(PromptCustomObject(title="Outputs", weight=1, object=self.node.outputs))
+        return parts
+
+
+@dataclass
+class PromptRunAttempt(PromptCompound):
+    """An attempt. Expands to attempt variables."""
+
+    attempt: RunSpan
+
+    @override
+    async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
+        assert self.attempt.type == RunSpanType.ATTEMPT
+        parts: list[PromptPart] = []
+        if (error := self.attempt.error) is not None:
+            error_code = render_expression(error, options=context.render_options)
+            parts.append(PromptCode(title=None, code=error_code))
         return parts
 
 

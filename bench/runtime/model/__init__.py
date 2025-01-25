@@ -4,6 +4,8 @@ from .model import ModelRunner
 from .openai import OpenaiChatModelRunner
 from .prompt import (
     Prompt,
+    PromptBreak,
+    PromptCode,
     PromptElement,
     PromptFile,
     PromptNode,
@@ -12,6 +14,7 @@ from .prompt import (
     PromptRun,
     PromptSeparator,
     PromptText,
+    prompt_region,
 )
 
 __all__ = [
@@ -20,6 +23,8 @@ __all__ = [
     "ModelRunner",
     "OpenaiChatModelRunner",
     "Prompt",
+    "PromptBreak",
+    "PromptCode",
     "PromptElement",
     "PromptFile",
     "PromptNode",
@@ -29,4 +34,5 @@ __all__ = [
     "PromptSeparator",
     "PromptText",
     "make_chat_prompt",
+    "prompt_region",
 ]
