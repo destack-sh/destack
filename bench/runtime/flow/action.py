@@ -512,7 +512,7 @@ class LookActionRunner(ApplicationActionRunner[LookAction]):
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         dom_nodes_js = await pw_page.evaluate(
-            self.runtime.playwright.get_extension_script_js() + "\n highlight()"
+            self.runtime.playwright.get_extension_script_js() + "\n cleanup(); highlight()"
         )
         dom_nodes = [parse_dom_node(dom_node_js) for dom_node_js in dom_nodes_js]
         screenshot_bytes = await pw_page.screenshot(full_page=False, animations="disabled")

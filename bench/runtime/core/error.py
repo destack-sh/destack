@@ -69,12 +69,12 @@ class AbortedError(CancelledError, NonRetryableError):
     run_error_type = ErrorType.ABORTED
 
 
-class ModelIncapableError(NonRetryableError):
-    run_error_type = ErrorType.MODEL_INCAPABLE
+class IncapableError(NonRetryableError):
+    run_error_type = ErrorType.INCAPABLE
 
 
-class ModelRefusedError(NonRetryableError):
-    run_error_type = ErrorType.MODEL_REFUSED
+class RefusedError(NonRetryableError):
+    run_error_type = ErrorType.REFUSED
 
 
 class InterruptionCancelledError(RetryableError):
