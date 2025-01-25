@@ -5,19 +5,17 @@ from typing import TYPE_CHECKING, Sequence, override
 from bench.language import (
     Action,
     ActionType,
+    Aliasing,
     CustomObject,
     FileBase,
     HasContext,
     Projection,
     Renderer,
-    RenderOptions,
     Run,
     RunPlan,
     RunSpan,
     RunSpanType,
     SourceNode,
-    render_expression,
-    render_statement,
 )
 from bench.utils.func import IdEnum
 
@@ -105,7 +103,7 @@ class PromptCompound(PromptPart, ABC):
     weight: int  # proportional
 
     @abstractmethod
-    async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]: ...
+    async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]: ...
 
 
 @dataclass
@@ -116,7 +114,7 @@ class PromptRegion(PromptCompound):
     text: str | None = None
 
     @override
-    async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
+    async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:
         return (
             PromptBreak(title=None),
             PromptSeparator(title=self.title, text=self.text),
@@ -138,7 +136,7 @@ class PromptRun(PromptCompound):
     node: Run
 
     @override
-    async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
+    async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:
         parts: list[PromptPart] = [
             PromptText(title="Run", text=f"Run {self.node.base!r} ({self.node.status.bench_name})"),
         ]
@@ -164,11 +162,11 @@ class PromptRunAttempt(PromptCompound):
     attempt: RunSpan
 
     @override
-    async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
+    async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:
         assert self.attempt.type == RunSpanType.ATTEMPT
         parts: list[PromptPart] = []
         if (error := self.attempt.error) is not None:
-            error_code = render_expression(error, options=context.render_options)
+            error_code = prompt.renderer.render_expression(error, format=True)
             parts.append(PromptCode(title=None, code=error_code))
         return parts
 
@@ -181,8 +179,8 @@ class PromptRunPlan(PromptCompound):
     run: Run
 
     @override
-    async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
-        plan_code = render_statement(self.plan, options=context.render_options)
+    async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:
+        plan_code = prompt.renderer.render_statement(self.plan, format=True)
         return [
             PromptText(title=self.title, text=f"You are at step {self.run.plan_step} of this plan"),
             PromptCode(title=None, code=plan_code),
@@ -196,14 +194,14 @@ class PromptNode(PromptCompound):
     node: SourceNode
 
     @override
-    async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
-        context_nodes = context.projection.project(self.node)
+    async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:
+        context_nodes = prompt.projection.project(self.node)
         context_code = "\n".join(
-            render_statement(n, options=context.render_options)
+            prompt.renderer.render_statement(n, format=True)
             for n in context_nodes
-            if n.metatype not in context.render_options.folded_child_types and n != self.node
+            if n.metatype not in prompt.renderer.options.folded_child_types and n != self.node
         )
-        node_code = render_statement(self.node, options=context.render_options)
+        node_code = prompt.renderer.render_statement(self.node, format=True)
         return [PromptCode(title=self.title, code=f"{context_code}\n\n{node_code}")]
 
 
@@ -214,17 +212,28 @@ class PromptCustomObject(PromptCompound):
     object: CustomObject
 
     @override
-    async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
-        code = render_expression(self.object, options=context.render_options)
+    async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:
+        code = prompt.renderer.render_expression(self.object, format=True)
         return [PromptCode(title=self.title, code=code)]
 
 
 class Prompt:
     """A prompt for an LLM-like model."""
 
-    def __init__(self, action: Action, context: "HasContext", items: list[PromptPart]):
+    def __init__(
+        self,
+        action: Action,
+        context: "HasContext",
+        aliasing: Aliasing,
+        renderer: Renderer,
+        projection: Projection,
+        items: list[PromptPart],
+    ):
         self.action = action
         self.context = context
+        self.aliasing = aliasing
+        self.renderer = renderer
+        self.projection = projection
         self.items = items
 
     def __str__(self) -> str:
@@ -241,11 +250,3 @@ class Prompt:
 
     def extend(self, items: list[PromptPart]) -> None:
         self.items.extend(items)
-
-
-@dataclass
-class CompilationContext:  # == ContextOptions?
-    prompt: Prompt
-    projection: Projection
-    renderer: Renderer
-    render_options: RenderOptions

@@ -7,11 +7,13 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
+    Aliasing,
     Code,
     CodeType,
     CustomObject,
     Field,
     HasContext,
+    Node,
     RenderOptions,
     RunnableNode,
     RunOptions,
@@ -39,7 +41,7 @@ tracer = trace.get_tracer(__name__)
 class CodeRunner(Runner, ABC):
     """Common base for compiling and running code."""
 
-    __slots__ = ("code", "compiled", "log_sink")
+    __slots__ = ("aliasing", "code", "combined_glbls", "compiled", "log_sink")
 
     runner_type: ClassVar[RunType] = RunType.ACTION
 
@@ -52,6 +54,7 @@ class CodeRunner(Runner, ABC):
         options: RunOptions,
         context: HasContext,
         run: RunIn,
+        aliasing: Aliasing | None = None,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         variables: CustomObject | None = None,
@@ -69,6 +72,11 @@ class CodeRunner(Runner, ABC):
             run=run,
         )
         self.code = code
+        self.aliasing = aliasing
+        self.combined_glbls: dict[str, Any] = {
+            **self.runtime.combined_glbls,
+            **(self.aliasing._node_by_alias if self.aliasing else {}),
+        }
         self.compiled: CompiledCode | None = None
         self.log_sink = LogSink(
             runtime=self.runtime,
@@ -82,9 +90,7 @@ class CodeRunner(Runner, ABC):
         compiled = self.compiled
         if compiled is None:
             self.compiled = compiled = compile_code(
-                self.code.to_string(),
-                kind,
-                self.runtime.combined_glbls,
+                self.code.to_string(), kind, self.combined_glbls
             )
         if compiled.syntax_error:
             syntax_e = compiled.syntax_error
@@ -122,13 +128,14 @@ class CodeRunner(Runner, ABC):
         _upload = functools.partial(upload_file)
         glbls = {  # :CodeGlobals
             # static
-            **self.runtime.static_glbls,
+            **self.combined_glbls,
             # dynamic
             "self": self.node,
             "session": self.runtime.session,
             "runtime": self.runtime,
             "bench": self.runtime.bench,
             "run": self.closest_tracked_run,
+            "aliasing": self.aliasing,
             "variables": self.variables or {},
             "inputs": self.inputs or {},
             "outputs": self.outputs or {},
@@ -149,7 +156,7 @@ class CodeRunner(Runner, ABC):
 
         # references
         # NOTE :Incomplete: handle references to exported definitions (not just node references)
-        resolved_references = {}
+        resolved_references: dict[str, Node] = {}
         for reference_name in self.compiled.references:
             reference = get_node_or_error(self.node, self.context, f"^{reference_name}")
             if isinstance(reference, Field):

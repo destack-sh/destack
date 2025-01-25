@@ -29,10 +29,13 @@ from bench.language import (
     NullEngine,
     Package,
     PackageType,
+    PathElement,
+    PathElementType,
     PipeType,
     Region,
     Renderer,
     RenderOptions,
+    Run,
     Session,
     User,
     UserStatus,
@@ -40,19 +43,13 @@ from bench.language import (
     call,
     call_serial,
     coerce_custom_object_scalar,
+    format_code,
     text,
 )
-from bench.language.core.code import format_code
 from bench.runtime.core import Runner
 from bench.utils.oracle import REAL_ORACLE
 
-from .prompt import (
-    CompilationContext,
-    PromptCode,
-    PromptCompound,
-    PromptPart,
-    PromptRegion,
-)
+from .prompt import Prompt, PromptCode, PromptCompound, PromptPart, PromptRegion
 
 # ruff: noqa: F401,B018
 # pyright: reportUnusedExpression=false
@@ -67,7 +64,7 @@ class PromptExample(PromptCompound):
     response: str
 
     @override
-    async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
+    async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:
         return (
             PromptRegion(
                 title=f"Example: {self.title}",
@@ -132,10 +129,6 @@ def make_example_bench() -> tuple[Bench, Package, Session, User]:
 
 
 EXAMPLE_BENCH, EXAMPLE_PACKAGE, EXAMPLE_SESSION, EXAMPLE_USER = make_example_bench()
-
-
-# nocheckin: render general and specific examples (categorize?)
-
 EXAMPLES: list[PromptExample] = []
 
 
@@ -317,11 +310,38 @@ def basic_planning(package: Package):
     return [Flow, *Flow.actions, *Flow.pipes], (Think1, {"plans": plans})
 
 
+# nocheckin
 # @example_("Basic Planning with Tool Actions")
 # def basic_planning_with_tools(package: Package):
 #     """How to plan next Actions in a simple Flow with Tool Actions."""
 #     Flow = Block.new(BlockType.FLOW, name="Flow1")
 #     Start = Action.new(ActionType.START, name="Start")
+
+
+@example_("Simple extract without a plan")
+def simple_extract_without_plan(package: Package):
+    """How to plan next Actions when the Flow is done."""
+    Flow = Block.new(
+        BlockType.FLOW,
+        name="Flow1",
+        fields=[Field.input("Text", str), Field.output("Names", str, is_list=True)],
+    )
+    Start = Action.new(ActionType.START, name="Start")
+    Extract = Action.new(
+        ActionType.EXTRACT, name="Extract", fields=[Field.output("Names", str, is_list=True)]
+    )
+    Complete = Action.new(ActionType.COMPLETE, name="Complete")
+    Complete.set_computed(
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow.fields.Names),
+        source=(Extract, PathElementType.RUN, Run.get_property("outputs"), Extract.fields.Names),
+    )
+    Flow.actions.extend(Start, Extract, Complete)
+    Start.connect(PipeType.CALL, Extract)
+    Extract.connect(PipeType.CALL, Complete)
+    # Inputs
+    {"Text": "And then Alice met Bob at the park."}
+    # ---
+    return [Flow, *Flow.actions, *Flow.pipes], (Extract, {"Names": ["Alice", "Bob"], "plans": []})
 
 
 def get_examples(action: Action, runner: Runner) -> Sequence[PromptExample]:

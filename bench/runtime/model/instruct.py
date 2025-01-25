@@ -7,14 +7,20 @@ from bench.language import (
     SOURCE_NODE_TYPES,
     STATIC_RESOURCE_NODE_TYPES,
     Action,
+    Aliasing,
     Block,
+    BlockType,
     CustomObject,
     HasContext,
+    PipeType,
+    Projection,
+    ProjectOptions,
+    Renderer,
+    RenderOptions,
     Run,
     RunType,
     TypeBase,
 )
-from bench.language.core.const import BlockType
 from bench.runtime.core import Runner
 
 from .prompt import (
@@ -220,6 +226,9 @@ def make_chat_prompt(
     """Build a Prompt from the given context."""
     from .example import get_examples
 
+    aliasing = Aliasing()
+    projection = Projection(options=ProjectOptions())
+    renderer = Renderer(options=RenderOptions(scope=action, aliasing=aliasing))
     run = runner.closest_tracked_run
     assert run is not None, f"{runner!r} is not tracked"
 
@@ -305,16 +314,39 @@ def make_chat_prompt(
         ]
         flow_parts = [
             PromptNode(title=None, weight=1, node=flow),
+            PromptText(None, f"You are part of the Flow '{flow.code_name}'."),
+        ]
+        can_flow_be_empty = all(p.type == PipeType.CALL for p, a in connected_actions)
+        if len(connected_actions) == 0:
+            flow_parts.append(
+                PromptText(
+                    None,
+                    "You SHOULD NOT plan any Actions as you are not connected to any other Actions.",
+                )
+            )
+        elif can_flow_be_empty:
+            flow_parts.append(
+                PromptText(
+                    None,
+                    "You MAY plan the next Actions in this Flow. Your plan may be empty if none of the connected Actions need arguments you have.",
+                )
+            )
+        else:
+            flow_parts.append(
+                PromptText(
+                    None,
+                    "You MUST plan the next Actions in this Flow. You MUST include at least one of the SELECT-connected Actions or raise IncapableError.",
+                )
+            )
+        flow_parts.append(
             PromptText(
                 title=None,
                 text=f"""\
-You are part of the Flow '{flow.code_name}'.
-You MUST produce a plan for the next Actions in this Flow.
-Your connected Actions are (name: PipeType->ActionType):
-{'\n'.join(f"  - '{a.code_name}: {p.type.bench_name}->{a.type.bench_name}'" for p, a in connected_actions) or '<none>'}
+Your (outgoing) connected Actions are (name: PipeType->ActionType):
+{'\n'.join(f"  - '{renderer.render_node_ref(p.target)}: {p.type.bench_name}->{a.type.bench_name}'" for p, a in connected_actions) or '<none>'}
 """,
-            ),
-        ]
+            )
+        )
         flow_region = prompt_region(*flow_parts, title="Containing Flow", weight=10)
         action_parts.append(flow_region)
 
@@ -411,5 +443,12 @@ Valid inline Python; as concise as possible; minimal comments.
         ),
         PromptBreak(title=None),
     ]
-    prompt = Prompt(action=action, context=context, items=prompt_items)
+    prompt = Prompt(
+        action=action,
+        context=context,
+        projection=projection,
+        aliasing=aliasing,
+        renderer=renderer,
+        items=prompt_items,
+    )
     return prompt

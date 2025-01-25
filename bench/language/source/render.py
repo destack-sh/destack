@@ -10,6 +10,14 @@ import regex
 import structlog
 from opentelemetry import trace
 
+from bench.language import (
+    Call,
+    CallExecutionMode,
+    CallFailureMode,
+    CallPlan,
+    CallTerminationMode,
+    Resource,
+)
 from bench.language.core import (
     NODE_TYPES_SET,
     BlockType,
@@ -49,9 +57,6 @@ from bench.language.core import (
     reverse_type_scalar,
 )
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
-from bench.language.resource import Resource
-from bench.language.runtime import Call, CallPlan
-from bench.language.runtime.call import CallExecutionMode, CallFailureMode, CallTerminationMode
 from bench.utils.time import timedelta_to_isoformat
 
 from .action import Action
@@ -101,6 +106,8 @@ class Aliasing:
 
     def add(self, obj: Node | NodeReference) -> str:
         """Adds the given nodes to the context of this renderer."""
+        from bench.runtime.code.context import CODE_GLOBALS
+
         if obj.id in self._alias_by_node_id:
             return self._alias_by_node_id[obj.id]  # already assigned
         if isinstance(obj, Node) and getattr(obj, "code_name"):
@@ -112,7 +119,7 @@ class Aliasing:
         else:
             alias = obj.metatype.bench_name if isinstance(obj, Node) else obj.node_type.bench_name
             has_given_name = False
-        if alias in self._node_by_alias or not has_given_name:
+        if alias in self._node_by_alias or alias in CODE_GLOBALS or not has_given_name:
             # bump digit at end to make alias unique
             count = regex.search(r"\d+$", alias)
             if count is None:
@@ -120,7 +127,7 @@ class Aliasing:
                 count = 1
             else:
                 count = int(count.group())
-            while alias in self._node_by_alias:
+            while alias in self._node_by_alias or alias in CODE_GLOBALS:
                 count += 1
                 alias = regex.sub(r"\d+$", str(count + 1), alias)
         self._alias_by_node_id[cast(UUID, obj.id)] = alias
@@ -163,7 +170,10 @@ class Renderer:
 
     def __init__(self, options: RenderOptions):
         self.options = options
-        self.aliasing = options.aliasing or Aliasing()
+        if options.aliasing is None:
+            self.aliasing = options.aliasing or Aliasing()
+        else:
+            self.aliasing = options.aliasing
 
     def __str__(self) -> str:
         return f"scope={self.scope!r}, aliases={', '.join(self.aliasing._node_by_alias)}"
@@ -351,7 +361,10 @@ class Renderer:
             assert_never(obj)
 
     def render_expression(
-        self, value: BuiltinObject | CustomObject | Property, as_ref: bool = False
+        self,
+        value: BuiltinObject | CustomObject | Property,
+        as_ref: bool = False,
+        format: bool = False,
     ) -> str:
         """Renders a value into an expression."""
         if isinstance(value, CustomObject):
@@ -365,6 +378,8 @@ class Renderer:
             rendered = self.render_property_ref(value)
         else:
             assert_never(value)
+        if format:
+            rendered = format_code(rendered)
         return rendered
 
     def _get_parent_child_key(self, node: Node) -> str | None:
@@ -376,14 +391,14 @@ class Renderer:
             return f"{parent_alias}.{parent_child_prop.name}"
         return None
 
-    def render_statement(self, *nodes: Node) -> str:
+    def render_statement(self, *nodes: Node, format: bool = False) -> str:
         """Renders the given objects to a Python block that defines those objects."""
         # render
         rendered_objs: list[str] = []
         current_children: list[str] = []
         for i, node in enumerate(nodes):
             rendered = self.render_object(node)
-            node_alias = self.aliasing.get(node)
+            node_alias = self.aliasing.get_or_add(node)
             assert node_alias is not None, f"no alias for {node!r}"
             rendered_objs.append(f"{node_alias} = {rendered}")
 
@@ -403,6 +418,8 @@ class Renderer:
                         rendered_objs.append(f"{parent_key}.append({node_alias})")
                     current_children = []
         rendered = self.options.statement_separator.join(rendered_objs)
+        if format:
+            rendered = format_code(rendered)
         return rendered
 
 
