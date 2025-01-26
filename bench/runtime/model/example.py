@@ -298,32 +298,33 @@ def flow_basic_planning(package: Package):
     Flow = Block.new(BlockType.FLOW, name="Flow1")
     Start = Action.new(ActionType.START, name="Start")
     Look1 = Action.new(ActionType.LOOK, name="Look1")
-    Think1 = Action.new(ActionType.THINK, name="Think1")
     Click1 = Action.new(ActionType.CLICK, name="Click1")
     Type1 = Action.new(ActionType.TYPE, name="Type1")
     Press1 = Action.new(ActionType.PRESS, name="Press1")
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
-    Flow.actions.extend(Start, Look1, Think1, Click1, Type1, Press1, Complete)
+    Flow.actions.extend(Start, Look1, Click1, Type1, Press1, Complete)
     Start.connect(PipeType.CALL, Look1)
-    Look1.connect(PipeType.CALL, Think1)
-    Think1.connect(PipeType.SELECT, Click1)
-    Think1.connect(PipeType.SELECT, Type1)
-    Think1.connect(PipeType.SELECT, Press1)
-    Think1.connect(PipeType.SELECT, Look1)
-    Think1.connect(PipeType.SELECT, Complete)
+    Look1.connect(PipeType.CALL, Click1)
+    Look1.connect(PipeType.SELECT, Type1)
+    Look1.connect(PipeType.SELECT, Press1)
+    Look1.connect(PipeType.SELECT, Complete)
     # Runs/Inputs
     ...  # some application with obvious element ids provided
-    # We're at Think1, assume we know the next few steps
+    # We're at Look1, assume we know the next few steps
     # ---
     plans = [
         call_serial(
-            call(Click1, element_id="7"),
+            call(Click1, element_id="7", button="left"),
             call(Type1, element_id="2", string="florian@symbolx.com"),
             call(Press1, element_id="3", keys="Enter"),
-            on_terminate=CallTerminationMode.RETURN,  # back to Think when done
+            on_terminate=CallTerminationMode.RETURN,  # back to Look when done
         )
     ]
-    return [Flow, *Flow.actions, *Flow.pipes], (Think1, {"plans": plans})
+    return [Flow, *Flow.actions, *Flow.pipes], (
+        "Okay, we know the next few steps here before we need to look again.",
+        Look1,
+        {"plans": plans},
+    )
 
 
 # nocheckin

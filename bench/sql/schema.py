@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.25.1"
+VERSION = "2025.01.26.0"
 
 BENCH_TABLE = Table(
     "bench_bench",

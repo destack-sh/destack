@@ -9,18 +9,23 @@ var LABEL_PADDING = 0;
 var CELL_SIZE = 50;
 var VIEWPORT_MARGIN = 0;
 var HIGHLIGHT_ID_KEY = "benchHighlightId";
+var FOCUS_HIGHLIGHT_CLASS = "bench-focus-highlight";
+var REGULAR_HIGHLIGHT_CLASS = "bench-regular-highlight";
+var LABEL_CLASS = "bench-highlight-label";
 function iou(rect1, rect2) {
-    var intersection = this.intersection(rect1, rect2);
-    var union = this.union(rect1, rect2);
-    return intersection / union;
+    var intersectionVal = intersection(rect1, rect2);
+    var unionVal = union(rect1, rect2);
+    if (unionVal === 0)
+        return 0;
+    return intersectionVal / unionVal;
 }
 function intersection(rect1, rect2) {
     var left = Math.max(rect1.left, rect2.left);
     var top = Math.max(rect1.top, rect2.top);
     var right = Math.min(rect1.right, rect2.right);
     var bottom = Math.min(rect1.bottom, rect2.bottom);
-    var width = right - left;
-    var height = bottom - top;
+    var width = Math.max(0, right - left);
+    var height = Math.max(0, bottom - top);
     return width * height;
 }
 function union(rect1, rect2) {
@@ -128,7 +133,7 @@ var ElementGrid = (function () {
     return ElementGrid;
 }());
 var HighlightContext = (function () {
-    function HighlightContext(root) {
+    function HighlightContext(root, focusedElement) {
         this.root = root;
         this.rootRect = root.getBoundingClientRect();
         this.highlightId = 0;
@@ -136,6 +141,7 @@ var HighlightContext = (function () {
         this.elementGrid = new ElementGrid();
         this.rectByElement = new Map();
         this.nodeByElement = new Map();
+        this.focusedElement = focusedElement;
     }
     HighlightContext.prototype.addElement = function (element, node) {
         var rect = element.getBoundingClientRect();
@@ -169,8 +175,8 @@ var HighlightContext = (function () {
     };
     return HighlightContext;
 }());
-function makeHighlightContext(element) {
-    return new HighlightContext(element);
+function makeHighlightContext(element, focusedElement) {
+    return new HighlightContext(element, focusedElement);
 }
 var LEAF_DENY_LIST = new Set(["svg", "script", "style", "link", "meta"]);
 var INTERACTIVE_TAGS = new Set([
@@ -258,10 +264,10 @@ function getHighlightColor(index) {
     var base = colors[index % colors.length];
     return base;
 }
-function highlightElement(element, rect, context, iframe) {
+function highlightElement(element, rect, context, iframe, isFocused) {
     var index = context.highlightId;
     var container = getHighlightContainer();
-    var baseColor = getHighlightColor(index);
+    var baseColor = isFocused ? "#FFFF00CC" : getHighlightColor(index);
     var top = rect.top;
     var left = rect.left;
     if (iframe) {
@@ -271,10 +277,18 @@ function highlightElement(element, rect, context, iframe) {
     }
     var overlay = document.createElement("div");
     overlay.style.position = "absolute";
-    var outlineWidth = Math.max(2, Math.min(5, 2 + Math.round(Math.sqrt(rect.width + rect.height) / 10)));
-    overlay.style.outline = outlineWidth + "px solid " + baseColor + "CC";
+    var outlineWidth = Math.max(2, Math.min(4, 2 + Math.round(Math.sqrt(rect.width + rect.height) / 10)));
+    if (isFocused) {
+        overlay.classList.add(FOCUS_HIGHLIGHT_CLASS);
+        overlay.style.outline = outlineWidth + 1 + "px dashed #FFFF00CC";
+        overlay.style.backgroundColor = "#FFFF0055";
+    }
+    else {
+        overlay.classList.add(REGULAR_HIGHLIGHT_CLASS);
+        overlay.style.outline = outlineWidth + "px solid " + baseColor + "CC";
+        overlay.style.backgroundColor = baseColor + "33";
+    }
     overlay.style.outlineOffset = -outlineWidth / 2 + "px";
-    overlay.style.backgroundColor = baseColor + "33";
     overlay.style.pointerEvents = "none";
     overlay.style.boxSizing = "border-box";
     overlay.style.top = top + "px";
@@ -283,7 +297,7 @@ function highlightElement(element, rect, context, iframe) {
     overlay.style.height = rect.height + "px";
     overlay.style.zIndex = "2147483641";
     var label = document.createElement("div");
-    label.className = "bench-highlight-label";
+    label.className = LABEL_CLASS;
     label.style.position = "absolute";
     label.style.background = baseColor;
     label.style.color = "white";
@@ -505,12 +519,15 @@ function extract(node, highlight, iframe, context) {
         var isInteractive = isElementInteractive(element_1);
         var isVisible = isElementVisible(element_1);
         var isTop = isElementTop(element_1);
+        var isFocusedElement = element_1 === context.focusedElement;
         if (isInteractive)
             nodeData.isInteractive = true;
         if (isVisible)
             nodeData.isVisible = true;
         if (isTop)
             nodeData.isTop = true;
+        if (isFocusedElement)
+            nodeData.isFocused = true;
         if (highlight && isInteractive && isVisible && isTop) {
             var rect = element_1.getBoundingClientRect();
             var overlappingNode = context.getNodeAt(rect, 0.8);
@@ -518,7 +535,7 @@ function extract(node, highlight, iframe, context) {
             if (overlappingNode == null && iou(rect, context.rootRect) < 0.4) {
                 context.highlightId++;
                 nodeData.id = context.highlightId;
-                highlightElement(element_1, rect, context, iframe);
+                highlightElement(element_1, rect, context, iframe, isFocusedElement);
                 nodeData.isHighlighted = true;
             }
         }
@@ -571,11 +588,12 @@ function extract(node, highlight, iframe, context) {
     return null;
 }
 function highlight() {
-    var root = extract(document.body, true, null, makeHighlightContext(document.body));
+    var focusedElement = document.activeElement;
+    var root = extract(document.body, true, null, makeHighlightContext(document.body, focusedElement));
     var interactiveNodes = [];
     function walk(node) {
         if (node.isHighlighted) {
-            var miniNode = { id: node.id, tag: node.tag };
+            var miniNode = { id: node.id, tag: node.tag, isFocused: node.isFocused };
             if (node.text) {
                 miniNode.text = node.text;
             }
@@ -608,6 +626,14 @@ function cleanup(scope) {
         var highlightedElements = document.querySelectorAll("[data-" + HIGHLIGHT_ID_KEY + "]");
         highlightedElements.forEach(function (el) {
             delete el.dataset[HIGHLIGHT_ID_KEY];
+        });
+        var highlightedOverlays = document.querySelectorAll("." + REGULAR_HIGHLIGHT_CLASS + ", ." + FOCUS_HIGHLIGHT_CLASS);
+        highlightedOverlays.forEach(function (el) {
+            el.remove();
+        });
+        var highlightLabels = document.querySelectorAll("." + LABEL_CLASS);
+        highlightLabels.forEach(function (el) {
+            el.remove();
         });
     }
 }

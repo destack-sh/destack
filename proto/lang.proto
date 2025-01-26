@@ -1286,8 +1286,8 @@ enum ErrorType {
   ERROR_TYPE_INVALID_COMPUTED = 11;
   ERROR_TYPE_CODE_INVALID = 20;
   ERROR_TYPE_TEXT_INVALID = 21;
-  ERROR_TYPE_MODEL_INCAPABLE = 100;
-  ERROR_TYPE_MODEL_REFUSED = 101;
+  ERROR_TYPE_INCAPABLE = 100;
+  ERROR_TYPE_REFUSED = 101;
   ERROR_TYPE_NON_RETRYABLE = 499;
   ERROR_TYPE_MODEL_FAILED = 500;
   ERROR_TYPE_INVALID_CONTINUATION = 502;
@@ -2014,11 +2014,12 @@ message ClientOriginData {
 
 message DomNodeData {
   ObjectType metatype = 1;
-  int32 id = 30;
+  string id = 30;
   optional string tag = 31;
   optional string xpath = 33;
   optional string text = 34;
   optional google.protobuf.Value attributes = 35;
+  optional bool is_focused = 36;
 }
 
 message FileInfoData {
@@ -3044,9 +3045,7 @@ message WaitActionData {
 message LookActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
-  optional string element_path = 111;
-  optional Vector2Data element_position = 112;
-  optional string element_text = 113;
+  optional Vector2Data element_position = 111;
   optional bool exclude_image = 120;
   optional NodeReferenceData screenshot_ptr = 200;
   repeated DomNodeData dom_nodes = 201;
@@ -3056,18 +3055,15 @@ message LookActionData {
 message ClickActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
-  optional string element_path = 111;
-  optional Vector2Data element_position = 112;
-  optional string element_text = 113;
+  optional Vector2Data element_position = 111;
+  optional string button = 120;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message PressActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
-  optional string element_path = 111;
-  optional Vector2Data element_position = 112;
-  optional string element_text = 113;
+  optional Vector2Data element_position = 111;
   optional string keys = 120;
   optional float delay = 121;
 }
@@ -3076,9 +3072,7 @@ message PressActionData {
 message TypeActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
-  optional string element_path = 111;
-  optional Vector2Data element_position = 112;
-  optional string element_text = 113;
+  optional Vector2Data element_position = 111;
   optional string string = 120;
   optional float delay = 121;
 }
@@ -3087,9 +3081,7 @@ message TypeActionData {
 message ScrollActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
-  optional string element_path = 111;
-  optional Vector2Data element_position = 112;
-  optional string element_text = 113;
+  optional Vector2Data element_position = 111;
   optional Vector2Data amount = 120;
 }
 
@@ -3097,36 +3089,28 @@ message ScrollActionData {
 message SelectActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
-  optional string element_path = 111;
-  optional Vector2Data element_position = 112;
-  optional string element_text = 113;
+  optional Vector2Data element_position = 111;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message GoBackwardActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
-  optional string element_path = 111;
-  optional Vector2Data element_position = 112;
-  optional string element_text = 113;
+  optional Vector2Data element_position = 111;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message GoForwardActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
-  optional string element_path = 111;
-  optional Vector2Data element_position = 112;
-  optional string element_text = 113;
+  optional Vector2Data element_position = 111;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message GoToUrlActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
-  optional string element_path = 111;
-  optional Vector2Data element_position = 112;
-  optional string element_text = 113;
+  optional Vector2Data element_position = 111;
   optional string url = 120;
 }
 
@@ -3134,9 +3118,7 @@ message GoToUrlActionData {
 message GoToTabActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
-  optional string element_path = 111;
-  optional Vector2Data element_position = 112;
-  optional string element_text = 113;
+  optional Vector2Data element_position = 111;
   optional int32 tab_index = 120;
 }
 

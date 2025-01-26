@@ -34,6 +34,7 @@ class DomNode(Struct):
     attributes: dict[str, str] | None = p_regular(
         35, default=None, primitive_type=PrimitiveType.JSON
     )
+    is_focused: bool | None = p_regular(36, default=None)
 
     def __content_str__(self) -> str:
         content_parts: list[str] = []
@@ -41,6 +42,8 @@ class DomNode(Struct):
             content_parts.append(self.tag)
         if self.text:
             content_parts.append(repr(self.text))
+        if self.is_focused:
+            content_parts.append("focused")
         if self.attributes:
             attribute_parts = [f"{k}={v}" for k, v in self.attributes.items()]
             content_parts.append(", ".join(attribute_parts))

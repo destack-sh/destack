@@ -24,6 +24,7 @@ type DomNode = {
     isShadowRoot?: boolean;
     isHighlighted?: boolean;
     children?: DomNode[];
+    isFocused?: boolean;
 };
 
 const LABEL_WIDTH = 20;
@@ -32,6 +33,9 @@ const LABEL_PADDING = 0;
 const CELL_SIZE = 50;
 const VIEWPORT_MARGIN = 0; // minimum pixels from viewport edge
 const HIGHLIGHT_ID_KEY = "benchHighlightId"; // prefix for highlight dataset attribute
+const FOCUS_HIGHLIGHT_CLASS = "bench-focus-highlight";
+const REGULAR_HIGHLIGHT_CLASS = "bench-regular-highlight";
+const LABEL_CLASS = "bench-highlight-label";
 
 /** A cell in the ElementGrid. */
 type ELementCell = {
@@ -40,9 +44,10 @@ type ELementCell = {
 };
 
 function iou(rect1: DOMRect, rect2: DOMRect): number {
-    const intersection = this.intersection(rect1, rect2);
-    const union = this.union(rect1, rect2);
-    return intersection / union;
+    const intersectionVal = intersection(rect1, rect2);
+    const unionVal = union(rect1, rect2);
+    if (unionVal === 0) return 0;
+    return intersectionVal / unionVal;
 }
 
 function intersection(rect1: DOMRect, rect2: DOMRect) {
@@ -50,8 +55,8 @@ function intersection(rect1: DOMRect, rect2: DOMRect) {
     const top = Math.max(rect1.top, rect2.top);
     const right = Math.min(rect1.right, rect2.right);
     const bottom = Math.min(rect1.bottom, rect2.bottom);
-    const width = right - left;
-    const height = bottom - top;
+    const width = Math.max(0, right - left);
+    const height = Math.max(0, bottom - top);
     return width * height;
 }
 
@@ -180,8 +185,9 @@ class HighlightContext {
     rectByElement: Map<Element, DOMRect>;
     nodeByElement: Map<Element, DomNode>;
     labelGrid: ElementGrid;
+    focusedElement: Element | null;
 
-    constructor(root: Element) {
+    constructor(root: Element, focusedElement: Element | null) {
         this.root = root;
         this.rootRect = root.getBoundingClientRect();
         this.highlightId = 0;
@@ -189,6 +195,7 @@ class HighlightContext {
         this.elementGrid = new ElementGrid();
         this.rectByElement = new Map();
         this.nodeByElement = new Map();
+        this.focusedElement = focusedElement;
     }
 
     /** Adds an element to the context (after positioning!). */
@@ -229,8 +236,8 @@ class HighlightContext {
     }
 }
 
-function makeHighlightContext(element: Element): HighlightContext {
-    return new HighlightContext(element);
+function makeHighlightContext(element: Element, focusedElement: Element | null): HighlightContext {
+    return new HighlightContext(element, focusedElement);
 }
 
 const LEAF_DENY_LIST = new Set(["svg", "script", "style", "link", "meta"]);
@@ -339,10 +346,11 @@ function highlightElement(
     rect: DOMRect,
     context: HighlightContext,
     iframe: HTMLIFrameElement | null,
+    isFocused: boolean
 ): void {
     const index = context.highlightId;
     const container = getHighlightContainer();
-    const baseColor = getHighlightColor(index);
+    const baseColor = isFocused ? "#FFFF00CC" : getHighlightColor(index);
 
     // get position
     let top = rect.top;
@@ -356,10 +364,17 @@ function highlightElement(
     // overlay
     const overlay = document.createElement("div");
     overlay.style.position = "absolute";
-    const outlineWidth = Math.max(2, Math.min(5, 2 + Math.round(Math.sqrt(rect.width + rect.height) / 10)));
-    overlay.style.outline = `${outlineWidth}px solid ${baseColor}CC`;
+    const outlineWidth = Math.max(2, Math.min(4, 2 + Math.round(Math.sqrt(rect.width + rect.height) / 10)));
+    if (isFocused) {
+        overlay.classList.add(FOCUS_HIGHLIGHT_CLASS);
+        overlay.style.outline = `${outlineWidth + 1}px dashed #FFFF00CC`;
+        overlay.style.backgroundColor = `#FFFF0055`;
+    } else {
+        overlay.classList.add(REGULAR_HIGHLIGHT_CLASS);
+        overlay.style.outline = `${outlineWidth}px solid ${baseColor}CC`;
+        overlay.style.backgroundColor = `${baseColor}33`;
+    }
     overlay.style.outlineOffset = `${-outlineWidth / 2}px`;
-    overlay.style.backgroundColor = `${baseColor}33`;
     overlay.style.pointerEvents = "none";
     overlay.style.boxSizing = "border-box";
     overlay.style.top = `${top}px`;
@@ -370,7 +385,7 @@ function highlightElement(
 
     // label
     const label = document.createElement("div");
-    label.className = "bench-highlight-label";
+    label.className = LABEL_CLASS;
     label.style.position = "absolute";
     label.style.background = baseColor;
     label.style.color = "white";
@@ -675,9 +690,11 @@ function extract(
         const isInteractive = isElementInteractive(element);
         const isVisible = isElementVisible(element);
         const isTop = isElementTop(element);
+        const isFocusedElement = element === context.focusedElement;
         if (isInteractive) nodeData.isInteractive = true;
         if (isVisible) nodeData.isVisible = true;
         if (isTop) nodeData.isTop = true;
+        if (isFocusedElement) nodeData.isFocused = true;
 
         // highlight
         if (highlight && isInteractive && isVisible && isTop) {
@@ -688,7 +705,7 @@ function extract(
                 // highlight if not overlapping with anything or large part of screen
                 context.highlightId++;
                 nodeData.id = context.highlightId;
-                highlightElement(element, rect, context, iframe);
+                highlightElement(element, rect, context, iframe, isFocusedElement);
                 nodeData.isHighlighted = true;
             }
         }
@@ -747,12 +764,13 @@ function extract(
  * Adds highlights and extract the DOM tree from the current document's body.
  */
 function highlight(): DomNode[] {
-    const root = extract(document.body, true, null, makeHighlightContext(document.body));
+    const focusedElement = document.activeElement as Element | null;
+    const root = extract(document.body, true, null, makeHighlightContext(document.body, focusedElement));
     // collect all interactive nodes into list
     const interactiveNodes: DomNode[] = [];
     function walk(node: DomNode): void {
         if (node.isHighlighted) {
-            const miniNode: DomNode = { id: node.id, tag: node.tag };
+            const miniNode: DomNode = { id: node.id, tag: node.tag, isFocused: node.isFocused };
             if (node.text) {
                 miniNode.text = node.text;
             }
@@ -789,6 +807,15 @@ function cleanup(scope: "container" | "attribute" | "all" = "all"): void {
         const highlightedElements = document.querySelectorAll(`[data-${HIGHLIGHT_ID_KEY}]`);
         highlightedElements.forEach((el) => {
             delete (el as HTMLElement).dataset[HIGHLIGHT_ID_KEY];
+        });
+        // remove highlight classes (regular and focus)
+        const highlightedOverlays = document.querySelectorAll(`.${REGULAR_HIGHLIGHT_CLASS}, .${FOCUS_HIGHLIGHT_CLASS}`);
+        highlightedOverlays.forEach(el => {
+            el.remove();
+        });
+        const highlightLabels = document.querySelectorAll(`.${LABEL_CLASS}`);
+        highlightLabels.forEach(el => {
+            el.remove();
         });
     }
 }
