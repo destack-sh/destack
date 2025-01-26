@@ -17,6 +17,7 @@ from bench.language.core import (
     NodeType,
     RunType,
     SourceNode,
+    Struct,
     StructType,
     Type,
     TypeBase,
@@ -33,6 +34,7 @@ from bench.language.core import (
     p_regular,
     p_value_packed,
     p_value_runtime,
+    struct_,
     subnode_,
 )
 from bench.pb2.lang_pb2 import ActionData
@@ -159,6 +161,21 @@ class ActionType(IdEnum):
     def is_container(self) -> bool:
         return self >= 8000 and self < 9000
 
+    @property
+    def category(self) -> "ActionCategory":
+        return ActionCategory((self.value // 100) * 100)
+
+
+@enum_(EnumType.ACTION_CATEGORY)
+class ActionCategory(IdEnum):
+    STATIC = 100
+    READ = 300
+    WRITE = 400
+    ASYNC = 500
+    ENVIRONMENT = 800
+    APPLICATION = 1000
+    WEB = 1100
+
 
 DYNAMIC_ACTION_TYPES = [t for t in ActionType if t.is_dynamic]
 
@@ -187,6 +204,9 @@ class Action(SourceNode[ActionData]):
     # meta
     run_options: Optional["RunOptions"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
+    tool_selection: Optional["ToolSelection"] = p_regular(
+        41, default=None, require=False, array=False, struct=StructType.TOOL_SELECTION
     )
     # roles, identity, ...
 
@@ -411,6 +431,68 @@ class Action(SourceNode[ActionData]):
             assert input_type is not None, f"no input_type for {action!r}"
             action.inputs = coerce_custom_object_scalar(inputs, input_type)
         return cast(ActionT, action)
+
+
+@enum_(EnumType.TOOL_FILTER)
+class ToolFilter(IdEnum):
+    BUILTIN_OR_CUSTOM = 1, "Any Actions"
+    BUILTIN = 2, "Only Builtin Actions"
+    CUSTOM = 3, "Only Custom Actions"
+
+
+@struct_(StructType.TOOL_SELECTION)
+class ToolSelection(Struct):
+    """
+    Options for dynamic Actions.
+    """
+
+    filter: ToolFilter | None = p_regular(35, default=None)
+    tool_nodes: list[Union["Block", "Action"]] = p_regular(
+        40, array=True, require=False, references=NodeType.ACTION
+    )
+    tool_types: list[ActionType] = p_regular(41, array=True, require=False)
+    tool_categories: list[ActionCategory] = p_regular(42, array=True, require=False)
+
+    def supports(self, action_type: ActionType, tool: Union["Block", "Action", None]) -> bool:
+        """Whether this tool filter includes the given Action."""
+        if self.filter is None:
+            return True
+        elif self.filter == ToolFilter.CUSTOM:
+            # must be in tool_nodes
+            return tool is not None and tool in self.tool_nodes
+        elif self.filter == ToolFilter.BUILTIN:
+            # must be in tool_types or tool_categories
+            return action_type in self.tool_types or action_type.category in self.tool_categories
+        elif self.filter == ToolFilter.BUILTIN_OR_CUSTOM:
+            # must be in tool_types or tool_categories
+            return (
+                action_type in self.tool_types
+                or action_type.category in self.tool_categories
+                or (tool is not None and tool in self.tool_nodes)
+            )
+        else:
+            assert_never(self.filter)
+
+    @staticmethod
+    def custom(*tools: Union["Block", "Action"]) -> "ToolSelection":
+        return ToolSelection(filter=ToolFilter.CUSTOM, tool_nodes=list(tools))
+
+    @staticmethod
+    def builtin(*tools: Union["ActionType", "ActionCategory"]) -> "ToolSelection":
+        return ToolSelection(
+            filter=ToolFilter.BUILTIN,
+            tool_types=[t for t in tools if isinstance(t, ActionType)],
+            tool_categories=[t for t in tools if isinstance(t, ActionCategory)],
+        )
+
+    @staticmethod
+    def any(*tools: Union["ActionType", "ActionCategory", "Block", "Action"]) -> "ToolSelection":
+        return ToolSelection(
+            filter=ToolFilter.BUILTIN_OR_CUSTOM,
+            tool_types=[t for t in tools if isinstance(t, ActionType)],
+            tool_categories=[t for t in tools if isinstance(t, ActionCategory)],
+            tool_nodes=[t for t in tools if isinstance(t, Node)],
+        )
 
 
 #

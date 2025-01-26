@@ -203,9 +203,11 @@ class EnumType(IdEnum):
 
     # flow (22500-22599)
     ACTION_TYPE = 22500
+    ACTION_CATEGORY = 22501
     PORT_SIDE = 22510
     PIPE_TYPE = 22511
     PIPE_TRIGGER = 22512
+    TOOL_FILTER = 22520
 
     # views (22600-22699)
     SPACE_TYPE = 22600
@@ -504,6 +506,8 @@ class StructType(IdEnum):
     AUDIO_OPTIONS = 12801
     IMAGE_OPTIONS = 12802
     VIDEO_OPTIONS = 12803
+    # action
+    TOOL_SELECTION = 12900
 
     # space/views (13200-13699)
     COLOR = 13200

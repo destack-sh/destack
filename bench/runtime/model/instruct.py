@@ -391,7 +391,7 @@ Your outgoing Actions are (name: PipeType->ActionType):
                 text=f"""\
 Remember, it's a dynamic {action.type.bench_name} Action.
  - You MUST complete the Action and generate the outputs including the call plans (if any).
- - The plans SHOULD progress the containing Flow as well as possible. 
+ - The plans SHOULD progress the containing Flow as much as possible. 
 """,
             )
         )
@@ -407,7 +407,7 @@ You MUST add any call plans to the outputs without touching the existing outputs
  - You MUST reuse the given outputs; YOU NOT reproduce the outputs.
  - Reference 'outputs' directly. No verbatim copy.
  - You SHOULD just `return {{**outputs, 'plans': ... }}`.
- - The plans SHOULD progress the containing Flow as well as possible. 
+ - The plans SHOULD progress the containing Flow as much as possible. 
 """,
             )
         )

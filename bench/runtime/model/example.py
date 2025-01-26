@@ -29,7 +29,6 @@ from bench.language import (
     NullEngine,
     Package,
     PackageType,
-    PathElement,
     PathElementType,
     PipeType,
     Region,
@@ -37,6 +36,7 @@ from bench.language import (
     RenderOptions,
     Run,
     Session,
+    ToolSelection,
     User,
     UserStatus,
     _is_setup_complete,
@@ -46,6 +46,7 @@ from bench.language import (
     format_code,
     text,
 )
+from bench.language.source.action import ToolFilter
 from bench.runtime.core import Runner
 from bench.utils.oracle import REAL_ORACLE
 
@@ -327,12 +328,27 @@ def flow_basic_planning(package: Package):
     )
 
 
-# nocheckin
-# @example_("Basic Planning with Tool Actions")
-# def basic_planning_with_tools(package: Package):
-#     """How to plan next Actions in a simple Flow with Tool Actions."""
-#     Flow = Block.new(BlockType.FLOW, name="Flow1")
-#     Start = Action.new(ActionType.START, name="Start")
+# nocheckin: tool instruction
+@example_("Basic Planning with Tool Actions")
+def basic_planning_with_tools(package: Package):
+    """How to plan next Actions in a simple Flow with Tool Actions."""
+    Flow = Block.new(BlockType.FLOW, name="Flow1")
+    Start = Action.new(ActionType.START, name="Start")
+    Think1 = Action.new(ActionType.THINK, name="Think1")
+    Tool1 = Action.new(ActionType.TOOL, name="Tool1", tool_options=ToolSelection.any())
+    Complete = Action.new(ActionType.COMPLETE, name="Complete")
+    Flow.actions.extend(Start, Think1, Tool1, Complete)
+    Start.connect(PipeType.CALL, Think1)
+    Think1.connect(PipeType.CALL, Tool1)
+    Tool1.connect(PipeType.CALL, Complete)
+    # Inputs
+    ...  # some application with obvious element ids provided
+    # ---
+    return [Flow, *Flow.actions, *Flow.pipes], (
+        "No plan because the next Action is Call->Complete and its fields are computed.",
+        Think1,
+        {"plans": []},
+    )
 
 
 @example_("Optional Plan")

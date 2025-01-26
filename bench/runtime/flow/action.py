@@ -70,7 +70,7 @@ from bench.runtime.core import (
     make_runner,
     restore_runner,
 )
-from bench.runtime.core.error import IncapableError
+from bench.runtime.core.error import IncapableError, RefusedError
 from bench.runtime.model.chat import get_chat_model_runner_cls
 
 if TYPE_CHECKING:
@@ -317,7 +317,11 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
 
     @override
     async def run_static(self) -> None:
-        if (tool := self.action.tool) is not None:
+        tool = self.action.tool
+        tool_selection = self.node.tool_selection
+        if tool_selection is not None and not tool_selection.supports(self.action.type, tool):
+            raise RefusedError(f"tool {tool!r} not supported")
+        if isinstance(tool, Action):
             # delegate to tool node
             if tool.type == ActionType.TOOL:
                 # this should work but it just seems wonky and confusing
@@ -331,9 +335,9 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
             )
             await self.runtime.run_runner(tool_runner)
             self.outputs = tool_runner.outputs
-        elif (tool_type := self.action.type) != ActionType.TOOL:
+        elif isinstance(tool, ActionType):
             # delegate to built-in action
-            tool_runner_cls = ACTION_RUNNER_BY_ACTION_TYPE[tool_type]
+            tool_runner_cls = ACTION_RUNNER_BY_ACTION_TYPE[tool]
             tool_runner: Runner[Any] = tool_runner_cls(
                 runtime=self.runtime,
                 node=self.node,
