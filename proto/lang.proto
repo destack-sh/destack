@@ -3064,8 +3064,8 @@ message PressActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
   optional Vector2Data element_position = 111;
-  optional string keys = 120;
-  optional float delay = 121;
+  optional string combination = 120;
+  optional google.protobuf.Duration delay = 121;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -3074,7 +3074,7 @@ message TypeActionData {
   optional string element_id = 110;
   optional Vector2Data element_position = 111;
   optional string string = 120;
-  optional float delay = 121;
+  optional google.protobuf.Duration delay = 121;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.

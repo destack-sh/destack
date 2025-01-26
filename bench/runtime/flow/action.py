@@ -543,19 +543,22 @@ class ClickActionRunner(ApplicationActionRunner[ClickAction]):
             await pw_page.mouse.click(element_position.x, element_position.y, button=button)
         else:
             raise IncapableError("no element to focus")
+        await self.runtime.playwright.wait_for_idle(pw_page)
 
 
 class PressActionRunner(ApplicationActionRunner[PressAction]):
     @override
     async def run_static(self) -> None:
-        keys = self.action.keys
-        if not isinstance(keys, str):
-            raise ValidationError(None, f"bad keys to press: {keys!r}")
+        combination = self.action.combination
+        if not isinstance(combination, str):
+            raise ValidationError(None, f"bad keys to press: {combination!r}")
         browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await self._focus_element(self.action, pw_page)
-        await pw_page.keyboard.press(keys, delay=self.action.delay)
+        delay_seconds = self.action.delay.total_seconds() if self.action.delay else 0
+        await pw_page.keyboard.press(combination, delay=delay_seconds)
+        await self.runtime.playwright.wait_for_idle(pw_page)
 
 
 class TypeActionRunner(ApplicationActionRunner[TypeAction]):
@@ -568,7 +571,8 @@ class TypeActionRunner(ApplicationActionRunner[TypeAction]):
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await self._focus_element(self.action, pw_page)
-        await pw_page.keyboard.type(string, delay=self.action.delay)
+        delay_seconds = self.action.delay.total_seconds() if self.action.delay else 0
+        await pw_page.keyboard.type(string, delay=delay_seconds)
 
 
 class ScrollActionRunner(ApplicationActionRunner[ScrollAction]):
@@ -597,6 +601,7 @@ class GoBackwardActionRunner(ApplicationActionRunner[GoBackwardAction]):
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await pw_page.go_back()
+        await self.runtime.playwright.wait_for_idle(pw_page)
 
 
 class GoForwardActionRunner(ApplicationActionRunner[GoForwardAction]):
@@ -606,6 +611,7 @@ class GoForwardActionRunner(ApplicationActionRunner[GoForwardAction]):
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
         await pw_page.go_forward()
+        await self.runtime.playwright.wait_for_idle(pw_page)
 
 
 #
