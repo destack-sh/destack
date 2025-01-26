@@ -6,6 +6,8 @@ app = typer.Typer(short_help="print examples")
 logger = structlog.get_logger(__name__)
 console = Console()
 
+_print = print
+
 
 @app.command()
 def print():
@@ -14,11 +16,11 @@ def print():
     from bench.runtime.model.example import EXAMPLES
 
     console.print("─" * 80)
-    for example in EXAMPLES:
-        console.print(f"\n[bold blue]{example.title}[/bold blue]")
+    for i, example in enumerate(EXAMPLES):
+        console.print(f"\n[bold blue]{example.title} ({i + 1}/{len(EXAMPLES)})[/bold blue]")
         if example.text:
             console.print(f"[dim]{example.text}[/dim]\n")
-        console.print(example.request.strip(), style="bold")
-        console.print("[dim]→[/dim]")
-        console.print(example.response.strip(), style="bold")
+        _print(example.request)
+        _print("[dim]→[/dim]")
+        _print(example.response)
         console.print("\n" + "─" * 80)

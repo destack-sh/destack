@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
 import { ErrorKind, ErrorType, type RunData, type ErrorData } from "@/proto/wire";
+import { Casing, toCasing } from "@/utils/string";
 import Text from "@/views/content/Text.vue";
 
 const props = defineProps<{ run?: RunData; error: ErrorData }>();
@@ -13,9 +14,9 @@ const props = defineProps<{ run?: RunData; error: ErrorData }>();
       <span class="max-w-60 truncate font-medium">{{ error.title ?? "Error" }}</span>
       <!-- Details -->
       <div class="ml-auto flex-shrink-0 pl-4 text-gray-700">
-        <span>{{ toCamelName(ErrorKind, error.kind) }}</span>
+        <span>{{ toCasing(ErrorKind[error.kind], Casing.CAMEL, true) }}</span>
         <template v-if="error.type">
-          / <span>{{ toCamelName(ErrorType, error.type) }}</span></template
+          / <span>{{ toCasing(ErrorType[error.type], Casing.CAMEL, true) }}</span></template
         >
       </div>
     </div>
