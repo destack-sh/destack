@@ -43,7 +43,7 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/bench.py",
-      "args": ["examples"],
+      "args": ["example", "print"],
       "cwd": "${workspaceFolder}",
       "justMyCode": true
     },

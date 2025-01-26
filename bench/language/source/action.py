@@ -317,20 +317,23 @@ class Action(SourceNode[ActionData]):
             typ = Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
             return typ
         elif of == "value":
+            property_field_types = field_types
             if self.type == ActionType.START:
-                parent = self.parent
-                if parent is not None and (not field_types or FieldType.OUTPUT in field_types):
-                    return parent.input_type
-                else:
+                if field_types and FieldType.OUTPUT not in field_types:
                     return None
+                base = self.parent
+                property_field_types = field_types
+                field_types = [FieldType.INPUT]  # remap to only input fields from Flow
             elif self.type == ActionType.COMPLETE:
-                parent = self.parent
-                if parent is not None and (not field_types or FieldType.INPUT in field_types):
-                    return parent.output_type
-                else:
+                if field_types and FieldType.INPUT not in field_types:
                     return None
-
-            base = self.tool if self.type == ActionType.TOOL else self
+                base = self.parent
+                property_field_types = field_types
+                field_types = [FieldType.OUTPUT]  # remap to only output fields from Flow
+            elif self.type == ActionType.TOOL:
+                base = self.tool
+            else:
+                base = self
             if (
                 field_types
                 and (FieldType.INPUT in field_types or FieldType.OUTPUT in field_types)
@@ -343,7 +346,7 @@ class Action(SourceNode[ActionData]):
                     base_type=base,
                     bench_type=NodeType.ACTION,
                     base_field_types=field_types,
-                    property_field_types=field_types,
+                    property_field_types=property_field_types or [],
                     constraint=TypeConstraint(node_subtypes=[self.type]),
                 )
             else:

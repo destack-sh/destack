@@ -156,7 +156,11 @@ def example_(title: str, weight: int = 1):
 
     def decorator(
         func: Callable[
-            [Package], tuple[Sequence[Node] | str, CustomObject | tuple[Action, dict] | str]
+            [Package],
+            tuple[
+                Sequence[Node] | str,
+                CustomObject | tuple[Action, dict] | tuple[str, Action, dict] | str,
+            ],
         ],
     ):
         text = func.__doc__
@@ -173,16 +177,23 @@ def example_(title: str, weight: int = 1):
         token = ACTIVE_SESSION.set(EXAMPLE_SESSION)
         try:
             response = func(EXAMPLE_PACKAGE)[1]
+            comment: str | None = None
             if isinstance(response, tuple):
-                output_type = response[0].output_type
+                if len(response) == 3:
+                    comment, action, output = response
+                else:
+                    action, output = response
+                output_type = action.output_type
                 assert output_type is not None, f"example {func!r} has no output type"
                 response = coerce_custom_object_scalar(
-                    response[1], typ=output_type, supergraph=EXAMPLE_PACKAGE._supergraph
+                    output, typ=output_type, supergraph=EXAMPLE_PACKAGE._supergraph
                 )
             if isinstance(response, CustomObject):
                 renderer = Renderer(options=RenderOptions(scope=EXAMPLE_PACKAGE))
                 response = renderer.render_custom_object(response)
                 response = f"return {response}"
+                if comment:
+                    response = f"# {comment}\n{response}"
                 response = format_code(response)
         finally:
             ACTIVE_SESSION.reset(token)
@@ -202,7 +213,7 @@ def example_(title: str, weight: int = 1):
 
 
 @example_("Field Reference")
-def field_reference(package: Package):
+def basic_field_reference(package: Package):
     """How to reference a Field or any other Node."""
     Sentiment = Block.new(
         BlockType.CHOICE,
@@ -225,12 +236,12 @@ def field_reference(package: Package):
 
 
 #
-# Flows
+# Actions
 #
 
 
 @example_("Simple Action Outputs")
-def simple_action(package: Package):
+def action_simple(package: Package):
     """A super simple meaningless Action."""
     Action1 = Action.new(
         ActionType.GENERATE,
@@ -243,7 +254,7 @@ def simple_action(package: Package):
 
 
 @example_("Failing an Impossible Request")
-def failing_impossible_request(package: Package):
+def action_failing_impossible_request(package: Package):
     """How to fail an impossible request."""
     Act1 = Action.new(
         ActionType.ACT,
@@ -260,12 +271,12 @@ raise ModelIncapableError("I'm afraid I cannot do that.")
 
 
 @example_("Refusing an Illegal Request")
-def refusing_illegal_request(package: Package):
+def action_refusing_illegal_request(package: Package):
     """How to refuse an illegal request."""
     Generate1 = Action.new(
         ActionType.GENERATE,
         name="Generate1",
-        text=text("Generate some obviously terrible outputs for nefarious purposes"),
+        text=text("Implement some obviously terrible logic for nefarious purposes"),
     )
     # ---
     return (
@@ -276,8 +287,13 @@ raise ModelRefusedError("I'm afraid I cannot do that.")
     )
 
 
+#
+# Flows
+#
+
+
 @example_("Basic Planning")
-def basic_planning(package: Package):
+def flow_basic_planning(package: Package):
     """How to plan next Actions in a simple Flow with fixed Actions."""
     Flow = Block.new(BlockType.FLOW, name="Flow1")
     Start = Action.new(ActionType.START, name="Start")
@@ -318,9 +334,9 @@ def basic_planning(package: Package):
 #     Start = Action.new(ActionType.START, name="Start")
 
 
-@example_("Simple extract without a plan")
-def simple_extract_without_plan(package: Package):
-    """How to plan next Actions when the Flow is done."""
+@example_("Optional Plan")
+def flow_simple_extract_without_plan(package: Package):
+    """No plans needed when the Flow is done and the outputs are set."""
     Flow = Block.new(
         BlockType.FLOW,
         name="Flow1",
@@ -341,7 +357,33 @@ def simple_extract_without_plan(package: Package):
     # Inputs
     {"Text": "And then Alice met Bob at the park."}
     # ---
-    return [Flow, *Flow.actions, *Flow.pipes], (Extract, {"Names": ["Alice", "Bob"], "plans": []})
+    return [Flow, *Flow.actions, *Flow.pipes], (
+        "No plan because the next Action is Call->Complete and its fields are computed.",
+        Extract,
+        {"Names": ["Alice", "Bob"], "plans": []},
+    )
+
+
+@example_("Plan arguments for Actions")
+def flow_implicit_transformation_in_call(package: Package):
+    """Every plan should consider what the Flow and the other Actions need."""
+    Flow = Block.new(
+        BlockType.FLOW,
+        name="Flow1",
+        fields=[Field.input("Name", str), Field.output("Greeting", str)],
+    )
+    Start = Action.new(ActionType.START, name="Start")
+    Complete = Action.new(ActionType.COMPLETE, name="Complete")
+    Flow.actions.extend(Start, Complete)
+    Start.connect(PipeType.CALL, Complete)
+    # Inputs
+    {"Name": "Alice"}
+    # ---
+    return [Flow, *Flow.actions, *Flow.pipes], (
+        "Feed argument to Flow/Complete via plan",
+        Start,
+        {"plans": [call_serial(call(Complete, Greeting="Hello Alice!"))]},
+    )
 
 
 def get_examples(action: Action, runner: Runner) -> Sequence[PromptExample]:
