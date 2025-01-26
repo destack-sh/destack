@@ -59,7 +59,7 @@ from bench.language.core import (
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.utils.time import timedelta_to_isoformat
 
-from .action import Action
+from .action import Action, ToolFilter, ToolSelection
 from .block import Block
 from .field import Field
 from .pipe import Pipe
@@ -945,6 +945,33 @@ class CallPlanRenderer(BuiltinObjectRenderer[CallPlan]):
             *calls_strs, renderer._render_kwargs(**rendered_kwargs) or None
         )
         return f"{func}({args})"
+
+
+@_renderer(StructType.TOOL_SELECTION)
+class ToolSelectionRenderer(BuiltinObjectRenderer[ToolSelection]):
+    @override
+    def render(self, renderer: "Renderer", obj: ToolSelection) -> str:
+        if obj.filter == ToolFilter.CUSTOM:
+            tools = [renderer.render_node_ref(tool) for tool in obj.tool_nodes]
+            return f"ToolSelection.custom({', '.join(tools)})"
+        elif obj.filter == ToolFilter.BUILTIN:
+            tools = []
+            if obj.tool_types:
+                tools.extend(f"ActionType.{t.name}" for t in obj.tool_types)
+            if obj.tool_categories:
+                tools.extend(f"ActionCategory.{c.name}" for c in obj.tool_categories)
+            return f"ToolSelection.builtin({', '.join(tools)})"
+        elif obj.filter is None or obj.filter == ToolFilter.BUILTIN_OR_CUSTOM:
+            tools = []
+            if obj.tool_types:
+                tools.extend(f"ActionType.{t.name}" for t in obj.tool_types)
+            if obj.tool_categories:
+                tools.extend(f"ActionCategory.{c.name}" for c in obj.tool_categories)
+            if obj.tool_nodes:
+                tools.extend(renderer.render_node_ref(tool) for tool in obj.tool_nodes)
+            return f"ToolSelection.any({', '.join(tools)})"
+        else:
+            assert_never(obj.filter)
 
 
 #

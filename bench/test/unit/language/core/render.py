@@ -46,6 +46,7 @@ from bench.language import (
 )
 from bench.language.core import code
 from bench.language.core.code import format_code
+from bench.language.source.action import ActionCategory, ToolSelection
 from bench.runtime.code import BUILTIN_GLOBALS, STATIC_CODE_GLOBALS
 
 
@@ -95,7 +96,7 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
 
         # should match source (minus last line)
         source = inspect.getsource(func)
-        source = "\n".join(source.splitlines()[2:-1])  # remove return
+        source = "\n".join(source.splitlines()[2:]).split("return")[0]  # remove return
         source = textwrap.dedent(source).strip()
         assert rendered == source
 
@@ -347,6 +348,22 @@ def test_render_call_plan(session: Session, package: Package):
         on_terminate=CallTerminationMode.RETURN,
     )
     return {"Action1": Action1, "Plan1": Plan1, "Plan2": Plan2, "Plan3": Plan3}
+
+
+@_render_test
+def test_render_tool_options(session: Session, package: Package):
+    Action1 = Action.new(ActionType.TOOL, "Action1", tool_selection=ToolSelection.any())
+    ToolOptions1 = ToolSelection.custom(Action1)
+    ToolOptions2 = ToolSelection.builtin(ActionType.CODE)
+    ToolOptions3 = ToolSelection.any(
+        ActionType.CODE, ActionCategory.APPLICATION, ActionCategory.ENVIRONMENT, Action1
+    )
+    return {
+        "Action1": Action1,
+        "ToolOptions1": ToolOptions1,
+        "ToolOptions2": ToolOptions2,
+        "ToolOptions3": ToolOptions3,
+    }
 
 
 #
