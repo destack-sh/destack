@@ -639,11 +639,9 @@ class HasApplicationContext(BuiltinObject):
         100, require=False, references=(NodeType.BROWSER,), field_type=FieldType.INPUT
     )
     element_id: str | None = p_regular(110, field_type=FieldType.INPUT)
-    element_path: str | None = p_regular(111, field_type=FieldType.INPUT)
     element_position: Optional["Vector2"] = p_regular(
-        112, default=None, array=False, struct=StructType.VECTOR2, field_type=FieldType.INPUT
+        111, default=None, array=False, struct=StructType.VECTOR2, field_type=FieldType.INPUT
     )
-    element_text: str | None = p_regular(113, default=None, field_type=FieldType.INPUT)
 
 
 @subnode_(ActionType.LOOK)
@@ -667,7 +665,7 @@ class LookAction(Action, HasApplicationContext):  # move out of application?
 
 @subnode_(ActionType.CLICK)
 class ClickAction(Action, HasApplicationContext):
-    pass
+    button: Optional[str] = p_regular(120, default=None, field_type=FieldType.INPUT)
 
 
 @subnode_(ActionType.PRESS)

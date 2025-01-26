@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar, cast, final, override
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast, final, override
 
 import structlog
 from opentelemetry import trace
@@ -70,6 +70,7 @@ from bench.runtime.core import (
     make_runner,
     restore_runner,
 )
+from bench.runtime.core.error import IncapableError
 from bench.runtime.model.chat import get_chat_model_runner_cls
 
 if TYPE_CHECKING:
@@ -140,7 +141,7 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
             not self.node.type.is_boundary
             and self.outputs is not None
             and self.outputs._type.kind == TypeKind.PARTIAL_OBJECT
-            and cast(Action, self.outputs).plans
+            and (getattr(self.outputs, "plans", None))
         )
         if (
             self.flow is not None
@@ -484,23 +485,20 @@ class ApplicationActionRunner[A: Action = Action](StaticActionRunner[A]):
         else:
             return self._get_ready_resource_or_error(Browser)
 
-    async def _get_element_selector(self, inputs: HasApplicationContext) -> str | None:
-        """Gets the element selector from the inputs."""
-        # TODO :Incomplete: automatically generate selector for Action if non given
-        #  (with run_span(APPLICATION_FIND_ELEMENT), ...)
-        if inputs.element_id is not None:
-            return f"[data-bench-highlight-id='{inputs.element_id}']"
-        elif inputs.element_path is not None:
-            return inputs.element_path
-        else:
-            return None
-
-    async def _focus_element(self, inputs: HasApplicationContext, pw_page: PlaywrightPage):
+    async def _focus_element(
+        self,
+        inputs: HasApplicationContext,
+        pw_page: PlaywrightPage,
+        button: Literal["left", "right", "middle"] = "left",
+    ):
         """Focuses the element."""
-        selector = await self._get_element_selector(inputs)
-        if selector is None:
-            raise ValidationError(None, "no element selector to focus")
-        await pw_page.focus(selector)
+        if (element_id := inputs.element_id) is not None:
+            selector = f"[data-bench-highlight-id='{element_id}']"
+            await pw_page.focus(selector)
+        elif (element_position := inputs.element_position) is not None:
+            await pw_page.mouse.click(element_position.x, element_position.y, button=button)
+        else:
+            raise IncapableError("no element to focus")
 
 
 class LookActionRunner(ApplicationActionRunner[LookAction]):
@@ -532,21 +530,27 @@ class LookActionRunner(ApplicationActionRunner[LookAction]):
 class ClickActionRunner(ApplicationActionRunner[ClickAction]):
     @override
     async def run_static(self) -> None:
-        selector = await self._get_element_selector(self.action)
-        if selector is None:
-            raise ValidationError(None, "no element selector to click")
         browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
-        await pw_page.click(selector)
+        button = self.action.button or "left"
+        if button not in ("left", "right", "middle"):
+            raise ValidationError(None, f"invalid button: {button!r}")
+        if (element_id := self.action.element_id) is not None:
+            selector = f"[data-bench-highlight-id='{element_id}']"
+            await pw_page.click(selector)
+        elif (element_position := self.action.element_position) is not None:
+            await pw_page.mouse.click(element_position.x, element_position.y, button=button)
+        else:
+            raise IncapableError("no element to focus")
 
 
 class PressActionRunner(ApplicationActionRunner[PressAction]):
     @override
     async def run_static(self) -> None:
         keys = self.action.keys
-        if keys is None:
-            raise ValidationError(None, "no keys to press")
+        if not isinstance(keys, str):
+            raise ValidationError(None, f"bad keys to press: {keys!r}")
         browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
@@ -558,8 +562,8 @@ class TypeActionRunner(ApplicationActionRunner[TypeAction]):
     @override
     async def run_static(self) -> None:
         string = self.action.string
-        if string is None:
-            raise ValidationError(None, "no string to type")
+        if not isinstance(string, str):
+            raise ValidationError(None, f"bad string to type: {string!r}")
         browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]

@@ -134,6 +134,7 @@ Other behavior is determined by the CallPlans returned by the outgoing Action.
 Actions in a Flow MUST return a list of CallPlan which are executed in parallel
  (each individual plan is either SERIAL or PARALLEL).
  - You MAY include multiple calls to the same Action.
+ - You SHOULD chain multiple calls in the same plan if you're confident (it's faster).
  - You MAY route back to yourself with CallTerminationMode.RETURN
  - Call Complete only if the Flow is complete.
  - You SHOULD raise IncapableError when none of the connected Actions do what you need.
@@ -244,15 +245,19 @@ def make_chat_prompt(
         if ancestor.tracked_run is not None:
             offset = len(run_ancestors) - i
             run_part = PromptRun(title=None, weight=10, node=ancestor.tracked_run)
-            run_region = prompt_region(run_part, title=f"Ancestor Run -{offset}", weight=10)
+            run_region = prompt_region(
+                run_part,
+                title=f"Ancestor Run -{offset}",
+                text="A parent Run that this Run is part of.",
+                weight=10,
+            )
             run_items.append(run_region)
     # collect all incoming Runs up to the root (with decreasing weight)
-    max_depth = 8  # :Tunable
-    incoming_depth = 0
+    max_depth = 3  # :Tunable
     current_incoming: list[Run] = run.incoming
     next_incoming: list[Run] = []
     all_incoming: list[Run] = []
-    while current_incoming and incoming_depth < max_depth:
+    while current_incoming and len(all_incoming) < max_depth:
         for r in current_incoming:
             if r in seen_runs:
                 continue
@@ -262,12 +267,16 @@ def make_chat_prompt(
             next_incoming.extend(r.incoming)
         current_incoming = next_incoming
         next_incoming = []
-        incoming_depth += 1
     for i, r in enumerate(reversed(all_incoming)):
         offset = len(all_incoming) - i
         weight = max(1, max_depth - offset)
         run_part = PromptRun(title=None, weight=1, node=r)
-        run_region = prompt_region(run_part, title=f"Prior Run -{offset}", weight=weight)
+        run_region = prompt_region(
+            run_part,
+            title=f"Incoming Run ({offset} ago)",
+            text="A previous Run of connected Action in this Flow.",
+            weight=weight,
+        )
         run_items.append(run_region)
     # plan
     if (plan := runner.plan) is not None:
@@ -335,7 +344,9 @@ def make_chat_prompt(
         ]
         flow_parts = [
             PromptNode(title=None, weight=1, node=flow),
-            PromptText(None, f"You are part of the Flow '{flow.code_name}'."),
+            PromptText(
+                None, f"You are part of the Flow '{flow.code_name}'. Consider the flow as a whole."
+            ),
         ]
         can_flow_be_empty = all(p.type == PipeType.CALL for p, a in connected_actions)
         if len(connected_actions) == 0:
@@ -363,8 +374,8 @@ def make_chat_prompt(
             PromptText(
                 title=None,
                 text=f"""\
-Your (outgoing) connected Actions are (name: PipeType->ActionType):
-{'\n'.join(f" - '{renderer.render_node_ref(p.target)}: {p.type.bench_name}->{a.type.bench_name}'" for p, a in connected_actions) or '<none>'}
+Your outgoing Actions are (name: PipeType->ActionType):
+{'\n'.join(f" - {renderer.render_node_ref(p.target)}: {p.type.bench_name}->{a.type.bench_name}" for p, a in connected_actions) or '<none>'}
 """,
             )
         )
