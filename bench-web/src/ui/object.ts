@@ -921,10 +921,10 @@ const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>
   // async
   [ActionType.WAIT]: [WaitActionProperty.delay],
   // application
-  [ActionType.CLICK]: [ClickActionProperty.elementId, ClickActionProperty.elementPosition],
-  [ActionType.TYPE]: [ClickActionProperty.elementId, TypeActionProperty.string, TypeActionProperty.delay],
-  [ActionType.PRESS]: [ClickActionProperty.elementId, PressActionProperty.keys, PressActionProperty.delay],
-  [ActionType.SCROLL]: [ClickActionProperty.elementId, ScrollActionProperty.amount],
+  [ActionType.CLICK]: [],
+  [ActionType.TYPE]: [TypeActionProperty.string],
+  [ActionType.PRESS]: [PressActionProperty.combination],
+  [ActionType.SCROLL]: [ScrollActionProperty.amount],
   [ActionType.LOOK]: [LookActionProperty.screenshotPtr],
   // web
   [ActionType.GO_TO_URL]: [GoToUrlActionProperty.url],

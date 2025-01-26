@@ -80,7 +80,13 @@ class AnthropicChatModelRunner(ChatModelRunner):
         messages: list[anthropic_types.MessageParam] = [*content]
         temperature = options.text_options.temperature if options.text_options else None
         completion = await anthropic_client.messages.create(
-            system=get_system_prompt(prompt),
+            system=[
+                {
+                    "type": "text",
+                    "text": get_system_prompt(prompt),
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
             max_tokens=8192,
             model=model_id,
             messages=messages,

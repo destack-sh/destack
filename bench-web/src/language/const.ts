@@ -406,7 +406,7 @@ export const EXPOSED_MODEL_TYPES = [
   ModelType.OPENAI_O1,
   ModelType.ANTHROPIC_CLAUDE_3_5_SONNET,
 ];
-export const EXPOSED_REGIONS = [Region.FRANKFURT, Region.OHIO];
+export const EXPOSED_REGIONS = [Region.FRANKFURT];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,

@@ -316,7 +316,7 @@ def flow_basic_planning(package: Package):
         call_serial(
             call(Click1, element_id="7", button="left"),
             call(Type1, element_id="2", string="florian@symbolx.com"),
-            call(Press1, element_id="3", keys="Enter"),
+            call(Press1, element_id="3", combination="Enter"),
             on_terminate=CallTerminationMode.RETURN,  # back to Look when done
         )
     ]

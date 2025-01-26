@@ -4429,13 +4429,13 @@ export interface PressActionData {
      */
     elementPosition?: Vector2Data;
     /**
-     * @generated from protobuf field: optional string keys = 120;
+     * @generated from protobuf field: optional string combination = 120;
      */
-    keys?: string;
+    combination?: string;
     /**
-     * @generated from protobuf field: optional float delay = 121;
+     * @generated from protobuf field: optional google.protobuf.Duration delay = 121;
      */
-    delay?: number;
+    delay?: Duration;
 }
 /**
  * A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -4460,9 +4460,9 @@ export interface TypeActionData {
      */
     string?: string;
     /**
-     * @generated from protobuf field: optional float delay = 121;
+     * @generated from protobuf field: optional google.protobuf.Duration delay = 121;
      */
-    delay?: number;
+    delay?: Duration;
 }
 /**
  * A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -23318,8 +23318,8 @@ class PressActionData$Type extends MessageType$<PressActionData> {
             { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 111, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 120, name: "keys", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 121, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 120, name: "combination", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 121, name: "delay", kind: "message", T: () => Duration }
         ]);
     }
     create(value?: PartialMessage<PressActionData>): PressActionData {
@@ -23342,11 +23342,11 @@ class PressActionData$Type extends MessageType$<PressActionData> {
                 case /* optional symbolx.bench.Vector2Data element_position */ 111:
                     message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
                     break;
-                case /* optional string keys */ 120:
-                    message.keys = reader.string();
+                case /* optional string combination */ 120:
+                    message.combination = reader.string();
                     break;
-                case /* optional float delay */ 121:
-                    message.delay = reader.float();
+                case /* optional google.protobuf.Duration delay */ 121:
+                    message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -23369,12 +23369,12 @@ class PressActionData$Type extends MessageType$<PressActionData> {
         /* optional symbolx.bench.Vector2Data element_position = 111; */
         if (message.elementPosition)
             Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional string keys = 120; */
-        if (message.keys !== undefined)
-            writer.tag(120, WireType.LengthDelimited).string(message.keys);
-        /* optional float delay = 121; */
-        if (message.delay !== undefined)
-            writer.tag(121, WireType.Bit32).float(message.delay);
+        /* optional string combination = 120; */
+        if (message.combination !== undefined)
+            writer.tag(120, WireType.LengthDelimited).string(message.combination);
+        /* optional google.protobuf.Duration delay = 121; */
+        if (message.delay)
+            Duration.internalBinaryWrite(message.delay, writer.tag(121, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23393,7 +23393,7 @@ class TypeActionData$Type extends MessageType$<TypeActionData> {
             { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 111, name: "element_position", kind: "message", T: () => Vector2Data },
             { no: 120, name: "string", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 121, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 121, name: "delay", kind: "message", T: () => Duration }
         ]);
     }
     create(value?: PartialMessage<TypeActionData>): TypeActionData {
@@ -23419,8 +23419,8 @@ class TypeActionData$Type extends MessageType$<TypeActionData> {
                 case /* optional string string */ 120:
                     message.string = reader.string();
                     break;
-                case /* optional float delay */ 121:
-                    message.delay = reader.float();
+                case /* optional google.protobuf.Duration delay */ 121:
+                    message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -23446,9 +23446,9 @@ class TypeActionData$Type extends MessageType$<TypeActionData> {
         /* optional string string = 120; */
         if (message.string !== undefined)
             writer.tag(120, WireType.LengthDelimited).string(message.string);
-        /* optional float delay = 121; */
-        if (message.delay !== undefined)
-            writer.tag(121, WireType.Bit32).float(message.delay);
+        /* optional google.protobuf.Duration delay = 121; */
+        if (message.delay)
+            Duration.internalBinaryWrite(message.delay, writer.tag(121, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29098,7 +29098,7 @@ export enum PressActionProperty {
   applicationPtr = 100,
   elementId = 110,
   elementPosition = 111,
-  keys = 120,
+  combination = 120,
   delay = 121,
 }
 
@@ -31043,15 +31043,15 @@ export const PressActionDataInfo: Record<PressActionProperty, PropertyInfo> = {
   [PressActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
   [PressActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
   [PressActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [PressActionProperty.keys]: { id: 120, name: 'keys', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.delay]: { id: 121, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.combination]: { id: 120, name: 'combination', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [PressActionProperty.delay]: { id: 121, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'primitive', primitiveType: PrimitiveType.DURATION, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const TypeActionDataInfo: Record<TypeActionProperty, PropertyInfo> = {
   [TypeActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
   [TypeActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
   [TypeActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [TypeActionProperty.string]: { id: 120, name: 'string', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.delay]: { id: 121, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [TypeActionProperty.delay]: { id: 121, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'primitive', primitiveType: PrimitiveType.DURATION, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const ScrollActionDataInfo: Record<ScrollActionProperty, PropertyInfo> = {
   [ScrollActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1003, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },

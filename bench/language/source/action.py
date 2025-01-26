@@ -670,14 +670,14 @@ class ClickAction(Action, HasApplicationContext):
 
 @subnode_(ActionType.PRESS)
 class PressAction(Action, HasApplicationContext):
-    keys: str | None = p_regular(120, default=None, field_type=FieldType.INPUT)
-    delay: float | None = p_regular(121, default=None, field_type=FieldType.INPUT)
+    combination: str | None = p_regular(120, default=None, field_type=FieldType.INPUT)
+    delay: timedelta | None = p_regular(121, default=None, field_type=FieldType.INPUT)
 
 
 @subnode_(ActionType.TYPE)
 class TypeAction(Action, HasApplicationContext):
     string: str | None = p_regular(120, default=None, field_type=FieldType.INPUT)
-    delay: float | None = p_regular(121, default=None, field_type=FieldType.INPUT)
+    delay: timedelta | None = p_regular(121, default=None, field_type=FieldType.INPUT)
 
 
 @subnode_(ActionType.SCROLL)

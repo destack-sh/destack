@@ -5508,18 +5508,18 @@ class ClickActionData(_message.Message):
     def __init__(self, application_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., element_id: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., button: _Optional[str] = ...) -> None: ...
 
 class PressActionData(_message.Message):
-    __slots__ = ("application_ptr", "element_id", "element_position", "keys", "delay")
+    __slots__ = ("application_ptr", "element_id", "element_position", "combination", "delay")
     APPLICATION_PTR_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_POSITION_FIELD_NUMBER: _ClassVar[int]
-    KEYS_FIELD_NUMBER: _ClassVar[int]
+    COMBINATION_FIELD_NUMBER: _ClassVar[int]
     DELAY_FIELD_NUMBER: _ClassVar[int]
     application_ptr: NodeReferenceData
     element_id: str
     element_position: Vector2Data
-    keys: str
-    delay: float
-    def __init__(self, application_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., element_id: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., keys: _Optional[str] = ..., delay: _Optional[float] = ...) -> None: ...
+    combination: str
+    delay: _duration_pb2.Duration
+    def __init__(self, application_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., element_id: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., combination: _Optional[str] = ..., delay: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...) -> None: ...
 
 class TypeActionData(_message.Message):
     __slots__ = ("application_ptr", "element_id", "element_position", "string", "delay")
@@ -5532,8 +5532,8 @@ class TypeActionData(_message.Message):
     element_id: str
     element_position: Vector2Data
     string: str
-    delay: float
-    def __init__(self, application_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., element_id: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., string: _Optional[str] = ..., delay: _Optional[float] = ...) -> None: ...
+    delay: _duration_pb2.Duration
+    def __init__(self, application_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., element_id: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., string: _Optional[str] = ..., delay: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...) -> None: ...
 
 class ScrollActionData(_message.Message):
     __slots__ = ("application_ptr", "element_id", "element_position", "amount")
