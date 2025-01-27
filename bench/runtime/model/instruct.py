@@ -342,7 +342,9 @@ def make_chat_prompt(
     # flow
     if (flow := action.block) is not None and flow.type == BlockType.FLOW:
         connected_actions = [
-            (pipe, pipe.target) for pipe in flow.pipes if pipe.source_id == action.id
+            (pipe, target)
+            for pipe in flow.pipes
+            if pipe.source_id == action.id and (target := pipe.target) is not None
         ]
         flow_parts = [
             PromptNode(title=None, weight=1, node=flow),
