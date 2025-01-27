@@ -441,14 +441,15 @@ async def test_run_flow_pipe_to_nowhere(hosted_runtime: RuntimeHandle):
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Nowhere = Action.new(ActionType.START, "Nowhere")  # not added to flow/graph
-    Flow1.actions.extend(Start, Complete)
+    Flow1.actions.extend(Start, Nowhere, Complete)
     Start.connect(PipeType.CALL, Nowhere, parent=Flow1)
     Start.connect(PipeType.CALL, Complete)
     hosted_runtime.page().blocks.append(Flow1)
+    Nowhere.delete()
     await hosted_runtime.commit()
 
     runner = await hosted_runtime.run(Flow1)
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 5
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 4
 
 
 async def test_run_flow_force_invalid_output(hosted_runtime: RuntimeHandle):
@@ -891,6 +892,18 @@ return {
     assert runner.tracked_run.has(Code2)
     assert runner.tracked_run.has(Fail)
     assert not runner.tracked_run.has(Code3)
+
+    # Plan: Code1, Complete (return on terminate)
+    # -> should terminate (and not loop endlessly..)
+    Plan1.code = code("""\
+return {
+    "plans": [call_serial(call(Code1), call(Complete), on_terminate=CallFailureMode.RETURN)],
+}
+""")
+    runner = await hosted_runtime.run(Flow)
+    assert runner.tracked_run
+    assert runner.tracked_run.has(Complete)
+    assert runner.tracked_run.has(Code1)
 
 
 async def test_run_flow_abort(hosted_runtime: RuntimeHandle):

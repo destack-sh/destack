@@ -711,6 +711,9 @@ class Runtime:
             self.session.commit_optimistic()
             # actually attempt Run
             try:
+                assert (
+                    runner.parent is None or not runner.parent.status.is_terminal
+                ), f"parent {runner.parent!r} was terminated"
                 if runner.tracked_span is not None:
                     await self._do_run_span(runner)
                 elif runner.tracked_run is not None:

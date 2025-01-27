@@ -206,7 +206,12 @@ class Action(SourceNode[ActionData]):
         40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
     tool_selection: Optional["ToolSelection"] = p_regular(
-        41, default=None, require=False, array=False, struct=StructType.TOOL_SELECTION
+        41,
+        default=None,
+        require=False,
+        array=False,
+        struct=StructType.TOOL_SELECTION,
+        field_type=FieldType.INPUT,
     )
     # roles, identity, ...
 

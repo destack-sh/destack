@@ -35,6 +35,7 @@ from bench.language import (
     LookAction,
     ModelDeveloper,
     ModelType,
+    Node,
     NodeType,
     PipeType,
     PressAction,
@@ -114,7 +115,6 @@ class ActionRunner[A: Action = Action](Runner[A], ABC):
             outputs=outputs,
             run=run,
         )
-        assert self.inputs is not None, f"no inputs for {self!r}"
         self.action = cast(A, self.inputs)
         self.flow = flow
 
@@ -323,11 +323,8 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
         tool_selection = self.node.tool_selection
         if tool_selection is not None and not tool_selection.supports(self.action.type, tool):
             raise RefusedError(f"tool {tool!r} not supported")
-        if isinstance(tool, Action):
+        if isinstance(tool, Node):
             # delegate to tool node
-            if tool.type == ActionType.TOOL:
-                # this should work but it just seems wonky and confusing
-                raise RunImpossibleError(f"cannot invoke tool {tool!r} from tool")
             tool_runner: Runner[Any] = self._get_resumable_subrunner(
                 node=tool,
                 # inputs/variables are both PartialAction with node=tool

@@ -37,8 +37,6 @@ from bench.runtime.core import (
     RunImpossibleError,
     RunIn,
     Runner,
-    RunnerAbortedEvent,
-    RunnerCancelledEvent,
     RunnerCompletedEvent,
     RunnerEvent,
     RunnerFailedEvent,
@@ -103,6 +101,10 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         self._active_runners_by_id: dict[UUID, PipeRunner | ActionRunner[Any]] = {}
         self._stop_result: CustomObject | Literal["completed"] | Error | Interruption | None = None
         self._stop_event = Event()
+
+    @property
+    def _is_stopped(self) -> bool:
+        return self._stop_event.is_set()
 
     def _abort(self):
         """Abort any contained Actions (and any relevant Interrupts)."""
@@ -208,27 +210,25 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         runner = event.runner
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
+        self._active_runners_by_id.pop(runner.id)
         logger.debug("flow.tick.event", flow=self.node, node=runner.node, runner=runner)
         if isinstance(event, RunnerInterruptedEvent):
             self._interrupted_runners.append(runner)
-            self._active_runners_by_id.pop(runner.id)
         elif isinstance(event, RunnerCompletedEvent):
-            if isinstance(runner.node, Action):
-                self._tick_action(cast(ActionRunner, runner), runner.node, event)
-            elif isinstance(runner.node, Pipe):
-                self._tick_pipe(cast(PipeRunner, runner), runner.node, event)
-            self._active_runners_by_id.pop(runner.id)
+            if not self._is_stopped:
+                if isinstance(runner.node, Action):
+                    self._tick_action(cast(ActionRunner, runner), runner.node, event)
+                elif isinstance(runner.node, Pipe):
+                    self._tick_pipe(cast(PipeRunner, runner), runner.node, event)
         elif isinstance(event, RunnerFailedEvent):
-            assert runner.error is not None, f"missing error for {runner!r}"
-            if isinstance(runner.node, Action):
-                tick = self._tick_action(cast(ActionRunner, runner), runner.node, event)
-                if not tick.is_handled:
-                    self._fail(runner.error)  # fail on unhandled action error
-            elif isinstance(runner.node, Pipe):
-                self._fail(runner.error)  # fail on any pipe fail?
-            self._active_runners_by_id.pop(runner.id)
-        elif isinstance(event, (RunnerAbortedEvent, RunnerCancelledEvent)):
-            self._active_runners_by_id.pop(runner.id)
+            if not self._is_stopped:
+                assert runner.error is not None, f"missing error for {runner!r}"
+                if isinstance(runner.node, Action):
+                    tick = self._tick_action(cast(ActionRunner, runner), runner.node, event)
+                    if not tick.is_handled:
+                        self._fail(runner.error)  # fail on unhandled action error
+                elif isinstance(runner.node, Pipe):
+                    self._fail(runner.error)  # fail on any pipe fail?
         self._try_stop()
 
     def _tick_action(
@@ -288,7 +288,9 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
                 self._start(parent_action, incoming=(parent_run,))
 
         # own plans
-        outgoing_pipes = tuple(p for p in self.node.pipes if p.source_id == action.id)
+        outgoing_pipes = tuple(
+            p for p in self.node.pipes if p.source_id == action.id and p.is_extant
+        )
         call_pipes = tuple(
             p for p in outgoing_pipes if p.type == PipeType.CALL and p.is_triggered_by(run.status)
         )
@@ -307,16 +309,16 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
             self.session._create(*run_plans)
             for plan in run_plans:
                 # run calls via pipes
-                calls = (
+                next_calls = (
                     plan.calls if plan.execution == CallExecutionMode.PARALLEL else (plan.calls[0],)
                 )
-                for step, call in enumerate(calls):
+                for step, call in enumerate(next_calls):
                     pipe = next((p for p in outgoing_pipes if p.target_id == call.node_id), None)
                     if pipe is None:
                         continue  # ignore, can't call arbitrary nodes
                     self._start(pipe, plan=plan, plan_step=step, incoming=(run,))
                     uncalled_call_pipes.discard(pipe)
-                plan.step = len(calls)
+                plan.step = len(next_calls)
 
         # call call pipes that were not called
         for pipe in uncalled_call_pipes:
@@ -335,7 +337,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
 
         # start next action
         next_action = pipe.target
-        if next_action is None:
+        if next_action is None or next_action.is_deleted:
             return TickPipeResult(new_runs=(), is_handled=False)
         next_run = self._start(
             next_action,

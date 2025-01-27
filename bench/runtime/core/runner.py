@@ -109,14 +109,6 @@ class RunnerOutputEvent:
 
 
 @dataclass(slots=True)
-class RunnerStreamEvent:
-    """Runner now has some more (partial?) output."""
-
-    runner: "Runner"
-    outputs: CustomObject | None
-
-
-@dataclass(slots=True)
 class RunnerInterruptedEvent:
     """Runner yielded."""
 
@@ -137,7 +129,6 @@ RunnerEvent = (
     | RunnerCancelledEvent
     | RunnerFailedEvent
     | RunnerOutputEvent
-    | RunnerStreamEvent
     | RunnerInterruptedEvent
     | RunnerCompletedEvent
 )

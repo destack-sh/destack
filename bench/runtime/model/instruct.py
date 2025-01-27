@@ -344,7 +344,10 @@ def make_chat_prompt(
         connected_actions = [
             (pipe, target)
             for pipe in flow.pipes
-            if pipe.source_id == action.id and (target := pipe.target) is not None
+            if pipe.source_id == action.id
+            and (target := pipe.target) is not None
+            and pipe.is_extant
+            and target.is_extant
         ]
         flow_parts = [
             PromptNode(title=None, weight=1, node=flow),
