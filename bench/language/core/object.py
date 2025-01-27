@@ -225,12 +225,11 @@ def _process_object_cls[ObjectT: BuiltinObject](
         prop.py_type_raw = cls.__annotations__.get(name, None)
         properties_by_name[name] = prop
         declared_properties[name] = prop
-    cls.__declared_properties__ = frozendict(declared_properties)
-    cls.__own_properties__ = frozendict(properties_by_name)  # remember 'own' properties
+    cls.__raw_properties__ = frozendict(properties_by_name)  # remember 'own' properties
 
     # collect properties from all parent components
     for component in reversed(static_components):
-        for name, prop in component.__own_properties__.items():
+        for name, prop in component.__raw_properties__.items():
             existing = properties_by_name.get(name)
             # allow overriding system properties with more specific properties
             if (
@@ -242,10 +241,13 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 prop = prop.clone()
                 prop.component = cls
                 properties_by_name[name] = prop
+                if name in declared_properties:
+                    declared_properties[name] = prop
             elif not prop.equals_type(existing):
                 raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
             if not is_node and prop.is_tree_reference:
                 raise ValueError(f"non-node {cls} has node-only relation {prop}")
+    cls.__declared_properties__ = frozendict(declared_properties)
 
     # bench is optional in variable root types (since they can have other roots)
     if is_node and is_variable_root and "bench" in properties_by_name:
@@ -741,7 +743,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     __properties_by_id__: ClassVar[dict[int, Property]] = {}
     __properties_name_by_id__: ClassVar[dict[int, str]] = {}
     __original_properties__: ClassVar[dict[str, Property]] = {}  # excl. contributed
-    __own_properties__: ClassVar[dict[str, Property]] = {}
+    __raw_properties__: ClassVar[dict[str, Property]] = {}
     __declared_properties__: ClassVar[dict[str, Property]] = {}
     __tracked_properties__: ClassVar[dict[str, Property]] = {}
     __internal_properties__: ClassVar[dict[str, Property]] = {}

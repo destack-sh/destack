@@ -148,7 +148,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     reference_is_node_data: bool = False
     _cached_as_ref: Optional["PropertyReference"] = None
     _type_info: Optional["Type"] = None
-    _is_finalized: bool = False
 
     def __post_init__(self):
         if self.reference_kind is not None and self.default is UNSET:
@@ -252,7 +251,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
     @property
     def code_name(self) -> str:
-        assert self.name is not None, f"{self!r} has no name"
         return self.name
 
     @property

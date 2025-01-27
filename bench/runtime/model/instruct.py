@@ -1,29 +1,34 @@
 from more_itertools import first
 
 from bench.language import (
-    AUTH_NODE_TYPES,
-    COSMOS_NODE_TYPES,
-    DYNAMIC_ACTION_TYPES,
-    DYNAMIC_RESOURCE_NODE_TYPES,
-    FINANCE_NODE_TYPES,
-    SOURCE_NODE_TYPES,
-    STATIC_RESOURCE_NODE_TYPES,
+    NODE_TYPES,
+    PY_TYPE_BY_PRIMITIVE_TYPE,
+    UNSET,
     Action,
+    ActionType,
     Aliasing,
     Block,
     BlockType,
+    BuiltinObject,
     CustomObject,
+    FieldType,
     HasContext,
+    Node,
     PipeType,
     Projection,
     ProjectOptions,
+    ReferenceKind,
     Renderer,
     RenderOptions,
     Run,
     RunType,
+    SourceNode,
     TypeBase,
+    _is_setup_complete,
 )
+from bench.language.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from bench.runtime.core import Runner
+from bench.utils.func import IdEnum
 
 from .prompt import (
     Prompt,
@@ -42,7 +47,10 @@ from .prompt import (
 
 # ruff: noqa: FURB113
 
-SYSTEM_PROMPT = f"""\
+# NOTE: only import this file after import is complete
+assert _is_setup_complete(), "import this file after import is complete"
+
+SYSTEM_PROMPT = """\
 You are a generalist assistant living in a Python shell.
 You exist on a development platform called Bench, which is a bit like a programmable ChatGPT + Notion.
  (Bench is like a game engine for agentive software.)
@@ -64,22 +72,16 @@ Bench is made of Nodes, and most Nodes have Struct properties;
 BuiltinObjects and Properties are hardcoded into the Bench codebase.
 
 1.1. Bench Cosmos
-Bench is one unified software cosmos, some Nodes are available globally:
- - Cosmos Nodes: ${', '.join(n.bench_name for n in COSMOS_NODE_TYPES)}
- - Auth Nodes: ${', '.join(n.bench_name for n in AUTH_NODE_TYPES)}
- - Finance Nodes: ${', '.join(n.bench_name for n in FINANCE_NODE_TYPES)}
+Bench is one unified software cosmos, some Nodes are available globally.
  
 1.2. Bench Region
 Most Resources in Bench are specific to a Region (to keep latency low).
 Static Resources are higher level and not ephemeral like dynamic Resources:
- - Static Resources: ${', '.join(n.bench_name for n in STATIC_RESOURCE_NODE_TYPES)}
- - Dynamic Resources: ${', '.join(n.bench_name for n in DYNAMIC_RESOURCE_NODE_TYPES)}
 
 1.3. Bench Local
 Most 'stuff' we would consider part of an 'application' is per Bench.
 A Bench has source Nodes (the main 'canvas' of Blocks, Actions, Views, etc.),
  state Nodes (like Message, Record) and runtime Nodes (like Session, Run/RunSpan, Interruption, Log).
- - Source Nodes: ${', '.join(n.bench_name for n in SOURCE_NODE_TYPES)}
 
 1.4. Working with Nodes
 You are in the Bench Python ORM shell so you can directly get/set, like:
@@ -165,7 +167,6 @@ This may mean mean just returning a simple answer directly as a dict,
 7.2. Dynamic
 Actions have a type that SHOULD be respected. 
 Dynamic actions are fully implemented by you one at a time at runtime.
- - Dynamic Actions: ${', '.join(n.bench_name for n in DYNAMIC_ACTION_TYPES)}
 For dynamic actions, your approach SHOULD follow the action type. For example:
  - ActionType.EXTRACT: you MUST NOT produce outputs that aren't grounded in the inputs or context.
  - ActionType.GENERATE: you SHOULD generate outputs more freeform.
@@ -217,6 +218,116 @@ You are entrusted with an important task, private data and a proprietary Bench.
 
 def get_system_prompt(prompt: Prompt) -> str:
     return SYSTEM_PROMPT
+
+
+def render_builtin_class(cls: type[BuiltinObject]) -> str:
+    """Render a BuiltinObject class to a compact string."""
+    content_parts: list[str] = []
+
+    if issubclass(cls, Node) and cls.__subtype_extra_properties__:
+        properties = cls.__subtype_extra_properties__.values()
+    else:
+        properties = cls.__declared_properties__.values()
+
+    for prop in properties:
+        if (
+            prop.reference_kind == ReferenceKind.NODE_CHILDREN
+            or prop.is_value_packed
+            or prop.reference_source is not None
+            or (prop.is_ephemeral and not prop.is_value_runtime)
+            or prop.is_kernel
+            or prop.name == "order_key"
+            or prop.field_type == FieldType.OUTPUT
+        ):
+            continue  # ignore internal properties
+        # scalar
+        type_str: str
+        if prop.reference_nodes is not None:
+            if prop.reference_nodes == "any" or len(prop.reference_nodes) == len(NODE_TYPES):
+                type_str = "Node"
+            elif prop.reference_nodes:
+                type_str = f"{'|'.join(n.bench_name for n in prop.reference_nodes)}"
+            else:
+                continue
+        elif prop.reference_kind == ReferenceKind.NODE_TEMPLATE:
+            type_str = "SourceNode"
+        elif prop.is_value_runtime:
+            type_str = "CustomObject"
+        elif prop.is_property_reference:
+            type_str = "Property"
+        elif prop.reference_struct is not None:
+            struct_cls = STRUCT_CLASS_BY_TYPE[prop.reference_struct]
+            type_str = struct_cls.__name__
+        elif prop.enum_type is not None:
+            enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
+            type_str = enum_cls.__name__
+        elif prop.primitive_type is not None:
+            assert prop.primitive_type is not UNSET, f"missing primitive type for {prop!r}"
+            type_str = PY_TYPE_BY_PRIMITIVE_TYPE[prop.primitive_type].__name__
+        else:
+            raise RuntimeError(f"unexpected type for {prop!r}")
+        # flags
+        if prop.is_list:
+            type_str = f"list[{type_str}]"
+        elif prop.is_optional and not prop.reference_nodes:
+            type_str = f"{type_str}?"
+        content_parts.append(f"{prop.name}: {type_str}")
+    cls_str = f"{cls.__name__}(" + ", ".join(content_parts) + ")"
+    return cls_str
+
+
+def render_builtin_hierarchy(root_cls: type[BuiltinObject]) -> str:
+    """
+    Render a BuiltinObject class to a compact string.
+    Nest subclasses with an indent within their parent class (including subnodes).
+    """
+    lines: list[str] = []
+    seen: set[type[BuiltinObject]] = set()
+
+    def _render_class(cls: type[BuiltinObject], depth: int = 0) -> None:
+        if cls in seen:
+            return
+        seen.add(cls)
+
+        indent = " " * (depth * 2)
+        prefix = " - " if depth > 0 else ""
+        lines.append(f"{indent}{prefix}{render_builtin_class(cls)}")
+
+        # get direct subclasses only
+        for subclass in sorted(cls.__subclasses__(), key=lambda x: x.__name__):
+            if (
+                issubclass(subclass, Node)
+                and subclass.__subtype__
+                and not subclass.__subtype_extra_properties__
+            ):
+                continue
+            _render_class(subclass, depth + 1)
+
+    _render_class(root_cls)
+    return "\n".join(lines)
+
+
+def render_builtin_enum(cls: type[IdEnum], compact: bool) -> str:
+    """Render an IdEnum to a string, either compact single line or multiline with descriptions."""
+    if compact:
+        enum_str = f"{cls.__name__} = {' | '.join(o.name for o in cls)}"
+    else:
+        parts = []
+        parts.append(f"{cls.__name__}")
+        for o in cls:
+            desc = o.__doc__ or ""
+            if desc:
+                parts.append(f" - {o.name}  # {desc}")
+            else:
+                parts.append(f" - {o.name}")
+        enum_str = "\n".join(parts)
+    return enum_str
+
+
+SOURCE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(SourceNode)
+ACTION_TYPE_ENUM_PROMPT = render_builtin_enum(ActionType, compact=False)
+BLOCK_TYPE_ENUM_PROMPT = render_builtin_enum(BlockType, compact=False)
+PIPE_TYPE_ENUM_PROMPT = render_builtin_enum(PipeType, compact=False)
 
 
 def make_chat_prompt(
@@ -442,11 +553,22 @@ You MUST add any call plans to the outputs without touching the existing outputs
 
     #
     # general context (relative to all the other stuff)
-    # nocheckin: examples, relevant enums, classes, ...
     #
 
-    general_parts: list[PromptPart] = []
-    general_examples = get_examples(action, runner)
+    general_parts: list[PromptPart] = [
+        prompt_region(
+            PromptText(title=None, text=SOURCE_NODE_HIERARCHY_PROMPT),
+            title="SourceNode hierarchy",
+            text="The Node schemas for source Nodes (stylized)",
+            weight=1,
+        ),
+        prompt_region(
+            PromptText(title=None, text=ACTION_TYPE_ENUM_PROMPT),
+            title="ActionTypes",
+            weight=1,
+        ),
+    ]
+    general_examples_parts = get_examples(action, runner)
 
     # assemble
     prompt_items: list[PromptPart] = [
@@ -460,7 +582,7 @@ You MUST add any call plans to the outputs without touching the existing outputs
             title="General examples",
             text="General system-provided examples",
             weight=1,
-            content=general_examples,
+            content=general_examples_parts,
         ),
         PromptRegion(
             title="Context",
