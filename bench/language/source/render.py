@@ -20,7 +20,6 @@ from bench.language import (
 )
 from bench.language.core import (
     NODE_TYPES_SET,
-    BlockType,
     BuiltinObject,
     Code,
     ComputedValue,
@@ -75,17 +74,15 @@ tracer = trace.get_tracer(__name__)
 @dataclass(slots=True)
 class RenderOptions:
     scope: Node
-    aliasing: "Aliasing | None" = None
-    as_page: bool = False
+    aliasing: "Aliasing"
     node_types: Collection[NodeType] = NODE_TYPES_SET
-    folded_child_types: Collection[NodeType] = (NodeType.FIELD,)
-    include_computed_values: bool = True
-    node_filter: Collection[UUID] | None = None
+    inline_node_types: Collection[NodeType] = (NodeType.FIELD,)
+    use_code_paths: bool = True
+    implicit_partials: bool = False
+    # formatting
     statement_separator: str = "\n"
-    simplify_paths: bool = True
     format: bool = True
-    format_line_length: int = 100
-    implicit_partials: bool = True
+    line_length: int = 100
 
     def replace(self, **kwargs) -> "RenderOptions":
         return dataclasses.replace(self, **kwargs)
@@ -189,10 +186,10 @@ class Renderer:
         """Renders a python-valid reference to the given node in this context."""
         if (
             isinstance(node, Node)
-            and node.metatype in self.options.folded_child_types
+            and node.metatype in self.options.inline_node_types
             and "name" in node.__properties__
         ):
-            # refer named folded children from parent
+            # refer named inlined children from parent
             parent = node.parent
             if parent is not None:
                 parent_alias = self.render_node_ref(parent)
@@ -207,9 +204,11 @@ class Renderer:
             return alias
         elif isinstance(node, Node) and node.is_attached and "name" in node.__properties__:
             # reference as path
+            if self.scope.id == node.id:
+                return "self"
             path = get_path(scope=self.scope, node=node)
             rendered_path = render_path(path)
-            if self.options.simplify_paths:
+            if self.options.use_code_paths:
                 # simplify path for use in Code (which treats references as unique get_node)
                 if len(path) == 1 and path[0].type in (
                     PathElementType.UNIQUE,
@@ -347,7 +346,7 @@ class Renderer:
         return ", ".join(a for a in args if a is not None)
 
     def render_builtin_object(self, obj: BuiltinObject) -> str:
-        """Renders the given object into an expression (incl. folded children for node)."""
+        """Renders the given object into an expression (incl. inlined children for node)."""
         renderer = _get_renderer(obj.metatype)
         return renderer.render(self, obj)
 
@@ -602,13 +601,11 @@ class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
         rendered_kwargs = rendered_kwargs if rendered_kwargs is not None else {}
         for prop in obj.__node_child_properties__.values():
             assert prop.reference_nodes, f"no reference nodes for {prop!r}"
-            if prop.reference_nodes[0] not in renderer.options.folded_child_types:
+            if prop.reference_nodes[0] not in renderer.options.inline_node_types:
                 continue
             children = getattr(obj, prop.name)
             if not children:
                 continue
-            if renderer.options.node_filter is not None:
-                children = [child for child in children if child.id in renderer.options.node_filter]
             rendered_children = [
                 renderer.render_builtin_object(cast(BuiltinObject, child)) for child in children
             ]
@@ -639,9 +636,8 @@ class SourceNodeRenderer[T: SourceNode](NodeRenderer[T]):
     @override
     def render(self, renderer: Renderer, obj: T) -> str:
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
-        if renderer.options.include_computed_values:
-            if computed_values := obj.computed_values:
-                kwargs[obj.get_property("computed_values")] = computed_values
+        if computed_values := obj.computed_values:
+            kwargs[obj.get_property("computed_values")] = computed_values
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         rendered_kwargs = self._render_child_properties(renderer, obj, rendered_kwargs)
         return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
@@ -951,17 +947,17 @@ class CallPlanRenderer(BuiltinObjectRenderer[CallPlan]):
 class ToolSelectionRenderer(BuiltinObjectRenderer[ToolSelection]):
     @override
     def render(self, renderer: "Renderer", obj: ToolSelection) -> str:
-        if obj.filter == ToolFilter.CUSTOM:
+        if obj.filter == ToolFilter.SELECT_CUSTOM:
             tools = [renderer.render_node_ref(tool) for tool in obj.tool_nodes]
             return f"ToolSelection.custom({', '.join(tools)})"
-        elif obj.filter == ToolFilter.BUILTIN:
+        elif obj.filter == ToolFilter.SELECT_BUILIN:
             tools = []
             if obj.tool_types:
                 tools.extend(f"ActionType.{t.name}" for t in obj.tool_types)
             if obj.tool_categories:
                 tools.extend(f"ActionCategory.{c.name}" for c in obj.tool_categories)
             return f"ToolSelection.builtin({', '.join(tools)})"
-        elif obj.filter is None or obj.filter == ToolFilter.BUILTIN_OR_CUSTOM:
+        elif obj.filter == ToolFilter.SELECT:
             tools = []
             if obj.tool_types:
                 tools.extend(f"ActionType.{t.name}" for t in obj.tool_types)
@@ -969,7 +965,9 @@ class ToolSelectionRenderer(BuiltinObjectRenderer[ToolSelection]):
                 tools.extend(f"ActionCategory.{c.name}" for c in obj.tool_categories)
             if obj.tool_nodes:
                 tools.extend(renderer.render_node_ref(tool) for tool in obj.tool_nodes)
-            return f"ToolSelection.any({', '.join(tools)})"
+            return f"ToolSelection.only({', '.join(tools)})"
+        elif obj.filter is None or obj.filter == ToolFilter.ANY:
+            return "ToolSelection.any()"
         else:
             assert_never(obj.filter)
 
@@ -993,7 +991,7 @@ def render_expression(
     renderer = Renderer(options)
     rendered = renderer.render_expression(value, as_ref=as_ref)
     if options.format:
-        rendered = format_code(rendered, line_length=options.format_line_length)
+        rendered = format_code(rendered, line_length=options.line_length)
     return rendered.strip()
 
 
@@ -1016,7 +1014,7 @@ def render_statement(*objs: Node, options: RenderOptions) -> str:
         renderer.aliasing.add(obj)
     rendered = renderer.render_statement(*objs)
     if options.format:
-        rendered = format_code(rendered, line_length=options.format_line_length)
+        rendered = format_code(rendered, line_length=options.line_length)
     return rendered.strip()
 
 
@@ -1027,23 +1025,7 @@ def render(*objs: CustomObject | Property, options: RenderOptions) -> str: ...
 def render(*objs: BuiltinObject | CustomObject | Property, options: RenderOptions) -> str:
     """Renders the given object to either an expression (for values) or statement (for nodes)."""
     if any(isinstance(obj, Node) for obj in objs):
-        # render into single statement block
-        if options.as_page:
-            # collect additional nodes not in folded nodes
-            child_nodes: list[Node] = []
-            for obj in objs:
-                if not isinstance(obj, Block):
-                    continue  # only blocks can be a page
-                child_nodes.extend(obj.blocks)
-                if isinstance(obj, Block):
-                    if obj.type == BlockType.VIEW:
-                        child_nodes.extend(obj.views)
-                    elif obj.type == BlockType.FLOW:
-                        child_nodes.extend(obj.actions)
-        else:
-            child_nodes = []
-
-        return render_statement(*cast(list[Node], objs), *child_nodes, options=options)
+        return render_statement(*cast(list[Node], objs), options=options)
     else:
         # render into tuple of expressions
         value_exprs = [render_expression(obj, options) for obj in objs]

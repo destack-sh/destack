@@ -11,6 +11,7 @@ from bench.language import (
     PUBLIC_NODE_TYPES,
     SOURCE_NODE_TYPES,
     STATIC_RESOURCE_NODE_TYPES,
+    Aliasing,
     Bench,
     Client,
     Context,
@@ -139,7 +140,9 @@ async def shell(
         _get_node = functools.partial(get_node, main_package, context)
         _get_node_or_error = functools.partial(get_node_or_error, main_package, context)
         _get_path = functools.partial(get_path, main_package)
-        _render = functools.partial(render, options=RenderOptions(scope=main_package))
+        _render = functools.partial(
+            render, options=RenderOptions(scope=main_package, aliasing=Aliasing())
+        )
         glbls: dict[str, Any] = {
             **STATIC_CODE_GLOBALS,
             "session": session,

@@ -1389,6 +1389,31 @@ export interface ContextData {
     identityPtr?: NodeReferenceData;
 }
 /**
+ * @generated from protobuf message symbolx.bench.ToolSelectionData
+ */
+export interface ToolSelectionData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ToolFilter filter = 35;
+     */
+    filter?: ToolFilter;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tool_nodes_ptr = 40;
+     */
+    toolNodesPtr: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.ActionType tool_types = 41;
+     */
+    toolTypes: ActionType[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.ActionCategory tool_categories = 42;
+     */
+    toolCategories: ActionCategory[];
+}
+/**
  * @generated from protobuf message symbolx.bench.ColorData
  */
 export interface ColorData {
@@ -4114,6 +4139,10 @@ export interface ActionData {
      */
     runOptions?: RunOptionsData;
     /**
+     * @generated from protobuf field: optional symbolx.bench.ToolSelectionData tool_selection = 41;
+     */
+    toolSelection?: ToolSelectionData;
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData machine_ptr = 51;
      */
     machinePtr?: NodeReferenceData;
@@ -6329,6 +6358,10 @@ export enum EnumType {
      */
     ACTION_TYPE = 22500,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_ACTION_CATEGORY = 22501;
+     */
+    ACTION_CATEGORY = 22501,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 22510;
      */
     PORT_SIDE = 22510,
@@ -6340,6 +6373,10 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_PIPE_TRIGGER = 22512;
      */
     PIPE_TRIGGER = 22512,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_TOOL_FILTER = 22520;
+     */
+    TOOL_FILTER = 22520,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 22600;
      */
@@ -6755,6 +6792,10 @@ export enum StructType {
      */
     VIDEO_OPTIONS = 12803,
     /**
+     * @generated from protobuf enum value: STRUCT_TYPE_TOOL_SELECTION = 12900;
+     */
+    TOOL_SELECTION = 12900,
+    /**
      * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 13200;
      */
     COLOR = 13200,
@@ -7120,6 +7161,10 @@ export enum ObjectType {
      */
     VIDEO_OPTIONS = 12803,
     /**
+     * @generated from protobuf enum value: OBJECT_TYPE_TOOL_SELECTION = 12900;
+     */
+    TOOL_SELECTION = 12900,
+    /**
      * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 13200;
      */
     COLOR = 13200,
@@ -7484,6 +7529,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_VIDEO_OPTIONS = 12803;
      */
     VIDEO_OPTIONS = 12803,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TOOL_SELECTION = 12900;
+     */
+    TOOL_SELECTION = 12900,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_COLOR = 13200;
      */
@@ -7861,6 +7910,10 @@ export enum BenchType {
      */
     ACTION_TYPE = 22500,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_ACTION_CATEGORY = 22501;
+     */
+    ACTION_CATEGORY = 22501,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 22510;
      */
     PORT_SIDE = 22510,
@@ -7872,6 +7925,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_PIPE_TRIGGER = 22512;
      */
     PIPE_TRIGGER = 22512,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TOOL_FILTER = 22520;
+     */
+    TOOL_FILTER = 22520,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 22600;
      */
@@ -11062,6 +11119,43 @@ export enum ActionType {
     TEXT = 9000
 }
 /**
+ * @generated from protobuf enum symbolx.bench.ActionCategory
+ */
+export enum ActionCategory {
+    /**
+     * @generated from protobuf enum value: ACTION_CATEGORY_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ACTION_CATEGORY_FLOW = 100;
+     */
+    FLOW = 100,
+    /**
+     * @generated from protobuf enum value: ACTION_CATEGORY_READ = 300;
+     */
+    READ = 300,
+    /**
+     * @generated from protobuf enum value: ACTION_CATEGORY_WRITE = 400;
+     */
+    WRITE = 400,
+    /**
+     * @generated from protobuf enum value: ACTION_CATEGORY_COMMUNICATE = 500;
+     */
+    COMMUNICATE = 500,
+    /**
+     * @generated from protobuf enum value: ACTION_CATEGORY_ENVIRONMENT = 800;
+     */
+    ENVIRONMENT = 800,
+    /**
+     * @generated from protobuf enum value: ACTION_CATEGORY_APPLICATION = 1000;
+     */
+    APPLICATION = 1000,
+    /**
+     * @generated from protobuf enum value: ACTION_CATEGORY_WEB = 1100;
+     */
+    WEB = 1100
+}
+/**
  * @generated from protobuf enum symbolx.bench.PortSide
  */
 export enum PortSide {
@@ -11115,6 +11209,31 @@ export enum PipeTrigger {
      * @generated from protobuf enum value: PIPE_TRIGGER_ON_TERMINATED = 3;
      */
     ON_TERMINATED = 3
+}
+/**
+ * @generated from protobuf enum symbolx.bench.ToolFilter
+ */
+export enum ToolFilter {
+    /**
+     * @generated from protobuf enum value: TOOL_FILTER_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: TOOL_FILTER_ANY = 10;
+     */
+    ANY = 10,
+    /**
+     * @generated from protobuf enum value: TOOL_FILTER_SELECT_BUILIN = 20;
+     */
+    SELECT_BUILIN = 20,
+    /**
+     * @generated from protobuf enum value: TOOL_FILTER_SELECT_CUSTOM = 30;
+     */
+    SELECT_CUSTOM = 30,
+    /**
+     * @generated from protobuf enum value: TOOL_FILTER_SELECT = 40;
+     */
+    SELECT = 40
 }
 /**
  * @generated from protobuf enum symbolx.bench.SpaceType
@@ -16217,6 +16336,100 @@ class ContextData$Type extends MessageType$<ContextData> {
  * @generated MessageType for protobuf message symbolx.bench.ContextData
  */
 export const ContextData = new ContextData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ToolSelectionData$Type extends MessageType$<ToolSelectionData> {
+    constructor() {
+        super("symbolx.bench.ToolSelectionData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 35, name: "filter", kind: "enum", opt: true, T: () => ["symbolx.bench.ToolFilter", ToolFilter, "TOOL_FILTER_"] },
+            { no: 40, name: "tool_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 41, name: "tool_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionType", ActionType, "ACTION_TYPE_"] },
+            { no: 42, name: "tool_categories", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionCategory", ActionCategory, "ACTION_CATEGORY_"] }
+        ]);
+    }
+    create(value?: PartialMessage<ToolSelectionData>): ToolSelectionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.toolNodesPtr = [];
+        message.toolTypes = [];
+        message.toolCategories = [];
+        if (value !== undefined)
+            reflectionMergePartial<ToolSelectionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ToolSelectionData): ToolSelectionData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ToolFilter filter */ 35:
+                    message.filter = reader.int32();
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData tool_nodes_ptr */ 40:
+                    message.toolNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.ActionType tool_types */ 41:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.toolTypes.push(reader.int32());
+                    else
+                        message.toolTypes.push(reader.int32());
+                    break;
+                case /* repeated symbolx.bench.ActionCategory tool_categories */ 42:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.toolCategories.push(reader.int32());
+                    else
+                        message.toolCategories.push(reader.int32());
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ToolSelectionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional symbolx.bench.ToolFilter filter = 35; */
+        if (message.filter !== undefined)
+            writer.tag(35, WireType.Varint).int32(message.filter);
+        /* repeated symbolx.bench.NodeReferenceData tool_nodes_ptr = 40; */
+        for (let i = 0; i < message.toolNodesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.toolNodesPtr[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.ActionType tool_types = 41; */
+        if (message.toolTypes.length) {
+            writer.tag(41, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.toolTypes.length; i++)
+                writer.int32(message.toolTypes[i]);
+            writer.join();
+        }
+        /* repeated symbolx.bench.ActionCategory tool_categories = 42; */
+        if (message.toolCategories.length) {
+            writer.tag(42, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.toolCategories.length; i++)
+                writer.int32(message.toolCategories[i]);
+            writer.join();
+        }
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ToolSelectionData
+ */
+export const ToolSelectionData = new ToolSelectionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ColorData$Type extends MessageType$<ColorData> {
     constructor() {
@@ -22191,6 +22404,7 @@ class ActionData$Type extends MessageType$<ActionData> {
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "text", kind: "message", T: () => TextData },
             { no: 40, name: "run_options", kind: "message", T: () => RunOptionsData },
+            { no: 41, name: "tool_selection", kind: "message", T: () => ToolSelectionData },
             { no: 51, name: "machine_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 52, name: "code", kind: "message", T: () => CodeData },
             { no: 53, name: "tool_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22285,6 +22499,9 @@ class ActionData$Type extends MessageType$<ActionData> {
                     break;
                 case /* optional symbolx.bench.RunOptionsData run_options */ 40:
                     message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
+                    break;
+                case /* optional symbolx.bench.ToolSelectionData tool_selection */ 41:
+                    message.toolSelection = ToolSelectionData.internalBinaryRead(reader, reader.uint32(), options, message.toolSelection);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData machine_ptr */ 51:
                     message.machinePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.machinePtr);
@@ -22385,6 +22602,9 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* optional symbolx.bench.RunOptionsData run_options = 40; */
         if (message.runOptions)
             RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ToolSelectionData tool_selection = 41; */
+        if (message.toolSelection)
+            ToolSelectionData.internalBinaryWrite(message.toolSelection, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData machine_ptr = 51; */
         if (message.machinePtr)
             NodeReferenceData.internalBinaryWrite(message.machinePtr, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
@@ -27168,9 +27388,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | MembershipData | InviteData | ClientData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | BlockData | FieldData | ViewData | ActionData | PipeData | SpaceData | MessageData | RecordData | SessionData | RunData | RunSpanData | RunPlanData | InterruptionData | LogData | SkipData | EmptyData
-export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeData | TypeConstraintData | ScheduleData | FileInfoData | IconData | TextData | TextLineData | TextSpanData | CodeData | CodeLineData | PathData | PathElementData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ErrorData | RunOptionsData | RunTraceData | RunFrameData | CallData | CallPlanData | BreakpointData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData | DomNodeData
+export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeData | TypeConstraintData | ScheduleData | FileInfoData | IconData | TextData | TextLineData | TextSpanData | CodeData | CodeLineData | PathData | PathElementData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ErrorData | RunOptionsData | RunTraceData | RunFrameData | CallData | CallPlanData | BreakpointData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ToolSelectionData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData | DomNodeData
 export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof MembershipData | typeof InviteData | typeof ClientData | typeof ScalerData | typeof StoreData | typeof MachineData | typeof BrowserData | typeof FileData | typeof StreamData | typeof SecretData | typeof PackageData | typeof DependencyData | typeof BlockData | typeof FieldData | typeof ViewData | typeof ActionData | typeof PipeData | typeof SpaceData | typeof MessageData | typeof RecordData | typeof SessionData | typeof RunData | typeof RunSpanData | typeof RunPlanData | typeof InterruptionData | typeof LogData | typeof SkipData | typeof EmptyData
-export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeData | typeof TypeConstraintData | typeof ScheduleData | typeof FileInfoData | typeof IconData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathElementData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ErrorData | typeof RunOptionsData | typeof RunTraceData | typeof RunFrameData | typeof CallData | typeof CallPlanData | typeof BreakpointData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData | typeof DomNodeData
+export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeData | typeof TypeConstraintData | typeof ScheduleData | typeof FileInfoData | typeof IconData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathElementData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ErrorData | typeof RunOptionsData | typeof RunTraceData | typeof RunFrameData | typeof CallData | typeof CallPlanData | typeof BreakpointData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ToolSelectionData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData | typeof DomNodeData
 export type BenchNodeData = BenchData | HandleData | MembershipData | InviteData | ClientData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | BlockData | FieldData | ViewData | ActionData | PipeData | SpaceData | MessageData | RecordData | SessionData | RunData | RunSpanData | RunPlanData | InterruptionData | LogData
 export type PackageNodeData = DependencyData | BlockData | FieldData | ViewData | ActionData | PipeData | SpaceData
 export type ResourceNodeData = ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData
@@ -27406,6 +27626,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.AUDIO_OPTIONS]: AudioOptionsData,
   [ObjectType.IMAGE_OPTIONS]: ImageOptionsData,
   [ObjectType.VIDEO_OPTIONS]: VideoOptionsData,
+  [ObjectType.TOOL_SELECTION]: ToolSelectionData,
   [ObjectType.COLOR]: ColorData,
   [ObjectType.FONT]: FontData,
   [ObjectType.RECTANGLE]: RectangleData,
@@ -27498,6 +27719,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.AudioOptionsData"]: ObjectType.AUDIO_OPTIONS,
   ["symbolx.bench.ImageOptionsData"]: ObjectType.IMAGE_OPTIONS,
   ["symbolx.bench.VideoOptionsData"]: ObjectType.VIDEO_OPTIONS,
+  ["symbolx.bench.ToolSelectionData"]: ObjectType.TOOL_SELECTION,
   ["symbolx.bench.ColorData"]: ObjectType.COLOR,
   ["symbolx.bench.FontData"]: ObjectType.FONT,
   ["symbolx.bench.RectangleData"]: ObjectType.RECTANGLE,
@@ -27596,9 +27818,11 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.CODE_TYPE]: CodeType,
   [EnumType.CODE_LANGUAGE]: CodeLanguage,
   [EnumType.ACTION_TYPE]: ActionType,
+  [EnumType.ACTION_CATEGORY]: ActionCategory,
   [EnumType.PORT_SIDE]: PortSide,
   [EnumType.PIPE_TYPE]: PipeType,
   [EnumType.PIPE_TRIGGER]: PipeTrigger,
+  [EnumType.TOOL_FILTER]: ToolFilter,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.COLOR_TYPE]: ColorType,
@@ -27671,6 +27895,7 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.AUDIO_OPTIONS]: AudioOptionsData,
   [StructType.IMAGE_OPTIONS]: ImageOptionsData,
   [StructType.VIDEO_OPTIONS]: VideoOptionsData,
+  [StructType.TOOL_SELECTION]: ToolSelectionData,
   [StructType.COLOR]: ColorData,
   [StructType.FONT]: FontData,
   [StructType.RECTANGLE]: RectangleData,
@@ -27884,6 +28109,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.AUDIO_OPTIONS]: AudioOptionsData,
   [ObjectType.IMAGE_OPTIONS]: ImageOptionsData,
   [ObjectType.VIDEO_OPTIONS]: VideoOptionsData,
+  [ObjectType.TOOL_SELECTION]: ToolSelectionData,
   [ObjectType.COLOR]: ColorData,
   [ObjectType.FONT]: FontData,
   [ObjectType.RECTANGLE]: RectangleData,
@@ -27982,9 +28208,11 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.CODE_TYPE]: CodeType,
   [EnumType.CODE_LANGUAGE]: CodeLanguage,
   [EnumType.ACTION_TYPE]: ActionType,
+  [EnumType.ACTION_CATEGORY]: ActionCategory,
   [EnumType.PORT_SIDE]: PortSide,
   [EnumType.PIPE_TYPE]: PipeType,
   [EnumType.PIPE_TRIGGER]: PipeTrigger,
+  [EnumType.TOOL_FILTER]: ToolFilter,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.COLOR_TYPE]: ColorType,
@@ -28558,6 +28786,7 @@ export enum ActionProperty {
   icon = 35,
   text = 36,
   runOptions = 40,
+  toolSelection = 41,
   machinePtr = 51,
   code = 52,
   toolPtr = 53,
@@ -29594,6 +29823,14 @@ export enum VideoOptionsProperty {
   metatype = 1,
 }
 
+export enum ToolSelectionProperty {
+  metatype = 1,
+  filter = 35,
+  toolNodesPtr = 40,
+  toolTypes = 41,
+  toolCategories = 42,
+}
+
 export enum ColorProperty {
   metatype = 1,
   type = 31,
@@ -29684,11 +29921,11 @@ export enum DomNodeProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof BlockProperty | typeof FieldProperty | typeof ViewProperty | typeof ActionProperty | typeof PipeProperty | typeof SpaceProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof RunPlanProperty | typeof InterruptionProperty | typeof LogProperty | typeof SkipProperty | typeof EmptyProperty
-export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof CallProperty | typeof CallPlanProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
+export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof CallProperty | typeof CallPlanProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ToolSelectionProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof BlockProperty | typeof FieldProperty | typeof ViewProperty | typeof ActionProperty | typeof PipeProperty | typeof SpaceProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof RunPlanProperty | typeof InterruptionProperty | typeof LogProperty | typeof SkipProperty | typeof EmptyProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof CallProperty | typeof CallPlanProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
-export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof BlockProperty | typeof FieldProperty | typeof ViewProperty | typeof ActionProperty | typeof PipeProperty | typeof SpaceProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof RunPlanProperty | typeof InterruptionProperty | typeof LogProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof CallProperty | typeof CallPlanProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
+export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof CallProperty | typeof CallPlanProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ToolSelectionProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
+export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof MembershipProperty | typeof InviteProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof BlockProperty | typeof FieldProperty | typeof ViewProperty | typeof ActionProperty | typeof PipeProperty | typeof SpaceProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof RunPlanProperty | typeof InterruptionProperty | typeof LogProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof CallProperty | typeof CallPlanProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ToolSelectionProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.HANDLE]: HandleProperty,
@@ -29771,6 +30008,7 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.AUDIO_OPTIONS]: AudioOptionsProperty,
   [ObjectType.IMAGE_OPTIONS]: ImageOptionsProperty,
   [ObjectType.VIDEO_OPTIONS]: VideoOptionsProperty,
+  [ObjectType.TOOL_SELECTION]: ToolSelectionProperty,
   [ObjectType.COLOR]: ColorProperty,
   [ObjectType.FONT]: FontProperty,
   [ObjectType.RECTANGLE]: RectangleProperty,
@@ -29863,6 +30101,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.AUDIO_OPTIONS]: AudioOptionsProperty,
   [ObjectType.IMAGE_OPTIONS]: ImageOptionsProperty,
   [ObjectType.VIDEO_OPTIONS]: VideoOptionsProperty,
+  [ObjectType.TOOL_SELECTION]: ToolSelectionProperty,
   [ObjectType.COLOR]: ColorProperty,
   [ObjectType.FONT]: FontProperty,
   [ObjectType.RECTANGLE]: RectangleProperty,
@@ -30217,8 +30456,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.26.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.26.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.27.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.27.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30249,8 +30488,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.26.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.26.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.27.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.27.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30560,6 +30799,7 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.icon]: { id: 35, name: 'icon', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ActionProperty.text]: { id: 36, name: 'text', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ActionProperty.runOptions]: { id: 40, name: 'run_options', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
+  [ActionProperty.toolSelection]: { id: 41, name: 'tool_selection', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TOOL_SELECTION },
   [ActionProperty.machinePtr]: { id: 51, name: 'machine_ptr', component: ObjectType.ACTION, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.code]: { id: 52, name: 'code', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ActionProperty.toolPtr]: { id: 53, name: 'tool_ptr', component: ObjectType.ACTION, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [22] }, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
@@ -31484,6 +31724,13 @@ export const ImageOptionsDataInfo: Record<ImageOptionsProperty, PropertyInfo> = 
 export const VideoOptionsDataInfo: Record<VideoOptionsProperty, PropertyInfo> = {
   [VideoOptionsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VIDEO_OPTIONS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
 }
+export const ToolSelectionDataInfo: Record<ToolSelectionProperty, PropertyInfo> = {
+  [ToolSelectionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TOOL_SELECTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ToolSelectionProperty.filter]: { id: 35, name: 'filter', component: ObjectType.TOOL_SELECTION, enumType: EnumType.TOOL_FILTER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ToolSelectionProperty.toolNodesPtr]: { id: 40, name: 'tool_nodes_ptr', component: ObjectType.TOOL_SELECTION, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
+  [ToolSelectionProperty.toolTypes]: { id: 41, name: 'tool_types', component: ObjectType.TOOL_SELECTION, enumType: EnumType.ACTION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
+  [ToolSelectionProperty.toolCategories]: { id: 42, name: 'tool_categories', component: ObjectType.TOOL_SELECTION, enumType: EnumType.ACTION_CATEGORY, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
+}
 export const ColorDataInfo: Record<ColorProperty, PropertyInfo> = {
   [ColorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COLOR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ColorProperty.type]: { id: 31, name: 'type', component: ObjectType.COLOR, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -31642,6 +31889,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.AUDIO_OPTIONS]: AudioOptionsDataInfo,
   [ObjectType.IMAGE_OPTIONS]: ImageOptionsDataInfo,
   [ObjectType.VIDEO_OPTIONS]: VideoOptionsDataInfo,
+  [ObjectType.TOOL_SELECTION]: ToolSelectionDataInfo,
   [ObjectType.COLOR]: ColorDataInfo,
   [ObjectType.FONT]: FontDataInfo,
   [ObjectType.RECTANGLE]: RectangleDataInfo,
@@ -31862,6 +32110,13 @@ export const PipeTriggerOptionInfo: Partial<Record<PipeTrigger, EnumOptionInfo>>
   [PipeTrigger.ON_TERMINATED]: { id: 3, name: 'ON_TERMINATED', text: 'Always, success or failure' },
 }
 
+export const ToolFilterOptionInfo: Partial<Record<ToolFilter, EnumOptionInfo>> = {
+  [ToolFilter.ANY]: { id: 10, name: 'ANY', text: 'Any Actions' },
+  [ToolFilter.SELECT_BUILIN]: { id: 20, name: 'SELECT_BUILIN', text: 'Only Builtin Actions' },
+  [ToolFilter.SELECT_CUSTOM]: { id: 30, name: 'SELECT_CUSTOM', text: 'Only Custom Actions' },
+  [ToolFilter.SELECT]: { id: 40, name: 'SELECT', text: 'Only Specific Actions' },
+}
+
 
 export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, EnumOptionInfo>>> = {
   [EnumType.BLOCK_TYPE]: BlockTypeOptionInfo,
@@ -31871,6 +32126,7 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.ACTION_TYPE]: ActionTypeOptionInfo,
   [EnumType.PIPE_TYPE]: PipeTypeOptionInfo,
   [EnumType.PIPE_TRIGGER]: PipeTriggerOptionInfo,
+  [EnumType.TOOL_FILTER]: ToolFilterOptionInfo,
 }
 
 

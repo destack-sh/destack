@@ -213,10 +213,9 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     # see IntoQuery.__eq__ for Property==Property equality
 
     def _stable_hash(self):
-        """Hash the Node's identity."""
-        return stable_hash((self.component.__name__, self.id))
+        """Hash the Property identity."""
+        return stable_hash((self.component.__name__, self.id, self.reference_type))
 
-    # only define __hash__ for nodes since their id is constant
     __hash__ = _stable_hash  # type: ignore
 
     def clone(self):

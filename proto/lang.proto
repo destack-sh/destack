@@ -94,9 +94,11 @@ enum EnumType {
   ENUM_TYPE_CODE_TYPE = 22400;
   ENUM_TYPE_CODE_LANGUAGE = 22401;
   ENUM_TYPE_ACTION_TYPE = 22500;
+  ENUM_TYPE_ACTION_CATEGORY = 22501;
   ENUM_TYPE_PORT_SIDE = 22510;
   ENUM_TYPE_PIPE_TYPE = 22511;
   ENUM_TYPE_PIPE_TRIGGER = 22512;
+  ENUM_TYPE_TOOL_FILTER = 22520;
   ENUM_TYPE_SPACE_TYPE = 22600;
   ENUM_TYPE_VIEW_TYPE = 22601;
   ENUM_TYPE_COLOR_TYPE = 22602;
@@ -204,6 +206,7 @@ enum StructType {
   STRUCT_TYPE_AUDIO_OPTIONS = 12801;
   STRUCT_TYPE_IMAGE_OPTIONS = 12802;
   STRUCT_TYPE_VIDEO_OPTIONS = 12803;
+  STRUCT_TYPE_TOOL_SELECTION = 12900;
   STRUCT_TYPE_COLOR = 13200;
   STRUCT_TYPE_FONT = 13201;
   STRUCT_TYPE_RECTANGLE = 13202;
@@ -297,6 +300,7 @@ enum ObjectType {
   OBJECT_TYPE_AUDIO_OPTIONS = 12801;
   OBJECT_TYPE_IMAGE_OPTIONS = 12802;
   OBJECT_TYPE_VIDEO_OPTIONS = 12803;
+  OBJECT_TYPE_TOOL_SELECTION = 12900;
   OBJECT_TYPE_COLOR = 13200;
   OBJECT_TYPE_FONT = 13201;
   OBJECT_TYPE_RECTANGLE = 13202;
@@ -390,6 +394,7 @@ enum BenchType {
   BENCH_TYPE_AUDIO_OPTIONS = 12801;
   BENCH_TYPE_IMAGE_OPTIONS = 12802;
   BENCH_TYPE_VIDEO_OPTIONS = 12803;
+  BENCH_TYPE_TOOL_SELECTION = 12900;
   BENCH_TYPE_COLOR = 13200;
   BENCH_TYPE_FONT = 13201;
   BENCH_TYPE_RECTANGLE = 13202;
@@ -484,9 +489,11 @@ enum BenchType {
   BENCH_TYPE_CODE_TYPE = 22400;
   BENCH_TYPE_CODE_LANGUAGE = 22401;
   BENCH_TYPE_ACTION_TYPE = 22500;
+  BENCH_TYPE_ACTION_CATEGORY = 22501;
   BENCH_TYPE_PORT_SIDE = 22510;
   BENCH_TYPE_PIPE_TYPE = 22511;
   BENCH_TYPE_PIPE_TRIGGER = 22512;
+  BENCH_TYPE_TOOL_FILTER = 22520;
   BENCH_TYPE_SPACE_TYPE = 22600;
   BENCH_TYPE_VIEW_TYPE = 22601;
   BENCH_TYPE_COLOR_TYPE = 22602;
@@ -1437,6 +1444,17 @@ enum ActionType {
   ACTION_TYPE_TEXT = 9000;
 }
 
+enum ActionCategory {
+  ACTION_CATEGORY_UNSPECIFIED = 0;
+  ACTION_CATEGORY_FLOW = 100;
+  ACTION_CATEGORY_READ = 300;
+  ACTION_CATEGORY_WRITE = 400;
+  ACTION_CATEGORY_COMMUNICATE = 500;
+  ACTION_CATEGORY_ENVIRONMENT = 800;
+  ACTION_CATEGORY_APPLICATION = 1000;
+  ACTION_CATEGORY_WEB = 1100;
+}
+
 enum PortSide {
   PORT_SIDE_UNSPECIFIED = 0;
   PORT_SIDE_INCOMING = 1;
@@ -1454,6 +1472,14 @@ enum PipeTrigger {
   PIPE_TRIGGER_ON_COMPLETED = 1;
   PIPE_TRIGGER_ON_FAILED = 2;
   PIPE_TRIGGER_ON_TERMINATED = 3;
+}
+
+enum ToolFilter {
+  TOOL_FILTER_UNSPECIFIED = 0;
+  TOOL_FILTER_ANY = 10;
+  TOOL_FILTER_SELECT_BUILIN = 20;
+  TOOL_FILTER_SELECT_CUSTOM = 30;
+  TOOL_FILTER_SELECT = 40;
 }
 
 enum SpaceType {
@@ -2189,6 +2215,14 @@ message ContextData {
   optional NodeReferenceData machine_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
   optional NodeReferenceData identity_ptr = 96;
+}
+
+message ToolSelectionData {
+  ObjectType metatype = 1;
+  optional ToolFilter filter = 35;
+  repeated NodeReferenceData tool_nodes_ptr = 40;
+  repeated ActionType tool_types = 41;
+  repeated ActionCategory tool_categories = 42;
 }
 
 message ColorData {
@@ -2938,6 +2972,7 @@ message ActionData {
   optional IconData icon = 35;
   optional TextData text = 36;
   optional RunOptionsData run_options = 40;
+  optional ToolSelectionData tool_selection = 41;
   optional NodeReferenceData machine_ptr = 51;
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;

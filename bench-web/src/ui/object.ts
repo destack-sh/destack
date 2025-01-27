@@ -84,6 +84,8 @@ import {
   DuplicateActionProperty,
   PipeType,
   WaitActionProperty,
+  ToolSelectionProperty,
+  ToolFilter,
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
@@ -942,6 +944,38 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
     return [this.rowProperty(LookActionProperty.applicationPtr, { isComputable: true })];
   }
 
+  toolRows() {
+    const filter = this.node?.toolSelection?.filter ?? ToolFilter.ANY;
+    const rows = [
+      this.rowProperty([ActionProperty.toolSelection, ToolSelectionProperty.filter], {
+        title: "Selection",
+        default: ToolFilter.ANY,
+      }),
+    ];
+    if (filter == ToolFilter.SELECT || filter == ToolFilter.SELECT_BUILIN) {
+      rows.push(
+        this.rowProperty([ActionProperty.toolSelection, ToolSelectionProperty.toolCategories], {
+          title: "Categories",
+        }),
+        this.rowProperty([ActionProperty.toolSelection, ToolSelectionProperty.toolTypes], {
+          title: "Types",
+        }),
+      );
+    }
+    if (filter == ToolFilter.SELECT || filter == ToolFilter.SELECT_CUSTOM) {
+      rows.push(
+        this.rowProperty([ActionProperty.toolSelection, ToolSelectionProperty.toolNodesPtr], {
+          title: "Actions",
+        }),
+      );
+    }
+    return rows;
+  }
+
+  toolSection() {
+    this.section("Tool", this.toolRows());
+  }
+
   /** The schema(s) for this Action (for full node) */
   sectionActionSchema() {
     const node = this.node!;
@@ -1145,6 +1179,10 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
     commonRows.push(
       ...this.actionSubproperties(...(DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE[this.subtype as any as ActionType] ?? [])),
     );
+
+    if (this.subtype == ActionType.TOOL || DYNAMIC_ACTION_TYPES.includes(this.subtype as any)) {
+      this.toolSection();
+    }
 
     // application options
     if (APPLICATION_ACTION_TYPES.includes(this.subtype as any) && !this.isPartial) {

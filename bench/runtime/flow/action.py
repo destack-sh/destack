@@ -9,6 +9,7 @@ from playwright.async_api import Page as PlaywrightPage
 from bench.language import (
     Action,
     ActionType,
+    Aliasing,
     BreakpointScope,
     BreakpointSite,
     Browser,
@@ -276,6 +277,7 @@ class CodeActionRunner(ActionRunner[CodeAction]):
             context=self.context,
             run=RunSpanType.DELEGATE,
             code=self.action.code or CODE_PASS,
+            aliasing=Aliasing(),
             variables=self.variables,
             inputs=self.inputs,
             outputs=self.outputs or self.output_type,

@@ -15,6 +15,7 @@ from bench.language import (
     REGION,
     Action,
     ActionType,
+    Aliasing,
     Bench,
     Block,
     BlockType,
@@ -190,7 +191,9 @@ def example_(title: str, weight: int = 1):
                     output, typ=output_type, supergraph=EXAMPLE_PACKAGE._supergraph
                 )
             if isinstance(response, CustomObject):
-                renderer = Renderer(options=RenderOptions(scope=EXAMPLE_PACKAGE))
+                renderer = Renderer(
+                    options=RenderOptions(scope=EXAMPLE_PACKAGE, aliasing=Aliasing())
+                )
                 response = renderer.render_custom_object(response)
                 response = f"return {response}"
                 if comment:
@@ -328,14 +331,13 @@ def flow_basic_planning(package: Package):
     )
 
 
-# nocheckin: tool instruction
 @example_("Basic Planning with Tool Actions")
 def basic_planning_with_tools(package: Package):
     """How to plan next Actions in a simple Flow with Tool Actions."""
     Flow = Block.new(BlockType.FLOW, name="Flow1")
     Start = Action.new(ActionType.START, name="Start")
     Think1 = Action.new(ActionType.THINK, name="Think1")
-    Tool1 = Action.new(ActionType.TOOL, name="Tool1", tool_options=ToolSelection.any())
+    Tool1 = Action.new(ActionType.TOOL, name="Tool1", tool_selection=ToolSelection.any())
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
     Flow.actions.extend(Start, Think1, Tool1, Complete)
     Start.connect(PipeType.CALL, Think1)
@@ -345,9 +347,17 @@ def basic_planning_with_tools(package: Package):
     ...  # some application with obvious element ids provided
     # ---
     return [Flow, *Flow.actions, *Flow.pipes], (
-        "No plan because the next Action is Call->Complete and its fields are computed.",
+        "Route to the tool action.",
         Think1,
-        {"plans": []},
+        {
+            "plans": [
+                call_serial(
+                    call(Tool1, type=ActionType.TYPE, string="Hello World!"),
+                    call(Tool1, type=ActionType.PRESS, combination="Enter"),
+                    on_terminate=CallTerminationMode.RETURN,
+                )
+            ]
+        },
     )
 
 

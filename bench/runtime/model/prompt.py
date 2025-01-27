@@ -199,7 +199,7 @@ class PromptNode(PromptCompound):
         context_code = "\n".join(
             prompt.renderer.render_statement(n, format=True)
             for n in context_nodes
-            if n.metatype not in prompt.renderer.options.folded_child_types and n != self.node
+            if n.metatype not in prompt.renderer.options.inline_node_types and n != self.node
         )
         node_code = prompt.renderer.render_statement(self.node, format=True)
         return [PromptCode(title=self.title, code=f"{context_code}\n\n{node_code}")]

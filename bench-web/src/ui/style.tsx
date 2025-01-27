@@ -11,6 +11,7 @@ import {
   RunStatus,
   ActionType,
   EnumType,
+  ActionCategory,
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -180,6 +181,16 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   [ActionType.TEXT]: ColorType.GRAY,
 };
 
+export const COLOR_BY_ACTION_CATEGORY: Partial<Record<ActionCategory, ColorType>> = {
+  [ActionCategory.FLOW]: ColorType.YELLOW,
+  [ActionCategory.READ]: ColorType.SKY,
+  [ActionCategory.WRITE]: ColorType.SKY,
+  [ActionCategory.COMMUNICATE]: ColorType.PINK,
+  [ActionCategory.ENVIRONMENT]: ColorType.EMERALD,
+  [ActionCategory.APPLICATION]: ColorType.INDIGO,
+  [ActionCategory.WEB]: ColorType.INDIGO,
+};
+
 export const COLOR_BY_SEVERITY: Record<Severity, ColorType> = {
   [Severity.UNSPECIFIED]: ColorType.GRAY,
   [Severity.TRACE]: ColorType.GRAY,
@@ -218,6 +229,7 @@ export const COLORS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, ColorType
   [EnumType.NODE_TYPE]: COLOR_BY_NODE_TYPE,
   [EnumType.BLOCK_TYPE]: COLOR_BY_BLOCK_TYPE,
   [EnumType.ACTION_TYPE]: COLOR_BY_ACTION_TYPE,
+  [EnumType.ACTION_CATEGORY]: COLOR_BY_ACTION_CATEGORY,
   [EnumType.SEVERITY]: COLOR_BY_SEVERITY,
   [EnumType.RUN_STATUS]: COLOR_BY_RUN_STATUS,
   [EnumType.RESOURCE_STATUS]: COLOR_BY_RESOURCE_STATUS,
