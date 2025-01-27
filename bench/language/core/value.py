@@ -632,15 +632,21 @@ def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
 
 
 def get_partial_object_type(
-    typ: "TypeBase | TypeIdentity", value_packed: Mapping[str, JsonValue | SomeValue]
+    typ: "TypeBase | TypeIdentity", value: Mapping[str, JsonValue | SomeValue]
 ) -> tuple[NodeType | None, type["Node"], int | None, type["Node"] | None]:
-    """Gets the actual partial object type as specified in the type/value."""
+    """
+    Gets the actual partial object type as specified in the type/value.
+    Works for packed and unpacked values.
+    """
     # node type
     if typ.bench_type is not None:
         bench_type = cast(NodeType, typ.bench_type)
         node_cls = NODE_CLASS_BY_TYPE[bench_type]
-    elif "1" in value_packed:  # generic partial
-        bench_type = cast(NodeType, int(value_packed["1"]))  # type: ignore
+    elif "1" in value:  # generic partial
+        bench_type = cast(NodeType, int(value["1"]))  # type: ignore
+        node_cls = NODE_CLASS_BY_TYPE[bench_type]
+    elif "metatype" in value:
+        bench_type = cast(NodeType, int(value["metatype"]))  # type: ignore
         node_cls = NODE_CLASS_BY_TYPE[bench_type]
     else:
         # no specific node type, so we can't resolve subtype properties
@@ -653,7 +659,9 @@ def get_partial_object_type(
     subtype = None
     subtype_cls = None
     if node_cls.__subtype_base_property__ is not None:
-        subtype = cast(int | None, value_packed.get(node_cls.__subtype_base_property__.key))
+        subtype = cast(int | None, value.get("type"))
+        if subtype is None:
+            subtype = cast(int | None, value.get("30"))
         if subtype is None or (
             # subtype may be overridden in value for some nodes (like with Action.type)
             typ.property_field_types
@@ -668,12 +676,12 @@ def get_partial_object_type(
 
 
 def get_custom_object_properties(
-    typ: "TypeBase | TypeIdentity", value_packed: Mapping[str, JsonValue | SomeValue]
+    typ: "TypeBase | TypeIdentity", value: Mapping[str, JsonValue | SomeValue]
 ) -> "Iterable[Property]":
     """Gets all the custom object properties available in this value."""
     if typ.kind == TypeKind.PARTIAL_OBJECT:
         # get properties for actual type
-        _, node_cls, _, subtype_cls = get_partial_object_type(typ, value_packed)
+        _, node_cls, _, subtype_cls = get_partial_object_type(typ, value)
         if subtype_cls is not None:
             properties = chain(
                 subtype_cls.__subtype_extra_original_properties__.values(),

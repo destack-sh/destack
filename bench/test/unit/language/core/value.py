@@ -229,6 +229,15 @@ def test_partial_node_with_nested_value_packed(session: Session, package: Packag
     assert full_obj.node_partial == node_partial
 
 
+def test_partial_node_coerce(session: Session, package: Package) -> None:
+    """Coerce a partial node with a subtype value."""
+    obj = Action.partial()
+    obj.type = ActionType.TYPE
+    obj.string = "Hello World!"
+    obj_coerced = coerce_custom_object_scalar({**obj}, obj._type)
+    assert obj_coerced == obj
+
+
 def test_roundtrip_scalar_value(session: Session, package: Package) -> None:
     """Pack/unpack a scalar value inside a (Variable) Block (which HasValues)."""
 
