@@ -449,7 +449,7 @@ async def test_run_flow_pipe_to_nowhere(hosted_runtime: RuntimeHandle):
     await hosted_runtime.commit()
 
     runner = await hosted_runtime.run(Flow1)
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 3
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 4
 
 
 async def test_run_flow_force_invalid_output(hosted_runtime: RuntimeHandle):
@@ -897,7 +897,7 @@ return {
     # -> should terminate (and not loop endlessly..)
     Plan1.code = code("""\
 return {
-    "plans": [call_serial(call(Code1), call(Complete), on_terminate=CallFailureMode.RETURN)],
+    "plans": [call_serial(call(Code1), call(Complete), on_terminate=CallTerminationMode.RETURN)],
 }
 """)
     runner = await hosted_runtime.run(Flow)
