@@ -1,3 +1,5 @@
+from more_itertools import first
+
 from bench.language import (
     AUTH_NODE_TYPES,
     COSMOS_NODE_TYPES,
@@ -33,6 +35,7 @@ from .prompt import (
     PromptRun,
     PromptRunAttempt,
     PromptRunPlan,
+    PromptSeparator,
     PromptText,
     prompt_region,
 )
@@ -341,6 +344,8 @@ def make_chat_prompt(
 
     # flow
     if (flow := action.block) is not None and flow.type == BlockType.FLOW:
+        from bench.runtime.flow import FlowRunner
+
         connected_actions = [
             (pipe, target)
             for pipe in flow.pipes
@@ -349,12 +354,27 @@ def make_chat_prompt(
             and pipe.is_extant
             and target.is_extant
         ]
-        flow_parts = [
+        flow_parts: list[PromptPart] = [
             PromptNode(title=None, weight=1, node=flow),
             PromptText(
                 None, f"You are part of the Flow '{flow.code_name}'. Consider the flow as a whole."
             ),
         ]
+        # repeat flow variables/inputs
+        flow_run = first((r for r in runner.ancestors if isinstance(r, FlowRunner)), None)
+        assert flow_run is not None, f"missing flow {flow!r} for {runner!r}"
+        flow_parts.append(PromptBreak(title=None))
+        if flow_run.variables is not None and flow_run.variables.any():
+            flow_parts.append(
+                PromptCustomObject(
+                    title="Variables to this Flow", weight=1, object=flow_run.variables
+                )
+            )
+        if flow_run.inputs is not None and flow_run.inputs.any():
+            flow_parts.append(
+                PromptCustomObject(title="Inputs to this Flow", weight=1, object=flow_run.inputs)
+            )
+
         can_flow_be_empty = all(p.type == PipeType.CALL for p, a in connected_actions)
         if len(connected_actions) == 0:
             flow_parts.append(
@@ -377,6 +397,7 @@ def make_chat_prompt(
                     "You MUST plan the next Actions in this Flow. You MUST include at least one of the SELECT-connected Actions or raise IncapableError.",
                 )
             )
+        flow_parts.append(PromptSeparator(title=None))
         flow_parts.append(
             PromptText(
                 title=None,
