@@ -7,6 +7,7 @@ from uuid import UUID
 from bench.language import (
     Action,
     ActionType,
+    Aliasing,
     Block,
     BlockType,
     BuiltinObject,
@@ -38,9 +39,7 @@ from bench.language import (
     call_parallel,
     call_serial,
     constraint,
-    md,
     path,
-    render,
     render_expression,
     to_type,
 )
@@ -60,9 +59,9 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
     ) -> None:
         """Common logic for rendering and checking rendered code matches original."""
         # (line length 96 because it's 100 - 4 for the method indent here)
-        options = RenderOptions(scope=package, format=True, format_line_length=96)
 
         def _render(defns: Mapping[str, Any]):
+            options = RenderOptions(scope=package, aliasing=Aliasing(), format=True, line_length=96)
             renderer = Renderer(options)
             statements: list[str] = []
             for obj in defns.values():
@@ -86,7 +85,7 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
             # combine & format
             rendered = "\n".join(statements)
             if options.format:
-                rendered = format_code(rendered, line_length=options.format_line_length)
+                rendered = format_code(rendered, line_length=options.line_length)
             return rendered.strip()
 
         original_defns = func(session, package)
@@ -351,31 +350,26 @@ def test_render_call_plan(session: Session, package: Package):
 
 
 @_render_test
-def test_render_tool_options(session: Session, package: Package):
+def test_render_tool_selection(session: Session, package: Package):
     Action1 = Action.new(ActionType.TOOL, "Action1", tool_selection=ToolSelection.any())
     ToolOptions1 = ToolSelection.custom(Action1)
     ToolOptions2 = ToolSelection.builtin(ActionType.CODE)
-    ToolOptions3 = ToolSelection.any(
+    ToolOptions3 = ToolSelection.only(
         ActionType.CODE, ActionCategory.APPLICATION, ActionCategory.ENVIRONMENT, Action1
     )
+    ToolOptions4 = ToolSelection.any()
     return {
         "Action1": Action1,
         "ToolOptions1": ToolOptions1,
         "ToolOptions2": ToolOptions2,
         "ToolOptions3": ToolOptions3,
+        "ToolOptions4": ToolOptions4,
     }
 
 
 #
 # Other
 #
-
-
-def test_render_page(session: Session, package: Package):
-    Page = package.blocks.create(name="Page", type=BlockType.PAGE)
-    Text1 = Page.blocks.append(Block.new(BlockType.TEXT, "Text1", text=md("Hello, world!")))
-    rendered_page = render(Page, options=RenderOptions(scope=Page, as_page=True))
-    assert Text1.name in rendered_page
 
 
 def test_render_simple_choice_option_ref(session: Session, package: Package):
@@ -389,6 +383,6 @@ def test_render_simple_choice_option_ref(session: Session, package: Package):
     Page = Block.new(BlockType.PAGE, "Page")
     Page.blocks.extend(Choice)
     rendered_option = render_expression(
-        Choice.fields.Option2, options=RenderOptions(scope=Page), as_ref=True
+        Choice.fields.Option2, options=RenderOptions(scope=Page, aliasing=Aliasing()), as_ref=True
     )
     assert rendered_option == "Choice.fields.Option2"

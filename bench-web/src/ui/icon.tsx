@@ -39,6 +39,8 @@ import {
   type AnyNodeData,
   type IconData,
   PipeTrigger,
+  ActionCategory,
+  ToolFilter,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // fa-icons is generated with:
@@ -325,6 +327,23 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   // ...
   // misc
   [ActionType.TEXT]: "fas fa-align-left",
+});
+
+export const ICON_BY_ACTION_CATEGORY: Partial<Record<ActionCategory, IconData>> = _makeIcons<ActionCategory>({
+  [ActionCategory.FLOW]: "fas fa-diagram-project",
+  [ActionCategory.READ]: "fas fa-magnifying-glass",
+  [ActionCategory.WRITE]: "fas fa-pencil",
+  [ActionCategory.COMMUNICATE]: "fas fa-inbox",
+  [ActionCategory.ENVIRONMENT]: "fas fa-island-tropical",
+  [ActionCategory.APPLICATION]: "fas fa-desktop",
+  [ActionCategory.WEB]: "fas fa-globe",
+});
+
+export const ICON_BY_TOOL_FILTER: Partial<Record<ToolFilter, IconData>> = _makeIcons<ToolFilter>({
+  [ToolFilter.ANY]: "fas fa-infinity",
+  [ToolFilter.SELECT_BUILIN]: "fas fa-gear",
+  [ToolFilter.SELECT_CUSTOM]: "fas fa-user",
+  [ToolFilter.SELECT]: "fas fa-hexagon",
 });
 
 export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons<PipeType>({
@@ -676,6 +695,8 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.BENCH_TYPE]: ICON_BY_BENCH_TYPE,
   [EnumType.BLOCK_TYPE]: ICON_BY_BLOCK_TYPE,
   [EnumType.ACTION_TYPE]: ICON_BY_ACTION_TYPE,
+  [EnumType.ACTION_CATEGORY]: ICON_BY_ACTION_CATEGORY,
+  [EnumType.TOOL_FILTER]: ICON_BY_TOOL_FILTER,
   [EnumType.PIPE_TYPE]: ICON_BY_PIPE_TYPE,
   [EnumType.PIPE_TRIGGER]: ICON_BY_PIPE_TRIGGER,
   [EnumType.VIEW_TYPE]: ICON_BY_VIEW_TYPE,

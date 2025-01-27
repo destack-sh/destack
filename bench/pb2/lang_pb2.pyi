@@ -106,9 +106,11 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_CODE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CODE_LANGUAGE: _ClassVar[EnumType]
     ENUM_TYPE_ACTION_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_ACTION_CATEGORY: _ClassVar[EnumType]
     ENUM_TYPE_PORT_SIDE: _ClassVar[EnumType]
     ENUM_TYPE_PIPE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PIPE_TRIGGER: _ClassVar[EnumType]
+    ENUM_TYPE_TOOL_FILTER: _ClassVar[EnumType]
     ENUM_TYPE_SPACE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_VIEW_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_COLOR_TYPE: _ClassVar[EnumType]
@@ -216,6 +218,7 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_AUDIO_OPTIONS: _ClassVar[StructType]
     STRUCT_TYPE_IMAGE_OPTIONS: _ClassVar[StructType]
     STRUCT_TYPE_VIDEO_OPTIONS: _ClassVar[StructType]
+    STRUCT_TYPE_TOOL_SELECTION: _ClassVar[StructType]
     STRUCT_TYPE_COLOR: _ClassVar[StructType]
     STRUCT_TYPE_FONT: _ClassVar[StructType]
     STRUCT_TYPE_RECTANGLE: _ClassVar[StructType]
@@ -309,6 +312,7 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_AUDIO_OPTIONS: _ClassVar[ObjectType]
     OBJECT_TYPE_IMAGE_OPTIONS: _ClassVar[ObjectType]
     OBJECT_TYPE_VIDEO_OPTIONS: _ClassVar[ObjectType]
+    OBJECT_TYPE_TOOL_SELECTION: _ClassVar[ObjectType]
     OBJECT_TYPE_COLOR: _ClassVar[ObjectType]
     OBJECT_TYPE_FONT: _ClassVar[ObjectType]
     OBJECT_TYPE_RECTANGLE: _ClassVar[ObjectType]
@@ -402,6 +406,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_AUDIO_OPTIONS: _ClassVar[BenchType]
     BENCH_TYPE_IMAGE_OPTIONS: _ClassVar[BenchType]
     BENCH_TYPE_VIDEO_OPTIONS: _ClassVar[BenchType]
+    BENCH_TYPE_TOOL_SELECTION: _ClassVar[BenchType]
     BENCH_TYPE_COLOR: _ClassVar[BenchType]
     BENCH_TYPE_FONT: _ClassVar[BenchType]
     BENCH_TYPE_RECTANGLE: _ClassVar[BenchType]
@@ -496,9 +501,11 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_CODE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_CODE_LANGUAGE: _ClassVar[BenchType]
     BENCH_TYPE_ACTION_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_ACTION_CATEGORY: _ClassVar[BenchType]
     BENCH_TYPE_PORT_SIDE: _ClassVar[BenchType]
     BENCH_TYPE_PIPE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_PIPE_TRIGGER: _ClassVar[BenchType]
+    BENCH_TYPE_TOOL_FILTER: _ClassVar[BenchType]
     BENCH_TYPE_SPACE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_VIEW_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_COLOR_TYPE: _ClassVar[BenchType]
@@ -1420,6 +1427,17 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_CLOSE_TAB: _ClassVar[ActionType]
     ACTION_TYPE_TEXT: _ClassVar[ActionType]
 
+class ActionCategory(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ACTION_CATEGORY_UNSPECIFIED: _ClassVar[ActionCategory]
+    ACTION_CATEGORY_FLOW: _ClassVar[ActionCategory]
+    ACTION_CATEGORY_READ: _ClassVar[ActionCategory]
+    ACTION_CATEGORY_WRITE: _ClassVar[ActionCategory]
+    ACTION_CATEGORY_COMMUNICATE: _ClassVar[ActionCategory]
+    ACTION_CATEGORY_ENVIRONMENT: _ClassVar[ActionCategory]
+    ACTION_CATEGORY_APPLICATION: _ClassVar[ActionCategory]
+    ACTION_CATEGORY_WEB: _ClassVar[ActionCategory]
+
 class PortSide(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PORT_SIDE_UNSPECIFIED: _ClassVar[PortSide]
@@ -1438,6 +1456,14 @@ class PipeTrigger(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PIPE_TRIGGER_ON_COMPLETED: _ClassVar[PipeTrigger]
     PIPE_TRIGGER_ON_FAILED: _ClassVar[PipeTrigger]
     PIPE_TRIGGER_ON_TERMINATED: _ClassVar[PipeTrigger]
+
+class ToolFilter(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    TOOL_FILTER_UNSPECIFIED: _ClassVar[ToolFilter]
+    TOOL_FILTER_ANY: _ClassVar[ToolFilter]
+    TOOL_FILTER_SELECT_BUILIN: _ClassVar[ToolFilter]
+    TOOL_FILTER_SELECT_CUSTOM: _ClassVar[ToolFilter]
+    TOOL_FILTER_SELECT: _ClassVar[ToolFilter]
 
 class SpaceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1845,9 +1871,11 @@ ENUM_TYPE_MODEL_PROVIDER: EnumType
 ENUM_TYPE_CODE_TYPE: EnumType
 ENUM_TYPE_CODE_LANGUAGE: EnumType
 ENUM_TYPE_ACTION_TYPE: EnumType
+ENUM_TYPE_ACTION_CATEGORY: EnumType
 ENUM_TYPE_PORT_SIDE: EnumType
 ENUM_TYPE_PIPE_TYPE: EnumType
 ENUM_TYPE_PIPE_TRIGGER: EnumType
+ENUM_TYPE_TOOL_FILTER: EnumType
 ENUM_TYPE_SPACE_TYPE: EnumType
 ENUM_TYPE_VIEW_TYPE: EnumType
 ENUM_TYPE_COLOR_TYPE: EnumType
@@ -1949,6 +1977,7 @@ STRUCT_TYPE_TEXT_OPTIONS: StructType
 STRUCT_TYPE_AUDIO_OPTIONS: StructType
 STRUCT_TYPE_IMAGE_OPTIONS: StructType
 STRUCT_TYPE_VIDEO_OPTIONS: StructType
+STRUCT_TYPE_TOOL_SELECTION: StructType
 STRUCT_TYPE_COLOR: StructType
 STRUCT_TYPE_FONT: StructType
 STRUCT_TYPE_RECTANGLE: StructType
@@ -2039,6 +2068,7 @@ OBJECT_TYPE_TEXT_OPTIONS: ObjectType
 OBJECT_TYPE_AUDIO_OPTIONS: ObjectType
 OBJECT_TYPE_IMAGE_OPTIONS: ObjectType
 OBJECT_TYPE_VIDEO_OPTIONS: ObjectType
+OBJECT_TYPE_TOOL_SELECTION: ObjectType
 OBJECT_TYPE_COLOR: ObjectType
 OBJECT_TYPE_FONT: ObjectType
 OBJECT_TYPE_RECTANGLE: ObjectType
@@ -2129,6 +2159,7 @@ BENCH_TYPE_TEXT_OPTIONS: BenchType
 BENCH_TYPE_AUDIO_OPTIONS: BenchType
 BENCH_TYPE_IMAGE_OPTIONS: BenchType
 BENCH_TYPE_VIDEO_OPTIONS: BenchType
+BENCH_TYPE_TOOL_SELECTION: BenchType
 BENCH_TYPE_COLOR: BenchType
 BENCH_TYPE_FONT: BenchType
 BENCH_TYPE_RECTANGLE: BenchType
@@ -2223,9 +2254,11 @@ BENCH_TYPE_MODEL_PROVIDER: BenchType
 BENCH_TYPE_CODE_TYPE: BenchType
 BENCH_TYPE_CODE_LANGUAGE: BenchType
 BENCH_TYPE_ACTION_TYPE: BenchType
+BENCH_TYPE_ACTION_CATEGORY: BenchType
 BENCH_TYPE_PORT_SIDE: BenchType
 BENCH_TYPE_PIPE_TYPE: BenchType
 BENCH_TYPE_PIPE_TRIGGER: BenchType
+BENCH_TYPE_TOOL_FILTER: BenchType
 BENCH_TYPE_SPACE_TYPE: BenchType
 BENCH_TYPE_VIEW_TYPE: BenchType
 BENCH_TYPE_COLOR_TYPE: BenchType
@@ -2912,6 +2945,14 @@ ACTION_TYPE_GO_TO_TAB: ActionType
 ACTION_TYPE_OPEN_TAB: ActionType
 ACTION_TYPE_CLOSE_TAB: ActionType
 ACTION_TYPE_TEXT: ActionType
+ACTION_CATEGORY_UNSPECIFIED: ActionCategory
+ACTION_CATEGORY_FLOW: ActionCategory
+ACTION_CATEGORY_READ: ActionCategory
+ACTION_CATEGORY_WRITE: ActionCategory
+ACTION_CATEGORY_COMMUNICATE: ActionCategory
+ACTION_CATEGORY_ENVIRONMENT: ActionCategory
+ACTION_CATEGORY_APPLICATION: ActionCategory
+ACTION_CATEGORY_WEB: ActionCategory
 PORT_SIDE_UNSPECIFIED: PortSide
 PORT_SIDE_INCOMING: PortSide
 PORT_SIDE_OUTGOING: PortSide
@@ -2922,6 +2963,11 @@ PIPE_TRIGGER_UNSPECIFIED: PipeTrigger
 PIPE_TRIGGER_ON_COMPLETED: PipeTrigger
 PIPE_TRIGGER_ON_FAILED: PipeTrigger
 PIPE_TRIGGER_ON_TERMINATED: PipeTrigger
+TOOL_FILTER_UNSPECIFIED: ToolFilter
+TOOL_FILTER_ANY: ToolFilter
+TOOL_FILTER_SELECT_BUILIN: ToolFilter
+TOOL_FILTER_SELECT_CUSTOM: ToolFilter
+TOOL_FILTER_SELECT: ToolFilter
 SPACE_TYPE_UNSPECIFIED: SpaceType
 SPACE_TYPE_DESKTOP: SpaceType
 SPACE_TYPE_BROWSER: SpaceType
@@ -3930,6 +3976,20 @@ class ContextData(_message.Message):
     user_ptr: NodeReferenceData
     identity_ptr: NodeReferenceData
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+
+class ToolSelectionData(_message.Message):
+    __slots__ = ("metatype", "filter", "tool_nodes_ptr", "tool_types", "tool_categories")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    FILTER_FIELD_NUMBER: _ClassVar[int]
+    TOOL_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
+    TOOL_TYPES_FIELD_NUMBER: _ClassVar[int]
+    TOOL_CATEGORIES_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    filter: ToolFilter
+    tool_nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
+    tool_types: _containers.RepeatedScalarFieldContainer[ActionType]
+    tool_categories: _containers.RepeatedScalarFieldContainer[ActionCategory]
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., filter: _Optional[_Union[ToolFilter, str]] = ..., tool_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., tool_types: _Optional[_Iterable[_Union[ActionType, str]]] = ..., tool_categories: _Optional[_Iterable[_Union[ActionCategory, str]]] = ...) -> None: ...
 
 class ColorData(_message.Message):
     __slots__ = ("metatype", "type", "shade", "hex")
@@ -5302,7 +5362,7 @@ class SessionData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., status: _Optional[_Union[SessionStatus, str]] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., opened_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., closed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class ActionData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "template_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_at", "mode", "computed_values", "subnode_packed", "type", "name", "order_key", "icon", "text", "run_options", "machine_ptr", "code", "tool_ptr", "variables_packed", "inputs_packed", "plans", "position")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "template_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_at", "mode", "computed_values", "subnode_packed", "type", "name", "order_key", "icon", "text", "run_options", "tool_selection", "machine_ptr", "code", "tool_ptr", "variables_packed", "inputs_packed", "plans", "position")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -5325,6 +5385,7 @@ class ActionData(_message.Message):
     ICON_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     RUN_OPTIONS_FIELD_NUMBER: _ClassVar[int]
+    TOOL_SELECTION_FIELD_NUMBER: _ClassVar[int]
     MACHINE_PTR_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
     TOOL_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -5354,6 +5415,7 @@ class ActionData(_message.Message):
     icon: IconData
     text: TextData
     run_options: RunOptionsData
+    tool_selection: ToolSelectionData
     machine_ptr: NodeReferenceData
     code: CodeData
     tool_ptr: NodeReferenceData
@@ -5361,7 +5423,7 @@ class ActionData(_message.Message):
     inputs_packed: _struct_pb2.Value
     plans: _containers.RepeatedCompositeFieldContainer[CallPlanData]
     position: Vector2Data
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., computed_values: _Optional[_Iterable[_Union[ComputedValueData, _Mapping]]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ActionType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., run_options: _Optional[_Union[RunOptionsData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., tool_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., variables_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., plans: _Optional[_Iterable[_Union[CallPlanData, _Mapping]]] = ..., position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., computed_values: _Optional[_Iterable[_Union[ComputedValueData, _Mapping]]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ActionType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., run_options: _Optional[_Union[RunOptionsData, _Mapping]] = ..., tool_selection: _Optional[_Union[ToolSelectionData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., tool_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., variables_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., plans: _Optional[_Iterable[_Union[CallPlanData, _Mapping]]] = ..., position: _Optional[_Union[Vector2Data, _Mapping]] = ...) -> None: ...
 
 class StartActionData(_message.Message):
     __slots__ = ()

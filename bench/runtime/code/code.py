@@ -51,10 +51,10 @@ class CodeRunner(Runner, ABC):
         runtime: Runtime,
         node: RunnableNode,
         code: Code,
+        aliasing: Aliasing,
         options: RunOptions,
         context: HasContext,
         run: RunIn,
-        aliasing: Aliasing | None = None,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         variables: CustomObject | None = None,
@@ -124,7 +124,9 @@ class CodeRunner(Runner, ABC):
         _get_node = functools.partial(get_node, self.node, self.context)
         _get_node_or_error = functools.partial(get_node_or_error, self.node, self.context)
         _get_path = functools.partial(get_path, self.node)
-        _render = functools.partial(render, options=RenderOptions(scope=self.node))
+        _render = functools.partial(
+            render, options=RenderOptions(scope=self.node, aliasing=self.aliasing)
+        )
         _upload = functools.partial(upload_file)
         glbls = {  # :CodeGlobals
             # static

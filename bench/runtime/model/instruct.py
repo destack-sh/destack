@@ -230,7 +230,9 @@ def make_chat_prompt(
 
     aliasing = Aliasing()
     projection = Projection(options=ProjectOptions())
-    renderer = Renderer(options=RenderOptions(scope=action, aliasing=aliasing))
+    renderer = Renderer(
+        options=RenderOptions(scope=action, aliasing=aliasing, implicit_partials=True)
+    )
     run = runner.closest_tracked_run
     assert run is not None, f"{runner!r} is not tracked"
 

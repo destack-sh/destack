@@ -105,7 +105,7 @@ class ActionType(IdEnum):
     DELETE = 403, "Delete a Node"
     PASTE = 404, "Paste a Node"
 
-    # async
+    # communicate
     SEND = 500, "Send a Message"
     RECEIVE = 501, "Receive a Message"
     MESSAGE = 502, "Send & Receive a Message"
@@ -168,10 +168,10 @@ class ActionType(IdEnum):
 
 @enum_(EnumType.ACTION_CATEGORY)
 class ActionCategory(IdEnum):
-    STATIC = 100
+    FLOW = 100
     READ = 300
     WRITE = 400
-    ASYNC = 500
+    COMMUNICATE = 500
     ENVIRONMENT = 800
     APPLICATION = 1000
     WEB = 1100
@@ -435,9 +435,10 @@ class Action(SourceNode[ActionData]):
 
 @enum_(EnumType.TOOL_FILTER)
 class ToolFilter(IdEnum):
-    BUILTIN_OR_CUSTOM = 1, "Any Actions"
-    BUILTIN = 2, "Only Builtin Actions"
-    CUSTOM = 3, "Only Custom Actions"
+    ANY = 10, "Any Actions"
+    SELECT_BUILIN = 20, "Only Builtin Actions"
+    SELECT_CUSTOM = 30, "Only Custom Actions"
+    SELECT = 40, "Only Specific Actions"
 
 
 @struct_(StructType.TOOL_SELECTION)
@@ -455,15 +456,15 @@ class ToolSelection(Struct):
 
     def supports(self, action_type: ActionType, tool: Union["Block", "Action", None]) -> bool:
         """Whether this tool filter includes the given Action."""
-        if self.filter is None:
+        if self.filter is None or self.filter == ToolFilter.ANY:
             return True
-        elif self.filter == ToolFilter.CUSTOM:
+        elif self.filter == ToolFilter.SELECT_CUSTOM:
             # must be in tool_nodes
             return tool is not None and tool in self.tool_nodes
-        elif self.filter == ToolFilter.BUILTIN:
+        elif self.filter == ToolFilter.SELECT_BUILIN:
             # must be in tool_types or tool_categories
             return action_type in self.tool_types or action_type.category in self.tool_categories
-        elif self.filter == ToolFilter.BUILTIN_OR_CUSTOM:
+        elif self.filter == ToolFilter.SELECT:
             # must be in tool_types or tool_categories
             return (
                 action_type in self.tool_types
@@ -475,24 +476,28 @@ class ToolSelection(Struct):
 
     @staticmethod
     def custom(*tools: Union["Block", "Action"]) -> "ToolSelection":
-        return ToolSelection(filter=ToolFilter.CUSTOM, tool_nodes=list(tools))
+        return ToolSelection(filter=ToolFilter.SELECT_CUSTOM, tool_nodes=list(tools))
 
     @staticmethod
     def builtin(*tools: Union["ActionType", "ActionCategory"]) -> "ToolSelection":
         return ToolSelection(
-            filter=ToolFilter.BUILTIN,
+            filter=ToolFilter.SELECT_BUILIN,
             tool_types=[t for t in tools if isinstance(t, ActionType)],
             tool_categories=[t for t in tools if isinstance(t, ActionCategory)],
         )
 
     @staticmethod
-    def any(*tools: Union["ActionType", "ActionCategory", "Block", "Action"]) -> "ToolSelection":
+    def only(*tools: Union["ActionType", "ActionCategory", "Block", "Action"]) -> "ToolSelection":
         return ToolSelection(
-            filter=ToolFilter.BUILTIN_OR_CUSTOM,
+            filter=ToolFilter.SELECT,
             tool_types=[t for t in tools if isinstance(t, ActionType)],
             tool_categories=[t for t in tools if isinstance(t, ActionCategory)],
             tool_nodes=[t for t in tools if isinstance(t, Node)],
         )
+
+    @staticmethod
+    def any() -> "ToolSelection":
+        return ToolSelection(filter=ToolFilter.ANY)
 
 
 #
