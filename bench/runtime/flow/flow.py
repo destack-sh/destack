@@ -1,5 +1,5 @@
 from abc import ABC
-from asyncio import Event
+from asyncio import Queue
 from typing import Any, ClassVar, Literal, NamedTuple, Sequence, assert_never, cast, override
 from uuid import UUID
 
@@ -100,11 +100,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         self._interrupted_runners: list[Runner] = []
         self._active_runners_by_id: dict[UUID, PipeRunner | ActionRunner[Any]] = {}
         self._stop_result: CustomObject | Literal["completed"] | Error | Interruption | None = None
-        self._stop_event = Event()
-
-    @property
-    def _is_stopped(self) -> bool:
-        return self._stop_event.is_set()
+        self._events: Queue[RunnerEvent] = Queue()
 
     def _abort(self):
         """Abort any contained Actions (and any relevant Interrupts)."""
@@ -128,7 +124,6 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         else:
             self._stop_result = "completed"
         self._abort()  # cancel all active actions
-        self._stop_event.set()
         logger.debug("flow.complete", flow=self.node, runner=self, outputs=outputs)
 
     def _fail(self, error: Error) -> None:
@@ -138,12 +133,21 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
             return  # already done
         self._stop_result = error
         self._abort()  # cancel all active actions
-        self._stop_event.set()
         logger.debug("flow.fail", flow=self.node, runner=self, error=error)
+
+    @property
+    def _is_stopping(self) -> bool:
+        """Whether stop has been requested."""
+        return self._stop_result is not None
+
+    @property
+    def _should_stop(self) -> bool:
+        """Whether this Flow should stop."""
+        return len(self._active_runners_by_id) == 0
 
     def _try_stop(self) -> None:
         """Checks whether this Flow should stop (and stops it)."""
-        if self._stop_result is None and len(self._active_runners_by_id) == 0:
+        if not self._is_stopping and self._should_stop:
             if self._interrupted_runners:
                 interruption = self._interrupted_runners[-1].interruption
                 assert (
@@ -152,7 +156,6 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
                 self._stop_result = interruption
             else:
                 self._stop_result = "completed"
-            self._stop_event.set()
 
     def _start(
         self,
@@ -187,7 +190,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         run.incoming_ptr = tuple(run.to_ref() for run in incoming)
         logger.debug("flow.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
-        runner.on_event(self._on_event)
+        runner.on_event(lambda event: self._events.put_nowait(event))
         self.runtime.schedule_runner(runner)
         return run
 
@@ -201,11 +204,11 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.resume", flow=self.node, node=runner.node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
-        runner.on_event(self._on_event)
+        runner.on_event(lambda event: self._events.put_nowait(event))
         self.runtime.schedule_runner(runner)
         return runner.tracked_run
 
-    def _on_event(self, event: RunnerEvent) -> None:
+    def _process_event(self, event: RunnerEvent) -> None:
         """Tick this Flow on an Action/Pipe event."""
         runner = event.runner
         run = runner.tracked_run
@@ -215,15 +218,13 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         if isinstance(event, RunnerInterruptedEvent):
             self._interrupted_runners.append(runner)
         elif isinstance(event, RunnerCompletedEvent):
-            if not self._is_stopped:
+            if not self._is_stopping:
                 if isinstance(runner.node, Action):
                     self._tick_action(cast(ActionRunner, runner), runner.node, event)
                 elif isinstance(runner.node, Pipe):
                     self._tick_pipe(cast(PipeRunner, runner), runner.node, event)
-            else:
-                pass
         elif isinstance(event, RunnerFailedEvent):
-            if not self._is_stopped:
+            if not self._is_stopping:
                 assert runner.error is not None, f"missing error for {runner!r}"
                 if isinstance(runner.node, Action):
                     tick = self._tick_action(cast(ActionRunner, runner), runner.node, event)
@@ -231,7 +232,6 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
                         self._fail(runner.error)  # fail on unhandled action error
                 elif isinstance(runner.node, Pipe):
                     self._fail(runner.error)  # fail on any pipe fail?
-        self._try_stop()
 
     def _tick_action(
         self,
@@ -363,8 +363,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
     @override
     async def run(self) -> None:
         assert self.tracked_run is not None, f"{self!r} must be tracked"
-        self._stop_result = None
-        self._stop_event.clear()
+        self._stop_result = None  # clear
 
         # start / resume
         runs = self.tracked_run.runs.tolist()
@@ -383,9 +382,13 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         # stop immediately if no progress is possible
         self._try_stop()
 
-        # wait for stop
+        # tick on events until stop
         try:
-            await self._stop_event.wait()
+            while not self._is_stopping:
+                event = await self._events.get()
+                self._process_event(event)
+                if self._events.empty():
+                    self._try_stop()
         except Exception:
             self._abort()  # abort if we get cancelled
             raise
