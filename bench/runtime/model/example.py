@@ -56,6 +56,9 @@ from .prompt import Prompt, PromptCode, PromptCompound, PromptPart, PromptRegion
 # ruff: noqa: F401,B018
 # pyright: reportUnusedExpression=false
 
+# NOTE: only import this file after import is complete
+assert _is_setup_complete(), "import this file after import is complete"
+
 
 @dataclass
 class PromptExample(PromptCompound):
@@ -78,10 +81,6 @@ class PromptExample(PromptCompound):
                 ],
             ),
         )
-
-
-# NOTE: only import this file after import is complete
-assert _is_setup_complete(), "import this file after import is complete"
 
 
 def make_example_bench() -> tuple[Bench, Package, Session, User]:

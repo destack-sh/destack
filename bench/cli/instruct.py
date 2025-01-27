@@ -6,11 +6,26 @@ app = typer.Typer(short_help="print examples")
 logger = structlog.get_logger(__name__)
 console = Console()
 
-_print = print
+
+@app.command()
+def system():
+    """Print the system prompt."""
+    from bench.runtime.model.instruct import SYSTEM_PROMPT
+
+    print(SYSTEM_PROMPT)  # noqa: T201
 
 
 @app.command()
-def print():
+def schema():
+    """Print the schema."""
+    from bench.language import SourceNode
+    from bench.runtime.model.instruct import render_builtin_hierarchy
+
+    print(render_builtin_hierarchy(SourceNode))  # noqa: T201
+
+
+@app.command()
+def example():
     """Print all registered examples with nice formatting."""
     from bench.language import Block  # noqa: F401
     from bench.runtime.model.example import EXAMPLES
@@ -20,7 +35,7 @@ def print():
         console.print(f"\n[bold blue]{example.title} ({i + 1}/{len(EXAMPLES)})[/bold blue]")
         if example.text:
             console.print(f"[dim]{example.text}[/dim]\n")
-        _print(example.request)
-        _print("[dim]→[/dim]")
-        _print(example.response)
+        print(example.request)  # noqa: T201
+        console.print("[dim]→[/dim]")
+        print(example.response)  # noqa: T201
         console.print("\n" + "─" * 80)

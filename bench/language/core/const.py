@@ -1,5 +1,4 @@
 import contextvars
-import enum
 import secrets
 import typing
 from datetime import date, datetime, time, timedelta
@@ -87,8 +86,9 @@ class EnumType(IdEnum):
     STRUCT_TYPE = 20003
     OBJECT_TYPE = 20004  # NodeType | StructType
     BENCH_TYPE = 20005
-    PROPERTY_REFERENCE_TYPE = 20010
-    NODE_MODE = 20020
+    NODE_MODE = 20010
+    NODE_AREA = 20012
+    PROPERTY_REFERENCE_TYPE = 20020
 
     # time (20100-20199)
     DAY = 20100
@@ -246,12 +246,6 @@ ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 #
 
 
-class NodeArea(enum.StrEnum):
-    GLOBAL = "global"
-    REGIONAL = "regional"
-    LOCAL = "local"
-
-
 @enum_(EnumType.NODE_TYPE)
 class NodeType(IdEnum):
     #
@@ -342,7 +336,7 @@ class NodeType(IdEnum):
         return self.id >= 5000
 
     @property
-    def area(self) -> NodeArea:
+    def area(self) -> "NodeArea":
         return AREA_BY_NODE_TYPE[self]
 
     @property
@@ -372,6 +366,13 @@ class NodeType(IdEnum):
     @property
     def is_runtime(self) -> bool:
         return self.id >= 6000 and self.id < 6500
+
+
+@enum_(EnumType.NODE_AREA)
+class NodeArea(IdEnum):
+    GLOBAL = 1
+    REGIONAL = 2
+    LOCAL = 3
 
 
 # :NodeTypes

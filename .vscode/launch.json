@@ -39,11 +39,11 @@
       "justMyCode": true
     },
     {
-      "name": "bench.example",
+      "name": "bench.schema",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/bench.py",
-      "args": ["example", "print"],
+      "args": ["instruct", "schema"],
       "cwd": "${workspaceFolder}",
       "justMyCode": true
     },
