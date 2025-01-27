@@ -73,6 +73,18 @@ class Call(Struct):
     title: str | None = p_regular(40, default=None)
     text: Optional["Text"] = p_regular(41, default=None, struct=StructType.TEXT)
 
+    def __content_str__(self) -> str:
+        content_parts: list[str] = []
+        if node := self.node:
+            content_parts.append(repr(node))
+        else:
+            content_parts.append("???")
+        if title := self.title:
+            content_parts.append(repr(title))
+        if (value := self.value) is not None and (value_str := str(value)):
+            content_parts.append(value_str)
+        return " ".join(content_parts)
+
     @cached_property
     def value_type(self) -> Optional["TypeBase"]:
         node = self.node

@@ -35,7 +35,6 @@ from bench.language import (
     LookAction,
     ModelDeveloper,
     ModelType,
-    Node,
     NodeType,
     PipeType,
     PressAction,
@@ -270,18 +269,22 @@ class CodeActionRunner(ActionRunner[CodeAction]):
     async def run(self) -> None:
         from bench.runtime.code import CodeFunctionRunner
 
+        code = self.action.code or CODE_PASS
         code_runner = CodeFunctionRunner(
             runtime=self.runtime,
             node=self.node,
             options=ATTEMPT_ONCE,
             context=self.context,
             run=RunSpanType.DELEGATE,
-            code=self.action.code or CODE_PASS,
+            code=code,
             aliasing=Aliasing(),
             variables=self.variables,
             inputs=self.inputs,
             outputs=self.outputs or self.output_type,
         )
+        self.tracked.code = code
+        if self.tracked_run is not None and self.tracked_run is not self.tracked:
+            self.tracked_run.code = code
         await self.runtime.run_runner(code_runner)
         self.outputs = code_runner.outputs
 
@@ -321,9 +324,10 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
     async def run_static(self) -> None:
         tool = self.action.tool
         tool_selection = self.node.tool_selection
-        if tool_selection is not None and not tool_selection.supports(self.action.type, tool):
+        tool_type = self.action.type
+        if tool_selection is not None and not tool_selection.supports(tool_type, tool):
             raise RefusedError(f"tool {tool!r} not supported")
-        if isinstance(tool, Node):
+        if tool is not None:
             # delegate to tool node
             tool_runner: Runner[Any] = self._get_resumable_subrunner(
                 node=tool,
@@ -334,9 +338,9 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
             )
             await self.runtime.run_runner(tool_runner)
             self.outputs = tool_runner.outputs
-        elif isinstance(tool, ActionType):
+        elif tool_type != ActionType.TOOL:  # if it's still tool it wasn't set
             # delegate to built-in action
-            tool_runner_cls = ACTION_RUNNER_BY_ACTION_TYPE[tool]
+            tool_runner_cls = ACTION_RUNNER_BY_ACTION_TYPE[tool_type]
             tool_runner: Runner[Any] = tool_runner_cls(
                 runtime=self.runtime,
                 node=self.node,

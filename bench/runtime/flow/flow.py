@@ -185,7 +185,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         run.plan = plan
         run.plan_step = plan_step
         run.incoming_ptr = tuple(run.to_ref() for run in incoming)
-        logger.debug("flow.tick.start", flow=self.node, node=node, runner=runner)
+        logger.debug("flow.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
         runner.on_event(self._on_event)
         self.runtime.schedule_runner(runner)
@@ -199,7 +199,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         assert isinstance(runner, (ActionRunner, PipeRunner)), f"unexpected {runner!r}"
         runner.flow = cast(FlowRunner, self)
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
-        logger.debug("flow.tick.resume", flow=self.node, node=runner.node, runner=runner)
+        logger.debug("flow.resume", flow=self.node, node=runner.node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
         runner.on_event(self._on_event)
         self.runtime.schedule_runner(runner)
@@ -211,7 +211,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
         self._active_runners_by_id.pop(runner.id)
-        logger.debug("flow.tick.event", flow=self.node, node=runner.node, runner=runner)
+        logger.trace("flow.event", flow=self.node, node=runner.node, runner=runner)
         if isinstance(event, RunnerInterruptedEvent):
             self._interrupted_runners.append(runner)
         elif isinstance(event, RunnerCompletedEvent):
@@ -220,6 +220,8 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
                     self._tick_action(cast(ActionRunner, runner), runner.node, event)
                 elif isinstance(runner.node, Pipe):
                     self._tick_pipe(cast(PipeRunner, runner), runner.node, event)
+            else:
+                pass
         elif isinstance(event, RunnerFailedEvent):
             if not self._is_stopped:
                 assert runner.error is not None, f"missing error for {runner!r}"
@@ -267,6 +269,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
                             next_run = self._start(
                                 pipe, plan=plan, plan_step=step, incoming=(parent_run,)
                             )
+                            new_runs.append(next_run)
                             break
                     step += 1
                 if next_run is None:  # nothing left to call, complete plan
@@ -285,7 +288,8 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
                 parent_action = parent_run.action
                 if parent_action is None:
                     raise RunImpossibleError(f"no action to return to for {plan!r}")
-                self._start(parent_action, incoming=(parent_run,))
+                next_run = self._start(parent_action, incoming=(parent_run,))
+                new_runs.append(next_run)
 
         # own plans
         outgoing_pipes = tuple(
@@ -309,14 +313,18 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
             self.session._create(*run_plans)
             for plan in run_plans:
                 # run calls via pipes
-                next_calls = (
-                    plan.calls if plan.execution == CallExecutionMode.PARALLEL else (plan.calls[0],)
-                )
+                if plan.execution == CallExecutionMode.PARALLEL:
+                    next_calls = plan.calls
+                elif plan.execution == CallExecutionMode.SERIAL:
+                    next_calls = (plan.calls[0],)
+                else:
+                    assert_never(plan.execution)
                 for step, call in enumerate(next_calls):
                     pipe = next((p for p in outgoing_pipes if p.target_id == call.node_id), None)
                     if pipe is None:
                         continue  # ignore, can't call arbitrary nodes
-                    self._start(pipe, plan=plan, plan_step=step, incoming=(run,))
+                    pipe_run = self._start(pipe, plan=plan, plan_step=step, incoming=(run,))
+                    new_runs.append(pipe_run)
                     uncalled_call_pipes.discard(pipe)
                 plan.step = len(next_calls)
 
@@ -324,7 +332,8 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
         for pipe in uncalled_call_pipes:
             self._start(pipe, incoming=(run,))
 
-        return TickActionResult(new_runs=(), is_handled=len(new_runs) > 0 or handled_fail)
+        logger.debug("flow.tick", flow=self.node, node=runner.node, runner=runner)
+        return TickActionResult(new_runs=new_runs, is_handled=len(new_runs) > 0 or handled_fail)
 
     def _tick_pipe(self, runner: PipeRunner, pipe: Pipe, event: RunnerEvent) -> TickPipeResult:
         """Ticks the Pipe to progress the Flow."""
