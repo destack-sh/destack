@@ -329,7 +329,9 @@ async def _do_sql_migrate(
     """Applies the given migrations in the given order."""
     for migration in migrations:
         with tracer.start_as_current_span("sql.apply_migration"):
-            func_name = f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(area.value) or 'local'}"
+            func_name = (
+                f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(area.name.lower()) or 'local'}"
+            )
             migration_file = _load_migration_from_path(migration)
             func = getattr(migration_file.module, func_name)
             try:

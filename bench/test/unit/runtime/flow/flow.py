@@ -790,31 +790,31 @@ async def test_run_flow_call_route(hosted_runtime: RuntimeHandle):
     hosted_runtime.page().blocks.append(Flow)
     await hosted_runtime.commit()
 
-    #     # Route: Code2, Code3 # nocheckin
-    #     Route.code = code("""\
-    # return {
-    #     "plans": [call_serial(call(Code2), call(Code3))],
-    # }
-    # """)
-    #     runner = await hosted_runtime.run(Flow)
-    #     assert runner.tracked_run
-    #     assert runner.tracked_run.has(Code2)
-    #     assert runner.tracked_run.has(Code3)
-    #     assert not runner.tracked_run.has(Complete)
-    #     assert not runner.tracked_run.has(Code4)
+    # Route: Code2, Code3git st
+    Route.code = code("""\
+return {
+    "plans": [call_serial(call(Code2), call(Code3))],
+}
+    """)
+    runner = await hosted_runtime.run(Flow)
+    assert runner.tracked_run
+    assert runner.tracked_run.has(Code2)
+    assert runner.tracked_run.has(Code3)
+    assert not runner.tracked_run.has(Complete)
+    assert not runner.tracked_run.has(Code4)
 
-    #     # Route: Code4
-    #     Route.code = code("""\
-    # return {
-    #     "plans": [call_serial(call(Code4))],
-    # }
-    # """)
-    #     runner = await hosted_runtime.run(Flow)
-    #     assert runner.tracked_run
-    #     assert runner.tracked_run.has(Code4)
-    #     assert not runner.tracked_run.has(Complete)
-    #     assert not runner.tracked_run.has(Code2)
-    #     assert not runner.tracked_run.has(Code3)
+    # Route: Code4
+    Route.code = code("""\
+return {
+    "plans": [call_serial(call(Code4))],
+}
+""")
+    runner = await hosted_runtime.run(Flow)
+    assert runner.tracked_run
+    assert runner.tracked_run.has(Code4)
+    assert not runner.tracked_run.has(Complete)
+    assert not runner.tracked_run.has(Code2)
+    assert not runner.tracked_run.has(Code3)
 
     # Route: Code2 & Complete
     Route.code = code("""\

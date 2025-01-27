@@ -6046,13 +6046,17 @@ export enum EnumType {
      */
     BENCH_TYPE = 20005,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 20010;
+     * @generated from protobuf enum value: ENUM_TYPE_NODE_MODE = 20010;
      */
-    PROPERTY_REFERENCE_TYPE = 20010,
+    NODE_MODE = 20010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NODE_MODE = 20020;
+     * @generated from protobuf enum value: ENUM_TYPE_NODE_AREA = 20012;
      */
-    NODE_MODE = 20020,
+    NODE_AREA = 20012,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 20020;
+     */
+    PROPERTY_REFERENCE_TYPE = 20020,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_DAY = 20100;
      */
@@ -7598,13 +7602,17 @@ export enum BenchType {
      */
     BENCH_TYPE = 20005,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PROPERTY_REFERENCE_TYPE = 20010;
+     * @generated from protobuf enum value: BENCH_TYPE_NODE_MODE = 20010;
      */
-    PROPERTY_REFERENCE_TYPE = 20010,
+    NODE_MODE = 20010,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_NODE_MODE = 20020;
+     * @generated from protobuf enum value: BENCH_TYPE_NODE_AREA = 20012;
      */
-    NODE_MODE = 20020,
+    NODE_AREA = 20012,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PROPERTY_REFERENCE_TYPE = 20020;
+     */
+    PROPERTY_REFERENCE_TYPE = 20020,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_DAY = 20100;
      */
@@ -8015,39 +8023,6 @@ export enum BenchType {
     MESSAGE_STATUS = 22801
 }
 /**
- * @generated from protobuf enum symbolx.bench.PropertyReferenceType
- */
-export enum PropertyReferenceType {
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_ID = 1;
-     */
-    ID = 1,
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_CK = 2;
-     */
-    CK = 2,
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BENCH_ID = 3;
-     */
-    BENCH_ID = 3,
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BASE_CK = 4;
-     */
-    BASE_CK = 4,
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID = 5;
-     */
-    BASE_BENCH_ID = 5,
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_NODE_TYPE = 6;
-     */
-    NODE_TYPE = 6
-}
-/**
  * @generated from protobuf enum symbolx.bench.NodeMode
  */
 export enum NodeMode {
@@ -8079,6 +8054,60 @@ export enum NodeMode {
      * @generated from protobuf enum value: NODE_MODE_ARCHIVE = 10;
      */
     ARCHIVE = 10
+}
+/**
+ * @generated from protobuf enum symbolx.bench.NodeArea
+ */
+export enum NodeArea {
+    /**
+     * @generated from protobuf enum value: NODE_AREA_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: NODE_AREA_GLOBAL = 1;
+     */
+    GLOBAL = 1,
+    /**
+     * @generated from protobuf enum value: NODE_AREA_REGIONAL = 2;
+     */
+    REGIONAL = 2,
+    /**
+     * @generated from protobuf enum value: NODE_AREA_LOCAL = 3;
+     */
+    LOCAL = 3
+}
+/**
+ * @generated from protobuf enum symbolx.bench.PropertyReferenceType
+ */
+export enum PropertyReferenceType {
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_ID = 1;
+     */
+    ID = 1,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_CK = 2;
+     */
+    CK = 2,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BENCH_ID = 3;
+     */
+    BENCH_ID = 3,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BASE_CK = 4;
+     */
+    BASE_CK = 4,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID = 5;
+     */
+    BASE_BENCH_ID = 5,
+    /**
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_NODE_TYPE = 6;
+     */
+    NODE_TYPE = 6
 }
 /**
  * The day of the week.
@@ -27740,8 +27769,9 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.STRUCT_TYPE]: StructType,
   [EnumType.OBJECT_TYPE]: ObjectType,
   [EnumType.BENCH_TYPE]: BenchType,
-  [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType,
   [EnumType.NODE_MODE]: NodeMode,
+  [EnumType.NODE_AREA]: NodeArea,
+  [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType,
   [EnumType.DAY]: Day,
   [EnumType.MONTH]: Month,
   [EnumType.TIME_INTERVAL]: TimeInterval,
@@ -28130,8 +28160,9 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.STRUCT_TYPE]: StructType,
   [EnumType.OBJECT_TYPE]: ObjectType,
   [EnumType.BENCH_TYPE]: BenchType,
-  [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType,
   [EnumType.NODE_MODE]: NodeMode,
+  [EnumType.NODE_AREA]: NodeArea,
+  [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType,
   [EnumType.DAY]: Day,
   [EnumType.MONTH]: Month,
   [EnumType.TIME_INTERVAL]: TimeInterval,
@@ -30456,8 +30487,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.27.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.27.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.27.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.27.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30488,8 +30519,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.27.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.27.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.27.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.27.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30799,7 +30830,7 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.icon]: { id: 35, name: 'icon', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ActionProperty.text]: { id: 36, name: 'text', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ActionProperty.runOptions]: { id: 40, name: 'run_options', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [ActionProperty.toolSelection]: { id: 41, name: 'tool_selection', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TOOL_SELECTION },
+  [ActionProperty.toolSelection]: { id: 41, name: 'tool_selection', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TOOL_SELECTION },
   [ActionProperty.machinePtr]: { id: 51, name: 'machine_ptr', component: ObjectType.ACTION, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.code]: { id: 52, name: 'code', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ActionProperty.toolPtr]: { id: 53, name: 'tool_ptr', component: ObjectType.ACTION, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [22] }, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
