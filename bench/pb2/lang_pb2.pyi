@@ -28,8 +28,9 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_STRUCT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_OBJECT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_BENCH_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_PROPERTY_REFERENCE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_NODE_MODE: _ClassVar[EnumType]
+    ENUM_TYPE_NODE_AREA: _ClassVar[EnumType]
+    ENUM_TYPE_PROPERTY_REFERENCE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_DAY: _ClassVar[EnumType]
     ENUM_TYPE_MONTH: _ClassVar[EnumType]
     ENUM_TYPE_TIME_INTERVAL: _ClassVar[EnumType]
@@ -423,8 +424,9 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_STRUCT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_OBJECT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_BENCH_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_PROPERTY_REFERENCE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_NODE_MODE: _ClassVar[BenchType]
+    BENCH_TYPE_NODE_AREA: _ClassVar[BenchType]
+    BENCH_TYPE_PROPERTY_REFERENCE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_DAY: _ClassVar[BenchType]
     BENCH_TYPE_MONTH: _ClassVar[BenchType]
     BENCH_TYPE_TIME_INTERVAL: _ClassVar[BenchType]
@@ -528,16 +530,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_MESSAGE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_MESSAGE_STATUS: _ClassVar[BenchType]
 
-class PropertyReferenceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    PROPERTY_REFERENCE_TYPE_UNSPECIFIED: _ClassVar[PropertyReferenceType]
-    PROPERTY_REFERENCE_TYPE_ID: _ClassVar[PropertyReferenceType]
-    PROPERTY_REFERENCE_TYPE_CK: _ClassVar[PropertyReferenceType]
-    PROPERTY_REFERENCE_TYPE_BENCH_ID: _ClassVar[PropertyReferenceType]
-    PROPERTY_REFERENCE_TYPE_BASE_CK: _ClassVar[PropertyReferenceType]
-    PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID: _ClassVar[PropertyReferenceType]
-    PROPERTY_REFERENCE_TYPE_NODE_TYPE: _ClassVar[PropertyReferenceType]
-
 class NodeMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     NODE_MODE_UNSPECIFIED: _ClassVar[NodeMode]
@@ -547,6 +539,23 @@ class NodeMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_MODE_TEST: _ClassVar[NodeMode]
     NODE_MODE_PREVIEW: _ClassVar[NodeMode]
     NODE_MODE_ARCHIVE: _ClassVar[NodeMode]
+
+class NodeArea(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    NODE_AREA_UNSPECIFIED: _ClassVar[NodeArea]
+    NODE_AREA_GLOBAL: _ClassVar[NodeArea]
+    NODE_AREA_REGIONAL: _ClassVar[NodeArea]
+    NODE_AREA_LOCAL: _ClassVar[NodeArea]
+
+class PropertyReferenceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PROPERTY_REFERENCE_TYPE_UNSPECIFIED: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_ID: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_CK: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_BENCH_ID: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_BASE_CK: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID: _ClassVar[PropertyReferenceType]
+    PROPERTY_REFERENCE_TYPE_NODE_TYPE: _ClassVar[PropertyReferenceType]
 
 class Day(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1793,8 +1802,9 @@ ENUM_TYPE_NODE_TYPE: EnumType
 ENUM_TYPE_STRUCT_TYPE: EnumType
 ENUM_TYPE_OBJECT_TYPE: EnumType
 ENUM_TYPE_BENCH_TYPE: EnumType
-ENUM_TYPE_PROPERTY_REFERENCE_TYPE: EnumType
 ENUM_TYPE_NODE_MODE: EnumType
+ENUM_TYPE_NODE_AREA: EnumType
+ENUM_TYPE_PROPERTY_REFERENCE_TYPE: EnumType
 ENUM_TYPE_DAY: EnumType
 ENUM_TYPE_MONTH: EnumType
 ENUM_TYPE_TIME_INTERVAL: EnumType
@@ -2176,8 +2186,9 @@ BENCH_TYPE_NODE_TYPE: BenchType
 BENCH_TYPE_STRUCT_TYPE: BenchType
 BENCH_TYPE_OBJECT_TYPE: BenchType
 BENCH_TYPE_BENCH_TYPE: BenchType
-BENCH_TYPE_PROPERTY_REFERENCE_TYPE: BenchType
 BENCH_TYPE_NODE_MODE: BenchType
+BENCH_TYPE_NODE_AREA: BenchType
+BENCH_TYPE_PROPERTY_REFERENCE_TYPE: BenchType
 BENCH_TYPE_DAY: BenchType
 BENCH_TYPE_MONTH: BenchType
 BENCH_TYPE_TIME_INTERVAL: BenchType
@@ -2280,13 +2291,6 @@ BENCH_TYPE_USER_STATUS: BenchType
 BENCH_TYPE_ORGANIZATION_STATUS: BenchType
 BENCH_TYPE_MESSAGE_TYPE: BenchType
 BENCH_TYPE_MESSAGE_STATUS: BenchType
-PROPERTY_REFERENCE_TYPE_UNSPECIFIED: PropertyReferenceType
-PROPERTY_REFERENCE_TYPE_ID: PropertyReferenceType
-PROPERTY_REFERENCE_TYPE_CK: PropertyReferenceType
-PROPERTY_REFERENCE_TYPE_BENCH_ID: PropertyReferenceType
-PROPERTY_REFERENCE_TYPE_BASE_CK: PropertyReferenceType
-PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID: PropertyReferenceType
-PROPERTY_REFERENCE_TYPE_NODE_TYPE: PropertyReferenceType
 NODE_MODE_UNSPECIFIED: NodeMode
 NODE_MODE_BUILTIN: NodeMode
 NODE_MODE_PRODUCTION: NodeMode
@@ -2294,6 +2298,17 @@ NODE_MODE_DEVELOPMENT: NodeMode
 NODE_MODE_TEST: NodeMode
 NODE_MODE_PREVIEW: NodeMode
 NODE_MODE_ARCHIVE: NodeMode
+NODE_AREA_UNSPECIFIED: NodeArea
+NODE_AREA_GLOBAL: NodeArea
+NODE_AREA_REGIONAL: NodeArea
+NODE_AREA_LOCAL: NodeArea
+PROPERTY_REFERENCE_TYPE_UNSPECIFIED: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_ID: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_CK: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_BENCH_ID: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_BASE_CK: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID: PropertyReferenceType
+PROPERTY_REFERENCE_TYPE_NODE_TYPE: PropertyReferenceType
 DAY_UNSPECIFIED: Day
 DAY_MONDAY: Day
 DAY_TUESDAY: Day
