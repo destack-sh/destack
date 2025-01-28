@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.28.0"
+VERSION = "2025.01.28.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -97,6 +97,20 @@ USER_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("slug", PrimitiveType.STRING, is_unique=True, is_nullable=True),
+        Column("name", PrimitiveType.STRING),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("email", PrimitiveType.STRING, is_unique=True, is_nullable=True),
+        Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("region", PrimitiveType.INT16),
+        Column("status", PrimitiveType.INT16),
+        Column(
+            "main_bench_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_bench",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
         Column(
             "main_handle_id",
             PrimitiveType.UUID,
@@ -105,20 +119,6 @@ USER_TABLE = Table(
             is_nullable=True,
         ),
         Column("main_handle_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("slug", PrimitiveType.STRING, is_unique=True, is_nullable=True),
-        Column("name", PrimitiveType.STRING),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("email", PrimitiveType.STRING, is_unique=True, is_nullable=True),
-        Column("icon", PrimitiveType.JSON, is_nullable=True),
-        Column(
-            "main_bench_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_bench",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
-        Column("region", PrimitiveType.INT16),
-        Column("status", PrimitiveType.INT16),
         Column("password_salt", PrimitiveType.BYTES, is_nullable=True, is_encrypted=True),
         Column("password_hash", PrimitiveType.BYTES, is_nullable=True, is_encrypted=True),
         Column("last_logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -152,6 +152,19 @@ ORGANIZATION_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("slug", PrimitiveType.STRING, is_unique=True, is_nullable=True),
+        Column("name", PrimitiveType.STRING),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("region", PrimitiveType.INT16),
+        Column("status", PrimitiveType.INT16),
+        Column(
+            "main_bench_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_bench",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
         Column(
             "main_handle_id",
             PrimitiveType.UUID,
@@ -160,6 +173,31 @@ ORGANIZATION_TABLE = Table(
             is_nullable=True,
         ),
         Column("main_handle_bench_id", PrimitiveType.UUID, is_nullable=True),
+    ),
+    indexes=(Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),),
+    constraints=(
+        Constraint(
+            "bench_idx_slug", ConstraintType.UNIQUE, columns=("slug",), index="bench_idx_slug"
+        ),
+    ),
+)
+
+TEAM_TABLE = Table(
+    "bench_team",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("organization_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("slug", PrimitiveType.STRING, is_unique=True, is_nullable=True),
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
@@ -171,8 +209,6 @@ ORGANIZATION_TABLE = Table(
             on_delete=CascadeAction.SET_NULL,
             is_nullable=True,
         ),
-        Column("region", PrimitiveType.INT16),
-        Column("status", PrimitiveType.INT16),
     ),
     indexes=(Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),),
     constraints=(
@@ -187,7 +223,9 @@ MEMBERSHIP_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("bench_id", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("organization_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
@@ -208,7 +246,8 @@ INVITE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("bench_id", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
@@ -232,6 +271,7 @@ CLIENT_TABLE = Table(
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("user_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),

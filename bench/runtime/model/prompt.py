@@ -9,7 +9,6 @@ from bench.language import (
     CustomObject,
     FileBase,
     HasContext,
-    Projection,
     Renderer,
     Run,
     RunPlan,
@@ -188,21 +187,19 @@ class PromptRunPlan(PromptCompound):
 
 
 @dataclass
-class PromptSourceNode(PromptCompound):
+class PromptNodes(PromptCompound):
     """A source node. Expands to references."""
 
-    node: SourceNode
+    nodes: Sequence[SourceNode]
 
     @override
     async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:
-        context_nodes = prompt.projection.project(self.node)
-        context_code = "\n".join(
+        context_code = "\n  ".join(
             prompt.renderer.render_statement(n, format=True)
-            for n in context_nodes
-            if n.metatype not in prompt.renderer.options.inline_node_types and n != self.node
+            for n in self.nodes
+            if n.metatype not in prompt.renderer.options.inline_node_types
         )
-        node_code = prompt.renderer.render_statement(self.node, format=True)
-        return [PromptCode(title=self.title, code=f"{context_code}\n\n{node_code}")]
+        return [PromptCode(title=self.title, code=context_code)]
 
 
 @dataclass
@@ -224,14 +221,12 @@ class Prompt:
         self,
         action: Action,
         context: "HasContext",
-        projection: Projection,
         aliasing: Aliasing,
         renderer: Renderer,
         items: list[PromptPart],
     ):
         self.action = action
         self.context = context
-        self.projection = projection
         self.aliasing = aliasing
         self.renderer = renderer
         self.items = items
