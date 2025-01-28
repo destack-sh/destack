@@ -19,7 +19,7 @@ from bench.utils.func import IdEnum
 from bench.utils.string import to_code_name
 
 from .const import EMPTY_DICT, BenchError, EnumType, NodeType, StructType, enum_
-from .node import BenchNode, HasContext, Node, NodeReference, PackageNode, RunnableNode, SourceNode
+from .node import BenchNode, HasContext, Node, NodeReference, RunnableNode, SourceNode
 from .object import PropertyReference
 from .property import Property, p_regular
 from .struct import Struct, struct_
@@ -571,21 +571,14 @@ def _get_contained_descendant(scope: Node, name: str) -> Node | None:
 def _get_container(scope: Node, name: str | None = None) -> Node | None:
     """Finds the next containing ancestor up from a scope (block/page/pkg, if any)."""
 
-    if not isinstance(scope, SourceNode):
-        # there is no container outside of source other than the bench/pkg
-        if isinstance(scope, PackageNode) and (
-            name is None or getattr(scope, "name", None) == name or scope.code_name == name
+    # if we're not in a block, find containing block or space (or skip to bench/pkg)
+    parent = scope.parent
+    while parent is not None:
+        if parent.metatype in (NodeType.BLOCK, NodeType.SPACE, NodeType.PACKAGE) and (
+            name is None or getattr(parent, "name", None) == name or parent.code_name == name
         ):
-            return scope.package
-    else:
-        # if we're not in a block, find containing block or space (or skip to bench/pkg)
-        parent = scope.parent
-        while parent is not None:
-            if parent.metatype in (NodeType.BLOCK, NodeType.SPACE, NodeType.PACKAGE) and (
-                name is None or getattr(parent, "name", None) == name or parent.code_name == name
-            ):
-                return parent
-            parent = parent.parent
+            return parent
+        parent = parent.parent
 
     return None
 
@@ -658,7 +651,7 @@ def evaluate_path(
     options: PathOptions = DEFAULT_EVALUATE_OPTIONS,
 ) -> Any | None:
     """Get the thing pointed to by a Path."""
-    from bench.language import Bench, CustomObject, Field, Package
+    from bench.language import Bench, CustomObject, Field
 
     # resolve to elements
     if isinstance(path, str):
@@ -675,7 +668,7 @@ def evaluate_path(
     for element in elements:
         # absolute
         if element.type == PathElementType.ROOT:
-            if not isinstance(scope, (Package, PackageNode)):
+            if not isinstance(scope, SourceNode):
                 raise PathLogicError(f"root references are only valid for Bench Nodes: {path}")
             current = scope.package
         elif element.type == PathElementType.BENCH:

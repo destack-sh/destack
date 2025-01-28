@@ -191,7 +191,9 @@ def example_(title: str, weight: int = 1):
                 )
             if isinstance(response, CustomObject):
                 renderer = Renderer(
-                    options=RenderOptions(scope=EXAMPLE_PACKAGE, aliasing=Aliasing())
+                    options=RenderOptions(
+                        scope=EXAMPLE_PACKAGE, aliasing=Aliasing(), implicit_partials=True
+                    )
                 )
                 response = renderer.render_custom_object(response)
                 response = f"return {response}"

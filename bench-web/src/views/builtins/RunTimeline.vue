@@ -258,7 +258,7 @@ watchEffect(() => {
           <div class="ml-auto flex flex-row items-center gap-x-1.5">
             <button
               v-if="
-                IS_DEVELOPER_MODE && (thing.baseNode as ActionData).type != ActionType.CODE && thing.span.code != null
+                IS_DEVELOPER_MODE && (thing.baseNode as ActionData)?.type != ActionType.CODE && thing.span.code != null
               "
               class="rounded px-0.5 transition-colors duration-150 hover:bg-gray-100"
               :class="[
@@ -319,7 +319,7 @@ watchEffect(() => {
             <div
               v-if="
                 IS_DEVELOPER_MODE &&
-                (thing.baseNode as any).type != ActionType.CODE &&
+                (thing.baseNode as any)?.type != ActionType.CODE &&
                 (thing.span.code as any) != null &&
                 codeExpandedSpanIds.includes(thing.id)
               "

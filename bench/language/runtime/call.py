@@ -107,6 +107,7 @@ class Call(Struct):
 
         if not isinstance(node, (Block, Action)):
             raise ValueError(f"invalid node type for Call: {type(node)}")
+
         value_type = node.to_type_maybe(
             of="value", field_types=[FieldType.VARIABLE, FieldType.INPUT]
         )

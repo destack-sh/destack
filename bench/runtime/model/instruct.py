@@ -20,9 +20,12 @@ from bench.language import (
     ReferenceKind,
     Renderer,
     RenderOptions,
+    Resource,
     Run,
+    RuntimeNode,
     RunType,
     SourceNode,
+    StateNode,
     TypeBase,
     _is_setup_complete,
 )
@@ -34,13 +37,13 @@ from .prompt import (
     Prompt,
     PromptBreak,
     PromptCustomObject,
-    PromptNode,
     PromptPart,
     PromptRegion,
     PromptRun,
     PromptRunAttempt,
     PromptRunPlan,
     PromptSeparator,
+    PromptSourceNode,
     PromptText,
     prompt_region,
 )
@@ -195,13 +198,12 @@ You have access to most of Python, common libraries, the internet and the Bench.
 
 7.6. Bench Python Shell
 You live in a Python shell and are expected to use Bench-native stuff.
-- You MUST NOT alias built-in constructs; use alternative names to avoid shadowing.
+- You MUST NOT alias builtins; use alternative names to avoid shadowing.
 - You MUST `return` your final outputs (inline, at the end).
-- You SHOULD use built-in Actions where possible (like to control an application or browser).
+- You SHOULD use built-in Actions where possible (like to control an application or scrape in a browser).
  - If there is something specific you need to do that isn't provided, you SHOULD raise IncapableError.
-- You cannot prompt the user directly, but you MAY yield by calling a YieldAction. 
-- You MUST NOT presume APIs that were not explicitly provided and aren't standard in Python. 
- - When you need to use a Resource (like a Browser, Application or Machine),
+ - You MUST NOT presume APIs that were not explicitly provided and aren't standard in Python. 
+- When you need to use a Resource (like a Browser, Application or Machine),
     but it's not available and no relevant data is provided, you SHOULD raise IncapableError.
  - When scraping data, you SHOULD NOT perform scraping in code unless explicitly asked (no playwright).
 - If the action is impossible to complete and there are no other ways out, you SHOULD raise IncapableError.
@@ -324,7 +326,10 @@ def render_builtin_enum(cls: type[IdEnum], compact: bool) -> str:
     return enum_str
 
 
+RESOURCE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(Resource)
 SOURCE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(SourceNode)
+STATE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(StateNode)
+RUNTIME_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(RuntimeNode)
 ACTION_TYPE_ENUM_PROMPT = render_builtin_enum(ActionType, compact=False)
 BLOCK_TYPE_ENUM_PROMPT = render_builtin_enum(BlockType, compact=False)
 PIPE_TYPE_ENUM_PROMPT = render_builtin_enum(PipeType, compact=False)
@@ -421,7 +426,7 @@ def make_chat_prompt(
         if (block := run.block) is not None:
             context_blocks.add(block)
     context_parts: list[PromptPart] = [
-        PromptNode(title=None, weight=1, node=block) for block in context_blocks
+        PromptSourceNode(title=None, weight=1, node=block) for block in context_blocks
     ]
 
     #
@@ -429,7 +434,7 @@ def make_chat_prompt(
     #
 
     action_parts: list[PromptPart] = [
-        PromptNode(title="Action", weight=1, node=action),
+        PromptSourceNode(title="Action", weight=1, node=action),
         PromptBreak(title=None),
     ]
 
@@ -466,7 +471,7 @@ def make_chat_prompt(
             and target.is_extant
         ]
         flow_parts: list[PromptPart] = [
-            PromptNode(title=None, weight=1, node=flow),
+            PromptSourceNode(title=None, weight=1, node=flow),
             PromptText(
                 None, f"You are part of the Flow '{flow.code_name}'. Consider the flow as a whole."
             ),

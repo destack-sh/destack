@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING, Optional
 
+from bench.language import SourceNode
 from bench.language.core import (
     NAME_CONSTRAINT,
     OWNER_TYPES,
     SLUG_CONSTRAINT,
-    BenchNode,
     EnumType,
     LocalNodeList,
     NodeType,
@@ -36,8 +36,8 @@ class PackageType(IdEnum):
 
 
 @node_(NodeType.PACKAGE, unique=(("bench_id", "slug"),))
-class Package(BenchNode[PackageData]):
-    """A Package is an isolated part of a Bench."""
+class Package(SourceNode[PackageData]):
+    """A Package is an isolated segment of a Bench."""
 
     parent: "Bench | None" = p_node_parent(4, NodeType.BENCH)
     type: PackageType = p_regular(30, require=True)

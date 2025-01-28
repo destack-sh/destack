@@ -37,9 +37,9 @@ from bench.language.core import (
     NodeReference,
     NodeType,
     NullEngine,
-    PackageNode,
     RuntimeNode,
     SessionStatus,
+    SourceNode,
     SplitChannel,
     Struct,
     StructType,
@@ -257,7 +257,7 @@ class Session(RuntimeNode[SessionData]):
         scope = GraphScopeData(metatype=pb2.ObjectType.OBJECT_TYPE_GRAPH_SCOPE)
         if isinstance(n, BenchNode):
             scope.bench_id = uuid_to_str(n.bench_id) or self._default_scope.bench_id
-        if isinstance(n, PackageNode):
+        if isinstance(n, SourceNode):
             scope.package_id = uuid_to_str(n.package_id) or self._default_scope.package_id
         return scope
 

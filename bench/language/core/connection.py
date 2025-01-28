@@ -539,16 +539,11 @@ class Connection[
         return self._epoch
 
     @final
-    def subscribe_on_update(self, callback: Callable[[Self, UpdateT], None]) -> Callable[[], None]:
+    def on_update(self, callback: Callable[[Self, UpdateT], None]) -> Callable[[], None]:
         """Register a callback for updates."""
         assert self.is_live, f"{self!r} is not live"
         self._update_subscribers.append(callback)
-        return lambda: self.unsubscribe_on_update(callback)
-
-    @final
-    def unsubscribe_on_update(self, callback: Callable[[Self, UpdateT], None]) -> None:
-        """Unregister a callback for updates."""
-        self._update_subscribers.remove(callback)
+        return lambda: self._update_subscribers.remove(callback)
 
     @final
     async def connect(self) -> None:

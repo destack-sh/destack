@@ -3292,13 +3292,19 @@ message OptionFieldData {
 message PackageData {
   ObjectType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   PackageType type = 30;
   string name = 32;

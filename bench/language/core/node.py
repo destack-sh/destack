@@ -448,7 +448,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         parent_ck: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
     # BenchNode.bench: 5
-    # PackageNode.package: 6
+    # SourceNode.package: 6
     # SourceNode.template: 7
 
     # 10-29: node tracking
@@ -1428,34 +1428,27 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
 
 
 @node_component()
-class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC):
-    """A Node inside a Package."""
-
-    package: "Package | None" = p_node_ancestor_with_self(
-        6, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
-    )
-    if TYPE_CHECKING:
-        package_id: Optional[UUID] = None
-        package_ptr: Optional[NodeReference] = None
-
-    @property
-    def is_attached(self) -> bool:
-        return self.parent_ptr is not None and self.package is not None
-
-
-@node_component()
-class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
+class SourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC):
     """A Node in a Package with a persistent identity that can be instanced (with computed values)."""
 
     ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
+    package: "Package | None" = p_node_ancestor_with_self(
+        6, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
+    )
     template: Optional["Node"] = p_node_template(7)
     if TYPE_CHECKING:
+        package_id: Optional[UUID] = None
+        package_ptr: Optional[NodeReference] = None
         template_id: Optional[UUID] = None
         template_ptr: Optional[NodeReference] = None
     template_at: datetime | None = p_system(16, default=None, autoset=True)
     computed_values: list["ComputedValue"] = p_internal(
         28, require=False, array=True, struct=StructType.COMPUTED_VALUE
     )
+
+    @property
+    def is_attached(self) -> bool:
+        return self.parent_ptr is not None and self.package is not None
 
     def set_computed(
         self,

@@ -20,7 +20,7 @@ from prompt_toolkit.styles import Style
 from pygments.lexers import PythonLexer
 
 if TYPE_CHECKING:
-    from bench.language import Region
+    from bench.language import NodeArea, Region
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -79,6 +79,27 @@ def parse_region(region: "str | Region") -> "Region":
     except ValueError as e:
         raise typer.BadParameter(
             f"invalid region: '{region.lower()}' (expected: {'|'.join(r.name.lower() for r in Region)})"
+        ) from e
+
+
+def parse_area(area: "str | NodeArea") -> "NodeArea":
+    """Parse a NodeArea from a string."""
+    from bench.language import NodeArea
+
+    if isinstance(area, NodeArea):
+        return area
+
+    area = area.upper()
+    try:
+        if area in NodeArea.__members__:
+            # try by name
+            return NodeArea[area]
+        else:
+            # try by value
+            return NodeArea(int(area))
+    except ValueError as e:
+        raise typer.BadParameter(
+            f"invalid area: '{area}' (expected: {'|'.join(a.name.lower() for a in NodeArea)})"
         ) from e
 
 

@@ -5,7 +5,7 @@ from typing import Annotated, Optional
 import structlog
 import typer
 
-from bench.cli.utils import async_to_sync, parse_region
+from bench.cli.utils import async_to_sync, parse_area, parse_region
 from bench.language import Bench, Store
 from bench.language.core import REGION, NodeArea, Region
 from bench.utils.func import sanitize_connection_uri
@@ -19,7 +19,7 @@ logger = structlog.get_logger(__name__)
 @app.command()
 @async_to_sync
 async def shell(
-    area: NodeArea = typer.Option(help="the area to connect to"),  # noqa: B008
+    area: NodeArea = typer.Option(help="the area to connect to", parser=parse_area),  # noqa: B008
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     bench: Optional[str] = None,
 ):  # type: ignore

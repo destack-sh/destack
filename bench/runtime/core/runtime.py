@@ -330,7 +330,7 @@ class Runtime:
                 connection = live_nodes[0]._connection
                 assert live_nodes and connection, f"no live connection for {stale_nodes!r}"
                 connections.append(connection)
-                connection.subscribe_on_update(lambda c, u: _apply_update(cast(WatchGetUpdate, u)))
+                connection.on_update(lambda c, u: _apply_update(cast(WatchGetUpdate, u)))
                 log.trace("runtime.wait_for.subscribe", connection=connection)
 
             # subscribe

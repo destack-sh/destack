@@ -79,12 +79,6 @@ class OpenaiChatModelRunner(ChatModelRunner):
             {"role": "developer", "content": get_system_prompt(prompt)},
             {"role": "user", "content": content},
         ]
-        # nocheckin: debug print
-        print("---")
-        for part in content:
-            if part["type"] == "text":
-                print(part["text"])
-        print("---")
 
         temperature = options.text_options.temperature if options.text_options else 0.1
         completion = await openai_client.chat.completions.create(

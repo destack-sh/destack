@@ -972,8 +972,8 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
     return rows;
   }
 
-  toolSection() {
-    this.section("Tool", this.toolRows());
+  sectionTools() {
+    this.section("Tools", this.toolRows());
   }
 
   /** The schema(s) for this Action (for full node) */
@@ -1180,8 +1180,8 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
       ...this.actionSubproperties(...(DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE[this.subtype as any as ActionType] ?? [])),
     );
 
-    if (this.subtype == ActionType.TOOL || DYNAMIC_ACTION_TYPES.includes(this.subtype as any)) {
-      this.toolSection();
+    if ((this.subtype == ActionType.TOOL || DYNAMIC_ACTION_TYPES.includes(this.subtype as any)) && !this.isPartial) {
+      this.sectionTools();
     }
 
     // application options
