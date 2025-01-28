@@ -173,6 +173,7 @@ You have access to Python, common libraries, the internet and the Bench.
 
 7.6. Bench Python Shell
 You live in a Python shell with the Bench ORM.
+- You MAY reference builtins (classes/methods/...), Nodes and context.
 - You MUST NOT alias builtins; use alternative names to avoid shadowing.
 - You SHOULD use built-in Actions (like to control an application or scrape in a browser).
  - If there is something specific you need to do that isn't provided, you SHOULD raise IncapableError.
@@ -323,6 +324,7 @@ def make_chat_prompt(
     from .example import get_examples
 
     # TODO :Cleanup! :Architecture: Prompt building and rendering is a mess
+    # (separating Aliasing, Projection and Renderer feels verbose.. but I don't have a better idea)
     aliasing = Aliasing()
     projection = Projection(supergraph=action._supergraph, options=ProjectOptions())
     renderer = Renderer(
@@ -512,7 +514,6 @@ Your outgoing Actions are (name: PipeType->ActionType):
                 text=f"""\
 Remember, it's a dynamic {action.type.bench_name} Action.
  - You MUST complete the Action and generate the outputs including the call plans (if any).
- - The plans SHOULD progress the containing Flow as much as possible. 
 """,
             )
         )
@@ -528,10 +529,18 @@ You MUST add any call plans to the outputs without touching the existing outputs
  - You MUST reuse the given outputs; YOU NOT reproduce the outputs.
  - Reference 'outputs' directly. No verbatim copy.
  - You SHOULD just `return {{**outputs, 'plans': ... }}`.
- - The plans SHOULD progress the containing Flow as much as possible. 
 """,
             )
         )
+    action_parts.append(
+        PromptText(
+            title=None,
+            text="""\
+ - The plans SHOULD progress the containing Flow as much as possible. 
+   - Try something else, Complete, Fail, raise or do whatever to terminate eventually.
+""",
+        )
+    )
 
     #
     # general context (relative to all the other stuff)
@@ -549,6 +558,22 @@ You MUST add any call plans to the outputs without touching the existing outputs
             title="ActionTypes",
             weight=1,
         ),
+        prompt_region(
+            PromptText(
+                title=None,
+                text="""\
+self: Action
+session: Session
+bench: Bench
+run: Run
+variables: CustomObject
+inputs: CustomObject
+outputs: CustomObject
+""",
+            ),
+            title="Context variables (available inline)",
+            weight=1,
+        ),
     ]
     general_examples_parts = get_examples(action, runner)
 
@@ -556,19 +581,25 @@ You MUST add any call plans to the outputs without touching the existing outputs
     # bench context :Tunable
     #
 
+    # NOTE: organize context (source & other nodes)
     context_parts: list[PromptPart] = []
     # source
     source_blocks: set[Block] = set()
     for run in seen_runs:
         if (block := run.block) is not None:
             source_blocks.add(block)
+            context_parts.append(PromptNodes(title=None, weight=1, nodes=[block]))
+            if block.type == BlockType.FLOW:
+                context_parts.append(
+                    PromptNodes(title=None, weight=1, nodes=[*block.actions, *block.pipes])
+                )
+    # containing pages
     source_pages = get_containing_pages(*source_blocks, include_self=True)
     source_blocks.difference_update(source_pages)  # remove pages
     for page in source_pages:
         projection.collect_node(page, depth=10)
         context_parts.append(PromptNodes(title=None, weight=1, nodes=[page, *page.blocks]))
     # other
-    # NOTE: organize remote nodes somehow
     max_depth = 1  # :Tunable
     for depth in sorted(projection.nodes_by_depth.keys()):
         if depth > max_depth:
@@ -625,10 +656,10 @@ You MUST add any call plans to the outputs without touching the existing outputs
         PromptText(
             title=None,
             text="""\
-Now it's your turn. 
+IT'S YOUR TURN: 
 Complete the Action as specified in your Bench Python shell.
-Valid inline Python; as concise as possible; absolutely minimal comments;
- never reproduce values you can reference; think more than you code.
+Valid inline Python; super concise; minimal comments;
+ avoid reproducing values you can reference; think more than you code.
 """,
         ),
         PromptBreak(title=None),

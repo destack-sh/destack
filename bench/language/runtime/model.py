@@ -26,6 +26,7 @@ class ModelDeveloper(IdEnum):
     GOOGLE = 400
     AMAZON = 500
     MICROSOFT = 600
+    DEEPSEEK = 700
 
 
 @enum_(EnumType.MODEL_PROVIDER)
@@ -39,6 +40,7 @@ class ModelProvider(IdEnum):
     GOOGLE = 400
     AMAZON = 500
     MICROSOFT = 600
+    DEEPSEEK = 700
     # external providers (20000-)
     # ...
 
@@ -52,7 +54,7 @@ class ModelFamily(IdEnum):
     META_LLAMA = 100
     # openai
     OPENAI_GPT = 200
-    OPENAI_O = 210
+    OPENAI_O = 220
     # anthropic
     ANTHROPIC_CLAUDE = 300
     # google
@@ -61,6 +63,8 @@ class ModelFamily(IdEnum):
     # ...
     # microsoft
     # ...
+    # deepseek
+    DEEPSEEK_R = 700
 
 
 @enum_(EnumType.MODEL_TYPE)
@@ -75,13 +79,15 @@ class ModelType(IdEnum):  # :ModelType
     OPENAI_GPT4_0 = 201
     OPENAI_GPT4_O_MINI = 202
     # openai-o
-    OPENAI_O1 = 210
-    OPENAI_O1_MINI = 211
+    OPENAI_O1 = 220
+    OPENAI_O1_MINI = 221
     # anthropic-claude
     ANTHROPIC_CLAUDE_3_5_SONNET = 301
     # google-gemini
-    GOOGLE_GEMINI_1_5_PRO = 401
-    GOOGLE_GEMINI_2_0_FLASH = 402
+    GOOGLE_GEMINI_2_0_FLASH = 400
+    GOOGLE_GEMINI_2_0_FLASH_THINKING = 401
+    # deepseek-r
+    DEEPSEEK_R_1_0 = 701
 
 
 @struct_(StructType.TEXT_OPTIONS)

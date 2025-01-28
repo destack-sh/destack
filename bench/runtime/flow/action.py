@@ -192,7 +192,11 @@ class DynamicActionRunner[A: Action = Action](ActionRunner[A]):
     @final
     @override
     async def run(self) -> None:
-        from bench.runtime.model import AnthropicChatModelRunner, OpenaiChatModelRunner
+        from bench.runtime.model import (
+            AnthropicChatModelRunner,
+            GeminiChatModelRunner,
+            OpenaiChatModelRunner,
+        )
 
         # determine model
         model_developer = self.options.model_developer or ModelDeveloper.OPENAI
@@ -202,6 +206,9 @@ class DynamicActionRunner[A: Action = Action](ActionRunner[A]):
         elif model_developer == ModelDeveloper.ANTHROPIC:
             model_runner_cls = AnthropicChatModelRunner
             model_type = self.options.model_type or ModelType.ANTHROPIC_CLAUDE_3_5_SONNET
+        elif model_developer == ModelDeveloper.GOOGLE:
+            model_runner_cls = GeminiChatModelRunner
+            model_type = self.options.model_type or ModelType.GOOGLE_GEMINI_2_0_FLASH
         else:
             raise NotSupportedError(f"unsupported model developer {model_developer!r}")
 
