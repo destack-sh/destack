@@ -42,10 +42,13 @@ class OpenaiChatModelRunner(ChatModelRunner):
         self,
         prompt: Prompt,
         parts: Sequence[PromptElement],
-        model: ModelType,
         user_id: str,
         options: RunOptions,
     ) -> Code:
+        model_id = OPENAI_MODEL_BY_TYPE.get(self.model_type)
+        if model_id is None:
+            raise NotSupportedError(f"unsupported model type {self.model_type!r}")
+
         # download media
         files_to_download = [
             part.file
@@ -58,25 +61,33 @@ class OpenaiChatModelRunner(ChatModelRunner):
 
         # compile
         content: list[openai_chat_types.ChatCompletionContentPartParam] = []
+        text_parts: list[str] = []
+
+        def _flush_text() -> None:
+            if text_parts:
+                content.append({"type": "text", "text": "\n".join(text_parts)})
+                text_parts.clear()
+
         for part in parts:
             if isinstance(part, PromptBreak):
-                content.append({"type": "text", "text": "\n\n"})
+                text_parts.append("\n\n")
             elif isinstance(part, PromptSeparator):
-                content.append({"type": "text", "text": self.SEPARATOR})
+                text_parts.append(self.SEPARATOR)
                 if part.title:
-                    content.append({"type": "text", "text": f"# {part.title}"})
+                    text_parts.append(f"# {part.title}")
                     if part.text:
-                        content.append({"type": "text", "text": f"# {part.text}"})
-                    content.append({"type": "text", "text": self.SEPARATOR})
+                        text_parts.append(f"# {part.text}")
+                    text_parts.append(self.SEPARATOR)
             elif isinstance(part, PromptText):
                 # prepend every text line
                 text = "\n".join([f"# {line}" for line in part.text.splitlines()])
                 text = f"# {part.title}\n{text}" if part.title else text
-                content.append({"type": "text", "text": text})
+                text_parts.append(text)
             elif isinstance(part, PromptCode):
                 text = f"# {part.title}\n{part.code}" if part.title else part.code
-                content.append({"type": "text", "text": text})
+                text_parts.append(text)
             elif isinstance(part, PromptFile):
+                _flush_text()
                 if part.file.type == FileType.IMAGE:
                     if part.file.external_url is not None:
                         content.append(
@@ -96,15 +107,13 @@ class OpenaiChatModelRunner(ChatModelRunner):
             else:
                 raise RuntimeError(f"unexpected part {part!r}")
 
+        _flush_text()
+
         # generate
-        model_id = OPENAI_MODEL_BY_TYPE.get(model)
-        if model_id is None:
-            raise NotSupportedError(f"unsupported model type {model!r}")
         messages: list[openai_chat_types.ChatCompletionMessageParam] = [
             {"role": "developer", "content": get_system_prompt(prompt)},
             {"role": "user", "content": content},
         ]
-
         temperature = options.text_options.temperature if options.text_options else 0.1
         completion = await openai_client.chat.completions.create(
             messages=messages,

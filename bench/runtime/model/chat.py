@@ -62,6 +62,7 @@ class ChatModelRunner(ModelRunner[Action], ABC):
             outputs=outputs,
             run=run,
         )
+        self.model_type = model_type
         self.prompt: Prompt | None = None
         self.code: Code | None = None
 
@@ -92,7 +93,6 @@ class ChatModelRunner(ModelRunner[Action], ABC):
         self,
         prompt: Prompt,
         parts: Sequence[PromptElement],
-        model: ModelType,
         user_id: str,
         options: RunOptions,
     ) -> Code:
@@ -121,9 +121,8 @@ class ChatModelRunner(ModelRunner[Action], ABC):
 
         # run model to generate code as response
         code = await self.generate(
-            prompt,
-            parts,
-            self.model_type,
+            prompt=prompt,
+            parts=parts,
             user_id=str(self.session.bench_id),
             options=ATTEMPT_ONCE,
         )

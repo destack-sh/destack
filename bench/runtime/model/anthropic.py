@@ -1,13 +1,13 @@
-from typing import TYPE_CHECKING, Mapping, Sequence, override
+from typing import TYPE_CHECKING, Mapping, Sequence, Union, override
 
 import anthropic
 
-from bench.language import Code, ModelType, RunOptions
+from bench.language import Code, FileType, ModelType, RunOptions, download_file_batch
 from bench.runtime.core import NotSupportedError
-from bench.runtime.model.instruct import get_system_prompt
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner, strip_code_completion
+from .instruct import get_system_prompt
 from .prompt import (
     Prompt,
     PromptBreak,
@@ -44,40 +44,77 @@ class AnthropicChatModelRunner(ChatModelRunner):
         self,
         prompt: Prompt,
         parts: Sequence[PromptElement],
-        model: ModelType,
         user_id: str,
         options: RunOptions,
     ) -> Code:
+        model_id = ANTHROPIC_MODEL_BY_TYPE.get(self.model_type)
+        if model_id is None:
+            raise NotSupportedError(f"unsupported model type {self.model_type!r}")
+
+        # download media
+        files_to_download = [
+            part.file
+            for part in parts
+            if isinstance(part, PromptFile)
+            if part.file._cached_content is None
+        ]
+        if files_to_download:
+            await download_file_batch(files_to_download, include_content=True, session=self.session)
+
         # compile
-        content: list[anthropic_types.MessageParam] = []
+        content_parts: list[
+            Union[anthropic_types.TextBlockParam, anthropic_types.ImageBlockParam]
+        ] = []
+        text_parts: list[str] = []
+
+        def _flush_text() -> None:
+            if text_parts:
+                content_parts.append({"type": "text", "text": "\n".join(text_parts)})
+                text_parts.clear()
+
         for part in parts:
             if isinstance(part, PromptBreak):
-                content.append({"role": "user", "content": "\n\n"})
+                text_parts.append("\n\n")
             elif isinstance(part, PromptSeparator):
-                content.append({"role": "user", "content": self.SEPARATOR})
+                text_parts.append(self.SEPARATOR)
                 if part.title:
-                    content.append({"role": "user", "content": f"# {part.title}"})
+                    text_parts.append(f"# {part.title}")
                     if part.text:
-                        content.append({"role": "user", "content": f"# {part.text}"})
-                    content.append({"role": "user", "content": self.SEPARATOR})
+                        text_parts.append(f"# {part.text}")
+                    text_parts.append(self.SEPARATOR)
             elif isinstance(part, PromptText):
                 # prepend every text line
                 text = "\n".join([f"# {line}" for line in part.text.splitlines()])
                 text = f"# {part.title}\n{text}" if part.title else text
-                content.append({"role": "user", "content": text})
+                text_parts.append(text)
             elif isinstance(part, PromptCode):
                 text = f"# {part.title}\n{part.code}" if part.title else part.code
-                content.append({"role": "user", "content": text})
+                text_parts.append(text)
             elif isinstance(part, PromptFile):
-                raise NotSupportedError(f"file {part.file!r} not supported yet")
+                _flush_text()
+                if part.file.type == FileType.IMAGE:
+                    mime_type = part.file.mime_type
+                    if mime_type not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
+                        raise NotSupportedError(f"unsupported image mime type {mime_type!r}")
+                    content_parts.append(
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": mime_type,
+                                "data": part.file.content_b64,
+                            },
+                        }
+                    )
+                else:
+                    raise NotSupportedError(f"file {part.file!r} not supported yet")
             else:
                 raise RuntimeError(f"unexpected part {part!r}")
 
-        # genreate
-        model_id = ANTHROPIC_MODEL_BY_TYPE.get(model)
-        if model_id is None:
-            raise NotSupportedError(f"unsupported model type {model!r}")
-        messages: list[anthropic_types.MessageParam] = [*content]
+        _flush_text()
+
+        # generate
+        messages: list[anthropic_types.MessageParam] = [{"role": "user", "content": content_parts}]
         temperature = options.text_options.temperature if options.text_options else None
         completion = await anthropic_client.messages.create(
             system=[
