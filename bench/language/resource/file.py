@@ -60,7 +60,7 @@ from .resource import DynamicResource
 if TYPE_CHECKING:
     from magika import Magika
 
-    from bench.language import Bench, File, Node, Session
+    from bench.language import Bench, File, Session
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -598,6 +598,11 @@ class FileBase(BuiltinObject):
             raise ValueError(f"content not ready for {self!r}")
 
     @property
+    def content_b64(self) -> str:
+        """The file content as base64."""
+        return base64.b64encode(self.content).decode("utf-8")
+
+    @property
     def url(self) -> str:
         """The URL to GET the file from."""
         if self.external_url is not None:
@@ -873,7 +878,7 @@ async def download_file_batch(
         session = active_session()
 
     # get download URLs
-    with run_span(tracer, "file.prepare_download", RunSpanType.FILE_PREPARE_DOWNLOAD) as span:
+    with run_span(tracer, "file.prepare_download", RunSpanType.FILE_PREPARE_DOWNLOAD):
         download_req = DownloadFilesRequest(
             scope=session._get_scope_for_node(session),
             files=[(f.to_ref() if isinstance(f, File) else f)._to_data() for f in file_refs],
@@ -884,8 +889,6 @@ async def download_file_batch(
         )
         handles_by_id = {h.file.id: h for h in download_rep.handles}
         del download_rep
-        if span is not None:
-            span.nodes = cast(list["Node"], [h.file for h in handles_by_id.values()])
         file_refs_by_id = {f.id: f for f in file_refs}
         files_by_id: dict[UUID, File] = {}
         for file_ref in file_refs:

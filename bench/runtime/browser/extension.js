@@ -534,7 +534,7 @@ function extract(node, highlight, iframe, context) {
             context.addElement(element_1, nodeData);
             if (overlappingNode == null && iou(rect, context.rootRect) < 0.4) {
                 context.highlightId++;
-                nodeData.id = context.highlightId;
+                nodeData.id = context.highlightId.toString();
                 highlightElement(element_1, rect, context, iframe, isFocusedElement);
                 nodeData.isHighlighted = true;
             }

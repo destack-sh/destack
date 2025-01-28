@@ -829,10 +829,6 @@ export interface DomNodeData {
      */
     tag?: string;
     /**
-     * @generated from protobuf field: optional string xpath = 33;
-     */
-    xpath?: string;
-    /**
      * @generated from protobuf field: optional string text = 34;
      */
     text?: string;
@@ -14821,7 +14817,6 @@ class DomNodeData$Type extends MessageType$<DomNodeData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "tag", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "xpath", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "attributes", kind: "message", T: () => Value },
             { no: 36, name: "is_focused", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
@@ -14848,9 +14843,6 @@ class DomNodeData$Type extends MessageType$<DomNodeData> {
                     break;
                 case /* optional string tag */ 31:
                     message.tag = reader.string();
-                    break;
-                case /* optional string xpath */ 33:
-                    message.xpath = reader.string();
                     break;
                 case /* optional string text */ 34:
                     message.text = reader.string();
@@ -14882,9 +14874,6 @@ class DomNodeData$Type extends MessageType$<DomNodeData> {
         /* optional string tag = 31; */
         if (message.tag !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.tag);
-        /* optional string xpath = 33; */
-        if (message.xpath !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.xpath);
         /* optional string text = 34; */
         if (message.text !== undefined)
             writer.tag(34, WireType.LengthDelimited).string(message.text);
@@ -30309,7 +30298,6 @@ export enum DomNodeProperty {
   metatype = 1,
   id = 30,
   tag = 31,
-  xpath = 33,
   text = 34,
   attributes = 35,
   isFocused = 36,
@@ -32226,7 +32214,6 @@ export const DomNodeDataInfo: Record<DomNodeProperty, PropertyInfo> = {
   [DomNodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DOM_NODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [DomNodeProperty.id]: { id: 30, name: 'id', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [DomNodeProperty.tag]: { id: 31, name: 'tag', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [DomNodeProperty.xpath]: { id: 33, name: 'xpath', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [DomNodeProperty.text]: { id: 34, name: 'text', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [DomNodeProperty.attributes]: { id: 35, name: 'attributes', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true },
   [DomNodeProperty.isFocused]: { id: 36, name: 'is_focused', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },

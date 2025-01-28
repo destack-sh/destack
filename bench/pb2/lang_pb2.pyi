@@ -3681,22 +3681,20 @@ class ClientOriginData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ClientType, str]] = ..., id: _Optional[str] = ..., nonce: _Optional[str] = ...) -> None: ...
 
 class DomNodeData(_message.Message):
-    __slots__ = ("metatype", "id", "tag", "xpath", "text", "attributes", "is_focused")
+    __slots__ = ("metatype", "id", "tag", "text", "attributes", "is_focused")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TAG_FIELD_NUMBER: _ClassVar[int]
-    XPATH_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     ATTRIBUTES_FIELD_NUMBER: _ClassVar[int]
     IS_FOCUSED_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     tag: str
-    xpath: str
     text: str
     attributes: _struct_pb2.Value
     is_focused: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., tag: _Optional[str] = ..., xpath: _Optional[str] = ..., text: _Optional[str] = ..., attributes: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., is_focused: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., tag: _Optional[str] = ..., text: _Optional[str] = ..., attributes: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., is_focused: bool = ...) -> None: ...
 
 class FileInfoData(_message.Message):
     __slots__ = ("metatype", "type", "kind", "name", "mime_type", "format", "size", "sha256", "external_url", "inline_content", "width", "height", "aspect_ratio", "codec", "duration", "bitrate", "channels", "sample_rate")

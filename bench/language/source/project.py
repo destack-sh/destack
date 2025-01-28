@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Collection, Sequence, cast
+from typing import TYPE_CHECKING, Collection, Sequence, cast
 from uuid import UUID
 
 import structlog
@@ -14,6 +14,7 @@ from bench.language.core import (
     Node,
     NodeReference,
     NodeType,
+    Property,
     ReferenceKind,
     SomeValue,
     SourceNode,
@@ -22,7 +23,6 @@ from bench.language.core import (
     TypeKind,
     get_custom_object_properties,
 )
-from bench.language.core.value import _do_get_value_runtime
 
 from .block import Block
 
@@ -43,7 +43,7 @@ class Projection:
     """A projection into the Bench graph, collecting referenced Nodes."""
 
     __slots__ = (
-        "depth_by_node",
+        "depth_by_node_id",
         "missing_nodes_by_id",
         "nodes_by_depth",
         "nodes_by_id",
@@ -56,7 +56,7 @@ class Projection:
         self.options: ProjectOptions = options
         self.nodes_by_id: dict[UUID, Node] = {}
         self.missing_nodes_by_id: dict[UUID, NodeReference] = {}
-        self.depth_by_node: dict[UUID, int] = {}
+        self.depth_by_node_id: dict[UUID, int] = {}
         self.nodes_by_depth: dict[int, list[Node]] = {}
 
     def __str__(self) -> str:
@@ -81,7 +81,7 @@ class Projection:
         if isinstance(node, Node):
             if node.id not in self.nodes_by_id and node.metatype in self.options.node_types:
                 self.nodes_by_id[node.id] = node
-                self.depth_by_node[node.id] = depth
+                self.depth_by_node_id[node.id] = depth
                 if depth not in self.nodes_by_depth:
                     self.nodes_by_depth[depth] = []
                 self.nodes_by_depth[depth].append(node)
@@ -149,9 +149,14 @@ class Projection:
                     self.collect_builtin_object(item, depth)
         # custom objects
         for prop in cls.__value_runtime_properties__.values():
-            value_type, prop_value = _do_get_value_runtime(cast(Any, obj), prop)
-            if value_type is not None:
-                self.collect_value(prop_value, value_type, depth)
+            if type(prop.value_packed_ptr) is not Property:
+                continue
+            value_packed = getattr(obj, prop.value_packed_ptr.name)
+            if not value_packed:
+                continue
+            value = getattr(obj, prop.name)
+            assert type(value) is CustomObject, f"unexpected {value!r} for {prop!r}"
+            self.collect_custom_object(value, depth)
 
     def collect_custom_object(self, obj: CustomObject, depth: int):
         """Collect a CustomObject."""
