@@ -4,6 +4,7 @@ import openai
 from openai.types import chat as openai_chat_types
 
 from bench.language import Code, ModelType, RunOptions
+from bench.language.resource.file import FileType, download_file_batch
 from bench.runtime.core import NotSupportedError
 from bench.utils.utils import get_from_env
 
@@ -45,6 +46,16 @@ class OpenaiChatModelRunner(ChatModelRunner):
         user_id: str,
         options: RunOptions,
     ) -> Code:
+        # download media
+        files_to_download = [
+            part.file
+            for part in parts
+            if isinstance(part, PromptFile)
+            if part.file._cached_content is None
+        ]
+        if files_to_download:
+            await download_file_batch(files_to_download, include_content=True, session=self.session)
+
         # compile
         content: list[openai_chat_types.ChatCompletionContentPartParam] = []
         for part in parts:
@@ -66,8 +77,22 @@ class OpenaiChatModelRunner(ChatModelRunner):
                 text = f"# {part.title}\n{part.code}" if part.title else part.code
                 content.append({"type": "text", "text": text})
             elif isinstance(part, PromptFile):
-                # nocheckin: files
-                raise NotSupportedError(f"file {part.file!r} not supported yet")
+                if part.file.type == FileType.IMAGE:
+                    if part.file.external_url is not None:
+                        content.append(
+                            {"type": "image_url", "image_url": {"url": part.file.external_url}}
+                        )
+                    else:
+                        content.append(
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{part.file.content_b64}"
+                                },
+                            }
+                        )
+                else:
+                    raise NotSupportedError(f"file {part.file!r} not supported yet")
             else:
                 raise RuntimeError(f"unexpected part {part!r}")
 

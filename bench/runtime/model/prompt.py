@@ -7,14 +7,14 @@ from bench.language import (
     ActionType,
     Aliasing,
     CustomObject,
-    FileBase,
+    File,
     HasContext,
+    Node,
     Renderer,
     Run,
     RunPlan,
     RunSpan,
     RunSpanType,
-    SourceNode,
 )
 from bench.utils.func import IdEnum
 
@@ -85,7 +85,8 @@ class PromptCode(PromptElement):
 class PromptFile(PromptElement):
     """Some file in the prompt."""
 
-    file: FileBase
+    weight: int
+    file: File
 
 
 BasicPromptPart = PromptBreak | PromptSeparator | PromptText | PromptFile
@@ -99,7 +100,7 @@ BasicPromptPart = PromptBreak | PromptSeparator | PromptText | PromptFile
 class PromptCompound(PromptPart, ABC):
     """A compound Prompt part that is expanded into other parts."""
 
-    weight: int  # proportional
+    weight: int
 
     @abstractmethod
     async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]: ...
@@ -190,7 +191,7 @@ class PromptRunPlan(PromptCompound):
 class PromptNodes(PromptCompound):
     """A source node. Expands to references."""
 
-    nodes: Collection[SourceNode]
+    nodes: Collection[Node]
 
     @override
     async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:

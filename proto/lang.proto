@@ -2054,7 +2054,6 @@ message DomNodeData {
   ObjectType metatype = 1;
   string id = 30;
   optional string tag = 31;
-  optional string xpath = 33;
   optional string text = 34;
   optional google.protobuf.Value attributes = 35;
   optional bool is_focused = 36;

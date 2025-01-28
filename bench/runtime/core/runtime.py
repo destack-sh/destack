@@ -271,6 +271,7 @@ class Runtime:
         """
         Wait for the given nodes to reach a certain state.
         NOTE :Architecture: use Interruptions instead of 'busy' (async) wait in Runtime?
+        NOTE :Architecture: factor out keeping live connections into general Runtime behavior?
         """
         if condition():
             return  # already good
@@ -501,6 +502,9 @@ class Runtime:
     async def _prepare_run(self, runner: Runner):
         """Prepare the Run for execution (only for Runs, not RunSpans)"""
         assert type(runner.tracked) is Run, f"expected Run, got {runner.tracked!r}"
+
+        # nocheckin: load remote Nodes when preparing Run
+        #  (Resources, File, Records, Messages, ...)
 
         # compute variables/inputs/options from context (on initial attempt)
         # init variables/inputs from node
