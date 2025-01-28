@@ -9,7 +9,7 @@ from more_itertools import first
 from rich import print
 from rich.console import Console
 
-from bench.cli.utils import async_to_sync, parse_region
+from bench.cli.utils import async_to_sync, parse_area, parse_region
 from bench.language import REGION, VERSION, Bench, NodeArea, NodeType, Region, Store
 from bench.sql import (
     BENCH_RECORD_TABLE_PREFIX,
@@ -42,7 +42,7 @@ BENCH_QUERY = Bench.include_descendants(Store).select_all()
 @app.command(help="generate SQL migrations")
 @async_to_sync
 async def make(
-    area: Optional[NodeArea] = None,
+    area: Annotated[NodeArea, typer.Option(parser=parse_area)] = NodeArea.GLOBAL,
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
@@ -174,7 +174,9 @@ async def make(
 @app.command(help="apply SQL migrations")
 @async_to_sync
 async def apply(
-    area: NodeArea = typer.Option(default=NodeArea.GLOBAL, help="the area to migrate"),  # noqa: B008
+    area: NodeArea = typer.Option(  # noqa: B008
+        default=NodeArea.GLOBAL, parser=parse_area, help="the area to migrate"
+    ),
     target: Optional[str] = typer.Option(
         default=None, help="the migration to migrate to [default=latest]"
     ),
@@ -234,7 +236,7 @@ async def apply(
 @app.command()
 @async_to_sync
 async def introspect(
-    area: Optional[NodeArea] = None,
+    area: Annotated[NodeArea, typer.Option(parser=parse_area)] = NodeArea.GLOBAL,
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     bench: Optional[str] = None,
 ):  # type: ignore

@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.27.1"
+VERSION = "2025.01.28.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -585,8 +585,14 @@ PACKAGE_TABLE = Table(
     "bench_package",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
+        Column("package_id", PrimitiveType.UUID),
+        Column("package_ck", PrimitiveType.UUID),
+        Column("template_id", PrimitiveType.UUID, is_nullable=True),
+        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
@@ -596,6 +602,9 @@ PACKAGE_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
+        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),

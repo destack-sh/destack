@@ -30,9 +30,9 @@ if TYPE_CHECKING:
         Field,
         Node,
         NodeReference,
-        PackageNode,
         Property,
         Query,
+        SourceNode,
         Struct,
     )
     from bench.pb2 import AnyNodeData
@@ -54,8 +54,8 @@ def attach_node[N: "Node"](node: N, parent: "Node", move: bool = False) -> N:
         if node.__is_in_package__:  # must be in same package
             # NOTE :Incomplete: support cross-package moves
             #  (would have to move descendants and update their .package_ptr?)
-            pkg = cast("PackageNode", node).package
-            assert cast("PackageNode", parent).package == pkg, f"cannot move {node!r} to {parent!r}"
+            pkg = cast("SourceNode", node).package
+            assert cast("SourceNode", parent).package == pkg, f"cannot move {node!r} to {parent!r}"
         if node.__is_in_bench__:  # must be in same bench
             bench = cast("BenchNode", node).bench
             assert cast("BenchNode", parent).bench == bench, f"cannot move {node!r} to {parent!r}"

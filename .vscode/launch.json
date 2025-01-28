@@ -39,6 +39,15 @@
       "justMyCode": true
     },
     {
+      "name": "bench.migrate.apply",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/bench.py",
+      "args": ["migrate", "apply", "--area", "regional"],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    },
+    {
       "name": "bench.schema",
       "type": "debugpy",
       "request": "launch",

@@ -245,7 +245,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                     assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
                     handle = RunHandle(run, run._connection, lock, self)
                     self._owned_runs[run_ptr.id] = handle
-                    run._connection.subscribe_on_update(handle.on_update)
+                    run._connection.on_update(handle.on_update)
             else:
                 # already loaded
                 handle = self._owned_runs[run_ptr.id]

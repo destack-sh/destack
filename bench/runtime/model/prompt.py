@@ -188,7 +188,7 @@ class PromptRunPlan(PromptCompound):
 
 
 @dataclass
-class PromptNode(PromptCompound):
+class PromptSourceNode(PromptCompound):
     """A source node. Expands to references."""
 
     node: SourceNode
@@ -218,22 +218,22 @@ class PromptCustomObject(PromptCompound):
 
 
 class Prompt:
-    """A prompt for an LLM-like model."""
+    """A prompt for a Model."""
 
     def __init__(
         self,
         action: Action,
         context: "HasContext",
+        projection: Projection,
         aliasing: Aliasing,
         renderer: Renderer,
-        projection: Projection,
         items: list[PromptPart],
     ):
         self.action = action
         self.context = context
+        self.projection = projection
         self.aliasing = aliasing
         self.renderer = renderer
-        self.projection = projection
         self.items = items
 
     def __str__(self) -> str:
