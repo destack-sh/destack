@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Sequence, override
+from typing import TYPE_CHECKING, Collection, Sequence, override
 
 from bench.language import (
     Action,
@@ -190,7 +190,7 @@ class PromptRunPlan(PromptCompound):
 class PromptNodes(PromptCompound):
     """A source node. Expands to references."""
 
-    nodes: Sequence[SourceNode]
+    nodes: Collection[SourceNode]
 
     @override
     async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:

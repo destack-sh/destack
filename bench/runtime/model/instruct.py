@@ -30,6 +30,7 @@ from bench.language import (
     _is_setup_complete,
 )
 from bench.language.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
+from bench.language.source.project import get_containing_pages
 from bench.runtime.core import Runner
 from bench.utils.func import IdEnum
 
@@ -347,8 +348,9 @@ def make_chat_prompt(
     """Build a Prompt from the given context."""
     from .example import get_examples
 
+    # TODO :Cleanup! :Architecture: Prompt building and rendering is a mess
     aliasing = Aliasing()
-    projection = Projection(options=ProjectOptions())
+    projection = Projection(supergraph=action._supergraph, options=ProjectOptions())
     renderer = Renderer(
         options=RenderOptions(scope=action, aliasing=aliasing, implicit_partials=True)
     )
@@ -399,6 +401,7 @@ def make_chat_prompt(
             weight=weight,
         )
         run_items.append(run_region)
+        projection.collect_node(r, depth=offset)
     # plan
     if (plan := runner.plan) is not None:
         plan_part = PromptRunPlan(title="Current Run Plan", weight=10, plan=plan, run=run)
@@ -418,20 +421,6 @@ def make_chat_prompt(
     run_items.append(run_region)
 
     #
-    # local context :Tunable
-    #
-
-    # nocheckin: projection
-    context_blocks: set[Block] = set()
-    for run in seen_runs:
-        if (block := run.block) is not None:
-            context_blocks.add(block)
-    context_parts: list[PromptPart] = [
-        PromptNodes(title=None, weight=1, node=block) for block in context_blocks
-    ]
-    # nocheckin: files, other remote nodes
-
-    #
     # action
     #
 
@@ -439,26 +428,34 @@ def make_chat_prompt(
         PromptNodes(title="Action", weight=1, nodes=[action]),
         PromptBreak(title=None),
     ]
-
-    # variables/inputs
+    projection.collect_node(action, depth=0)
     if variables is not None and variables.any():
-        action_parts.append(PromptBreak(title=None))
+        projection.collect_custom_object(variables, depth=0)
         action_parts.append(
-            PromptCustomObject(title="Variables to this Action", weight=1, object=variables)
+            prompt_region(
+                PromptCustomObject(title="Variables to this Action", weight=1, object=variables),
+                title="Variables to this Action",
+                weight=1,
+            )
         )
-        action_parts.append(PromptBreak(title=None))
     if inputs is not None and inputs.any():
-        action_parts.append(PromptBreak(title=None))
+        projection.collect_custom_object(inputs, depth=0)
         action_parts.append(
-            PromptCustomObject(title="Inputs to this Action", weight=1, object=inputs)
+            prompt_region(
+                PromptCustomObject(title="Inputs to this Action", weight=1, object=inputs),
+                title="Inputs to this Action",
+                weight=1,
+            )
         )
-        action_parts.append(PromptBreak(title=None))
     if outputs is not None and outputs.any():
-        action_parts.append(PromptBreak(title=None))
+        projection.collect_custom_object(outputs, depth=0)
         action_parts.append(
-            PromptCustomObject(title="Outputs from this Action", weight=1, object=outputs)
+            prompt_region(
+                PromptCustomObject(title="Outputs from this Action", weight=1, object=outputs),
+                title="Outputs from this Action",
+                weight=1,
+            )
         )
-        action_parts.append(PromptBreak(title=None))
 
     # flow
     if (flow := action.block) is not None and flow.type == BlockType.FLOW:
@@ -478,6 +475,7 @@ def make_chat_prompt(
                 None, f"You are part of the Flow '{flow.code_name}'. Consider the flow as a whole."
             ),
         ]
+        projection.collect_node(flow, depth=1)
         # repeat flow variables/inputs
         flow_run = first((r for r in runner.ancestors if isinstance(r, FlowRunner)), None)
         assert flow_run is not None, f"missing flow {flow!r} for {runner!r}"
@@ -562,7 +560,7 @@ You MUST add any call plans to the outputs without touching the existing outputs
     # general context (relative to all the other stuff)
     #
 
-    general_parts: list[PromptPart] = [
+    general_info_parts: list[PromptPart] = [
         prompt_region(
             PromptText(title=None, text=SOURCE_NODE_HIERARCHY_PROMPT),
             title="SourceNode hierarchy",
@@ -577,13 +575,29 @@ You MUST add any call plans to the outputs without touching the existing outputs
     ]
     general_examples_parts = get_examples(action, runner)
 
+    #
+    # local context :Tunable
+    #
+
+    context_parts: list[PromptPart] = []
+    context_blocks: set[Block] = set()
+    for run in seen_runs:
+        if (block := run.block) is not None:
+            context_blocks.add(block)
+    context_pages = get_containing_pages(*context_blocks, include_self=True)
+    context_blocks.difference_update(context_pages)  # remove pages
+    for page in context_pages:
+        projection.collect_node(page, depth=10)
+        context_parts.append(PromptNodes(title=None, weight=1, nodes=[page, *page.blocks]))
+    # nocheckin: files, other remote nodes
+
     # assemble
     prompt_items: list[PromptPart] = [
         PromptRegion(
             title="General info",
             text="General system info",
             weight=1,
-            content=general_parts,
+            content=general_info_parts,
         ),
         PromptRegion(
             title="General examples",

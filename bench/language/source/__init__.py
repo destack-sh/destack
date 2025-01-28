@@ -39,7 +39,7 @@ from .dependency import Dependency
 from .field import Field, InputField, MemberField, OptionField, OutputField, VariableField
 from .package import Package, PackageType
 from .pipe import Pipe, PipeType, PortSide
-from .project import Projection, ProjectOptions, project
+from .project import Projection, ProjectOptions
 from .render import (
     Aliasing,
     Renderer,
@@ -161,7 +161,6 @@ __all__ = [
     "ViewType",
     "WaitAction",
     "icon",
-    "project",
     "render",
     "render_expression",
     "render_expressions",

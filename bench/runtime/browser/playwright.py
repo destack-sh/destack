@@ -288,10 +288,15 @@ class PlaywrightActivityMonitor:
 def parse_dom_node(dom_node_js: dict[str, Any]) -> DomNode:
     """Parse a DOM node from the Playwright DOM tree :DomNode."""
     kwargs: dict[str, Any] = {}
-    if is_focused := dom_node_js.pop("isFocused", None):
+    if id := dom_node_js.get("id"):
+        kwargs["id"] = id
+    if tag := dom_node_js.get("tag"):
+        kwargs["tag"] = tag
+    if text := dom_node_js.get("text"):
+        kwargs["text"] = text
+    if attributes := dom_node_js.get("attributes"):
+        kwargs["attributes"] = attributes
+    if is_focused := dom_node_js.get("isFocused"):
         kwargs["is_focused"] = is_focused
-    for key, value in dom_node_js.items():
-        if value:
-            kwargs[key] = value
     dom_node = DomNode(**kwargs, _skip_validate_self=True)
     return dom_node

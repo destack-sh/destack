@@ -13,7 +13,7 @@ enum DomNodeType {
  */
 type DomNode = {
     type?: DomNodeType;
-    id?: number;
+    id?: string;
     tag?: string;
     text?: string;
     attributes?: Record<string, string>;
@@ -704,7 +704,7 @@ function extract(
             if (overlappingNode == null && iou(rect, context.rootRect) < 0.4) {
                 // highlight if not overlapping with anything or large part of screen
                 context.highlightId++;
-                nodeData.id = context.highlightId;
+                nodeData.id = context.highlightId.toString();
                 highlightElement(element, rect, context, iframe, isFocusedElement);
                 nodeData.isHighlighted = true;
             }

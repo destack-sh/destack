@@ -18,7 +18,7 @@ from cachetools import LRUCache, cached
 from bench.utils.func import IdEnum
 from bench.utils.string import to_code_name
 
-from .const import EMPTY_DICT, BenchError, EnumType, NodeType, StructType, enum_
+from .const import EMPTY_DICT, BenchError, BlockType, EnumType, NodeType, StructType, enum_
 from .node import BenchNode, HasContext, Node, NodeReference, RunnableNode, SourceNode
 from .object import PropertyReference
 from .property import Property, p_regular
@@ -539,7 +539,7 @@ def _get_contained_descendant(scope: Node, name: str) -> Node | None:
             for child in block.blocks:
                 if child.name == name or child.code_name == name:
                     return child
-                if not child.is_page:
+                if child.type != BlockType.PAGE:
                     blocks.append(child)
     elif isinstance(scope, Action):
         # recurse own fields

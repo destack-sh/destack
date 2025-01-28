@@ -29,7 +29,6 @@ class DomNode(Struct):
     # :DomNode
     id: str = p_regular(30)
     tag: str | None = p_regular(31, default=None)
-    xpath: str | None = p_regular(33, default=None)
     text: str | None = p_regular(34, default=None)
     attributes: dict[str, str] | None = p_regular(
         35, default=None, primitive_type=PrimitiveType.JSON

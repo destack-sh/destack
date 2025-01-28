@@ -107,7 +107,7 @@ class ChatModelRunner(ModelRunner[Action], ABC):
         assert self.output_type is not None, f"{self!r} has no output type"
 
         # build prompt
-        with run_span(tracer, "model.compile", RunSpanType.MODEL_PREPARE, level=Severity.DEBUG):
+        with run_span(tracer, "model.prepare", RunSpanType.MODEL_PREPARE, level=Severity.DEBUG):
             prompt = make_chat_prompt(
                 action=self.node,
                 runner=cast(Runner[RunnableNode], self),
