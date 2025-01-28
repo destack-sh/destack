@@ -4,14 +4,16 @@ from uuid import UUID
 
 from bench.language.core import (
     TITLE_CONSTRAINT,
-    BenchNode,
     ClientType,
+    Node,
+    NodeReference,
     NodeType,
     Struct,
     StructType,
     node_,
     p_internal,
     p_kernel,
+    p_node_ancestor,
     p_node_parent,
     p_regular,
     p_system,
@@ -26,10 +28,18 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), has_subtypes=True)
-class Client(BenchNode[ClientData]):
-    """A client to a Bench."""
+class Client(Node[ClientData]):
+    """A Client to connect with the system."""
 
     parent: Union["User", "Bench", None] = p_node_parent(4, NodeType.USER, NodeType.BENCH)
+    bench: "Bench | None" = p_node_ancestor(5, NodeType.BENCH, require=False, store=True, wire=True)
+    user: "User | None" = p_node_ancestor(7, NodeType.USER, require=False, store=True, wire=True)
+    if TYPE_CHECKING:
+        bench_id: Optional[UUID] = None
+        bench_ptr: Optional[NodeReference] = None
+        user_id: Optional[UUID] = None
+        user_ptr: Optional[NodeReference] = None
+
     type: ClientType = p_regular(30)
     name: str = p_regular(32, constraint=TITLE_CONSTRAINT)
 

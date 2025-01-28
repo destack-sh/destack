@@ -448,8 +448,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         parent_ck: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
     # BenchNode.bench: 5
-    # SourceNode.package: 6
-    # SourceNode.template: 7
+    # AuthNode.organization/user: 6-7
+    # SourceNode.package: 8
+    # SourceNode.template: 9
 
     # 10-29: node tracking
     created_at: datetime = p_system(10, default=None, require=True, autoset=True)
@@ -700,7 +701,15 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     @property
     def is_attached(self) -> bool:
-        return True
+        """Whether this Node is attached to a roots."""
+        if not self.__roots__.bits.any():
+            return True  # always attached
+        parent = self
+        while parent is not None:
+            if parent.metatype in self.__roots__:
+                return True
+            parent = parent.parent
+        return False
 
     def iter_descendants(self, recursive: bool = False):
         """Iterate over all descendants of this node."""
@@ -1433,9 +1442,9 @@ class SourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC
 
     ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
     package: "Package | None" = p_node_ancestor_with_self(
-        6, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
+        8, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
     )
-    template: Optional["Node"] = p_node_template(7)
+    template: Optional["Node"] = p_node_template(9)
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
         package_ptr: Optional[NodeReference] = None

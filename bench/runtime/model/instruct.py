@@ -37,13 +37,13 @@ from .prompt import (
     Prompt,
     PromptBreak,
     PromptCustomObject,
+    PromptNodes,
     PromptPart,
     PromptRegion,
     PromptRun,
     PromptRunAttempt,
     PromptRunPlan,
     PromptSeparator,
-    PromptSourceNode,
     PromptText,
     prompt_region,
 )
@@ -421,20 +421,22 @@ def make_chat_prompt(
     # local context :Tunable
     #
 
+    # nocheckin: projection
     context_blocks: set[Block] = set()
     for run in seen_runs:
         if (block := run.block) is not None:
             context_blocks.add(block)
     context_parts: list[PromptPart] = [
-        PromptSourceNode(title=None, weight=1, node=block) for block in context_blocks
+        PromptNodes(title=None, weight=1, node=block) for block in context_blocks
     ]
+    # nocheckin: files, other remote nodes
 
     #
     # action
     #
 
     action_parts: list[PromptPart] = [
-        PromptSourceNode(title="Action", weight=1, node=action),
+        PromptNodes(title="Action", weight=1, nodes=[action]),
         PromptBreak(title=None),
     ]
 
@@ -471,7 +473,7 @@ def make_chat_prompt(
             and target.is_extant
         ]
         flow_parts: list[PromptPart] = [
-            PromptSourceNode(title=None, weight=1, node=flow),
+            PromptNodes(title=None, weight=1, nodes=[flow]),
             PromptText(
                 None, f"You are part of the Flow '{flow.code_name}'. Consider the flow as a whole."
             ),
@@ -564,7 +566,7 @@ You MUST add any call plans to the outputs without touching the existing outputs
         prompt_region(
             PromptText(title=None, text=SOURCE_NODE_HIERARCHY_PROMPT),
             title="SourceNode hierarchy",
-            text="The Node schemas for source Nodes (stylized)",
+            text="Stylized signatures for source Nodes",
             weight=1,
         ),
         prompt_region(
@@ -620,7 +622,6 @@ Valid inline Python; as concise as possible; minimal comments.
     prompt = Prompt(
         action=action,
         context=context,
-        projection=projection,
         aliasing=aliasing,
         renderer=renderer,
         items=prompt_items,

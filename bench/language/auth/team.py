@@ -3,54 +3,47 @@ from uuid import UUID
 
 from bench.language.core import (
     NAME_CONSTRAINT,
-    EnumType,
     Node,
     NodeReference,
     NodeType,
-    Region,
     StructType,
-    enum_,
     node_,
+    p_node_ancestor,
+    p_node_parent,
     p_regular,
     p_system,
 )
-from bench.pb2 import OrganizationData
-from bench.utils.func import IdEnum
+from bench.pb2.lang_pb2 import TeamData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Handle, Icon, Text
+    from bench.language import Bench, Icon, Organization, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.ORGANIZATION_STATUS)
-class OrganizationStatus(IdEnum):  # NOTE: see UserStatus
-    REGISTERED = 40  # created org
-    ACTIVATED = 50  # has main bench
-
-
-@node_(NodeType.ORGANIZATION, roots=())
-class Organization(Node[OrganizationData]):
+@node_(NodeType.TEAM, roots=(NodeType.ORGANIZATION,))
+class Team(Node[TeamData]):
     """
-    An Organization with Users and Teams.
+    A Team of Users.
     """
 
-    # parent: Organization for nesting?
+    parent: "Organization" = p_node_parent(4, NodeType.ORGANIZATION)
+    # parent: Organization|Team for nesting?
+    organization: "Organization | None" = p_node_ancestor(
+        6, NodeType.ORGANIZATION, require=False, store=True, wire=True
+    )
+    if TYPE_CHECKING:
+        organization_id: Optional[UUID] = None
+        organization_ptr: Optional[NodeReference] = None
+
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, default=None, struct=StructType.ICON)
-    region: "Region" = p_system(37)
-    status: OrganizationStatus = p_system(38)
 
     main_bench: Optional["Bench"] = p_system(
         40, array=False, require=False, references=NodeType.BENCH, fk=True
     )
-    main_handle: Optional["Handle"] = p_system(
-        41, require=False, array=False, references=NodeType.HANDLE, fk=True
-    )
     if TYPE_CHECKING:
         main_bench_id: Optional[UUID] = None
         main_bench_ptr: Optional[NodeReference] = None
-        main_handle_id: Optional[UUID] = None
-        main_handle_ptr: Optional[NodeReference] = None

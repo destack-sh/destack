@@ -102,7 +102,7 @@ class Projection:
 
     def _collect_node(self, node: Node):
         """Collects a node (recursively)."""
-        self._collect_builtin_object_scalar(node)
+        self._collect_builtin_object(node)
         self._collect_node_children(node, self.options.inline_node_types)
 
     def _collect_node_children(self, node: Node, node_types: Collection[NodeType]):
@@ -126,7 +126,7 @@ class Projection:
     # NOTE :Incomplete: account for missing nodes in builtin object / custom object node lookups
     #  (see CustomObject._do_get, _object_node_ref and :RichReference)
 
-    def _collect_builtin_object_scalar(self, obj: BuiltinObject):
+    def _collect_builtin_object(self, obj: BuiltinObject):
         """Collects a builtin object (recursively)."""
         cls = obj._get_effective_cls()
         # visit referenced nodes
@@ -158,10 +158,10 @@ class Projection:
             if struct is None:
                 continue
             elif not prop.is_list:
-                self._collect_builtin_object_scalar(cast(Struct, struct))
+                self._collect_builtin_object(cast(Struct, struct))
             elif len(cast(list, struct)) > 0:
                 for item in cast(list, struct):
-                    self._collect_builtin_object_scalar(item)
+                    self._collect_builtin_object(item)
 
         # visit values
         for prop in cls.__value_runtime_properties__.values():
@@ -169,7 +169,7 @@ class Projection:
             if value_type is not None:
                 self._collect_value(wired_prop_value, value_type)
 
-    def _collect_custom_object_scalar(self, obj: CustomObject):
+    def _collect_custom_object(self, obj: CustomObject):
         """Collects a CustomObject (recursively)."""
         if obj._value is None:
             return
@@ -187,9 +187,9 @@ class Projection:
         if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
             if typ.is_list:
                 for item in cast(list, value):
-                    self._collect_custom_object_scalar(cast(CustomObject, item))
+                    self._collect_custom_object(cast(CustomObject, item))
             else:
-                self._collect_custom_object_scalar(cast(CustomObject, value))
+                self._collect_custom_object(cast(CustomObject, value))
         elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
             if typ.is_list:
                 for wired_ptr in cast(list, value):
@@ -244,11 +244,11 @@ class Projection:
             if obj is None:
                 continue  # convenient when passing multiple objects
             elif isinstance(obj, CustomObject):
-                self._collect_custom_object_scalar(obj)
+                self._collect_custom_object(obj)
             elif isinstance(obj, Node):
                 self._visit_node(obj)
             elif isinstance(obj, BuiltinObject):
-                self._collect_builtin_object_scalar(obj)
+                self._collect_builtin_object(obj)
             else:
                 assert_never(obj)
 
@@ -267,14 +267,6 @@ class Projection:
             # and project that
             self._do_project(depth, depth + 1)
         return tuple(self._nodes_by_id[id] for id in self._nodes_by_id if id not in old_nodes_by_id)
-
-    def get_containing_pages(self) -> list[Block]:
-        """Gets the pages containing the collected source nodes."""
-        return find_containing_pages(*self._nodes_by_id.values())
-
-    def get_remote_nodes(self) -> list[NodeReference]:
-        """Gets the nodes that were referenced but not found."""
-        return list(self._remote_nodes_by_id.values())
 
     def get_nodes_like[T: Node | NodeReference](self, *node_classes: type[T]) -> list[T]:
         """Gets the nodes of the given type (including missing nodes)."""

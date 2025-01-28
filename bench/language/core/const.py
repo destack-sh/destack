@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.28.0"
+VERSION = "2025.01.28.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -230,7 +230,7 @@ class EnumType(IdEnum):
 
     # user (22700-22799)
     USER_STATUS = 22700
-    ORGANIZATION_STATUS = 22701
+    ORGANIZATION_STATUS = 22710
 
     # messages (22800-22899)
     MESSAGE_TYPE = 22800
@@ -258,15 +258,18 @@ class NodeType(IdEnum):
 
     # auth
     USER = 100
-    ORGANIZATION = 101
-    # TEAM?
-    MEMBERSHIP = 110
-    INVITE = 111
-    CLIENT = 120
+    ORGANIZATION = 110
+    TEAM = 120
+    MEMBERSHIP = 130
+    INVITE = 140
+    CLIENT = 150
     # CHALLENGE?
 
     # finance
     # BALANCE, BUDGET, TRANSFER, INVOICE, ...
+
+    # marketplace
+    # ...?
 
     #
     # Regional (2000-4000)
