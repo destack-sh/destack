@@ -471,7 +471,7 @@ class RectangleConstraint(Struct):
 
 @node_(NodeType.VIEW, has_subtypes=True)
 class View(SourceNode[ViewData]):
-    """A view of a user interface in a Bench."""
+    """A View is a graphical interface in a Bench."""
 
     parent: Union["Space", "View", "Block", None] = p_node_parent(
         4, NodeType.SPACE, NodeType.VIEW, NodeType.BLOCK

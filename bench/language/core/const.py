@@ -30,7 +30,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.28.2"
+VERSION = "2025.01.29.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -174,6 +174,8 @@ class EnumType(IdEnum):
     RUN_SPAN_TYPE = 22002
     SESSION_STATUS = 22010
     TRIGGER_TYPE = 22020
+    TRIGGER_EFFECT = 22021
+    TRIGGER_STATUS = 22022
     CACHE_MODE = 22030
     SCHEDULE_FREQUENCY = 22040
     CALL_EXECUTION_MODE = 22050
@@ -267,7 +269,7 @@ class NodeType(IdEnum):
     # CHALLENGE?
 
     # finance
-    # BALANCE, BUDGET, TRANSFER, INVOICE, ...
+    # BALANCE, BUDGET, TRANSFER, GRANT, INVOICE, ...
 
     # marketplace
     # ...?
@@ -304,8 +306,8 @@ class NodeType(IdEnum):
     VIEW = 5030
     ACTION = 5040
     PIPE = 5041
+    TRIGGER = 5042
     # BADGE? POLICY? (POLICY_)RULE?
-    # TAG?
     SPACE = 5200
 
     # state
@@ -318,7 +320,7 @@ class NodeType(IdEnum):
     RUN_SPAN = 6011  # (timed)
     RUN_PLAN = 6012  # (timed)
     INTERRUPTION = 6020  # (timed)
-    LOG = 6030  # (timed)
+    LOG = 6100  # (timed)
 
     #
     # Misc
@@ -475,9 +477,9 @@ class StructType(IdEnum):
     # type (11500-11999)
     TYPE = 11500
     TYPE_CONSTRAINT = 11501
-    SCHEDULE = 11506
-    FILE_INFO = 11507
-    ICON = 11509
+    FILE_INFO = 11520
+    ICON = 11530
+    SCHEDULE = 11540
 
     # text (12000-12099)
     TEXT = 12000
@@ -738,13 +740,13 @@ REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
 class BlockType(IdEnum):
     PAGE = 1, "Page of Blocks"
     TEXT = 2, "Line of rich Text"
-    # ALIAS   # refer to / 'redefine' an existing block or builtin (like a 'newtype')
 
     # types
     # CLASS?
     CHOICE = 11, "Choice of Field options"
     MESSAGE = 12, "Message type to communicate"
-    # SECRET, RESOURCE, PROTOCOL, TAG, ISSUE, METRIC, BLOCK, ...?
+    # ALIAS   # refer to / 'redefine' an existing block or builtin (like a 'newtype')
+    # RESOURCE, PROTOCOL, TAG, METRIC, ...?
 
     # runnable
     # LIBRARY?
@@ -755,7 +757,7 @@ class BlockType(IdEnum):
     DATABASE = 31, "Database of Records"
 
     # view
-    VIEW = 40, "User interface"
+    VIEW = 40, "Graphical Interface"
 
     # auth
     ROLE = 50, "Role to assign"
@@ -1091,14 +1093,6 @@ class FieldType(IdEnum):
     INPUT = 3
     OUTPUT = 4
     OPTION = 5
-
-
-@enum_(EnumType.TRIGGER_TYPE)
-class TriggerType(IdEnum):
-    """Triggers for blocks (for both actual runs and pre-defined triggers)."""
-
-    SCHEDULE = 1
-    SIGNAL = 2
 
 
 @enum_(EnumType.TIME_INTERVAL)

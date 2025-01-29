@@ -74,6 +74,8 @@ enum EnumType {
   ENUM_TYPE_RUN_SPAN_TYPE = 22002;
   ENUM_TYPE_SESSION_STATUS = 22010;
   ENUM_TYPE_TRIGGER_TYPE = 22020;
+  ENUM_TYPE_TRIGGER_EFFECT = 22021;
+  ENUM_TYPE_TRIGGER_STATUS = 22022;
   ENUM_TYPE_CACHE_MODE = 22030;
   ENUM_TYPE_SCHEDULE_FREQUENCY = 22040;
   ENUM_TYPE_CALL_EXECUTION_MODE = 22050;
@@ -88,6 +90,7 @@ enum EnumType {
   ENUM_TYPE_BREAKPOINT_TARGET = 22202;
   ENUM_TYPE_INTERRUPTION_TYPE = 22210;
   ENUM_TYPE_INTERRUPTION_STATUS = 22211;
+  ENUM_TYPE_YIELD_RESPONSE = 22220;
   ENUM_TYPE_MODEL_DEVELOPER = 22300;
   ENUM_TYPE_MODEL_TYPE = 22301;
   ENUM_TYPE_MODEL_FAMILY = 22302;
@@ -147,6 +150,7 @@ enum NodeType {
   NODE_TYPE_VIEW = 5030;
   NODE_TYPE_ACTION = 5040;
   NODE_TYPE_PIPE = 5041;
+  NODE_TYPE_TRIGGER = 5042;
   NODE_TYPE_SPACE = 5200;
   NODE_TYPE_MESSAGE = 5500;
   NODE_TYPE_RECORD = 5510;
@@ -155,7 +159,7 @@ enum NodeType {
   NODE_TYPE_RUN_SPAN = 6011;
   NODE_TYPE_RUN_PLAN = 6012;
   NODE_TYPE_INTERRUPTION = 6020;
-  NODE_TYPE_LOG = 6030;
+  NODE_TYPE_LOG = 6100;
   NODE_TYPE_SKIP = 9000;
   NODE_TYPE_EMPTY = 9999;
 }
@@ -181,9 +185,9 @@ enum StructType {
   STRUCT_TYPE_MACHINE_IMAGE = 11000;
   STRUCT_TYPE_TYPE = 11500;
   STRUCT_TYPE_TYPE_CONSTRAINT = 11501;
-  STRUCT_TYPE_SCHEDULE = 11506;
-  STRUCT_TYPE_FILE_INFO = 11507;
-  STRUCT_TYPE_ICON = 11509;
+  STRUCT_TYPE_FILE_INFO = 11520;
+  STRUCT_TYPE_ICON = 11530;
+  STRUCT_TYPE_SCHEDULE = 11540;
   STRUCT_TYPE_TEXT = 12000;
   STRUCT_TYPE_TEXT_LINE = 12001;
   STRUCT_TYPE_TEXT_SPAN = 12002;
@@ -246,6 +250,7 @@ enum ObjectType {
   OBJECT_TYPE_VIEW = 5030;
   OBJECT_TYPE_ACTION = 5040;
   OBJECT_TYPE_PIPE = 5041;
+  OBJECT_TYPE_TRIGGER = 5042;
   OBJECT_TYPE_SPACE = 5200;
   OBJECT_TYPE_MESSAGE = 5500;
   OBJECT_TYPE_RECORD = 5510;
@@ -254,7 +259,7 @@ enum ObjectType {
   OBJECT_TYPE_RUN_SPAN = 6011;
   OBJECT_TYPE_RUN_PLAN = 6012;
   OBJECT_TYPE_INTERRUPTION = 6020;
-  OBJECT_TYPE_LOG = 6030;
+  OBJECT_TYPE_LOG = 6100;
   OBJECT_TYPE_SKIP = 9000;
   OBJECT_TYPE_EMPTY = 9999;
   OBJECT_TYPE_CONTEXT = 10001;
@@ -276,9 +281,9 @@ enum ObjectType {
   OBJECT_TYPE_MACHINE_IMAGE = 11000;
   OBJECT_TYPE_TYPE = 11500;
   OBJECT_TYPE_TYPE_CONSTRAINT = 11501;
-  OBJECT_TYPE_SCHEDULE = 11506;
-  OBJECT_TYPE_FILE_INFO = 11507;
-  OBJECT_TYPE_ICON = 11509;
+  OBJECT_TYPE_FILE_INFO = 11520;
+  OBJECT_TYPE_ICON = 11530;
+  OBJECT_TYPE_SCHEDULE = 11540;
   OBJECT_TYPE_TEXT = 12000;
   OBJECT_TYPE_TEXT_LINE = 12001;
   OBJECT_TYPE_TEXT_SPAN = 12002;
@@ -341,6 +346,7 @@ enum BenchType {
   BENCH_TYPE_VIEW = 5030;
   BENCH_TYPE_ACTION = 5040;
   BENCH_TYPE_PIPE = 5041;
+  BENCH_TYPE_TRIGGER = 5042;
   BENCH_TYPE_SPACE = 5200;
   BENCH_TYPE_MESSAGE = 5500;
   BENCH_TYPE_RECORD = 5510;
@@ -349,7 +355,7 @@ enum BenchType {
   BENCH_TYPE_RUN_SPAN = 6011;
   BENCH_TYPE_RUN_PLAN = 6012;
   BENCH_TYPE_INTERRUPTION = 6020;
-  BENCH_TYPE_LOG = 6030;
+  BENCH_TYPE_LOG = 6100;
   BENCH_TYPE_SKIP = 9000;
   BENCH_TYPE_EMPTY = 9999;
   BENCH_TYPE_CONTEXT = 10001;
@@ -371,9 +377,9 @@ enum BenchType {
   BENCH_TYPE_MACHINE_IMAGE = 11000;
   BENCH_TYPE_TYPE = 11500;
   BENCH_TYPE_TYPE_CONSTRAINT = 11501;
-  BENCH_TYPE_SCHEDULE = 11506;
-  BENCH_TYPE_FILE_INFO = 11507;
-  BENCH_TYPE_ICON = 11509;
+  BENCH_TYPE_FILE_INFO = 11520;
+  BENCH_TYPE_ICON = 11530;
+  BENCH_TYPE_SCHEDULE = 11540;
   BENCH_TYPE_TEXT = 12000;
   BENCH_TYPE_TEXT_LINE = 12001;
   BENCH_TYPE_TEXT_SPAN = 12002;
@@ -473,6 +479,8 @@ enum BenchType {
   BENCH_TYPE_RUN_SPAN_TYPE = 22002;
   BENCH_TYPE_SESSION_STATUS = 22010;
   BENCH_TYPE_TRIGGER_TYPE = 22020;
+  BENCH_TYPE_TRIGGER_EFFECT = 22021;
+  BENCH_TYPE_TRIGGER_STATUS = 22022;
   BENCH_TYPE_CACHE_MODE = 22030;
   BENCH_TYPE_SCHEDULE_FREQUENCY = 22040;
   BENCH_TYPE_CALL_EXECUTION_MODE = 22050;
@@ -487,6 +495,7 @@ enum BenchType {
   BENCH_TYPE_BREAKPOINT_TARGET = 22202;
   BENCH_TYPE_INTERRUPTION_TYPE = 22210;
   BENCH_TYPE_INTERRUPTION_STATUS = 22211;
+  BENCH_TYPE_YIELD_RESPONSE = 22220;
   BENCH_TYPE_MODEL_DEVELOPER = 22300;
   BENCH_TYPE_MODEL_TYPE = 22301;
   BENCH_TYPE_MODEL_FAMILY = 22302;
@@ -1225,11 +1234,23 @@ enum SessionStatus {
   SESSION_STATUS_CLOSED = 6;
 }
 
-// Triggers for blocks (for both actual runs and pre-defined triggers).
 enum TriggerType {
   TRIGGER_TYPE_UNSPECIFIED = 0;
-  TRIGGER_TYPE_SCHEDULE = 1;
-  TRIGGER_TYPE_SIGNAL = 2;
+  TRIGGER_TYPE_SCHEDULE = 10;
+  TRIGGER_TYPE_MESSAGE = 20;
+}
+
+enum TriggerEffect {
+  TRIGGER_EFFECT_UNSPECIFIED = 0;
+  TRIGGER_EFFECT_CANCEL_INTERRUPTION = 20;
+  TRIGGER_EFFECT_COMPLETE_INTERRUPTION = 21;
+}
+
+enum TriggerStatus {
+  TRIGGER_STATUS_UNSPECIFIED = 0;
+  TRIGGER_STATUS_INACTIVE = 1;
+  TRIGGER_STATUS_OPEN = 10;
+  TRIGGER_STATUS_CLOSED = 20;
 }
 
 // How to handle caching.
@@ -1339,16 +1360,22 @@ enum BreakpointScope {
 
 enum InterruptionType {
   INTERRUPTION_TYPE_UNSPECIFIED = 0;
-  INTERRUPTION_TYPE_PAUSE = 1;
-  INTERRUPTION_TYPE_YIELD = 2;
-  INTERRUPTION_TYPE_WAIT = 3;
+  INTERRUPTION_TYPE_PAUSE = 10;
+  INTERRUPTION_TYPE_YIELD = 20;
+  INTERRUPTION_TYPE_WAIT = 30;
 }
 
 enum InterruptionStatus {
   INTERRUPTION_STATUS_UNSPECIFIED = 0;
   INTERRUPTION_STATUS_OPEN = 10;
   INTERRUPTION_STATUS_CANCELLED = 30;
-  INTERRUPTION_STATUS_COMPLETED = 31;
+  INTERRUPTION_STATUS_COMPLETED = 33;
+}
+
+enum YieldResponse {
+  YIELD_RESPONSE_UNSPECIFIED = 0;
+  YIELD_RESPONSE_ACCEPT = 10;
+  YIELD_RESPONSE_REJECT = 20;
 }
 
 enum ModelDeveloper {
@@ -1359,6 +1386,7 @@ enum ModelDeveloper {
   MODEL_DEVELOPER_GOOGLE = 400;
   MODEL_DEVELOPER_AMAZON = 500;
   MODEL_DEVELOPER_MICROSOFT = 600;
+  MODEL_DEVELOPER_DEEPSEEK = 700;
 }
 
 enum ModelType {
@@ -1367,20 +1395,22 @@ enum ModelType {
   MODEL_TYPE_META_LLAMA_3_1_400B = 102;
   MODEL_TYPE_OPENAI_GPT4_0 = 201;
   MODEL_TYPE_OPENAI_GPT4_O_MINI = 202;
-  MODEL_TYPE_OPENAI_O1 = 210;
-  MODEL_TYPE_OPENAI_O1_MINI = 211;
+  MODEL_TYPE_OPENAI_O1 = 220;
+  MODEL_TYPE_OPENAI_O1_MINI = 221;
   MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET = 301;
-  MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO = 401;
-  MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH = 402;
+  MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH = 400;
+  MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH_THINKING = 401;
+  MODEL_TYPE_DEEPSEEK_R_1_0 = 701;
 }
 
 enum ModelFamily {
   MODEL_FAMILY_UNSPECIFIED = 0;
   MODEL_FAMILY_META_LLAMA = 100;
   MODEL_FAMILY_OPENAI_GPT = 200;
-  MODEL_FAMILY_OPENAI_O = 210;
+  MODEL_FAMILY_OPENAI_O = 220;
   MODEL_FAMILY_ANTHROPIC_CLAUDE = 300;
   MODEL_FAMILY_GOOGLE_GEMINI = 400;
+  MODEL_FAMILY_DEEPSEEK_R = 700;
 }
 
 enum ModelProvider {
@@ -1391,6 +1421,7 @@ enum ModelProvider {
   MODEL_PROVIDER_GOOGLE = 400;
   MODEL_PROVIDER_AMAZON = 500;
   MODEL_PROVIDER_MICROSOFT = 600;
+  MODEL_PROVIDER_DEEPSEEK = 700;
 }
 
 // The implicit 'type' of some Code.
@@ -1428,18 +1459,14 @@ enum ActionType {
   ACTION_TYPE_CHANGE = 210;
   ACTION_TYPE_GET = 300;
   ACTION_TYPE_SEARCH = 301;
-  ACTION_TYPE_COPY = 302;
   ACTION_TYPE_CREATE = 400;
   ACTION_TYPE_DUPLICATE = 401;
   ACTION_TYPE_UPDATE = 402;
   ACTION_TYPE_DELETE = 403;
-  ACTION_TYPE_PASTE = 404;
-  ACTION_TYPE_SEND = 500;
-  ACTION_TYPE_RECEIVE = 501;
-  ACTION_TYPE_MESSAGE = 502;
-  ACTION_TYPE_WAIT = 505;
-  ACTION_TYPE_YIELD = 506;
-  ACTION_TYPE_NOTIFY = 510;
+  ACTION_TYPE_WAIT = 500;
+  ACTION_TYPE_SEND = 510;
+  ACTION_TYPE_RECEIVE = 511;
+  ACTION_TYPE_YIELD = 520;
   ACTION_TYPE_LOOK = 800;
   ACTION_TYPE_CLICK = 1000;
   ACTION_TYPE_PRESS = 1001;
@@ -1797,14 +1824,12 @@ enum MessageType {
 
 enum MessageStatus {
   MESSAGE_STATUS_UNSPECIFIED = 0;
-  MESSAGE_STATUS_DRAFT = 1;
-  MESSAGE_STATUS_PREPARED = 2;
-  MESSAGE_STATUS_SENDING = 3;
-  MESSAGE_STATUS_SENT = 4;
-  MESSAGE_STATUS_FAILED = 5;
-  MESSAGE_STATUS_RECEIVED = 6;
-  MESSAGE_STATUS_READ = 7;
-  MESSAGE_STATUS_EXPIRED = 8;
+  MESSAGE_STATUS_DRAFT = 10;
+  MESSAGE_STATUS_SENDING = 20;
+  MESSAGE_STATUS_SENT = 30;
+  MESSAGE_STATUS_FAILED = 40;
+  MESSAGE_STATUS_RECEIVED = 50;
+  MESSAGE_STATUS_READ = 60;
 }
 
 message GraphScopeData {
@@ -2810,8 +2835,14 @@ message InterruptionData {
   InterruptionStatus status = 40;
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp closed_at = 42;
-  optional google.protobuf.Value inputs_packed = 51;
-  optional google.protobuf.Value outputs_packed = 52;
+  optional string title = 50;
+  optional TextData text = 51;
+  optional google.protobuf.Value inputs_packed = 52;
+  optional google.protobuf.Value outputs_packed = 53;
+  optional YieldResponse response = 54;
+  optional NodeReferenceData message_ptr = 55;
+  optional NodeReferenceData cancel_trigger_ptr = 60;
+  optional NodeReferenceData complete_trigger_ptr = 61;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
   optional NodeReferenceData client_ptr = 93;
@@ -3093,18 +3124,25 @@ message DeleteActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
+message WaitActionData {
+  optional google.protobuf.Duration delay = 120;
+  optional NodeReferenceData node_ptr = 200;
+}
+
+// A data or control flow node in a Flow. Actions are connected by Pipes.
 message SendActionData {
-  optional NodeReferenceData message_type_ptr = 120;
-  optional google.protobuf.Value node_partial_packed = 121;
+  optional google.protobuf.Value message_in_packed = 121;
+  optional bool is_blocking = 130;
+  optional NodeReferenceData message_ptr = 200;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ReceiveActionData {
+  optional NodeReferenceData message_ptr = 200;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
-message WaitActionData {
-  optional google.protobuf.Duration delay = 120;
+message YieldActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -3414,45 +3452,45 @@ message ViewData {
   bool is_loading = 85;
 }
 
-// A view of a user interface in a Bench.
+// A View is a graphical interface in a Bench.
 message RunViewData {
   optional google.protobuf.Value variables_packed = 100;
   optional google.protobuf.Value inputs_packed = 101;
 }
 
-// A view of a user interface in a Bench.
+// A View is a graphical interface in a Bench.
 message ObjectViewData {
   repeated string expanded_sections = 100;
   repeated string collapsed_sections = 101;
 }
 
-// A view of a user interface in a Bench.
+// A View is a graphical interface in a Bench.
 message UserWizardViewData {
   optional UserWizardViewStage stage = 100;
 }
 
-// A view of a user interface in a Bench.
+// A View is a graphical interface in a Bench.
 message ChatViewData {
 }
 
-// A view of a user interface in a Bench.
+// A View is a graphical interface in a Bench.
 message HubViewData {
   HubAspect aspect = 100;
 }
 
-// A view of a user interface in a Bench.
+// A View is a graphical interface in a Bench.
 message HelpViewData {
   HelpAspect aspect = 100;
 }
 
-// A view of a user interface in a Bench.
+// A View is a graphical interface in a Bench.
 message ListViewData {
   optional NodeType query_node_type = 100;
   optional ExpressionData filter = 101;
   repeated ExpressionData sort = 102;
 }
 
-// A view of a user interface in a Bench.
+// A View is a graphical interface in a Bench.
 message TreeViewData {
   repeated NodeType node_types = 100;
   optional bool filter_is_page = 101;
@@ -3462,28 +3500,28 @@ message TreeViewData {
   optional TreeViewPreset preset = 110;
 }
 
-// A view of a user interface in a Bench.
+// A View is a graphical interface in a Bench.
 message FeedViewData {
   optional NodeType query_node_type = 100;
   optional ExpressionData filter = 101;
 }
 
-// A view of a user interface in a Bench.
+// A View is a graphical interface in a Bench.
 message ButtonViewData {
   optional ButtonVariant variant = 100;
 }
 
-// A view of a user interface in a Bench.
+// A View is a graphical interface in a Bench.
 message PickerViewData {
   optional PickerVariant variant = 100;
 }
 
-// A view of a user interface in a Bench.
+// A View is a graphical interface in a Bench.
 message DatetimeViewData {
   optional bool is_relative = 100;
 }
 
-// A view of a user interface in a Bench.
+// A View is a graphical interface in a Bench.
 message IconViewData {
   bool include_color = 100;
 }
@@ -3517,6 +3555,46 @@ message SpaceData {
   optional NodeReferenceData run_ptr = 77;
 }
 
+message TriggerData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  optional NodeReferenceData template_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
+  optional google.protobuf.Value subnode_packed = 29;
+  TriggerType type = 30;
+  string name = 32;
+  optional TextData text = 33;
+  TriggerEffect effect = 34;
+  optional NodeReferenceData interruption_ptr = 35;
+  optional NodeReferenceData scope_ptr = 36;
+  optional NodeReferenceData run_ptr = 37;
+  TriggerStatus status = 40;
+  optional google.protobuf.Timestamp closed_at = 41;
+}
+
+// A Trigger is a (possibly recurring) condition that, when met, affects the runtime.
+message ScheduleTriggerData {
+  optional ScheduleData schedule = 100;
+}
+
+// A Trigger is a (possibly recurring) condition that, when met, affects the runtime.
+message MessageTriggerData {
+  optional NodeReferenceData message_ptr = 101;
+  optional NodeReferenceData message_type_ptr = 102;
+  optional NodeReferenceData message_reply_to_ptr = 103;
+}
+
 message MessageData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3529,17 +3607,19 @@ message MessageData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional google.protobuf.Value subnode_packed = 29;
   MessageType type = 30;
-  MessageStatus status = 31;
-  optional string name = 32;
   optional NodeReferenceData origin_ptr = 35;
   optional NodeReferenceData block_ptr = 36;
-  optional string title = 40;
-  optional TextData text = 41;
-  optional google.protobuf.Value value_packed = 42;
-  optional google.protobuf.Timestamp expires_at = 43;
-  optional google.protobuf.Timestamp read_at = 44;
-  optional NodeReferenceData reply_to_ptr = 50;
-  bool is_pinned = 70;
+  MessageStatus status = 40;
+  optional google.protobuf.Timestamp failed_at = 42;
+  optional google.protobuf.Timestamp sent_at = 43;
+  optional google.protobuf.Timestamp received_at = 44;
+  optional google.protobuf.Timestamp read_at = 45;
+  optional string title = 50;
+  optional TextData text = 51;
+  optional google.protobuf.Value value_packed = 52;
+  optional NodeReferenceData interruption_ptr = 53;
+  optional NodeReferenceData reply_to_ptr = 60;
+  optional NodeReferenceData run_ptr = 62;
 }
 
 message RecordData {
@@ -3603,17 +3683,18 @@ message SomeNodeData {
     ViewData view = 20;
     ActionData action = 21;
     PipeData pipe = 22;
-    SpaceData space = 23;
-    MessageData message = 24;
-    RecordData record = 25;
-    SessionData session = 26;
-    RunData run = 27;
-    RunSpanData run_span = 28;
-    RunPlanData run_plan = 29;
-    InterruptionData interruption = 30;
-    LogData log = 31;
-    SkipData skip = 32;
-    EmptyData empty = 33;
+    TriggerData trigger = 23;
+    SpaceData space = 24;
+    MessageData message = 25;
+    RecordData record = 26;
+    SessionData session = 27;
+    RunData run = 28;
+    RunSpanData run_span = 29;
+    RunPlanData run_plan = 30;
+    InterruptionData interruption = 31;
+    LogData log = 32;
+    SkipData skip = 33;
+    EmptyData empty = 34;
   };
 }
 

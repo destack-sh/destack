@@ -52,6 +52,7 @@ class Record(StateNode[RecordData], HasNodeBase):
         require=True,
         references=NodeType.BLOCK,
         constraint=constraint(node_subtypes=[BlockType.DATABASE]),
+        description="The Database this Record is from.",
     )
 
     # value

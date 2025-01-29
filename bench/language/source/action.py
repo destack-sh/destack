@@ -54,11 +54,13 @@ if TYPE_CHECKING:
         File,
         Icon,
         Machine,
+        Message,
         NodeReference,
         Pipe,
         PipeType,
         RunOptions,
         Text,
+        Trigger,
         Vector2,
     )
 
@@ -106,11 +108,10 @@ class ActionType(IdEnum):
     # PASTE?
 
     # communicate
-    WAIT = 500, "Wait for something"
+    WAIT = 500, "Wait for some trigger"
     SEND = 510, "Send a Message"
     RECEIVE = 511, "Receive a Message"
-    MESSAGE = 512, "Send & Receive a Message"
-    YIELD = 513, "Defer to someone"
+    YIELD = 520, "Defer to someone"
     # NOTIFY?
 
     # resource
@@ -119,7 +120,6 @@ class ActionType(IdEnum):
     # runtime
     # PAUSE, RESUME, STOP, KILL, ...
 
-    # state
     # ...
 
     # environment
@@ -276,6 +276,7 @@ class Action(SourceNode[ActionData]):
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
     pipes: LocalNodeList["Pipe"] = p_node_children(NodeType.PIPE)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
+    triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
 
     @property
     def block(self) -> "Block | None":
@@ -688,36 +689,49 @@ class DeleteAction(Action):
 
 
 #
-# Async
+# Communicate
 #
-
-
-@subnode_(ActionType.SEND)
-class SendAction(Action):
-    message_type: "Block | None" = p_regular(
-        120, require=False, default=None, references=NodeType.BLOCK, field_type=FieldType.INPUT
-    )
-    node_partial_packed: Any = p_value_packed(121, field_type=FieldType.INPUT, partial=True)
-    node_partial: Any = p_value_runtime(
-        121,
-        typ=lambda self: cast(SendAction, self)._node_partial_type(),
-        field_type=FieldType.INPUT,
-        partial=True,
-    )
-
-    @cachetools.cached({})  # :CachedTypeInfo
-    def _node_partial_type(self) -> "TypeBase":
-        return Type(kind=TypeKind.PARTIAL_OBJECT, base_type=self.message_type)
-
-
-@subnode_(ActionType.RECEIVE)
-class ReceiveAction(Action):
-    pass
 
 
 @subnode_(ActionType.WAIT)
 class WaitAction(Action):
     delay: timedelta | None = p_regular(120, default=None, field_type=FieldType.INPUT)
+    node: Optional["Node"] = p_regular(
+        200,
+        require=False,
+        references="any",
+        field_type=FieldType.OUTPUT,
+        description="The Node the Trigger was waiting on.",
+    )
+
+
+@subnode_(ActionType.SEND)
+class SendAction(Action):
+    message_in_packed: Any = p_value_packed(121, field_type=FieldType.INPUT, partial=True)
+    message_in: Any = p_value_runtime(
+        121,
+        typ=lambda self: Type(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.MESSAGE),
+        field_type=FieldType.INPUT,
+        partial=True,
+    )
+    is_blocking: bool | None = p_regular(
+        130, default=False, field_type=FieldType.INPUT, description="Whether to wait for a reply."
+    )
+    message: Optional["Message"] = p_regular(
+        200, require=False, array=False, references=NodeType.MESSAGE, field_type=FieldType.OUTPUT
+    )
+
+
+@subnode_(ActionType.RECEIVE)
+class ReceiveAction(Action):
+    message: Optional["Message"] = p_regular(
+        200, require=False, array=False, references=NodeType.MESSAGE, field_type=FieldType.OUTPUT
+    )
+
+
+@subnode_(ActionType.YIELD)
+class YieldAction(Action):
+    pass
 
 
 #
