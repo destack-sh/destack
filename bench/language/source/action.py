@@ -96,28 +96,28 @@ class ActionType(IdEnum):
     GET = 300, "Get a Node"
     SEARCH = 301, "Search for Nodes"
     # AGGREGATE?
-    COPY = 302, "Copy some Nodes"
+    # COPY?
 
     # write
     CREATE = 400, "Create a Node"
     DUPLICATE = 401, "Duplicate a Node"
     UPDATE = 402, "Update a Node"
     DELETE = 403, "Delete a Node"
-    PASTE = 404, "Paste a Node"
+    # PASTE?
 
     # communicate
-    SEND = 500, "Send a Message"
-    RECEIVE = 501, "Receive a Message"
-    MESSAGE = 502, "Send & Receive a Message"
-    WAIT = 505, "Wait for something"
-    YIELD = 506, "Defer to someone"
-    NOTIFY = 510, "Notify someone"
+    WAIT = 500, "Wait for something"
+    SEND = 510, "Send a Message"
+    RECEIVE = 511, "Receive a Message"
+    MESSAGE = 512, "Send & Receive a Message"
+    YIELD = 513, "Defer to someone"
+    # NOTIFY?
 
     # resource
-    # DOWNLOAD, UPLOAD, PROVISION, SUSPEND, DECOMMISSION, ...
+    # ACQUIRE, PROVISION, SUSPEND, DECOMMISSION, ...
 
     # runtime
-    # PAUSE, RESUME, STOP, ...
+    # PAUSE, RESUME, STOP, KILL, ...
 
     # state
     # ...

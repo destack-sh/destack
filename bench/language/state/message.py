@@ -1,10 +1,9 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import structlog
 
 from bench.language.core import (
-    NAME_CONSTRAINT,
     TITLE_CONSTRAINT,
     BenchNode,
     BlockType,
@@ -19,16 +18,19 @@ from bench.language.core import (
     constraint,
     enum_,
     p_internal,
+    p_node_parent,
     p_regular,
+    p_system,
     p_value_packed,
     p_value_runtime,
     timed_node_,
 )
+from bench.language.runtime.interruption import Interruption
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, NodeReference, Text
+    from bench.language import Bench, Block, NodeReference, Run, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -37,7 +39,7 @@ logger = structlog.get_logger(__name__)
 
 @enum_(EnumType.MESSAGE_TYPE)
 class MessageType(IdEnum):
-    LOCAL = 1  # within Bench
+    LOCAL = 1  # within one Bench
     FEDERATED = 2  # from/to another Bench
     WEBHOOK = 10
     EMAIL = 20
@@ -47,14 +49,14 @@ class MessageType(IdEnum):
 
 @enum_(EnumType.MESSAGE_STATUS)
 class MessageStatus(IdEnum):
-    DRAFT = 1
-    PREPARED = 2
-    SENDING = 3
-    SENT = 4
-    FAILED = 5
-    RECEIVED = 6
-    READ = 7
-    EXPIRED = 8
+    DRAFT = 10
+    PREPARED = 20
+    SENDING = 30
+    SENT = 40
+    FAILED = 50
+    RECEIVED = 60
+    READ = 70
+    EXPIRED = 80
 
 
 @timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value", has_subtypes=True)
@@ -64,10 +66,10 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     If the parent is also a Message, then this Message is part of a Message thread.
     """
 
+    # meta
+    parent: Union["Bench", "Message", None] = p_node_parent(4, NodeType.BENCH, NodeType.MESSAGE)
     type: MessageType = p_regular(30, require=True, default=MessageType.LOCAL)
-    status: MessageStatus = p_internal(31, default=MessageStatus.SENT)
-    name: str | None = p_regular(32, require=False, constraint=NAME_CONSTRAINT)
-    origin: BenchNode | None = p_regular(35, require=False, references="any")
+    origin: BenchNode | None = p_regular(35, require=False, references="any", same_bench=True)
     block: "Block | None" = p_internal(
         36,
         require=False,
@@ -78,20 +80,30 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     if TYPE_CHECKING:
         origin_ptr: Optional[NodeReference] = None
 
+    # status
+    status: MessageStatus = p_internal(40, default=MessageStatus.SENT)
+    expires_at: Optional[datetime] = p_internal(41, default=None)
+    failed_at: Optional[datetime] = p_system(42, default=None)
+    sent_at: Optional[datetime] = p_system(43, default=None)
+    received_at: Optional[datetime] = p_system(44, default=None)
+    read_at: Optional[datetime] = p_system(45, default=None)
+
     # content
-    title: Optional[str] = p_regular(40, require=False, default=None, constraint=TITLE_CONSTRAINT)
-    text: Optional["Text"] = p_regular(41, require=False, default=None, struct=StructType.TEXT)
-    value_packed: Any = p_value_packed(42)
+    title: Optional[str] = p_regular(50, require=False, default=None, constraint=TITLE_CONSTRAINT)
+    text: Optional["Text"] = p_regular(51, require=False, default=None, struct=StructType.TEXT)
+    value_packed: Any = p_value_packed(52)
     value: Any = p_value_runtime(
-        42, type=FieldType.MEMBER, typ=lambda self: cast("Message", self).value_type
+        52, type=FieldType.MEMBER, typ=lambda self: cast("Message", self).value_type
     )
-    expires_at: Optional[datetime] = p_internal(43, default=None)
-    read_at: Optional[datetime] = p_internal(44, default=None)
+    interruption: Optional["Interruption"] = p_regular(
+        53, require=False, array=False, references=NodeType.INTERRUPTION
+    )
 
     # routing
     reply_to: Optional["Message"] = p_regular(
-        50, require=False, array=False, references=NodeType.MESSAGE
+        60, require=False, array=False, references=NodeType.MESSAGE
     )
+    run: Optional["Run"] = p_regular(62, require=False, array=False, references=NodeType.RUN)
     # to: roles, identities, users, teams, ...
 
     # flags
