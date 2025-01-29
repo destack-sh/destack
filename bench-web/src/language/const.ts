@@ -447,7 +447,6 @@ export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> 
     [ModelType.OPENAI_O1_MINI]: "OpenAI O1 Mini",
     [ModelType.OPENAI_O1]: "OpenAI O1",
     [ModelType.ANTHROPIC_CLAUDE_3_5_SONNET]: "Anthropic Claude 3.5 Sonnet",
-    [ModelType.GOOGLE_GEMINI_1_5_PRO]: "Google Gemini 1.5",
     [ModelType.META_LLAMA_3_1_80B]: "Meta Llama 3.1",
     [ModelType.META_LLAMA_3_1_400B]: "Meta Llama 3.1 (400B)",
   },

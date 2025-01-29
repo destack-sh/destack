@@ -7,6 +7,7 @@ from bench.language.core import (
     TITLE_CONSTRAINT,
     BenchNode,
     BlockType,
+    BuiltinEnum,
     EnumType,
     FieldType,
     HasNodeBase,
@@ -27,7 +28,6 @@ from bench.language.core import (
 )
 from bench.language.runtime.interruption import Interruption
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
-from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, NodeReference, Run, Text
@@ -38,7 +38,7 @@ logger = structlog.get_logger(__name__)
 
 
 @enum_(EnumType.MESSAGE_TYPE)
-class MessageType(IdEnum):
+class MessageType(BuiltinEnum):
     LOCAL = 1  # within one Bench
     FEDERATED = 2  # from/to another Bench
     WEBHOOK = 10
@@ -48,7 +48,7 @@ class MessageType(IdEnum):
 
 
 @enum_(EnumType.MESSAGE_STATUS)
-class MessageStatus(IdEnum):
+class MessageStatus(BuiltinEnum):
     DRAFT = 10
     SENDING = 20
     SENT = 30

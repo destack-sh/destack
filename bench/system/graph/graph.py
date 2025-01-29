@@ -51,6 +51,7 @@ from bench.language import (
     unpack_proto_json,
     unpack_value_scalar_data,
 )
+from bench.language.core import bittuple
 from bench.proto import (
     AggregateNodesRequest,
     AggregateNodesResponse,
@@ -73,7 +74,7 @@ from bench.proto import (
     WatchSearchResponse,
     wiring,
 )
-from bench.utils.func import bittuple, group_by, to_uuid
+from bench.utils.func import group_by, to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.sync import RWLock
 from bench.utils.tenacity import RetryOptions

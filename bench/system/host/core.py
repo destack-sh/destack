@@ -30,8 +30,8 @@ from bench.language import (
     Session,
     Store,
 )
+from bench.language.core import bittuple
 from bench.proto import EditData, GraphScopeData, wiring
-from bench.utils.func import bittuple
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
 

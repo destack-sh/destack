@@ -15,9 +15,8 @@ import structlog
 from opentelemetry import trace
 
 from bench.pb2 import AnyNodeData, GraphScopeData
-from bench.utils.func import bittuple
 
-from .const import EMPTY_LIST, NodeType, ObjectType
+from .const import EMPTY_LIST, NodeType, ObjectType, bittuple
 
 if TYPE_CHECKING:
     from bench.language import Node, NodeReference

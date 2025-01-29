@@ -5,9 +5,7 @@ import black
 import structlog
 from opentelemetry import trace
 
-from bench.utils.func import IdEnum
-
-from .const import EnumType, StructType, enum_
+from .const import BuiltinEnum, EnumType, StructType, enum_
 from .property import p_regular
 from .struct import Struct, struct_
 
@@ -19,7 +17,7 @@ tracer = trace.get_tracer(__name__)
 
 
 @enum_(EnumType.CODE_TYPE)
-class CodeType(IdEnum):
+class CodeType(BuiltinEnum):
     """
     The implicit 'type' of some Code.
     We don't set this explicitly in Code because it depends on where the Code is used.
@@ -50,7 +48,7 @@ class CodeLine(Struct):
 
 
 @enum_(EnumType.CODE_LANGUAGE)
-class CodeLanguage(IdEnum):
+class CodeLanguage(BuiltinEnum):
     """The language of some Code."""
 
     PYTHON = 1

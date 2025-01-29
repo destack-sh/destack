@@ -7,6 +7,7 @@ import cachetools
 from bench.language.core import (
     NAME_CONSTRAINT,
     BlockType,
+    BuiltinEnum,
     BuiltinObject,
     EnumType,
     FieldType,
@@ -39,7 +40,6 @@ from bench.language.core import (
 )
 from bench.pb2.lang_pb2 import ActionData
 from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -70,7 +70,7 @@ _type = type
 
 
 @enum_(EnumType.ACTION_TYPE)
-class ActionType(IdEnum):
+class ActionType(BuiltinEnum):
     # flow
     START = 1, "Begin the Flow"
     COMPLETE = 10, "Complete the entire Flow"
@@ -167,7 +167,7 @@ class ActionType(IdEnum):
 
 
 @enum_(EnumType.ACTION_CATEGORY)
-class ActionCategory(IdEnum):
+class ActionCategory(BuiltinEnum):
     FLOW = 100
     READ = 300
     WRITE = 400
@@ -440,7 +440,7 @@ class Action(SourceNode[ActionData]):
 
 
 @enum_(EnumType.TOOL_FILTER)
-class ToolFilter(IdEnum):
+class ToolFilter(BuiltinEnum):
     ANY = 10, "Any Actions"
     SELECT_BUILIN = 20, "Only Builtin Actions"
     SELECT_CUSTOM = 30, "Only Custom Actions"

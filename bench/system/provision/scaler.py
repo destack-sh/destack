@@ -17,9 +17,10 @@ from bench.language import (
     Scaler,
     ScalerType,
 )
+from bench.language.core import bittuple
 from bench.language.core.connection import connection_capture
 from bench.system.host import Commit, Host
-from bench.utils.func import bittuple, group_by
+from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
 
 from .provisioner import Provisioner

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from bench.language.core import (
     NAME_CONSTRAINT,
     BlockType,
+    BuiltinEnum,
     EnumType,
     NodeType,
     SourceNode,
@@ -17,7 +18,6 @@ from bench.language.core import (
 )
 from bench.language.core.node import subnode_
 from bench.pb2.lang_pb2 import TriggerData
-from bench.utils.func import IdEnum
 
 from .schedule import Schedule
 
@@ -28,20 +28,20 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.TRIGGER_TYPE)
-class TriggerType(IdEnum):
+class TriggerType(BuiltinEnum):
     SCHEDULE = 10
     MESSAGE = 20
 
 
 @enum_(EnumType.TRIGGER_STATUS)
-class TriggerStatus(IdEnum):
+class TriggerStatus(BuiltinEnum):
     INACTIVE = 1
     OPEN = 10
     CLOSED = 20
 
 
 @enum_(EnumType.TRIGGER_EFFECT)
-class TriggerEffect(IdEnum):
+class TriggerEffect(BuiltinEnum):
     # interruption
     CANCEL_INTERRUPTION = 20
     COMPLETE_INTERRUPTION = 21
@@ -49,7 +49,7 @@ class TriggerEffect(IdEnum):
 
 @node_(NodeType.TRIGGER, has_subtypes=True)
 class Trigger(SourceNode[TriggerData]):
-    """A Trigger is a (possibly recurring) condition that, when met, affects the runtime."""
+    """A Trigger is a condition that, when met, affects the runtime somehow."""
 
     parent: Union["Action", "Run", None] = p_node_parent(4, NodeType.ACTION, NodeType.RUN)
 

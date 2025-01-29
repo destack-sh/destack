@@ -22,10 +22,10 @@ from bench.language import (
     Session,
     Text,
 )
+from bench.language.core import bittuple
 from bench.language.core.connection import connection_capture
 from bench.proto import RunRequest, RuntimeClient, get_channel
 from bench.system.host.core import Commit, Host, HostPlugin
-from bench.utils.func import bittuple
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
 
 if TYPE_CHECKING:

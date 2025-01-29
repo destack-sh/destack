@@ -1,8 +1,15 @@
 from typing import TYPE_CHECKING, Union
 
-from bench.language.core import EnumType, NodeType, enum_, node_, p_internal, p_node_parent
+from bench.language.core import (
+    BuiltinEnum,
+    EnumType,
+    NodeType,
+    enum_,
+    node_,
+    p_internal,
+    p_node_parent,
+)
 from bench.pb2.lang_pb2 import StreamData
-from bench.utils.func import IdEnum
 
 from .resource import DynamicResource
 
@@ -13,7 +20,7 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.STREAM_TYPE)
-class StreamType(IdEnum):
+class StreamType(BuiltinEnum):
     TEXT = 1
     CODE = 2
     IMAGE = 3

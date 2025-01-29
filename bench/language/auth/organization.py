@@ -3,6 +3,7 @@ from uuid import UUID
 
 from bench.language.core import (
     NAME_CONSTRAINT,
+    BuiltinEnum,
     EnumType,
     Node,
     NodeReference,
@@ -15,7 +16,6 @@ from bench.language.core import (
     p_system,
 )
 from bench.pb2 import OrganizationData
-from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import Bench, Handle, Icon, Text
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.ORGANIZATION_STATUS)
-class OrganizationStatus(IdEnum):  # NOTE: see UserStatus
+class OrganizationStatus(BuiltinEnum):  # NOTE: see UserStatus
     REGISTERED = 40  # created org
     ACTIVATED = 50  # has main bench
 

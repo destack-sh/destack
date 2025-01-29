@@ -4,6 +4,7 @@ from uuid import UUID
 
 from bench.language.core import (
     TERMINAL_RUN_STATUSES,
+    BuiltinEnum,
     CustomObject,
     EnumType,
     FieldType,
@@ -33,7 +34,6 @@ from bench.language.core import (
     timed_node_,
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData, RunData, RunPlanData, RunSpanData
-from bench.utils.func import IdEnum
 from bench.utils.tenacity import RetryOptions
 
 if TYPE_CHECKING:
@@ -71,7 +71,7 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.CACHE_MODE)
-class CacheMode(IdEnum):
+class CacheMode(BuiltinEnum):
     """How to handle caching."""
 
     NEVER = 1

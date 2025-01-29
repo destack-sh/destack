@@ -4,6 +4,7 @@ from uuid import UUID
 
 from bench.language.core import (
     NAME_CONSTRAINT,
+    BuiltinEnum,
     EnumType,
     NodeType,
     RunType,
@@ -20,7 +21,6 @@ from bench.language.core import (
 from bench.language.core.const import RunStatus
 from bench.pb2 import PipeData
 from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -36,13 +36,13 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.PORT_SIDE)
-class PortSide(IdEnum):
+class PortSide(BuiltinEnum):
     INCOMING = 1
     OUTGOING = 2
 
 
 @enum_(EnumType.PIPE_TYPE)
-class PipeType(IdEnum):
+class PipeType(BuiltinEnum):
     CALL = 1, "Always call"
     # FAIL?
     SELECT = 10, "Call only if selected"
@@ -52,7 +52,7 @@ class PipeType(IdEnum):
 
 
 @enum_(EnumType.PIPE_TRIGGER)
-class PipeTrigger(IdEnum):
+class PipeTrigger(BuiltinEnum):
     ON_COMPLETED = 1, "If the action succeeds"
     ON_FAILED = 2, "If the action fails"
     ON_TERMINATED = 3, "Always, success or failure"

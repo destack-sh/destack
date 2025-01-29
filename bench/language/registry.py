@@ -9,13 +9,15 @@ from bench.language.core.const import (
     NODE_TYPES,
     STRUCT_TYPES,
     BenchType,
+    BuiltinEnum,
     EnumType,
     NodeType,
     ObjectType,
     StructType,
+    bittuple,
 )
 from bench.utils.env import IS_DEV
-from bench.utils.func import IdEnum, assert_collections_equal, bittuple, get_subclasses
+from bench.utils.func import assert_collections_equal, get_subclasses
 
 if TYPE_CHECKING:
     from bench.language import BuiltinObject, Node, NodeSubtypeStub, Struct
@@ -31,12 +33,12 @@ NODE_CLASS_STUBS_BY_NAME: dict[str, "NodeSubtypeStub"] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 BUILTIN_OBJECT_CLASS_BY_TYPE: dict[ObjectType, type["BuiltinObject"]] = {}
 BUILTIN_OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObject"], ObjectType] = {}
-BENCH_CLASS_BY_TYPE: dict[BenchType, type["Struct"] | type["Node"] | type[IdEnum]] = {}
-BENCH_TYPE_BY_CLASS: dict[type[Union["BuiltinObject", IdEnum]], BenchType] = {}
-FINAL_BENCH_CLASSES_BY_NAME: dict[str, type[Union["BuiltinObject", IdEnum]]] = {}
-FINAL_BENCH_CLASSES: list[type[Union["BuiltinObject", IdEnum]]] = []
-BENCH_CLASS_BY_NAME: dict[str, type[Union["BuiltinObject", IdEnum]]] = {}
-BENCH_CLASSES: list[type[Union["BuiltinObject", IdEnum]]] = []
+BENCH_CLASS_BY_TYPE: dict[BenchType, type["Struct"] | type["Node"] | type[BuiltinEnum]] = {}
+BENCH_TYPE_BY_CLASS: dict[type[Union["BuiltinObject", BuiltinEnum]], BenchType] = {}
+FINAL_BENCH_CLASSES_BY_NAME: dict[str, type[Union["BuiltinObject", BuiltinEnum]]] = {}
+FINAL_BENCH_CLASSES: list[type[Union["BuiltinObject", BuiltinEnum]]] = []
+BENCH_CLASS_BY_NAME: dict[str, type[Union["BuiltinObject", BuiltinEnum]]] = {}
+BENCH_CLASSES: list[type[Union["BuiltinObject", BuiltinEnum]]] = []
 NODE_CLASSES: list[type["Node"]] = []
 SUBNODE_CLASSES: list[type["Node"]] = []
 STRUCT_CLASSES: list[type["Struct"]] = []
@@ -84,7 +86,7 @@ def _complete_bench_setup():
         FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
         FINAL_BENCH_CLASSES.append(bench_t)
     for bench_t in const.__dict__.values():
-        if isinstance(bench_t, type) and issubclass(bench_t, IdEnum):
+        if isinstance(bench_t, type) and issubclass(bench_t, BuiltinEnum):
             FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
             FINAL_BENCH_CLASSES.append(bench_t)
     BENCH_CLASSES.extend(chain(get_subclasses(BuiltinObject), (CustomObject,)))

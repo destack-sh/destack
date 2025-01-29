@@ -293,20 +293,16 @@ export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeI
   // read
   [ActionType.GET]: "fas fa-magnifying-glass",
   [ActionType.SEARCH]: "fas fa-magnifying-glass",
-  [ActionType.COPY]: "fas fa-copy",
   // write
   [ActionType.CREATE]: "fas fa-plus",
   [ActionType.DUPLICATE]: "fas fa-clone",
   [ActionType.UPDATE]: "fas fa-pencil",
   [ActionType.DELETE]: "fas fa-trash",
-  [ActionType.PASTE]: "fas fa-paste",
   // async
   [ActionType.SEND]: "fas fa-inbox-out",
   [ActionType.RECEIVE]: "fas fa-inbox-in",
-  [ActionType.MESSAGE]: "fas fa-inbox",
   [ActionType.WAIT]: "fas fa-clock",
   [ActionType.YIELD]: "fas fa-hand",
-  [ActionType.NOTIFY]: "fas fa-bell",
   // environment
   [ActionType.LOOK]: "fas fa-eye",
   // application

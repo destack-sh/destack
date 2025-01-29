@@ -2,6 +2,7 @@ from typing import Optional
 
 from bench.language.core import (
     VERSION,
+    BuiltinEnum,
     EnumType,
     NodeType,
     enum_,
@@ -10,7 +11,6 @@ from bench.language.core import (
     p_system,
 )
 from bench.pb2 import StoreData
-from bench.utils.func import IdEnum
 
 from .resource import StaticResource
 
@@ -18,7 +18,7 @@ from .resource import StaticResource
 
 
 @enum_(EnumType.STORE_TYPE)
-class StoreType(IdEnum):
+class StoreType(BuiltinEnum):
     POSTGRES = 1
 
 

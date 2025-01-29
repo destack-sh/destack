@@ -11,11 +11,11 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from bench.pb2 import AnyNodeData, NodeReferenceData
-from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
 
 from .const import (
     AggregationType,
+    BuiltinEnum,
     ConditionalType,
     EnumType,
     ExpressionKind,
@@ -900,7 +900,7 @@ class Value(Struct):
 
 
 @enum_(EnumType.COMPUTED_VALUE_KIND)
-class ComputedValueKind(IdEnum):
+class ComputedValueKind(BuiltinEnum):
     PATH = 1
     EXPRESSION = 2
     CODE = 3
@@ -908,7 +908,7 @@ class ComputedValueKind(IdEnum):
 
 
 @enum_(EnumType.COMPUTED_VALUE_MODE)
-class ComputedValueMode(IdEnum):
+class ComputedValueMode(BuiltinEnum):
     ALWAYS = 1
     IF_SOURCE_SET = 2
     IF_TARGET_UNSET = 3

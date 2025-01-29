@@ -28,6 +28,7 @@ from bench.language import (
     apply_sort,
     evaluate_conditional,
 )
+from bench.language.core import bittuple
 from bench.proto import (
     AnyNodeData,
     EditData,
@@ -35,7 +36,7 @@ from bench.proto import (
     NodeReferenceData,
     unwrap_some_node,
 )
-from bench.utils.func import bittuple, generate_access_token
+from bench.utils.func import generate_access_token
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 

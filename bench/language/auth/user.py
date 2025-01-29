@@ -5,6 +5,7 @@ from uuid import UUID
 from bench.language.core import (
     EMAIL_CONSTRAINT,
     NAME_CONSTRAINT,
+    BuiltinEnum,
     EnumType,
     LocalNodeList,
     Node,
@@ -19,7 +20,6 @@ from bench.language.core import (
     p_system,
 )
 from bench.pb2 import UserData
-from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import Bench, Handle, Icon, NodeReference, Text, User
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.USER_STATUS)
-class UserStatus(IdEnum):  # NOTE: see OrganizationStatus
+class UserStatus(BuiltinEnum):  # NOTE: see OrganizationStatus
     INVITED = 10  # invited via email
     RESERVED = 20  # reserved a handle, unconfirmed
     WAITLISTED = 30  # got handle, waiting

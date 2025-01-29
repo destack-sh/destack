@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
+    BuiltinEnum,
     EnumType,
     Struct,
     StructType,
@@ -9,14 +10,13 @@ from bench.language.core import (
     p_regular,
     struct_,
 )
-from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     pass
 
 
 @enum_(EnumType.MODEL_DEVELOPER)
-class ModelDeveloper(IdEnum):
+class ModelDeveloper(BuiltinEnum):
     # internal
     # ...
     # external
@@ -30,7 +30,7 @@ class ModelDeveloper(IdEnum):
 
 
 @enum_(EnumType.MODEL_PROVIDER)
-class ModelProvider(IdEnum):
+class ModelProvider(BuiltinEnum):
     # internal
     # ...
     # external developers (100-19999)
@@ -46,7 +46,7 @@ class ModelProvider(IdEnum):
 
 
 @enum_(EnumType.MODEL_FAMILY)
-class ModelFamily(IdEnum):
+class ModelFamily(BuiltinEnum):
     # internal
     # ...
     # external
@@ -68,7 +68,7 @@ class ModelFamily(IdEnum):
 
 
 @enum_(EnumType.MODEL_TYPE)
-class ModelType(IdEnum):  # :ModelType
+class ModelType(BuiltinEnum):  # :ModelType
     # internal
     ...  # ?
     # external

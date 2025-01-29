@@ -43,7 +43,7 @@ from bench.language.registry import (
     _on_completing_setup,
 )
 from bench.pb2 import AnyNodeData, AnyStructData, Date, NodeReferenceData, TimeOfDay
-from bench.utils.func import IdEnum, is_close
+from bench.utils.func import is_close
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 from .const import (
@@ -51,6 +51,7 @@ from .const import (
     FLOAT_EPSILON,
     PY_TYPE_BY_PRIMITIVE_TYPE,
     UNSET,
+    BuiltinEnum,
     EnumType,
     NodeType,
     ObjectType,
@@ -670,7 +671,7 @@ def get_partial_object_type(
             if typ.constraint is not None and typ.constraint.node_subtypes:
                 subtype = typ.constraint.node_subtypes[0]
         if subtype is not None:
-            subtype_cls = node_cls.__subclass_by_subtype__.get(cast(IdEnum, subtype))
+            subtype_cls = node_cls.__subclass_by_subtype__.get(cast(BuiltinEnum, subtype))
 
     return bench_type, node_cls, subtype, subtype_cls
 

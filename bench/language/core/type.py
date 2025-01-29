@@ -15,13 +15,14 @@ import structlog
 from opentelemetry import trace
 
 from bench.language.registry import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS
-from bench.utils.func import IdEnum, decode_b64vlq, encode_b64vlq
+from bench.utils.func import decode_b64vlq, encode_b64vlq
 
 from .const import (
     PRIMITIVE_TYPE_BY_PY_TYPE,
     PY_TYPE_BY_PRIMITIVE_TYPE,
     TK_LENGTH_B64,
     BenchType,
+    BuiltinEnum,
     EnumType,
     FieldType,
     NodeType,
@@ -241,7 +242,7 @@ class TypeBase(BuiltinObject):
        1. Primitive (= column type, value is scalar, like int32, string, bool, datetime)
        2. Struct (Struct like Expression, File, Path, Text, Code)
        3. Node (NodeReference, like Package, Block, Field, Record, Run, Signal)
-       4. Enum (builtin IdEnum, like FieldKind, NodeType, BenchType, EnumType)
+       4. Enum (builtin BuiltinEnum, like FieldKind, NodeType, BenchType, EnumType)
        5. Based Node (NodeReference,  an 'instance' of the block)
        6. Custom Object (value is CustomObject, like Action outputs, Record value)
        7. Partial Object (value is a CustomObject + partial Node, like Record partials, CreateActions)
@@ -490,7 +491,7 @@ TypeIn = Union[
     type["Struct"],
     type["Node"],
     type[PrimitiveValue],
-    type[IdEnum],
+    type[BuiltinEnum],
 ]
 
 

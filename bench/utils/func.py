@@ -18,8 +18,6 @@ from typing import (
     Collection,
     Iterable,
     Mapping,
-    TypeVar,
-    Union,
     assert_never,
     cast,
 )
@@ -27,9 +25,7 @@ from uuid import UUID
 
 import regex
 import structlog
-from bitarray import bitarray
 from cachetools import cached
-from more_itertools import first
 
 from bench.utils.base58 import base58_encode
 
@@ -470,12 +466,6 @@ def sanitize_connection_uri(uri: str) -> str:
     return regex.sub(r":[^@]+@", ":*****@", uri)
 
 
-_MIN_ID_BY_ENUM: dict[type, int] = {}
-_MAX_ID_BY_ENUM: dict[type, int] = {}
-
-IdEnumT = TypeVar("IdEnumT", bound="IdEnum")
-
-
 def generate_access_token(length: int) -> str:
     """Generate a random access token."""
     bytes = urandom(length)
@@ -490,162 +480,3 @@ def generate_encryption_key(length: int) -> str:
 def generate_salt(length: int) -> bytes:
     """Generate a random salt."""
     return urandom(length)
-
-
-class IdEnum(enum.IntEnum):
-    id: int
-    ord: int
-    text: str | None
-
-    def __new__(cls, id: int, text: str | None = None):
-        obj = int.__new__(cls, id)
-        obj._value_ = id
-        obj.ord = len(cls)
-        obj.id = id
-        obj.text = text
-        obj.__doc__ = text
-
-        # check id
-        assert id > 0, f"invalid id {id}"
-        existing = first((v for v in cls if v.id == id), None)
-        assert existing is None, f"{cls} has duplicate id {id} for {id} and {existing}"
-
-        return obj
-
-    @functools.cached_property
-    def bench_name(self):
-        from bench.utils.string import Casing, to_casing
-
-        return to_casing(self.name, Casing.CAMEL)
-
-    @classmethod
-    def get_min_id(cls) -> int:
-        """Get the minimum id."""
-        if cls not in _MIN_ID_BY_ENUM:
-            _MIN_ID_BY_ENUM[cls] = min(v.id for v in cls)
-        return _MIN_ID_BY_ENUM[cls]
-
-    @classmethod
-    def get_max_id(cls) -> int:
-        """Get the maximum id."""
-        if cls not in _MAX_ID_BY_ENUM:
-            _MAX_ID_BY_ENUM[cls] = max(v.id for v in cls)
-        return _MAX_ID_BY_ENUM[cls]
-
-    @classmethod
-    def get_min_ord(cls) -> int:
-        """Get the minimum ord."""
-        return 0
-
-    @classmethod
-    def get_max_ord(cls) -> int:
-        """Get the maximum ord."""
-        return len(cls)
-
-    def to(self, combined_type: Union[IdEnumT, "IdEnumOrUnion"]) -> IdEnumT:
-        return combined_type(self.id)  # type: ignore
-
-    @staticmethod
-    def combine(name: str, *enums: type["IdEnum"]) -> type["IdEnum"]:
-        combined_ids = {}
-        for e in enums:
-            for t in e:
-                if t.name in combined_ids:
-                    raise ValueError(f"duplicate enum name: {t.name} from {enums}")
-                combined_ids[t.name] = t.id
-        combined = IdEnum(name, combined_ids)
-        return typing.cast(type["IdEnum"], combined)
-
-
-def repr_enums(enums: Iterable[IdEnum]) -> str:
-    return "|".join(e.bench_name for e in enums)
-
-
-IdEnumOrUnion = Union[IdEnum, Union[IdEnum, Any]]
-# NOTE: IdEnumOrOnion is intended for stuff like AccessType = IdEnum.combine("AccessType", ReadType, ...)
-#  But for type checking we have it as AccessType = ReadType | ...
-#  So we make these methods accept 'Any' for compliance. Not great but it's a small footprint.
-EnumT = TypeVar("EnumT", bound=IdEnum)
-_ENUM_MEMBERS_BY_ORD: dict[type[IdEnum], list[IdEnum]] = {}
-
-
-def _get_enum_members_by_ord(enum_cls: type[IdEnum]) -> list[IdEnum]:
-    if enum_cls not in _ENUM_MEMBERS_BY_ORD:
-        _ENUM_MEMBERS_BY_ORD[enum_cls] = list(enum_cls.__members__.values())
-    return _ENUM_MEMBERS_BY_ORD[enum_cls]
-
-
-# noinspection PyPep8Naming
-class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
-    """
-    Tuple with a bitarray for fast membership check.
-    We accept only IdEnum instances because we use its ordinals for a compact bitarray.
-    """
-
-    def __init__(self, *items: EnumT, enum_cls: type[EnumT] | Union[EnumT, Any] | None = None):
-        if len(items) == 1 and isinstance(items[0], Collection):
-            items = items[0] if type(items[0]) is tuple else tuple(items[0])
-        self.tuple = items
-        if enum_cls is None:
-            assert len(items) > 0, "enum_cls or args is required"
-            enum_cls = items[0].__class__
-        assert isinstance(enum_cls, type) and issubclass(
-            enum_cls, IdEnum
-        ), f"invalid bittuple {enum_cls}: {items}"
-        self.enum_cls = enum_cls
-        self.bits = bitarray(enum_cls.get_max_ord() + 1)
-        for arg in items:
-            self.bits[arg.ord] = True
-
-    def __bool__(self):
-        return bool(self.tuple)
-
-    def has(self, item: EnumT) -> bool:
-        """Checks whether the item is of the correct type and is in the tuple."""
-        assert isinstance(item, self.enum_cls), f"want {self.enum_cls}, got {item!r} ({type(item)})"
-        return bool(self.bits[item.ord])
-
-    def __contains__(self, item: Any) -> bool:
-        assert isinstance(item, self.enum_cls), f"want {self.enum_cls}, got {item!r} ({type(item)})"
-        return bool(self.bits[item.ord])
-
-    def __and__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
-        assert type(other) is bittuple, f"invalid type: {type(other)}"
-        assert (
-            self.enum_cls == other.enum_cls
-        ), f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
-        combined = self.bits & other.bits
-        ordered_members = _get_enum_members_by_ord(self.enum_cls)
-        items = tuple(ordered_members[o] for o in combined.search(True))
-        return bittuple(items, enum_cls=self.enum_cls)  # type: ignore
-
-    def __or__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
-        assert type(other) is bittuple, f"invalid type: {type(other)}"
-        assert (
-            self.enum_cls == other.enum_cls
-        ), f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
-        combined = self.bits | other.bits
-        ordered_members = _get_enum_members_by_ord(self.enum_cls)
-        items = tuple(ordered_members[o] for o in combined.search(True))
-        return bittuple(items, enum_cls=self.enum_cls)  # type: ignore
-
-    def __iter__(self):
-        return iter(self.tuple)
-
-    def __len__(self):
-        return len(self.tuple)
-
-    def __getitem__(self, index):
-        return self.tuple[index]
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}({self.tuple})"
-
-    def __str__(self):
-        return f"{self.__class__.__name__}({self.tuple})"
-
-    @staticmethod
-    def from_ord(enum_cls: type[EnumT], ords: bitarray) -> "bittuple[EnumT]":
-        ordered_members = _get_enum_members_by_ord(enum_cls)
-        items = tuple(ordered_members[o] for o in ords.search(True))
-        return bittuple(items, enum_cls=enum_cls)  # type: ignore

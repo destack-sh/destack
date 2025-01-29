@@ -145,20 +145,16 @@ export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
   // read
   [ActionType.GET]: ColorType.SKY,
   [ActionType.SEARCH]: ColorType.SKY,
-  [ActionType.COPY]: ColorType.SKY,
   // write
   [ActionType.CREATE]: ColorType.SKY,
   [ActionType.DUPLICATE]: ColorType.SKY,
   [ActionType.UPDATE]: ColorType.SKY,
   [ActionType.DELETE]: ColorType.SKY,
-  [ActionType.PASTE]: ColorType.SKY,
   // async
+  [ActionType.WAIT]: ColorType.PINK,
   [ActionType.SEND]: ColorType.PINK,
   [ActionType.RECEIVE]: ColorType.PINK,
-  [ActionType.MESSAGE]: ColorType.PINK,
-  [ActionType.WAIT]: ColorType.PINK,
   [ActionType.YIELD]: ColorType.PINK,
-  [ActionType.NOTIFY]: ColorType.PINK,
   // environment
   [ActionType.LOOK]: ColorType.EMERALD,
   // application

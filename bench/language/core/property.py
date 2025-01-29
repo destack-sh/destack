@@ -16,7 +16,7 @@ from uuid import UUID
 
 from bench.language.registry import BENCH_CLASS_BY_NAME, ENUM_TYPE_BY_CLASS, _on_completing_setup
 from bench.utils.env import IS_DEV
-from bench.utils.func import IdEnum, parse_py_annotation, stable_hash
+from bench.utils.func import parse_py_annotation, stable_hash
 from bench.utils.utils import frozendict
 
 from .const import (
@@ -26,6 +26,7 @@ from .const import (
     PACKAGE_NODE_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
     UNSET,
+    BuiltinEnum,
     EnumType,
     FieldType,
     NodeType,
@@ -53,7 +54,7 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.PROPERTY_REFERENCE_TYPE)
-class PropertyReferenceType(IdEnum):
+class PropertyReferenceType(BuiltinEnum):
     ID = 1
     CK = 2
     BENCH_ID = 3
@@ -720,8 +721,8 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         if not self.is_required and self.default is UNSET and self.default_factory is None:
             self.default = None
         if isinstance(annotation.type, type) and issubclass(annotation.type, enum.Enum):
-            if not issubclass(annotation.type, IdEnum):
-                raise ValueError(f"only IdEnum is supported for enums: {self!r}")
+            if not issubclass(annotation.type, BuiltinEnum):
+                raise ValueError(f"only BuiltinEnum is supported for enums: {self!r}")
             self.enum_type = ENUM_TYPE_BY_CLASS.get(annotation.type)
             if self.enum_type is None:
                 raise ValueError(f"missing enum type for {annotation.type!r} at {self!r}")
@@ -732,7 +733,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 raise ValueError(f"cannot store union {self!r}")
             # map to column type
             assert isinstance(annotation.type, type), f"invalid type {annotation!r} for {self!r}"
-            if issubclass(annotation.type, IdEnum):
+            if issubclass(annotation.type, BuiltinEnum):
                 if max(annotation.type) < 2**16:
                     self.primitive_type = PrimitiveType.INT16
                 else:

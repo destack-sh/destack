@@ -23,6 +23,7 @@ from PIL import Image
 
 from bench.language.core import (
     TITLE_CONSTRAINT,
+    BuiltinEnum,
     BuiltinObject,
     EnumType,
     NodeReference,
@@ -51,7 +52,7 @@ from bench.pb2 import (
     FileInfoData,
     UploadFilesRequest,
 )
-from bench.utils.func import IdEnum, group_by
+from bench.utils.func import group_by
 from bench.utils.string import humanize_bytes
 from bench.utils.utils import get_from_env
 
@@ -77,7 +78,7 @@ SHA256_CONSTRAINT = constraint(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH
 
 
 @enum_(EnumType.FILE_KIND)
-class FileKind(IdEnum):
+class FileKind(BuiltinEnum):
     DRIVE = 1
     DRIVE_INLINE = 2
     INLINE = 3
@@ -85,14 +86,14 @@ class FileKind(IdEnum):
 
 
 @enum_(EnumType.FILE_RETENTION_MODE)
-class FileRetentionMode(IdEnum):
+class FileRetentionMode(BuiltinEnum):
     AUTOMATIC = 1  # garbage collected if no references
     MANUAL = 2  # never garbage collected
     TIMED = 3  # delete after a certain time
 
 
 @enum_(EnumType.FILE_TYPE)
-class FileType(IdEnum):
+class FileType(BuiltinEnum):
     TEXT = 1
     CODE = 2
     IMAGE = 3
@@ -106,7 +107,7 @@ class FileType(IdEnum):
 
 
 @enum_(EnumType.FILE_FORMAT)
-class FileFormat(IdEnum):  # :FileFormats
+class FileFormat(BuiltinEnum):  # :FileFormats
     """The format of a file (roughly an extension)."""
 
     # text

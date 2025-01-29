@@ -11,7 +11,7 @@ from bench.language import (
     Node,
     PrimitiveType,
 )
-from bench.utils.func import IdEnum
+from bench.language.core import BuiltinEnum
 from bench.utils.string import Casing, to_casing
 
 from .core import Enum, EnumValue, Field, FieldType, Message, ProtoSchema, ProtoThing
@@ -40,7 +40,7 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, FieldType] = {
     PrimitiveType.JSON: FieldType.VALUE,
 }
 
-_ThingType = type[Union["BuiltinObject", "Property", IdEnum, enum.IntFlag]]
+_ThingType = type[Union["BuiltinObject", "Property", BuiltinEnum, enum.IntFlag]]
 
 
 def map_bench_property_to_proto(
@@ -117,13 +117,15 @@ def map_builtin_object_to_proto(
 
 
 def map_builtin_enum_to_proto(
-    bench_t: type[IdEnum] | type[enum.IntFlag],
+    bench_t: type[BuiltinEnum] | type[enum.IntFlag],
     cache: dict[_ThingType, ProtoThing],
     alias: str | None = None,
 ) -> Enum:
-    assert issubclass(bench_t, (IdEnum, enum.IntEnum, enum.IntFlag)), f"invalid enum: {bench_t!r}"
+    assert issubclass(
+        bench_t, (BuiltinEnum, enum.IntEnum, enum.IntFlag)
+    ), f"invalid enum: {bench_t!r}"
     enum_prefix = to_casing(alias or bench_t.__name__, Casing.ALL_CAPS) + "_"
-    if issubclass(bench_t, IdEnum):
+    if issubclass(bench_t, BuiltinEnum):
         enum_values = [
             EnumValue(id=member.id, name=enum_prefix + member.name) for member in bench_t
         ]
@@ -155,7 +157,7 @@ def map_object_type_to_proto(
         return cache[bench_t]
     if issubclass(bench_t, BuiltinObject):
         ret = map_builtin_object_to_proto(bench_t, cache, alias=alias)
-    elif issubclass(bench_t, (IdEnum, enum.IntFlag)):
+    elif issubclass(bench_t, (BuiltinEnum, enum.IntFlag)):
         ret = map_builtin_enum_to_proto(bench_t, cache, alias=alias)
     else:
         raise TypeError(f"invalid bench type: {bench_t!r}")
@@ -180,7 +182,7 @@ def map_object_subtype_to_proto(
 
 def generate_proto_schema(
     name: str,
-    unions: dict[str, tuple[str, Collection[type[Union["BuiltinObject", IdEnum]]]]],
+    unions: dict[str, tuple[str, Collection[type[Union["BuiltinObject", BuiltinEnum]]]]],
     extras: list[Enum | Message],
     message_postfix: str = "",
 ) -> ProtoSchema:
@@ -190,7 +192,7 @@ def generate_proto_schema(
     proto_types: list[Enum | Message] = []
     # enums
     for enum_t in EnumType:
-        enum_cls = cast(type[IdEnum], BENCH_CLASS_BY_TYPE[enum_t])
+        enum_cls = cast(type[BuiltinEnum], BENCH_CLASS_BY_TYPE[enum_t])
         proto_types.append(map_builtin_enum_to_proto(enum_cls, proto_types_cache))
     # structs
     for struct_cls in STRUCT_CLASS_BY_TYPE.values():

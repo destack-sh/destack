@@ -6,6 +6,9 @@ from bench.language.core import (
     NODE_TYPES,
     OWNER_TYPES,
     TITLE_CONSTRAINT,
+    BuiltinEnum,
+    ColorShade,
+    ColorType,
     EnumType,
     LocalNodeList,
     Node,
@@ -29,7 +32,6 @@ from bench.language.core import (
 )
 from bench.pb2 import SpaceData, ViewData
 from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -46,7 +48,7 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.VIEW_TYPE)
-class ViewType(IdEnum):
+class ViewType(BuiltinEnum):
     #
     # Intrinsics (0-30000)
     #
@@ -175,61 +177,6 @@ class ViewType(IdEnum):
     # ...
 
 
-@enum_(EnumType.COLOR_TYPE)
-class ColorType(IdEnum):
-    """Built-in color types a la SwiftUI or Tailwind."""
-
-    # surface
-    PRIMARY = 1
-    SECONDARY = 2
-    ACCENT = 3
-    CANVAS = 4
-    # semantic
-    SUCCESS = 10
-    HINT = 11
-    WARNING = 12
-    DANGER = 13
-    # actual
-    GRAY = 30
-    RED = 31
-    ORANGE = 32
-    AMBER = 33
-    YELLOW = 34
-    LIME = 35
-    GREEN = 36
-    EMERALD = 37
-    TEAL = 38
-    CYAN = 39
-    SKY = 40
-    BLUE = 41
-    INDIGO = 42
-    VIOLET = 43
-    PURPLE = 44
-    FUCHSIA = 45
-    PINK = 46
-    ROSE = 47
-
-
-@enum_(EnumType.COLOR_SHADE)
-class ColorShade(IdEnum):
-    """Built-in color shades a la Tailwind."""
-
-    # surface
-    ...
-    # actual
-    S50 = 50
-    S100 = 100
-    S200 = 200
-    S300 = 300
-    S400 = 400
-    S500 = 500
-    S600 = 600
-    S700 = 700
-    S800 = 800
-    S900 = 900
-    S950 = 950
-
-
 @struct_(StructType.COLOR)
 class Color(Struct):
     """A color value."""
@@ -256,14 +203,14 @@ def to_color(color: ColorIn) -> Color:
 
 
 @enum_(EnumType.FONT_TYPE)
-class FontType(IdEnum):
+class FontType(BuiltinEnum):
     SERIF = 1
     SANS = 2
     MONO = 3
 
 
 @enum_(EnumType.FONT_WEIGHT)
-class FontWeight(IdEnum):
+class FontWeight(BuiltinEnum):
     THIN = 100
     EXTRA_LIGHT = 200
     LIGHT = 300
@@ -276,7 +223,7 @@ class FontWeight(IdEnum):
 
 
 @enum_(EnumType.FONT_SIZE)
-class FontSize(IdEnum):
+class FontSize(BuiltinEnum):
     XS = 12
     SM = 14
     BASE = 16
@@ -300,7 +247,7 @@ class Font(Struct):
 
 
 @enum_(EnumType.SPACING)
-class Spacing(IdEnum):
+class Spacing(BuiltinEnum):
     """
     The spacing scale for positions, padding, margin, etc. We don't enforce this.
     """
@@ -338,7 +285,7 @@ class Spacing(IdEnum):
 
 
 @enum_(EnumType.ANCHOR)
-class Anchor(IdEnum):
+class Anchor(BuiltinEnum):
     """An anchor in 2D space."""
 
     TOP = 1
@@ -435,7 +382,7 @@ class Line(Struct):
 
 
 @enum_(EnumType.ORIENTATION)
-class Orientation(IdEnum):
+class Orientation(BuiltinEnum):
     """Which way to orient the contents/subviews of a view."""
 
     HORIZONTAL = 1
@@ -445,7 +392,7 @@ class Orientation(IdEnum):
 
 
 @enum_(EnumType.ALIGNMENT)
-class Alignment(IdEnum):
+class Alignment(BuiltinEnum):
     """How to align the contents/subviews of a view along its orientation."""
 
     START = 1
@@ -576,7 +523,7 @@ class ObjectView(View):
 
 
 @enum_(EnumType.USER_WIZARD_STAGE)
-class UserWizardViewStage(IdEnum):
+class UserWizardViewStage(BuiltinEnum):
     """The stage of a User view."""
 
     SIGN_UP = 1
@@ -593,7 +540,7 @@ class ChatView(View): ...
 
 
 @enum_(EnumType.HUB_ASPECT)
-class HubAspect(IdEnum):
+class HubAspect(BuiltinEnum):
     BENCH = 1
     ACTIVITY = 2
     CATALOG = 3
@@ -606,7 +553,7 @@ class HubView(View):
 
 
 @enum_(EnumType.HELP_ASPECT)
-class HelpAspect(IdEnum):
+class HelpAspect(BuiltinEnum):
     DETAIL = 1
     RUN = 2
     CHAT = 3
@@ -637,7 +584,7 @@ class ListView(View):
 
 
 @enum_(EnumType.TREE_VIEW_PRESET)
-class TreeViewPreset(IdEnum):
+class TreeViewPreset(BuiltinEnum):
     EXPLORE = 1
     OUTLINE = 2
 
@@ -678,7 +625,7 @@ class FeedView(View):
 
 
 @enum_(EnumType.BUTTON_VARIANT)
-class ButtonVariant(IdEnum):
+class ButtonVariant(BuiltinEnum):
     PRIMARY = 1
     SECONDARY = 2
     LINK = 3
@@ -701,7 +648,7 @@ class ButtonView(View):
 
 
 @enum_(EnumType.PICKER_VARIANT)
-class PickerVariant(IdEnum):
+class PickerVariant(BuiltinEnum):
     MULTI_TOGGLE = 1
     DROPDOWN = 2
     DROPDOWN_LARGE = 3
@@ -731,7 +678,7 @@ class IconView(View):
 
 
 @enum_(EnumType.SPACE_TYPE)
-class SpaceType(IdEnum):
+class SpaceType(BuiltinEnum):
     DESKTOP = 10
     BROWSER = 20
     MOBILE = 30
@@ -774,7 +721,7 @@ class Space(SourceNode[SpaceData]):
 
 
 @enum_(EnumType.ICON_KIND)
-class IconKind(IdEnum):
+class IconKind(BuiltinEnum):
     EMOJI = 1
     FONT_AWESOME = 3
     VS_CODE = 4
