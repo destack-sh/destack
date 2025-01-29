@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from dateutil.rrule import rrule
 
 from bench.language.core import (
+    BuiltinEnum,
     Day,
     EnumType,
     Month,
@@ -13,7 +14,6 @@ from bench.language.core import (
     p_regular,
     struct_,
 )
-from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     pass
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.SCHEDULE_FREQUENCY)
-class ScheduleFrequency(IdEnum):
+class ScheduleFrequency(BuiltinEnum):
     YEAR = 1
     MONTH = 2
     WEEK = 3

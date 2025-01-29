@@ -4,9 +4,7 @@ from uuid import UUID
 
 import regex
 
-from bench.utils.func import IdEnum
-
-from .const import EnumType, NodeType, StructType, enum_
+from .const import BuiltinEnum, EnumType, NodeType, StructType, enum_
 from .node import BenchNode, Node, NodeReference
 from .object import BuiltinObject, object_
 from .property import p_regular
@@ -37,7 +35,7 @@ class TextOptionsBase(BuiltinObject):
 
 
 @enum_(EnumType.TEXT_LINE_TYPE)
-class TextLineType(IdEnum):
+class TextLineType(BuiltinEnum):
     PLAIN = 1
     # heading
     HEADING_1 = 10

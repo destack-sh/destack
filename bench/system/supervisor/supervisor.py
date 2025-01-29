@@ -26,6 +26,7 @@ from bench.language import (
     User,
     UserStatus,
 )
+from bench.language.core import bittuple
 from bench.proto import (
     ChangeUserPasswordRequest,
     ChangeUserPasswordResponse,
@@ -58,7 +59,7 @@ from bench.system.core import (
     purge_client_caches,
 )
 from bench.system.graph import GraphIoServiceBase
-from bench.utils.func import bittuple, generate_access_token, generate_salt, to_uuid
+from bench.utils.func import generate_access_token, generate_salt, to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 

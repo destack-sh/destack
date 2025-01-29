@@ -15,6 +15,7 @@ from pydantic import JsonValue
 from bench import pb2
 from bench.language.core import (
     NULL_SUPERGRAPH,
+    BuiltinEnumOrUnion,
     BuiltinObject,
     Connection,
     CustomObject,
@@ -38,7 +39,6 @@ from bench.language.core import (
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE
 from bench.language.runtime import Session
 from bench.pb2 import AnyNodeData, AnyStructData, NodeReferenceData, RpcMetadata
-from bench.utils.func import IdEnumOrUnion
 from bench.utils.string import Casing, to_casing
 
 logger = structlog.get_logger(__name__)
@@ -66,11 +66,11 @@ def copy_struct[T: AnyStructData | AnyNodeData](data: T) -> T:
     return copy
 
 
-def pack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: EnumT) -> Any:
+def pack_enum[EnumT: BuiltinEnumOrUnion](enum_cls: type[EnumT], value: EnumT) -> Any:
     return value
 
 
-def unpack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: Any) -> EnumT:
+def unpack_enum[EnumT: BuiltinEnumOrUnion](enum_cls: type[EnumT], value: Any) -> EnumT:
     return enum_cls(value)
 
 

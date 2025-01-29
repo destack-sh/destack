@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from bench.language.core import (
     BlockType,
+    BuiltinEnum,
     CustomObject,
     EnumType,
     FieldType,
@@ -18,7 +19,6 @@ from bench.language.core import (
     p_value_runtime,
     struct_,
 )
-from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import Action, Block, CustomObject, NodeReference, Text, TypeBase
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.CALL_EXECUTION_MODE)
-class CallExecutionMode(IdEnum):
+class CallExecutionMode(BuiltinEnum):
     """How to execute Calls."""
 
     SERIAL = 1, "Run calls after each other"
@@ -36,7 +36,7 @@ class CallExecutionMode(IdEnum):
 
 
 @enum_(EnumType.CALL_FAILURE_MODE)
-class CallFailureMode(IdEnum):
+class CallFailureMode(BuiltinEnum):
     """What to do when a Call fails."""
 
     FAIL = 1, "Fail the plan"
@@ -45,7 +45,7 @@ class CallFailureMode(IdEnum):
 
 
 @enum_(EnumType.CALL_TERMINATION_MODE)
-class CallTerminationMode(IdEnum):
+class CallTerminationMode(BuiltinEnum):
     """What to do when a Call terminates."""
 
     PASS = 1, "Do nothing"

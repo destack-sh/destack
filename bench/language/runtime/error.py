@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
     BenchError,
+    BuiltinEnum,
     EnumType,
     ErrorKind,
     Node,
@@ -16,7 +17,6 @@ from bench.language.core import (
     p_regular,
     struct_,
 )
-from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
@@ -41,7 +41,7 @@ class RunFrame(Struct):
 
 
 @enum_(EnumType.ERROR_TYPE)
-class ErrorType(IdEnum):
+class ErrorType(BuiltinEnum):
     # unretryable
     ABORTED = 2
     RUNTIME_UNAVAILABLE = 3

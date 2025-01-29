@@ -37,7 +37,7 @@ from bench.language.registry import (
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.env import IS_DEV, IS_TEST
-from bench.utils.func import IdEnum, bittuple, dualmethod, stable_hash
+from bench.utils.func import dualmethod, stable_hash
 from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
@@ -52,6 +52,7 @@ from .const import (
     PACKAGE_NODE_TYPES,
     UNSET,
     BlockType,
+    BuiltinEnum,
     FieldType,
     NodeArea,
     NodeMode,
@@ -62,6 +63,7 @@ from .const import (
     StructType,
     TypeKind,
     active_session,
+    bittuple,
 )
 from .graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph
 from .list import LocalNodeList, attach_node
@@ -243,7 +245,7 @@ def node_(
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def subnode_(
-    subtype: IdEnum,
+    subtype: BuiltinEnum,
     passthrough_get: str | tuple[str, ...] | None = None,
     passthrough_set: str | tuple[str, ...] | None = None,
 ):
@@ -417,12 +419,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __ck_factory__: ClassVar[Callable[[], UUID]] = uuid4
 
     __node_child_properties__: ClassVar[dict[str, Property]] = frozendict()
-    __subclass_by_subtype__: ClassVar[dict[IdEnum, type["Node"]]] = frozendict()
-    __subtype_by_subclass__: ClassVar[dict[type["Node"], IdEnum]] = frozendict()
+    __subclass_by_subtype__: ClassVar[dict[BuiltinEnum, type["Node"]]] = frozendict()
+    __subtype_by_subclass__: ClassVar[dict[type["Node"], BuiltinEnum]] = frozendict()
     __has_subtypes__: ClassVar[bool] = False
     __base_class__: ClassVar[type["Node"] | None] = None
     __subtype_base_property__: ClassVar["Property | None"] = None
-    __subtype__: ClassVar[IdEnum | None] = None
+    __subtype__: ClassVar[BuiltinEnum | None] = None
     __subtype_extra_properties__: ClassVar[dict[str, Property]] = frozendict()
     __subtype_extra_original_properties__: ClassVar[dict[str, Property]] = frozendict()
 
@@ -1335,7 +1337,7 @@ class NodeSubtypeStub[NodeT: Node]:
 
     __slots__ = ("_name", "_node_cls", "_node_subtype", "_node_type")
 
-    def __init__(self, cls: type[NodeT], type: NodeType, subtype: IdEnum):
+    def __init__(self, cls: type[NodeT], type: NodeType, subtype: BuiltinEnum):
         self._node_cls = cls
         self._node_type = type
         self._node_subtype = subtype
@@ -1709,7 +1711,7 @@ def generate_node_name(
 ) -> str:
     """Generates a new name for the given node based on its siblings. :AutoNaming"""
     if metatype == NodeType.BLOCK or metatype == NodeType.VIEW or metatype == NodeType.ACTION:
-        assert isinstance(type, IdEnum), f"expected type for {metatype!r}, got {type!r}"
+        assert isinstance(type, BuiltinEnum), f"expected type for {metatype!r}, got {type!r}"
         base_name = to_casing(type.name, Casing.CAMEL)
         type_siblings = tuple(n for n in siblings if getattr(n, "type") == type)
     else:

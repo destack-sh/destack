@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
+    BuiltinEnum,
     EnumType,
     NodeType,
     PrimitiveType,
@@ -14,7 +15,6 @@ from bench.language.core import (
     struct_,
 )
 from bench.pb2.lang_pb2 import BrowserData
-from bench.utils.func import IdEnum
 
 from .resource import DynamicResource
 
@@ -50,7 +50,7 @@ class DomNode(Struct):
 
 
 @enum_(EnumType.BROWSER_TYPE)
-class BrowserType(IdEnum):
+class BrowserType(BuiltinEnum):
     CHROMIUM = 1
 
 

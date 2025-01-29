@@ -1,4 +1,5 @@
 from bench.language.core import (
+    BuiltinEnum,
     EnumType,
     NodeType,
     constraint,
@@ -9,7 +10,6 @@ from bench.language.core import (
     subnode_,
 )
 from bench.pb2.lang_pb2 import ScalerData
-from bench.utils.func import IdEnum
 
 from .resource import StaticResource
 
@@ -17,14 +17,14 @@ from .resource import StaticResource
 
 
 @enum_(EnumType.SCALER_TYPE)
-class ScalerType(IdEnum):
+class ScalerType(BuiltinEnum):
     # NOTE: should match respective NodeType
     MACHINE = 2100
     BROWSER = 2150
 
 
 @enum_(EnumType.SCALER_STRATEGY)
-class ScalerStrategy(IdEnum):
+class ScalerStrategy(BuiltinEnum):
     MANUAL = 1
     AUTO = 2
 

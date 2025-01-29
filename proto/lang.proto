@@ -3641,7 +3641,7 @@ message RecordData {
   optional google.protobuf.Value value_packed = 40;
 }
 
-enum IdEnum {
+enum BuiltinEnum {
   ID_ENUM_UNSPECIFIED = 0;
 }
 

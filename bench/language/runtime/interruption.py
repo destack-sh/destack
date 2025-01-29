@@ -5,6 +5,7 @@ from git import TYPE_CHECKING
 
 from bench.language import TITLE_CONSTRAINT
 from bench.language.core import (
+    BuiltinEnum,
     CustomObject,
     EnumType,
     FieldType,
@@ -27,7 +28,6 @@ from bench.language.core import (
 )
 from bench.pb2 import AnyNodeData
 from bench.pb2.lang_pb2 import InterruptionData, NodeReferenceData
-from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.BREAKPOINT_SITE)
-class BreakpointSite(IdEnum):
+class BreakpointSite(BuiltinEnum):
     # run
     RUN_BEFORE = 1
     RUN_AFTER_FAILED = 2
@@ -59,7 +59,7 @@ class BreakpointSite(IdEnum):
 
 
 @enum_(EnumType.BREAKPOINT_TARGET)
-class BreakpointScope(IdEnum):
+class BreakpointScope(BuiltinEnum):
     # general
     SELF = 1
     CHILD = 2
@@ -70,7 +70,7 @@ class BreakpointScope(IdEnum):
 
 
 @enum_(EnumType.BREAKPOINT_ACTION)
-class BreakpointAction(IdEnum):
+class BreakpointAction(BuiltinEnum):
     YIELD = 1
     # LOG, FAIL, ...?
 
@@ -116,7 +116,7 @@ class Breakpoint(Struct):
 
 
 @enum_(EnumType.INTERRUPTION_TYPE)
-class InterruptionType(IdEnum):
+class InterruptionType(BuiltinEnum):
     PAUSE = 10  # external pause
     YIELD = 20  # voluntary yield
     WAIT = 30  # wait on something
@@ -133,7 +133,7 @@ INTERRUPTION_TYPE_BY_RUN_STATUS: dict[RunStatus, InterruptionType] = {
 
 
 @enum_(EnumType.INTERRUPTION_STATUS)
-class InterruptionStatus(IdEnum):  # NOTE: see RunStatus
+class InterruptionStatus(BuiltinEnum):  # NOTE: see RunStatus
     OPEN = 10
     CANCELLED = 30
     COMPLETED = 33
@@ -148,7 +148,7 @@ class InterruptionStatus(IdEnum):  # NOTE: see RunStatus
 
 
 @enum_(EnumType.YIELD_RESPONSE)
-class YieldResponse(IdEnum):
+class YieldResponse(BuiltinEnum):
     ACCEPT = 10
     REJECT = 20
     # CRITIQUE/EDIT, ...?

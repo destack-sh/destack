@@ -9,6 +9,7 @@ from bench.language.core import (
     REGION,
     TITLE_CONSTRAINT,
     BenchNode,
+    BuiltinEnum,
     EnumType,
     HasTrace,
     Node,
@@ -17,6 +18,7 @@ from bench.language.core import (
     Region,
     StructType,
     active_session,
+    bittuple,
     enum_,
     node_component,
     p_internal,
@@ -25,7 +27,6 @@ from bench.language.core import (
     p_system,
 )
 from bench.pb2 import AnyNodeData
-from bench.utils.func import IdEnum, bittuple
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -40,7 +41,7 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.RESOURCE_STATUS)
-class ResourceStatus(IdEnum):
+class ResourceStatus(BuiltinEnum):
     """Generalized status of a Resource in its lifecycle."""
 
     # definition
@@ -60,7 +61,7 @@ class ResourceStatus(IdEnum):
 
 
 @enum_(EnumType.RESOURCE_OCCUPANCY)
-class ResourceOccupancy(IdEnum):
+class ResourceOccupancy(BuiltinEnum):
     """The occupancy of a resource (i.e. whether/how it's being used)."""
 
     AVAILABLE = 1

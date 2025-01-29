@@ -6,6 +6,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import Bench, Block, BlockType, Field, NodeType, Package, Session
+from bench.language.core import bittuple
 from bench.sql import (
     BENCH_RECORD_TABLE_PREFIX,
     BenchSqlContext,
@@ -20,7 +21,6 @@ from bench.sql import (
 )
 from bench.system.graph import PostgresChannel
 from bench.system.host.core import Commit, Host, HostPlugin
-from bench.utils.func import bittuple
 
 if TYPE_CHECKING:
     pass

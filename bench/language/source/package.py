@@ -5,6 +5,7 @@ from bench.language.core import (
     NAME_CONSTRAINT,
     OWNER_TYPES,
     SLUG_CONSTRAINT,
+    BuiltinEnum,
     EnumType,
     LocalNodeList,
     NodeType,
@@ -20,7 +21,6 @@ from bench.language.core import (
 from bench.pb2 import (
     PackageData,
 )
-from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, Dependency, Icon, Space, Text
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.PACKAGE_TYPE)
-class PackageType(IdEnum):
+class PackageType(BuiltinEnum):
     ROOT = 1
     SIDE = 5
     SNAPSHOT = 10

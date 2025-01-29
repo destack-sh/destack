@@ -1,12 +1,11 @@
+from enum import IntEnum
 from typing import assert_never
 
 import cachetools
 import regex
 
-from bench.utils.func import IdEnum
 
-
-class Casing(IdEnum):
+class Casing(IntEnum):
     SNAKE = 1
     CAMEL = 2
     LOWER_CAMEL = 3

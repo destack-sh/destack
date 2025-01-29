@@ -43,6 +43,7 @@ from bench.language.core import (
     SplitChannel,
     Struct,
     StructType,
+    bittuple,
     p_internal,
     p_node_parent,
     p_runtime,
@@ -64,7 +65,7 @@ from bench.pb2 import (
     lang_pb2,
 )
 from bench.pb2.lang_pb2 import EditOperationData
-from bench.utils.func import async_shield, bittuple, uuid_to_str
+from bench.utils.func import async_shield, uuid_to_str
 from bench.utils.oracle import Oracle
 from bench.utils.sync import CriticalLock
 from bench.utils.uuidt import UUIDT

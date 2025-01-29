@@ -51,6 +51,7 @@ from bench.language import (
     pack_value_scalar,
     patch_graph,
 )
+from bench.language.core import bittuple
 from bench.proto import (
     DownloadFilesRequest,
     DownloadFilesResponse,
@@ -79,7 +80,7 @@ from bench.system.graph import (
 )
 from bench.system.provision import Provisioner, get_provisioners
 from bench.utils.env import ENV
-from bench.utils.func import bittuple, to_uuid
+from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 

@@ -16,7 +16,7 @@ from bench.language import (
     RunSpan,
     RunSpanType,
 )
-from bench.utils.func import IdEnum
+from bench.language.core import BuiltinEnum
 
 if TYPE_CHECKING:
     pass
@@ -32,7 +32,7 @@ class PromptPart:
     title: str | None
 
 
-class PromptPartType(IdEnum):
+class PromptPartType(BuiltinEnum):
     BREAK = 1
     TEXT = 2
     FILE = 3

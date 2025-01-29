@@ -21,7 +21,6 @@ from bench import pb2
 from bench.language.registry import CHILD_NODE_TYPES, _on_completing_setup
 from bench.pb2 import AnyNodeData, EditData, NodeReferenceData
 from bench.pb2.lang_pb2 import SkipData
-from bench.utils.func import IdEnum, bittuple
 
 from .const import (
     ACCESS_CLASSES,
@@ -34,6 +33,7 @@ from .const import (
     AccessType,
     BenchError,
     BlockType,
+    BuiltinEnum,
     EditType,
     NodeType,
     ObjectType,
@@ -41,6 +41,7 @@ from .const import (
     QueryType,
     StructType,
     UseType,
+    bittuple,
     new_struct_id,
 )
 from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
@@ -427,7 +428,7 @@ class Subject(Struct):
         return tuple(subjects)
 
 
-def _enums_to_mask(values: list[IdEnum], cls: type[IdEnum]) -> bitarray:
+def _enums_to_mask(values: list[BuiltinEnum], cls: type[BuiltinEnum]) -> bitarray:
     """Set the given values in a mask. No values == all values == wildcard!"""
     mask = bitarray(cls.get_max_ord() + 1)
     if not values:

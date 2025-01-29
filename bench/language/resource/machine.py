@@ -4,6 +4,7 @@ from bench.language.core import (
     CPU_CONSTRAINT,
     RAM_CONSTRAINT,
     VERSION,
+    BuiltinEnum,
     EnumType,
     NodeType,
     Struct,
@@ -17,7 +18,6 @@ from bench.language.core import (
     struct_,
 )
 from bench.pb2.lang_pb2 import MachineData
-from bench.utils.func import IdEnum
 
 from .resource import DynamicResource
 
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.MACHINE_TYPE)
-class MachineType(IdEnum):
+class MachineType(BuiltinEnum):
     RUNTIME = 1  # our own Bench runtime
     # IMAGE = 2  # custom Machine/Docker image
 

@@ -15,10 +15,18 @@ from uuid import UUID
 import regex
 from cachetools import LRUCache, cached
 
-from bench.utils.func import IdEnum
 from bench.utils.string import to_code_name
 
-from .const import EMPTY_DICT, BenchError, BlockType, EnumType, NodeType, StructType, enum_
+from .const import (
+    EMPTY_DICT,
+    BenchError,
+    BlockType,
+    BuiltinEnum,
+    EnumType,
+    NodeType,
+    StructType,
+    enum_,
+)
 from .node import BenchNode, HasContext, Node, NodeReference, RunnableNode, SourceNode
 from .object import PropertyReference
 from .property import Property, p_regular
@@ -52,7 +60,7 @@ class PathLookupError(PathError, LookupError):
 
 
 @enum_(EnumType.PATH_ELEMENT_TYPE)
-class PathElementType(IdEnum):
+class PathElementType(BuiltinEnum):
     # absolute
     ROOT = 1
     BENCH = 2
@@ -72,7 +80,7 @@ class PathElementType(IdEnum):
 
 
 @enum_(EnumType.PATH_RUN_SELECTOR)
-class PathRunSelector(IdEnum):
+class PathRunSelector(BuiltinEnum):
     LATEST = 1
 
 

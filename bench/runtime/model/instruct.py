@@ -30,10 +30,10 @@ from bench.language import (
     TypeBase,
     _is_setup_complete,
 )
+from bench.language.core import BuiltinEnum
 from bench.language.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from bench.language.source.project import get_containing_pages
 from bench.runtime.core import Runner
-from bench.utils.func import IdEnum
 
 from .prompt import (
     Prompt,
@@ -284,8 +284,8 @@ def render_builtin_hierarchy(root_cls: type[BuiltinObject]) -> str:
     return "\n".join(lines)
 
 
-def render_builtin_enum(cls: type[IdEnum], compact: bool) -> str:
-    """Render an IdEnum to a string, either compact single line or multiline with descriptions."""
+def render_builtin_enum(cls: type[BuiltinEnum], compact: bool) -> str:
+    """Render an BuiltinEnum to a string, either compact single line or multiline with descriptions."""
     if compact:
         enum_str = f"{cls.__name__} = {' | '.join(o.name for o in cls)}"
     else:

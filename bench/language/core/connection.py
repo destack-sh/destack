@@ -45,7 +45,7 @@ from bench.pb2.common_pb2 import RpcMetadata
 from bench.pb2.lang_pb2 import ExpressionData
 from bench.pb2.system_grpc import GraphIOClient, HostClient, SupervisorClient
 from bench.pb2.system_pb2 import WatchGetRequest, WatchSearchRequest
-from bench.utils.func import bittuple, group_by, repr_enums
+from bench.utils.func import group_by
 from bench.utils.task import create_task
 from bench.utils.tenacity import RETRY_GRPC, RETRY_GRPC_FOREVER, RetryOptions
 
@@ -55,6 +55,8 @@ from .const import (
     EditType,
     NodeType,
     QueryType,
+    bittuple,
+    repr_enums,
 )
 from .expression import C
 from .graph import NodeDataGraph, NodeGraph

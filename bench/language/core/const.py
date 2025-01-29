@@ -1,15 +1,30 @@
 import contextvars
+import enum
+import functools
 import secrets
 import typing
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Generator, Mapping, Optional, TypeGuard, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Collection,
+    Generator,
+    Iterable,
+    Mapping,
+    Optional,
+    TypeGuard,
+    TypeVar,
+    Union,
+    cast,
+)
 from uuid import UUID, uuid4, uuid5
 
+from bitarray import bitarray
+from more_itertools import first
 from opentelemetry.trace import Tracer
 from opentelemetry.util._decorator import _agnosticcontextmanager
 
-from bench.utils.func import IdEnum, bittuple
 from bench.utils.utils import frozendict, get_from_env
 
 if TYPE_CHECKING:
@@ -51,16 +66,121 @@ def new_struct_id() -> int:
     return id
 
 
-# NOTE: we have the enum registry here to avoid circular imports
-_ENUM_CLASS_BY_TYPE: dict["EnumType", type[IdEnum]] = {}
+#
+# Builtin Enums
+#
 
-IdEnumT = typing.TypeVar("IdEnumT", bound=IdEnum)
+_MIN_ID_BY_ENUM: dict[type, int] = {}
+_MAX_ID_BY_ENUM: dict[type, int] = {}
+
+BuiltinEnumT = TypeVar("BuiltinEnumT", bound="BuiltinEnum")
+
+
+class BuiltinEnum(enum.IntEnum):
+    id: int
+    ord: int
+    text: str | None
+    title: str | None
+    color: "ColorType | None"
+    icon: str | None
+
+    def __new__(
+        cls,
+        id: int,
+        text: str | None = None,
+        *,
+        title: str | None = None,
+        color: "ColorType | None" = None,
+        icon: str | None = None,
+    ):
+        obj = int.__new__(cls, id)
+        obj._value_ = id
+        obj.ord = len(cls)
+        obj.id = id
+        obj.text = text
+        obj.title = title
+        obj.color = color
+        obj.icon = icon
+        obj.__doc__ = text
+
+        # check id
+        assert id > 0, f"invalid id {id}"
+        existing = first((v for v in cls if v.id == id), None)
+        assert existing is None, f"{cls} has duplicate id {id} for {id} and {existing}"
+
+        return obj
+
+    @functools.cached_property
+    def bench_name(self):
+        from bench.utils.string import Casing, to_casing
+
+        return to_casing(self.name, Casing.CAMEL)
+
+    @classmethod
+    def get_min_id(cls) -> int:
+        """Get the minimum id."""
+        if cls not in _MIN_ID_BY_ENUM:
+            _MIN_ID_BY_ENUM[cls] = min(v.id for v in cls)
+        return _MIN_ID_BY_ENUM[cls]
+
+    @classmethod
+    def get_max_id(cls) -> int:
+        """Get the maximum id."""
+        if cls not in _MAX_ID_BY_ENUM:
+            _MAX_ID_BY_ENUM[cls] = max(v.id for v in cls)
+        return _MAX_ID_BY_ENUM[cls]
+
+    @classmethod
+    def get_min_ord(cls) -> int:
+        """Get the minimum ord."""
+        return 0
+
+    @classmethod
+    def get_max_ord(cls) -> int:
+        """Get the maximum ord."""
+        return len(cls)
+
+    def to(self, combined_type: Union["BuiltinEnumT", "BuiltinEnumOrUnion"]) -> "BuiltinEnumT":
+        return combined_type(self.id)  # type: ignore
+
+    @staticmethod
+    def combine(name: str, *enums: type["BuiltinEnum"]) -> type["BuiltinEnum"]:
+        combined_ids = {}
+        for e in enums:
+            for t in e:
+                if t.name in combined_ids:
+                    raise ValueError(f"duplicate enum name: {t.name} from {enums}")
+                combined_ids[t.name] = t.id
+        combined = BuiltinEnum(name, combined_ids)
+        return typing.cast(type["BuiltinEnum"], combined)
+
+
+BuiltinEnumOrUnion = Union[BuiltinEnum, Union[BuiltinEnum, Any]]
+# NOTE: BuiltinEnumOrOnion is intended for stuff like AccessType = BuiltinEnum.combine("AccessType", ReadType, ...)
+#  But for type checking we have it as AccessType = ReadType | ...
+#  So we make these methods accept 'Any' for compliance. Not great but it's a small footprint.
+EnumT = TypeVar("EnumT", bound=BuiltinEnum)
+_ENUM_MEMBERS_BY_ORD: dict[type[BuiltinEnum], list[BuiltinEnum]] = {}
+
+
+def _get_enum_members_by_ord(enum_cls: type[BuiltinEnum]) -> list[BuiltinEnum]:
+    if enum_cls not in _ENUM_MEMBERS_BY_ORD:
+        _ENUM_MEMBERS_BY_ORD[enum_cls] = list(enum_cls.__members__.values())
+    return _ENUM_MEMBERS_BY_ORD[enum_cls]
+
+
+# noinspection PyPep8Naming
+
+# NOTE: we have the enum registry here to avoid circular imports
+_ENUM_CLASS_BY_TYPE: dict["EnumType", type[BuiltinEnum]] = {}
+
+BuiltinEnumT = typing.TypeVar("BuiltinEnumT", bound=BuiltinEnum)
 
 
 def enum_(enum_type: "EnumType"):
     """Register a Bench enum."""
 
-    def register_enum(cls: type[IdEnumT]) -> type[IdEnumT]:
+    def register_enum(cls: type[BuiltinEnumT]) -> type[BuiltinEnumT]:
         if enum_type in _ENUM_CLASS_BY_TYPE:
             raise ValueError(f"enum {enum_type} duplicate: {_ENUM_CLASS_BY_TYPE[enum_type]}")
         _ENUM_CLASS_BY_TYPE[enum_type] = cls
@@ -69,13 +189,88 @@ def enum_(enum_type: "EnumType"):
     return register_enum
 
 
+class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
+    """
+    Tuple with a bitarray for fast membership check.
+    We accept only BuiltinEnum instances because we use its ordinals for a compact bitarray.
+    """
+
+    def __init__(self, *items: EnumT, enum_cls: type[EnumT] | Union[EnumT, Any] | None = None):
+        if len(items) == 1 and isinstance(items[0], Collection):
+            items = items[0] if type(items[0]) is tuple else tuple(items[0])
+        self.tuple = items
+        if enum_cls is None:
+            assert len(items) > 0, "enum_cls or args is required"
+            enum_cls = items[0].__class__
+        assert isinstance(enum_cls, type) and issubclass(
+            enum_cls, BuiltinEnum
+        ), f"invalid bittuple {enum_cls}: {items}"
+        self.enum_cls = enum_cls
+        self.bits = bitarray(enum_cls.get_max_ord() + 1)
+        for arg in items:
+            self.bits[arg.ord] = True
+
+    def __bool__(self):
+        return bool(self.tuple)
+
+    def has(self, item: EnumT) -> bool:
+        """Checks whether the item is of the correct type and is in the tuple."""
+        assert isinstance(item, self.enum_cls), f"want {self.enum_cls}, got {item!r} ({type(item)})"
+        return bool(self.bits[item.ord])
+
+    def __contains__(self, item: Any) -> bool:
+        assert isinstance(item, self.enum_cls), f"want {self.enum_cls}, got {item!r} ({type(item)})"
+        return bool(self.bits[item.ord])
+
+    def __and__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
+        assert type(other) is bittuple, f"invalid type: {type(other)}"
+        assert (
+            self.enum_cls == other.enum_cls
+        ), f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
+        combined = self.bits & other.bits
+        ordered_members = _get_enum_members_by_ord(self.enum_cls)
+        items = tuple(ordered_members[o] for o in combined.search(True))
+        return bittuple(items, enum_cls=self.enum_cls)  # type: ignore
+
+    def __or__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
+        assert type(other) is bittuple, f"invalid type: {type(other)}"
+        assert (
+            self.enum_cls == other.enum_cls
+        ), f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
+        combined = self.bits | other.bits
+        ordered_members = _get_enum_members_by_ord(self.enum_cls)
+        items = tuple(ordered_members[o] for o in combined.search(True))
+        return bittuple(items, enum_cls=self.enum_cls)  # type: ignore
+
+    def __iter__(self):
+        return iter(self.tuple)
+
+    def __len__(self):
+        return len(self.tuple)
+
+    def __getitem__(self, index):
+        return self.tuple[index]
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.tuple})"
+
+    def __str__(self):
+        return f"{self.__class__.__name__}({self.tuple})"
+
+    @staticmethod
+    def from_ord(enum_cls: type[EnumT], ords: bitarray) -> "bittuple[EnumT]":
+        ordered_members = _get_enum_members_by_ord(enum_cls)
+        items = tuple(ordered_members[o] for o in ords.search(True))
+        return bittuple(items, enum_cls=enum_cls)  # type: ignore
+
+
 #
 # Enums
 # NOTE: enum/struct id 'regions' should be roughly in sync with each other
 #
 
 
-class EnumType(IdEnum):
+class EnumType(BuiltinEnum):
     #
     # Global (20000-21000)
     #
@@ -241,6 +436,8 @@ class EnumType(IdEnum):
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
+
+
 ENUM_TYPES: bittuple[EnumType] = bittuple(*EnumType)
 ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 
@@ -250,7 +447,7 @@ ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 
 
 @enum_(EnumType.NODE_TYPE)
-class NodeType(IdEnum):
+class NodeType(BuiltinEnum):
     #
     # Global (1-2000)
     #
@@ -375,7 +572,7 @@ class NodeType(IdEnum):
 
 
 @enum_(EnumType.NODE_AREA)
-class NodeArea(IdEnum):
+class NodeArea(BuiltinEnum):
     GLOBAL = 1
     REGIONAL = 2
     LOCAL = 3
@@ -450,7 +647,7 @@ USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT
 
 
 @enum_(EnumType.STRUCT_TYPE)
-class StructType(IdEnum):
+class StructType(BuiltinEnum):
     # intrinsic (10000-10499)
     CONTEXT = 10001
     EDIT_CONTEXT = 10002
@@ -539,9 +736,9 @@ if typing.TYPE_CHECKING:
     ObjectType = NodeType | StructType
     BenchType = NodeType | StructType | EnumType
 else:
-    ObjectType = IdEnum.combine("ObjectType", NodeType, StructType)
+    ObjectType = BuiltinEnum.combine("ObjectType", NodeType, StructType)
     enum_(EnumType.OBJECT_TYPE)(ObjectType)
-    BenchType = IdEnum.combine("BenchType", NodeType, StructType, EnumType)
+    BenchType = BuiltinEnum.combine("BenchType", NodeType, StructType, EnumType)
     enum_(EnumType.BENCH_TYPE)(BenchType)
 
 OBJECT_TYPES: bittuple[ObjectType] = bittuple(*ObjectType)  # type: ignore
@@ -549,24 +746,24 @@ OBJECT_TYPES_SET: frozenset[ObjectType] = frozenset(OBJECT_TYPES)
 BENCH_TYPES: bittuple[BenchType] = bittuple(*BenchType)  # type: ignore
 
 
-def is_node_type(obj: IdEnum | int | Any) -> TypeGuard[NodeType]:
+def is_node_type(obj: BuiltinEnum | int | Any) -> TypeGuard[NodeType]:
     return isinstance(obj, int) and obj in NODE_TYPES_SET
 
 
-def is_struct_type(obj: IdEnum | int | Any) -> TypeGuard[StructType]:
+def is_struct_type(obj: BuiltinEnum | int | Any) -> TypeGuard[StructType]:
     return isinstance(obj, int) and obj in STRUCT_TYPES_SET
 
 
-def is_object_type(obj: IdEnum | int | Any) -> TypeGuard[ObjectType]:
+def is_object_type(obj: BuiltinEnum | int | Any) -> TypeGuard[ObjectType]:
     return isinstance(obj, int) and obj in OBJECT_TYPES_SET
 
 
-def is_enum_type(obj: IdEnum | int | Any) -> TypeGuard[EnumType]:
+def is_enum_type(obj: BuiltinEnum | int | Any) -> TypeGuard[EnumType]:
     return isinstance(obj, int) and obj in ENUM_TYPES_SET
 
 
 @enum_(EnumType.CLOUD)
-class Cloud(IdEnum):
+class Cloud(BuiltinEnum):
     """The cloud provider."""
 
     # own
@@ -590,7 +787,7 @@ class Cloud(IdEnum):
 
 
 @enum_(EnumType.REGION_CONTINENT)
-class RegionContinent(IdEnum):
+class RegionContinent(BuiltinEnum):
     """
     'Continents' of Regions.
     """
@@ -626,7 +823,7 @@ REGION_CONTINENT_BY_SLUG = {v: k for k, v in REGION_CONTINENT_SLUGS.items()}
 
 
 @enum_(EnumType.REGION_AREA)
-class RegionArea(IdEnum):
+class RegionArea(BuiltinEnum):
     """
     A larger RegionArea of Regions within a RegionContinent.
     """
@@ -673,7 +870,7 @@ REGION_AREA_BY_SLUG = {v: k for k, v in REGION_AREA_SLUGS.items()}
 
 
 @enum_(EnumType.REGION)
-class Region(IdEnum):
+class Region(BuiltinEnum):
     """Regions in a RegionArea, comprising RegionZones."""
 
     # eu-central
@@ -726,7 +923,7 @@ class Region(IdEnum):
 
 
 @enum_(EnumType.REGION_ZONE)
-class RegionZone(IdEnum):
+class RegionZone(BuiltinEnum):
     """An available region within a specific Region."""
 
     ...
@@ -737,7 +934,7 @@ REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
 
 
 @enum_(EnumType.BLOCK_TYPE)
-class BlockType(IdEnum):
+class BlockType(BuiltinEnum):
     PAGE = 1, "Page of Blocks"
     TEXT = 2, "Line of rich Text"
 
@@ -785,7 +982,7 @@ class BlockTypes:
     CLASSES = bittuple(BlockType.MESSAGE, *RUNNABLE, BlockType.VARIABLE, BlockType.DATABASE)
 
 
-class ReferenceKind(IdEnum):
+class ReferenceKind(BuiltinEnum):
     """A reference to a Node or Struct - usually both have an identity (except for inlined Structs)."""
 
     NODE_ANCESTOR = 1
@@ -818,7 +1015,7 @@ class ReferenceKind(IdEnum):
 
 
 @enum_(EnumType.QUERY_TYPE)
-class QueryType(IdEnum):
+class QueryType(BuiltinEnum):
     """Ways to read nodes."""
 
     """Any direct read for specific nodes."""
@@ -834,7 +1031,7 @@ class QueryType(IdEnum):
 
 
 @enum_(EnumType.EDIT_TYPE)
-class EditType(IdEnum):
+class EditType(BuiltinEnum):
     """Ways to edit nodes."""
 
     CREATE = 20
@@ -851,7 +1048,7 @@ class EditType(IdEnum):
 
 
 @enum_(EnumType.CHANGE_CATEGORY)
-class ChangeCategory(IdEnum):
+class ChangeCategory(BuiltinEnum):
     """Optional classification for edits."""
 
     SPACE = 10
@@ -859,7 +1056,7 @@ class ChangeCategory(IdEnum):
 
 
 @enum_(EnumType.EDIT_OPERATION_TYPE)
-class EditOperationType(IdEnum):
+class EditOperationType(BuiltinEnum):
     """The type of edit operation."""
 
     # basic (idempotent)
@@ -877,7 +1074,7 @@ class EditOperationType(IdEnum):
 
 
 @enum_(EnumType.USE_TYPE)
-class UseType(IdEnum):
+class UseType(BuiltinEnum):
     """Ways to use nodes."""
 
     START = 40
@@ -894,7 +1091,7 @@ class UseType(IdEnum):
 
 
 @enum_(EnumType.ACCESS_KIND)
-class AccessKind(IdEnum):
+class AccessKind(BuiltinEnum):
     READ = 1
     EDIT = 20
     USE = 40
@@ -911,7 +1108,7 @@ class AccessKind(IdEnum):
 if typing.TYPE_CHECKING:
     AccessType = QueryType | EditType | UseType
 else:
-    AccessType = IdEnum.combine("AccessType", QueryType, EditType, UseType)
+    AccessType = BuiltinEnum.combine("AccessType", QueryType, EditType, UseType)
     AccessType.kind = property(lambda self: ACCESS_KIND_BY_ACCESS[self])
     enum_(EnumType.ACCESS_TYPE)(AccessType)
 
@@ -940,7 +1137,7 @@ CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
 
 
 @enum_(EnumType.ACCESS_MODE)
-class AccessMode(IdEnum):
+class AccessMode(BuiltinEnum):
     ADAPTIVE = 1
     ATOMIC = 2
 
@@ -951,7 +1148,7 @@ class AccessMode(IdEnum):
 
 
 @enum_(EnumType.SEVERITY)
-class Severity(IdEnum):  # :LogLevel
+class Severity(BuiltinEnum):  # :LogLevel
     TRACE = 1
     DEBUG = 2
     INFO = 3
@@ -961,7 +1158,7 @@ class Severity(IdEnum):  # :LogLevel
 
 
 @enum_(EnumType.LOG_TYPE)
-class LogType(IdEnum):
+class LogType(BuiltinEnum):
     # code
     PRINT = 100
     # access
@@ -970,14 +1167,14 @@ class LogType(IdEnum):
 
 
 @enum_(EnumType.POLICY_EFFECT)
-class PolicyEffect(IdEnum):
+class PolicyEffect(BuiltinEnum):
     ALLOW = 1
     DENY = 2
     # YIELD?, METER, LIMIT, ...
 
 
 @enum_(EnumType.PRIMITIVE_TYPE)
-class PrimitiveType(IdEnum):
+class PrimitiveType(BuiltinEnum):
     """
     Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
     NOTE: the ids here are used in type identity keys, so any change is breaking.
@@ -1054,7 +1251,7 @@ PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
 
 
 @enum_(EnumType.TYPE_FORMAT)
-class TypeFormat(IdEnum):  # :TypeFormat
+class TypeFormat(BuiltinEnum):  # :TypeFormat
     """The fine-grained format of some Type."""
 
     # strings
@@ -1070,7 +1267,7 @@ class TypeFormat(IdEnum):  # :TypeFormat
 
 
 @enum_(EnumType.TYPE_KIND)
-class TypeKind(IdEnum):
+class TypeKind(BuiltinEnum):
     """The 'kind' of a Type."""
 
     PRIMITIVE = 1
@@ -1085,7 +1282,7 @@ class TypeKind(IdEnum):
 
 
 @enum_(EnumType.FIELD_ZONE)
-class FieldType(IdEnum):
+class FieldType(BuiltinEnum):
     """The type of a Field within its Block. Overlaps with ObjectKind."""
 
     VARIABLE = 1
@@ -1096,7 +1293,7 @@ class FieldType(IdEnum):
 
 
 @enum_(EnumType.TIME_INTERVAL)
-class TimeInterval(IdEnum):
+class TimeInterval(BuiltinEnum):
     SECOND = 2
     MINUTE = 3
     HOUR = 4
@@ -1107,7 +1304,7 @@ class TimeInterval(IdEnum):
 
 
 @enum_(EnumType.DAY)
-class Day(IdEnum):
+class Day(BuiltinEnum):
     """The day of the week."""
 
     MONDAY = 1
@@ -1120,7 +1317,7 @@ class Day(IdEnum):
 
 
 @enum_(EnumType.MONTH)
-class Month(IdEnum):
+class Month(BuiltinEnum):
     """The month of the year."""
 
     JANUARY = 1
@@ -1138,7 +1335,7 @@ class Month(IdEnum):
 
 
 @enum_(EnumType.NODE_MODE)
-class NodeMode(IdEnum):
+class NodeMode(BuiltinEnum):
     BUILTIN = 1
     PRODUCTION = 2
     DEVELOPMENT = 4
@@ -1148,7 +1345,7 @@ class NodeMode(IdEnum):
 
 
 @enum_(EnumType.RUN_TYPE)
-class RunType(IdEnum):
+class RunType(BuiltinEnum):
     CODE = 1
     ACTION = 10
     FLOW = 11
@@ -1156,7 +1353,7 @@ class RunType(IdEnum):
 
 
 @enum_(EnumType.RUN_SPAN_TYPE)
-class RunSpanType(IdEnum):
+class RunSpanType(BuiltinEnum):
     # general
     ATTEMPT = 1
     WAIT = 2
@@ -1180,13 +1377,13 @@ class RunSpanType(IdEnum):
 
 
 @enum_(EnumType.ERROR_KIND)
-class ErrorKind(IdEnum):
+class ErrorKind(BuiltinEnum):
     INTERNAL = 1
     RUNTIME = 5
 
 
 @enum_(EnumType.RUN_STATUS)
-class RunStatus(IdEnum):
+class RunStatus(BuiltinEnum):
     # pre
     SCHEDULED = 1
     QUEUED = 2
@@ -1226,14 +1423,14 @@ TERMINAL_RUN_STATUSES: bittuple[RunStatus] = bittuple(
 
 
 @enum_(EnumType.SESSION_STATUS)
-class SessionStatus(IdEnum):
+class SessionStatus(BuiltinEnum):
     PENDING = 1
     OPEN = 3
     CLOSED = 6
 
 
 @enum_(EnumType.EXPRESSION_KIND)
-class ExpressionKind(IdEnum):
+class ExpressionKind(BuiltinEnum):
     LITERAL = 1
     FUNCTIONAL = 2
     CONDITIONAL = 3
@@ -1242,7 +1439,7 @@ class ExpressionKind(IdEnum):
 
 
 @enum_(EnumType.LITERAL_TYPE)
-class LiteralType(IdEnum):
+class LiteralType(BuiltinEnum):
     VALUE = 100  # any freeform value
     NONE = 101
     TRUE = 102
@@ -1254,7 +1451,7 @@ class LiteralType(IdEnum):
 
 
 @enum_(EnumType.FUNCTIONAL_TYPE)
-class FunctionalType(IdEnum):
+class FunctionalType(BuiltinEnum):
     # math
     ADD = 200
     SUBTRACT = 201
@@ -1270,7 +1467,7 @@ class FunctionalType(IdEnum):
 
 
 @enum_(EnumType.CONDITIONAL_TYPE)
-class ConditionalType(IdEnum):
+class ConditionalType(BuiltinEnum):
     # logical
     NOT = 301
     AND = 302
@@ -1304,7 +1501,7 @@ class ConditionalType(IdEnum):
 
 
 @enum_(EnumType.AGGREGATION_TYPE)
-class AggregationType(IdEnum):
+class AggregationType(BuiltinEnum):
     EXISTENCE = 400
     COUNT = 401
     SUM = 402
@@ -1320,7 +1517,7 @@ class AggregationType(IdEnum):
 
 
 @enum_(EnumType.SORT_TYPE)
-class SortType(IdEnum):
+class SortType(BuiltinEnum):
     ASCENDING = 500
     DESCENDING = 501
 
@@ -1330,7 +1527,7 @@ class SortType(IdEnum):
 
 
 @enum_(EnumType.SORT_MODE)
-class SortMode(IdEnum):
+class SortMode(BuiltinEnum):
     MAX = 1
     MIN = 2
     AVERAGE = 3
@@ -1354,15 +1551,70 @@ EXPRESSION_KIND_BY_OP: Mapping["ExpressionType", ExpressionKind] = {  # type: ig
 if typing.TYPE_CHECKING:
     ExpressionType = LiteralType | FunctionalType | ConditionalType | AggregationType | SortType
 else:
-    ExpressionType = IdEnum.combine(
+    ExpressionType = BuiltinEnum.combine(
         "ExpressionType", LiteralType, FunctionalType, ConditionalType, AggregationType, SortType
     )
     ExpressionType.kind = property(lambda self: EXPRESSION_KIND_BY_OP[self])
     enum_(EnumType.EXPRESSION_OP)(ExpressionType)
 
 
+@enum_(EnumType.COLOR_TYPE)
+class ColorType(BuiltinEnum):
+    """Built-in color types a la SwiftUI or Tailwind."""
+
+    # surface
+    PRIMARY = 1
+    SECONDARY = 2
+    ACCENT = 3
+    CANVAS = 4
+    # semantic
+    SUCCESS = 10
+    HINT = 11
+    WARNING = 12
+    DANGER = 13
+    # actual
+    GRAY = 30
+    RED = 31
+    ORANGE = 32
+    AMBER = 33
+    YELLOW = 34
+    LIME = 35
+    GREEN = 36
+    EMERALD = 37
+    TEAL = 38
+    CYAN = 39
+    SKY = 40
+    BLUE = 41
+    INDIGO = 42
+    VIOLET = 43
+    PURPLE = 44
+    FUCHSIA = 45
+    PINK = 46
+    ROSE = 47
+
+
+@enum_(EnumType.COLOR_SHADE)
+class ColorShade(BuiltinEnum):
+    """Built-in color shades a la Tailwind."""
+
+    # surface
+    ...
+    # actual
+    S50 = 50
+    S100 = 100
+    S200 = 200
+    S300 = 300
+    S400 = 400
+    S500 = 500
+    S600 = 600
+    S700 = 700
+    S800 = 800
+    S900 = 900
+    S950 = 950
+
+
 @enum_(EnumType.CLIENT_TYPE)
-class ClientType(IdEnum):
+class ClientType(BuiltinEnum):
     # user
     WEB = 1
     BROWSER_PLUGIN = 2
@@ -1470,3 +1722,7 @@ def run_span(
             assert span.started_at is not None, f"no started_at for {span!r}"
             span.terminated_at = runtime.oracle.utc()
             span.duration = span.terminated_at - span.started_at
+
+
+def repr_enums(enums: Iterable[BuiltinEnum]) -> str:
+    return "|".join(e.bench_name for e in enums)

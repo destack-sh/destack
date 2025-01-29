@@ -79,6 +79,7 @@ from bench.language import (
     unpack_value,
     unpack_value_data,
 )
+from bench.language.core import bittuple
 from bench.language.core.property import PROPERTY_META_KEY_BY_TYPE, PropertyReferenceType
 from bench.pb2 import (
     AnyNodeData,
@@ -91,7 +92,7 @@ from bench.pb2 import (
 from bench.proto import wiring
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.utils.env import IS_DEV
-from bench.utils.func import bittuple, describe_type, group_by, to_uuid
+from bench.utils.func import describe_type, group_by, to_uuid
 from bench.utils.string import Casing, to_casing
 from bench.utils.time import timedelta_from_isoformat
 from bench.utils.uuidt import UUIDT

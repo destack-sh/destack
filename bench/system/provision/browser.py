@@ -1,8 +1,8 @@
 from typing import override
 
 from bench.language import Browser, NodeType, ResourceStatus
+from bench.language.core import bittuple
 from bench.language.core.connection import connection_capture
-from bench.utils.func import bittuple
 
 from .browserbase import browserbase_api
 from .playwright import playwright_server

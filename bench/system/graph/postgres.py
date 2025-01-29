@@ -30,6 +30,8 @@ from bench.language import (
     Session,
     Store,
     WritableChannel,
+    bittuple,
+    repr_enums,
     repr_scope,
 )
 from bench.proto import (
@@ -47,7 +49,6 @@ from bench.sql import (
     pg_graph_get,
     pg_graph_search,
 )
-from bench.utils.func import bittuple, repr_enums
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
