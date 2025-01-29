@@ -3,6 +3,7 @@ from typing import Any, Optional, cast
 
 from git import TYPE_CHECKING
 
+from bench.language import TITLE_CONSTRAINT
 from bench.language.core import (
     CustomObject,
     EnumType,
@@ -29,7 +30,7 @@ from bench.pb2.lang_pb2 import InterruptionData, NodeReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Action, Block, Pipe, Run, RunnableNode, TypeBase
+    from bench.language import Action, Block, Message, Pipe, Run, RunnableNode, Text, TypeBase
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -106,9 +107,9 @@ class Breakpoint(Struct):
 
 @enum_(EnumType.INTERRUPTION_TYPE)
 class InterruptionType(IdEnum):
-    PAUSE = 1  # external pause
-    YIELD = 2  # voluntary yield
-    WAIT = 3  # wait on something
+    PAUSE = 10  # external pause
+    YIELD = 20  # voluntary yield
+    WAIT = 30  # wait on something
 
 
 RUN_STATUS_BY_INTERRUPTION_TYPE: dict[InterruptionType, RunStatus] = {
@@ -122,7 +123,7 @@ INTERRUPTION_TYPE_BY_RUN_STATUS: dict[RunStatus, InterruptionType] = {
 
 
 @enum_(EnumType.INTERRUPTION_STATUS)
-class InterruptionStatus(IdEnum):
+class InterruptionStatus(IdEnum):  # NOTE: see RunStatus
     OPEN = 10
     CANCELLED = 30
     COMPLETED = 31
@@ -134,6 +135,13 @@ class InterruptionStatus(IdEnum):
     @property
     def is_closed(self) -> bool:
         return self >= 30
+
+
+@enum_(EnumType.YIELD_RESPONSE)
+class YieldResponse(IdEnum):
+    ACCEPT = 10
+    REJECT = 20
+    # CRITIQUE/EDIT, ...?
 
 
 @timed_node_(NodeType.INTERRUPTION, has_subtypes=True)
@@ -164,13 +172,20 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
     status: InterruptionStatus = p_internal(40, default=InterruptionStatus.OPEN)
     duration: Optional[timedelta] = p_internal(41, require=False, default=None)
     closed_at: Optional[datetime] = p_internal(42, require=False, default=None)
-
+    response: Optional[YieldResponse] = p_internal(43, require=False, default=None)
     # content
-    inputs_packed: Any = p_value_packed(51)
-    inputs: Any = p_value_runtime(51, type=FieldType.INPUT, typ=None)
-    outputs_packed: Any = p_value_packed(52)
+    title: Optional[str] = p_regular(50, require=False, default=None, constraint=TITLE_CONSTRAINT)
+    text: Optional["Text"] = p_regular(51, require=False, default=None, struct=StructType.TEXT)
+    inputs_packed: Any = p_value_packed(52)
+    inputs: Any = p_value_runtime(
+        52, type=FieldType.INPUT, typ=lambda self: cast("Interruption", self).input_type
+    )
+    outputs_packed: Any = p_value_packed(53)
     outputs: Any = p_value_runtime(
-        52, type=FieldType.OUTPUT, typ=lambda self: cast("Interruption", self).output_type
+        53, type=FieldType.OUTPUT, typ=lambda self: cast("Interruption", self).output_type
+    )
+    message: Optional["Message"] = p_regular(
+        54, require=False, array=False, references=NodeType.MESSAGE
     )
 
     # context
@@ -197,9 +212,14 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
             return self.block
 
     @property
+    def input_type(self) -> "TypeBase | None":
+        if (runnable := self.runnable) is None:
+            return None
+        return runnable.input_type
+
+    @property
     def output_type(self) -> "TypeBase | None":
-        runnable = self.runnable
-        if runnable is None:
+        if (runnable := self.runnable) is None:
             return None
         return runnable.output_type
 
