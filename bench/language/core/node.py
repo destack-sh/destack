@@ -1438,11 +1438,14 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
 
 @node_component()
 class SourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC):
-    """A Node in a Package with a persistent identity that can be instanced (with computed values)."""
+    """
+    A Node in a Package with a persistent identity that can be instanced (with computed values).
+    Sometimes, SourceNodes are attached directly ro Runs (like for Triggers) instead of a Package.
+    """
 
     ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
     package: "Package | None" = p_node_ancestor_with_self(
-        8, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
+        8, NodeType.PACKAGE, require=False, store=True, wire=True, is_bench_implicit=True
     )
     template: Optional["Node"] = p_node_template(9)
     if TYPE_CHECKING:

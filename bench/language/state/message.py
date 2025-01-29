@@ -50,13 +50,11 @@ class MessageType(IdEnum):
 @enum_(EnumType.MESSAGE_STATUS)
 class MessageStatus(IdEnum):
     DRAFT = 10
-    PREPARED = 20
-    SENDING = 30
-    SENT = 40
-    FAILED = 50
-    RECEIVED = 60
-    READ = 70
-    EXPIRED = 80
+    SENDING = 20
+    SENT = 30
+    FAILED = 40
+    RECEIVED = 50
+    READ = 60
 
 
 @timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value", has_subtypes=True)
@@ -76,13 +74,13 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         array=False,
         references=NodeType.BLOCK,
         constraint=constraint(node_subtypes=[BlockType.MESSAGE]),
+        description="The Message type.",
     )
     if TYPE_CHECKING:
         origin_ptr: Optional[NodeReference] = None
 
     # status
     status: MessageStatus = p_internal(40, default=MessageStatus.SENT)
-    expires_at: Optional[datetime] = p_internal(41, default=None)
     failed_at: Optional[datetime] = p_system(42, default=None)
     sent_at: Optional[datetime] = p_system(43, default=None)
     received_at: Optional[datetime] = p_system(44, default=None)
@@ -99,15 +97,21 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         53, require=False, array=False, references=NodeType.INTERRUPTION
     )
 
-    # routing
+    # routing :MessageRouting
     reply_to: Optional["Message"] = p_regular(
         60, require=False, array=False, references=NodeType.MESSAGE
     )
-    run: Optional["Run"] = p_regular(62, require=False, array=False, references=NodeType.RUN)
+    run: Optional["Run"] = p_regular(
+        62,
+        require=False,
+        array=False,
+        references=NodeType.RUN,
+        description="The Run this Message is scoped to",
+    )
     # to: roles, identities, users, teams, ...
 
     # flags
-    is_pinned: bool = p_regular(70, default=False)
+    # is_pinned, is_highlighted, ...
 
     def __content_str__(self) -> str:
         if self.title:

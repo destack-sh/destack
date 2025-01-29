@@ -42,7 +42,7 @@ BENCH_QUERY = Bench.include_descendants(Store).select_all()
 @app.command(help="generate SQL migrations")
 @async_to_sync
 async def make(
-    area: Annotated[NodeArea, typer.Option(parser=parse_area)] = NodeArea.GLOBAL,
+    area: Annotated[NodeArea | None, typer.Option(parser=parse_area)] = None,
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
@@ -175,7 +175,7 @@ async def make(
 @async_to_sync
 async def apply(
     area: NodeArea = typer.Option(  # noqa: B008
-        default=NodeArea.GLOBAL, parser=parse_area, help="the area to migrate"
+        parser=parse_area, help="the area to migrate"
     ),
     target: Optional[str] = typer.Option(
         default=None, help="the migration to migrate to [default=latest]"

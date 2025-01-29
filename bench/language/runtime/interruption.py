@@ -30,7 +30,17 @@ from bench.pb2.lang_pb2 import InterruptionData, NodeReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Action, Block, Message, Pipe, Run, RunnableNode, Text, TypeBase
+    from bench.language import (
+        Action,
+        Block,
+        Message,
+        Pipe,
+        Run,
+        RunnableNode,
+        Text,
+        Trigger,
+        TypeBase,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -126,7 +136,7 @@ INTERRUPTION_TYPE_BY_RUN_STATUS: dict[RunStatus, InterruptionType] = {
 class InterruptionStatus(IdEnum):  # NOTE: see RunStatus
     OPEN = 10
     CANCELLED = 30
-    COMPLETED = 31
+    COMPLETED = 33
 
     @property
     def is_open(self) -> bool:
@@ -172,7 +182,7 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
     status: InterruptionStatus = p_internal(40, default=InterruptionStatus.OPEN)
     duration: Optional[timedelta] = p_internal(41, require=False, default=None)
     closed_at: Optional[datetime] = p_internal(42, require=False, default=None)
-    response: Optional[YieldResponse] = p_internal(43, require=False, default=None)
+
     # content
     title: Optional[str] = p_regular(50, require=False, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(51, require=False, default=None, struct=StructType.TEXT)
@@ -184,8 +194,17 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
     outputs: Any = p_value_runtime(
         53, type=FieldType.OUTPUT, typ=lambda self: cast("Interruption", self).output_type
     )
+    response: Optional[YieldResponse] = p_internal(54, require=False, default=None)
     message: Optional["Message"] = p_regular(
-        54, require=False, array=False, references=NodeType.MESSAGE
+        55, require=False, array=False, references=NodeType.MESSAGE
+    )
+
+    # trigger
+    cancel_trigger: Optional["Trigger"] = p_regular(
+        60, require=False, array=False, references=NodeType.TRIGGER
+    )
+    complete_trigger: Optional["Trigger"] = p_regular(
+        61, require=False, array=False, references=NodeType.TRIGGER
     )
 
     # context
