@@ -40,16 +40,12 @@ class UserStatus(BuiltinEnum):  # NOTE: see OrganizationStatus
 class User(Node[UserData]):
     """A User."""
 
-    # (main_handle is optional because we can create user without handle)
-    slug: Optional[str] = p_system(32, unique=True)  # must match main handle
-    name: str = p_regular(33, constraint=NAME_CONSTRAINT)
+    slug: Optional[str] = p_system(31, unique=True)  # must match main handle
+    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+    icon: Optional["Icon"] = p_regular(33, default=None, struct=StructType.ICON)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
-    email: str | None = p_system(
-        35, defer=True, unique=True, sensitive=True, constraint=EMAIL_CONSTRAINT
-    )
-    icon: Optional["Icon"] = p_regular(36, default=None, struct=StructType.ICON)
-    region: "Region" = p_system(38)
-    status: UserStatus = p_system(39)
+    region: "Region" = p_system(35)
+    status: UserStatus = p_system(36)
 
     main_bench: Optional["Bench"] = p_system(
         40, array=False, require=False, references=NodeType.BENCH, fk=True
@@ -65,11 +61,14 @@ class User(Node[UserData]):
 
     # auth
     # TODO :Architecture: refactor out authentication & challenges for Users/Client
+    email: str | None = p_system(
+        50, defer=True, unique=True, sensitive=True, constraint=EMAIL_CONSTRAINT
+    )
     password_salt: Optional[bytes] = p_kernel(
-        50, default=None, defer=True, encrypt=True, sensitive=True
+        51, default=None, defer=True, encrypt=True, sensitive=True
     )
     password_hash: Optional[bytes] = p_kernel(
-        51, default=None, defer=True, encrypt=True, sensitive=True
+        52, default=None, defer=True, encrypt=True, sensitive=True
     )
     # challenges?
     # password_reset_token, email_confirmation_token, ...

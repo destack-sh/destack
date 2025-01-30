@@ -225,9 +225,14 @@ defineExpose<ViewExposed>({ self, id, actions });
   @apply mr-0.5 bg-transparent pr-1.5 text-gray-400;
 }
 .code:focus-within .cm-editor .cm-gutters {
-  @apply border-primary-700 text-gray-700;
+  @apply border-gray-700 text-gray-700;
 }
 .stealth .ͼ1 .cm-line {
   padding: 0;
+}
+.cm-content[contenteditable="false"] {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
 }
 </style>

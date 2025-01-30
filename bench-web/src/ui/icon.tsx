@@ -133,9 +133,9 @@ export const AvatarInline: FunctionalComponent<
 
   let sizeClasses;
   if (props.size === "medium") {
-    sizeClasses = "w-8 h-8 text-base";
+    sizeClasses = "w-8 h-8 text-lg";
   } else if (props.size === "large") {
-    sizeClasses = "w-10 h-10 text-base";
+    sizeClasses = "w-10 h-10 text-lg";
   } else if (props.size === "title") {
     sizeClasses = "w-12 h-12 text-xl";
   } else {
@@ -227,7 +227,7 @@ export const DEFAULT_SYSTEM_ICON = makeIcon({ faName: "fas fa-gear" });
 
 export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons<NodeType>({
   // universe
-  [NodeType.BENCH]: "fas fa-circle-dot",
+  [NodeType.BENCH]: "fas fa-volleyball",
   [NodeType.HANDLE]: "fas fa-at",
   [NodeType.USER]: "fas fa-user",
   [NodeType.ORGANIZATION]: "fas fa-building",

@@ -5,7 +5,16 @@ import { packSubnode, useSubnodeProperty } from "@/language/node";
 import { BlockType, HubAspect, NodeType, Orientation, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/system/runtime";
-import { bench, canvas, hasLocalBench, pkg, pkgConnection, pkgGraph, spaceGraph } from "@/system/space";
+import {
+  bench,
+  benchConnection,
+  canvas,
+  hasLocalBench,
+  pkg,
+  pkgConnection,
+  pkgGraph,
+  spaceGraph,
+} from "@/system/space";
 import { isAuthenticated, user, userConnection } from "@/system/user";
 import { fireActionById } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
@@ -128,8 +137,21 @@ defineExpose<ViewExposed>({ self });
         height: `${BAR_HEADER_HEIGHT - 12}px`,
       }"
     >
-      <span>
-        <i class="fas fa-circle mr-2 text-primary-500" />
+      <span class="flex flex-row items-center gap-x-2">
+        <AvatarInline
+          v-tooltip="{ title: 'Change icon', small: true }"
+          v-menu="
+            (): PopoverInfoIn => ({
+              kind: 'view',
+              component: Icon,
+              placement: 'bottom-right',
+              offset: '-referenceWidth',
+              props: { modelValue: (bench as any)!.icon, isInput: true },
+              onApply: (newIcon) => benchConnection.tx.update(bench!, { icon: newIcon }),
+            })
+          "
+          v-bind="bench != null ? getNodeIcon(bench) : ICON_BY_NODE_TYPE[NodeType.BENCH]!"
+        />
         <span v-if="bench" class="font-medium"> {{ bench.slug }}'s Bench </span>
         <span v-else class="italic"> Bench </span>
       </span>
@@ -258,7 +280,7 @@ defineExpose<ViewExposed>({ self });
     <!-- Footer -->
     <div
       class="absolute bottom-0 z-10 flex w-full flex-col gap-y-1 border-t bg-white pt-1"
-      :class="['border-gray-200']"
+      :class="[scrollRef?.isVerticalOverflown ? 'border-gray-200' : 'border-transparent']"
       :style="{
         height: `${FOOTER_HEIGHT}px`,
       }"
