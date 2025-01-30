@@ -52,7 +52,7 @@ class SupervisorSpec(ServiceSpec):
 
 @dataclass
 class HostSpec(ServiceSpec):
-    """A host to run a Bench"""
+    """A Host to run a Bench"""
 
     bench: "BenchSpec"
     failure_probability: float | SampledFloat = 0.0
@@ -70,7 +70,7 @@ class BenchSpec:
 
 @dataclass
 class ClientSpec:
-    """A client for doing.. stuff"""
+    """A Client"""
 
     name: str
     username: str
@@ -93,7 +93,7 @@ class WorkloadTrigger:
 
 @dataclass
 class WorkloadSpec:
-    """Some workload to run"""
+    """A Workload to run"""
 
     type: WorkloadType
     name: str = None  # type: ignore (default to 'type' in __post_init__)

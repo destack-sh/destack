@@ -36,7 +36,7 @@ tracer = trace.get_tracer(__name__)
 @dataclass(slots=True)
 class ProjectOptions:
     node_types: Collection[NodeType] = NODE_TYPES_SET
-    inline_node_types: Collection[NodeType] = (NodeType.FIELD,)
+    inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER)
 
 
 class Projection:

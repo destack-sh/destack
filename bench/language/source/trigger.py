@@ -22,7 +22,15 @@ from bench.pb2.lang_pb2 import TriggerData
 from .schedule import Schedule
 
 if TYPE_CHECKING:
-    from bench.language import Action, Block, Interruption, Message, Package, Run, Text
+    from bench.language import (
+        Action,
+        Block,
+        Interruption,
+        Message,
+        Package,
+        Run,
+        Text,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -31,6 +39,7 @@ if TYPE_CHECKING:
 class TriggerType(BuiltinEnum):
     SCHEDULE = 10
     MESSAGE = 20
+    # RECORD, LOG, EDIT, ...
 
 
 @enum_(EnumType.TRIGGER_STATUS)
@@ -42,9 +51,13 @@ class TriggerStatus(BuiltinEnum):
 
 @enum_(EnumType.TRIGGER_EFFECT)
 class TriggerEffect(BuiltinEnum):
+    # run
+    START_RUN = 1, "Start a new Run"
+    CONTINUE_RUN = 2, "Continue an existing or start a new Run"
+    ENSURE_RUN = 3, "Ensure a Run exists"
     # interruption
-    CANCEL_INTERRUPTION = 20
-    COMPLETE_INTERRUPTION = 21
+    CANCEL_INTERRUPTION = 20, "Cancel an Interruption"
+    COMPLETE_INTERRUPTION = 21, "Complete an Interruption"
 
 
 @node_(NodeType.TRIGGER, has_subtypes=True)
@@ -54,35 +67,38 @@ class Trigger(SourceNode[TriggerData]):
     parent: Union["Action", "Run", None] = p_node_parent(4, NodeType.ACTION, NodeType.RUN)
 
     # meta
-    type: TriggerType = p_regular(30, require=True)
+    type: TriggerType = p_system(30, require=True)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(33, require=False, struct=StructType.TEXT)
     effect: TriggerEffect = p_regular(34, require=True)
-    interruption: Optional["Interruption"] = p_regular(
-        35,
-        require=False,
-        array=False,
-        references=NodeType.INTERRUPTION,
-        description="The interruption this Trigger is for.",
-    )
     scope: Union["Block", "Package"] = p_regular(
-        36,
+        35,
         require=False,
         array=False,
         references=(NodeType.BLOCK, NodeType.PACKAGE),
         description="The source Node this Trigger is scoped to.",
     )
     run: Optional["Run"] = p_regular(
-        37,
+        36,
         require=False,
         array=False,
         references=NodeType.RUN,
-        description="The Run this Trigger is scoped to",
+        description="The Run this Trigger is scoped to.",
+    )
+    interruption: Optional["Interruption"] = p_regular(
+        37,
+        require=False,
+        array=False,
+        references=NodeType.INTERRUPTION,
+        description="The interruption this Trigger is for.",
     )
 
     # status
     status: TriggerStatus = p_regular(40, default=TriggerStatus.OPEN)
-    closed_at: Optional[datetime] = p_system(41, default=None)
+    processed_at: Optional[datetime] = p_system(41, default=None)
+    processed_count: int = p_system(42, default=0)
+    processed_key: Optional[str] = p_system(43, default=None)
+    closed_at: Optional[datetime] = p_system(45, default=None)
 
 
 @subnode_(TriggerType.SCHEDULE)

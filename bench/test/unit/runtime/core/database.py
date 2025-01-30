@@ -52,7 +52,7 @@ class SampleGenerator:
         raise RuntimeError(f"unsupported type {typ.primitive_type!r}")
 
 
-def test_create_record_kwargs(local_runtime: RuntimeHandle):
+def test_create_record_kwargs(hosted_runtime: RuntimeHandle):
     """Create a Record with keyword arguments (into value)."""
     Database1 = Block.new(
         BlockType.DATABASE,

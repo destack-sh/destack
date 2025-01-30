@@ -29,7 +29,6 @@ class ScheduleFrequency(BuiltinEnum):
     DAY = 4
     HOUR = 5
     MINUTE = 6
-    SECOND = 7
 
 
 @struct_(StructType.SCHEDULE)

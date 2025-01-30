@@ -147,8 +147,8 @@ class InterruptionStatus(BuiltinEnum):  # NOTE: see RunStatus
         return self >= 30
 
 
-@enum_(EnumType.YIELD_RESPONSE)
-class YieldResponse(BuiltinEnum):
+@enum_(EnumType.INTERRUPTION_RESPONSE)
+class InterruptionResponse(BuiltinEnum):
     ACCEPT = 10
     REJECT = 20
     # CRITIQUE/EDIT, ...?
@@ -194,7 +194,7 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
     outputs: Any = p_value_runtime(
         53, type=FieldType.OUTPUT, typ=lambda self: cast("Interruption", self).output_type
     )
-    response: Optional[YieldResponse] = p_internal(54, require=False, default=None)
+    response: Optional[InterruptionResponse] = p_internal(54, require=False, default=None)
     message: Optional["Message"] = p_regular(
         55, require=False, array=False, references=NodeType.MESSAGE
     )
