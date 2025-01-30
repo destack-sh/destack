@@ -87,7 +87,7 @@ const inputContainerRef = ref<HTMLInputElement | null>(null);
 const inputRef = ref<InstanceType<typeof Text> | null>(null);
 const inputSize = useElementSize(inputContainerRef);
 const bodyScrollRef = ref<InstanceType<typeof Scroll> | null>(null);
-const editingTextRef = ref<InstanceType<typeof Text> | null>(null);
+const editingTextRefs = ref<InstanceType<typeof Text>[] | null>(null);
 
 //
 // Messages :MessageRouting
@@ -148,6 +148,7 @@ type MessageView = {
   replyTo: MessageView | null;
   isNewGroup: boolean;
   isNewDate: boolean;
+  isEdited: boolean;
   isEditing: boolean;
   isReplyingTo: boolean;
   isSelected: boolean;
@@ -165,7 +166,7 @@ const messageViews = computed(() => {
     let isNewDate;
     if (i == 0) {
       isNewGroup = true;
-      isNewDate = true;
+      isNewDate = false;
     } else {
       const previousDt = tsToDt(messages.value[i - 1].createdAt!);
       const currentDt = tsToDt(message.createdAt!);
@@ -175,6 +176,7 @@ const messageViews = computed(() => {
           MESSAGE_MAX_TIME_DELTA_SECONDS;
       isNewDate = previousDt.day != currentDt.day;
     }
+    const isEdited = message.updatedAt?.seconds != message.createdAt?.seconds;
     const isEditing = editingPtr.value?.id == message.id;
     const isReplyingTo = replyToPtr.value?.id == message.id;
     const isSelected = canvas.isSelected(message);
@@ -186,6 +188,7 @@ const messageViews = computed(() => {
       authorName,
       isNewGroup,
       isNewDate,
+      isEdited,
       isEditing,
       isReplyingTo,
       isSelected,
@@ -222,8 +225,9 @@ const editingPtr = ref<NodeReferenceData | null>(null);
 function startEdit(message: MessageData) {
   editingPtr.value = toNodeRef(message);
   editingText.value = message.text ?? null;
-  editingTextRef.value?.focus?.();
-  nextTick(() => editingTextRef.value?.focus?.());
+  nextTick(() => {
+    editingTextRefs.value?.[0]?.focus?.();
+  });
 }
 
 function stopEdit() {
@@ -318,6 +322,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             replyTo,
             authorIcon,
             authorName,
+            isEdited,
             isNewGroup,
             isNewDate,
             isEditing,
@@ -331,9 +336,9 @@ defineExpose<ViewExposed>({ self, id, actions });
           :data-node-type="message.metatype"
           data-contextmenu-items="chat.message*"
         >
-          <!-- New date -->
+          <!-- New date (line with date in middle) -->
           <div v-if="isNewDate" class="relative mb-1 flex items-center">
-            <div class="flex-grow border-t border-gray-200"></div>
+            <div class="flex-grow border-t border-gray-200" />
             <div class="mx-4 flex-shrink text-sm text-gray-400">
               {{ formatAbsoluteDate(message.createdAt!, { prefer: "date" }) }}
             </div>
@@ -394,6 +399,8 @@ defineExpose<ViewExposed>({ self, id, actions });
                 <span class="ml-1.5 text-xs text-gray-400">
                   {{ formatAbsoluteDate(message.createdAt!, { prefer: "time" }) }}
                 </span>
+                <!-- Edited? -->
+                <span v-if="isEdited" class="text-xs ml-1 text-gray-400">(edited)</span>
               </div>
               <!-- Actions -->
               <div
@@ -413,10 +420,10 @@ defineExpose<ViewExposed>({ self, id, actions });
               </div>
               <!-- Content -->
               <Text v-if="!isEditing" :id="'text-' + message.id" is-minimal :model-value="message.text" />
-              <div v-else class="m-1">
+              <div v-else class="my-1">
                 <Text
                   :id="'text-' + message.id"
-                  ref="editingTextRef"
+                  ref="editingTextRefs"
                   :model-value="editingText ?? undefined"
                   is-input
                   suppress-enter
@@ -506,7 +513,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       </div>
       <!-- Box -->
       <div
-        class="relative rounded border border-gray-200 focus-within:border-gray-400 px-2 py-1.5"
+        class="relative rounded border border-gray-200 px-2 py-1.5 focus-within:border-gray-400"
         :class="[replyTo != null ? 'rounded-t-none' : '']"
       >
         <div class="flex flex-row">

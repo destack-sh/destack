@@ -38,6 +38,7 @@ import {
   Command,
   Selection as EditorSelection,
   EditorState,
+  TextSelection,
   type SelectionBookmark as EditorSelectionBookmark,
 } from "prosemirror-state";
 import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
@@ -381,7 +382,12 @@ const actions: ActionMapImplementation<"text"> & Partial<ActionMapImplementation
 };
 
 function focus() {
-  view?.focus?.();
+  if (view) {
+    const { state } = view;
+    const end = state.doc.content.size;
+    view.focus();
+    view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, end)));
+  }
 }
 
 canvas.registerView(self, id);
