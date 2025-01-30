@@ -3471,6 +3471,8 @@ message UserWizardViewData {
 
 // A View is a graphical interface in a Bench.
 message ChatViewData {
+  optional TextData text = 100;
+  repeated NodeReferenceData nodes_ptr = 101;
 }
 
 // A View is a graphical interface in a Bench.
@@ -3583,12 +3585,12 @@ message TriggerData {
   optional google.protobuf.Timestamp closed_at = 41;
 }
 
-// A Trigger is a (possibly recurring) condition that, when met, affects the runtime.
+// A Trigger is a condition that, when met, affects the runtime somehow.
 message ScheduleTriggerData {
   optional ScheduleData schedule = 100;
 }
 
-// A Trigger is a (possibly recurring) condition that, when met, affects the runtime.
+// A Trigger is a condition that, when met, affects the runtime somehow.
 message MessageTriggerData {
   optional NodeReferenceData message_ptr = 101;
   optional NodeReferenceData message_type_ptr = 102;
@@ -3607,7 +3609,9 @@ message MessageData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional google.protobuf.Value subnode_packed = 29;
   MessageType type = 30;
-  optional NodeReferenceData origin_ptr = 35;
+  optional NodeReferenceData root_ptr = 31;
+  optional NodeReferenceData origin_ptr = 33;
+  optional NodeReferenceData run_ptr = 34;
   optional NodeReferenceData block_ptr = 36;
   MessageStatus status = 40;
   optional google.protobuf.Timestamp failed_at = 42;
@@ -3617,9 +3621,9 @@ message MessageData {
   optional string title = 50;
   optional TextData text = 51;
   optional google.protobuf.Value value_packed = 52;
-  optional NodeReferenceData interruption_ptr = 53;
+  repeated NodeReferenceData nodes_ptr = 53;
+  optional NodeReferenceData interruption_ptr = 55;
   optional NodeReferenceData reply_to_ptr = 60;
-  optional NodeReferenceData run_ptr = 62;
 }
 
 message RecordData {
@@ -3642,7 +3646,7 @@ message RecordData {
 }
 
 enum BuiltinEnum {
-  ID_ENUM_UNSPECIFIED = 0;
+  BUILTIN_ENUM_UNSPECIFIED = 0;
 }
 
 // A reference to a Node or Struct - usually both have an identity (except for inlined Structs).

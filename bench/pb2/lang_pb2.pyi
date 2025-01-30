@@ -1809,9 +1809,9 @@ class MessageStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MESSAGE_STATUS_RECEIVED: _ClassVar[MessageStatus]
     MESSAGE_STATUS_READ: _ClassVar[MessageStatus]
 
-class IdEnum(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class BuiltinEnum(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    ID_ENUM_UNSPECIFIED: _ClassVar[IdEnum]
+    BUILTIN_ENUM_UNSPECIFIED: _ClassVar[BuiltinEnum]
 
 class ReferenceKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -3275,7 +3275,7 @@ MESSAGE_STATUS_SENT: MessageStatus
 MESSAGE_STATUS_FAILED: MessageStatus
 MESSAGE_STATUS_RECEIVED: MessageStatus
 MESSAGE_STATUS_READ: MessageStatus
-ID_ENUM_UNSPECIFIED: IdEnum
+BUILTIN_ENUM_UNSPECIFIED: BuiltinEnum
 REFERENCE_KIND_UNSPECIFIED: ReferenceKind
 REFERENCE_KIND_NODE_ANCESTOR: ReferenceKind
 REFERENCE_KIND_NODE_ANCESTOR_OR_SELF: ReferenceKind
@@ -6206,8 +6206,12 @@ class UserWizardViewData(_message.Message):
     def __init__(self, stage: _Optional[_Union[UserWizardViewStage, str]] = ...) -> None: ...
 
 class ChatViewData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("text", "nodes_ptr")
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    NODES_PTR_FIELD_NUMBER: _ClassVar[int]
+    text: TextData
+    nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
+    def __init__(self, text: _Optional[_Union[TextData, _Mapping]] = ..., nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
 class HubViewData(_message.Message):
     __slots__ = ("aspect",)
@@ -6406,7 +6410,7 @@ class MessageTriggerData(_message.Message):
     def __init__(self, message_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., message_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., message_reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class MessageData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "subnode_packed", "type", "origin_ptr", "block_ptr", "status", "failed_at", "sent_at", "received_at", "read_at", "title", "text", "value_packed", "interruption_ptr", "reply_to_ptr", "run_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "subnode_packed", "type", "root_ptr", "origin_ptr", "run_ptr", "block_ptr", "status", "failed_at", "sent_at", "received_at", "read_at", "title", "text", "value_packed", "nodes_ptr", "interruption_ptr", "reply_to_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6418,7 +6422,9 @@ class MessageData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
+    ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
     ORIGIN_PTR_FIELD_NUMBER: _ClassVar[int]
+    RUN_PTR_FIELD_NUMBER: _ClassVar[int]
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     FAILED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -6428,9 +6434,9 @@ class MessageData(_message.Message):
     TITLE_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
+    NODES_PTR_FIELD_NUMBER: _ClassVar[int]
     INTERRUPTION_PTR_FIELD_NUMBER: _ClassVar[int]
     REPLY_TO_PTR_FIELD_NUMBER: _ClassVar[int]
-    RUN_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     parent_ptr: NodeReferenceData
@@ -6442,7 +6448,9 @@ class MessageData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     subnode_packed: _struct_pb2.Value
     type: MessageType
+    root_ptr: NodeReferenceData
     origin_ptr: NodeReferenceData
+    run_ptr: NodeReferenceData
     block_ptr: NodeReferenceData
     status: MessageStatus
     failed_at: _timestamp_pb2.Timestamp
@@ -6452,10 +6460,10 @@ class MessageData(_message.Message):
     title: str
     text: TextData
     value_packed: _struct_pb2.Value
+    nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     interruption_ptr: NodeReferenceData
     reply_to_ptr: NodeReferenceData
-    run_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[MessageType, str]] = ..., origin_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[MessageStatus, str]] = ..., failed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., sent_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., received_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., read_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[MessageType, str]] = ..., root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., origin_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[MessageStatus, str]] = ..., failed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., sent_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., received_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., read_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class RecordData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "subnode_packed", "name", "order_key", "icon", "text", "block_ptr", "value_packed")

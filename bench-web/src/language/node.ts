@@ -14,6 +14,7 @@ import {
   NodeSubtypeMapping,
   NodeType,
   ObjectType,
+  PackageData,
   PROPERTY_ENUM_BY_SUBTYPE,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_SUBTYPE,
@@ -123,9 +124,6 @@ export function makeNode<T extends NodeType>(
   // assign id/ck/scope
   if (!options?.omit?.includes("id")) {
     if ("packagePtr" in properties) {
-      if (!("packagePtr" in nodeIn) || nodeIn.packagePtr == null) {
-        throw new Error(`missing packagePtr to make sub-package node ${NodeType[nodeIn.metatype]}`);
-      }
       if ("ck" in properties && (node as any).ck == null) {
         (node as any).ck = newNodeCk();
       }
@@ -135,6 +133,11 @@ export function makeNode<T extends NodeType>(
         } else {
           node.id = newNodeId();
         }
+      }
+      if (nodeIn.metatype == NodeType.PACKAGE) {
+        (node as PackageData).packagePtr = toNodeRef(node);
+      } else if (!("packagePtr" in nodeIn) || nodeIn.packagePtr == null) {
+        throw new Error(`missing packagePtr to make sub-package node ${NodeType[nodeIn.metatype]}`);
       }
     } else {
       // out-of-package node

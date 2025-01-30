@@ -12,11 +12,10 @@ import {
   TextData,
   ViewData,
   ViewType,
-  type AnyNodeData,
 } from "@/proto/wire";
-import { isNodeRef, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/globals";
-import { bench, canvas, pkgConnection, pkgGraph } from "@/system/space";
+import { bench, canvas, pkgConnection } from "@/system/space";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
 import { DEFAULT_MISSING_ICON, ICON_BY_NODE_TYPE, getNodeIcon, getNodeName } from "@/ui/icon";
@@ -36,6 +35,7 @@ import { inputRules } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
 import { Node as PmNode } from "prosemirror-model";
 import {
+  Command,
   Selection as EditorSelection,
   EditorState,
   type SelectionBookmark as EditorSelectionBookmark,
@@ -52,6 +52,7 @@ const props = defineProps<
     modelValue?: TextData;
     placeholder?: string;
     suppressEnter?: boolean;
+    suppressDrop?: boolean;
   } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "isInput" | "isMinimal">>
 >();
 const emit = defineEmits(viewEmits());
@@ -84,14 +85,19 @@ function makeEditorState(text?: TextData, options?: { restoreSelection?: boolean
   if (options?.restoreSelection && doc != null) {
     selection = previousSelectionByState[cyrb53a(text)]?.resolve(doc);
   }
+  const bindings: Record<string, Command> = {
+    ...commands.baseKeymap,
+    ...PM_KEYMAP_EXTRA,
+  };
+  if (props.suppressEnter) {
+    bindings["Shift-Enter"] = commands.baseKeymap["Enter"];
+    bindings.Enter = () => true;
+  }
   return EditorState.create({
     doc: doc,
     schema: PM_SCHEMA,
     selection,
-    plugins: [
-      keymap({ ...commands.baseKeymap, ...PM_KEYMAP_EXTRA, ...(props.suppressEnter ? { Enter: () => true } : {}) }),
-      inputRules({ rules: PM_INPUT_RULES }),
-    ],
+    plugins: [keymap(bindings), inputRules({ rules: PM_INPUT_RULES })],
   });
 }
 
@@ -303,7 +309,7 @@ function insertMention(nodePtr: NodeReferenceData, pos: { pos: number }) {
 const { isInDropZone } = useDropZone({
   name: "text",
   container: textRef,
-  isEnabled: toRef(props, "isInput"),
+  isEnabled: computed(() => props.isInput && !props.suppressDrop),
   kinds: ["node", "file"],
   onDrop: (dragged, event) => {
     if (view == null) return;

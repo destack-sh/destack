@@ -19,6 +19,7 @@ import Run from "@/views/nodes/Run.vue";
 import { computed, nextTick, ref, Ref, toRef } from "vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
+import Chat from "@/views/helpers/Chat.vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -70,7 +71,7 @@ const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.HELP, toRef(props, "su
 function setAspect(aspect: HelpAspect) {
   state.update({ metatype: NodeType.VIEW, type: ViewType.HELP, subnode: { aspect } });
 }
-const visibleAspects = [HelpAspect.DETAIL, HelpAspect.RUN];
+const visibleAspects = [HelpAspect.DETAIL, HelpAspect.RUN, HelpAspect.CHAT];
 
 // interaction
 const bodyRef = ref<HTMLElement | null>(null);
@@ -174,6 +175,7 @@ defineExpose<ViewExposed>({ self });
           :node-ptr="nodePtr"
           is-input
           v-bind="state.getChildState('scroll.detail', { nodePtr, isInput: true, isMinimal: false })"
+          data-contextmenu="ignore"
         />
         <!-- Run -->
         <Run
@@ -182,6 +184,16 @@ defineExpose<ViewExposed>({ self });
           ref="startRef"
           :node-ptr="nodePtr"
           v-bind="state.getChildState('scroll.start', { nodePtr })"
+          data-contextmenu="ignore"
+        />
+        <!-- Chat -->
+        <Chat
+          v-else-if="aspect == HelpAspect.CHAT"
+          id="chat"
+          ref="chatRef"
+          :node-ptr="nodePtr"
+          v-bind="state.getChildState('scroll.chat', { nodePtr })"
+          :size="{ width: size?.width, height: bodyHeight }"
           data-contextmenu="ignore"
         />
         <!-- ... -->

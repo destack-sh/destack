@@ -60,12 +60,12 @@ const props = defineProps<
     >
   >
 >();
-const subnodePacked = toRef(props, "subnodePacked");
-const variant = useSubnodeProperty(NodeType.VIEW, ViewType.PICKER, subnodePacked, "variant");
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
+const subnodePacked = toRef(props, "subnodePacked");
+const variant = useSubnodeProperty(NodeType.VIEW, ViewType.PICKER, subnodePacked, "variant");
 
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const query: Ref<string> = ref("");

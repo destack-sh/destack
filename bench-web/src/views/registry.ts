@@ -37,6 +37,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.EMPTY]: () => import("@/views/helpers/Empty.vue"),
   [ViewType.HUB]: () => import("@/views/helpers/Hub.vue"),
   [ViewType.HELP]: () => import("@/views/helpers/Help.vue"),
+  [ViewType.CHAT]: () => import("@/views/helpers/Chat.vue"),
   [ViewType.CATALOG]: () => import("@/views/helpers/Catalog.vue"),
   [ViewType.ACTIVITY]: () => import("@/views/helpers/Activity.vue"),
 

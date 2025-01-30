@@ -5,13 +5,13 @@ import structlog
 
 from bench.language.core import (
     TITLE_CONSTRAINT,
-    BenchNode,
     BlockType,
     BuiltinEnum,
     EnumType,
     FieldType,
     HasNodeBase,
     HasTimeIdentity,
+    Node,
     NodeType,
     StateNode,
     StructType,
@@ -19,6 +19,7 @@ from bench.language.core import (
     constraint,
     enum_,
     p_internal,
+    p_node_ancestor,
     p_node_parent,
     p_regular,
     p_system,
@@ -30,7 +31,7 @@ from bench.language.runtime.interruption import Interruption
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, NodeReference, Run, Text
+    from bench.language import Bench, Block, NodeReference, Package, Run, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -60,14 +61,26 @@ class MessageStatus(BuiltinEnum):
 @timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value", has_subtypes=True)
 class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     """
-    A Message by a User or program (author = created_by).
-    If the parent is also a Message, then this Message is part of a Message thread.
+    A Message about something.
+    If the parent is also a Message, then this is a Message thread (may be nested).
     """
 
     # meta
     parent: Union["Bench", "Message", None] = p_node_parent(4, NodeType.BENCH, NodeType.MESSAGE)
     type: MessageType = p_regular(30, require=True, default=MessageType.LOCAL)
-    origin: BenchNode | None = p_regular(35, require=False, references="any", same_bench=True)
+    root: "Message | None" = p_node_ancestor(
+        31, NodeType.MESSAGE, require=False, store=True, wire=True, is_bench_implicit=True
+    )
+    origin: Union["Block", "Package"] = p_regular(
+        33, require=False, references=(NodeType.BLOCK, NodeType.PACKAGE), same_bench=True
+    )
+    run: Optional["Run"] = p_regular(
+        34,
+        require=False,
+        array=False,
+        references=NodeType.RUN,
+        description="The Run this Message is scoped to. If no Run, this is a general in-source Message.",
+    )
     block: "Block | None" = p_internal(
         36,
         require=False,
@@ -93,21 +106,16 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     value: Any = p_value_runtime(
         52, type=FieldType.MEMBER, typ=lambda self: cast("Message", self).value_type
     )
+    nodes: list["Node"] = p_regular(53, array=True, require=False, references="any")
     interruption: Optional["Interruption"] = p_regular(
-        53, require=False, array=False, references=NodeType.INTERRUPTION
+        55, require=False, array=False, references=NodeType.INTERRUPTION
     )
 
     # routing :MessageRouting
     reply_to: Optional["Message"] = p_regular(
         60, require=False, array=False, references=NodeType.MESSAGE
     )
-    run: Optional["Run"] = p_regular(
-        62,
-        require=False,
-        array=False,
-        references=NodeType.RUN,
-        description="The Run this Message is scoped to",
-    )
+
     # to: roles, identities, users, teams, ...
 
     # flags
