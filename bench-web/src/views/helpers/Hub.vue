@@ -4,28 +4,27 @@ import { toCamelName } from "@/language/const";
 import { packSubnode, useSubnodeProperty } from "@/language/node";
 import { BlockType, HubAspect, NodeType, Orientation, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
-import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/system/runtime";
+import { runtime } from "@/system/runtime";
 import { bench, canvas, hasLocalBench, pkg, pkgConnection, pkgGraph, spaceGraph } from "@/system/space";
-import { isAuthenticated, user } from "@/system/user";
+import { isAuthenticated, user, userConnection } from "@/system/user";
 import { fireActionById } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
-import { ICON_BY_HUB_ASPECT, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/ui/icon";
+import { AvatarInline, getNodeIcon, ICON_BY_HUB_ASPECT, ICON_BY_NODE_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
-import NodeReference from "@/views/builtins/NodeReference.vue";
-import RunStatus from "@/views/builtins/RunStatus.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
+import Tree from "@/views/collections/Tree.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import Tree from "@/views/collections/Tree.vue";
-import { computed, Ref, ref, toRef } from "vue";
-import Catalog from "@/views/helpers/Catalog.vue";
+import Icon from "@/views/content/Icon.vue";
 import Activity from "@/views/helpers/Activity.vue";
+import Catalog from "@/views/helpers/Catalog.vue";
+import { computed, Ref, ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
-const footerHeight = computed(() => (runtime.focusedRun != null ? 70 : 38));
+const FOOTER_HEIGHT = 42;
 
 const BENCH_MENU_ITEMS = computed(() => {
   const items: MenuItem[] = [
@@ -113,7 +112,7 @@ const visibleAspectsOverflow = computed(() => visibleAspects.length * 75 > (prop
 
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const bodyRef = ref<HTMLElement | null>(null);
-const bodyHeight = computed(() => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT - footerHeight.value);
+const bodyHeight = computed(() => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: bodyRef, overlayEl: selectionOverlayRef });
 
@@ -259,36 +258,11 @@ defineExpose<ViewExposed>({ self });
     <!-- Footer -->
     <div
       class="absolute bottom-0 z-10 flex w-full flex-col gap-y-1 border-t bg-white pt-1"
-      :class="[scrollRef?.isOverflown ? 'border-gray-200' : 'border-transparent']"
+      :class="['border-gray-200']"
       :style="{
-        height: `${footerHeight}px`,
+        height: `${FOOTER_HEIGHT}px`,
       }"
     >
-      <!-- Focused Run -->
-      <div
-        v-if="runtime.focusedRun != null"
-        role="button"
-        class="group/run mx-2 flex cursor-pointer flex-row items-center gap-x-2.5 rounded py-1 pl-2 pr-2 hover:bg-gray-100"
-        @click="runtime.focusedRun != null && canvas.goToNode(runtime.focusedRun)"
-      >
-        <NodeReference v-if="runtime.focusedRunTree.base" isLight size="regular" :node="runtime.focusedRunTree.base" />
-        <span v-else class="text-gray-400">Run</span>
-        <!-- Status -->
-        <RunStatus :run="runtime.focusedRun" icon="dot" />
-        <!-- Controls -->
-        <div class="ml-auto flex flex-row gap-x-1">
-          <button
-            v-for="action in [...getRunActions(runtime.focusedRun), CLEAR_RUN_ACTION]"
-            :key="action.title"
-            v-tooltip="{ title: action.title, small: true, group: 'run' }"
-            aria-hidden
-            class="rounded px-1 text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/run:opacity-100"
-            @click="action.action()"
-          >
-            <IconInline v-bind="action.icon" />
-          </button>
-        </div>
-      </div>
       <!-- User -->
       <button
         v-menu="
@@ -299,12 +273,30 @@ defineExpose<ViewExposed>({ self });
             placement: 'top-left',
           })
         "
-        class="mx-2 rounded py-1 pl-2.5 pr-1.5 text-left transition-colors duration-75 hover:bg-gray-100"
+        class="mx-2 flex flex-row items-center rounded py-1 pl-2.5 pr-1.5 text-left transition-colors duration-75 hover:bg-gray-100"
         @click="user == null && fireActionById('user.security.login')"
       >
-        <IconInline class="text-gray-700" v-bind="user?.icon ?? makeIcon('fa fa-user-circle')" />
-        <span v-if="user" class="ml-2">{{ user.name }}</span>
-        <span v-else class="ml-2">Log In</span>
+        <AvatarInline
+          v-tooltip="{ title: 'Change icon', small: true }"
+          v-menu="
+            (): PopoverInfoIn => ({
+              kind: 'view',
+              component: Icon,
+              placement: 'bottom-right',
+              offset: '-referenceWidth',
+              props: { modelValue: (user as any)!.icon, isInput: true },
+              onApply: (newIcon) => userConnection.tx.update(user!, { icon: newIcon }),
+            })
+          "
+          v-bind="user != null ? getNodeIcon(user) : ICON_BY_NODE_TYPE[NodeType.USER]!"
+        />
+        <div class="flex flex-col">
+          <!-- Username -->
+          <span v-if="user" class="ml-2 font-medium">{{ user.name }}</span>
+          <span v-else class="ml-2">Log In</span>
+          <!-- Text -->
+          <span v-if="user" class="text-gray-400">{{ user.email }}</span>
+        </div>
       </button>
     </div>
   </div>
