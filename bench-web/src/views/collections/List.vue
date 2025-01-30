@@ -113,7 +113,7 @@ defineExpose<ViewExposed & { total: Ref<number | undefined>; roots: Ref<AnyNodeD
       <!-- Empty -->
       <div
         v-if="total == 0"
-        class="mx-1.5 flex flex-row items-center px-2.5"
+        class="mx-1.5 flex flex-row items-center justify-center px-2.5"
         :style="{
           height: ITEM_HEIGHT + 'px',
         }"

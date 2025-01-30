@@ -29,7 +29,7 @@ export function createBlock(
     block: Partial<NodeIn<NodeType.BLOCK>> & Required<Pick<NodeIn<NodeType.BLOCK>, "type">>;
     anchor: "before" | "after" | "inside";
     target: BlockData | TypedNodeReferenceData<NodeType.BLOCK> | PackageData | TypedNodeReferenceData<NodeType.PACKAGE>;
-    skipDefaultStuff?: boolean;
+    skipDefaultChildren?: boolean;
   },
 ): BlockData {
   const target = isNode(options.target) ? options.target : graph.getOrError(options.target);
@@ -72,8 +72,8 @@ export function createBlock(
     name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: options.block.type, parentPtr }),
   });
 
-  // create default stuff
-  if (!options.skipDefaultStuff) {
+  // create default children
+  if (!options.skipDefaultChildren) {
     if (block.type == BlockType.FLOW) {
       // create start action
       tx.create({

@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.29.1"
+VERSION = "2025.01.29.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1072,10 +1072,15 @@ MESSAGE_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
+        Column("root_id", PrimitiveType.UUID, is_nullable=True),
+        Column("root_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("origin_id", PrimitiveType.UUID, is_nullable=True),
         Column("origin_ck", PrimitiveType.UUID, is_nullable=True),
         Column("origin_type", PrimitiveType.INT16, is_nullable=True),
-        Column("origin_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("run_id", PrimitiveType.UUID, is_nullable=True),
+        Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("run_base_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -1087,6 +1092,12 @@ MESSAGE_TABLE = Table(
         Column("title", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("nodes_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("nodes_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("nodes_type", PrimitiveType.INT16, is_array=True, is_nullable=True),
+        Column("nodes_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("nodes_base_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("nodes_base_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("interruption_id", PrimitiveType.UUID, is_nullable=True),
         Column("interruption_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("interruption_base_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1095,10 +1106,6 @@ MESSAGE_TABLE = Table(
         Column("reply_to_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("reply_to_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reply_to_base_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("run_base_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),),
 )

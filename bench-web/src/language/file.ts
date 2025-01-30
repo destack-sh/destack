@@ -17,6 +17,7 @@ import {
   MIME_TYPES_BY_FILE_FORMAT,
   NodeReferenceData,
   NodeType,
+  ResourceOccupancy,
   ResourceStatus,
   Struct,
   TypeConstraintData,
@@ -73,11 +74,7 @@ export const fileUploads = computed(() => Object.values(uploadsByFileId.value));
 export const activeFileUploads = computed(() => fileUploads.value.filter((u) => u.isActive.value));
 
 /** Extract file info from a native File. Like in bench :ExtractFileInfo */
-export async function extractFile(
-  content: File,
-  identity: NodeReferenceData,
-  bench: BenchData,
-): Promise<FileData> {
+export async function extractFile(content: File, identity: NodeReferenceData, bench: BenchData): Promise<FileData> {
   const name = content.name;
 
   // guess file type using extension & mime type
@@ -106,6 +103,7 @@ export async function extractFile(
     benchPtr: toNodeRef(bench),
     region: bench.region,
     status: ResourceStatus.UP,
+    occupancy: ResourceOccupancy.OCCUPIED,
     kind: FileKind.DRIVE,
     name,
     type,

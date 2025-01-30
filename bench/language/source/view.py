@@ -536,7 +536,9 @@ class UserWizardView(View):
 
 
 @subnode_(ViewType.CHAT)
-class ChatView(View): ...
+class ChatView(View):
+    text: Optional["Text"] = p_regular(100, require=False, struct=StructType.TEXT)
+    nodes: list["Node"] = p_regular(101, require=False, array=True, references="any")
 
 
 @enum_(EnumType.HUB_ASPECT)

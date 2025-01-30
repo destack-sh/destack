@@ -12,11 +12,11 @@ const props = defineProps<
     Pick<ViewData, "name" | "title" | "icon" | "isDisabled" | "isLoading" | "subnodePacked">
   >
 >();
-const subnodePacked = toRef(props, "subnodePacked");
-const variant = useSubnodeProperty(NodeType.VIEW, ViewType.BUTTON, subnodePacked, "variant");
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
+const subnodePacked = toRef(props, "subnodePacked");
+const variant = useSubnodeProperty(NodeType.VIEW, ViewType.BUTTON, subnodePacked, "variant");
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 
 const classByVariant: Ref<Partial<Record<ButtonVariant, string[]>>> = computed(() => ({
