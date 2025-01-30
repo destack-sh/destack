@@ -90,7 +90,7 @@ enum EnumType {
   ENUM_TYPE_BREAKPOINT_TARGET = 22202;
   ENUM_TYPE_INTERRUPTION_TYPE = 22210;
   ENUM_TYPE_INTERRUPTION_STATUS = 22211;
-  ENUM_TYPE_YIELD_RESPONSE = 22220;
+  ENUM_TYPE_INTERRUPTION_RESPONSE = 22220;
   ENUM_TYPE_MODEL_DEVELOPER = 22300;
   ENUM_TYPE_MODEL_TYPE = 22301;
   ENUM_TYPE_MODEL_FAMILY = 22302;
@@ -495,7 +495,7 @@ enum BenchType {
   BENCH_TYPE_BREAKPOINT_TARGET = 22202;
   BENCH_TYPE_INTERRUPTION_TYPE = 22210;
   BENCH_TYPE_INTERRUPTION_STATUS = 22211;
-  BENCH_TYPE_YIELD_RESPONSE = 22220;
+  BENCH_TYPE_INTERRUPTION_RESPONSE = 22220;
   BENCH_TYPE_MODEL_DEVELOPER = 22300;
   BENCH_TYPE_MODEL_TYPE = 22301;
   BENCH_TYPE_MODEL_FAMILY = 22302;
@@ -1242,6 +1242,9 @@ enum TriggerType {
 
 enum TriggerEffect {
   TRIGGER_EFFECT_UNSPECIFIED = 0;
+  TRIGGER_EFFECT_START_RUN = 1;
+  TRIGGER_EFFECT_CONTINUE_RUN = 2;
+  TRIGGER_EFFECT_ENSURE_RUN = 3;
   TRIGGER_EFFECT_CANCEL_INTERRUPTION = 20;
   TRIGGER_EFFECT_COMPLETE_INTERRUPTION = 21;
 }
@@ -1268,7 +1271,6 @@ enum ScheduleFrequency {
   SCHEDULE_FREQUENCY_DAY = 4;
   SCHEDULE_FREQUENCY_HOUR = 5;
   SCHEDULE_FREQUENCY_MINUTE = 6;
-  SCHEDULE_FREQUENCY_SECOND = 7;
 }
 
 // How to execute Calls.
@@ -1372,10 +1374,10 @@ enum InterruptionStatus {
   INTERRUPTION_STATUS_COMPLETED = 33;
 }
 
-enum YieldResponse {
-  YIELD_RESPONSE_UNSPECIFIED = 0;
-  YIELD_RESPONSE_ACCEPT = 10;
-  YIELD_RESPONSE_REJECT = 20;
+enum InterruptionResponse {
+  INTERRUPTION_RESPONSE_UNSPECIFIED = 0;
+  INTERRUPTION_RESPONSE_ACCEPT = 10;
+  INTERRUPTION_RESPONSE_REJECT = 20;
 }
 
 enum ModelDeveloper {
@@ -2839,7 +2841,7 @@ message InterruptionData {
   optional TextData text = 51;
   optional google.protobuf.Value inputs_packed = 52;
   optional google.protobuf.Value outputs_packed = 53;
-  optional YieldResponse response = 54;
+  optional InterruptionResponse response = 54;
   optional NodeReferenceData message_ptr = 55;
   optional NodeReferenceData cancel_trigger_ptr = 60;
   optional NodeReferenceData complete_trigger_ptr = 61;
@@ -2961,6 +2963,8 @@ message RunData {
   repeated NodeReferenceData incoming_ptr = 40;
   optional NodeReferenceData plan_ptr = 41;
   optional int32 plan_step = 42;
+  optional NodeReferenceData trigger_ptr = 43;
+  optional string trigger_key = 44;
   RunStatus status = 50;
   optional int32 attempt = 51;
   optional google.protobuf.Duration duration = 52;
@@ -3579,11 +3583,14 @@ message TriggerData {
   string name = 32;
   optional TextData text = 33;
   TriggerEffect effect = 34;
-  optional NodeReferenceData interruption_ptr = 35;
-  optional NodeReferenceData scope_ptr = 36;
-  optional NodeReferenceData run_ptr = 37;
+  optional NodeReferenceData scope_ptr = 35;
+  optional NodeReferenceData run_ptr = 36;
+  optional NodeReferenceData interruption_ptr = 37;
   TriggerStatus status = 40;
-  optional google.protobuf.Timestamp closed_at = 41;
+  optional google.protobuf.Timestamp processed_at = 41;
+  int32 processed_count = 42;
+  optional string processed_key = 43;
+  optional google.protobuf.Timestamp closed_at = 45;
 }
 
 // A Trigger is a condition that, when met, affects the runtime somehow.

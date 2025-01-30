@@ -197,7 +197,7 @@ def node_(
     stored: bool = True,
     stored_value_unraveled: bool = False,
     roots: tuple[NodeType, ...] = (NodeType.BENCH,),
-    indexes: tuple[tuple[str, ...], ...] = (),
+    index: tuple[tuple[str, ...], ...] = (),
     unique: tuple[tuple[str, ...], ...] = (),
     has_subtypes: bool = False,
 ):
@@ -227,7 +227,7 @@ def node_(
         else:
             raise ValueError(f"unknown node store for {node_type}")
 
-        cls.__extra_indexes__ = indexes
+        cls.__extra_indexes__ = index
         cls.__extra_uniques__ = unique
 
         cls.__roots__ = bittuple(*roots, enum_cls=NodeType)
@@ -322,7 +322,8 @@ def timed_node_(
     node_type: NodeType,
     passthrough_get: str | tuple[str, ...] | None = None,
     passthrough_set: str | tuple[str, ...] | None = None,
-    indexes: tuple[tuple[str, ...], ...] = (),
+    index: tuple[tuple[str, ...], ...] = (),
+    unique: tuple[tuple[str, ...], ...] = (),
     has_subtypes: bool = False,
 ):
     """Register a class as a concrete node for the given node type."""
@@ -330,7 +331,8 @@ def timed_node_(
         node_type=node_type,
         passthrough_get=passthrough_get,
         passthrough_set=passthrough_set,
-        indexes=(*indexes, ("created_at",)),
+        index=(*index, ("created_at",)),
+        unique=(*unique,),
         has_subtypes=has_subtypes,
     )
 

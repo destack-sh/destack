@@ -382,10 +382,17 @@ defineExpose<ViewExposed>({ self, id, actions });
                 width: MESSAGE_SIDE_WIDTH + 'px',
               }"
             >
+              <!-- Author for new groups -->
               <AvatarInline v-if="isNewGroup" class="mr-1 text-gray-700" size="medium" v-bind="authorIcon" />
-              <span v-else class="text-xs text-gray-400 opacity-0 group-hover/message:opacity-100">
-                {{ tsToDt(message.createdAt!).toLocaleString(DateTime.TIME_SIMPLE) }}
-              </span>
+              <!-- Time/edited otherwise -->
+              <div v-else class="text-xs text-gray-400">
+                <!-- Time -->
+                <span class="hidden group-hover/message:inline">
+                  {{ tsToDt(message.createdAt!).toLocaleString(DateTime.TIME_SIMPLE) }}
+                </span>
+                <!-- Edited? -->
+                <span v-if="isEdited" class="fas fa-pencil text-xs text-gray-300 group-hover/message:hidden" />
+              </div>
             </div>
             <!-- Body -->
             <div class="relative flex-1">
@@ -400,7 +407,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   {{ formatAbsoluteDate(message.createdAt!, { prefer: "time" }) }}
                 </span>
                 <!-- Edited? -->
-                <span v-if="isEdited" class="text-xs ml-1 text-gray-400">(edited)</span>
+                <span v-if="isEdited" class="ml-1 fas fa-pencil text-xs text-gray-300" />
               </div>
               <!-- Actions -->
               <div
@@ -419,7 +426,9 @@ defineExpose<ViewExposed>({ self, id, actions });
                 </button>
               </div>
               <!-- Content -->
-              <Text v-if="!isEditing" :id="'text-' + message.id" is-minimal :model-value="message.text" />
+              <template v-if="!isEditing">
+                <Text v-if="!isEditing" :id="'text-' + message.id" is-minimal :model-value="message.text" />
+              </template>
               <div v-else class="my-1">
                 <Text
                   :id="'text-' + message.id"
@@ -491,7 +500,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <!-- Replying to -->
       <div
         v-if="replyTo != null"
-        class="flex w-full flex-row items-center rounded rounded-b-none border border-b-0 border-gray-200 bg-gray-100 px-2 py-1"
+        class="flex w-full flex-row items-center rounded rounded-b-none border border-b-0 border-gray-200 bg-gray-100 px-2.5 py-1"
         role="button"
       >
         <span>Replying to</span>
@@ -513,7 +522,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       </div>
       <!-- Box -->
       <div
-        class="relative rounded border border-gray-200 px-2 py-1.5 focus-within:border-gray-400"
+        class="peer relative rounded border border-gray-200 px-2 py-1.5"
         :class="[replyTo != null ? 'rounded-t-none' : '']"
       >
         <div class="flex flex-row">
@@ -522,7 +531,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Add extra -->
             <button
               v-tooltip="{ small: true, title: 'Add Context' }"
-              class="transition-color mr-1 rounded-2xl bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-150 hover:bg-gray-200"
+              class="transition-color mr-3 rounded-2xl bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-150 hover:bg-gray-200"
             >
               <i class="fas fa-plus" />
             </button>

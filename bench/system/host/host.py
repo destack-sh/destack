@@ -41,7 +41,6 @@ from bench.language import (
     Ownable,
     Package,
     Query,
-    Run,
     Session,
     Store,
     Subject,
@@ -86,7 +85,7 @@ from bench.utils.utils import get_from_env
 
 from .core import Host, HostPlugin, unpack_commit
 from .database import DatabasePlugin
-from .scheduler import RunPlugin
+from .run import RunPlugin
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -156,7 +155,6 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         self._session: Session | None = None
         self._provisioners: tuple[Provisioner, ...] = ()
         self._plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
-        self._runs_to_queue: asyncio.Queue[Run] = asyncio.Queue()
 
     def __str__(self):
         return f"{self._bench or self.bench_id}"
@@ -333,9 +331,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             store=self.global_store,
             bench=self._bench,
             scope=self._scope,
-            node_types=bittuple(
-                NodeType.BENCH, NodeType.CLIENT, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.USER
-            ),
+            node_types=bittuple(NodeType.BENCH, NodeType.CLIENT, NodeType.USER),
             context=database_plugin.context,
         )
         self._regional_pg_engine = PostgresEngine(
@@ -396,10 +392,10 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         # start plugins
         self._provisioners = tuple(get_provisioners(self, self._bench))
         self._plugins = (
-            RunPlugin(self, self._bench),
             database_plugin,
-            # LogPlugin(self, self._bench), # TODO :Broken: re-enable LogPlugin
+            # LogPlugin(self, self._bench), # NOTE :Broken: re-enable LogPlugin
             *self._provisioners,
+            RunPlugin(self, self._bench),
         )
         await asyncio.gather(*(plugin.start() for plugin in self._plugins))
         # wait for plugins to finish processing any commits (and to error early)

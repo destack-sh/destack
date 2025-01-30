@@ -324,7 +324,7 @@ class HostPlugin[T: Node]:
         self, session: Session, commit: Commit[T]
     ) -> Sequence[EditData] | None:
         """
-        Add edits that logically belong to the same transaction.
+        Add edits that logically belong to the same Transaction.
         The commit contains only direct edits, not cascaded edits.
         Add any new Edits to the Session *or* return them.
         """
@@ -332,7 +332,7 @@ class HostPlugin[T: Node]:
 
     async def on_commit(self, session: Session, commit: Commit[T]) -> None:
         """
-        React to the commit in a new transaction (but still in the request lifecycle).
+        React to the commit in a new Transaction (but still in the request lifecycle).
         The commit contains edits and cascaded edits.
         """
         pass

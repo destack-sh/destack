@@ -62,6 +62,7 @@ if TYPE_CHECKING:
         Pipe,
         RunnableNode,
         TextOptions,
+        Trigger,
         TypeBase,
         VideoOptions,
     )
@@ -242,7 +243,7 @@ class RunSpan(RuntimeNode[RunSpanData]):
         return self.error is None or self.error.is_retryable
 
 
-@timed_node_(NodeType.RUN)
+@timed_node_(NodeType.RUN, index=(("trigger_id", "trigger_key"),))
 class Run(RuntimeNode[RunData], HasNodeBase):
     """
     Run a Block, Action or some lambda (Code) in a Session.
@@ -282,8 +283,14 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         41, require=False, array=False, references=NodeType.RUN_PLAN, same_bench=True
     )
     plan_step: int | None = p_internal(42)
+    trigger: Optional["Trigger"] = p_regular(
+        43, require=False, array=False, references=NodeType.TRIGGER, same_bench=True
+    )
     if TYPE_CHECKING:
         incoming_ptr: tuple["NodeReference", ...] = ()
+        trigger_ptr: Optional[NodeReference] = None
+        trigger_id: Optional[UUID] = None
+    trigger_key: Optional[str] = p_internal(44, require=False, default=None)
 
     # status
     status: RunStatus = p_internal(50, default=RunStatus.SCHEDULED)

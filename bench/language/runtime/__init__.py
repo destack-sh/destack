@@ -18,6 +18,7 @@ from .interruption import (
     BreakpointScope,
     BreakpointSite,
     Interruption,
+    InterruptionResponse,
     InterruptionStatus,
     InterruptionType,
 )
@@ -67,6 +68,7 @@ __all__ = [
     "ErrorType",
     "ImageOptions",
     "Interruption",
+    "InterruptionResponse",
     "InterruptionStatus",
     "InterruptionType",
     "Log",

@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.30.0"
+VERSION = "2025.01.30.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -979,10 +979,6 @@ TRIGGER_TABLE = Table(
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("effect", PrimitiveType.INT16),
-        Column("interruption_id", PrimitiveType.UUID, is_nullable=True),
-        Column("interruption_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("interruption_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("interruption_base_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("scope_id", PrimitiveType.UUID, is_nullable=True),
         Column("scope_ck", PrimitiveType.UUID, is_nullable=True),
         Column("scope_type", PrimitiveType.INT16, is_nullable=True),
@@ -991,7 +987,14 @@ TRIGGER_TABLE = Table(
         Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("interruption_id", PrimitiveType.UUID, is_nullable=True),
+        Column("interruption_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("interruption_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("interruption_base_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="10"),
+        Column("processed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("processed_count", PrimitiveType.INT32, default="0"),
+        Column("processed_key", PrimitiveType.STRING, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
 )
@@ -1183,6 +1186,9 @@ RUN_TABLE = Table(
         Column("incoming_base_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("plan_id", PrimitiveType.UUID, is_nullable=True),
         Column("plan_step", PrimitiveType.INT32, is_nullable=True),
+        Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
+        Column("trigger_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("trigger_key", PrimitiveType.STRING, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("attempt", PrimitiveType.INT32, is_nullable=True),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
@@ -1212,7 +1218,10 @@ RUN_TABLE = Table(
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
-    indexes=(Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),),
+    indexes=(
+        Index("bench_idx_trigger_id_trigger_key", IndexType.BTREE, ("trigger_id", "trigger_key")),
+        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
+    ),
 )
 
 RUN_SPAN_TABLE = Table(

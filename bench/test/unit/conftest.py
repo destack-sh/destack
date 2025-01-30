@@ -411,13 +411,13 @@ async def host_service(global_store: Store, regional_store: Store, hosted_bench:
 
 
 @pytest.fixture
-async def host(host_service: HostService):
+async def host_client(host_service: HostService):
     async with SimulatedChannel(services=(host_service,), oracle=REAL_ORACLE) as channel:
         yield HostClient(channel)
 
 
 @pytest.fixture
-async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
+async def hosted_runtime_async(hosted_bench: Bench, host_client: HostClient):
     user = hosted_bench.owner
     assert isinstance(user, User), f"unexpected bench owner: {user!r}"
     machine = next(iter(hosted_bench._graph.get_descendants(hosted_bench, NodeType.MACHINE)))
@@ -440,7 +440,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
             name="remote-bench",
             scope=GraphScope(bench_id=hosted_bench.id)._to_data(),
             node_types=BENCH_NODE_TYPES,
-            remote=host,
+            remote=host_client,
             write_retry=RETRY_GRPC_FOREVER,
             rpc_metadata=rpc_metadata,
         ),
@@ -455,7 +455,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
         _local_epoch=0,
         _supergraph=hosted_bench._supergraph,
         _oracle=REAL_ORACLE,
-        _host=host,
+        _host=host_client,
         _origin=client.to_origin(nonce=None)._to_data(),
         _subject=machine,
     )

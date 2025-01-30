@@ -3494,9 +3494,9 @@ export interface InterruptionData {
      */
     outputsPacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional symbolx.bench.YieldResponse response = 54;
+     * @generated from protobuf field: optional symbolx.bench.InterruptionResponse response = 54;
      */
-    response?: YieldResponse;
+    response?: InterruptionResponse;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData message_ptr = 55;
      */
@@ -3953,6 +3953,14 @@ export interface RunData {
      * @generated from protobuf field: optional int32 plan_step = 42;
      */
     planStep?: number;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData trigger_ptr = 43;
+     */
+    triggerPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional string trigger_key = 44;
+     */
+    triggerKey?: string;
     /**
      * @generated from protobuf field: symbolx.bench.RunStatus status = 50;
      */
@@ -5885,23 +5893,35 @@ export interface TriggerData {
      */
     effect: TriggerEffect;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 35;
-     */
-    interruptionPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scope_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scope_ptr = 35;
      */
     scopePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 36;
      */
     runPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 37;
+     */
+    interruptionPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.TriggerStatus status = 40;
      */
     status: TriggerStatus;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp closed_at = 41;
+     * @generated from protobuf field: optional google.protobuf.Timestamp processed_at = 41;
+     */
+    processedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int32 processed_count = 42;
+     */
+    processedCount: number;
+    /**
+     * @generated from protobuf field: optional string processed_key = 43;
+     */
+    processedKey?: string;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp closed_at = 45;
      */
     closedAt?: Timestamp;
 }
@@ -6653,9 +6673,9 @@ export enum EnumType {
      */
     INTERRUPTION_STATUS = 22211,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_YIELD_RESPONSE = 22220;
+     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_RESPONSE = 22220;
      */
-    YIELD_RESPONSE = 22220,
+    INTERRUPTION_RESPONSE = 22220,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_MODEL_DEVELOPER = 22300;
      */
@@ -8245,9 +8265,9 @@ export enum BenchType {
      */
     INTERRUPTION_STATUS = 22211,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_YIELD_RESPONSE = 22220;
+     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION_RESPONSE = 22220;
      */
-    YIELD_RESPONSE = 22220,
+    INTERRUPTION_RESPONSE = 22220,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_MODEL_DEVELOPER = 22300;
      */
@@ -10779,6 +10799,18 @@ export enum TriggerEffect {
      */
     UNSPECIFIED = 0,
     /**
+     * @generated from protobuf enum value: TRIGGER_EFFECT_START_RUN = 1;
+     */
+    START_RUN = 1,
+    /**
+     * @generated from protobuf enum value: TRIGGER_EFFECT_CONTINUE_RUN = 2;
+     */
+    CONTINUE_RUN = 2,
+    /**
+     * @generated from protobuf enum value: TRIGGER_EFFECT_ENSURE_RUN = 3;
+     */
+    ENSURE_RUN = 3,
+    /**
      * @generated from protobuf enum value: TRIGGER_EFFECT_CANCEL_INTERRUPTION = 20;
      */
     CANCEL_INTERRUPTION = 20,
@@ -10858,11 +10890,7 @@ export enum ScheduleFrequency {
     /**
      * @generated from protobuf enum value: SCHEDULE_FREQUENCY_MINUTE = 6;
      */
-    MINUTE = 6,
-    /**
-     * @generated from protobuf enum value: SCHEDULE_FREQUENCY_SECOND = 7;
-     */
-    SECOND = 7
+    MINUTE = 6
 }
 /**
  * How to execute Calls.
@@ -11179,19 +11207,19 @@ export enum InterruptionStatus {
     COMPLETED = 33
 }
 /**
- * @generated from protobuf enum symbolx.bench.YieldResponse
+ * @generated from protobuf enum symbolx.bench.InterruptionResponse
  */
-export enum YieldResponse {
+export enum InterruptionResponse {
     /**
-     * @generated from protobuf enum value: YIELD_RESPONSE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: INTERRUPTION_RESPONSE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: YIELD_RESPONSE_ACCEPT = 10;
+     * @generated from protobuf enum value: INTERRUPTION_RESPONSE_ACCEPT = 10;
      */
     ACCEPT = 10,
     /**
-     * @generated from protobuf enum value: YIELD_RESPONSE_REJECT = 20;
+     * @generated from protobuf enum value: INTERRUPTION_RESPONSE_REJECT = 20;
      */
     REJECT = 20
 }
@@ -21507,7 +21535,7 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
             { no: 51, name: "text", kind: "message", T: () => TextData },
             { no: 52, name: "inputs_packed", kind: "message", T: () => Value },
             { no: 53, name: "outputs_packed", kind: "message", T: () => Value },
-            { no: 54, name: "response", kind: "enum", opt: true, T: () => ["symbolx.bench.YieldResponse", YieldResponse, "YIELD_RESPONSE_"] },
+            { no: 54, name: "response", kind: "enum", opt: true, T: () => ["symbolx.bench.InterruptionResponse", InterruptionResponse, "INTERRUPTION_RESPONSE_"] },
             { no: 55, name: "message_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 60, name: "cancel_trigger_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 61, name: "complete_trigger_ptr", kind: "message", T: () => NodeReferenceData },
@@ -21610,7 +21638,7 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
                 case /* optional google.protobuf.Value outputs_packed */ 53:
                     message.outputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional symbolx.bench.YieldResponse response */ 54:
+                case /* optional symbolx.bench.InterruptionResponse response */ 54:
                     message.response = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData message_ptr */ 55:
@@ -21727,7 +21755,7 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         /* optional google.protobuf.Value outputs_packed = 53; */
         if (message.outputsPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.outputsPacked), writer.tag(53, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.YieldResponse response = 54; */
+        /* optional symbolx.bench.InterruptionResponse response = 54; */
         if (message.response !== undefined)
             writer.tag(54, WireType.Varint).int32(message.response);
         /* optional symbolx.bench.NodeReferenceData message_ptr = 55; */
@@ -22488,6 +22516,8 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 40, name: "incoming_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 41, name: "plan_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "plan_step", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 43, name: "trigger_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 44, name: "trigger_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
             { no: 51, name: "attempt", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 52, name: "duration", kind: "message", T: () => Duration },
@@ -22590,6 +22620,12 @@ class RunData$Type extends MessageType$<RunData> {
                     break;
                 case /* optional int32 plan_step */ 42:
                     message.planStep = reader.int32();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData trigger_ptr */ 43:
+                    message.triggerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.triggerPtr);
+                    break;
+                case /* optional string trigger_key */ 44:
+                    message.triggerKey = reader.string();
                     break;
                 case /* symbolx.bench.RunStatus status */ 50:
                     message.status = reader.int32();
@@ -22735,6 +22771,12 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional int32 plan_step = 42; */
         if (message.planStep !== undefined)
             writer.tag(42, WireType.Varint).int32(message.planStep);
+        /* optional symbolx.bench.NodeReferenceData trigger_ptr = 43; */
+        if (message.triggerPtr)
+            NodeReferenceData.internalBinaryWrite(message.triggerPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional string trigger_key = 44; */
+        if (message.triggerKey !== undefined)
+            writer.tag(44, WireType.LengthDelimited).string(message.triggerKey);
         /* symbolx.bench.RunStatus status = 50; */
         if (message.status !== 0)
             writer.tag(50, WireType.Varint).int32(message.status);
@@ -27458,11 +27500,14 @@ class TriggerData$Type extends MessageType$<TriggerData> {
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "message", T: () => TextData },
             { no: 34, name: "effect", kind: "enum", T: () => ["symbolx.bench.TriggerEffect", TriggerEffect, "TRIGGER_EFFECT_"] },
-            { no: 35, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 36, name: "scope_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "scope_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.TriggerStatus", TriggerStatus, "TRIGGER_STATUS_"] },
-            { no: 41, name: "closed_at", kind: "message", T: () => Timestamp }
+            { no: 41, name: "processed_at", kind: "message", T: () => Timestamp },
+            { no: 42, name: "processed_count", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 43, name: "processed_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 45, name: "closed_at", kind: "message", T: () => Timestamp }
         ]);
     }
     create(value?: PartialMessage<TriggerData>): TriggerData {
@@ -27476,6 +27521,7 @@ class TriggerData$Type extends MessageType$<TriggerData> {
         message.name = "";
         message.effect = 0;
         message.status = 0;
+        message.processedCount = 0;
         if (value !== undefined)
             reflectionMergePartial<TriggerData>(this, message, value);
         return message;
@@ -27545,19 +27591,28 @@ class TriggerData$Type extends MessageType$<TriggerData> {
                 case /* symbolx.bench.TriggerEffect effect */ 34:
                     message.effect = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 35:
-                    message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData scope_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData scope_ptr */ 35:
                     message.scopePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scopePtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData run_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData run_ptr */ 36:
                     message.runPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 37:
+                    message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
                     break;
                 case /* symbolx.bench.TriggerStatus status */ 40:
                     message.status = reader.int32();
                     break;
-                case /* optional google.protobuf.Timestamp closed_at */ 41:
+                case /* optional google.protobuf.Timestamp processed_at */ 41:
+                    message.processedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.processedAt);
+                    break;
+                case /* int32 processed_count */ 42:
+                    message.processedCount = reader.int32();
+                    break;
+                case /* optional string processed_key */ 43:
+                    message.processedKey = reader.string();
+                    break;
+                case /* optional google.protobuf.Timestamp closed_at */ 45:
                     message.closedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.closedAt);
                     break;
                 default:
@@ -27632,21 +27687,30 @@ class TriggerData$Type extends MessageType$<TriggerData> {
         /* symbolx.bench.TriggerEffect effect = 34; */
         if (message.effect !== 0)
             writer.tag(34, WireType.Varint).int32(message.effect);
-        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 35; */
-        if (message.interruptionPtr)
-            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData scope_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData scope_ptr = 35; */
         if (message.scopePtr)
-            NodeReferenceData.internalBinaryWrite(message.scopePtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData run_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.scopePtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData run_ptr = 36; */
         if (message.runPtr)
-            NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 37; */
+        if (message.interruptionPtr)
+            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.TriggerStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
-        /* optional google.protobuf.Timestamp closed_at = 41; */
+        /* optional google.protobuf.Timestamp processed_at = 41; */
+        if (message.processedAt)
+            Timestamp.internalBinaryWrite(message.processedAt, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* int32 processed_count = 42; */
+        if (message.processedCount !== 0)
+            writer.tag(42, WireType.Varint).int32(message.processedCount);
+        /* optional string processed_key = 43; */
+        if (message.processedKey !== undefined)
+            writer.tag(43, WireType.LengthDelimited).string(message.processedKey);
+        /* optional google.protobuf.Timestamp closed_at = 45; */
         if (message.closedAt)
-            Timestamp.internalBinaryWrite(message.closedAt, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.closedAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28972,7 +29036,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.BREAKPOINT_TARGET]: BreakpointScope,
   [EnumType.INTERRUPTION_TYPE]: InterruptionType,
   [EnumType.INTERRUPTION_STATUS]: InterruptionStatus,
-  [EnumType.YIELD_RESPONSE]: YieldResponse,
+  [EnumType.INTERRUPTION_RESPONSE]: InterruptionResponse,
   [EnumType.MODEL_DEVELOPER]: ModelDeveloper,
   [EnumType.MODEL_TYPE]: ModelType,
   [EnumType.MODEL_FAMILY]: ModelFamily,
@@ -29378,7 +29442,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.BREAKPOINT_TARGET]: BreakpointScope,
   [EnumType.INTERRUPTION_TYPE]: InterruptionType,
   [EnumType.INTERRUPTION_STATUS]: InterruptionStatus,
-  [EnumType.YIELD_RESPONSE]: YieldResponse,
+  [EnumType.INTERRUPTION_RESPONSE]: InterruptionResponse,
   [EnumType.MODEL_DEVELOPER]: ModelDeveloper,
   [EnumType.MODEL_TYPE]: ModelType,
   [EnumType.MODEL_FAMILY]: ModelFamily,
@@ -30050,11 +30114,14 @@ export enum TriggerProperty {
   name = 32,
   text = 33,
   effect = 34,
-  interruptionPtr = 35,
-  scopePtr = 36,
-  runPtr = 37,
+  scopePtr = 35,
+  runPtr = 36,
+  interruptionPtr = 37,
   status = 40,
-  closedAt = 41,
+  processedAt = 41,
+  processedCount = 42,
+  processedKey = 43,
+  closedAt = 45,
 }
 
 export enum SpaceProperty {
@@ -30179,6 +30246,8 @@ export enum RunProperty {
   incomingPtr = 40,
   planPtr = 41,
   planStep = 42,
+  triggerPtr = 43,
+  triggerKey = 44,
   status = 50,
   attempt = 51,
   duration = 52,
@@ -31745,8 +31814,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.29.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.29.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.30.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.30.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31777,8 +31846,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.29.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.29.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.30.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.30.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -32148,15 +32217,18 @@ export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.mode]: { id: 20, name: 'mode', component: ObjectType.TRIGGER, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.computedValues]: { id: 28, name: 'computed_values', component: ObjectType.TRIGGER, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COMPUTED_VALUE },
   [TriggerProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [TriggerProperty.type]: { id: 30, name: 'type', component: ObjectType.TRIGGER, enumType: EnumType.TRIGGER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.type]: { id: 30, name: 'type', component: ObjectType.TRIGGER, enumType: EnumType.TRIGGER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.name]: { id: 32, name: 'name', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.text]: { id: 33, name: 'text', component: ObjectType.TRIGGER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [TriggerProperty.effect]: { id: 34, name: 'effect', component: ObjectType.TRIGGER, enumType: EnumType.TRIGGER_EFFECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.interruptionPtr]: { id: 35, name: 'interruption_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
-  [TriggerProperty.scopePtr]: { id: 36, name: 'scope_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [TriggerProperty.runPtr]: { id: 37, name: 'run_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.scopePtr]: { id: 35, name: 'scope_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.runPtr]: { id: 36, name: 'run_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.interruptionPtr]: { id: 37, name: 'interruption_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerProperty.status]: { id: 40, name: 'status', component: ObjectType.TRIGGER, enumType: EnumType.TRIGGER_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.closedAt]: { id: 41, name: 'closed_at', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.processedAt]: { id: 41, name: 'processed_at', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.processedCount]: { id: 42, name: 'processed_count', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.processedKey]: { id: 43, name: 'processed_key', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.closedAt]: { id: 45, name: 'closed_at', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SPACE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -32276,6 +32348,8 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.incomingPtr]: { id: 40, name: 'incoming_ptr', component: ObjectType.RUN, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.planPtr]: { id: 41, name: 'plan_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN_PLAN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.planStep]: { id: 42, name: 'plan_step', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.triggerPtr]: { id: 43, name: 'trigger_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.triggerKey]: { id: 44, name: 'trigger_key', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.status]: { id: 50, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.attempt]: { id: 51, name: 'attempt', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.duration]: { id: 52, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -32390,7 +32464,7 @@ export const InterruptionDataInfo: Record<InterruptionProperty, PropertyInfo> = 
   [InterruptionProperty.text]: { id: 51, name: 'text', component: ObjectType.INTERRUPTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [InterruptionProperty.inputsPacked]: { id: 52, name: 'inputs_packed', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [InterruptionProperty.outputsPacked]: { id: 53, name: 'outputs_packed', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [InterruptionProperty.response]: { id: 54, name: 'response', component: ObjectType.INTERRUPTION, enumType: EnumType.YIELD_RESPONSE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [InterruptionProperty.response]: { id: 54, name: 'response', component: ObjectType.INTERRUPTION, enumType: EnumType.INTERRUPTION_RESPONSE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.messagePtr]: { id: 55, name: 'message_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.cancelTriggerPtr]: { id: 60, name: 'cancel_trigger_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.completeTriggerPtr]: { id: 61, name: 'complete_trigger_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
@@ -33391,6 +33465,14 @@ export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
   [BlockType.IDENTITY]: { id: 51, name: 'IDENTITY', text: 'Unique Identity' },
 }
 
+export const TriggerEffectOptionInfo: Partial<Record<TriggerEffect, EnumOptionInfo>> = {
+  [TriggerEffect.START_RUN]: { id: 1, name: 'START_RUN', text: 'Start a new Run' },
+  [TriggerEffect.CONTINUE_RUN]: { id: 2, name: 'CONTINUE_RUN', text: 'Continue an existing or start a new Run' },
+  [TriggerEffect.ENSURE_RUN]: { id: 3, name: 'ENSURE_RUN', text: 'Ensure a Run exists' },
+  [TriggerEffect.CANCEL_INTERRUPTION]: { id: 20, name: 'CANCEL_INTERRUPTION', text: 'Cancel an Interruption' },
+  [TriggerEffect.COMPLETE_INTERRUPTION]: { id: 21, name: 'COMPLETE_INTERRUPTION', text: 'Complete an Interruption' },
+}
+
 export const CallExecutionModeOptionInfo: Partial<Record<CallExecutionMode, EnumOptionInfo>> = {
   [CallExecutionMode.SERIAL]: { id: 1, name: 'SERIAL', text: 'Run calls after each other' },
   [CallExecutionMode.PARALLEL]: { id: 2, name: 'PARALLEL', text: 'Run calls at the same time' },
@@ -33471,6 +33553,7 @@ export const ToolFilterOptionInfo: Partial<Record<ToolFilter, EnumOptionInfo>> =
 
 export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, EnumOptionInfo>>> = {
   [EnumType.BLOCK_TYPE]: BlockTypeOptionInfo,
+  [EnumType.TRIGGER_EFFECT]: TriggerEffectOptionInfo,
   [EnumType.CALL_EXECUTION_MODE]: CallExecutionModeOptionInfo,
   [EnumType.CALL_FAILURE_MODE]: CallFailureModeOptionInfo,
   [EnumType.CALL_TERMINATION_MODE]: CallTerminationModeOptionInfo,

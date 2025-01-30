@@ -743,7 +743,7 @@ class Session(RuntimeNode[SessionData]):
                 if self._on_commit_prepare is not None:
                     # NOTE :Architecture: we exclude state nodes from preflush before commit prepare
                     #  because our DatabasePlugin needs to update schemas before touching any Records.
-                    self._preflush(include_runtime=True, include_state=False)
+                    self._preflush(include_runtime=True, include_state=False)  # nocheckin <--
                     edits, cascaded_edits = await self._tx.flush(
                         filter=lambda e: not NodeType(e.node_ptr.node_type).is_state
                     )
