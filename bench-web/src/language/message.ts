@@ -3,6 +3,7 @@ import { ReadNodeGraph } from "@/language/graph";
 import { NodeIn } from "@/language/node";
 import { Transaction } from "@/language/transaction";
 import { MessageData, MessageStatus, NodeReferenceData, NodeType } from "@/proto/wire";
+import { declareActions } from "@/ui/action";
 
 /** Create a Message. */
 export function createMessage(
@@ -32,3 +33,22 @@ export function getMessageAuthorPtr(message: MessageData): NodeReferenceData | n
     return null;
   }
 }
+
+// actions
+declareActions<"chat">({
+  "chat.message.reply": {
+    title: "Reply",
+    text: "Reply to the Message",
+    icon: "fas fa-reply",
+  },
+  "chat.message.forward": {
+    title: "Forward",
+    text: "Forward the Message",
+    icon: "fas fa-share",
+  },
+  "chat.message.edit": {
+    title: "Edit",
+    text: "Edit the Message",
+    icon: "fas fa-pencil",
+  },
+});

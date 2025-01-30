@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.29.2"
+VERSION = "2025.01.30.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -99,9 +99,8 @@ USER_TABLE = Table(
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("slug", PrimitiveType.STRING, is_unique=True, is_nullable=True),
         Column("name", PrimitiveType.STRING),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("email", PrimitiveType.STRING, is_unique=True, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16),
         Column(
@@ -119,6 +118,7 @@ USER_TABLE = Table(
             is_nullable=True,
         ),
         Column("main_handle_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("email", PrimitiveType.STRING, is_unique=True, is_nullable=True),
         Column("password_salt", PrimitiveType.BYTES, is_nullable=True, is_encrypted=True),
         Column("password_hash", PrimitiveType.BYTES, is_nullable=True, is_encrypted=True),
         Column("last_logged_in_at", PrimitiveType.DATETIME, is_nullable=True),

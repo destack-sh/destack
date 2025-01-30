@@ -7,7 +7,7 @@ import {
   RUNTIME_NODE_TYPES,
 } from "@/language/const";
 import { ReadNodeGraph } from "@/language/graph";
-import { NodeType, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
+import { NodeType, NodeTypeMapping, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { isDeveloperMode } from "@/system/client";
 import type { ConnectionBase } from "@/system/connection";
@@ -108,6 +108,10 @@ export const ACTION_BUILTIN_IDS = [
   // flow
   "flow.edit.createAction",
   "flow.edit.splitPipe",
+  // chat
+  "chat.message.reply",
+  "chat.message.forward",
+  "chat.message.edit",
   // text
   "text.format.bold",
   "text.format.italic",
@@ -335,7 +339,7 @@ export function isActionEnabled(action: Action, context?: ActionContext): boolea
 /** Triggers the bound action by id. */
 export function fireActionById(id: ActionBuiltinId, context?: ActionContext) {
   const action = getAction(id);
-  fireAction(action, canvas.focusedViewComponents, context);
+  fireAction(action, context, canvas.focusedViewComponents);
 }
 
 /** Triggers the bound action from a keyboard event. */
@@ -363,7 +367,7 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
   // fire action
   const localViewsInOrder = collectViewComponentsUp(e.target as HTMLElement);
   // NOTE: concat local views and focused view components so local ones are preferred, but all are available
-  return fireAction(action, [...localViewsInOrder, ...canvas.focusedViewComponents], context);
+  return fireAction(action, context, [...localViewsInOrder, ...canvas.focusedViewComponents]);
 }
 
 /**
@@ -403,8 +407,8 @@ export function getImplementingAction(
 /** Triggers the bound action from a given view (as starting point). */
 export function fireAction(
   action: Action,
-  viewsInOrder: ViewComponent[] | null = canvas.focusedViewComponents,
   context: ActionContext = {},
+  viewsInOrder: ViewComponent[] | null = canvas.focusedViewComponents,
 ) {
   if (!isActionEnabled(action, context)) return false;
   if (action.kind == "static") {
@@ -495,13 +499,14 @@ export function watchActions() {
 }
 
 /** Gets the nodes in the context of an Action. Only returns the nodes if they are part of tbe same connection. */
-export function getNodesForAction(
+export function getNodesForAction<T extends NodeType>(
   action: Action,
   context: ActionContext | undefined,
+  nodeFilter?: T[] | ((node: AnyNodeData) => node is NodeTypeMapping[T]),
 ): {
   connection: ConnectionBase<any, any> | null;
   graph: ReadNodeGraph | null;
-  nodes: AnyNodeData[];
+  nodes: NodeTypeMapping[T][];
 } {
   // gather 'context' nodes
   let nodesPtr = [];
@@ -531,12 +536,17 @@ export function getNodesForAction(
   const { connection, graph } = link;
 
   // get and deduplicate nodes
-  const nodes = [];
+  const nodes: NodeTypeMapping[T][] = [];
   const nodesById: Record<string, AnyNodeData> = {};
   for (const nodePtr of nodesPtr) {
     const node = graph.get(nodePtr);
-    if (node != null && nodesById[node.id!] == null) {
-      nodes.push(node);
+    if (node == null) continue;
+    if (Array.isArray(nodeFilter) && !nodeFilter.includes(node.metatype as unknown as T)) {
+      continue;
+    } else if (typeof nodeFilter == "function" && !nodeFilter(node)) {
+      continue;
+    } else if (nodesById[node.id!] == null) {
+      nodes.push(node as NodeTypeMapping[T]);
       nodesById[node.id!] = node;
     }
   }
@@ -549,6 +559,7 @@ export function getNodesForAction(
 
 export const NON_DUPLICATABLE_NODE_TYPES = [
   NodeType.PIPE,
+  NodeType.MESSAGE,
   ...RUNTIME_NODE_TYPES,
   ...RESOURCE_NODE_TYPES,
   ...COSMOS_NODE_TYPES,
@@ -571,6 +582,10 @@ export const RESOURCE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "resource.status.activate",
   // "resource.status.suspend", // (not supported yet)
   "resource.status.decommission",
+];
+export const MESSAGE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
+  "chat.message.reply",
+  "chat.message.edit",
 ];
 
 export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]>> = {

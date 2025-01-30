@@ -1,6 +1,6 @@
-import { isResourceNodeType } from "@/language/const";
+import { isResourceNode } from "@/language/const";
 import { newChangeId, Transaction } from "@/language/transaction";
-import { NodeType, ResourceNodeData, ResourceStatus, Timestamp } from "@/proto/wire";
+import { ResourceNodeData, ResourceStatus, Timestamp } from "@/proto/wire";
 import { Action, ActionContext, getNodesForAction, provideActions } from "@/ui/action";
 
 /** Provision or activate a Resource. */
@@ -23,12 +23,11 @@ function applyResourceAction(
   context: ActionContext | undefined,
   method: (tx: Transaction, resource: ResourceNodeData) => void,
 ) {
-  const { connection, graph, nodes } = getNodesForAction(action, context);
+  const { connection, graph, nodes } = getNodesForAction(action, context, isResourceNode);
   if (connection == null) return false;
   const tx = connection.tx.with({ change: { key: newChangeId(), title: "Provision" } });
-  nodes
-    .filter((node) => isResourceNodeType(node.metatype as unknown as NodeType))
-    .forEach((node) => method(tx, node as ResourceNodeData));
+  nodes.forEach((node) => method(tx, node as ResourceNodeData));
+  return true;
 }
 
 function isResourceActionEnabled(
@@ -36,11 +35,8 @@ function isResourceActionEnabled(
   context: ActionContext | undefined,
   statusPredicate: (status: ResourceStatus) => boolean,
 ): boolean {
-  const nodes = getNodesForAction(action, context).nodes;
-  return (
-    nodes.every((n) => isResourceNodeType(n.metatype as any)) &&
-    nodes.some((n) => statusPredicate((n as ResourceNodeData).status))
-  );
+  const nodes = getNodesForAction(action, context, isResourceNode).nodes;
+  return nodes.every((n) => statusPredicate((n as ResourceNodeData).status));
 }
 
 // resource

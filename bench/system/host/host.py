@@ -484,8 +484,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
                 continue  # not loaded
             if node_type in self._bench._graph.node_types:
                 bench_edits.append(edit)
-            if node_type in self._main_package._graph.node_types:
-                assert edit.scope.package_id, f"no package id in {edit!r}"
+            if node_type in self._main_package._graph.node_types and edit.scope.package_id:
                 package_id = to_uuid(edit.scope.package_id)
                 assert package_id == self._main_package.id, f"bad package id: {package_id!r}"
                 package_edits.append(edit)

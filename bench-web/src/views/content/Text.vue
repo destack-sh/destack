@@ -381,7 +381,7 @@ const actions: ActionMapImplementation<"text"> & Partial<ActionMapImplementation
 };
 
 function focus() {
-  view!.focus();
+  view?.focus?.();
 }
 
 canvas.registerView(self, id);
@@ -503,5 +503,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
 }
 .ProseMirror-selectednode {
   @apply p-2 outline-primary-700;
+}
+.ProseMirror[contenteditable="false"] {
+  user-select: text; /* let user highlight text */
+  -webkit-user-select: text;
+  -moz-user-select: text;
 }
 </style>

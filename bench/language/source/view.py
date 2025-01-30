@@ -38,6 +38,7 @@ if TYPE_CHECKING:
         Block,
         Expression,
         Icon,
+        Message,
         Package,
         Run,
         Text,
@@ -539,6 +540,9 @@ class UserWizardView(View):
 class ChatView(View):
     text: Optional["Text"] = p_regular(100, require=False, struct=StructType.TEXT)
     nodes: list["Node"] = p_regular(101, require=False, array=True, references="any")
+    reply_to: Optional["Message"] = p_regular(
+        102, require=False, array=False, references=NodeType.MESSAGE
+    )
 
 
 @enum_(EnumType.HUB_ASPECT)

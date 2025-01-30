@@ -2282,31 +2282,27 @@ export interface UserData {
      */
     subnodePacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional string slug = 32;
+     * @generated from protobuf field: optional string slug = 31;
      */
     slug?: string;
     /**
-     * @generated from protobuf field: string name = 33;
+     * @generated from protobuf field: string name = 32;
      */
     name: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.IconData icon = 33;
+     */
+    icon?: IconData;
     /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: optional string email = 35;
-     */
-    email?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.IconData icon = 36;
-     */
-    icon?: IconData;
-    /**
-     * @generated from protobuf field: symbolx.bench.Region region = 38;
+     * @generated from protobuf field: symbolx.bench.Region region = 35;
      */
     region: Region;
     /**
-     * @generated from protobuf field: symbolx.bench.UserStatus status = 39;
+     * @generated from protobuf field: symbolx.bench.UserStatus status = 36;
      */
     status: UserStatus;
     /**
@@ -2318,11 +2314,15 @@ export interface UserData {
      */
     mainHandlePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional bytes password_salt = 50;
+     * @generated from protobuf field: optional string email = 50;
+     */
+    email?: string;
+    /**
+     * @generated from protobuf field: optional bytes password_salt = 51;
      */
     passwordSalt?: Uint8Array;
     /**
-     * @generated from protobuf field: optional bytes password_hash = 51;
+     * @generated from protobuf field: optional bytes password_hash = 52;
      */
     passwordHash?: Uint8Array;
     /**
@@ -5555,6 +5555,10 @@ export interface ChatViewData {
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData nodes_ptr = 101;
      */
     nodesPtr: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData reply_to_ptr = 102;
+     */
+    replyToPtr?: NodeReferenceData;
 }
 /**
  * A View is a graphical interface in a Bench.
@@ -19065,17 +19069,17 @@ class UserData$Type extends MessageType$<UserData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 32, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "icon", kind: "message", T: () => IconData },
             { no: 34, name: "text", kind: "message", T: () => TextData },
-            { no: 35, name: "email", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 36, name: "icon", kind: "message", T: () => IconData },
-            { no: 38, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
-            { no: 39, name: "status", kind: "enum", T: () => ["symbolx.bench.UserStatus", UserStatus, "USER_STATUS_"] },
+            { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
+            { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.UserStatus", UserStatus, "USER_STATUS_"] },
             { no: 40, name: "main_bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "password_salt", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 51, name: "password_hash", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 50, name: "email", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "password_salt", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 52, name: "password_hash", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 70, name: "last_logged_in_at", kind: "message", T: () => Timestamp },
             { no: 90, name: "is_staff", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
@@ -19124,25 +19128,22 @@ class UserData$Type extends MessageType$<UserData> {
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional string slug */ 32:
+                case /* optional string slug */ 31:
                     message.slug = reader.string();
                     break;
-                case /* string name */ 33:
+                case /* string name */ 32:
                     message.name = reader.string();
+                    break;
+                case /* optional symbolx.bench.IconData icon */ 33:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
                 case /* optional symbolx.bench.TextData text */ 34:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional string email */ 35:
-                    message.email = reader.string();
-                    break;
-                case /* optional symbolx.bench.IconData icon */ 36:
-                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
-                    break;
-                case /* symbolx.bench.Region region */ 38:
+                case /* symbolx.bench.Region region */ 35:
                     message.region = reader.int32();
                     break;
-                case /* symbolx.bench.UserStatus status */ 39:
+                case /* symbolx.bench.UserStatus status */ 36:
                     message.status = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData main_bench_ptr */ 40:
@@ -19151,10 +19152,13 @@ class UserData$Type extends MessageType$<UserData> {
                 case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 41:
                     message.mainHandlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainHandlePtr);
                     break;
-                case /* optional bytes password_salt */ 50:
+                case /* optional string email */ 50:
+                    message.email = reader.string();
+                    break;
+                case /* optional bytes password_salt */ 51:
                     message.passwordSalt = reader.bytes();
                     break;
-                case /* optional bytes password_hash */ 51:
+                case /* optional bytes password_hash */ 52:
                     message.passwordHash = reader.bytes();
                     break;
                 case /* optional google.protobuf.Timestamp last_logged_in_at */ 70:
@@ -19202,39 +19206,39 @@ class UserData$Type extends MessageType$<UserData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* optional string slug = 32; */
+        /* optional string slug = 31; */
         if (message.slug !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.slug);
-        /* string name = 33; */
+            writer.tag(31, WireType.LengthDelimited).string(message.slug);
+        /* string name = 32; */
         if (message.name !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.name);
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
+        /* optional symbolx.bench.IconData icon = 33; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 34; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional string email = 35; */
-        if (message.email !== undefined)
-            writer.tag(35, WireType.LengthDelimited).string(message.email);
-        /* optional symbolx.bench.IconData icon = 36; */
-        if (message.icon)
-            IconData.internalBinaryWrite(message.icon, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.Region region = 38; */
+        /* symbolx.bench.Region region = 35; */
         if (message.region !== 0)
-            writer.tag(38, WireType.Varint).int32(message.region);
-        /* symbolx.bench.UserStatus status = 39; */
+            writer.tag(35, WireType.Varint).int32(message.region);
+        /* symbolx.bench.UserStatus status = 36; */
         if (message.status !== 0)
-            writer.tag(39, WireType.Varint).int32(message.status);
+            writer.tag(36, WireType.Varint).int32(message.status);
         /* optional symbolx.bench.NodeReferenceData main_bench_ptr = 40; */
         if (message.mainBenchPtr)
             NodeReferenceData.internalBinaryWrite(message.mainBenchPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 41; */
         if (message.mainHandlePtr)
             NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional bytes password_salt = 50; */
+        /* optional string email = 50; */
+        if (message.email !== undefined)
+            writer.tag(50, WireType.LengthDelimited).string(message.email);
+        /* optional bytes password_salt = 51; */
         if (message.passwordSalt !== undefined)
-            writer.tag(50, WireType.LengthDelimited).bytes(message.passwordSalt);
-        /* optional bytes password_hash = 51; */
+            writer.tag(51, WireType.LengthDelimited).bytes(message.passwordSalt);
+        /* optional bytes password_hash = 52; */
         if (message.passwordHash !== undefined)
-            writer.tag(51, WireType.LengthDelimited).bytes(message.passwordHash);
+            writer.tag(52, WireType.LengthDelimited).bytes(message.passwordHash);
         /* optional google.protobuf.Timestamp last_logged_in_at = 70; */
         if (message.lastLoggedInAt)
             Timestamp.internalBinaryWrite(message.lastLoggedInAt, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
@@ -26660,7 +26664,8 @@ class ChatViewData$Type extends MessageType$<ChatViewData> {
     constructor() {
         super("symbolx.bench.ChatViewData", [
             { no: 100, name: "text", kind: "message", T: () => TextData },
-            { no: 101, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 101, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 102, name: "reply_to_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ChatViewData>): ChatViewData {
@@ -26681,6 +26686,9 @@ class ChatViewData$Type extends MessageType$<ChatViewData> {
                 case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 101:
                     message.nodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
+                case /* optional symbolx.bench.NodeReferenceData reply_to_ptr */ 102:
+                    message.replyToPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.replyToPtr);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -26699,6 +26707,9 @@ class ChatViewData$Type extends MessageType$<ChatViewData> {
         /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 101; */
         for (let i = 0; i < message.nodesPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData reply_to_ptr = 102; */
+        if (message.replyToPtr)
+            NodeReferenceData.internalBinaryWrite(message.replyToPtr, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29452,17 +29463,17 @@ export enum UserProperty {
   updatedByPtr = 13,
   deletedAt = 14,
   subnodePacked = 29,
-  slug = 32,
-  name = 33,
+  slug = 31,
+  name = 32,
+  icon = 33,
   text = 34,
-  email = 35,
-  icon = 36,
-  region = 38,
-  status = 39,
+  region = 35,
+  status = 36,
   mainBenchPtr = 40,
   mainHandlePtr = 41,
-  passwordSalt = 50,
-  passwordHash = 51,
+  email = 50,
+  passwordSalt = 51,
+  passwordHash = 52,
   lastLoggedInAt = 70,
   isStaff = 90,
 }
@@ -30409,6 +30420,7 @@ export enum UserWizardViewProperty {
 export enum ChatViewProperty {
   text = 100,
   nodesPtr = 101,
+  replyToPtr = 102,
 }
 
 export enum HubViewProperty {
@@ -31573,17 +31585,17 @@ export const UserDataInfo: Record<UserProperty, PropertyInfo> = {
   [UserProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.USER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.BLOCK, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [UserProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [UserProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [UserProperty.slug]: { id: 32, name: 'slug', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
-  [UserProperty.name]: { id: 33, name: 'name', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.slug]: { id: 31, name: 'slug', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
+  [UserProperty.name]: { id: 32, name: 'name', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.icon]: { id: 33, name: 'icon', component: ObjectType.USER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [UserProperty.text]: { id: 34, name: 'text', component: ObjectType.USER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [UserProperty.email]: { id: 35, name: 'email', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "^[a-zA-Z0-9_.+\\-]+@[a-zA-Z0-9\\-]+\\.[a-zA-Z0-9\\-.]+$", nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true },
-  [UserProperty.icon]: { id: 36, name: 'icon', component: ObjectType.USER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [UserProperty.region]: { id: 38, name: 'region', component: ObjectType.USER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.status]: { id: 39, name: 'status', component: ObjectType.USER, enumType: EnumType.USER_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.region]: { id: 35, name: 'region', component: ObjectType.USER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.status]: { id: 36, name: 'status', component: ObjectType.USER, enumType: EnumType.USER_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [UserProperty.mainBenchPtr]: { id: 40, name: 'main_bench_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [UserProperty.mainHandlePtr]: { id: 41, name: 'main_handle_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
-  [UserProperty.passwordSalt]: { id: 50, name: 'password_salt', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [UserProperty.passwordHash]: { id: 51, name: 'password_hash', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [UserProperty.email]: { id: 50, name: 'email', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "^[a-zA-Z0-9_.+\\-]+@[a-zA-Z0-9\\-]+\\.[a-zA-Z0-9\\-.]+$", nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true },
+  [UserProperty.passwordSalt]: { id: 51, name: 'password_salt', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [UserProperty.passwordHash]: { id: 52, name: 'password_hash', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
   [UserProperty.lastLoggedInAt]: { id: 70, name: 'last_logged_in_at', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [UserProperty.isStaff]: { id: 90, name: 'is_staff', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -32484,6 +32496,7 @@ export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo
 export const ChatViewDataInfo: Record<ChatViewProperty, PropertyInfo> = {
   [ChatViewProperty.text]: { id: 100, name: 'text', component: ObjectType.VIEW, componentSubtype: 30202, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ChatViewProperty.nodesPtr]: { id: 101, name: 'nodes_ptr', component: ObjectType.VIEW, componentSubtype: 30202, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [ChatViewProperty.replyToPtr]: { id: 102, name: 'reply_to_ptr', component: ObjectType.VIEW, componentSubtype: 30202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
   [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 30205, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },

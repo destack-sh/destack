@@ -91,7 +91,7 @@ export function menuItemFromAction(
     action: (menu: MenuInfo) => {
       const contextViews = getMenuContextViews(menu.context);
       const actionContext = { ...menu.context, ...(override?.context ?? {}) };
-      fireAction(action, contextViews, actionContext);
+      fireAction(action, actionContext, contextViews);
     },
     ...override,
   };

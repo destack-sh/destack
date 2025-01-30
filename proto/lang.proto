@@ -2514,17 +2514,17 @@ message UserData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
   optional google.protobuf.Value subnode_packed = 29;
-  optional string slug = 32;
-  string name = 33;
+  optional string slug = 31;
+  string name = 32;
+  optional IconData icon = 33;
   optional TextData text = 34;
-  optional string email = 35;
-  optional IconData icon = 36;
-  Region region = 38;
-  UserStatus status = 39;
+  Region region = 35;
+  UserStatus status = 36;
   optional NodeReferenceData main_bench_ptr = 40;
   optional NodeReferenceData main_handle_ptr = 41;
-  optional bytes password_salt = 50;
-  optional bytes password_hash = 51;
+  optional string email = 50;
+  optional bytes password_salt = 51;
+  optional bytes password_hash = 52;
   optional google.protobuf.Timestamp last_logged_in_at = 70;
   bool is_staff = 90;
 }
@@ -3473,6 +3473,7 @@ message UserWizardViewData {
 message ChatViewData {
   optional TextData text = 100;
   repeated NodeReferenceData nodes_ptr = 101;
+  optional NodeReferenceData reply_to_ptr = 102;
 }
 
 // A View is a graphical interface in a Bench.

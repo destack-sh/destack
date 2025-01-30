@@ -130,6 +130,18 @@ export function trimText(text: TextData, numLines: number): TextData {
   return trimmed;
 }
 
+/** Gets up to maxLines lines of text joined together. */
+export function getTextLine(text: TextData, maxLines: number = 3): string | undefined {
+  const lines: string[] = [];
+  for (const line of text.lines) {
+    if (line.spans.some((span) => span.content != null)) {
+      lines.push(line.spans.map((span) => span.content).join(""));
+      if (lines.length >= maxLines) break;
+    }
+  }
+  return lines.length > 0 ? lines.join(" ") : undefined;
+}
+
 export function isTextEmpty(text: TextData | null | undefined): boolean {
   return (
     text == null ||
