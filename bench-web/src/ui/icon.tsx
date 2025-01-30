@@ -81,31 +81,95 @@ export const AVAILABLE_FA_ICONS: IconMetadata[] = _AVAILABLE_FA_ICONS.map((i) =>
 export const AVAILABLE_ICONS_BY_ID: Record<string, IconMetadata> = Object.fromEntries(
   AVAILABLE_FA_ICONS.map((i) => [i.id, i]),
 );
-
 type IconInlineProps = Pick<IconData, "emoji" | "faName"> & {
   color?: ColorType | ColorData;
   shade?: ColorShade;
   forceColor?: "inherit" | ColorType;
   fallbackColor?: ColorType;
 };
+
 export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
   let colorHex;
-  if (props.forceColor == "inherit") colorHex = undefined;
-  else if (props.color != null) colorHex = getColorHex(props.color, props.shade);
-  else if (props.forceColor != null) colorHex = getColorHex(props.forceColor, props.shade);
-  else if (props.fallbackColor != null) colorHex = getColorHex(props.fallbackColor, props.shade);
-  else colorHex = undefined;
+  if (props.forceColor == "inherit") {
+    colorHex = undefined;
+  } else if (props.color != null) {
+    colorHex = getColorHex(props.color, props.shade);
+  } else if (props.forceColor != null) {
+    colorHex = getColorHex(props.forceColor, props.shade);
+  } else if (props.fallbackColor != null) {
+    colorHex = getColorHex(props.fallbackColor, props.shade);
+  } else {
+    colorHex = undefined;
+  }
   if (props.faName) {
     // font awesome
     return <i class={`${props.faName} text-center`} style={{ color: colorHex }} />;
   } else if (props.emoji) {
+    // emoji
     return <span style={{ color: colorHex }}>{props.emoji}</span>;
   } else {
+    // invalid icon
     if (IS_DEV || IS_DEVELOPER_MODE.value) return <span class="text-danger-500">?icon: {JSON.stringify(props)}</span>;
     else return <span style={{ color: colorHex }}>???</span>;
   }
 };
-IconInline.props = ["emoji", "file", "faName", "color", "fallbackColor", "shade", "ignoreColor"];
+IconInline.props = ["emoji", "faName", "vscName", "color", "fallbackColor", "shade", "ignoreColor"];
+
+export const AvatarInline: FunctionalComponent<
+  IconInlineProps & { size?: "regular" | "medium" | "large" | "title" }
+> = (props) => {
+  let colorHex;
+  if (props.forceColor == "inherit") {
+    colorHex = undefined;
+  } else if (props.color != null) {
+    colorHex = getColorHex(props.color, props.shade);
+  } else if (props.forceColor != null) {
+    colorHex = getColorHex(props.forceColor, props.shade);
+  } else if (props.fallbackColor != null) {
+    colorHex = getColorHex(props.fallbackColor, props.shade);
+  } else {
+    colorHex = getColorHex(ColorType.GRAY, props.shade ?? ColorShade.S400);
+  }
+
+  let sizeClasses;
+  if (props.size === "medium") {
+    sizeClasses = "w-8 h-8 text-base";
+  } else if (props.size === "large") {
+    sizeClasses = "w-10 h-10 text-base";
+  } else if (props.size === "title") {
+    sizeClasses = "w-12 h-12 text-xl";
+  } else {
+    // regular
+    sizeClasses = "w-6 h-6 text-sm";
+  }
+  const baseClasses = `rounded-full text-center inline-flex items-center justify-center ${sizeClasses}`;
+
+  if (props.faName) {
+    // font awesome
+    return (
+      <div class={baseClasses} style={{ backgroundColor: colorHex }}>
+        <i class={`${props.faName} text-white`} />
+      </div>
+    );
+  } else if (props.emoji) {
+    // emoji
+    return (
+      <div class={baseClasses} style={{ backgroundColor: colorHex }}>
+        {props.emoji}
+      </div>
+    );
+  } else {
+    // invalid icon
+    if (IS_DEV || IS_DEVELOPER_MODE.value) return <span class="text-danger-500">?icon: {JSON.stringify(props)}</span>;
+    else
+      return (
+        <div class={baseClasses} style={{ backgroundColor: colorHex }}>
+          <span class="text-white">???</span>
+        </div>
+      );
+  }
+};
+AvatarInline.props = ["emoji", "faName", "vscName", "color", "fallbackColor", "shade", "ignoreColor", "size"];
 
 export function getIconMetadata(icon: IconData): IconMetadata | undefined {
   if (icon.kind == IconKind.FONT_AWESOME) {

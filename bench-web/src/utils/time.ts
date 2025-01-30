@@ -99,7 +99,14 @@ export type FormatDurationOptions = {
  * - long: 1 second 30 milliseconds, 48 minutes, 2 days 4 hours, 1 week 2 days, 3 years 6 months (all non-zero parts)
  */
 export function formatDuration(duration: number | ProtoDuration | Duration, options?: FormatDurationOptions): string {
-  const { minUnit = "ms", maxUnit = "y", minValue, tooSmall = "now", format = "short", extended = false } = options ?? {};
+  const {
+    minUnit = "ms",
+    maxUnit = "y",
+    minValue,
+    tooSmall = "now",
+    format = "short",
+    extended = false,
+  } = options ?? {};
   let durationMs: number;
   if (duration instanceof Duration) {
     durationMs = duration.as("milliseconds");
@@ -196,7 +203,7 @@ export function formatRelativeDate(
   return formatDuration(Duration.fromMillis(duration), options);
 }
 /** Format absolute 'duration' implied by a datetime in the past relative to now  */
-export function formatAbsoluteDate(dt: Timestamp | DateTime) {
+export function formatAbsoluteDate(dt: Timestamp | DateTime, options?: { prefer?: "date" | "time" }) {
   if (!(dt instanceof DateTime)) dt = tsToDt(dt);
 
   const now = getNow(TimeUpdateInterval.MINUTE).value;
@@ -205,22 +212,48 @@ export function formatAbsoluteDate(dt: Timestamp | DateTime) {
 
   if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
     // if it's today, say "Today at <time>"
-    return `today at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+    if (options?.prefer == "date") {
+      return "Today";
+    } else if (options?.prefer == "time") {
+      return dt.toLocaleString(DateTime.TIME_SIMPLE);
+    } else {
+      return `Today at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+    }
   } else if (dt.day == yesterday.day && dt.month == yesterday.month && dt.year == yesterday.year) {
     // if it's yesterday, say "Yesterday at <time>"
-    return `yesterday at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+    if (options?.prefer == "date") {
+      return "Yesterday";
+    } else {
+      return `Yesterday at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+    }
   } else if (diff <= 6 && dt.year == now.year) {
     // if it's within the last week in same year, say "<weekday> at <time>"
-    return `${dt.toFormat("cccc")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+    if (options?.prefer == "date") {
+      return dt.toFormat("cccc");
+    } else {
+      return `${dt.toFormat("cccc")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+    }
   } else if (diff <= 364 && dt.year == now.year) {
     // if it's within the last year in same year, say "<month> <day> at <time>"
-    return `${dt.toFormat("LLL d")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+    if (options?.prefer == "date") {
+      return dt.toFormat("LLL d");
+    } else {
+      return `${dt.toFormat("LLL d")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+    }
   } else if (diff <= 6) {
     // if it's within the last week but different year
-    return `${dt.toFormat("cccc, LLL d, yyyy")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+    if (options?.prefer == "date") {
+      return dt.toFormat("cccc, LLL d, yyyy");
+    } else {
+      return `${dt.toFormat("cccc, LLL d, yyyy")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+    }
   } else {
-    // Different year or more than a year ago
-    return `${dt.toFormat("LLL d, yyyy")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+    // different year or more than a year ago
+    if (options?.prefer == "date") {
+      return dt.toFormat("LLL d, yyyy");
+    } else {
+      return `${dt.toFormat("LLL d, yyyy")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+    }
   }
 }
 

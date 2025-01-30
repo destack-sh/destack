@@ -44,7 +44,7 @@ const color: Ref<ColorData | null> = ref(props.modelValue?.color ?? null);
 const effectiveColorType = computed(() => color.value?.type ?? ColorType.GRAY);
 const effectiveColorHex = computed(() => {
   if (effectiveColorType.value == ColorType.GRAY) return getColorHex(ColorType.GRAY, ColorShade.S700);
-  else return getColorHex(effectiveColorType.value, ColorShade.S600);
+  else return getColorHex(effectiveColorType.value, ColorShade.S500);
 });
 const resultsRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const { results, resultsTotal } = useIndexSearch<IconItem>({

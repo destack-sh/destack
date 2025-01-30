@@ -2,30 +2,29 @@
 import { EditSubject, makeExpression } from "@/language/expression";
 import { createMessage, getMessageAuthorPtr } from "@/language/message";
 import { useSubnodeProperty } from "@/language/node";
-import { isRunnable } from "@/language/run";
 import {
   BlockData,
   ExpressionType,
+  IconData,
   MessageData,
   MessageProperty,
   MessageType,
   NodeReferenceData,
   NodeType,
-  ObjectType,
   Orientation,
   PackageData,
   RectangleData,
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { describeNode, isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { BENCH_SCOPE, benchPtr } from "@/system/client";
 import { SearchConnectionParams, useSearchConnection } from "@/system/connection";
 import { supergraph } from "@/system/globals";
 import { canvas, pkg, pkgGraph } from "@/system/space";
-import { getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
+import { AvatarInline, getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
 import { computedValue } from "@/utils/ref";
-import { formatAbsoluteDate, formatRelativeDate, tsToDt } from "@/utils/time";
+import { formatAbsoluteDate, tsToDt } from "@/utils/time";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
@@ -34,7 +33,7 @@ import { useElementSize } from "@vueuse/core";
 import { computed, Ref, ref, toRef } from "vue";
 
 const MESSAGE_HEIGHT_MIN = 28;
-const MESSAGE_MAX_TIME_DELTA_SECONDS = 10; // nocheckin
+const MESSAGE_MAX_TIME_DELTA_SECONDS = 5 * 60; // 5 minutes
 const MESSAGE_SIDE_WIDTH = 44;
 const props = defineProps<
   {
@@ -74,6 +73,7 @@ const origin: Ref<BlockData | PackageData | null> = computed(() => {
 const inputContainerRef = ref<HTMLInputElement | null>(null);
 const inputRef = ref<HTMLInputElement | null>(null);
 const inputSize = useElementSize(inputContainerRef);
+const bodyScrollRef = ref<InstanceType<typeof Scroll> | null>(null);
 
 // messages :MessageRouting
 const DEFAULT_SORT = makeExpression({
@@ -113,10 +113,20 @@ const remoteAuthorsPtr: Ref<NodeReferenceData[]> = computed(() => {
   return Object.values(authorsPtrById);
 });
 const remoteAuthors = supergraph.getManyRef(remoteAuthorsPtr);
+const remoteAuthorsById: Ref<Record<string, EditSubject>> = computed(() =>
+  remoteAuthors.value.reduce(
+    (acc, author) => {
+      acc[author.id!] = author as EditSubject;
+      return acc;
+    },
+    {} as Record<string, EditSubject>,
+  ),
+);
 type MessageView = {
   idx: number;
   message: MessageData;
   author: EditSubject | null;
+  authorIcon: IconData | null;
   isNewGroup: boolean;
   isNewDay: boolean;
 };
@@ -125,13 +135,13 @@ const messageViews = computed(() => {
   for (let i = 0; i < messages.value.length; i++) {
     const message = messages.value[i];
     const authorPtr = getMessageAuthorPtr(message);
-    const author = authorPtr != null ? (supergraph.get(authorPtr) as EditSubject | null) : null;
-
+    const author = authorPtr != null ? (remoteAuthorsById.value[authorPtr.id!] ?? supergraph.get(authorPtr)) : null;
+    const authorIcon = author != null ? (getNodeIcon(author) ?? null) : null;
     let isNewGroup;
     let isNewDay;
     if (i == 0) {
       isNewGroup = true;
-      isNewDay = false;
+      isNewDay = true;
     } else {
       const previousDt = tsToDt(messages.value[i - 1].createdAt!);
       const currentDt = tsToDt(message.createdAt!);
@@ -141,7 +151,7 @@ const messageViews = computed(() => {
           MESSAGE_MAX_TIME_DELTA_SECONDS;
       isNewDay = previousDt.day != currentDt.day;
     }
-    const richMessage: MessageView = { idx: i, message, author, isNewGroup, isNewDay };
+    const richMessage: MessageView = { idx: i, message, author, authorIcon, isNewGroup, isNewDay };
     views.push(richMessage);
   }
   return views;
@@ -172,52 +182,65 @@ defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <div>
-    <!-- nocheckin: Chat view -->
+    <!-- Body -->
     <Scroll
       id="scroll"
+      ref="bodyScrollRef"
       :orientation="Orientation.VERTICAL"
+      stick-to-end
       :size="{ height: size?.height != null ? size.height - inputSize.height.value : undefined }"
     >
       <!-- Messages -->
       <ul class="relative mb-3 flex flex-col">
         <!-- Message -->
         <li
-          v-for="{ idx, message, author, isNewGroup } in messageViews"
+          v-for="{ idx, message, author, authorIcon, isNewGroup, isNewDay } in messageViews"
           :key="message.id"
-          class="mx-5 flex flex-row"
-          :class="[isNewGroup && idx != 0 ? 'mt-3' : '']"
+          class="mx-5"
+          :class="[isNewGroup && idx != 0 ? (isNewDay ? 'mt-1' : 'mt-2') : '']"
         >
-          <!-- Side -->
-          <div
-            class="flex-shrink-0 text-center"
-            :style="{
-              width: MESSAGE_SIDE_WIDTH + 'px',
-            }"
-          >
-            <IconInline v-if="isNewGroup" class="mr-1" v-bind="getNodeIcon(author!)" />
-          </div>
-          <!-- Body -->
-          <div>
-            <!-- Meta (if new group) -->
-            <div v-if="isNewGroup">
-              <!-- Author -->
-              <span class="font-medium">
-                {{ author != null ? getNodeName(author) : "???" }}
-              </span>
-              <!-- Timestamp -->
-              <span class="ml-1.5 text-gray-400">
-                {{ formatRelativeDate(message.createdAt!) }}
-              </span>
+          <!-- New day? -->
+          <div v-if="isNewDay" class="relative my-1 flex items-center">
+            <div class="flex-grow border-t border-gray-200"></div>
+            <div class="mx-4 flex-shrink text-sm text-gray-400">
+              {{ formatAbsoluteDate(message.createdAt!, { prefer: "date" }) }}
             </div>
-            <!-- Content -->
-            <Text :id="'text-' + message.id" is-minimal :model-value="message.text" />
-            <!-- Extras -->
-            <File
-              v-for="filePtr in message.nodesPtr.filter((n) => n.nodeType == NodeType.FILE)"
-              :id="'file-' + filePtr.id"
-              :key="filePtr.id"
-              :model-value="toNodeRef(filePtr)"
-            />
+            <div class="flex-grow border-t border-gray-200"></div>
+          </div>
+          <!-- ... -->
+          <div class="flex flex-row">
+            <!-- Side -->
+            <div
+              class="flex-shrink-0 text-center mt-1"
+              :style="{
+                width: MESSAGE_SIDE_WIDTH + 'px',
+              }"
+            >
+              <AvatarInline v-if="isNewGroup" class="mr-1 text-gray-700" size="medium" v-bind="authorIcon" />
+            </div>
+            <!-- Body -->
+            <div>
+              <!-- Meta (if new group) -->
+              <div v-if="isNewGroup">
+                <!-- Author -->
+                <span class="font-medium">
+                  {{ author != null ? getNodeName(author) : "???" }}
+                </span>
+                <!-- Timestamp -->
+                <span class="ml-1.5 text-xs text-gray-400">
+                  {{ formatAbsoluteDate(message.createdAt!, { prefer: "time" }) }}
+                </span>
+              </div>
+              <!-- Content -->
+              <Text :id="'text-' + message.id" is-minimal :model-value="message.text" />
+              <!-- Extras -->
+              <File
+                v-for="filePtr in message.nodesPtr.filter((n) => n.nodeType == NodeType.FILE)"
+                :id="'file-' + filePtr.id"
+                :key="filePtr.id"
+                :model-value="toNodeRef(filePtr)"
+              />
+            </div>
           </div>
         </li>
       </ul>
@@ -254,6 +277,7 @@ defineExpose<ViewExposed>({ self, id });
           <div class="flex-1">
             <Scroll
               id="input-scroll"
+              ref="inputScrollRef"
               :orientation="Orientation.VERTICAL"
               size-is-dynamic
               :size="{ height: size?.height != null ? size.height / 2 : undefined }"

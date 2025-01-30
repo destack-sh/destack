@@ -111,7 +111,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       @keydown.left.stop.prevent="focus('left')"
       @keydown.right.stop.prevent="focus('right')"
     >
-      <i class="fas fa-circle" :style="{ color: getColorHex(color, ColorShade.S600) }" />
+      <i class="fas fa-circle" :style="{ color: getColorHex(color, ColorShade.S500) }" />
     </button>
   </div>
 </template>
