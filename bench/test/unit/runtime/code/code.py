@@ -19,33 +19,33 @@ from bench.runtime import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_RUN, create_run_from
 from bench.test.unit.conftest import RuntimeHandle
 
 
-async def test_run_code_empty(local_runtime: RuntimeHandle):
+async def test_run_code_empty(hosted_runtime: RuntimeHandle):
     """Empty Code with optional input/output Fields should work."""
     Code1 = Action.new(
         ActionType.CODE,
         "Code1",
         fields=(Field.input("Input1", int), Field.output("Output1", int)),
     )
-    local_runtime.page().actions.append(Code1)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(Code1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Code1, return_error=True)
+    runner = await hosted_runtime.run(Code1, return_error=True)
     assert runner.status == RunStatus.COMPLETED
 
 
-async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
+async def test_run_code_with_syntax_error(hosted_runtime: RuntimeHandle):
     """Code block with a syntax error should re-raise that error."""
     InvalidCode = Action.new(ActionType.CODE, "InvalidCode", code=code("!!invalid!!"))
-    local_runtime.page().actions.append(InvalidCode)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(InvalidCode)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(InvalidCode, return_error=True)
+    runner = await hosted_runtime.run(InvalidCode, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error is not None and runner.error.type == ErrorType.CODE_INVALID
     assert runner.error.text and "!!invalid!!" in runner.error.text
 
 
-async def test_run_code_capture_logs(local_runtime: RuntimeHandle):
+async def test_run_code_capture_logs(hosted_runtime: RuntimeHandle):
     """All logging functions should be captured."""
     Logs101 = Action.new(
         ActionType.CODE,
@@ -65,10 +65,10 @@ error('error1')
 panic('panic1')        
 """),
     )
-    local_runtime.page().actions.append(Logs101)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(Logs101)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Logs101)
+    runner = await hosted_runtime.run(Logs101)
     assert runner.status == RunStatus.COMPLETED
     assert runner.logs and len(runner.logs) == 11
     for s, log in zip(
@@ -90,7 +90,7 @@ panic('panic1')
         assert log.title == s
 
 
-async def test_run_code_capture_logs_on_error(local_runtime: RuntimeHandle):
+async def test_run_code_capture_logs_on_error(hosted_runtime: RuntimeHandle):
     """Logs should also be captured if the code raises an error."""
     Logs102 = Action.new(
         ActionType.CODE,
@@ -102,17 +102,17 @@ raise ValueError('error1')
 print('print3')
 """),
     )
-    local_runtime.page().actions.append(Logs102)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(Logs102)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Logs102, return_error=True)
+    runner = await hosted_runtime.run(Logs102, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.logs and len(runner.logs) == 2
     for s, log in zip(("print1", "print2"), runner.logs):
         assert log.title == s
 
 
-async def test_run_code_capture_log_size_overflow(local_runtime: RuntimeHandle):
+async def test_run_code_capture_log_size_overflow(hosted_runtime: RuntimeHandle):
     """Logs should only be captured up to a certain size."""
     Logs103 = Action.new(
         ActionType.CODE,
@@ -122,29 +122,29 @@ for i in range(0, {MAX_LOGS_PER_RUN + 5}):
     print('print', i)
 """),
     )
-    local_runtime.page().actions.append(Logs103)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(Logs103)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Logs103)
+    runner = await hosted_runtime.run(Logs103)
     assert len(runner.logs) == MAX_LOGS_PER_RUN
 
 
-async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
+async def test_run_code_capture_log_line_overflow(hosted_runtime: RuntimeHandle):
     """Logs should only be captured up to a certain size."""
     Logs103 = Action.new(
         ActionType.CODE,
         "Logs103",
         code=code(f"""print('x' * {MAX_LOG_LINE_LENGTH + 5})"""),
     )
-    local_runtime.page().actions.append(Logs103)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(Logs103)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Logs103)
+    runner = await hosted_runtime.run(Logs103)
     assert runner.logs and len(runner.logs) == 1
     assert runner.logs[0].title and "truncate" in runner.logs[0].title
 
 
-async def test_run_code_invalid_inputs(local_runtime: RuntimeHandle):
+async def test_run_code_invalid_inputs(hosted_runtime: RuntimeHandle):
     """Code block with invalid inputs should fail immediately (no attempts)."""
     Code1 = Action.new(
         ActionType.CODE,
@@ -152,18 +152,18 @@ async def test_run_code_invalid_inputs(local_runtime: RuntimeHandle):
         code=code("pass"),
         fields=(Field.input("Input1", int, is_required=True),),
     )
-    local_runtime.page().actions.append(Code1)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(Code1)
+    await hosted_runtime.commit()
 
     run = create_run_from_node(Code1)
-    runner = await local_runtime.run(run, return_error=True)
+    runner = await hosted_runtime.run(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert len(runner.attempts) == 0
     assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
     assert runner.tracked_run and runner.tracked_run.duration is not None
 
 
-async def test_run_code_invalid_outputs(local_runtime: RuntimeHandle):
+async def test_run_code_invalid_outputs(hosted_runtime: RuntimeHandle):
     """Code block with invalid outputs should fail."""
     Code1 = Action.new(
         ActionType.CODE,
@@ -171,16 +171,16 @@ async def test_run_code_invalid_outputs(local_runtime: RuntimeHandle):
         code=code("return 'invalid'"),
         fields=(Field.output("Output1", int),),
     )
-    local_runtime.page().actions.append(Code1)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(Code1)
+    await hosted_runtime.commit()
 
     run = create_run_from_node(Code1)
-    runner = await local_runtime.run(run, return_error=True)
+    runner = await hosted_runtime.run(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
 
 
-async def test_run_code_coerce(local_runtime: RuntimeHandle):
+async def test_run_code_coerce(hosted_runtime: RuntimeHandle):
     """Inputs and outputs should be coerced to the correct type (if possible)."""
     Code1 = Action.new(
         ActionType.CODE,
@@ -207,10 +207,10 @@ return {
             Field.output("Output5", str),
         ),
     )
-    local_runtime.page().actions.append(Code1)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(Code1)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(
+    runner = await hosted_runtime.run(
         Code1,
         inputs={"Input1": 3.3, "Input2": 4, "Input3": "hello", "Input4": "world", "Input5": "!"},
     )
@@ -222,7 +222,7 @@ return {
     assert runner.outputs.Output5 == "!"
 
 
-async def test_run_code_inputs_in_context(local_runtime: RuntimeHandle):
+async def test_run_code_inputs_in_context(hosted_runtime: RuntimeHandle):
     """All the input fields values should be in context (even if not used and unset)."""
     Function = Action.new(
         ActionType.CODE,
@@ -240,15 +240,15 @@ assert Very_WEIRD__THER_Input == 7
             Field.input("Very WEIRD ÖTHER Input", int),
         ),
     )
-    local_runtime.page().actions.append(Function)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(Function)
+    await hosted_runtime.commit()
 
-    _ = await local_runtime.run(
+    _ = await hosted_runtime.run(
         Function, inputs={"Input1": 3, "Long Input": "hi", "Very WEIRD ÖTHER Input": 7}
     )
 
 
-async def test_run_code_output_none(local_runtime: RuntimeHandle):
+async def test_run_code_output_none(hosted_runtime: RuntimeHandle):
     """A noop code function should work and return None."""
     Function = Action.new(
         ActionType.CODE,
@@ -256,10 +256,10 @@ async def test_run_code_output_none(local_runtime: RuntimeHandle):
         code=code("""pass"""),
         fields=(Field.input("Input1", int),),
     )
-    local_runtime.page().actions.append(Function)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(Function)
+    await hosted_runtime.commit()
 
-    _ = await local_runtime.run(Function)
+    _ = await hosted_runtime.run(Function)
 
 
 async def test_run_code_output_scalar(hosted_runtime: RuntimeHandle):
@@ -306,7 +306,7 @@ async def test_run_code_output_scalar(hosted_runtime: RuntimeHandle):
     assert runner.status == RunStatus.FAILED
 
 
-async def test_run_code_output_choice(local_runtime: RuntimeHandle):
+async def test_run_code_output_choice(hosted_runtime: RuntimeHandle):
     """Run a code function with a dict and a Choice type, should coerce into object."""
     Color = Block.new(
         BlockType.CHOICE,
@@ -322,15 +322,15 @@ return {"Color": Color.Red}
 """),
         fields=[Field.output("Color", Color)],
     )
-    local_runtime.page().blocks.extend(Color)
-    local_runtime.page().actions.extend(Function)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.extend(Color)
+    hosted_runtime.page().actions.extend(Function)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Function)
+    runner = await hosted_runtime.run(Function)
     assert runner.outputs and runner.outputs.Color == Color.fields.Red
 
 
-async def test_run_code_output_generic_node(local_runtime: RuntimeHandle):
+async def test_run_code_output_generic_node(hosted_runtime: RuntimeHandle):
     """Run a code function that outputs a generic node field."""
     Function = Action.new(
         ActionType.CODE,
@@ -340,10 +340,10 @@ return {"Output": [self]}
 """),
         fields=[Field.output("Output", Node, is_list=True)],
     )
-    local_runtime.page().actions.append(Function)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(Function)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(Function)
+    runner = await hosted_runtime.run(Function)
     assert runner.outputs
 
 
@@ -376,7 +376,7 @@ return {'Text': text}
     assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
 
 
-async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):
+async def test_run_code_raise_retryable_error(hosted_runtime: RuntimeHandle):
     """Raise a retryable error. Should be detected and retried."""
     CodeBlock = Action.new(
         ActionType.CODE,
@@ -384,16 +384,16 @@ async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):
         code=code("""raise RetryableError('error1')"""),
         run_options=RunOptions(max_attempts=3),
     )
-    local_runtime.page().actions.append(CodeBlock)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(CodeBlock)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(CodeBlock, return_error=True)
+    runner = await hosted_runtime.run(CodeBlock, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.RETRYABLE
     assert len(runner.attempts) == 3
 
 
-async def test_run_code_raise_unretryable_error(local_runtime: RuntimeHandle):
+async def test_run_code_raise_unretryable_error(hosted_runtime: RuntimeHandle):
     """Raise an unretryable error. Should be detected and not retried."""
     CodeBlock = Action.new(
         ActionType.CODE,
@@ -401,30 +401,30 @@ async def test_run_code_raise_unretryable_error(local_runtime: RuntimeHandle):
         code=code("""raise NonRetryableError('error1')"""),
         run_options=RunOptions(max_attempts=3),
     )
-    local_runtime.page().actions.append(CodeBlock)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(CodeBlock)
+    await hosted_runtime.commit()
 
-    runner = await local_runtime.run(CodeBlock, return_error=True)
+    runner = await hosted_runtime.run(CodeBlock, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.NON_RETRYABLE
     assert len(runner.attempts) == 1
 
 
-async def test_run_code_abort(local_runtime: RuntimeHandle):
+async def test_run_code_abort(hosted_runtime: RuntimeHandle):
     """Run a long async code script and abort it."""
     CodeBlock = Action.new(
         ActionType.CODE,
         "Code1",
         code=code("""await asyncio.sleep(5)"""),
     )
-    local_runtime.page().actions.append(CodeBlock)
-    await local_runtime.commit()
+    hosted_runtime.page().actions.append(CodeBlock)
+    await hosted_runtime.commit()
 
     run = create_run_from_node(CodeBlock)
-    run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
+    run_task = asyncio.create_task(hosted_runtime.run(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)
-    local_runtime.runtime.stop(run)
+    hosted_runtime.runtime.stop(run)
     runner = await run_task
     # run should be aborted
     assert runner.status == RunStatus.ABORTED
