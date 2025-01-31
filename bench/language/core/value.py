@@ -777,8 +777,6 @@ def _object_value_runtime(prop: Property) -> property:
 
     def _get_value_runtime(self: "Struct | Node") -> Optional[SomeValue]:
         """Gets the runtime value for this property (with auto resolving)."""
-        from .node import NodeReference
-
         if cache_key in self.__dict__:
             value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
             value = self.__dict__[cache_key]
@@ -786,7 +784,9 @@ def _object_value_runtime(prop: Property) -> property:
             value_type, value = _do_get_value_runtime(self, prop)
             self.__dict__[cache_key] = value
 
-        # imitate CustomObject._do_get
+        # imitate CustomObject._do_get somewhat
+        # NOTE: we don't resolve references here because it would obfuscate the value if unloaded
+        #  (and for value_packed properties we don't have a _ptr to get the actual value)
         if (
             value is None
             and value_type is not None
@@ -794,13 +794,6 @@ def _object_value_runtime(prop: Property) -> property:
             and value_type.default_packed
         ):
             return value_type.default
-        elif type(value) is NodeReference:
-            # auto resolve references
-            resolved_value = self._supergraph.get(value)
-            if resolved_value is not None:
-                return resolved_value
-            else:
-                return None  # couldn't resolve
         else:
             return value
 
