@@ -279,10 +279,7 @@ class CustomObject(Mapping[str, Any]):
         elif getattr(type(value), "metatype", None) == StructType.NODE_REFERENCE:
             # auto resolve references
             resolved_value = self._supergraph.get(cast("NodeReference", value))
-            if resolved_value is not None:
-                return resolved_value
-            else:
-                return None  # couldn't resolve
+            return resolved_value
         else:
             return value
 

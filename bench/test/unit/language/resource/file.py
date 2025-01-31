@@ -1,6 +1,5 @@
 import io
 
-import pytest
 from PIL import Image
 
 from bench.language import FileFormat, FileIn, FileType, extract_file_info, upload_file
@@ -14,15 +13,7 @@ image.save(image_bytes, format="PNG")
 IMAGE_BYTES = image_bytes.getvalue()
 
 
-@pytest.mark.parametrize(
-    ("file_content", "file_title", "expected_file_type", "expected_file_format"),
-    [
-        (b"# it's a me\nmarkdown!", "test.md", FileType.TEXT, FileFormat.MARKDOWN),
-        ("hello world", "test.txt", FileType.TEXT, FileFormat.TXT),
-        (IMAGE_BYTES, "test", FileType.IMAGE, FileFormat.PNG),
-    ],
-)
-async def test_upload_and_download_file(
+async def _test_upload_and_download_file(
     runtime: RuntimeLambdaWorkload,
     file_content: FileIn,
     file_title: str,
@@ -39,6 +30,39 @@ async def test_upload_and_download_file(
     file._clear_cache()
     assert file._cached_content is None
     await file.download()
+
+
+@simulated_runtime()
+async def test_upload_and_download_markdown_file(runtime: RuntimeLambdaWorkload):
+    await _test_upload_and_download_file(
+        runtime,
+        b"# it's a me\nmarkdown!",
+        "test.md",
+        FileType.TEXT,
+        FileFormat.MARKDOWN,
+    )
+
+
+@simulated_runtime()
+async def test_upload_and_download_text_file(runtime: RuntimeLambdaWorkload):
+    await _test_upload_and_download_file(
+        runtime,
+        "hello world",
+        "test.txt",
+        FileType.TEXT,
+        FileFormat.TXT,
+    )
+
+
+@simulated_runtime()
+async def test_upload_and_download_image_file(runtime: RuntimeLambdaWorkload):
+    await _test_upload_and_download_file(
+        runtime,
+        IMAGE_BYTES,
+        "test",
+        FileType.IMAGE,
+        FileFormat.PNG,
+    )
 
 
 @simulated_runtime()

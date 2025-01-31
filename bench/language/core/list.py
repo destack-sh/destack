@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         Expression,
         Field,
         Node,
+        NodeGraph,
         NodeReference,
         Property,
         Query,
@@ -41,7 +42,7 @@ FieldOrProperty = Union["Field", "Property"]
 NodeTypeOrClass = Union[NodeType, type["Node"]]
 
 
-def attach_node[N: "Node"](node: N, parent: "Node", move: bool = False) -> N:
+def attach_node[N: "Node"](node: N, parent: "Node", graph: "NodeGraph", move: bool = False) -> N:
     """(Re)attaches a Node to a new parent."""
 
     old_parent = node.parent
@@ -76,17 +77,16 @@ def attach_node[N: "Node"](node: N, parent: "Node", move: bool = False) -> N:
     node.parent = parent
 
     # move node (and descendants) to this parent's graph
-    new_graph = parent._graph
-    if node._graph is not new_graph:
+    if node._graph is not graph:
         old_graph = node._graph
-        assert new_graph.supergraph.has(
+        assert graph.supergraph.has(
             node._graph.supergraph
-        ), f"{node!r} not in same supergraph as {parent!r} ({node._graph.supergraph!r} != {new_graph.supergraph!r})"
-        moved = node._move_to_graph(new_graph)
-        new_graph.supergraph.remove_graph(old_graph)  # must be in same supergraph
+        ), f"{node!r} not in same supergraph as {parent!r} ({node._graph.supergraph!r} != {graph.supergraph!r})"
+        moved = node._move_to_graph(graph)
+        graph.supergraph.remove_graph(old_graph)  # must be in same supergraph
     else:
         moved = (node,)  # already in the graph
-        new_graph.update(node)
+        graph.update(node)
 
     # actually move/create in session
     if parent._session is not None:
@@ -134,6 +134,10 @@ class NodeList[V: Node](abc.ABC):
     def _parent(self) -> "Node":
         return self._node
 
+    @property
+    def _graph(self) -> "NodeGraph":
+        return self._node._graph
+
     def create(self, **kwargs) -> V:
         """Creates a new node in the list."""
         node = self._child_node_cls(**kwargs, parent=self._parent)
@@ -142,7 +146,7 @@ class NodeList[V: Node](abc.ABC):
 
     def append(self, node: V, move: bool = False) -> V:
         """Attaches a child node to a parent through a list. If move, may be re-attached."""
-        attach_node(node, parent=self._parent, move=move)
+        attach_node(node, parent=self._parent, graph=self._graph, move=move)
         return node
 
     def extend(self, *nodes: V, move: bool = False):
@@ -317,6 +321,10 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
             return bench
         else:
             return self._node
+
+    @property
+    def _graph(self) -> "NodeGraph":
+        return self._node._graph
 
     def clear(self):
         raise RuntimeError(f"cannot clear {self!r}")
