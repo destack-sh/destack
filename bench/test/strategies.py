@@ -23,7 +23,7 @@ from bench.language import (
     Field,
     FieldType,
     Icon,
-    IconKind,
+    IconType,
     NodeReference,
     NodeType,
     ObjectType,
@@ -401,13 +401,13 @@ def fields(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
 
 @st.composite
 def icons(draw: st.DrawFn):
-    kind = draw(st.sampled_from(list(IconKind)))
-    if kind == IconKind.EMOJI:
+    kind = draw(st.sampled_from(list(IconType)))
+    if kind == IconType.EMOJI:
         return Icon.new("😀")
-    elif kind == IconKind.FONT_AWESOME:
+    elif kind == IconType.FONT_AWESOME:
         return Icon.new("fas fa-circle-dot")
-    elif kind == IconKind.VS_CODE:
-        return Icon(kind=IconKind.VS_CODE, fa_name="file_type_ada")
+    elif kind == IconType.VS_CODE:
+        return Icon(type=IconType.VS_CODE, fa_name="file_type_ada")
     else:
         assert_never(kind)
 

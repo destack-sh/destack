@@ -81,6 +81,7 @@ class ModelType(BuiltinEnum):  # :ModelType
     # openai-o
     OPENAI_O1 = 220
     OPENAI_O1_MINI = 221
+    OPENAI_O3_MINI = 222
     # anthropic-claude
     ANTHROPIC_CLAUDE_3_5_SONNET = 301
     # google-gemini

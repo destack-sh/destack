@@ -446,6 +446,27 @@ export interface CodeData {
     language?: CodeLanguage;
 }
 /**
+ * @generated from protobuf message symbolx.bench.ColorData
+ */
+export interface ColorData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ColorType type = 31;
+     */
+    type?: ColorType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ColorShade shade = 32;
+     */
+    shade?: ColorShade;
+    /**
+     * @generated from protobuf field: optional string hex = 33;
+     */
+    hex?: string;
+}
+/**
  * @generated from protobuf message symbolx.bench.PathElementData
  */
 export interface PathElementData {
@@ -639,6 +660,35 @@ export interface ComputedValueData {
      * @generated from protobuf field: bool is_active = 60;
      */
     isActive: boolean;
+}
+/**
+ * @generated from protobuf message symbolx.bench.IconData
+ */
+export interface IconData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbolx.bench.IconType type = 30;
+     */
+    type: IconType;
+    /**
+     * @generated from protobuf field: optional string emoji = 31;
+     */
+    emoji?: string;
+    /**
+     * @generated from protobuf field: optional string fa_name = 33;
+     */
+    faName?: string;
+    /**
+     * @generated from protobuf field: optional string vsc_name = 34;
+     */
+    vscName?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ColorData color = 40;
+     */
+    color?: ColorData;
 }
 /**
  * @generated from protobuf message symbolx.bench.SelectOptionsData
@@ -1410,27 +1460,6 @@ export interface ToolSelectionData {
     toolCategories: ActionCategory[];
 }
 /**
- * @generated from protobuf message symbolx.bench.ColorData
- */
-export interface ColorData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ColorType type = 31;
-     */
-    type?: ColorType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ColorShade shade = 32;
-     */
-    shade?: ColorShade;
-    /**
-     * @generated from protobuf field: optional string hex = 33;
-     */
-    hex?: string;
-}
-/**
  * @generated from protobuf message symbolx.bench.FontData
  */
 export interface FontData {
@@ -1654,35 +1683,6 @@ export interface RectangleConstraintData {
      * @generated from protobuf field: optional int32 max_height = 53;
      */
     maxHeight?: number;
-}
-/**
- * @generated from protobuf message symbolx.bench.IconData
- */
-export interface IconData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbolx.bench.IconKind kind = 30;
-     */
-    kind: IconKind;
-    /**
-     * @generated from protobuf field: optional string emoji = 31;
-     */
-    emoji?: string;
-    /**
-     * @generated from protobuf field: optional string fa_name = 33;
-     */
-    faName?: string;
-    /**
-     * @generated from protobuf field: optional string vsc_name = 34;
-     */
-    vscName?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ColorData color = 40;
-     */
-    color?: ColorData;
 }
 /**
  * @generated from protobuf message symbolx.bench.ScheduleData
@@ -5575,9 +5575,9 @@ export interface ChatViewData {
  */
 export interface HubViewData {
     /**
-     * @generated from protobuf field: symbolx.bench.HubAspect aspect = 100;
+     * @generated from protobuf field: optional symbolx.bench.HubAspect aspect = 100;
      */
-    aspect: HubAspect;
+    aspect?: HubAspect;
 }
 /**
  * A View is a graphical interface in a Bench.
@@ -5586,9 +5586,9 @@ export interface HubViewData {
  */
 export interface HelpViewData {
     /**
-     * @generated from protobuf field: symbolx.bench.HelpAspect aspect = 100;
+     * @generated from protobuf field: optional symbolx.bench.HelpAspect aspect = 100;
      */
-    aspect: HelpAspect;
+    aspect?: HelpAspect;
 }
 /**
  * A View is a graphical interface in a Bench.
@@ -5695,9 +5695,9 @@ export interface DatetimeViewData {
  */
 export interface IconViewData {
     /**
-     * @generated from protobuf field: bool include_color = 100;
+     * @generated from protobuf field: optional bool include_color = 100;
      */
-    includeColor: boolean;
+    includeColor?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.SpaceData
@@ -6509,9 +6509,9 @@ export enum EnumType {
      */
     FILE_FORMAT = 21203,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ICON_KIND = 21210;
+     * @generated from protobuf enum value: ENUM_TYPE_ICON_TYPE = 21210;
      */
-    ICON_KIND = 21210,
+    ICON_TYPE = 21210,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_STREAM_TYPE = 21250;
      */
@@ -8101,9 +8101,9 @@ export enum BenchType {
      */
     FILE_FORMAT = 21203,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON_KIND = 21210;
+     * @generated from protobuf enum value: BENCH_TYPE_ICON_TYPE = 21210;
      */
-    ICON_KIND = 21210,
+    ICON_TYPE = 21210,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_STREAM_TYPE = 21250;
      */
@@ -9737,23 +9737,23 @@ export enum FileFormat {
     RPM = 90007
 }
 /**
- * @generated from protobuf enum symbolx.bench.IconKind
+ * @generated from protobuf enum symbolx.bench.IconType
  */
-export enum IconKind {
+export enum IconType {
     /**
-     * @generated from protobuf enum value: ICON_KIND_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: ICON_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ICON_KIND_EMOJI = 1;
+     * @generated from protobuf enum value: ICON_TYPE_EMOJI = 1;
      */
     EMOJI = 1,
     /**
-     * @generated from protobuf enum value: ICON_KIND_FONT_AWESOME = 3;
+     * @generated from protobuf enum value: ICON_TYPE_FONT_AWESOME = 3;
      */
     FONT_AWESOME = 3,
     /**
-     * @generated from protobuf enum value: ICON_KIND_VS_CODE = 4;
+     * @generated from protobuf enum value: ICON_TYPE_VS_CODE = 4;
      */
     VS_CODE = 4
 }
@@ -11292,6 +11292,10 @@ export enum ModelType {
      * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O1_MINI = 221;
      */
     OPENAI_O1_MINI = 221,
+    /**
+     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O3_MINI = 222;
+     */
+    OPENAI_O3_MINI = 222,
     /**
      * @generated from protobuf enum value: MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET = 301;
      */
@@ -14088,6 +14092,74 @@ class CodeData$Type extends MessageType$<CodeData> {
  */
 export const CodeData = new CodeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class ColorData$Type extends MessageType$<ColorData> {
+    constructor() {
+        super("symbolx.bench.ColorData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 31, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
+            { no: 32, name: "shade", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
+            { no: 33, name: "hex", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ColorData>): ColorData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<ColorData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ColorData): ColorData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ColorType type */ 31:
+                    message.type = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ColorShade shade */ 32:
+                    message.shade = reader.int32();
+                    break;
+                case /* optional string hex */ 33:
+                    message.hex = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ColorData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional symbolx.bench.ColorType type = 31; */
+        if (message.type !== undefined)
+            writer.tag(31, WireType.Varint).int32(message.type);
+        /* optional symbolx.bench.ColorShade shade = 32; */
+        if (message.shade !== undefined)
+            writer.tag(32, WireType.Varint).int32(message.shade);
+        /* optional string hex = 33; */
+        if (message.hex !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.hex);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ColorData
+ */
+export const ColorData = new ColorData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class PathElementData$Type extends MessageType$<PathElementData> {
     constructor() {
         super("symbolx.bench.PathElementData", [
@@ -14658,6 +14730,89 @@ class ComputedValueData$Type extends MessageType$<ComputedValueData> {
  * @generated MessageType for protobuf message symbolx.bench.ComputedValueData
  */
 export const ComputedValueData = new ComputedValueData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class IconData$Type extends MessageType$<IconData> {
+    constructor() {
+        super("symbolx.bench.IconData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.IconType", IconType, "ICON_TYPE_"] },
+            { no: 31, name: "emoji", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "fa_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "vsc_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "color", kind: "message", T: () => ColorData }
+        ]);
+    }
+    create(value?: PartialMessage<IconData>): IconData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        if (value !== undefined)
+            reflectionMergePartial<IconData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: IconData): IconData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbolx.bench.IconType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* optional string emoji */ 31:
+                    message.emoji = reader.string();
+                    break;
+                case /* optional string fa_name */ 33:
+                    message.faName = reader.string();
+                    break;
+                case /* optional string vsc_name */ 34:
+                    message.vscName = reader.string();
+                    break;
+                case /* optional symbolx.bench.ColorData color */ 40:
+                    message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: IconData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.IconType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional string emoji = 31; */
+        if (message.emoji !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.emoji);
+        /* optional string fa_name = 33; */
+        if (message.faName !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.faName);
+        /* optional string vsc_name = 34; */
+        if (message.vscName !== undefined)
+            writer.tag(34, WireType.LengthDelimited).string(message.vscName);
+        /* optional symbolx.bench.ColorData color = 40; */
+        if (message.color)
+            ColorData.internalBinaryWrite(message.color, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.IconData
+ */
+export const IconData = new IconData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SelectOptionsData$Type extends MessageType$<SelectOptionsData> {
     constructor() {
@@ -16885,74 +17040,6 @@ class ToolSelectionData$Type extends MessageType$<ToolSelectionData> {
  */
 export const ToolSelectionData = new ToolSelectionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ColorData$Type extends MessageType$<ColorData> {
-    constructor() {
-        super("symbolx.bench.ColorData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
-            { no: 32, name: "shade", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
-            { no: 33, name: "hex", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<ColorData>): ColorData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        if (value !== undefined)
-            reflectionMergePartial<ColorData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ColorData): ColorData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ColorType type */ 31:
-                    message.type = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ColorShade shade */ 32:
-                    message.shade = reader.int32();
-                    break;
-                case /* optional string hex */ 33:
-                    message.hex = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ColorData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional symbolx.bench.ColorType type = 31; */
-        if (message.type !== undefined)
-            writer.tag(31, WireType.Varint).int32(message.type);
-        /* optional symbolx.bench.ColorShade shade = 32; */
-        if (message.shade !== undefined)
-            writer.tag(32, WireType.Varint).int32(message.shade);
-        /* optional string hex = 33; */
-        if (message.hex !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.hex);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ColorData
- */
-export const ColorData = new ColorData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class FontData$Type extends MessageType$<FontData> {
     constructor() {
         super("symbolx.bench.FontData", [
@@ -17637,89 +17724,6 @@ class RectangleConstraintData$Type extends MessageType$<RectangleConstraintData>
  * @generated MessageType for protobuf message symbolx.bench.RectangleConstraintData
  */
 export const RectangleConstraintData = new RectangleConstraintData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class IconData$Type extends MessageType$<IconData> {
-    constructor() {
-        super("symbolx.bench.IconData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.IconKind", IconKind, "ICON_KIND_"] },
-            { no: 31, name: "emoji", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "fa_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "vsc_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "color", kind: "message", T: () => ColorData }
-        ]);
-    }
-    create(value?: PartialMessage<IconData>): IconData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.kind = 0;
-        if (value !== undefined)
-            reflectionMergePartial<IconData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: IconData): IconData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbolx.bench.IconKind kind */ 30:
-                    message.kind = reader.int32();
-                    break;
-                case /* optional string emoji */ 31:
-                    message.emoji = reader.string();
-                    break;
-                case /* optional string fa_name */ 33:
-                    message.faName = reader.string();
-                    break;
-                case /* optional string vsc_name */ 34:
-                    message.vscName = reader.string();
-                    break;
-                case /* optional symbolx.bench.ColorData color */ 40:
-                    message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: IconData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.IconKind kind = 30; */
-        if (message.kind !== 0)
-            writer.tag(30, WireType.Varint).int32(message.kind);
-        /* optional string emoji = 31; */
-        if (message.emoji !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.emoji);
-        /* optional string fa_name = 33; */
-        if (message.faName !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.faName);
-        /* optional string vsc_name = 34; */
-        if (message.vscName !== undefined)
-            writer.tag(34, WireType.LengthDelimited).string(message.vscName);
-        /* optional symbolx.bench.ColorData color = 40; */
-        if (message.color)
-            ColorData.internalBinaryWrite(message.color, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.IconData
- */
-export const IconData = new IconData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ScheduleData$Type extends MessageType$<ScheduleData> {
     constructor() {
@@ -26766,12 +26770,11 @@ export const ChatViewData = new ChatViewData$Type();
 class HubViewData$Type extends MessageType$<HubViewData> {
     constructor() {
         super("symbolx.bench.HubViewData", [
-            { no: 100, name: "aspect", kind: "enum", T: () => ["symbolx.bench.HubAspect", HubAspect, "HUB_ASPECT_"] }
+            { no: 100, name: "aspect", kind: "enum", opt: true, T: () => ["symbolx.bench.HubAspect", HubAspect, "HUB_ASPECT_"] }
         ]);
     }
     create(value?: PartialMessage<HubViewData>): HubViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.aspect = 0;
         if (value !== undefined)
             reflectionMergePartial<HubViewData>(this, message, value);
         return message;
@@ -26781,7 +26784,7 @@ class HubViewData$Type extends MessageType$<HubViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.HubAspect aspect */ 100:
+                case /* optional symbolx.bench.HubAspect aspect */ 100:
                     message.aspect = reader.int32();
                     break;
                 default:
@@ -26796,8 +26799,8 @@ class HubViewData$Type extends MessageType$<HubViewData> {
         return message;
     }
     internalBinaryWrite(message: HubViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.HubAspect aspect = 100; */
-        if (message.aspect !== 0)
+        /* optional symbolx.bench.HubAspect aspect = 100; */
+        if (message.aspect !== undefined)
             writer.tag(100, WireType.Varint).int32(message.aspect);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -26813,12 +26816,11 @@ export const HubViewData = new HubViewData$Type();
 class HelpViewData$Type extends MessageType$<HelpViewData> {
     constructor() {
         super("symbolx.bench.HelpViewData", [
-            { no: 100, name: "aspect", kind: "enum", T: () => ["symbolx.bench.HelpAspect", HelpAspect, "HELP_ASPECT_"] }
+            { no: 100, name: "aspect", kind: "enum", opt: true, T: () => ["symbolx.bench.HelpAspect", HelpAspect, "HELP_ASPECT_"] }
         ]);
     }
     create(value?: PartialMessage<HelpViewData>): HelpViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.aspect = 0;
         if (value !== undefined)
             reflectionMergePartial<HelpViewData>(this, message, value);
         return message;
@@ -26828,7 +26830,7 @@ class HelpViewData$Type extends MessageType$<HelpViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.HelpAspect aspect */ 100:
+                case /* optional symbolx.bench.HelpAspect aspect */ 100:
                     message.aspect = reader.int32();
                     break;
                 default:
@@ -26843,8 +26845,8 @@ class HelpViewData$Type extends MessageType$<HelpViewData> {
         return message;
     }
     internalBinaryWrite(message: HelpViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.HelpAspect aspect = 100; */
-        if (message.aspect !== 0)
+        /* optional symbolx.bench.HelpAspect aspect = 100; */
+        if (message.aspect !== undefined)
             writer.tag(100, WireType.Varint).int32(message.aspect);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -27204,12 +27206,11 @@ export const DatetimeViewData = new DatetimeViewData$Type();
 class IconViewData$Type extends MessageType$<IconViewData> {
     constructor() {
         super("symbolx.bench.IconViewData", [
-            { no: 100, name: "include_color", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 100, name: "include_color", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<IconViewData>): IconViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.includeColor = false;
         if (value !== undefined)
             reflectionMergePartial<IconViewData>(this, message, value);
         return message;
@@ -27219,7 +27220,7 @@ class IconViewData$Type extends MessageType$<IconViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* bool include_color */ 100:
+                case /* optional bool include_color */ 100:
                     message.includeColor = reader.bool();
                     break;
                 default:
@@ -27234,8 +27235,8 @@ class IconViewData$Type extends MessageType$<IconViewData> {
         return message;
     }
     internalBinaryWrite(message: IconViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* bool include_color = 100; */
-        if (message.includeColor !== false)
+        /* optional bool include_color = 100; */
+        if (message.includeColor !== undefined)
             writer.tag(100, WireType.Varint).bool(message.includeColor);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -28995,7 +28996,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.FILE_KIND]: FileKind,
   [EnumType.FILE_TYPE]: FileType,
   [EnumType.FILE_FORMAT]: FileFormat,
-  [EnumType.ICON_KIND]: IconKind,
+  [EnumType.ICON_TYPE]: IconType,
   [EnumType.STREAM_TYPE]: StreamType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FIELD_ZONE]: FieldType,
@@ -29401,7 +29402,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.FILE_KIND]: FileKind,
   [EnumType.FILE_TYPE]: FileType,
   [EnumType.FILE_FORMAT]: FileFormat,
-  [EnumType.ICON_KIND]: IconKind,
+  [EnumType.ICON_TYPE]: IconType,
   [EnumType.STREAM_TYPE]: StreamType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FIELD_ZONE]: FieldType,
@@ -30934,7 +30935,7 @@ export enum FileInfoProperty {
 
 export enum IconProperty {
   metatype = 1,
-  kind = 30,
+  type = 30,
   emoji = 31,
   faName = 33,
   vscName = 34,
@@ -31814,8 +31815,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.30.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.30.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.31.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.31.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31846,8 +31847,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.30.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.30.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.31.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.01.31.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -32573,10 +32574,10 @@ export const ChatViewDataInfo: Record<ChatViewProperty, PropertyInfo> = {
   [ChatViewProperty.replyToPtr]: { id: 102, name: 'reply_to_ptr', component: ObjectType.VIEW, componentSubtype: 30202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
-  [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 30205, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 30205, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const HelpViewDataInfo: Record<HelpViewProperty, PropertyInfo> = {
-  [HelpViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 30206, enumType: EnumType.HELP_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [HelpViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 30206, enumType: EnumType.HELP_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const ListViewDataInfo: Record<ListViewProperty, PropertyInfo> = {
   [ListViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, componentSubtype: 40300, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -32605,7 +32606,7 @@ export const DatetimeViewDataInfo: Record<DatetimeViewProperty, PropertyInfo> = 
   [DatetimeViewProperty.isRelative]: { id: 100, name: 'is_relative', component: ObjectType.VIEW, componentSubtype: 45205, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
 }
 export const IconViewDataInfo: Record<IconViewProperty, PropertyInfo> = {
-  [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, componentSubtype: 45204, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, componentSubtype: 45204, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
 }
 export const StartActionDataInfo: Record<StartActionProperty, PropertyInfo> = {
 
@@ -32953,7 +32954,7 @@ export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
 }
 export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
   [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [IconProperty.kind]: { id: 30, name: 'kind', component: ObjectType.ICON, enumType: EnumType.ICON_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, default: false, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.type]: { id: 30, name: 'type', component: ObjectType.ICON, enumType: EnumType.ICON_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: false, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [IconProperty.emoji]: { id: 31, name: 'emoji', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "\\p{Emoji_Presentation}", nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [IconProperty.faName]: { id: 33, name: 'fa_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [IconProperty.vscName]: { id: 34, name: 'vsc_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },

@@ -13,6 +13,7 @@ from .access import (
     generate_access_matrix,
 )
 from .code import Code, CodeLine, CodeType, code, format_code
+from .color import Color, ColorIn, to_color
 from .connection import (
     AggregateConnection,
     AggregateOptions,
@@ -183,6 +184,7 @@ from .graph import (
     NodeGraph,
     NodeSuperGraph,
 )
+from .icon import Icon, IconIn, IconType, reverse_icon, to_icon
 from .list import LocalNodeList, NodeList, RemoteNodeList, ValueList
 from .node import (
     BenchNode,
@@ -442,6 +444,8 @@ __all__ = [
     "Code",
     "CodeLine",
     "CodeType",
+    "Color",
+    "ColorIn",
     "ColorShade",
     "ColorType",
     "CommitResultData",
@@ -475,6 +479,9 @@ __all__ = [
     "HasNodeBase",
     "HasTimeIdentity",
     "HasTrace",
+    "Icon",
+    "IconIn",
+    "IconType",
     "LiteralType",
     "LocalNodeList",
     "LogType",
@@ -654,6 +661,7 @@ __all__ = [
     "render_path",
     "repr_enums",
     "repr_scope",
+    "reverse_icon",
     "reverse_path_element",
     "reverse_type_scalar",
     "run_span",
@@ -664,6 +672,8 @@ __all__ = [
     "text",
     "text_to_markdown",
     "timed_node_",
+    "to_color",
+    "to_icon",
     "to_path",
     "to_type",
     "to_type_scalar",

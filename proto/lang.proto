@@ -49,7 +49,7 @@ enum EnumType {
   ENUM_TYPE_FILE_KIND = 21201;
   ENUM_TYPE_FILE_TYPE = 21202;
   ENUM_TYPE_FILE_FORMAT = 21203;
-  ENUM_TYPE_ICON_KIND = 21210;
+  ENUM_TYPE_ICON_TYPE = 21210;
   ENUM_TYPE_STREAM_TYPE = 21250;
   ENUM_TYPE_PRIMITIVE_TYPE = 21300;
   ENUM_TYPE_FIELD_ZONE = 21301;
@@ -454,7 +454,7 @@ enum BenchType {
   BENCH_TYPE_FILE_KIND = 21201;
   BENCH_TYPE_FILE_TYPE = 21202;
   BENCH_TYPE_FILE_FORMAT = 21203;
-  BENCH_TYPE_ICON_KIND = 21210;
+  BENCH_TYPE_ICON_TYPE = 21210;
   BENCH_TYPE_STREAM_TYPE = 21250;
   BENCH_TYPE_PRIMITIVE_TYPE = 21300;
   BENCH_TYPE_FIELD_ZONE = 21301;
@@ -930,11 +930,11 @@ enum FileFormat {
   FILE_FORMAT_RPM = 90007;
 }
 
-enum IconKind {
-  ICON_KIND_UNSPECIFIED = 0;
-  ICON_KIND_EMOJI = 1;
-  ICON_KIND_FONT_AWESOME = 3;
-  ICON_KIND_VS_CODE = 4;
+enum IconType {
+  ICON_TYPE_UNSPECIFIED = 0;
+  ICON_TYPE_EMOJI = 1;
+  ICON_TYPE_FONT_AWESOME = 3;
+  ICON_TYPE_VS_CODE = 4;
 }
 
 enum StreamType {
@@ -1399,6 +1399,7 @@ enum ModelType {
   MODEL_TYPE_OPENAI_GPT4_O_MINI = 202;
   MODEL_TYPE_OPENAI_O1 = 220;
   MODEL_TYPE_OPENAI_O1_MINI = 221;
+  MODEL_TYPE_OPENAI_O3_MINI = 222;
   MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET = 301;
   MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH = 400;
   MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH_THINKING = 401;
@@ -1966,6 +1967,13 @@ message CodeData {
   optional CodeLanguage language = 22401;
 }
 
+message ColorData {
+  ObjectType metatype = 1;
+  optional ColorType type = 31;
+  optional ColorShade shade = 32;
+  optional string hex = 33;
+}
+
 message PathElementData {
   ObjectType metatype = 1;
   PathElementType type = 31;
@@ -2025,6 +2033,15 @@ message ComputedValueData {
   optional ExpressionData source_expression = 52;
   optional CodeData source_code = 53;
   bool is_active = 60;
+}
+
+message IconData {
+  ObjectType metatype = 1;
+  IconType type = 30;
+  optional string emoji = 31;
+  optional string fa_name = 33;
+  optional string vsc_name = 34;
+  optional ColorData color = 40;
 }
 
 message SelectOptionsData {
@@ -2263,13 +2280,6 @@ message ToolSelectionData {
   repeated ActionCategory tool_categories = 42;
 }
 
-message ColorData {
-  ObjectType metatype = 1;
-  optional ColorType type = 31;
-  optional ColorShade shade = 32;
-  optional string hex = 33;
-}
-
 message FontData {
   ObjectType metatype = 1;
   optional FontType type = 31;
@@ -2340,15 +2350,6 @@ message RectangleConstraintData {
   optional int32 max_width = 51;
   optional int32 min_height = 52;
   optional int32 max_height = 53;
-}
-
-message IconData {
-  ObjectType metatype = 1;
-  IconKind kind = 30;
-  optional string emoji = 31;
-  optional string fa_name = 33;
-  optional string vsc_name = 34;
-  optional ColorData color = 40;
 }
 
 message ScheduleData {
@@ -3482,12 +3483,12 @@ message ChatViewData {
 
 // A View is a graphical interface in a Bench.
 message HubViewData {
-  HubAspect aspect = 100;
+  optional HubAspect aspect = 100;
 }
 
 // A View is a graphical interface in a Bench.
 message HelpViewData {
-  HelpAspect aspect = 100;
+  optional HelpAspect aspect = 100;
 }
 
 // A View is a graphical interface in a Bench.
@@ -3530,7 +3531,7 @@ message DatetimeViewData {
 
 // A View is a graphical interface in a Bench.
 message IconViewData {
-  bool include_color = 100;
+  optional bool include_color = 100;
 }
 
 message SpaceData {

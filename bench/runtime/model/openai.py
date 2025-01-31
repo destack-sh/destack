@@ -27,6 +27,7 @@ OPENAI_MODEL_BY_TYPE: Mapping[ModelType, str] = {
     ModelType.OPENAI_GPT4_0: "gpt-4o-2024-11-20",
     ModelType.OPENAI_GPT4_O_MINI: "gpt-4o-mini-2024-07-18",
     ModelType.OPENAI_O1_MINI: "o1-mini-2024-09-12",
+    ModelType.OPENAI_O3_MINI: "o3-mini-2025-01-31",
     ModelType.OPENAI_O1: "o1-2024-12-17",
 }
 OPENAI_DEFAULT_MODEL = ModelType.OPENAI_GPT4_0
