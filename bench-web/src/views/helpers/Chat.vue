@@ -45,7 +45,7 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
 import Text from "@/views/content/Text.vue";
-import { useElementSize } from "@vueuse/core";
+import { useElementSize, useEventListener } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, nextTick, Ref, ref, toRef } from "vue";
 
@@ -281,6 +281,23 @@ function stopReplying() {
   );
 }
 
+async function addFiles(files: FileList | File[]) {
+  Array.from(files).forEach(async (file) => {
+    // upload and insert each file individually
+    if (bench.value == null) throw new Error("no bench");
+    const upload = uploadFile(() => benchConnection.tx, file, { bench: bench.value });
+    await upload.completion.wait();
+    state.update(
+      {
+        metatype: NodeType.VIEW,
+        type: ViewType.CHAT,
+        subnode: { nodesPtr: [...(nodesPtr.value ?? []), toNodeRef(upload.file.value!)] },
+      },
+      { debounce: "tick" },
+    );
+  });
+}
+
 // drop
 const dropZone = useSingleDropZone({
   container: containerRef,
@@ -290,22 +307,17 @@ const dropZone = useSingleDropZone({
   onDrop: (dragged, anchor, event) => {
     if (dragged.kind == "file") {
       if (dragged.files == null) return;
-      Array.from(dragged.files).forEach(async (file) => {
-        // upload and insert each file individually
-        if (bench.value == null) throw new Error("no bench");
-        const upload = uploadFile(() => benchConnection.tx, file, { bench: bench.value });
-        await upload.completion.wait();
-        state.update(
-          {
-            metatype: NodeType.VIEW,
-            type: ViewType.CHAT,
-            subnode: { nodesPtr: [...(nodesPtr.value ?? []), toNodeRef(upload.file.value!)] },
-          },
-          { debounce: "tick" },
-        );
-      });
+      addFiles(dragged.files);
     }
   },
+});
+
+// clipboard
+useEventListener("paste", (event) => {
+  if (event.clipboardData == null) return;
+  const files = Array.from(event.clipboardData.files);
+  if (files.length == 0) return;
+  addFiles(files);
 });
 
 // actions
@@ -521,7 +533,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 </div>
               </div>
               <!-- Extras -->
-              <div v-if="filesPtr.length > 0" class="mt-0.5 mb-2 flex flex-row flex-wrap gap-x-2">
+              <div v-if="filesPtr.length > 0" class="mb-2 mt-0.5 flex flex-row flex-wrap gap-x-2 gap-y-2">
                 <File
                   v-for="filePtr in filesPtr"
                   :id="'file-' + filePtr.id"
@@ -628,7 +640,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 "
               />
               <!-- Extras -->
-              <div v-if="files.length > 0" class="mt-0.5 flex flex-row flex-wrap gap-x-2">
+              <div v-if="files.length > 0" class="mt-1 flex flex-row flex-wrap gap-y-1 gap-x-2">
                 <File
                   v-for="file in files"
                   :id="'file-' + file.id"
