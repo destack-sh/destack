@@ -1,23 +1,25 @@
 from bench.language import sync_node
 from bench.language.builtin import make_builtins
-from bench.test.unit.conftest import RuntimeHandle
+from bench.test.simulation.workload import RuntimeLambdaWorkload
+from bench.test.unit.conftest import simulated_runtime
 
 
-async def test_sync_builtins(hosted_runtime: RuntimeHandle) -> None:
+@simulated_runtime()
+async def test_sync_builtins(runtime: RuntimeLambdaWorkload) -> None:
     """Sync the Builtins page."""
-    Builtins = make_builtins(hosted_runtime.session)
+    Builtins = make_builtins(runtime.session)
     sync_node(
-        parent=hosted_runtime.package,
-        old_root=hosted_runtime.package.blocks.get("Builtins"),
+        parent=runtime.main_package,
+        old_root=runtime.main_package.blocks.get("Builtins"),
         new_root=Builtins,
     )
-    assert hosted_runtime.session.tx.has_edits
-    await hosted_runtime.commit()
+    assert runtime.session.tx.has_edits
+    await runtime.commit()
 
     sync_node(
-        parent=hosted_runtime.package,
-        old_root=hosted_runtime.package.blocks.get("Builtins"),
+        parent=runtime.main_package,
+        old_root=runtime.main_package.blocks.get("Builtins"),
         new_root=Builtins,
     )
-    assert not hosted_runtime.session.tx.has_edits
-    await hosted_runtime.commit()
+    assert not runtime.session.tx.has_edits
+    await runtime.commit()

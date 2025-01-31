@@ -1,5 +1,7 @@
-from bench.test.unit.conftest import RuntimeHandle
+from bench.test.simulation.workload import RuntimeLambdaWorkload
+from bench.test.unit.conftest import simulated_runtime
 
 
-async def test_run_flow_from_message(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_run_flow_from_message(runtime: RuntimeLambdaWorkload):
     pass  # nocheckin

@@ -1,9 +1,10 @@
 # ruff: noqa: E402
 
+import functools
 import gc
+import inspect
 import warnings
-from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Mapping
+from typing import Awaitable, Callable, Mapping
 
 import pytest
 
@@ -20,25 +21,18 @@ from bench.language import (
     OBJECT_TYPES,
     STRUCT_TYPES,
     Bench,
-    Block,
-    BlockType,
     BuiltinObject,
     NodeGraph,
-    NodeMode,
     NodeSuperGraph,
     NullEngine,
     ObjectType,
-    Package,
     PackageType,
     Region,
-    Run,
-    RunnableNode,
     Session,
     Store,
     User,
     UserStatus,
 )
-from bench.runtime import Runner, Runtime
 from bench.sql.graph import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
 from bench.system import pg_engine_from_store
 from bench.system.core.sharding import StoreMap
@@ -184,50 +178,6 @@ STRUCTS = [BUILTIN_OBJECTS_BY_TYPE[t] for t in STRUCT_TYPES if t in BUILTIN_OBJE
 NODES = [BUILTIN_OBJECTS_BY_TYPE[t] for t in NODE_TYPES if t in BUILTIN_OBJECTS_BY_TYPE]
 
 
-@dataclass(slots=True)
-class RuntimeHandle:
-    """All the stuff you need to do and run inside a Runtime."""
-
-    bench: Bench
-    package: Package
-    session: Session
-    runtime: "Runtime"
-
-    def page(self, name: str = "Page1") -> Block:
-        """Gets or creates a page in the current package."""
-        page = self.package.blocks.get(name)
-        if page is None:
-            page = Block.new(BlockType.PAGE, name=name)
-            self.package.blocks.append(page)
-        return page
-
-    async def commit(self):
-        """Commits the current session."""
-        return await self.session.commit()
-
-    async def run(
-        self,
-        run: Run | RunnableNode,
-        *,
-        variables: Any | None = None,
-        inputs: Any | None = None,
-        mode: NodeMode | None = None,
-        return_error: bool = False,
-    ) -> Runner:
-        runner = await self.runtime.run(
-            run, variables=variables, inputs=inputs, mode=mode, return_error=return_error
-        )
-        assert runner is not None, f"no runner for {run!r}"
-        return runner
-
-
-@pytest.fixture
-def hosted_runtime(hosted_runtime_async: RuntimeHandle):  # :PytestAsyncContext
-    ACTIVE_SESSION.set(hosted_runtime_async.session)
-    yield hosted_runtime_async
-    ACTIVE_SESSION.set(None)
-
-
 async def run_dynamic_simulation(spec: SimulationSpec):
     """Run a 'dynamic' Simulation"""
 
@@ -292,11 +242,12 @@ def simulated_runtime(
             workloads=(*workloads, lambda_workload),
         )
 
+        @functools.wraps(test_func)
         async def test_func_in_simulation():
             await run_dynamic_simulation(spec)
 
-        test_func_in_simulation.__name__ = test_func.__name__
-        test_func_in_simulation.__doc__ = test_func.__doc__
+        # zero out signature so pytest doesn't try to get any fixture arguments
+        test_func_in_simulation.__signature__ = inspect.Signature()  # type: ignore
 
         return test_func_in_simulation
 
