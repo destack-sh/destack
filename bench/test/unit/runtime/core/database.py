@@ -65,6 +65,7 @@ async def test_create_record_kwargs(runtime: RuntimeLambdaWorkload):  # noqa: RU
             Field.member("Aliases", str, is_list=True),
         ],
     )
+    runtime.page().blocks.append(Database1)
     Record1 = Database1.records.create()
     assert Record1.Name is None  # type: ignore
     assert Record1.Age is None  # type: ignore
@@ -363,7 +364,10 @@ async def test_record_recursive_reference(runtime: RuntimeLambdaWorkload):
     runtime.page().blocks.append(Database1)
     Record1 = Database1.records.create(name="Record1")
     Record1.Record = Record1  # type: ignore
+    assert Record1.Record == Record1  # type: ignore
     await runtime.commit()
+
+    Record1 = await Database1.records.get(Record1.to_ref())
     assert Record1.Record == Record1  # type: ignore
 
 

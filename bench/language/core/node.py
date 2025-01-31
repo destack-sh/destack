@@ -1143,7 +1143,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             else:
                 raise ValueError(f"no child property for {child.metatype.bench_name} in {base!r}")
         elif self.metatype in child.__parent_types__:
-            attach_node(child, self, move=move)
+            attach_node(child, self, move=move, graph=self._graph)
         else:
             raise ValueError(f"cannot append {child!r} to {self!r}")
 
