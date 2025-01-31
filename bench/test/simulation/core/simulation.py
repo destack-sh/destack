@@ -15,9 +15,10 @@ from bench.utils.task import TaskManager
 
 from .client import ClientHandle
 from .host import HostHandle
+from .machine import MachineHandle
 from .network import Network
 from .oracle import SimulatedEventLoop, SimulatedOracle
-from .spec import ClientSpec, HostSpec, SimulationSpec
+from .spec import ClientSpec, HostSpec, MachineSpec, SimulationSpec, UserSpec
 from .supervisor import SupervisorHandle
 from .transport import SimulatedChannel
 from .user import UserHandle
@@ -68,6 +69,7 @@ class Simulation:
         self.supervisor = SupervisorHandle("supervisor", spec.supervisor, self.oracle, self)
         self.hosts_by_name: dict[str, HostHandle] = {}
         self.users_by_name: dict[str, UserHandle] = {}
+        self.machines_by_name: dict[str, MachineHandle] = {}
         self.clients_by_name: dict[str, ClientHandle] = {}
         self.workloads: list[Workload] = []
         self.workloads_by_name: dict[str, Workload] = {}
@@ -83,6 +85,37 @@ class Simulation:
     def __repr__(self):
         return f"<{self.__class__.__name__} {self!s}>"
 
+    def add_user(self, user_spec: UserSpec) -> UserHandle:
+        """Add a User to the simulation."""
+        if user_spec.name in self.users_by_name:
+            raise ValueError(f"duplicate user name: {user_spec.name} in {self!r}")
+        user = UserHandle(user_spec.name, self)
+        self.users_by_name[user_spec.name] = user
+        return user
+
+    def add_machine(self, machine_spec: MachineSpec) -> MachineHandle:
+        """Add a Machine to the simulation."""
+        if machine_spec.name in self.machines_by_name:
+            raise ValueError(f"duplicate machine name: {machine_spec.name} in {self!r}")
+        machine = MachineHandle(machine_spec, self)
+        self.machines_by_name[machine_spec.name] = machine
+        return machine
+
+    def add_client(self, client_spec: ClientSpec) -> ClientHandle:
+        """Add a Client to the simulation. The User will be created if not present."""
+        if client_spec.name in self.clients_by_name:
+            raise ValueError(f"duplicate client name: {client_spec.name} in {self!r}")
+        if client_spec.parent[0] == "user":
+            parent = self.users_by_name[client_spec.parent[1]]
+        elif client_spec.parent[0] == "machine":
+            parent = self.machines_by_name[client_spec.parent[1]]
+        else:
+            raise ValueError(f"invalid client parent: {client_spec.parent} in {self!r}")
+        client = ClientHandle(client_spec, parent, self)
+        self.clients_by_name[client_spec.name] = client
+        parent.clients_by_name[client_spec.name] = client
+        return client
+
     def add_host(self, host_spec: HostSpec) -> HostHandle:
         """Add a Host to the simulation."""
         if host_spec.bench.name in self.hosts_by_name:
@@ -90,26 +123,6 @@ class Simulation:
         host = HostHandle(host_spec.bench.name, host_spec, self.oracle, self)
         self.hosts_by_name[host_spec.bench.name] = host
         return host
-
-    def add_user(self, username: str) -> UserHandle:
-        """Add a User to the simulation."""
-        if username in self.users_by_name:
-            raise ValueError(f"duplicate user name: {username} in {self!r}")
-        user = UserHandle(username, self)
-        self.users_by_name[username] = user
-        return user
-
-    def add_client(self, client_spec: ClientSpec) -> ClientHandle:
-        """Add a Client to the simulation. The User will be created if not present."""
-        if client_spec.name in self.clients_by_name:
-            raise ValueError(f"duplicate client name: {client_spec.name} in {self!r}")
-        if client_spec.user not in self.users_by_name:
-            self.add_user(client_spec.user)
-        user = self.users_by_name[client_spec.user]
-        client = ClientHandle(client_spec, user, self)
-        self.clients_by_name[client_spec.name] = client
-        user.clients_by_name[client_spec.name] = client
-        return client
 
     def add_workload(self, workload_spec: "WorkloadSpec") -> "Workload":
         """Add a Workload to the simulation."""
@@ -164,11 +177,16 @@ class Simulation:
 
     async def run(self):
         """Run the simulation."""
+        # nocheckin: reconsider (should add_xxx be async, should supervisor_channel be retained, ...)
         # add everything from spec
-        for host in self.spec.hosts:
-            self.add_host(host)
+        for user in self.spec.users:
+            self.add_user(user)
+        for machine in self.spec.machines:
+            self.add_machine(machine)
         for client in self.spec.clients:
             self.add_client(client)
+        for host in self.spec.hosts:
+            self.add_host(host)
         for workload in self.spec.workloads:
             self.add_workload(workload)
 
@@ -180,16 +198,23 @@ class Simulation:
                 services=(self.supervisor.service,), oracle=self.oracle
             ) as supervisor_channel:
                 supervisor_client = SupervisorClient(supervisor_channel)
-                # prepare users & clients
+                # prepare users and their clients
                 for user in self.users_by_name.values():
                     await user.prepare(supervisor_client)
                 for client in self.clients_by_name.values():
-                    await client.prepare(supervisor_client)
+                    if isinstance(client.parent, UserHandle):
+                        await client.prepare(supervisor_client)
                 # prepare hosts (create benches)
                 for host in self.hosts_by_name.values():
                     user = self.users_by_name.get(host.spec.bench.owner)
                     assert user is not None, f"{host!r} owner has no clients in {self!r}"
                     await host.prepare(supervisor_client, user.some_client)
+                # prepare machines and their clients
+                for machine in self.machines_by_name.values():
+                    await machine.prepare()
+                for client in self.clients_by_name.values():
+                    if isinstance(client.parent, MachineHandle):
+                        await client.prepare(supervisor_client)
             # and run hosts
             await asyncio.gather(*(host.start() for host in self.hosts_by_name.values()))
             # prepare workloads

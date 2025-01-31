@@ -16,25 +16,27 @@ from bench.language import (
     code,
 )
 from bench.runtime import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_RUN, create_run_from_node
-from bench.test.unit.conftest import RuntimeHandle
+from bench.test.simulation.workload import RuntimeLambdaWorkload
+from bench.test.unit.conftest import RuntimeHandle, simulated_runtime
 
 
-async def test_run_code_empty(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_run_code_empty(runtime: RuntimeLambdaWorkload):
     """Empty Code with optional input/output Fields should work."""
     Code1 = Action.new(
         ActionType.CODE,
         "Code1",
         fields=(Field.input("Input1", int), Field.output("Output1", int)),
     )
-    hosted_runtime.page().actions.append(Code1)
-    await hosted_runtime.commit()
+    runtime.page().actions.append(Code1)
+    await runtime.commit()
 
-    runner = await hosted_runtime.run(Code1, return_error=True)
+    runner = await runtime.run_in_runtime(Code1, return_error=True)
     assert runner.status == RunStatus.COMPLETED
 
 
 async def test_run_code_with_syntax_error(hosted_runtime: RuntimeHandle):
-    """Code block with a syntax error should re-raise that error."""
+    """Code Action with a syntax error should re-raise that error (at runtime)."""
     InvalidCode = Action.new(ActionType.CODE, "InvalidCode", code=code("!!invalid!!"))
     hosted_runtime.page().actions.append(InvalidCode)
     await hosted_runtime.commit()

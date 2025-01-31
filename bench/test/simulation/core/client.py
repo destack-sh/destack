@@ -16,6 +16,7 @@ from bench.proto import (
 from .spec import ClientSpec
 
 if TYPE_CHECKING:
+    from .machine import MachineHandle
     from .simulation import Simulation
     from .user import UserHandle
 
@@ -24,9 +25,11 @@ if TYPE_CHECKING:
 class ClientHandle:
     """A Client to a Bench"""
 
-    def __init__(self, spec: ClientSpec, user: "UserHandle", simulation: "Simulation"):
+    def __init__(
+        self, spec: ClientSpec, parent: "UserHandle | MachineHandle", simulation: "Simulation"
+    ):
         self.spec = spec
-        self.user = user
+        self.parent = parent
         self.simulation = simulation
         self._client_data: ClientData | None = None
         self._access_token: str | None = None
@@ -63,18 +66,26 @@ class ClientHandle:
         return self._rpc_headers
 
     async def prepare(self, supervisor_client: SupervisorClient):
-        """Logs in this Client as the User"""
-        client_in = ClientDataIn(
-            type=pack_enum(ClientType, self.spec.type), name=self.spec.name, device_name="test"
-        )
-        login_req = LoginUserRequest(
-            slug=self.spec.user,
-            password=self.spec.user,
-            client=client_in,
-        )
-        login_rep = await supervisor_client.login_user(login_req)
-        self._client_data = login_rep.client
-        self._access_token = login_rep.access_token
+        from .machine import MachineHandle
+        from .user import UserHandle
+
+        if isinstance(self.parent, UserHandle):
+            client_in = ClientDataIn(
+                type=pack_enum(ClientType, self.spec.type),
+                name=self.spec.name,
+                device_name=self.spec.name,
+            )
+            login_req = LoginUserRequest(
+                slug=self.spec.parent[1], password=self.spec.parent[1], client=client_in
+            )
+            login_rep = await supervisor_client.login_user(login_req)
+            self._client_data = login_rep.client
+            self._access_token = login_rep.access_token
+        elif isinstance(self.parent, MachineHandle):
+            self._client_data = self.parent.client_data
+            self._access_token = self.parent.access_token
+        else:
+            raise ValueError(f"invalid client parent: {self.parent!r} in {self!r}")
         self._rpc_metadata = RpcMetadata(
             client_type=self._client_data.type,
             client_id=self._client_data.id,

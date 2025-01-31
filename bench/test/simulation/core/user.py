@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, final
 
+from more_itertools import first
+
 from bench import pb2
 from bench.language import NodeReference
 from bench.proto import (
@@ -34,7 +36,9 @@ class UserHandle:
 
     @property
     def some_client(self) -> "ClientHandle":
-        return next(iter(self.clients_by_name.values()))
+        client = first(iter(self.clients_by_name.values()), None)
+        assert client is not None, f"{self!r} has no clients"
+        return client
 
     @property
     def user_data(self) -> UserData:

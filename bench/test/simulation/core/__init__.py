@@ -1,5 +1,6 @@
 from .client import ClientHandle
 from .host import HostHandle
+from .machine import MachineHandle
 from .oracle import SimulatedEventLoop, SimulatedEventLoopPolicy, SimulatedOracle
 from .sample import Samplable, SampledFloat, SampledInt, SampledValue, to_value
 from .service import ServiceHandle
@@ -8,10 +9,12 @@ from .spec import (
     BenchSpec,
     ClientSpec,
     HostSpec,
+    MachineSpec,
     NetworkSpec,
     ServiceSpec,
     SimulationSpec,
     SupervisorSpec,
+    UserSpec,
 )
 from .supervisor import SupervisorHandle
 from .transport import SimulatedChannel, SimulatedServer, SimulatedTransport
@@ -23,6 +26,8 @@ __all__ = [
     "ClientSpec",
     "HostHandle",
     "HostSpec",
+    "MachineHandle",
+    "MachineSpec",
     "NetworkSpec",
     "Samplable",
     "SampledFloat",
@@ -41,6 +46,7 @@ __all__ = [
     "SupervisorHandle",
     "SupervisorSpec",
     "UserHandle",
+    "UserSpec",
     "get_simulation_id",
     "to_value",
 ]

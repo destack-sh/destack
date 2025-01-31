@@ -5,6 +5,7 @@ from bench.test.simulation.core import SampledFloat, SampledInt
 
 
 class WorkloadType(enum.StrEnum):
+    RUNTIME_LAMBDA = "runtime_lambda"
     WRITE_BLOCK_TREE = "write_block_tree"
     READ_PACKAGE = "read_package"
     WATCH_LOGS = "watch_logs"
