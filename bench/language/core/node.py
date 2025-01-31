@@ -1605,8 +1605,8 @@ class NodeReference(Struct[NodeReferenceData]):
         bench_id: UUID | None = None
         if node.metatype == NodeType.BENCH:
             bench_id = node.id
-        elif isinstance(node, BenchNode):
-            bench_id = node.bench_id
+        elif NodeType.BENCH in node.__roots__:
+            bench_id = cast(BenchNode, node).bench_id
             if bench_id is None:
                 # maybe just creating, try from context
                 session = ACTIVE_SESSION.get()
