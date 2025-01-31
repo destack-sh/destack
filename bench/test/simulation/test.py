@@ -14,11 +14,16 @@ from bench.test.fixtures import (
     make_global_store,
     make_regional_store,
 )
+from bench.test.simulation.core import (
+    BenchSpec,
+    ClientSpec,
+    HostSpec,
+    Simulation,
+    SimulationSpec,
+    get_simulation_id,
+)
+from bench.test.simulation.workload import ReadPackageSpec, WatchLogsSpec, WriteBlockTreeSpec
 from bench.utils.func import group_by
-
-from .simulation import Simulation, get_simulation_id
-from .spec import BenchSpec, ClientSpec, HostSpec, SimulationSpec
-from .workload import ReadPackageSpec, WatchLogsSpec, WriteBlockTreeSpec
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -27,31 +32,33 @@ tracer = trace.get_tracer(__name__)
 # Read and mark simulations from disk
 #
 
-# NOTE :Test: read simulation specs from disk (some JSON schema + toml thing?)
+# NOTE :Test: read simulation specs from disk? (some JSON schema + toml thing?)
 #  probably also mark and categorize them? (see for example FoundationDB test specs)
-AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
-    # empty tests to sanity test simulation setup
+BUILTIN_SIMULATIONS: list[SimulationSpec] = [
+    #
+    # Sanity
+    #
     SimulationSpec(
         name="SingleClientEmpty",
         description="Create a single client with no workloads",
         profile=TestProfile.QUICK,
-        clients=(ClientSpec(name="alice-1", username="alice"),),
+        clients=(ClientSpec(name="alice-1", user="alice"),),
     ),
     SimulationSpec(
         name="MultiClientEmpty",
         description="Create multiple clients with no workloads",
         profile=TestProfile.QUICK,
         clients=(
-            ClientSpec(name="alice-1", username="alice"),
-            ClientSpec(name="alice-2", username="alice"),
-            ClientSpec(name="bob-1", username="bob"),
+            ClientSpec(name="alice-1", user="alice"),
+            ClientSpec(name="alice-2", user="alice"),
+            ClientSpec(name="bob-1", user="bob"),
         ),
     ),
     SimulationSpec(
         name="SingleHostEmpty",
         description="Create a single host with no workloads",
         profile=TestProfile.QUICK,
-        clients=(ClientSpec(name="alice-1", username="alice"),),
+        clients=(ClientSpec(name="alice-1", user="alice"),),
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
     ),
     SimulationSpec(
@@ -59,19 +66,21 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
         description="Create multiple hosts with no workloads",
         profile=TestProfile.QUICK,
         clients=(
-            ClientSpec(name="alice-1", username="alice"),
-            ClientSpec(name="bob-1", username="bob"),
+            ClientSpec(name="alice-1", user="alice"),
+            ClientSpec(name="bob-1", user="bob"),
         ),
         hosts=(
             HostSpec(bench=BenchSpec(name="alice", owner="alice")),
             HostSpec(bench=BenchSpec(name="bob", owner="bob")),
         ),
     ),
-    # simple
+    #
+    # Simple
+    #
     SimulationSpec(
         name="SingleWriterBlockTree",
         description="Write a block tree with one client, read with another client",
-        clients=(ClientSpec(name="alice-1", username="alice"),),
+        clients=(ClientSpec(name="alice-1", user="alice"),),
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         workloads=(
             WriteBlockTreeSpec(bench="alice", client="alice-1", transactions=10),
@@ -83,9 +92,9 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
         description="Write a block tree with one client, read with multiple clients",
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         clients=(
-            ClientSpec(name="alice-1", username="alice"),
-            ClientSpec(name="alice-2", username="alice"),
-            ClientSpec(name="alice-3", username="alice"),
+            ClientSpec(name="alice-1", user="alice"),
+            ClientSpec(name="alice-2", user="alice"),
+            ClientSpec(name="alice-3", user="alice"),
         ),
         workloads=(
             WriteBlockTreeSpec(
@@ -100,8 +109,8 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
         name="SingleWriterLogTail",
         description="Write a block tree with one client, watch logs multiple clients",
         clients=(
-            ClientSpec(name="alice-1", username="alice"),
-            ClientSpec(name="alice-2", username="alice"),
+            ClientSpec(name="alice-1", user="alice"),
+            ClientSpec(name="alice-2", user="alice"),
         ),
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         workloads=(
@@ -112,10 +121,10 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
     ),
     # TODO :Test!: test multi-writer, various write patterns, latency, ...
 ]
-SIMULATIONS_BY_PROFILE = group_by(AVAILABLE_SIMULATIONS, lambda s: s.profile)
+SIMULATIONS_BY_PROFILE = group_by(BUILTIN_SIMULATIONS, lambda s: s.profile)
 
 
-async def _do_test_simulation(spec: SimulationSpec):
+async def run_builtin_simulation(spec: SimulationSpec):
     simulation_id = get_simulation_id(spec)
     global_store = make_global_store(f"test-{simulation_id}-global")
     regional_store = make_regional_store(f"test-{simulation_id}-regional")
@@ -137,6 +146,11 @@ async def _do_test_simulation(spec: SimulationSpec):
         raise
     finally:
         # force gc for simulation isolation
+        del spec
+        del global_store
+        del regional_store
+        del store_map
+        del simulation
         gc.collect()
 
 
@@ -149,14 +163,14 @@ async def _do_test_simulation(spec: SimulationSpec):
     "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.QUICK, ()), ids=lambda s: s.name
 )
 async def test_simulation_quick(spec: SimulationSpec):
-    await _do_test_simulation(spec)
+    await run_builtin_simulation(spec)
 
 
 @pytest.mark.parametrize(
     "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.DEFAULT, ()), ids=lambda s: s.name
 )
 async def test_simulation_default(spec: SimulationSpec):
-    await _do_test_simulation(spec)
+    await run_builtin_simulation(spec)
 
 
 @pytest.mark.careful
@@ -164,7 +178,7 @@ async def test_simulation_default(spec: SimulationSpec):
     "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.CAREFUL, ()), ids=lambda s: s.name
 )
 async def test_simulation_careful(spec: SimulationSpec):
-    await _do_test_simulation(spec)
+    await run_builtin_simulation(spec)
 
 
 @pytest.mark.paranoid
@@ -174,4 +188,4 @@ async def test_simulation_careful(spec: SimulationSpec):
 async def test_simulation_paranoid(spec: SimulationSpec, num_seeds: int = 1):
     for i in range(0, num_seeds):
         subspec = dataclasses.replace(spec, seed=spec.seed + i)
-        await _do_test_simulation(subspec)
+        await run_builtin_simulation(subspec)
