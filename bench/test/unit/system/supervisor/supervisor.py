@@ -19,7 +19,7 @@ from bench.proto import (
 )
 from bench.system import HostMap, StoreMap, SupervisorService
 from bench.test.fixtures import raises_grpc_error
-from bench.test.simulation.transport import SimulatedChannel
+from bench.test.simulation.core import SimulatedChannel
 from bench.utils.oracle import REAL_ORACLE
 
 #

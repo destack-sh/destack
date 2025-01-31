@@ -1,12 +1,16 @@
-import enum
 from dataclasses import dataclass, field
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 import structlog
 
 from bench.language import ClientType
 from bench.test.conftest import TestProfile
-from bench.test.simulation.utils import SampledFloat, SampledInt
+
+from .sample import SampledFloat
+
+if TYPE_CHECKING:
+    from bench.test.simulation.workload import WorkloadSpec
 
 logger = structlog.get_logger(__name__)
 
@@ -73,39 +77,6 @@ class ClientSpec:
     """A Client"""
 
     name: str
-    username: str
+    user: str
     type: ClientType = ClientType.DESKTOP
     time_offset: timedelta | None = None
-
-
-class WorkloadType(enum.StrEnum):
-    REPLAY_LOG = "replay_log"
-    WRITE_BLOCK_TREE = "write_block_tree"
-    READ_PACKAGE = "read_package"
-    WATCH_LOGS = "watch_logs"
-
-
-@dataclass
-class WorkloadTrigger:
-    workload: str
-    repetition: int | None = None
-
-
-@dataclass
-class WorkloadSpec:
-    """A Workload to run"""
-
-    type: WorkloadType
-    name: str = None  # type: ignore (default to 'type' in __post_init__)
-    start_after: str | list[str] | WorkloadTrigger | list[WorkloadTrigger] | None = None
-    repeat: int | SampledInt = 1
-    repeat_interval: float | SampledFloat = 0.0
-    duration: float | SampledFloat = 0.0
-    group: str | None = None
-
-    def __post_init__(self):
-        if self.name is None:
-            if hasattr(self, "client"):
-                self.name = f"{self.type.value}-{getattr(self, 'client')}"
-            else:
-                self.name = self.type.value

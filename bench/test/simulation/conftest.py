@@ -3,7 +3,7 @@
 import pytest
 
 from bench.test.conftest import _setup_test_env
-from bench.test.simulation.oracle import SimulatedEventLoopPolicy
+from bench.test.simulation.core import SimulatedEventLoopPolicy
 
 # NOTE: must run setup before importing from bench
 _setup_test_env()

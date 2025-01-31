@@ -236,7 +236,7 @@ assert Very_WEIRD__THER_Input == 7
         fields=(
             Field.input("Input1", int),
             Field.input("Input2", bool),
-            Field.input("Long Input", str),
+            Field.input("Long In put", str),
             Field.input("Very WEIRD ÖTHER Input", int),
         ),
     )

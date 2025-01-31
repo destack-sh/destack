@@ -134,8 +134,7 @@ class HostInfo:
 
 class HostMap:
     """
-    Maps regions to host URIs.
-    Right now this is just a simple region->host map (with grpc & grpc-web ports).
+    Maps Regions to Host URIs.
     """
 
     def __init__(self, host_by_region: dict[Region | Literal["*"], HostInfo]):

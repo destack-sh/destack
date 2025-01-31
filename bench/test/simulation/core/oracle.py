@@ -22,21 +22,21 @@ class SimulatedEventLoop(SelectorEventLoop):
     'Simulated' selector event loop where we can fast forward if there are no pending external selectors.
     Essentially, we just want to safely skip over schedule-only waits during testing.
     In theory, this approach also works with proactor loops for Windows, but we don't need that yet.
-    TODO :Test!: actually implement fast-forwarding in SimulatedEventLoop (again)
+    TODO :Test: actually implement fast-forwarding in SimulatedEventLoop (again)
     """
 
     def __init__(self, selector=None):
         super().__init__(selector)
-        self._ff_offset_ns = 0
+        self._offset_ns = 0
 
     def __str__(self) -> str:
-        return f"ff_ns={self._ff_offset_ns}, scheduled={self}"
+        return f"offset_ns={self._offset_ns}"
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self!s}>"
 
     def time_ns(self):
-        return time.time_ns() + self._ff_offset_ns
+        return time.time_ns() + self._offset_ns
 
     @override
     def time(self):
