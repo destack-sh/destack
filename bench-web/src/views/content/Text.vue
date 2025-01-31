@@ -38,6 +38,7 @@ import {
   Command,
   Selection as EditorSelection,
   EditorState,
+  Plugin,
   TextSelection,
   type SelectionBookmark as EditorSelectionBookmark,
 } from "prosemirror-state";
@@ -103,14 +104,17 @@ function makeEditorState(text?: TextData, options?: { restoreSelection?: boolean
 }
 
 function makeEditorView(): EditorView {
+  const plugins: Plugin[] = [];
+  if (!props.suppressDrop) {
+    plugins.push(dropCursor({ width: 2, color: "#fbbf24" }));
+  }
   return new EditorView(textRef.value, {
     state: makeEditorState(props.modelValue),
-    // TODO :UX: non-editable Text should be selectable
     editable: () => props.isInput,
     nodeViews: {
       mention: (node, view, getPos) => new MentionView(node, view),
     },
-    plugins: [dropCursor({ width: 2, color: "#fbbf24" })],
+    plugins,
     dispatchTransaction(tx) {
       if (view == null) throw new Error("view not mounted");
 

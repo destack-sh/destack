@@ -147,7 +147,7 @@ function doUploadFile(
   fields: Record<string, string>,
   onProgress: (progress: number) => void,
 ): Promise<void> {
-  log.trace("file.uploadFile", content.name, humanizeBytes(content.size), { content, postUrl, fields });
+  log.trace("file.upload", content.name, humanizeBytes(content.size), { content, postUrl, fields });
   const formData = new FormData();
   for (const [key, value] of Object.entries(fields)) {
     formData.append(key, value);
@@ -186,7 +186,7 @@ async function doUploadFiles(
 ): Promise<void> {
   if (uploads.length == 0) return;
 
-  log.trace("file.uploadFiles", uploads);
+  log.trace("file.uploads", uploads);
   // extract files
   for (const upload of uploads) {
     try {
@@ -209,7 +209,7 @@ async function doUploadFiles(
     const { response } = await host.uploadFiles({ scope, files: uploads.map((u) => u.file.value!) });
     handles = response.handles;
   } catch (e) {
-    log.error("file.uploadFiles.error", uploads, e);
+    log.error("file.uploads.error", uploads, e);
     for (const upload of uploads) {
       upload.status.value = FileStatus.FAILED;
       upload.completion.reject(e);
@@ -217,8 +217,8 @@ async function doUploadFiles(
     return;
   }
 
-  const handlesById = groupByScalar(handles, (h) => h.file!.id);
   // upload to post URLs
+  const handlesById = groupByScalar(handles, (h) => h.file!.id);
   for (const upload of uploads) {
     const handle = handlesById[upload.file.value!.id];
     if (handle == null || handle.file == null) {
@@ -242,13 +242,14 @@ async function doUploadFiles(
       // actually create File node
       txFactory().create(upload.file.value);
       upload.completion.resolve();
+      log.trace("file.upload.complete", upload);
     } catch (e) {
       upload.status.value = FileStatus.FAILED;
       upload.completion.reject(e);
-      log.error("file.uploadFile.error", upload, e);
+      log.error("file.upload.error", upload, e);
     }
   }
-  log.trace("file.uploadFiles.complete", uploads);
+  log.trace("file.uploads.complete", uploads);
 }
 
 /** Extracts and uploads the given files to the Host. Returns as soon as the upload starts. */
@@ -399,7 +400,7 @@ export function downloadFile(file: NodeReferenceData | FileData, options?: { inc
 
 /** Executes a set of downloads (as parallel as possible). */
 async function doDownloadFiles(downloads: FileDownload[]): Promise<void> {
-  log.trace("file.downloadFiles", downloads);
+  log.trace("file.download", downloads);
 
   // get get URLs
   const scope = makeScope({ benchId: downloads[0].nodePtr.benchId });
@@ -409,7 +410,7 @@ async function doDownloadFiles(downloads: FileDownload[]): Promise<void> {
     const { response } = await host.downloadFiles({ scope, files: downloads.map((d) => d.nodePtr) });
     handles = response.handles;
   } catch (e) {
-    log.error("file.downloadFiles.error", downloads, e);
+    log.error("file.download.error", downloads, e);
     for (const download of downloads) {
       download.status.value = FileStatus.FAILED;
       download.completion.resolve();
@@ -440,7 +441,7 @@ async function doDownloadFiles(downloads: FileDownload[]): Promise<void> {
         download.status.value = FileStatus.COMPLETED;
       } catch (e) {
         download.status.value = FileStatus.FAILED;
-        log.error("file.downloadFile.error", download, e);
+        log.error("file.download.error", download, e);
       }
     } else {
       download.status.value = FileStatus.COMPLETED;
