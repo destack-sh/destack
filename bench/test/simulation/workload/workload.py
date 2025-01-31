@@ -1,37 +1,13 @@
 import abc
 from datetime import datetime
-from typing import assert_never, final
-from uuid import UUID
+from typing import final
 
 import structlog
 from opentelemetry import trace
 
-from bench.language import (
-    BENCH_NODE_TYPES,
-    EMPTY_SCOPE_DATA,
-    PUBLIC_NODE_TYPES,
-    Client,
-    GraphScope,
-    NodeReference,
-    NodeSuperGraph,
-    NodeType,
-    RemoteEngine,
-    Session,
-    User,
-)
-from bench.language.resource import Machine
-from bench.proto.wiring import unpack_builtin_object
-from bench.test.simulation.core import (
-    ClientHandle,
-    HostHandle,
-    MachineHandle,
-    Simulation,
-    UserHandle,
-    to_value,
-)
+from bench.test.simulation.core import Simulation, to_value
 from bench.utils.oracle import Oracle
 from bench.utils.string import Casing, to_casing
-from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
 from .spec import WorkloadSpec, WorkloadType
 
@@ -147,76 +123,3 @@ class Workload[SpecT: WorkloadSpec](abc.ABC):
     async def check_group(self, group: list["Workload"]):  # noqa: B027
         """Validates any post-run conditions for a group of workloads. Called for every workload in the group."""
         pass
-
-    async def make_remote_session(
-        self,
-        bench_id: UUID,
-        client: "ClientHandle",
-        host: "HostHandle",
-        oracle: Oracle,
-        supergraph: NodeSuperGraph | None = None,
-    ):
-        """Create a Session to a remote Bench's Host"""
-        nonce = str(UUID(int=oracle.random.getrandbits(128)))
-        supervisor_client = await self.simulation.supervisor.connect(client)
-        host_client = await host.connect(client)
-        engines = (
-            # global engine
-            RemoteEngine(
-                name="remote-global",
-                scope=EMPTY_SCOPE_DATA,
-                node_types=PUBLIC_NODE_TYPES,
-                remote=supervisor_client,
-                write_retry=RETRY_GRPC_FOREVER,
-                rpc_metadata=client.rpc_metadata,
-            ),
-            # bench engine
-            RemoteEngine(
-                name="remote-bench",
-                scope=GraphScope(bench_id=bench_id)._to_data(),
-                node_types=BENCH_NODE_TYPES,
-                remote=host_client,
-                write_retry=RETRY_GRPC_FOREVER,
-                rpc_metadata=client.rpc_metadata,
-            ),
-        )
-        if supergraph is None:
-            root_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, ck=bench_id)
-            supergraph = NodeSuperGraph(name="Remote", root_ptr=root_ptr)
-        session = Session(
-            _is_readonly=False,
-            _default_scope=GraphScope(bench_id=bench_id)._to_data(),
-            _engines=engines,
-            _origin=client.to_origin(nonce=nonce),
-            _supervisor=supervisor_client,
-            _host=host_client,
-            _oracle=oracle,
-            _supergraph=supergraph,
-        )
-        if isinstance(client.parent, UserHandle):
-            session.user = unpack_builtin_object(
-                client.parent.user_data,
-                session=session,
-                supergraph=supergraph,
-                expect=User,
-                skip_add_self=False,
-            )
-        elif isinstance(client.parent, MachineHandle):
-            session.machine = unpack_builtin_object(
-                client.parent.machine_data,
-                session=session,
-                supergraph=supergraph,
-                expect=Machine,
-                skip_add_self=False,
-            )
-        else:
-            assert_never(client.parent)
-        session.client = unpack_builtin_object(
-            client.client_data,
-            session=session,
-            supergraph=supergraph,
-            expect=Client,
-            skip_add_self=False,
-        )
-        session._subject = session.user
-        return session

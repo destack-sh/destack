@@ -7,9 +7,9 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language import Store
+from bench.language import NodeArea, Store
 from bench.proto import SupervisorClient
-from bench.system import StoreMap
+from bench.system import StoreMap, pg_engine_from_store
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.task import TaskManager
 
@@ -50,6 +50,10 @@ class Simulation:
         self.spec = spec
         self.global_store = global_store
         self.regional_store = regional_store
+        self.global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
+        self.regional_pg_engine = pg_engine_from_store(
+            f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
+        )
         self.store_map = store_map
 
         # system
@@ -215,11 +219,12 @@ class Simulation:
                 for client in self.clients_by_name.values():
                     if isinstance(client.parent, MachineHandle):
                         await client.prepare(supervisor_client)
-            # and run hosts
-            await asyncio.gather(*(host.start() for host in self.hosts_by_name.values()))
-            # prepare workloads
-            await asyncio.gather(*(workload.prepare() for workload in self.workloads))
-            logger.info("simulation.prepare", simulation=self, span="current")
+
+        # start hosts
+        await asyncio.gather(*(host.start() for host in self.hosts_by_name.values()))
+        # prepare workloads
+        await asyncio.gather(*(workload.prepare() for workload in self.workloads))
+        logger.info("simulation.prepare", simulation=self, span="current")
 
         # run workloads until completion
         try:

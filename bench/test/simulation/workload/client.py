@@ -24,6 +24,7 @@ from bench.test.simulation.core import (
     SampledFloat,
     SampledInt,
     Simulation,
+    make_remote_session,
     to_value,
 )
 from bench.test.utils import assert_graph_equals
@@ -51,8 +52,12 @@ class ClientWorkload[SpecT: ClientWorkloadSpec](Workload[SpecT]):
         self.bench_id: UUID = self.simulation.resolve_bench_id(self.spec.bench)
         self.client: ClientHandle = self.simulation.get_client(self.spec.client)
         self.host: HostHandle = self.simulation.get_host(self.spec.bench)
-        self.session: Session = await self.make_remote_session(
-            self.bench_id, self.client, self.host, self.oracle
+        self.session: Session = await make_remote_session(
+            simulation=self.simulation,
+            bench_id=self.bench_id,
+            client=self.client,
+            host=self.host,
+            oracle=self.oracle,
         )
         self.supergraph: NodeSuperGraph = self.session._supergraph
 
