@@ -4,7 +4,8 @@ import pytest
 from PIL import Image
 
 from bench.language import FileFormat, FileIn, FileType, extract_file_info, upload_file
-from bench.test.unit.conftest import RuntimeHandle
+from bench.test.simulation.workload import RuntimeLambdaWorkload
+from bench.test.unit.conftest import simulated_runtime
 
 # some random image
 image = Image.new("RGB", (32, 24), color="yellow")
@@ -22,7 +23,7 @@ IMAGE_BYTES = image_bytes.getvalue()
     ],
 )
 async def test_upload_and_download_file(
-    hosted_runtime: RuntimeHandle,
+    runtime: RuntimeLambdaWorkload,
     file_content: FileIn,
     file_title: str,
     expected_file_type: FileType,
@@ -30,7 +31,7 @@ async def test_upload_and_download_file(
 ):
     # upload
     file = await upload_file(file_content, name=file_title)
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     assert file.type == expected_file_type
     assert file.format == expected_file_format
 
@@ -40,7 +41,8 @@ async def test_upload_and_download_file(
     await file.download()
 
 
-async def test_extract_file_info_image(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_extract_file_info_image(runtime: RuntimeLambdaWorkload):
     file_info, _ = await extract_file_info(IMAGE_BYTES, name="image")
     assert file_info.mime_type == "image/png"
     assert file_info.size == len(IMAGE_BYTES)

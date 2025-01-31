@@ -9,7 +9,8 @@ from grpclib import GRPCError, Status
 
 from bench.language import Block, BlockType, Field, FileType, PrimitiveType, Text, TypeBase, md
 from bench.language.core.const import TypeKind
-from bench.test.unit.conftest import RuntimeHandle
+from bench.test.simulation.workload import RuntimeLambdaWorkload
+from bench.test.unit.conftest import simulated_runtime
 from bench.utils.string import Casing, to_casing
 
 
@@ -52,7 +53,8 @@ class SampleGenerator:
         raise RuntimeError(f"unsupported type {typ.primitive_type!r}")
 
 
-def test_create_record_kwargs(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_create_record_kwargs(runtime: RuntimeLambdaWorkload):  # noqa: RUF029
     """Create a Record with keyword arguments (into value)."""
     Database1 = Block.new(
         BlockType.DATABASE,
@@ -78,10 +80,11 @@ def test_create_record_kwargs(hosted_runtime: RuntimeHandle):
     assert Record2.value_packed[Database1.fields.Name.storage_key] == "Record2"
 
 
-async def test_create_empty_database_block(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_create_empty_database_block(runtime: RuntimeLambdaWorkload):
     """Create a blank database and query it."""
     Database1 = Block.new(BlockType.DATABASE, "Database1")
-    hosted_runtime.page().blocks.append(Database1)
+    runtime.page().blocks.append(Database1)
 
     # cannot access database before committing it
     with pytest.raises(GRPCError) as e:  # :BadRemoteErrors
@@ -89,20 +92,21 @@ async def test_create_empty_database_block(hosted_runtime: RuntimeHandle):
         assert e.value.status == Status.FAILED_PRECONDITION
 
     # commit to create database
-    await hosted_runtime.session.commit()
+    await runtime.commit()
 
     # should be empty
     records = await Database1.records.search()
     assert records == []
 
 
-async def test_create_database_and_records_simultaneously(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_create_database_and_records_simultaneously(runtime: RuntimeLambdaWorkload):
     """Create a database and records within it in the same transaction/commit."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
-    hosted_runtime.page().blocks.append(Database1)
+    runtime.page().blocks.append(Database1)
     Record1 = Database1.records.create(Name="Record1")
     Record2 = Database1.records.create(Name="Record2")
-    await hosted_runtime.session.commit()
+    await runtime.commit()
 
     records = await Database1.records.search()
     assert records == [Record1, Record2]
@@ -110,28 +114,30 @@ async def test_create_database_and_records_simultaneously(hosted_runtime: Runtim
     assert records[1].Name == "Record2"  # type: ignore
 
 
-async def test_update_record(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_update_record(runtime: RuntimeLambdaWorkload):
     """Update a record with a simple Field and query it."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
-    hosted_runtime.page().blocks.append(Database1)
+    runtime.page().blocks.append(Database1)
 
     # create & query
     Record1 = Database1.records.create(Name="Record1")
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     records = await Database1.records.search()
     assert records[0].Name == "Record1"  # type: ignore
 
     # update & query
     Record1.Name = "Record1.1"  # type: ignore
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     records = await Database1.records.search()
     assert records[0].Name == "Record1.1"  # type: ignore
 
 
-async def test_update_database_and_record(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_update_database_and_record(runtime: RuntimeLambdaWorkload):
     """Updates a database and records within and across transactions."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Id", int)])
-    hosted_runtime.page().blocks.append(Database1)
+    runtime.page().blocks.append(Database1)
     sampler = SampleGenerator(Random(0))
 
     # create records with value for every field type
@@ -154,7 +160,7 @@ async def test_update_database_and_record(hosted_runtime: RuntimeHandle):
             sample_field_value = sampler.generate(field)
             record = Database1.records.create(Id=i, **{field_name: sample_field_value})
             cached_records.append(record)
-            await hosted_runtime.session.commit()
+            await runtime.commit()
 
     # query
     stored_records = await Database1.records.order_by(Database1.fields.Id).search()
@@ -165,7 +171,7 @@ async def test_update_database_and_record(hosted_runtime: RuntimeHandle):
     for field, record in zip(Database1.fields, stored_records):
         sample_field_value = sampler.generate(field)
         setattr(record, field.name, sample_field_value)
-    await hosted_runtime.session.commit()
+    await runtime.commit()
 
     # query again
     stored_records = await Database1.records.order_by(Database1.fields.Id).search()
@@ -173,27 +179,29 @@ async def test_update_database_and_record(hosted_runtime: RuntimeHandle):
         assert stored_record.equals(cached_record)
 
 
-async def test_create_record_with_ptrs(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_create_record_with_ptrs(runtime: RuntimeLambdaWorkload):
     """Create a Database with pointer fields (scalar and list)."""
     Database1 = Block.new(
         BlockType.DATABASE,
         "Database1",
         fields=[Field.member("Block", Block), Field.member("Blocks", Block, is_list=True)],
     )
-    hosted_runtime.page().blocks.append(Database1)
-    await hosted_runtime.session.commit()
+    runtime.page().blocks.append(Database1)
+    await runtime.commit()
 
     Record1 = Database1.records.create(Block=Database1, Blocks=[Database1])
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     records = await Database1.records.search()
     assert records == [Record1]
 
 
-async def test_move_database(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_move_database(runtime: RuntimeLambdaWorkload):
     """Move a database between parents while creating a Record."""
     # create database in Page1
-    Page1 = hosted_runtime.page("Page1")
-    Page2 = hosted_runtime.page("Page2")
+    Page1 = runtime.page("Page1")
+    Page2 = runtime.page("Page2")
     Database1 = Page1.blocks.append(
         Block.new(
             BlockType.DATABASE,
@@ -202,7 +210,7 @@ async def test_move_database(hosted_runtime: RuntimeHandle):
         )
     )
     Record1 = Database1.records.create(name="Record1", Alias="1")
-    await hosted_runtime.session.commit()
+    await runtime.commit()
 
     # query database in Page1
     records = await Database1.records.search()
@@ -211,7 +219,7 @@ async def test_move_database(hosted_runtime: RuntimeHandle):
     # move database to Page2
     Database1.move(to=Page2)
     Record2 = Database1.records.create(name="Record2", Alias="2")
-    await hosted_runtime.session.commit()
+    await runtime.commit()
 
     # query database in Page2
     records = await Database1.records.search()
@@ -219,89 +227,93 @@ async def test_move_database(hosted_runtime: RuntimeHandle):
 
     # delete Record1
     Record1.delete()
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     records = await Database1.records.search()
     assert records == [Record2]
 
 
-async def test_delete_restore_database(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_delete_restore_database(runtime: RuntimeLambdaWorkload):
     """Delete a database, querying it shouldn't work. Restore, and it should work again."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
     Record1 = Database1.records.create(Name="Record1")
-    hosted_runtime.page().blocks.append(Database1)
-    await hosted_runtime.session.commit()
+    runtime.page().blocks.append(Database1)
+    await runtime.commit()
 
     # delete
     Database1.delete()
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     with pytest.raises(GRPCError) as e:  # :BadRemoteErrors
         _ = await Database1.records.search()
         assert e.value.status == Status.NOT_FOUND
 
     # restore
     Database1.restore()
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     records = await Database1.records.search()
     assert records == [Record1]
 
 
-async def test_delete_restore_record(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_delete_restore_record(runtime: RuntimeLambdaWorkload):
     """Deleting a Record should remove it from default view, restoring should re-add it."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
-    hosted_runtime.page().blocks.append(Database1)
+    runtime.page().blocks.append(Database1)
     Record1 = Database1.records.create(Name="Record1")
     Record2 = Database1.records.create(Name="Record2")
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     records = await Database1.records.search()
     assert records == [Record1, Record2]
 
     # delete
     Record1.delete()
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     records = await Database1.records.search()
     assert records == [Record2]
 
     # insert
     Record3 = Database1.records.create(Name="Record3")
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     records = await Database1.records.search()
     assert records == [Record2, Record3]
 
     # delete
     Record2.delete()
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     records = await Database1.records.search()
     assert records == [Record3]
 
     # restore
     Record1.restore()
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     records = await Database1.records.search()
     assert records == [Record1, Record3]
 
 
-async def test_delete_restore_database_field(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_delete_restore_database_field(runtime: RuntimeLambdaWorkload):
     """Delete and restore a Field in a Database."""
     Field1 = Field.member("Field1", str)
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field1])
-    hosted_runtime.page().blocks.append(Database1)
+    runtime.page().blocks.append(Database1)
     Record1 = Database1.records.create(Field1="Record1")
-    await hosted_runtime.session.commit()
+    await runtime.commit()
 
     # delete
     Field1.delete()
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     with pytest.raises(AttributeError):  # can't update anymore (Field1 is gone)
         Record1.Field1 = "Value1"  # type: ignore
 
     # restore
     Field1.restore()
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     Record1.Field1 = "Value1"  # type: ignore
-    await hosted_runtime.session.commit()
+    await runtime.commit()
 
 
-async def test_morph_database_field_type(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_morph_database_field_type(runtime: RuntimeLambdaWorkload):
     """
     Update a Fields type and set/get its values.
     The values belonging to different types should be preserved (should map to different columns).
@@ -310,51 +322,53 @@ async def test_morph_database_field_type(hosted_runtime: RuntimeHandle):
     Field1 = Field.member("Field1", str, is_list=False)
     Field2 = Field.member("Field2", bool, is_list=False)
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field1, Field2])
-    hosted_runtime.page().blocks.append(Database1)
+    runtime.page().blocks.append(Database1)
     Record1 = Database1.records.create(Field1="Record1", Field2=True)
-    await hosted_runtime.session.commit()
+    await runtime.commit()
 
     # morph str is_list=False -> str is_list=True
     Field1.is_list = True
     Record1.Field1 = ["Record1.1", "Record1.2"]  # type: ignore
-    await hosted_runtime.session.commit()
+    await runtime.commit()
 
     # morph str is_list=True -> int is_list=False
     Field1.morph_to(int, is_list=False)
     Record1.Field1 = 42  # type: ignore
-    await hosted_runtime.session.commit()
+    await runtime.commit()
 
     # morph back to str is_list=True (should still have old value)
     Field1.morph_to(str, is_list=True)
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     Record1 = await Database1.records.get(Record1.to_ref())
     assert Record1.Field1 == ["Record1.1", "Record1.2"]  # type: ignore
 
     # morph back to str is_list=False (should still have old value)
     Field1.morph_to(str, is_list=False)
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     Record1 = await Database1.records.get(Record1.to_ref())
     assert Record1.Field1 == "Record1"  # type: ignore
     assert Record1.Field2 is True  # type: ignore
     # delete record
     Record1.delete()
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     records = await Database1.records.search()
     assert records == []
 
 
-async def test_record_recursive_reference(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_record_recursive_reference(runtime: RuntimeLambdaWorkload):
     """Create a Record with a recursive reference to itself."""
     Database1 = Block.new(BlockType.DATABASE, "Database1")
     Database1.fields.append(Field.member("Record", Database1))
-    hosted_runtime.page().blocks.append(Database1)
+    runtime.page().blocks.append(Database1)
     Record1 = Database1.records.create(name="Record1")
     Record1.Record = Record1  # type: ignore
-    await hosted_runtime.session.commit()
+    await runtime.commit()
     assert Record1.Record == Record1  # type: ignore
 
 
-async def test_search_record(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_search_record(runtime: RuntimeLambdaWorkload):
     """Insert, update and query Records with various filters."""
     Database1 = Block.new(
         BlockType.DATABASE,
@@ -365,13 +379,13 @@ async def test_search_record(hosted_runtime: RuntimeHandle):
             Field.member("Description", Text),
         ],
     )
-    hosted_runtime.page().blocks.append(Database1)
+    runtime.page().blocks.append(Database1)
     Record1 = Database1.records.create(Name="Alice", Age=30, Description=md("Alice is a *person*."))
     Record2 = Database1.records.create(Name="Bob", Age=40, Description=md("Bob is a *goat*."))
     Record3 = Database1.records.create(
         Name="Charlie", Age=50, Description=md("Charlie is a *cat*.")
     )
-    await hosted_runtime.session.commit()
+    await runtime.commit()
 
     # get by ref
     Result = await Database1.records.get(Record1.to_ref())
@@ -398,16 +412,17 @@ async def test_search_record(hosted_runtime: RuntimeHandle):
     assert Result == [Record1, Record2, Record3]
 
 
-async def test_database_isolation(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_database_isolation(runtime: RuntimeLambdaWorkload):
     """Create two databases and ensure they don't interfere with each other."""
 
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
     Database2 = Block.new(BlockType.DATABASE, "Database2", fields=[Field.member("Name", str)])
-    hosted_runtime.page().blocks.extend(Database1, Database2)
+    runtime.page().blocks.extend(Database1, Database2)
 
     Record1 = Database1.records.create(Name="Record1")
     Record2 = Database2.records.create(Name="Record2")
-    await hosted_runtime.session.commit()
+    await runtime.commit()
 
     records1 = await Database1.records.search()
     assert records1 == [Record1]
@@ -416,7 +431,7 @@ async def test_database_isolation(hosted_runtime: RuntimeHandle):
 
     Record3 = Database1.records.create(Name="Record3")
     Record4 = Database2.records.create(Name="Record4")
-    await hosted_runtime.session.commit()
+    await runtime.commit()
 
     records1 = await Database1.records.search()
     assert records1 == [Record1, Record3]

@@ -1,10 +1,12 @@
 from bench.language import ScalerStrategy, ScalerType
-from bench.test.unit.conftest import RuntimeHandle
+from bench.test.simulation.workload import RuntimeLambdaWorkload
+from bench.test.unit.conftest import simulated_runtime
 
 
-async def test_create_scaler(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_create_scaler(runtime: RuntimeLambdaWorkload):
     """Creates a scaler."""
-    _ = hosted_runtime.bench.scalers.create(
+    _ = runtime.bench.scalers.create(
         type=ScalerType.MACHINE,
         strategy=ScalerStrategy.AUTO,
         name="Machine Scaler",
@@ -12,4 +14,4 @@ async def test_create_scaler(hosted_runtime: RuntimeHandle):
         target_count=1,
         max_count=4,
     )
-    await hosted_runtime.commit()
+    await runtime.commit()

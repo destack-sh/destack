@@ -11,12 +11,14 @@ from bench.language import (
     VariableBlock,
     Vector2,
 )
-from bench.test.unit.conftest import RuntimeHandle
+from bench.test.simulation.workload import RuntimeLambdaWorkload
+from bench.test.unit.conftest import simulated_runtime
 
 
-async def test_trace_edits(hosted_runtime: RuntimeHandle):
+@simulated_runtime()
+async def test_trace_edits(runtime: RuntimeLambdaWorkload):
     """Edits to nested objects should be traced correctly."""
-    session = hosted_runtime.session
+    session = runtime.session
     Message1 = Block.new(
         BlockType.MESSAGE,
         name="Message1",
@@ -27,8 +29,8 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     Action1 = Action.new(DuplicateAction, name="Text1")
     Flow1.actions.append(Action1)
     Value1 = Block.new(VariableBlock, name="Value1")
-    hosted_runtime.page().blocks.extend(Message1, Flow1, Value1)
-    await session.commit()
+    runtime.page().blocks.extend(Message1, Flow1, Value1)
+    await runtime.commit()
 
     def get_last_operation():
         last_edit = session.tx._pending_edit_events[-1]
