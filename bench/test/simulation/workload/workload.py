@@ -1,6 +1,6 @@
 import abc
 from datetime import datetime
-from typing import final
+from typing import assert_never, final
 from uuid import UUID
 
 import structlog
@@ -19,11 +19,14 @@ from bench.language import (
     Session,
     User,
 )
+from bench.language.resource import Machine
 from bench.proto.wiring import unpack_builtin_object
 from bench.test.simulation.core import (
     ClientHandle,
     HostHandle,
+    MachineHandle,
     Simulation,
+    UserHandle,
     to_value,
 )
 from bench.utils.oracle import Oracle
@@ -190,13 +193,24 @@ class Workload[SpecT: WorkloadSpec](abc.ABC):
             _oracle=oracle,
             _supergraph=supergraph,
         )
-        session.user = unpack_builtin_object(
-            client.user.user_data,
-            session=session,
-            supergraph=supergraph,
-            expect=User,
-            skip_add_self=False,
-        )
+        if isinstance(client.parent, UserHandle):
+            session.user = unpack_builtin_object(
+                client.parent.user_data,
+                session=session,
+                supergraph=supergraph,
+                expect=User,
+                skip_add_self=False,
+            )
+        elif isinstance(client.parent, MachineHandle):
+            session.machine = unpack_builtin_object(
+                client.parent.machine_data,
+                session=session,
+                supergraph=supergraph,
+                expect=Machine,
+                skip_add_self=False,
+            )
+        else:
+            assert_never(client.parent)
         session.client = unpack_builtin_object(
             client.client_data,
             session=session,

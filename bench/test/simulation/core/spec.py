@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import structlog
 
@@ -24,6 +24,8 @@ class SimulationSpec:
     profile: TestProfile = TestProfile.DEFAULT
     seed: int = 0
     network: "NetworkSpec" = field(default_factory=lambda: NetworkSpec())
+    users: tuple["UserSpec", ...] = ()
+    machines: tuple["MachineSpec", ...] = ()
     clients: tuple["ClientSpec", ...] = ()
     supervisor: "SupervisorSpec" = field(default_factory=lambda: SupervisorSpec())
     hosts: tuple["HostSpec", ...] = ()
@@ -55,6 +57,13 @@ class SupervisorSpec(ServiceSpec):
 
 
 @dataclass
+class UserSpec:
+    """A User to run a Bench"""
+
+    name: str
+
+
+@dataclass
 class HostSpec(ServiceSpec):
     """A Host to run a Bench"""
 
@@ -73,10 +82,18 @@ class BenchSpec:
 
 
 @dataclass
+class MachineSpec:
+    """A machine to run a Bench"""
+
+    name: str
+    bench: str
+
+
+@dataclass
 class ClientSpec:
     """A Client"""
 
     name: str
-    user: str
+    parent: tuple[Literal["user", "machine"], str]
     type: ClientType = ClientType.DESKTOP
     time_offset: timedelta | None = None

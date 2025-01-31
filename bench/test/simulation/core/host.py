@@ -6,6 +6,7 @@ from bench.language import NodeReference
 from bench.proto import CreateBenchRequest, HostClient, SupervisorClient
 from bench.sql import pg_connection, sqlstr
 from bench.system import HostService
+from bench.test.simulation.core.user import UserHandle
 from bench.utils.oracle import Oracle
 
 from .service import ServiceHandle
@@ -37,8 +38,9 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
 
     async def prepare(self, supervisor_client: SupervisorClient, client: "ClientHandle"):
         # create bench in supervisor
+        assert isinstance(client.parent, UserHandle), f"{client!r} is not from a User"
         create_bench_req = CreateBenchRequest(
-            owner=NodeReference._ref_data_from_node_data(client.user.user_data),
+            owner=NodeReference._ref_data_from_node_data(client.parent.user_data),
             is_main=True,
             slug=self.spec.bench.name,
             region=pb2.Region.REGION_ZURICH,

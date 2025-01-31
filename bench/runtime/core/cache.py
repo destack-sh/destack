@@ -58,7 +58,7 @@ class RedisCache(Cache):
 
 
 class MemoryCache(Cache):
-    """Cache for a Bench backed by a Redis instance."""
+    """Cache for a Bench backed by an in-memory dictionary."""
 
     def __init__(self, bench: Bench) -> None:
         super().__init__(bench)

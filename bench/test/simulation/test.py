@@ -20,6 +20,7 @@ from bench.test.simulation.core import (
     HostSpec,
     Simulation,
     SimulationSpec,
+    UserSpec,
     get_simulation_id,
 )
 from bench.test.simulation.workload import ReadPackageSpec, WatchLogsSpec, WriteBlockTreeSpec
@@ -42,32 +43,36 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
         name="SingleClientEmpty",
         description="Create a single client with no workloads",
         profile=TestProfile.QUICK,
-        clients=(ClientSpec(name="alice-1", user="alice"),),
+        users=(UserSpec(name="alice"),),
+        clients=(ClientSpec(name="alice-1", parent=("user", "alice")),),
     ),
     SimulationSpec(
         name="MultiClientEmpty",
         description="Create multiple clients with no workloads",
         profile=TestProfile.QUICK,
+        users=(UserSpec(name="alice"), UserSpec(name="bob")),
         clients=(
-            ClientSpec(name="alice-1", user="alice"),
-            ClientSpec(name="alice-2", user="alice"),
-            ClientSpec(name="bob-1", user="bob"),
+            ClientSpec(name="alice-1", parent=("user", "alice")),
+            ClientSpec(name="alice-2", parent=("user", "alice")),
+            ClientSpec(name="bob-1", parent=("user", "bob")),
         ),
     ),
     SimulationSpec(
         name="SingleHostEmpty",
         description="Create a single host with no workloads",
         profile=TestProfile.QUICK,
-        clients=(ClientSpec(name="alice-1", user="alice"),),
+        users=(UserSpec(name="alice"),),
+        clients=(ClientSpec(name="alice-1", parent=("user", "alice")),),
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
     ),
     SimulationSpec(
         name="MultiHostEmpty",
         description="Create multiple hosts with no workloads",
         profile=TestProfile.QUICK,
+        users=(UserSpec(name="alice"), UserSpec(name="bob")),
         clients=(
-            ClientSpec(name="alice-1", user="alice"),
-            ClientSpec(name="bob-1", user="bob"),
+            ClientSpec(name="alice-1", parent=("user", "alice")),
+            ClientSpec(name="bob-1", parent=("user", "bob")),
         ),
         hosts=(
             HostSpec(bench=BenchSpec(name="alice", owner="alice")),
@@ -80,7 +85,8 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
     SimulationSpec(
         name="SingleWriterBlockTree",
         description="Write a block tree with one client, read with another client",
-        clients=(ClientSpec(name="alice-1", user="alice"),),
+        users=(UserSpec(name="alice"),),
+        clients=(ClientSpec(name="alice-1", parent=("user", "alice")),),
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         workloads=(
             WriteBlockTreeSpec(bench="alice", client="alice-1", transactions=10),
@@ -90,12 +96,13 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
     SimulationSpec(
         name="SingleWriterMultiReaderBlockTree",
         description="Write a block tree with one client, read with multiple clients",
-        hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
+        users=(UserSpec(name="alice"),),
         clients=(
-            ClientSpec(name="alice-1", user="alice"),
-            ClientSpec(name="alice-2", user="alice"),
-            ClientSpec(name="alice-3", user="alice"),
+            ClientSpec(name="alice-1", parent=("user", "alice")),
+            ClientSpec(name="alice-2", parent=("user", "alice")),
+            ClientSpec(name="alice-3", parent=("user", "alice")),
         ),
+        hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         workloads=(
             WriteBlockTreeSpec(
                 bench="alice", client="alice-1", transactions=10, group="alice-0-main"
@@ -108,9 +115,10 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
     SimulationSpec(
         name="SingleWriterLogTail",
         description="Write a block tree with one client, watch logs multiple clients",
+        users=(UserSpec(name="alice"),),
         clients=(
-            ClientSpec(name="alice-1", user="alice"),
-            ClientSpec(name="alice-2", user="alice"),
+            ClientSpec(name="alice-1", parent=("user", "alice")),
+            ClientSpec(name="alice-2", parent=("user", "alice")),
         ),
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         workloads=(
@@ -124,7 +132,8 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
 SIMULATIONS_BY_PROFILE = group_by(BUILTIN_SIMULATIONS, lambda s: s.profile)
 
 
-async def run_builtin_simulation(spec: SimulationSpec):
+async def run_static_simulation(spec: SimulationSpec):
+    """Run a 'static' Simulation (from a predefined spec)."""
     simulation_id = get_simulation_id(spec)
     global_store = make_global_store(f"test-{simulation_id}-global")
     regional_store = make_regional_store(f"test-{simulation_id}-regional")
@@ -141,6 +150,7 @@ async def run_builtin_simulation(spec: SimulationSpec):
     try:
         await simulation.run()
         await delete_test_db(global_store)
+        await delete_test_db(regional_store)
     except Exception as e:
         logger.exception("simulation.error", simulation=simulation, error=e)
         raise
@@ -163,14 +173,14 @@ async def run_builtin_simulation(spec: SimulationSpec):
     "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.QUICK, ()), ids=lambda s: s.name
 )
 async def test_simulation_quick(spec: SimulationSpec):
-    await run_builtin_simulation(spec)
+    await run_static_simulation(spec)
 
 
 @pytest.mark.parametrize(
     "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.DEFAULT, ()), ids=lambda s: s.name
 )
 async def test_simulation_default(spec: SimulationSpec):
-    await run_builtin_simulation(spec)
+    await run_static_simulation(spec)
 
 
 @pytest.mark.careful
@@ -178,7 +188,7 @@ async def test_simulation_default(spec: SimulationSpec):
     "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.CAREFUL, ()), ids=lambda s: s.name
 )
 async def test_simulation_careful(spec: SimulationSpec):
-    await run_builtin_simulation(spec)
+    await run_static_simulation(spec)
 
 
 @pytest.mark.paranoid
@@ -188,4 +198,4 @@ async def test_simulation_careful(spec: SimulationSpec):
 async def test_simulation_paranoid(spec: SimulationSpec, num_seeds: int = 1):
     for i in range(0, num_seeds):
         subspec = dataclasses.replace(spec, seed=spec.seed + i)
-        await run_builtin_simulation(subspec)
+        await run_static_simulation(subspec)

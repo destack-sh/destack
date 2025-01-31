@@ -422,7 +422,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Preview -->
             <span
               v-if="replyTo.message.text"
-              class="ml-1 min-w-0 flex-1 truncate text-gray-400"
+              class="ml-1 min-w-0 flex-1 truncate text-xs text-gray-400"
               :style="{ maxWidth: (size?.width != null ? size.width - 300 : 100) + 'px' }"
             >
               {{ getTextLine(replyTo.message.text) }}
@@ -576,7 +576,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- Preview -->
         <span
           v-if="replyTo.message.text"
-          class="ml-1.5 truncate text-gray-400"
+          class="ml-1.5 truncate text-xs text-gray-400"
           :style="{
             maxWidth: (size?.width != null ? size.width - 300 : 100) + 'px',
           }"

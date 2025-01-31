@@ -1,20 +1,17 @@
 # ruff: noqa: E402
 
+import gc
 import warnings
-from typing import Mapping
+from dataclasses import dataclass
+from typing import Any, Awaitable, Callable, Mapping
 
 import pytest
-import uvloop
 
-from bench.language import clean_name
-from bench.runtime.core import Runtime
 from bench.test.conftest import _setup_test_env
 
 # NOTE: must run setup before importing from bench
 _setup_test_env()
 
-from dataclasses import dataclass
-from typing import Any
 
 from bench.language import (
     ACTIVE_SESSION,
@@ -41,16 +38,44 @@ from bench.language import (
     User,
     UserStatus,
 )
-from bench.runtime import Runner
+from bench.runtime import Runner, Runtime
+from bench.sql.graph import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
 from bench.system import pg_engine_from_store
+from bench.system.core.sharding import StoreMap
+from bench.test.conftest import _setup_test_env
+from bench.test.fixtures import (
+    create_test_db,
+    delete_test_db,
+    make_global_store,
+    make_regional_store,
+)
+from bench.test.simulation.core import (
+    BenchSpec,
+    ClientSpec,
+    HostSpec,
+    MachineSpec,
+    NetworkSpec,
+    SimulatedEventLoopPolicy,
+    Simulation,
+    SimulationSpec,
+    SupervisorSpec,
+    UserSpec,
+    get_simulation_id,
+)
+from bench.test.simulation.workload import (
+    RuntimeLambdaWorkload,
+    RuntimeLambdaWorkloadSpec,
+    WorkloadSpec,
+    WorkloadType,
+)
 from bench.test.strategies import draw_direct, from_object_type
 from bench.utils.oracle import REAL_ORACLE, Oracle
 
 
-# NOTE: unit tests are run in a shared event loop
-@pytest.fixture(scope="session")  # scope=function!
+# NOTE: simulation tests must be run with one event loop per function to isolate
+@pytest.fixture
 def event_loop_policy():
-    return uvloop.EventLoopPolicy()
+    return SimulatedEventLoopPolicy()
 
 
 def create_omni_session(omni_store: Store, oracle: Oracle):
@@ -110,6 +135,8 @@ def make_session(name: str):
 
 @pytest.fixture  # :PytestAsyncContext
 async def session_async(request):
+    from bench.language import clean_name
+
     session = make_session(clean_name(request.node.name))
     await session.open(_set_in_context=False)
     yield session
@@ -164,7 +191,7 @@ class RuntimeHandle:
     bench: Bench
     package: Package
     session: Session
-    runtime: Runtime
+    runtime: "Runtime"
 
     def page(self, name: str = "Page1") -> Block:
         """Gets or creates a page in the current package."""
@@ -199,3 +226,78 @@ def hosted_runtime(hosted_runtime_async: RuntimeHandle):  # :PytestAsyncContext
     ACTIVE_SESSION.set(hosted_runtime_async.session)
     yield hosted_runtime_async
     ACTIVE_SESSION.set(None)
+
+
+async def run_dynamic_simulation(spec: SimulationSpec):
+    """Run a 'dynamic' Simulation"""
+
+    simulation_id = get_simulation_id(spec)
+    global_store = make_global_store(f"test-{simulation_id}-global")
+    regional_store = make_regional_store(f"test-{simulation_id}-regional")
+    store_map = StoreMap({"*": regional_store})
+    await create_test_db(global_store, BUILTIN_GLOBAL_SCHEMA)
+    await create_test_db(regional_store, BUILTIN_REGIONAL_SCHEMA)
+    simulation = Simulation(
+        id=simulation_id,
+        spec=spec,
+        global_store=global_store,
+        regional_store=regional_store,
+        store_map=store_map,
+    )
+
+    try:
+        await simulation.run()
+        await delete_test_db(global_store)
+        await delete_test_db(regional_store)
+    finally:
+        gc.collect()
+
+
+def simulated_runtime(
+    network: NetworkSpec | None = None,
+    users: tuple[UserSpec, ...] = (),
+    machines: tuple[MachineSpec, ...] = (),
+    clients: tuple[ClientSpec, ...] = (),
+    supervisor: SupervisorSpec | None = None,
+    hosts: tuple[HostSpec, ...] = (),
+    workloads: tuple[WorkloadSpec, ...] = (),
+):
+    """Run a test in a simulated Runtime."""
+
+    users = users or (UserSpec(name="user"),)
+    machines = machines or (MachineSpec(name="user-machine", bench="user"),)
+    clients = clients or (
+        ClientSpec(name="user-client", parent=("user", "user")),
+        ClientSpec(name="user-machine-client", parent=("machine", "user-machine")),
+    )
+    hosts = hosts or (HostSpec(bench=BenchSpec(name="user", owner="user")),)
+
+    def decorator(test_func: Callable[[RuntimeLambdaWorkload], Awaitable[None]]):
+        lambda_workload = RuntimeLambdaWorkloadSpec(
+            client="user-machine-client",
+            bench="user",
+            name=test_func.__name__,
+            type=WorkloadType.RUNTIME_LAMBDA,
+            func=test_func,
+        )
+        spec = SimulationSpec(
+            name=test_func.__name__,
+            description=test_func.__doc__ or "",
+            network=network or NetworkSpec(),
+            users=users,
+            machines=machines,
+            clients=clients,
+            supervisor=supervisor or SupervisorSpec(),
+            hosts=hosts,
+            workloads=(*workloads, lambda_workload),
+        )
+
+        async def test_func_in_simulation():
+            await run_dynamic_simulation(spec)
+
+        test_func_in_simulation.__name__ = test_func.__name__
+        test_func_in_simulation.__doc__ = test_func.__doc__
+
+        return test_func_in_simulation
+
+    return decorator
