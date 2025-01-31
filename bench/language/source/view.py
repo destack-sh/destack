@@ -1,20 +1,14 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.core import (
-    EMOJI_CONSTRAINT,
     NAME_CONSTRAINT,
-    NODE_TYPES,
-    OWNER_TYPES,
     TITLE_CONSTRAINT,
     BuiltinEnum,
-    ColorShade,
-    ColorType,
     EnumType,
     LocalNodeList,
     Node,
     NodeReference,
     NodeType,
-    Owner,
     PrimitiveType,
     Selection,
     SourceNode,
@@ -30,7 +24,7 @@ from bench.language.core import (
     struct_,
     subnode_,
 )
-from bench.pb2 import SpaceData, ViewData
+from bench.pb2 import ViewData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
@@ -39,8 +33,7 @@ if TYPE_CHECKING:
         Expression,
         Icon,
         Message,
-        Package,
-        Run,
+        Space,
         Text,
         Type,
     )
@@ -176,31 +169,6 @@ class ViewType(BuiltinEnum):
 
     # expression
     # ...
-
-
-@struct_(StructType.COLOR)
-class Color(Struct):
-    """A color value."""
-
-    type: Optional[ColorType] = p_regular(31, default=None)
-    shade: Optional[ColorShade] = p_regular(32, default=None)
-    hex: Optional[str] = p_regular(33, default=None)
-
-    @staticmethod
-    def new(color: "ColorIn") -> "Color":
-        return to_color(color)
-
-
-ColorIn = Color | ColorType | str
-
-
-def to_color(color: ColorIn) -> Color:
-    if isinstance(color, Color):
-        return color
-    elif isinstance(color, ColorType):
-        return Color(type=color)
-    else:
-        return Color(hex=color)
 
 
 @enum_(EnumType.FONT_TYPE)
@@ -555,7 +523,7 @@ class HubAspect(BuiltinEnum):
 
 @subnode_(ViewType.HUB)
 class HubView(View):
-    aspect: HubAspect = p_regular(100)
+    aspect: HubAspect | None = p_regular(100, default=None)
 
 
 @enum_(EnumType.HELP_ASPECT)
@@ -568,7 +536,7 @@ class HelpAspect(BuiltinEnum):
 
 @subnode_(ViewType.HELP)
 class HelpView(View):
-    aspect: HelpAspect = p_regular(100)
+    aspect: HelpAspect | None = p_regular(100, default=None)
 
 
 #
@@ -672,109 +640,7 @@ class DatetimeView(View):
 
 @subnode_(ViewType.ICON)
 class IconView(View):
-    include_color: bool = p_regular(100, default=False)
+    include_color: bool | None = p_regular(100, default=None)
 
 
 # file (45300-45400)
-
-
-#
-# Space
-#
-
-
-@enum_(EnumType.SPACE_TYPE)
-class SpaceType(BuiltinEnum):
-    DESKTOP = 10
-    BROWSER = 20
-    MOBILE = 30
-
-
-@node_(NodeType.SPACE)
-class Space(SourceNode[SpaceData]):
-    """A Space for someone/something to interact with the Bench."""
-
-    parent: Optional["Package"] = p_node_parent(4, NodeType.PACKAGE)
-
-    type: SpaceType = p_regular(30)
-    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
-    text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
-    owned_by: Optional[Owner] = p_regular(36, require=False, array=False, references=OWNER_TYPES)
-
-    focus: Optional[Selection] = p_regular(
-        70, default=None, require=False, struct=StructType.SELECTION
-    )
-    selection: Optional[Selection] = p_regular(
-        71, default=None, require=False, struct=StructType.SELECTION
-    )
-    inspection: Optional[Node] = p_regular(
-        75, default=None, require=False, array=False, references=tuple(NODE_TYPES)
-    )
-    base: Optional[Node] = p_regular(
-        76, default=None, require=False, array=False, references=tuple(NODE_TYPES)
-    )
-    run: Optional["Run"] = p_regular(
-        77, default=None, require=False, array=False, references=NodeType.RUN
-    )
-
-    views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
-
-
-#
-# Icon
-#
-
-
-@enum_(EnumType.ICON_KIND)
-class IconKind(BuiltinEnum):
-    EMOJI = 1
-    FONT_AWESOME = 3
-    VS_CODE = 4
-    # FILE?
-
-
-@struct_(StructType.ICON)
-class Icon(Struct):
-    """An icon to be displayed in some view."""
-
-    kind: IconKind = p_internal(30, default=False)
-    # content
-    emoji: Optional[str] = p_internal(31, require=False, constraint=EMOJI_CONSTRAINT)
-    fa_name: Optional[str] = p_internal(33, require=False)
-    vsc_name: Optional[str] = p_internal(34, require=False)
-    # style
-    color: Optional["Color"] = p_internal(40, require=False, array=False, struct=StructType.COLOR)
-
-    @staticmethod
-    def new(icon: "IconIn") -> "Icon":
-        return to_icon(icon)
-
-
-IconIn = Icon | str
-
-
-def to_icon(icon: IconIn) -> Icon:
-    """Turn something that could be an Icon into an Icon."""
-    if isinstance(icon, str):
-        if icon.startswith("fa"):
-            return Icon(kind=IconKind.FONT_AWESOME, fa_name=icon)
-        else:
-            return Icon(kind=IconKind.EMOJI, emoji=icon)
-    else:
-        return icon
-
-
-def reverse_icon(icon: Icon) -> IconIn:
-    """Turn an Icon back into something simpler that can be turned back into an Icon."""
-    if icon.kind == IconKind.FONT_AWESOME:
-        assert icon.fa_name, f"no fa_name for {icon!r}"
-        return icon.fa_name
-    elif icon.kind == IconKind.EMOJI:
-        assert icon.emoji, f"no emoji for {icon!r}"
-        return icon.emoji
-    else:
-        return icon
-
-
-icon = to_icon

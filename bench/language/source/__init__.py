@@ -51,30 +51,25 @@ from .render import (
     render_value,
 )
 from .schedule import Schedule, ScheduleFrequency
+from .space import Space, SpaceType
 from .trigger import Trigger, TriggerEffect, TriggerStatus, TriggerType
 from .view import (
     Alignment,
     Anchor,
-    Color,
     Font,
     FontSize,
     FontType,
     FontWeight,
-    Icon,
-    IconKind,
     Line,
     Offset,
     Orientation,
     Rectangle,
-    Space,
     Spacing,
     Vector2,
     Vector3,
     Vector4,
     View,
     ViewType,
-    icon,
-    to_icon,
 )
 
 __all__ = [
@@ -89,7 +84,6 @@ __all__ = [
     "ChangeAction",
     "ClickAction",
     "CodeAction",
-    "Color",
     "CompleteAction",
     "CreateAction",
     "DatabaseBlock",
@@ -110,8 +104,6 @@ __all__ = [
     "GoToTabAction",
     "GoToUrlAction",
     "HasApplicationContext",
-    "Icon",
-    "IconKind",
     "InputField",
     "Line",
     "LookAction",
@@ -140,6 +132,7 @@ __all__ = [
     "SelectAction",
     "SendAction",
     "Space",
+    "SpaceType",
     "Spacing",
     "StartAction",
     "TextBlock",
@@ -161,11 +154,9 @@ __all__ = [
     "View",
     "ViewType",
     "WaitAction",
-    "icon",
     "render",
     "render_expression",
     "render_expressions",
     "render_statement",
     "render_value",
-    "to_icon",
 ]

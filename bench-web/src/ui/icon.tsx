@@ -16,7 +16,7 @@ import {
   FileFormat,
   FileType,
   HubAspect,
-  IconKind,
+  IconType,
   InterruptionType,
   Severity,
   NodeMode,
@@ -68,7 +68,7 @@ export type IconMetadata = {
 export function metadataToIcon(metadata: IconMetadata, color: ColorData | undefined): IconData {
   return {
     metatype: ObjectType.ICON,
-    kind: IconKind.FONT_AWESOME,
+    type: IconType.FONT_AWESOME,
     faName: `${metadata.family} fa-${metadata.id}`,
     color,
   };
@@ -81,7 +81,7 @@ export const AVAILABLE_FA_ICONS: IconMetadata[] = _AVAILABLE_FA_ICONS.map((i) =>
 export const AVAILABLE_ICONS_BY_ID: Record<string, IconMetadata> = Object.fromEntries(
   AVAILABLE_FA_ICONS.map((i) => [i.id, i]),
 );
-type IconInlineProps = Pick<IconData, "emoji" | "faName"> & {
+type IconInlineProps = Pick<IconData, "emoji" | "faName" | "vscName"> & {
   color?: ColorType | ColorData;
   shade?: ColorShade;
   forceColor?: "inherit" | ColorType;
@@ -172,7 +172,7 @@ export const AvatarInline: FunctionalComponent<
 AvatarInline.props = ["emoji", "faName", "vscName", "color", "fallbackColor", "shade", "ignoreColor", "size"];
 
 export function getIconMetadata(icon: IconData): IconMetadata | undefined {
-  if (icon.kind == IconKind.FONT_AWESOME) {
+  if (icon.type == IconType.FONT_AWESOME) {
     const id = icon.faName!.split(" ")[1].slice(3);
     return AVAILABLE_ICONS_BY_ID[id];
   } else {
@@ -188,22 +188,22 @@ export function newIconId(): number {
 type ColorIn = ColorData | ColorType;
 type IconIn = string | (Pick<IconData, "emoji" | "faName"> & { color?: ColorIn });
 export function makeIcon(icon: IconIn): IconData {
-  let kind: IconKind;
+  let type: IconType;
   if (typeof icon == "string") {
     if (icon.startsWith("fa")) {
-      return { metatype: ObjectType.ICON, kind: IconKind.FONT_AWESOME, faName: icon };
+      return { metatype: ObjectType.ICON, type: IconType.FONT_AWESOME, faName: icon };
     } else {
-      return { metatype: ObjectType.ICON, kind: IconKind.EMOJI, emoji: icon };
+      return { metatype: ObjectType.ICON, type: IconType.EMOJI, emoji: icon };
     }
   } else if (icon.emoji) {
-    kind = IconKind.EMOJI;
+    type = IconType.EMOJI;
   } else if (icon.faName) {
-    kind = IconKind.FONT_AWESOME;
+    type = IconType.FONT_AWESOME;
   } else {
     throw new Error(`unexpected icon ${icon}`);
   }
   const color = icon.color != null && typeof icon.color != "object" ? makeColor(icon.color) : icon.color;
-  return { metatype: ObjectType.ICON, kind, ...icon, color };
+  return { metatype: ObjectType.ICON, type, ...icon, color };
 }
 
 export function toIconMaybe(icon?: IconIn | null): IconData | undefined {

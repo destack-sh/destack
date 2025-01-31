@@ -61,7 +61,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_FILE_KIND: _ClassVar[EnumType]
     ENUM_TYPE_FILE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FILE_FORMAT: _ClassVar[EnumType]
-    ENUM_TYPE_ICON_KIND: _ClassVar[EnumType]
+    ENUM_TYPE_ICON_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_STREAM_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PRIMITIVE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FIELD_ZONE: _ClassVar[EnumType]
@@ -466,7 +466,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_FILE_KIND: _ClassVar[BenchType]
     BENCH_TYPE_FILE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_FILE_FORMAT: _ClassVar[BenchType]
-    BENCH_TYPE_ICON_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_ICON_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_STREAM_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_PRIMITIVE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_FIELD_ZONE: _ClassVar[BenchType]
@@ -926,12 +926,12 @@ class FileFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FILE_FORMAT_DEB: _ClassVar[FileFormat]
     FILE_FORMAT_RPM: _ClassVar[FileFormat]
 
-class IconKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class IconType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    ICON_KIND_UNSPECIFIED: _ClassVar[IconKind]
-    ICON_KIND_EMOJI: _ClassVar[IconKind]
-    ICON_KIND_FONT_AWESOME: _ClassVar[IconKind]
-    ICON_KIND_VS_CODE: _ClassVar[IconKind]
+    ICON_TYPE_UNSPECIFIED: _ClassVar[IconType]
+    ICON_TYPE_EMOJI: _ClassVar[IconType]
+    ICON_TYPE_FONT_AWESOME: _ClassVar[IconType]
+    ICON_TYPE_VS_CODE: _ClassVar[IconType]
 
 class StreamType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1387,6 +1387,7 @@ class ModelType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MODEL_TYPE_OPENAI_GPT4_O_MINI: _ClassVar[ModelType]
     MODEL_TYPE_OPENAI_O1: _ClassVar[ModelType]
     MODEL_TYPE_OPENAI_O1_MINI: _ClassVar[ModelType]
+    MODEL_TYPE_OPENAI_O3_MINI: _ClassVar[ModelType]
     MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET: _ClassVar[ModelType]
     MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH: _ClassVar[ModelType]
     MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH_THINKING: _ClassVar[ModelType]
@@ -1866,7 +1867,7 @@ ENUM_TYPE_FILE_RETENTION_MODE: EnumType
 ENUM_TYPE_FILE_KIND: EnumType
 ENUM_TYPE_FILE_TYPE: EnumType
 ENUM_TYPE_FILE_FORMAT: EnumType
-ENUM_TYPE_ICON_KIND: EnumType
+ENUM_TYPE_ICON_TYPE: EnumType
 ENUM_TYPE_STREAM_TYPE: EnumType
 ENUM_TYPE_PRIMITIVE_TYPE: EnumType
 ENUM_TYPE_FIELD_ZONE: EnumType
@@ -2259,7 +2260,7 @@ BENCH_TYPE_FILE_RETENTION_MODE: BenchType
 BENCH_TYPE_FILE_KIND: BenchType
 BENCH_TYPE_FILE_TYPE: BenchType
 BENCH_TYPE_FILE_FORMAT: BenchType
-BENCH_TYPE_ICON_KIND: BenchType
+BENCH_TYPE_ICON_TYPE: BenchType
 BENCH_TYPE_STREAM_TYPE: BenchType
 BENCH_TYPE_PRIMITIVE_TYPE: BenchType
 BENCH_TYPE_FIELD_ZONE: BenchType
@@ -2619,10 +2620,10 @@ FILE_FORMAT_JAR: FileFormat
 FILE_FORMAT_MSI: FileFormat
 FILE_FORMAT_DEB: FileFormat
 FILE_FORMAT_RPM: FileFormat
-ICON_KIND_UNSPECIFIED: IconKind
-ICON_KIND_EMOJI: IconKind
-ICON_KIND_FONT_AWESOME: IconKind
-ICON_KIND_VS_CODE: IconKind
+ICON_TYPE_UNSPECIFIED: IconType
+ICON_TYPE_EMOJI: IconType
+ICON_TYPE_FONT_AWESOME: IconType
+ICON_TYPE_VS_CODE: IconType
 STREAM_TYPE_UNSPECIFIED: StreamType
 STREAM_TYPE_TEXT: StreamType
 STREAM_TYPE_CODE: StreamType
@@ -2949,6 +2950,7 @@ MODEL_TYPE_OPENAI_GPT4_0: ModelType
 MODEL_TYPE_OPENAI_GPT4_O_MINI: ModelType
 MODEL_TYPE_OPENAI_O1: ModelType
 MODEL_TYPE_OPENAI_O1_MINI: ModelType
+MODEL_TYPE_OPENAI_O3_MINI: ModelType
 MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET: ModelType
 MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH: ModelType
 MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH_THINKING: ModelType
@@ -3527,6 +3529,18 @@ class CodeData(_message.Message):
     language: CodeLanguage
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., lines: _Optional[_Iterable[_Union[CodeLineData, _Mapping]]] = ..., language: _Optional[_Union[CodeLanguage, str]] = ...) -> None: ...
 
+class ColorData(_message.Message):
+    __slots__ = ("metatype", "type", "shade", "hex")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    SHADE_FIELD_NUMBER: _ClassVar[int]
+    HEX_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    type: ColorType
+    shade: ColorShade
+    hex: str
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ColorType, str]] = ..., shade: _Optional[_Union[ColorShade, str]] = ..., hex: _Optional[str] = ...) -> None: ...
+
 class PathElementData(_message.Message):
     __slots__ = ("metatype", "type", "name", "node_ptr", "property_ptr", "run")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -3634,6 +3648,22 @@ class ComputedValueData(_message.Message):
     source_code: CodeData
     is_active: bool
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[ComputedValueKind, str]] = ..., name: _Optional[str] = ..., mode: _Optional[_Union[ComputedValueMode, str]] = ..., target_path: _Optional[_Union[PathData, _Mapping]] = ..., source_path: _Optional[_Union[PathData, _Mapping]] = ..., source_expression: _Optional[_Union[ExpressionData, _Mapping]] = ..., source_code: _Optional[_Union[CodeData, _Mapping]] = ..., is_active: bool = ...) -> None: ...
+
+class IconData(_message.Message):
+    __slots__ = ("metatype", "type", "emoji", "fa_name", "vsc_name", "color")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    EMOJI_FIELD_NUMBER: _ClassVar[int]
+    FA_NAME_FIELD_NUMBER: _ClassVar[int]
+    VSC_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLOR_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    type: IconType
+    emoji: str
+    fa_name: str
+    vsc_name: str
+    color: ColorData
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[IconType, str]] = ..., emoji: _Optional[str] = ..., fa_name: _Optional[str] = ..., vsc_name: _Optional[str] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
 
 class SelectOptionsData(_message.Message):
     __slots__ = ("metatype", "select_all_properties", "include_properties_ptr", "exclude_properties_ptr", "select_properties_ptr", "select_fields_ptr")
@@ -4057,18 +4087,6 @@ class ToolSelectionData(_message.Message):
     tool_categories: _containers.RepeatedScalarFieldContainer[ActionCategory]
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., filter: _Optional[_Union[ToolFilter, str]] = ..., tool_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., tool_types: _Optional[_Iterable[_Union[ActionType, str]]] = ..., tool_categories: _Optional[_Iterable[_Union[ActionCategory, str]]] = ...) -> None: ...
 
-class ColorData(_message.Message):
-    __slots__ = ("metatype", "type", "shade", "hex")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    SHADE_FIELD_NUMBER: _ClassVar[int]
-    HEX_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    type: ColorType
-    shade: ColorShade
-    hex: str
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ColorType, str]] = ..., shade: _Optional[_Union[ColorShade, str]] = ..., hex: _Optional[str] = ...) -> None: ...
-
 class FontData(_message.Message):
     __slots__ = ("metatype", "type", "weight", "size")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4194,22 +4212,6 @@ class RectangleConstraintData(_message.Message):
     min_height: int
     max_height: int
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., min_width: _Optional[int] = ..., max_width: _Optional[int] = ..., min_height: _Optional[int] = ..., max_height: _Optional[int] = ...) -> None: ...
-
-class IconData(_message.Message):
-    __slots__ = ("metatype", "kind", "emoji", "fa_name", "vsc_name", "color")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    KIND_FIELD_NUMBER: _ClassVar[int]
-    EMOJI_FIELD_NUMBER: _ClassVar[int]
-    FA_NAME_FIELD_NUMBER: _ClassVar[int]
-    VSC_NAME_FIELD_NUMBER: _ClassVar[int]
-    COLOR_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    kind: IconKind
-    emoji: str
-    fa_name: str
-    vsc_name: str
-    color: ColorData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[IconKind, str]] = ..., emoji: _Optional[str] = ..., fa_name: _Optional[str] = ..., vsc_name: _Optional[str] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
 
 class ScheduleData(_message.Message):
     __slots__ = ("metatype", "frequency", "interval", "start", "end", "count", "week_start", "by_set_pos", "by_month", "by_month_day", "by_year_day", "by_easter", "by_week_no", "by_week_day", "by_hour", "by_minute", "by_second")

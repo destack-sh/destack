@@ -202,7 +202,7 @@ class DynamicActionRunner[A: Action = Action](ActionRunner[A]):
         model_developer = self.options.model_developer or ModelDeveloper.OPENAI
         if model_developer == ModelDeveloper.OPENAI:
             model_runner_cls = OpenaiChatModelRunner
-            model_type = self.options.model_type or ModelType.OPENAI_GPT4_0
+            model_type = self.options.model_type or ModelType.OPENAI_O3_MINI
         elif model_developer == ModelDeveloper.ANTHROPIC:
             model_runner_cls = AnthropicChatModelRunner
             model_type = self.options.model_type or ModelType.ANTHROPIC_CLAUDE_3_5_SONNET

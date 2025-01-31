@@ -27,6 +27,7 @@ from bench.language.core import (
     CustomObject,
     EnumType,
     FieldType,
+    Icon,
     Node,
     NodeReference,
     NodeType,
@@ -52,6 +53,7 @@ from bench.language.core import (
     get_path,
     is_node_type,
     render_path,
+    reverse_icon,
     reverse_path_element,
     reverse_type_scalar,
 )
@@ -62,7 +64,7 @@ from .action import Action, ToolFilter, ToolSelection
 from .block import Block
 from .field import Field
 from .pipe import Pipe
-from .view import Icon, View, reverse_icon
+from .view import View
 
 if TYPE_CHECKING:
     pass

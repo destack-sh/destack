@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.30.1"
+VERSION = "2025.01.31.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -330,7 +330,7 @@ class EnumType(BuiltinEnum):
     FILE_KIND = 21201
     FILE_TYPE = 21202
     FILE_FORMAT = 21203
-    ICON_KIND = 21210
+    ICON_TYPE = 21210
 
     # streams (21250-21299)
     STREAM_TYPE = 21250
