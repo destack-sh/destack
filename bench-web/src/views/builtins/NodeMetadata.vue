@@ -3,6 +3,7 @@ import { isResourceNode } from "@/language/const";
 import { AnyNodeData, NodeType } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { COLOR_BY_RESOURCE_STATUS, COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
+import { humanizeBytes } from "@/utils/string";
 import { computed } from "vue";
 
 const props = defineProps<{
@@ -25,6 +26,11 @@ const textClass = computed(() => [
 </script>
 <template>
   <div>
+    <span v-if="isNode(node, NodeType.FILE)">
+      <span class="ml-1.5 flex-shrink-0 text-xs text-gray-400">
+        {{ humanizeBytes(Number(node.size)) }}
+      </span>
+    </span>
     <span v-if="isResourceNode(node)">
       <!-- Resource metadata -->
       <span

@@ -1,11 +1,13 @@
 <script lang="ts" setup>
 import { EditSubject, makeExpression } from "@/language/expression";
+import { uploadFile } from "@/language/file";
 import { createMessage, getMessageAuthorPtr } from "@/language/message";
 import { useSubnodeProperty } from "@/language/node";
 import { getTextLine, trimText } from "@/language/text";
 import {
   BlockData,
   ExpressionType,
+  FileType,
   IconData,
   MessageData,
   MessageProperty,
@@ -23,7 +25,7 @@ import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/
 import { BENCH_SCOPE, benchPtr } from "@/system/client";
 import { SearchConnectionParams, useSearchConnection } from "@/system/connection";
 import { supergraph } from "@/system/globals";
-import { canvas, pkg, pkgGraph } from "@/system/space";
+import { bench, benchConnection, canvas, pkg, pkgGraph } from "@/system/space";
 import { user } from "@/system/user";
 import {
   ActionMapImplementation,
@@ -33,9 +35,12 @@ import {
   isActionEnabled,
   MESSAGE_CONTEXT_ACTIONS,
 } from "@/ui/action";
+import { useSingleDropZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
+import { FULL_WIDTH_VIEW_TYPES } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, tsToDt } from "@/utils/time";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
@@ -82,12 +87,14 @@ const origin: Ref<BlockData | PackageData | null> = computed(() => {
   }
   return pkg.value;
 });
+const originPtr = computed(() => (origin.value != null ? toNodeRef(origin.value) : null));
 
 const inputContainerRef = ref<HTMLInputElement | null>(null);
 const inputRef = ref<InstanceType<typeof Text> | null>(null);
 const inputSize = useElementSize(inputContainerRef);
+const containerRef = ref<HTMLDivElement | null>(null);
 const bodyScrollRef = ref<InstanceType<typeof Scroll> | null>(null);
-const editingTextRefs = ref<InstanceType<typeof Text>[] | null>(null);
+const editingTextRefs = ref<InstanceType<typeof Text>[] | null>(null); // there can only be one but it's inside a v-for (so it has to be an array)
 
 //
 // Messages :MessageRouting
@@ -142,6 +149,7 @@ const remoteAuthorsById: Ref<Record<string, EditSubject>> = computed(() =>
 type MessageView = {
   idx: number;
   message: MessageData;
+  filesPtr: NodeReferenceData[];
   author: EditSubject | null;
   authorIcon: IconData | null;
   authorName: string | null;
@@ -158,6 +166,7 @@ const messageViews = computed(() => {
   const viewsById: Record<string, MessageView> = {};
   for (let i = 0; i < messages.value.length; i++) {
     const message = messages.value[i];
+    const filesPtr = message.nodesPtr.filter((n) => n.nodeType == NodeType.FILE);
     const authorPtr = getMessageAuthorPtr(message);
     const author = authorPtr != null ? (remoteAuthorsById.value[authorPtr.id!] ?? supergraph.get(authorPtr)) : null;
     const authorIcon = author != null ? (getNodeIcon(author) ?? null) : null;
@@ -183,6 +192,7 @@ const messageViews = computed(() => {
     const richMessage: MessageView = {
       idx: i,
       message,
+      filesPtr,
       author,
       authorIcon,
       authorName,
@@ -252,6 +262,7 @@ function submit() {
       originPtr: toNodeRef(origin.value),
       text: text.value,
       replyToPtr: replyTo.value != null ? replyToPtr.value : undefined,
+      nodesPtr: nodesPtr.value,
     },
   });
 }
@@ -270,6 +281,34 @@ function stopReplying() {
   );
 }
 
+// drop
+const dropZone = useSingleDropZone({
+  container: containerRef,
+  orientation: Orientation.VERTICAL,
+  name: "chat",
+  kinds: ["file"],
+  onDrop: (dragged, anchor, event) => {
+    if (dragged.kind == "file") {
+      if (dragged.files == null) return;
+      Array.from(dragged.files).forEach(async (file) => {
+        // upload and insert each file individually
+        if (bench.value == null) throw new Error("no bench");
+        const upload = uploadFile(() => benchConnection.tx, file, { bench: bench.value });
+        await upload.completion.wait();
+        state.update(
+          {
+            metatype: NodeType.VIEW,
+            type: ViewType.CHAT,
+            subnode: { nodesPtr: [...(nodesPtr.value ?? []), toNodeRef(upload.file.value!)] },
+          },
+          { debounce: "tick" },
+        );
+      });
+    }
+  },
+});
+
+// actions
 const actions: Partial<ActionMapImplementation<"chat">> = {
   "chat.message.reply": {
     isEnabled: (action, ctx) => {
@@ -302,7 +341,19 @@ const actions: Partial<ActionMapImplementation<"chat">> = {
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
-  <div>
+  <div ref="containerRef" class="relative">
+    <!-- Drop zone -->
+    <div
+      v-if="dropZone.activeDropZone.value"
+      class="pointer-events-none absolute z-40 flex h-full w-full items-center justify-center bg-gray-400/40"
+    >
+      <div class="flex flex-col items-center justify-center gap-y-1">
+        <i class="fas fa-upload text-3xl text-gray-700/80" />
+        <div class="flex flex-row items-center justify-center gap-x-1 text-base font-medium text-gray-700/80">
+          <span>Upload Files</span>
+        </div>
+      </div>
+    </div>
     <!-- Body -->
     <Scroll
       id="scroll"
@@ -312,12 +363,13 @@ defineExpose<ViewExposed>({ self, id, actions });
       :size="{ height: size?.height != null ? size.height - inputSize.height.value : undefined }"
     >
       <!-- Messages -->
-      <ul class="relative mb-3 flex flex-col">
+      <ul class="relative mb-3 mt-2 flex flex-col">
         <!-- Message -->
         <li
           v-for="{
             idx,
             message,
+            filesPtr,
             author,
             replyTo,
             authorIcon,
@@ -407,7 +459,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   {{ formatAbsoluteDate(message.createdAt!, { prefer: "time" }) }}
                 </span>
                 <!-- Edited? -->
-                <span v-if="isEdited" class="ml-1 fas fa-pencil text-xs text-gray-300" />
+                <span v-if="isEdited" class="fas fa-pencil ml-1 text-xs text-gray-300" />
               </div>
               <!-- Actions -->
               <div
@@ -469,12 +521,16 @@ defineExpose<ViewExposed>({ self, id, actions });
                 </div>
               </div>
               <!-- Extras -->
-              <File
-                v-for="filePtr in message.nodesPtr.filter((n) => n.nodeType == NodeType.FILE)"
-                :id="'file-' + filePtr.id"
-                :key="filePtr.id"
-                :model-value="toNodeRef(filePtr)"
-              />
+              <div v-if="filesPtr.length > 0" class="mt-0.5 mb-2 flex flex-row flex-wrap gap-x-2">
+                <File
+                  v-for="filePtr in filesPtr"
+                  :id="'file-' + filePtr.id"
+                  :key="filePtr.id"
+                  is-minimal
+                  is-inline
+                  :model-value="toNodeRef(filePtr)"
+                />
+              </div>
             </div>
           </div>
         </li>
@@ -572,7 +628,16 @@ defineExpose<ViewExposed>({ self, id, actions });
                 "
               />
               <!-- Extras -->
-              <File v-for="file in files" :id="'file-' + file.id" :key="file.id" :model-value="toNodeRef(file)" />
+              <div v-if="files.length > 0" class="mt-0.5 flex flex-row flex-wrap gap-x-2">
+                <File
+                  v-for="file in files"
+                  :id="'file-' + file.id"
+                  :key="file.id"
+                  is-minimal
+                  is-inline
+                  :model-value="toNodeRef(file)"
+                />
+              </div>
             </Scroll>
           </div>
         </div>

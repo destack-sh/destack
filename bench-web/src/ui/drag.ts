@@ -201,7 +201,9 @@ function isDropCompatible(zone: DropZone, dragged: DragContent): boolean {
 function findCompatibleDropZone(el: HTMLElement | SVGElement | null, dragged: DragContent): DropZone | null {
   while (el) {
     const zone = dropZonesByContainerEl.get(el);
-    if (zone && isDropCompatible(zone, dragged)) return zone;
+    if (zone && (zone.isEnabled == null || zone.isEnabled.value) && isDropCompatible(zone, dragged)) {
+      return zone;
+    }
     el = el.parentElement;
   }
   return null;

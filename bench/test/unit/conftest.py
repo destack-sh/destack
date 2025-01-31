@@ -10,7 +10,6 @@ from bench.language import Machine, MachineType, clean_name
 from bench.runtime.core import MemoryCache, Runtime
 from bench.sql import pg_connection, sqlstr
 from bench.test.conftest import _setup_test_env
-from bench.test.fixtures import delete_test_db
 
 # NOTE: must run setup before importing from bench
 _setup_test_env()
@@ -43,7 +42,6 @@ from bench.language import (
     PackageType,
     Region,
     RemoteEngine,
-    ResourceStatus,
     Run,
     RunnableNode,
     Session,
@@ -230,89 +228,6 @@ class RuntimeHandle:
         )
         assert runner is not None, f"no runner for {run!r}"
         return runner
-
-
-#
-# Omni/local session
-#
-
-
-@pytest.fixture
-async def local_runtime_async(global_store: Store, regional_store: Store):
-    async with create_global_session(global_store, regional_store, REAL_ORACLE) as session:
-        # setup user/client
-        user = User(
-            slug="test",
-            name="test",
-            email="test@test.com",
-            region=Region.ZURICH,
-            status=UserStatus.REGISTERED,
-            last_logged_in_at=REAL_ORACLE.utc(),
-            is_staff=True,
-            _is_new=True,  # force create
-        )
-        session._create(user)
-        await session.flush(optimistic=True)
-        client = Client(
-            parent=user,
-            name="test",
-            type=ClientType.MACHINE,
-            seen_at=REAL_ORACLE.utc(),
-        )
-        session._create(client)
-        await session.flush(optimistic=True)
-        user.main_handle = user.handles.create(slug=user.slug)
-        await session.commit()
-
-        # create bench
-        bench = await create_default_bench(
-            main_handle=user.main_handle,
-            owner=user,
-            region=Region.ZURICH,
-            global_store=global_store,
-            session=session,
-        )
-
-        user._untrack_rec()
-        bench._untrack_rec()
-
-    session = Session(
-        parent=bench,
-        user=user,
-        client=client,
-        _is_readonly=False,
-        _default_scope=GraphScope(bench_id=bench.id)._to_data(),
-        _engines=session._engines,
-        _local_epoch=0,
-        _oracle=REAL_ORACLE,
-        _supergraph=bench._supergraph,
-    )
-    runtime = Runtime(session=session, cache=MemoryCache(bench), oracle=REAL_ORACLE)
-    assert bench.main_package is not None, f"no main package for {bench!r}"
-    handle = RuntimeHandle(
-        supergraph=bench._supergraph,
-        user=user,
-        client=client,
-        bench=bench,
-        package=bench.main_package,
-        session=session,
-        runtime=runtime,
-    )
-    try:
-        async with session:
-            yield handle
-    finally:
-        # delete DBs
-        for store in bench.stores:
-            if store.status == ResourceStatus.UP:
-                await delete_test_db(store)
-
-
-@pytest.fixture
-def local_runtime(local_runtime_async: RuntimeHandle):  # :PytestAsyncContext
-    ACTIVE_SESSION.set(local_runtime_async.session)
-    yield local_runtime_async
-    ACTIVE_SESSION.set(None)
 
 
 #
