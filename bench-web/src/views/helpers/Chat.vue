@@ -117,12 +117,12 @@ const {
       scope: BENCH_SCOPE.value,
       nodeType: NodeType.MESSAGE,
       count: true,
-      isEnabled: origin.value != null,
+      isEnabled: originPtr.value != null,
       sort: [DEFAULT_SORT],
       filter: makeExpression({
         type: ExpressionType.EQUALS,
         propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.originPtr),
-        value: origin.value != null ? toNodeRef(origin.value) : undefined,
+        value: originPtr.value,
       }),
     }),
   ),
@@ -640,7 +640,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 "
               />
               <!-- Extras -->
-              <div v-if="files.length > 0" class="mt-1 flex flex-row flex-wrap gap-y-1 gap-x-2">
+              <div v-if="files.length > 0" class="mt-1 flex flex-row flex-wrap gap-x-2 gap-y-1">
                 <File
                   v-for="file in files"
                   :id="'file-' + file.id"
