@@ -1,6 +1,9 @@
 from typing import TYPE_CHECKING, final
 
+from bench.language import Bench, Client, ClientType, Machine, ResourceStatus
 from bench.pb2.lang_pb2 import ClientData, MachineData
+from bench.system import ACCESS_TOKEN_LENGTH
+from bench.utils.func import generate_access_token
 
 from .spec import MachineSpec
 
@@ -43,4 +46,29 @@ class MachineHandle:
         return self._access_token
 
     async def prepare(self):
-        raise NotImplementedError("nocheckin")
+        """Create the Machine and Client."""
+        from .session import make_pg_session
+
+        # root session
+        session = make_pg_session(self.simulation)
+        async with session:
+            # create machine and client
+            bench = await Bench.select_all().get(slug=self.spec.bench)
+            machine = Machine(parent=bench, name=self.spec.name, status=ResourceStatus.UP)
+            session._create(machine)
+            client = Client(
+                parent=bench,
+                type=ClientType.MACHINE,
+                name=self.spec.name,
+                access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
+                machine=machine,
+                seen_at=self.simulation.oracle.utc(),
+            )
+            session._create(client)
+            machine.client = client
+            await session.commit()
+        self._access_token = client.access_token
+        self._client_data = client._to_data()
+        self._client_data.ClearField("parent_ptr")
+        self._machine_data = machine._to_data()
+        self._machine_data.ClearField("parent_ptr")

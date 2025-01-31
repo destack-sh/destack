@@ -15,7 +15,7 @@ from bench.language import (
     Session,
 )
 from bench.runtime import MemoryCache, Runner, Runtime
-from bench.test.simulation.core import ClientHandle, HostHandle
+from bench.test.simulation.core import ClientHandle, HostHandle, make_remote_session
 
 from .spec import WorkloadSpec, WorkloadType
 from .workload import Workload, workload_
@@ -36,8 +36,12 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](Workload[SpecT]):
         self.bench_id: UUID = self.simulation.resolve_bench_id(self.spec.bench)
         self.client: ClientHandle = self.simulation.get_client(self.spec.client)
         self.host: HostHandle = self.simulation.get_host(self.spec.bench)
-        self.session: Session = await self.make_remote_session(
-            self.bench_id, self.client, self.host, self.oracle
+        self.session: Session = await make_remote_session(
+            simulation=self.simulation,
+            bench_id=self.bench_id,
+            client=self.client,
+            host=self.host,
+            oracle=self.oracle,
         )
         self.supergraph: NodeSuperGraph = self.session._supergraph
 

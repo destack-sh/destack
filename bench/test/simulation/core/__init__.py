@@ -4,6 +4,7 @@ from .machine import MachineHandle
 from .oracle import SimulatedEventLoop, SimulatedEventLoopPolicy, SimulatedOracle
 from .sample import Samplable, SampledFloat, SampledInt, SampledValue, to_value
 from .service import ServiceHandle
+from .session import make_remote_session
 from .simulation import Simulation, get_simulation_id
 from .spec import (
     BenchSpec,
@@ -48,5 +49,6 @@ __all__ = [
     "UserHandle",
     "UserSpec",
     "get_simulation_id",
+    "make_remote_session",
     "to_value",
 ]
