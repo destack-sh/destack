@@ -26,8 +26,13 @@ class ClientHandle:
     """A Client to a Bench"""
 
     def __init__(
-        self, spec: ClientSpec, parent: "UserHandle | MachineHandle", simulation: "Simulation"
+        self,
+        id: str,
+        spec: ClientSpec,
+        parent: "UserHandle | MachineHandle",
+        simulation: "Simulation",
     ):
+        self.id = id
         self.spec = spec
         self.parent = parent
         self.simulation = simulation

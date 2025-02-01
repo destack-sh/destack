@@ -1,0 +1,140 @@
+import abc
+from typing import AsyncIterator, Optional, cast, override
+from urllib.parse import urlparse
+from uuid import UUID
+
+import cachetools
+import grpclib
+import grpclib.client
+from grpclib.client import Channel
+
+from bench import pb2
+from bench.language.core.const import ClientType
+from bench.pb2 import MachineEnvironment
+from bench.pb2.common_pb2 import RpcMetadata
+from bench.proto.wiring import pack_rpc_headers
+from bench.utils.telemetry import collect_propagation_context
+from bench.utils.utils import get_from_env
+
+IS_IN_DOCKER = get_from_env(
+    "IS_IN_DOCKER", typ=bool, default=False, description="Whether we're running in Docker"
+)
+IS_IN_MINIKUBE = get_from_env(
+    "IS_IN_MINIKUBE", typ=bool, default=False, description="Whether we're running in Minikube"
+)
+if IS_IN_DOCKER:
+    MACHINE_ENVIRONMENT = MachineEnvironment.DOCKER
+elif IS_IN_MINIKUBE:
+    MACHINE_ENVIRONMENT = MachineEnvironment.MINIKUBE
+else:
+    MACHINE_ENVIRONMENT = MachineEnvironment.REGULAR
+
+
+def localize_url(domain: str) -> str:
+    """Converts a domain name to something we can reach inside the current environment."""
+    if IS_IN_DOCKER:
+        return dockerify_url(domain)
+    elif IS_IN_MINIKUBE:
+        return minikubeify_url(domain)
+    else:
+        return domain
+
+
+def dockerify_url(domain: str) -> str:
+    """Converts a domain name to something we can reach inside Docker."""
+    domain = domain.replace("localhost", "host.docker.internal")
+    domain = domain.replace("127.0.0.1", "host.docker.internal")
+    return domain
+
+
+def minikubeify_url(domain: str) -> str:
+    """Converts a domain name to something we can reach inside Minikube."""
+    domain = domain.replace("localhost", "host.minikube.internal")
+    domain = domain.replace("127.0.0.1", "host.minikube.internal")
+    return domain
+
+
+def get_rpc_metadata(
+    *,
+    client_type: ClientType,
+    client_id: str | UUID,
+    client_access_token: str | UUID,
+    client_nonce: str | UUID | None = None,
+):
+    """Gets the gRPRpcMetadatafor a client."""
+    rpc_metadata = RpcMetadata(
+        client_type=cast(pb2.ClientType, client_type),
+        client_id=str(client_id),
+        client_nonce=str(client_nonce) if client_nonce is not None else None,
+        client_access_token=str(client_access_token),
+    )
+    return rpc_metadata
+
+
+def get_rpc_headers(
+    *,
+    client_type: ClientType,
+    client_id: str | UUID,
+    client_access_token: str | UUID,
+    client_nonce: str | UUID | None = None,
+):
+    """Gets the gRPC headers for a client."""
+    rpc_metadata = get_rpc_metadata(
+        client_type=client_type,
+        client_id=client_id,
+        client_access_token=client_access_token,
+        client_nonce=client_nonce,
+    )
+    rpc_headers = pack_rpc_headers(rpc_metadata)
+    return rpc_headers
+
+
+async def unary_stream_rpc[ReqT, RepT](
+    method: grpclib.client.UnaryStreamMethod[ReqT, RepT],
+    request: ReqT,
+    *,
+    timeout: Optional[float] = None,
+) -> AsyncIterator[RepT]:
+    async with method.open(timeout=timeout, metadata=collect_propagation_context()) as stream:
+        await stream.send_message(request, end=True)
+        async for response in stream:
+            yield response
+
+
+class Network(abc.ABC):
+    """A Network for connecting services and clients"""
+
+    @abc.abstractmethod
+    def get_channel(self, connection_uri: str, *, source_id: str | None) -> Channel:
+        """Get a Channel to the given connection URI."""
+        ...
+
+
+class NullNetwork(Network):
+    """A Network that does nothing."""
+
+    @override
+    def get_channel(self, connection_uri: str, *, source_id: str | None) -> Channel:
+        raise NotImplementedError
+
+
+class RealNetwork(Network):
+    """A real Network"""
+
+    def __init__(self):
+        self.channels = cachetools.TTLCache(maxsize=128, ttl=300)
+
+    @override
+    def get_channel(self, connection_uri: str, *, source_id: str | None) -> Channel:
+        channel = self.channels.get(connection_uri)
+        if channel is not None:
+            return channel
+        connection_info = urlparse(connection_uri)
+        assert isinstance(connection_info.netloc, str), f"invalid connection uri: {connection_uri}"
+        assert connection_info.port is not None, f"invalid connection uri: {connection_uri}"
+        netloc = connection_info.netloc.split(":", 1)[0]
+        channel = Channel(
+            host=netloc, port=connection_info.port, ssl=connection_info.scheme == "https"
+        )
+        self.channels[connection_uri] = channel
+        return channel

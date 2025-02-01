@@ -11,6 +11,9 @@ from bench.proto import (
     UserData,
     unpack_builtin_object,
 )
+from bench.utils.oracle import Oracle
+
+from .spec import UserSpec
 
 if TYPE_CHECKING:
     from .client import ClientHandle
@@ -21,8 +24,13 @@ if TYPE_CHECKING:
 class UserHandle:
     """A User"""
 
-    def __init__(self, name: str, simulation: "Simulation"):
+    def __init__(
+        self, id: str, name: str, spec: UserSpec, oracle: Oracle, simulation: "Simulation"
+    ):
+        self.id = id
         self.name = name
+        self.spec = spec
+        self.oracle = oracle
         self.simulation = simulation
         self.clients_by_name: dict[str, ClientHandle] = {}
         self._user_data: UserData | None = None

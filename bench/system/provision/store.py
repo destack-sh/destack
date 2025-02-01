@@ -6,14 +6,13 @@ from opentelemetry import trace
 from bench.language import Bench, NodeArea, NodeType, ResourceStatus, Store
 from bench.language.core import bittuple
 from bench.sql import pg_connection, sql_migrate, sqlstr
-from bench.system.host import Host
 from bench.utils.env import ENV, IS_DEV, IS_TEST
 
 from .neon import neon_api
 from .provisioner import Provisioner
 
 if TYPE_CHECKING:
-    pass
+    from bench.system.host import HostService
 
 
 logger = structlog.get_logger(__name__)
@@ -51,7 +50,7 @@ class StoreProvisioner(Provisioner[Store, Store]):
 class NeonStoreProvisioner(StoreProvisioner):
     """Provision Stores with the Neon API."""
 
-    def __init__(self, host: "Host", bench: Bench):
+    def __init__(self, host: "HostService", bench: Bench):
         super().__init__(host, bench)
         self._neon_api = neon_api
 

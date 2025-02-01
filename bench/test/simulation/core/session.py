@@ -45,6 +45,7 @@ def make_pg_session(
 
 async def make_remote_session(
     simulation: "Simulation",
+    source_id: str,
     bench_id: UUID,
     client: "ClientHandle",
     host: "HostHandle",
@@ -56,8 +57,8 @@ async def make_remote_session(
     from .user import UserHandle
 
     nonce = str(UUID(int=oracle.random.getrandbits(128)))
-    supervisor_client = await simulation.supervisor.connect(client)
-    host_client = await host.connect(client)
+    supervisor_client = await simulation.supervisor.connect(source_id)
+    host_client = await host.connect(source_id)
     engines = (
         # global engine
         RemoteEngine(

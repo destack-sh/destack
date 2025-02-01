@@ -62,7 +62,12 @@ class MachineHandle(ServiceHandle[MachineSpec, RuntimeService, RuntimeClient]):
             # create machine and client
             bench = await Bench.select_all().get(slug=self.spec.bench)
             bench._graph.add_types(NodeType.MACHINE, NodeType.CLIENT)
-            machine = Machine(parent=bench, name=self.spec.name, status=ResourceStatus.UP)
+            machine = Machine(
+                parent=bench,
+                name=self.spec.name,
+                status=ResourceStatus.UP,
+                connection_uri=f"simulation://{self.id}",  # :SimulatedConnections
+            )
             session._create(machine)
             client = Client(
                 parent=bench,
@@ -82,8 +87,12 @@ class MachineHandle(ServiceHandle[MachineSpec, RuntimeService, RuntimeClient]):
         self._machine_data.ClearField("parent_ptr")
 
     async def start(self) -> RuntimeService:
+        supervisor = await self.simulation.supervisor.connect(self.spec.name)
         service = RuntimeService(
-            supervisor_url=self.simulation.supervisor.service.url,
+            id=self.id,
+            supervisor=supervisor,
+            network=self.simulation.network.network,
+            oracle=self.simulation.oracle,
             bench_id=self.simulation.get_bench_id(self.spec.bench),
             client_type=ClientType.MACHINE,
             client_id=UUID(self.client_data.id),
@@ -91,7 +100,6 @@ class MachineHandle(ServiceHandle[MachineSpec, RuntimeService, RuntimeClient]):
             machine_id=UUID(self.machine_data.id),
             max_threads=self.spec.max_threads,
             max_concurrency_per_thread=self.spec.max_concurrency_per_thread,
-            oracle=self.simulation.oracle,
             mode=RuntimeThreadMode.LOCAL,
         )
         await service.start()

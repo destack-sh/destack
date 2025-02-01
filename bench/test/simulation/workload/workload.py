@@ -38,7 +38,8 @@ def workload_(typ: WorkloadType, spec_cls: type[WorkloadSpec]):
 class Workload[SpecT: WorkloadSpec](abc.ABC):
     """A simulated Workload."""
 
-    def __init__(self, spec: SpecT, oracle: Oracle, simulation: "Simulation"):
+    def __init__(self, id: str, spec: SpecT, oracle: Oracle, simulation: "Simulation"):
+        self.id = id
         self.spec = spec
         self.oracle = oracle
         self.simulation = simulation

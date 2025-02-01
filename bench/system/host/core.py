@@ -1,14 +1,12 @@
 import abc
 import asyncio
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from itertools import chain
 from typing import (
-    Any,
+    TYPE_CHECKING,
     Callable,
     ClassVar,
     Collection,
-    Generator,
     Iterable,
     Sequence,
     final,
@@ -28,12 +26,15 @@ from bench.language import (
     NodeSuperGraph,
     NodeType,
     Session,
-    Store,
 )
 from bench.language.core import bittuple
-from bench.proto import EditData, GraphScopeData, wiring
+from bench.proto import EditData, wiring
+from bench.proto.network import Network
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
+
+if TYPE_CHECKING:
+    from bench.system.host import HostService
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -204,74 +205,13 @@ def unpack_commit(
     return commit
 
 
-class Host(abc.ABC):
-    """Base interface for the Host so we can pass it around more easily (and stub it)."""
-
-    @property
-    @abc.abstractmethod
-    def scope(self) -> GraphScopeData: ...
-
-    @abc.abstractmethod
-    def on_error(self, source: "HostPlugin", error: BaseException) -> None:
-        """Handle a fatal error."""
-        ...
-
-    @property
-    @abc.abstractmethod
-    def global_store(self) -> Store:
-        """The global store for the Host."""
-        ...
-
-    @property
-    @abc.abstractmethod
-    def oracle(self) -> Oracle: ...
-
-    @abc.abstractmethod
-    @asynccontextmanager
-    async def session(
-        self, *, readonly: bool = False, commit: bool = False
-    ) -> Generator[Session, None, None]:
-        """Gets the Session for short-lived, *exclusive access."""
-        ...
-
-    def __mapping__(self):
-        # NOTE: __mapping__ is required for grpclib base classes (we subclass this in Host)
-        return {}
-
-
-class HostProxy(Host):
-    def __init__(self, global_store: Store, session: Session):
-        self._scope = session._default_scope
-        self._global_store = global_store
-        self._session = session
-
-    @property
-    def scope(self) -> GraphScopeData:
-        return self._scope
-
-    def on_error(self, source: Any, error: BaseException) -> None:
-        pass
-
-    @property
-    def global_store(self) -> Store:
-        return self._global_store
-
-    @property
-    def oracle(self) -> Oracle:
-        return self._session._oracle
-
-    @asynccontextmanager
-    async def session(self, *, readonly: bool = False, commit: bool = False):
-        yield self._session
-
-
 class HostPlugin[T: Node]:
     """A plugin into the Host operating system of a Bench."""
 
     """The type of nodes to subscribe to for edits."""
     watch_types: ClassVar[bittuple[NodeType] | None] = None
 
-    def __init__(self, host: Host, bench: "Bench"):
+    def __init__(self, host: "HostService", bench: "Bench"):
         self.host = host
         self.bench = bench
         self.tasks = TaskManager(
@@ -295,6 +235,14 @@ class HostPlugin[T: Node]:
     @property
     def name(self) -> str:
         return self.__class__.__name__
+
+    @property
+    def oracle(self) -> Oracle:
+        return self.host.oracle
+
+    @property
+    def network(self) -> Network:
+        return self.host.network
 
     #
     # Lifecycle
@@ -347,7 +295,7 @@ class HostPlugin[T: Node]:
 class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
     """A Host plugin with async event handlers."""
 
-    def __init__(self, host: Host, bench: "Bench"):
+    def __init__(self, host: "HostService", bench: "Bench"):
         super().__init__(host, bench)
         self._commit_queue: asyncio.Queue[Commit[T]] = asyncio.Queue()
 

@@ -31,6 +31,7 @@ from bench.proto import (
     GetNodesResponse,
     GraphScopeData,
     HostBase,
+    Network,
     RpcMetadata,
     SearchNodesRequest,
     SearchNodesResponse,
@@ -83,8 +84,10 @@ class HostRouterService(ServiceBase, HostBase):
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
-    def __init__(self, global_store: Store, regional_store: Store, oracle: Oracle):
-        super().__init__(logger=logger, tracer=tracer, oracle=oracle)
+    def __init__(
+        self, id: str, global_store: Store, regional_store: Store, network: Network, oracle: Oracle
+    ):
+        super().__init__(id=id, logger=logger, tracer=tracer, network=network, oracle=oracle)
         self.hosts: dict[UUID, HostService] = {}
         self.hosts_lock = asyncio.Lock()
         self._global_store = global_store
@@ -117,9 +120,11 @@ class HostRouterService(ServiceBase, HostBase):
         existing_host = self.hosts.get(bench_id)
         assert existing_host is None, f"already have Host for {bench_id}: {existing_host!r}"
         host = HostService(
+            id=f"host-{bench_id}",
             bench_id=bench_id,
             global_store=self._global_store,
             regional_store=self._regional_store,
+            network=self.network,
             oracle=self.oracle,
         )
         await host.start()

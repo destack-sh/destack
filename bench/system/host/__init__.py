@@ -1,4 +1,4 @@
-from bench.system.host.core import Commit, DeferredHostPlugin, Host, HostPlugin, HostProxy
+from bench.system.host.core import Commit, DeferredHostPlugin, HostPlugin
 from bench.system.host.database import DatabasePlugin, HostSqlContext
 from bench.system.host.host import HostService
 from bench.system.host.log import LogPlugin
@@ -8,9 +8,7 @@ __all__ = [
     "Commit",
     "DatabasePlugin",
     "DeferredHostPlugin",
-    "Host",
     "HostPlugin",
-    "HostProxy",
     "HostRouterService",
     "HostService",
     "HostSqlContext",

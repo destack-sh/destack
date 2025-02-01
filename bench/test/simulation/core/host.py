@@ -29,9 +29,11 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
     @override
     async def start(self) -> HostService:
         service = HostService(
+            id=self.id,
             bench_id=self.simulation.get_bench_id(self.spec.bench),
             global_store=self.simulation.global_store,
             regional_store=self.simulation.regional_store,
+            network=self.simulation.network.network,
             oracle=self.oracle,
             on_error=self.simulation.on_error,
         )

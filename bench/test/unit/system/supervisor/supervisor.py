@@ -11,13 +11,15 @@ from bench.proto import (
     GetNodesRequest,
     LoginUserRequest,
     LogoutUserRequest,
+    NullNetwork,
     RpcMetadata,
     SignupUserRequest,
     SupervisorClient,
     UserData,
     pack_rpc_headers,
 )
-from bench.system import HostMap, StoreMap, SupervisorService
+from bench.system import StoreMap, SupervisorService
+from bench.system.core.sharding import StaticHostMap
 from bench.test.fixtures import raises_grpc_error
 from bench.test.simulation.core import SimulatedChannel
 from bench.utils.oracle import REAL_ORACLE
@@ -30,7 +32,12 @@ from bench.utils.oracle import REAL_ORACLE
 @pytest.fixture
 async def supervisor_service(global_store: Store, regional_store: Store):
     supervisor_service = SupervisorService(
-        global_store=global_store, oracle=REAL_ORACLE, host_map=HostMap({}), store_map=StoreMap({})
+        id="supervisor",
+        global_store=global_store,
+        network=NullNetwork(),
+        oracle=REAL_ORACLE,
+        host_map=StaticHostMap({}),
+        store_map=StoreMap({}),
     )
     await supervisor_service.start()
     yield supervisor_service

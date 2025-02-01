@@ -30,7 +30,8 @@ from bench.language import (
 )
 from bench.pb2.lang_pb2 import GraphScopeData
 from bench.pb2.system_grpc import HostClient, SupervisorClient
-from bench.proto.services import get_channel, get_rpc_metadata
+from bench.proto import get_rpc_metadata
+from bench.proto.network import RealNetwork
 from bench.runtime.code import STATIC_CODE_GLOBALS
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
@@ -54,8 +55,9 @@ async def shell(
     from bench.system import global_session, global_store_from_env, pg_engine_from_store
 
     supervisor_url = get_from_env("SUPERVISOR_URL")
-    supervisor = SupervisorClient(get_channel(supervisor_url))
-    host = HostClient(get_channel(supervisor_url))
+    network = RealNetwork()
+    supervisor = SupervisorClient(network.get_channel(supervisor_url, source_id="shell"))
+    host = HostClient(network.get_channel(supervisor_url, source_id="shell"))
 
     # load global Bench
     global_store = global_store_from_env()

@@ -17,7 +17,8 @@ if TYPE_CHECKING:
 class BenchHandle:
     """A Host for a Bench"""
 
-    def __init__(self, spec: BenchSpec, oracle: Oracle, simulation: "Simulation"):
+    def __init__(self, id: str, spec: BenchSpec, oracle: Oracle, simulation: "Simulation"):
+        self.id = id
         self.spec = spec
         self.oracle = oracle
         self.simulation = simulation
@@ -33,6 +34,10 @@ class BenchHandle:
     def bench_id(self) -> UUID:
         assert self._bench_id is not None, f"{self!r} not ready"
         return self._bench_id
+
+    @property
+    def name(self) -> str:
+        return self.spec.name
 
     async def prepare(self, supervisor_client: SupervisorClient, client: "ClientHandle"):
         # create bench in supervisor

@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING, Literal
+import abc
+from typing import TYPE_CHECKING, Literal, Mapping
+from uuid import UUID
 
 from attr import dataclass
 
@@ -132,13 +134,25 @@ class HostInfo:
         )
 
 
-class HostMap:
+class HostMap(abc.ABC):
     """
-    Maps Regions to Host URIs.
+    Maps Regions and Bench IDs to Host URIs.
     """
 
-    def __init__(self, host_by_region: dict[Region | Literal["*"], HostInfo]):
-        self._host_by_region = host_by_region
+    @abc.abstractmethod
+    def get(self, bench_id: UUID, region: Region) -> HostInfo:
+        """Gets the host info for the given bench ID and region (error if none)."""
+        ...
+
+
+class StaticHostMap(HostMap):
+    """A static host map backed by a dictionary."""
+
+    def __init__(
+        self,
+        hosts: Mapping[UUID | Region | Literal["*"], HostInfo],
+    ):
+        self._hosts = hosts
 
     def __str__(self) -> str:
         return host_map_to_string(self)
@@ -146,42 +160,48 @@ class HostMap:
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {host_map_to_string(self) or '<empty>'}>"
 
-    def get(self, region: Region) -> HostInfo:
-        """Gets the host info for the given region (error if none)."""
-        host_info = self._host_by_region.get(region)
+    def get(self, bench_id: UUID, region: Region) -> HostInfo:
+        """Gets the host info for the given bench ID and region (error if none)."""
+        host_info = self._hosts.get(bench_id)
         if host_info is None:
-            host_info = self._host_by_region.get("*")
+            host_info = self._hosts.get(region)
+        if host_info is None:
+            host_info = self._hosts.get("*")
         if host_info is None:
             raise LookupError(f"no host info for {region.bench_name} in {self!r}")
         return host_info
 
-    __getitem__ = get
 
-
-def host_map_from_string(host_map_str: str) -> "HostMap":
+def host_map_from_string(host_map_str: str) -> StaticHostMap:
     """
     Parses a host map string like:
         'eu-zurich=localhost:60061/8080,eu-frankfurt=localhost:60061/8081'
         'eu-frankfurt=aws-eu-frankfurt.host.justbench.com:8080/443,*=host.justbench.com:8080/443'
+        '01234567-8910-0000-0000-000000000000=host1.justbench.com:8080/443,eu-frankfurt=host2.justbench.com:8080/443'
     """
-    host_map = {}
+    hosts: dict[UUID | Region | Literal["*"], HostInfo] = {}
+
     for mapping_str in host_map_str.split(","):
-        region_str, host_info_str = mapping_str.split("=", 1)
-        region = Region.get_by_slug(region_str) if region_str != "*" else region_str
+        key_str, host_info_str = mapping_str.split("=", 1)
         host_info = HostInfo.parse(host_info_str.strip())
-        host_map[region] = host_info
-    return HostMap(host_by_region=host_map)
+        try:
+            bench_id = UUID(key_str)
+            hosts[bench_id] = host_info
+        except ValueError:
+            region = Region.get_by_slug(key_str) if key_str != "*" else key_str
+            hosts[region] = host_info
+
+    return StaticHostMap(hosts=hosts)
 
 
-def host_map_to_string(host_map: "HostMap") -> str:
+def host_map_to_string(host_map: StaticHostMap) -> str:
     """Renders a host map back into a string."""
     return ",".join(
-        f"{k.slug if isinstance(k, Region) else k}={v.render()}"
-        for k, v in host_map._host_by_region.items()
+        f"{k.slug if isinstance(k, Region) else k}={v.render()}" for k, v in host_map._hosts.items()
     )
 
 
-def host_map_from_env() -> "HostMap":
+def host_map_from_env() -> StaticHostMap:
     """Parses the HOST_MAP from the environment."""
     host_map_str = get_from_env("HOST_MAP", description="Host map for sharding")
     return host_map_from_string(host_map_str)

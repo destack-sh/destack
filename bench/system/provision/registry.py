@@ -1,12 +1,16 @@
+from typing import TYPE_CHECKING
+
 from bench.language import Bench
-from bench.system.host import Host
 from bench.utils.env import ENV, Env
 
 from .browser import BrowserbaseBrowserProvisioner
 from .provisioner import Provisioner
 
+if TYPE_CHECKING:
+    from bench.system.host import HostService
 
-def get_provisioners(host: Host, bench: Bench) -> list[Provisioner]:
+
+def get_provisioners(host: "HostService", bench: Bench) -> list[Provisioner]:
     """Gets all available provisioners for that Bench in *this* environment"""
     from .browser import LocalhostBrowserProvisioner
     from .machine import (

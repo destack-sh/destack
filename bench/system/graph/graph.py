@@ -62,6 +62,7 @@ from bench.proto import (
     GetNodesResponse,
     GraphIOBase,
     GraphScopeData,
+    Network,
     NodeReferenceData,
     SearchNodesRequest,
     SearchNodesResponse,
@@ -164,14 +165,16 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
     def __init__(
         self,
         *,
+        id: str,
         bench_id: UUID | None,
         node_types: bittuple[NodeType],
         logger: structlog.BoundLogger,
         tracer: trace.Tracer,
+        network: Network,
         oracle: Oracle,
         scope: GraphScopeData,
     ):
-        super().__init__(logger=logger, tracer=tracer, oracle=oracle)
+        super().__init__(id=id, logger=logger, tracer=tracer, network=network, oracle=oracle)
         self._local_epoch: int = 0
         self.bench_id: UUID | None = bench_id
         self.node_types: bittuple[NodeType] = node_types

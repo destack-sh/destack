@@ -24,7 +24,8 @@ from bench.pb2 import (
     RuntimeClient,
     ServiceKind,
 )
-from bench.proto import wiring
+from bench.pb2.system_grpc import SupervisorClient
+from bench.proto import Network, wiring
 from bench.runtime.base import RuntimeServiceBase, RuntimeThreadMode
 from bench.runtime.thread import RuntimeThread
 from bench.utils.oracle import Oracle
@@ -59,9 +60,9 @@ class RunHandle:
 class RuntimeThreadHandle:
     """An active RuntimeThread in this service."""
 
-    def __init__(self, service: "RuntimeService", *, id: int, mode: RuntimeThreadMode):
+    def __init__(self, service: "RuntimeService", *, id: str, mode: RuntimeThreadMode):
         self.service = service
-        self.id = id
+        self.id: str = id
         self.mode = mode
 
         self._client: RuntimeClient | RuntimeBase | None = None
@@ -96,7 +97,8 @@ class RuntimeThreadHandle:
             self._thread = RuntimeThread(
                 id=self.id,
                 bench_id=self.service._bench_id,
-                supervisor_url=self.service._supervisor_url,
+                supervisor=self.service._supervisor,
+                network=self.service.network,
                 client_type=self.service._client_type,
                 client_id=self.service._client_id,
                 client_access_token=self.service._client_access_token,
@@ -135,7 +137,7 @@ class RuntimeThreadHandle:
             with contextlib.suppress(Exception):  # don't care about errors up here
                 await self.do(client.check(request), timeout=5)
 
-    async def _start_process(self, *, id: int, port: int):
+    async def _start_process(self, *, id: str, port: int):
         """Creates a RuntimeThread in a subprocess."""
         assert sys.executable, f"no python executable for {self!r}"
         argv = (
@@ -221,7 +223,10 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
     def __init__(
         self,
         *,
-        supervisor_url: str,
+        id: str,
+        supervisor: SupervisorClient,
+        network: Network,
+        oracle: Oracle,
         bench_id: UUID,
         client_type: ClientType,
         client_id: UUID,
@@ -229,15 +234,16 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         machine_id: UUID | None,
         max_threads: int,
         max_concurrency_per_thread: int,
-        oracle: Oracle,
         mode: RuntimeThreadMode,
     ):
         super().__init__(
+            id=id,
             logger=logger,
             tracer=tracer,
+            network=network,
             oracle=oracle,
             bench_id=bench_id,
-            supervisor_url=supervisor_url,
+            supervisor=supervisor,
             client_type=client_type,
             client_id=client_id,
             client_access_token=client_access_token,
@@ -278,7 +284,8 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
             os.setsid()
         assert self._max_threads > 0, f"no threads for {self!r}"
         self._threads = [
-            RuntimeThreadHandle(self, id=i, mode=self._mode) for i in range(self._max_threads)
+            RuntimeThreadHandle(self, id=f"{self.id}-thread-{i}", mode=self._mode)
+            for i in range(self._max_threads)
         ]
         await asyncio.gather(*(t.start() for t in self._threads))
         logger.info("runtime.start", runtime=self)

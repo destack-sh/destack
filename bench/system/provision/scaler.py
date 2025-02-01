@@ -1,6 +1,6 @@
 import abc
 import asyncio
-from typing import Any, Sequence, cast, final, override
+from typing import TYPE_CHECKING, Any, Sequence, cast, final, override
 
 import structlog
 from opentelemetry import trace
@@ -20,11 +20,14 @@ from bench.language import (
     bittuple,
     connection_capture,
 )
-from bench.system.host import Commit, Host
+from bench.system.host import Commit
 from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
 
 from .provisioner import Provisioner
+
+if TYPE_CHECKING:
+    from bench.system.host import HostService
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -39,7 +42,7 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
     provision_subtype: ScalerType
     scale_type: NodeType
 
-    def __init__(self, host: Host, bench: Bench):
+    def __init__(self, host: "HostService", bench: Bench):
         super().__init__(host, bench)
         self._scalers_to_reconcile: set[Scaler] = set()
         self._reconcile_event: asyncio.Event = asyncio.Event()

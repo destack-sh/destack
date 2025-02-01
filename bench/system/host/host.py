@@ -57,6 +57,7 @@ from bench.proto import (
     EditData,
     GraphScopeData,
     HostBase,
+    Network,
     RpcMetadata,
     ServiceKind,
     UploadFilesRequest,
@@ -83,7 +84,7 @@ from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
-from .core import Host, HostPlugin, unpack_commit
+from .core import HostPlugin, unpack_commit
 from .database import DatabasePlugin
 from .run import RunPlugin
 
@@ -108,7 +109,7 @@ PACKAGE_QUERY = (
 )
 
 
-class HostService(GraphIoServiceBase, Host, HostBase):
+class HostService(GraphIoServiceBase, HostBase):
     """
     Host for a Bench, providing the OS-level functionality (lifecycle, resources, scheduling, etc.).
     There is only one Host per Bench. Clients interact with the Bench exclusively via its Host.
@@ -118,18 +119,22 @@ class HostService(GraphIoServiceBase, Host, HostBase):
 
     def __init__(
         self,
+        id: str,
         bench_id: UUID,
         global_store: Store,
         regional_store: Store,
+        network: Network,
         oracle: Oracle,
         on_error: Callable[[BaseException], None] | None = None,
     ):
         GraphIoServiceBase.__init__(
             self,
+            id=id,
             bench_id=bench_id,
             node_types=BENCH_NODE_TYPES,
             logger=logger,
             tracer=tracer,
+            network=network,
             oracle=oracle,
             scope=GraphScope(bench_id=bench_id)._to_data(),
         )
@@ -183,7 +188,6 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         assert self._main_package is not None, f"main package not loaded in {self}"
         return self._main_package
 
-    @override
     def on_error(self, source: HostPlugin, error: BaseException) -> None:
         if self._on_error is not None:
             self._on_error(error)

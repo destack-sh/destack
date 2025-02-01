@@ -20,10 +20,10 @@ from bench.sql import (
     map_database_block_to_table,
 )
 from bench.system.graph import PostgresChannel
-from bench.system.host.core import Commit, Host, HostPlugin
+from bench.system.host.core import Commit, HostPlugin
 
 if TYPE_CHECKING:
-    pass
+    from bench.system.host import HostService
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -62,7 +62,7 @@ class DatabasePlugin(HostPlugin[Block | Field]):
 
     watch_types = bittuple(NodeType.BLOCK, NodeType.FIELD)
 
-    def __init__(self, host: Host, bench: Bench, package: Package):
+    def __init__(self, host: "HostService", bench: Bench, package: Package):
         super().__init__(host, bench)
         self.package = package
         self.context = HostSqlContext(

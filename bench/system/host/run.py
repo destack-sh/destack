@@ -24,12 +24,12 @@ from bench.language import (
 )
 from bench.language.core import bittuple
 from bench.language.core.connection import connection_capture
-from bench.proto import RunRequest, RuntimeClient, get_channel
-from bench.system.host.core import Commit, Host, HostPlugin
+from bench.proto import RunRequest, RuntimeClient
+from bench.system.host.core import Commit, HostPlugin
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
 
 if TYPE_CHECKING:
-    pass
+    from bench.system.host import HostService
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -48,7 +48,7 @@ class RunPlugin(HostPlugin[Run]):
 
     watch_types = bittuple(NodeType.RUN)
 
-    def __init__(self, host: Host, bench: Bench, retry: RetryOptions = RETRY_GRPC):
+    def __init__(self, host: "HostService", bench: Bench, retry: RetryOptions = RETRY_GRPC):
         super().__init__(host, bench)
         self._retry = retry
         self._run_queue: asyncio.Queue[PendingRunOperation] = asyncio.Queue()
@@ -117,7 +117,9 @@ class RunPlugin(HostPlugin[Run]):
         for machine in candidate_machines:
             try:
                 assert machine.connection_uri, f"missing connection uri for machine {machine!r}"
-                runtime = RuntimeClient(get_channel(machine.connection_uri))
+                runtime = RuntimeClient(
+                    self.network.get_channel(machine.connection_uri, source_id=self.host.id)
+                )
                 request = RunRequest(run_ptr=run._to_ref_data(), is_blocking=False)
                 _ = await runtime.run(request)
                 log.debug("scheduler.run", machine=machine, span="current")

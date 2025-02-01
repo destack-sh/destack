@@ -40,6 +40,7 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](Workload[SpecT]):
         self.host: HostHandle = self.simulation.get_host(self.spec.bench)
         self.session: Session = await make_remote_session(
             simulation=self.simulation,
+            source_id=self.id,
             bench_id=self.bench_id,
             client=self.client,
             host=self.host,
