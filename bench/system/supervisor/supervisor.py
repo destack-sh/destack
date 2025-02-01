@@ -1,4 +1,4 @@
-from typing import Mapping, override
+from typing import Callable, Mapping, override
 from uuid import UUID, uuid4, uuid5
 
 import structlog
@@ -77,7 +77,14 @@ SUPERVISOR_NODE_TYPES = USER_NODE_TYPES | bittuple(NodeType.BENCH)
 class SupervisorService(GraphIoServiceBase, SupervisorBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
-    def __init__(self, global_store: Store, store_map: StoreMap, oracle: Oracle, host_map: HostMap):
+    def __init__(
+        self,
+        global_store: Store,
+        store_map: StoreMap,
+        oracle: Oracle,
+        host_map: HostMap,
+        on_error: Callable[[Exception], None] | None = None,
+    ):
         GraphIoServiceBase.__init__(
             self,
             bench_id=None,
@@ -91,6 +98,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         self._global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
         self._store_map = store_map
         self._host_map = host_map
+        self._on_error = on_error
 
     def __str__(self):
         return "shards=[*]"

@@ -212,7 +212,7 @@ class Host(abc.ABC):
     def scope(self) -> GraphScopeData: ...
 
     @abc.abstractmethod
-    def on_error(self, source: "HostPlugin", error: Exception) -> None:
+    def on_error(self, source: "HostPlugin", error: BaseException) -> None:
         """Handle a fatal error."""
         ...
 
@@ -249,7 +249,7 @@ class HostProxy(Host):
     def scope(self) -> GraphScopeData:
         return self._scope
 
-    def on_error(self, source: Any, error: Exception) -> None:
+    def on_error(self, source: Any, error: BaseException) -> None:
         pass
 
     @property

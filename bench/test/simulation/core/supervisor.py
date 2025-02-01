@@ -28,6 +28,7 @@ class SupervisorHandle(ServiceHandle[SupervisorSpec, SupervisorService, Supervis
             store_map=self.simulation.store_map,
             oracle=self.oracle,
             host_map=HostMap({}),
+            on_error=self.simulation.on_error,
         )
         await service.start()
         return service

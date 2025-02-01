@@ -32,7 +32,7 @@ class TaskManager:
         owner: Any,
         logger: Any,
         oracle: Oracle,
-        on_error: Callable[[Exception], None] | None = None,
+        on_error: Callable[[BaseException], None] | None = None,
         task_id_prefix: str | None = None,
     ):
         self._active_tasks: list[asyncio.Task] = []
@@ -70,6 +70,8 @@ class TaskManager:
             pass
         except BaseException as e:
             logger.exception(f"{task_id}.error", task_id=task_id, owner=owner, exc_info=e, sentry=e)
+            if self._on_error is not None:
+                self._on_error(e)
             raise
 
     def run(self, coro: Coroutine, task_id: str | None = None) -> None:
