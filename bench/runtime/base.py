@@ -7,7 +7,6 @@ from uuid import UUID
 
 import cachetools
 import structlog
-from grpclib.client import Channel
 from opentelemetry import trace
 
 from bench import pb2
@@ -31,15 +30,8 @@ from bench.language import (
     Session,
     User,
 )
-from bench.pb2 import (
-    GraphScopeData,
-    HostClient,
-    ResolveHostsRequest,
-    SupervisorClient,
-)
-from bench.proto.networking import localize_url
-from bench.proto.services import ServiceBase, get_channel, get_rpc_metadata
-from bench.proto.wiring import pack_rpc_headers
+from bench.pb2 import GraphScopeData, HostClient, ResolveHostsRequest, SupervisorClient
+from bench.proto import Network, ServiceBase, get_rpc_metadata, localize_url, pack_rpc_headers
 from bench.utils.oracle import Oracle
 from bench.utils.sync import CriticalLock
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
@@ -71,23 +63,24 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
     def __init__(
         self,
         *,
+        id: str,
         logger: Any,
         tracer: trace.Tracer,
+        network: Network,
         oracle: Oracle,
         bench_id: UUID,
-        supervisor_url: str,
+        supervisor: SupervisorClient,
         client_type: ClientType,
         client_id: UUID,
         client_access_token: str,
         machine_id: UUID | None,
         mode: "RuntimeThreadMode",
     ):
-        super().__init__(logger=logger, tracer=tracer, oracle=oracle)
+        super().__init__(id=id, logger=logger, tracer=tracer, network=network, oracle=oracle)
         self._mode = mode
 
         # services
-        self._supervisor_url = supervisor_url
-        self._supervisor = SupervisorClient(get_channel(supervisor_url))
+        self._supervisor = supervisor
         self._host: HostClient | None = None
         if client_type == ClientType.MACHINE and machine_id is None:
             raise ValueError(f"missing machine_id for {client_type} {client_id}")
@@ -216,7 +209,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
                 )
                 host_info = response.hosts[0]
                 assert host_info.domain, f"no domain for {host_info!r}"
-                host_info.domain = localize_url(host_info.domain)
+                domain = localize_url(host_info.domain)
                 self.logger.info(
                     "runtime.resolve_host",
                     supervisor=self._supervisor,
@@ -224,9 +217,9 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
                     host_domain=host_info.domain,
                     host_port=host_info.grpc_port,
                 )
-                host_channel = Channel(
-                    host=host_info.domain, port=host_info.grpc_port, ssl=host_info.ssl
-                )
+                protocol = "https" if host_info.ssl else "http"
+                connection_uri = f"{protocol}://{domain}:{host_info.grpc_port}"
+                host_channel = self.network.get_channel(connection_uri, source_id=self.id)
                 return HostClient(host_channel)
             except Exception as e:
                 interval = retry.get_wait_interval()

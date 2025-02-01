@@ -17,7 +17,7 @@ from bench.utils.task import TaskManager
 from .client import ClientHandle
 from .host import HostHandle
 from .machine import MachineHandle
-from .network import Network
+from .network import NetworkHandle
 from .oracle import SimulatedEventLoop, SimulatedOracle
 from .spec import BenchSpec, ClientSpec, HostSpec, MachineSpec, SimulationSpec, UserSpec
 from .supervisor import SupervisorHandle
@@ -59,7 +59,7 @@ class Simulation:
 
         # system
         self.random = Random(spec.seed)
-        self.network = Network(spec.network, self)
+        self.network = NetworkHandle(spec.network, self)
         loop = asyncio.get_event_loop()
         assert isinstance(loop, SimulatedEventLoop), f"need simulated loop: {loop}"
         self.loop = loop
@@ -73,6 +73,7 @@ class Simulation:
         # content
         self.supervisor = SupervisorHandle("supervisor", spec.supervisor, self.oracle, self)
         self.benches_by_name: dict[str, BenchHandle] = {}
+        self.benches_by_id: dict[UUID, BenchHandle] = {}
         self.hosts_by_name: dict[str, HostHandle] = {}
         self.users_by_name: dict[str, UserHandle] = {}
         self.machines_by_name: dict[str, MachineHandle] = {}
@@ -110,8 +111,11 @@ class Simulation:
         ), f"{self!r} has no client: '{name}' (available: {list(self.clients_by_name)})"
         return client
 
-    def get_bench(self, name: str) -> "BenchHandle":
-        bench = self.benches_by_name.get(name)
+    def get_bench(self, name: str | UUID) -> "BenchHandle":
+        if isinstance(name, UUID):
+            bench = self.benches_by_id.get(name)
+        else:
+            bench = self.benches_by_name.get(name)
         assert (
             bench is not None
         ), f"{self!r} has no bench: '{name}' (available: {list(self.benches_by_name)})"
@@ -140,7 +144,13 @@ class Simulation:
             """Add a User to the simulation."""
             if user_spec.name in self.users_by_name:
                 raise ValueError(f"duplicate user name: {user_spec.name} in {self!r}")
-            user = UserHandle(user_spec.name, self)
+            user = UserHandle(
+                id=f"user-{user_spec.name}",
+                name=user_spec.name,
+                spec=user_spec,
+                oracle=self.oracle,
+                simulation=self,
+            )
             self.users_by_name[user_spec.name] = user
             return user
 
@@ -148,7 +158,12 @@ class Simulation:
             """Add a Machine to the simulation."""
             if machine_spec.name in self.machines_by_name:
                 raise ValueError(f"duplicate machine name: {machine_spec.name} in {self!r}")
-            machine = MachineHandle(machine_spec.name, machine_spec, self.oracle, self)
+            machine = MachineHandle(
+                id=f"machine-{machine_spec.name}",
+                spec=machine_spec,
+                oracle=self.oracle,
+                simulation=self,
+            )
             self.machines_by_name[machine_spec.name] = machine
             return machine
 
@@ -162,7 +177,12 @@ class Simulation:
                 parent = self.machines_by_name[client_spec.parent[1]]
             else:
                 raise ValueError(f"invalid client parent: {client_spec.parent} in {self!r}")
-            client = ClientHandle(client_spec, parent, self)
+            client = ClientHandle(
+                id=f"client-{client_spec.name}",
+                spec=client_spec,
+                parent=parent,
+                simulation=self,
+            )
             self.clients_by_name[client_spec.name] = client
             parent.clients_by_name[client_spec.name] = client
             return client
@@ -171,7 +191,12 @@ class Simulation:
             """Add a Bench to the simulation."""
             if bench_spec.name in self.benches_by_name:
                 raise ValueError(f"duplicate bench name: {bench_spec.name} in {self!r}")
-            bench = BenchHandle(bench_spec, self.oracle, self)
+            bench = BenchHandle(
+                id=f"bench-{bench_spec.name}",
+                spec=bench_spec,
+                oracle=self.oracle,
+                simulation=self,
+            )
             self.benches_by_name[bench_spec.name] = bench
             return bench
 
@@ -179,7 +204,12 @@ class Simulation:
             """Add a Host to the simulation."""
             if host_spec.bench in self.hosts_by_name:
                 raise ValueError(f"duplicate Host for Bench: {host_spec.bench} in {self!r}")
-            host = HostHandle(host_spec.bench, host_spec, self.oracle, self)
+            host = HostHandle(
+                id=f"host-{host_spec.bench}",
+                spec=host_spec,
+                oracle=self.oracle,
+                simulation=self,
+            )
             self.hosts_by_name[host_spec.bench] = host
             return host
 
@@ -190,7 +220,12 @@ class Simulation:
             if workload_spec.name in self.workloads_by_name:
                 raise ValueError(f"duplicate workload name: {workload_spec.name} in {self!r}")
             workload_cls = get_workload_cls(workload_spec.type)
-            workload = workload_cls(workload_spec, self.oracle, self)
+            workload = workload_cls(
+                id=f"workload-{workload_spec.name}",
+                spec=workload_spec,
+                oracle=self.oracle,
+                simulation=self,
+            )
             self.workloads.append(workload)
             self.workloads_by_name[workload_spec.name] = workload
             if workload_spec.group:
@@ -235,6 +270,7 @@ class Simulation:
                     user = self.users_by_name.get(bench.spec.owner)
                     assert user, f"no user {bench.spec.owner} for {bench!r} in {self!r}"
                     await bench.prepare(supervisor_client, user.some_client)
+                    self.benches_by_id[bench.bench_id] = bench
                 # prepare machines and their clients
                 for machine in self.machines_by_name.values():
                     await machine.prepare()

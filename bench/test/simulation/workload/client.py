@@ -54,6 +54,7 @@ class ClientWorkload[SpecT: ClientWorkloadSpec](Workload[SpecT]):
         self.host: HostHandle = self.simulation.get_host(self.spec.bench)
         self.session: Session = await make_remote_session(
             simulation=self.simulation,
+            source_id=self.id,
             bench_id=self.bench_id,
             client=self.client,
             host=self.host,
@@ -105,8 +106,8 @@ class WriteBlockTreeSpec(ClientWorkloadSpec):
 class WriteBlockTreeWorkload(ClientWorkload[WriteBlockTreeSpec]):
     """Write a random tree of blocks."""
 
-    def __init__(self, spec: WriteBlockTreeSpec, oracle: Oracle, simulation: Simulation):
-        super().__init__(spec, oracle, simulation)
+    def __init__(self, id: str, spec: WriteBlockTreeSpec, oracle: Oracle, simulation: Simulation):
+        super().__init__(id, spec, oracle, simulation)
         self.block_num = 0
         self.all_edits: list[tuple[EditType, Block]] = []
 

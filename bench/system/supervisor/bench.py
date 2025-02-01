@@ -11,7 +11,6 @@ from bench.language import (
     User,
 )
 from bench.system.core import local_pg_engine_from_store
-from bench.system.host import HostProxy
 
 
 async def create_default_bench(

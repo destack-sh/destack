@@ -17,24 +17,24 @@ from .engine import (
     map_object_subtype_to_proto,
     map_object_type_to_proto,
 )
-from .networking import (
+from .health import HealthService
+from .network import (
     IS_IN_DOCKER,
     IS_IN_MINIKUBE,
     MACHINE_ENVIRONMENT,
+    Network,
+    NullNetwork,
+    RealNetwork,
     dockerify_url,
     get_from_env,
-    localize_url,
-    minikubeify_url,
-)
-from .services import (
-    GrpcServer,
-    HealthService,
-    ServiceBase,
-    get_channel,
     get_rpc_headers,
     get_rpc_metadata,
+    localize_url,
+    minikubeify_url,
     unary_stream_rpc,
 )
+from .server import GrpcServer
+from .service import ServiceBase
 from .wiring import (
     pack_and_set_object_prop,
     pack_builtin_object,
@@ -70,12 +70,14 @@ __all__ = [
     "GrpcServer",
     "HealthService",
     "Message",
+    "Network",
+    "NullNetwork",
     "ProtoSchema",
     "ProtoThing",
+    "RealNetwork",
     "ServiceBase",
     "dockerify_url",
     "generate_proto_schema",
-    "get_channel",
     "get_from_env",
     "get_rpc_headers",
     "get_rpc_metadata",

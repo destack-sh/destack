@@ -1,14 +1,27 @@
 from typing import TYPE_CHECKING, final, override
+from uuid import UUID
 
+from bench.language import Region
 from bench.proto import SupervisorClient
-from bench.system import HostMap, SupervisorService
+from bench.system import HostInfo, HostMap, SupervisorService
 
 from .service import ServiceHandle
 from .spec import SupervisorSpec
 from .transport import SimulatedChannel
 
 if TYPE_CHECKING:
-    pass
+    from .simulation import Simulation
+
+
+class SimulatedHostMap(HostMap):
+    def __init__(self, simulation: "Simulation"):
+        self.simulation = simulation
+
+    def get(self, bench_id: UUID, region: Region) -> HostInfo:
+        bench = self.simulation.get_bench(bench_id)
+        host = self.simulation.get_host(bench.name)
+        domain = f"{host.id}"
+        return HostInfo(host_domain=domain, grpc_port=0, grpc_web_port=0, ssl=False)
 
 
 @final
@@ -24,10 +37,12 @@ class SupervisorHandle(ServiceHandle[SupervisorSpec, SupervisorService, Supervis
     @override
     async def start(self) -> SupervisorService:
         service = SupervisorService(
+            id=self.id,
             global_store=self.simulation.global_store,
             store_map=self.simulation.store_map,
+            network=self.simulation.network.network,
             oracle=self.oracle,
-            host_map=HostMap({}),
+            host_map=SimulatedHostMap(self.simulation),
             on_error=self.simulation.on_error,
         )
         await service.start()

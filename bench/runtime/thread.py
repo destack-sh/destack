@@ -24,7 +24,8 @@ from bench.pb2 import (
     RuntimeBase,
     ServiceKind,
 )
-from bench.proto import wiring
+from bench.pb2.system_grpc import SupervisorClient
+from bench.proto import Network, wiring
 from bench.runtime.base import RuntimeServiceBase
 from bench.runtime.code.context import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
 from bench.runtime.core import RedisCache, Runtime
@@ -146,22 +147,25 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
     def __init__(
         self,
         *,
-        id: int,
+        id: str,
         bench_id: UUID,
-        supervisor_url: str,
+        supervisor: SupervisorClient,
+        oracle: Oracle,
+        network: Network,
         client_type: ClientType,
         client_id: UUID,
         client_access_token: str,
         machine_id: UUID | None,
-        oracle: Oracle,
         mode: "RuntimeThreadMode",
     ):
         super().__init__(
+            id=id,
             logger=logger,
             tracer=tracer,
+            network=network,
             oracle=oracle,
             bench_id=bench_id,
-            supervisor_url=supervisor_url,
+            supervisor=supervisor,
             client_type=client_type,
             client_id=client_id,
             client_access_token=client_access_token,

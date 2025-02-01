@@ -7,8 +7,10 @@ import typer
 from grpclib.utils import graceful_exit
 
 from bench.cli.utils import async_to_sync
-from bench.language.core import ClientType
-from bench.proto.services import GrpcServer, ServiceBase
+from bench.language import ClientType
+from bench.pb2.system_grpc import SupervisorClient
+from bench.proto import GrpcServer, Network, ServiceBase
+from bench.proto.network import RealNetwork
 from bench.utils.env import ENV, IS_DEV
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.utils import get_from_env, get_from_env_maybe
@@ -18,11 +20,13 @@ app = typer.Typer(short_help="run the services")
 logger = structlog.get_logger(__name__)
 
 
-async def _do_serve(handlers: list[ServiceBase], *, host: str, port: int, watch: bool):
+async def _do_serve(
+    handlers: list[ServiceBase], *, network: Network, host: str, port: int, watch: bool
+):
     """Serves the given handlers."""
     logger.info("serve", handlers=handlers, host=host, port=port, env=ENV)
     start = time_ns()
-    server = GrpcServer(handlers=handlers, oracle=REAL_ORACLE)
+    server = GrpcServer(handlers=handlers, network=network, oracle=REAL_ORACLE)
     if IS_DEV and watch:
         _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
     try:
@@ -52,16 +56,26 @@ async def system(
 
     global_store = global_store_from_env()
     regional_store = regional_store_from_env()
+    network = RealNetwork()
     host_router = HostRouterService(
-        global_store=global_store, regional_store=regional_store, oracle=REAL_ORACLE
+        id="host-router",
+        global_store=global_store,
+        regional_store=regional_store,
+        network=network,
+        oracle=REAL_ORACLE,
     )
     services: list[ServiceBase] = [host_router]
     if not no_supervisor:
         supervisor = SupervisorService(
-            global_store=global_store, store_map=STORE_MAP, oracle=REAL_ORACLE, host_map=HOST_MAP
+            id="supervisor",
+            global_store=global_store,
+            network=network,
+            oracle=REAL_ORACLE,
+            host_map=HOST_MAP,
+            store_map=STORE_MAP,
         )
         services.append(supervisor)
-    await _do_serve(handlers=services, host=host, port=port, watch=watch)
+    await _do_serve(handlers=services, network=network, host=host, port=port, watch=watch)
 
 
 @app.command()
@@ -70,10 +84,16 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
     from bench.system import HOST_MAP, STORE_MAP, SupervisorService, global_store_from_env
 
     global_store = global_store_from_env()
+    network = RealNetwork()
     supervisor = SupervisorService(
-        global_store=global_store, store_map=STORE_MAP, oracle=REAL_ORACLE, host_map=HOST_MAP
+        id="supervisor",
+        global_store=global_store,
+        network=network,
+        oracle=REAL_ORACLE,
+        host_map=HOST_MAP,
+        store_map=STORE_MAP,
     )
-    await _do_serve(handlers=[supervisor], host=host, port=port, watch=watch)
+    await _do_serve(handlers=[supervisor], network=network, host=host, port=port, watch=watch)
 
 
 @app.command()
@@ -83,10 +103,15 @@ async def host(host: str, port: int, watch: bool = False, no_check: bool = False
 
     global_store = global_store_from_env()
     regional_store = regional_store_from_env()
+    network = RealNetwork()
     host_router = HostRouterService(
-        global_store=global_store, regional_store=regional_store, oracle=REAL_ORACLE
+        id="host-router",
+        global_store=global_store,
+        regional_store=regional_store,
+        network=network,
+        oracle=REAL_ORACLE,
     )
-    await _do_serve(handlers=[host_router], host=host, port=port, watch=watch)
+    await _do_serve(handlers=[host_router], network=network, host=host, port=port, watch=watch)
 
 
 @app.command()
@@ -119,10 +144,15 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
         default=RuntimeThreadMode.PROCESS,
         description="How to run runtime threads",
     )
+    network = RealNetwork()
+    supervisor_client = SupervisorClient(network.get_channel(supervisor_url, source_id="runtime"))
 
     if thread_id < 0:
         runtime = RuntimeService(
-            supervisor_url=supervisor_url,
+            id="runtime",
+            supervisor=supervisor_client,
+            network=network,
+            oracle=REAL_ORACLE,
             bench_id=bench_id,
             client_type=client_type,
             client_id=client_id,
@@ -130,20 +160,20 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
             machine_id=machine_id,
             max_threads=max_threads,
             max_concurrency_per_thread=max_concurrency_per_thread,
-            oracle=REAL_ORACLE,
             mode=mode,
         )
-        await _do_serve(handlers=[runtime], host=host, port=port, watch=watch)
+        await _do_serve(handlers=[runtime], network=network, host=host, port=port, watch=watch)
     else:
         thread = RuntimeThread(
-            id=int(thread_id),
-            supervisor_url=supervisor_url,
+            id=f"runtime-thread-{thread_id}",
+            supervisor=supervisor_client,
+            network=network,
+            oracle=REAL_ORACLE,
             bench_id=bench_id,
             client_type=client_type,
             client_id=client_id,
             client_access_token=client_access_token,
             machine_id=machine_id,
-            oracle=REAL_ORACLE,
             mode=mode,
         )
-        await _do_serve(handlers=[thread], host=host, port=port, watch=watch)
+        await _do_serve(handlers=[thread], network=network, host=host, port=port, watch=watch)

@@ -14,10 +14,10 @@ from bench.language import (
     Resource,
     ResourceStatus,
 )
-from bench.system.host.core import Commit, DeferredHostPlugin, Host
+from bench.system.host.core import Commit, DeferredHostPlugin
 
 if TYPE_CHECKING:
-    pass
+    from bench.system.host import HostService
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -32,7 +32,7 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     provision_type: NodeType
     provision_subtype: int | None = None
 
-    def __init__(self, host: Host, bench: Bench):
+    def __init__(self, host: "HostService", bench: Bench):
         super().__init__(host, bench)
         self._lock = asyncio.Lock()
         self._slug = self.provision_type.bench_name.lower()
@@ -208,7 +208,7 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     async def _do_decommission(self, resource: PT): ...
 
 
-async def provision(host: Host, bench: Bench, resources: Collection[Resource]) -> None:
+async def provision(host: "HostService", bench: Bench, resources: Collection[Resource]) -> None:
     """Provisions the given resources in *this* environment"""
     from .registry import get_provisioners
 
@@ -222,7 +222,7 @@ async def provision(host: Host, bench: Bench, resources: Collection[Resource]) -
             raise RuntimeError(f"no provisioner for {resource!r} in {provisioners!r}")
 
 
-async def decommission(host: Host, bench: Bench, resources: Collection[Resource]) -> None:
+async def decommission(host: "HostService", bench: Bench, resources: Collection[Resource]) -> None:
     """Decommissions the given resources in *this* environment"""
     from .registry import get_provisioners
 

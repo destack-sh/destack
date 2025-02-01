@@ -1584,8 +1584,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
     async def _do_subscribe(
         self, query: "Query", token: str | None, epoch: int
     ) -> AsyncIterator[WatchGetUpdateData]:
-        from bench.proto import wiring
-        from bench.proto.services import unary_stream_rpc
+        from bench.proto import unary_stream_rpc, wiring
 
         assert token is not None, f"{self!r} has no token"
         assert epoch is not None, f"{self!r} has no epoch"
@@ -1650,8 +1649,7 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
     async def _do_subscribe(
         self, query: "Query", token: str | None, epoch: int
     ) -> AsyncIterator[WatchSearchUpdateData]:
-        from bench.proto import wiring
-        from bench.proto.services import unary_stream_rpc
+        from bench.proto import unary_stream_rpc, wiring
 
         assert token is not None, f"{self!r} has no token"
         assert epoch is not None, f"{self!r} has no epoch"

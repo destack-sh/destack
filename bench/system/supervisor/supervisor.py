@@ -37,6 +37,7 @@ from bench.proto import (
     LoginUserResponse,
     LogoutUserRequest,
     LogoutUserResponse,
+    Network,
     ResolveHostsRequest,
     ResolveHostsResponse,
     RpcMetadata,
@@ -79,18 +80,22 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
 
     def __init__(
         self,
+        id: str,
         global_store: Store,
         store_map: StoreMap,
+        network: Network,
         oracle: Oracle,
         host_map: HostMap,
         on_error: Callable[[Exception], None] | None = None,
     ):
         GraphIoServiceBase.__init__(
             self,
+            id=id,
             bench_id=None,
             node_types=SUPERVISOR_NODE_TYPES,
             logger=logger,
             tracer=tracer,
+            network=network,
             oracle=oracle,
             scope=EMPTY_SCOPE_DATA,
         )
@@ -449,7 +454,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                     bench = await Bench.get(slug=value)
                 else:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no bench specified")
-                host_info = self._host_map.get(bench.region)
+                host_info = self._host_map.get(bench.id, bench.region)
                 host_info = ResolveHostsResponse.HostInfo(
                     domain=host_info.host_domain,
                     grpc_port=host_info.grpc_port,

@@ -9,7 +9,7 @@ from .spec import ServiceSpec
 from .transport import SimulatedChannel
 
 if TYPE_CHECKING:
-    from .simulation import ClientHandle, Simulation
+    from .simulation import Simulation
 
 
 class ServiceStatus(enum.Enum):
@@ -47,9 +47,9 @@ class ServiceHandle[SpecT: ServiceSpec, S: ServiceBase, C: object](abc.ABC):
         """Get a client for the service."""
         ...
 
-    async def connect(self, client: "ClientHandle") -> C:
+    async def connect(self, source_id: str) -> C:
         """Connect to the service via a client."""
-        channel = await self.simulation.network.connect(client, self)
+        channel = await self.simulation.network.connect(source_id, self)
         return await self.get_client(channel)
 
     def close(self):
