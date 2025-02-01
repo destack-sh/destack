@@ -546,13 +546,23 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             assert (
                 parent is not None
             ), f"parent for {type(self).__name__} not in {self._supergraph!r}: {self.parent_ptr!r}"
-            self._graph = parent._graph
+            if self.metatype in parent._graph.node_types:
+                self._graph = parent._graph
+            else:
+                # nocheckin :Cleanup: where are we going to prune all the :IsolatedGraphs?
+                # have parent graph but it's not the right one :IsolatedGraph
+                self._graph = NodeGraph(
+                    scope=parent._graph.scope,
+                    node_types=(self.metatype,),
+                    supergraph=self._supergraph,
+                )
+                self._supergraph.add_graph(self._graph)
         else:
             # no parent, create our own graph
-            # if we're not in a graph, start a new one
+            # if we're not in a graph, start a new one :IsolatedGraph
             graph = NodeGraph(  # type: ignore
                 scope=EMPTY_SCOPE_DATA,
-                node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype].tuple),
+                node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype]),
                 supergraph=self._supergraph,
             )
             self._graph = graph
@@ -1144,7 +1154,16 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             else:
                 raise ValueError(f"no child property for {child.metatype.bench_name} in {base!r}")
         elif self.metatype in child.__parent_types__:
-            attach_node(child, self, move=move, graph=self._graph)
+            if child.metatype in self._graph.node_types:
+                graph = self._graph
+            else:
+                # have parent graph but it's not the right one :IsolatedGraph
+                graph = NodeGraph(
+                    scope=self._graph.scope,
+                    node_types=(child.metatype,),
+                    supergraph=self._supergraph,
+                )
+            attach_node(child, self, move=move, graph=graph)
         else:
             raise ValueError(f"cannot append {child!r} to {self!r}")
 

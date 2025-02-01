@@ -11,7 +11,6 @@ from bench.language import (
     Browser,
     DynamicResource,
     Machine,
-    NodeGraph,
     NodeType,
     Resource,
     ResourceStatus,
@@ -101,15 +100,10 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
                 removed.append(resource)
         elif len(resource_group) < scaler.target_count:
             # provision missing resources
-            graph = NodeGraph(  # in isolated graph
-                scope=self.bench._graph.scope,
-                node_types=(self.scale_type,),
-                supergraph=self.bench._supergraph,
-            )
             for _ in range(scaler.target_count - len(resource_group)):
                 resource_kwargs: dict[str, Any] = {"scaler": scaler, "name": generate_random_name()}
-                resource = cast(WT, self._resource_cls(**resource_kwargs, _graph=graph))
-                session._create(resource)
+                resource = cast(WT, self._resource_cls(**resource_kwargs))
+                self.bench.append(resource)
                 added.append(resource)
         if added or removed:
             logger.info(

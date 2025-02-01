@@ -130,29 +130,46 @@ class NodeList[V: Node](abc.ABC):
             f"<{self.__class__.__name__} {self._node.absolute_path}.{self._property.name}: {self}>"
         )
 
-    @property
-    def _parent(self) -> "Node":
+    def _get_parent(self) -> "Node":
+        """Get the effective parent of a child node."""
         return self._node
 
-    @property
-    def _graph(self) -> "NodeGraph":
-        return self._node._graph
+    def _get_child_graph(self, parent: "Node") -> "NodeGraph":
+        """Get the graph for a child node (isolate if needed)."""
+        if self._child_node_type in parent._graph.node_types:
+            return parent._graph
+        else:
+            from .graph import NodeGraph
+
+            # make new graph for child node :IsolatedGraph
+            graph = NodeGraph(
+                scope=parent._graph.scope,
+                node_types=(self._child_node_type,),
+                supergraph=parent._supergraph,
+            )
+            return graph
 
     def create(self, **kwargs) -> V:
         """Creates a new node in the list."""
-        node = self._child_node_cls(**kwargs, parent=self._parent)
+        parent = self._get_parent()
+        graph = self._get_child_graph(parent)
+        node = self._child_node_cls(**kwargs, parent=parent, _graph=graph)
         self.append(node)
         return node
 
     def append(self, node: V, move: bool = False) -> V:
         """Attaches a child node to a parent through a list. If move, may be re-attached."""
-        attach_node(node, parent=self._parent, graph=self._graph, move=move)
+        parent = self._get_parent()
+        graph = self._get_child_graph(parent)
+        attach_node(node, parent=parent, graph=graph, move=move)
         return node
 
     def extend(self, *nodes: V, move: bool = False):
         """Attaches a list of child nodes to a parent. See append."""
+        parent = self._get_parent()
+        graph = self._get_child_graph(parent)
         for node in nodes:
-            self.append(node, move=move)
+            attach_node(node, parent=parent, graph=graph, move=move)
 
     def remove(self, node: V):
         """Removes a child node from a parent. See append for reverse."""
@@ -306,8 +323,9 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     def __str__(self):
         return "<remote>"
 
-    @property
-    def _parent(self) -> "Node":
+    @override
+    def _get_parent(self) -> "Node":
+        """Get the effective parent of a child node."""
         if (
             len(self._child_node_cls.__parent_types__) > 0
             and self._child_node_cls.__parent_types__[0] == NodeType.BENCH
@@ -322,10 +340,6 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
         else:
             return self._node
 
-    @property
-    def _graph(self) -> "NodeGraph":
-        return self._node._graph
-
     def clear(self):
         raise RuntimeError(f"cannot clear {self!r}")
 
@@ -333,18 +347,35 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     def create(self, **kwargs) -> V:
         if "block" in self._child_node_cls.__properties__ and "block" not in kwargs:
             kwargs["block"] = self._node
-        return super().create(**kwargs)
+        parent = self._get_parent()
+        graph = self._get_child_graph(parent)
+        node = self._child_node_cls(**kwargs, parent=parent)
+        attach_node(node, parent=parent, graph=graph, move=False)
+        return node
 
     @override
     def append(self, node: V, move: bool = False) -> V:
-        node = super().append(node, move=move)
-        # automatically associate the node with the block
+        parent = self._get_parent()
+        graph = self._get_child_graph(parent)
+        attach_node(node, parent=parent, graph=graph, move=move)
         if (
             "block" in self._child_node_cls.__properties__
-            and getattr(node, "block") is not self._node
+            and getattr(node, "block_id") != self._node.id
         ):
             node._do_set("block", self._node)
         return node
+
+    @override
+    def extend(self, *nodes: V, move: bool = False) -> None:
+        parent = self._get_parent()
+        graph = self._get_child_graph(parent)
+        for node in nodes:
+            attach_node(node, parent=parent, graph=graph, move=move)
+            if (
+                "block" in self._child_node_cls.__properties__
+                and getattr(node, "block_id") != self._node.id
+            ):
+                node._do_set("block", self._node)
 
     #
     # Querying

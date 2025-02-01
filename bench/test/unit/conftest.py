@@ -202,6 +202,9 @@ async def run_dynamic_simulation(spec: SimulationSpec):
         gc.collect()
 
 
+# TODO :Test :Performance: re-use simulated resources (like databases?)
+
+
 def simulated_runtime(
     network: NetworkSpec | None = None,
     users: tuple[UserSpec, ...] = (),
