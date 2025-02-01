@@ -35,7 +35,7 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](Workload[SpecT]):
     @override
     @final
     async def prepare(self):
-        self.bench_id: UUID = self.simulation.resolve_bench_id(self.spec.bench)
+        self.bench_id: UUID = self.simulation.get_bench_id(self.spec.bench)
         self.client: ClientHandle = self.simulation.get_client(self.spec.client)
         self.host: HostHandle = self.simulation.get_host(self.spec.bench)
         self.session: Session = await make_remote_session(

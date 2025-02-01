@@ -549,7 +549,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             if self.metatype in parent._graph.node_types:
                 self._graph = parent._graph
             else:
-                # nocheckin :Cleanup: where are we going to prune all the :IsolatedGraphs?
+                # nocheckin :Cleanup: prune all the :IsolatedGraphs somewhere?
                 # have parent graph but it's not the right one :IsolatedGraph
                 self._graph = NodeGraph(
                     scope=parent._graph.scope,

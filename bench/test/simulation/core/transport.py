@@ -83,12 +83,14 @@ class SimulatedChannel:
 
     def __init__(
         self,
+        services: IServable | Collection[IServable],
         *,
-        services: Collection["IServable"],
         oracle: Oracle,
         latency_min: float = 0.0,
         latency_mean: float = 0.0,
     ) -> None:
+        if not isinstance(services, Collection):
+            services = (services,)
         self._services = services
         self._oracle = oracle
         self._latency_min = latency_min
