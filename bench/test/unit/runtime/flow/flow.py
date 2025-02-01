@@ -641,8 +641,8 @@ async def test_run_flow_create_action_dynamic(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_clone_action(runtime: RuntimeLambdaWorkload):
-    """Run a CloneAction to clone a Record."""
+async def test_run_flow_duplicate_action(runtime: RuntimeLambdaWorkload):
+    """Run a DuplicateAction to clone a Record."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=(Field.member("Rating", int),))
     Record1 = Database1.records.create(Rating=1)
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
@@ -1067,6 +1067,7 @@ async def test_run_flow_yield_cancelled(runtime: RuntimeLambdaWorkload):
     assert runner.error and runner.error.type == ErrorType.INTERRUPTION_CANCELLED
 
 
+@simulated_runtime()
 async def test_run_flow_breakpoint(runtime: RuntimeLambdaWorkload):
     """Run a Flow with breakpoints all over. Should yield and resume properly."""
     Flow = Block.new(

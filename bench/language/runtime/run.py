@@ -454,6 +454,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     def get_runs(self, runnable: "RunnableNode", recursive: bool = True) -> list["Run"]:
         """Find all Runs of a Node in this Run."""
         matching_runs: list[Run] = []
+        if self.base_ck == runnable.ck:
+            matching_runs.append(self)
         for run in self._graph.get_descendants(self, NodeType.RUN, recursive=recursive):
             run = cast(Run, run)
             if run.base_ck == runnable.ck:

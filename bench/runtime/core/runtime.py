@@ -643,7 +643,6 @@ class Runtime:
             # reset active run
             self._active_runner.reset(active_runner_token)
             # update from last attempt
-            last_attempt = runner.current_attempt
             assert last_attempt is not None, f"missing last attempt for run {runner!r}"
             # breakpoint after
             if last_attempt.status.is_terminal:
