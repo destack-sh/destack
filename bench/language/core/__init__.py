@@ -47,6 +47,7 @@ from .connection import (
     WatchSearchUpdate,
     WatchSearchUpdateData,
     WritableChannel,
+    connection_capture,
     scope_includes,
 )
 from .const import (
@@ -590,6 +591,7 @@ __all__ = [
     "coerce_conditional",
     "coerce_custom_object_scalar",
     "coerce_value",
+    "connection_capture",
     "constraint",
     "decode_b64vlq",
     "decode_type_identity",

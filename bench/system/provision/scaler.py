@@ -11,14 +11,16 @@ from bench.language import (
     Browser,
     DynamicResource,
     Machine,
+    NodeGraph,
     NodeType,
     Resource,
     ResourceStatus,
     Scaler,
     ScalerType,
+    Session,
+    bittuple,
+    connection_capture,
 )
-from bench.language.core import bittuple
-from bench.language.core.connection import connection_capture
 from bench.system.host import Commit, Host
 from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
@@ -77,7 +79,7 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
             return
 
         # reconcile
-        async with self.host.session(commit=True):
+        async with self.host.session(commit=True) as session:
             for scaler in scalers:
                 resource_group = resources_by_scalar.get(scaler.id) or ()
                 if not scaler.is_extant:
@@ -86,9 +88,9 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
                         resource.decommission()
                 elif scaler.is_active:
                     # rebalance resource group
-                    self._rebalance(scaler, resource_group)
+                    self._rebalance(session, scaler, resource_group)
 
-    def _rebalance(self, scaler: Scaler, resource_group: Sequence[WT]) -> None:
+    def _rebalance(self, session: Session, scaler: Scaler, resource_group: Sequence[WT]) -> None:
         """Rebalance a Scaler's (dynamic) Resource group."""
         added: list[WT] = []
         removed: list[WT] = []
@@ -99,10 +101,15 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
                 removed.append(resource)
         elif len(resource_group) < scaler.target_count:
             # provision missing resources
+            graph = NodeGraph(  # in isolated graph
+                scope=self.bench._graph.scope,
+                node_types=(self.scale_type,),
+                supergraph=self.bench._supergraph,
+            )
             for _ in range(scaler.target_count - len(resource_group)):
                 resource_kwargs: dict[str, Any] = {"scaler": scaler, "name": generate_random_name()}
-                resource = cast(WT, self._resource_cls(**resource_kwargs))
-                self.bench.append(resource)
+                resource = cast(WT, self._resource_cls(**resource_kwargs, _graph=graph))
+                session._create(resource)
                 added.append(resource)
         if added or removed:
             logger.info(
