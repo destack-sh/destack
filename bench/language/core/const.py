@@ -219,7 +219,9 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
         return bool(self.bits[item.ord])
 
     def __contains__(self, item: Any) -> bool:
-        assert isinstance(item, self.enum_cls), f"want {self.enum_cls}, got {item!r} ({type(item)})"
+        if type(item) is int:
+            item = self.enum_cls(item)
+        assert type(item) is self.enum_cls, f"want {self.enum_cls}, got {item!r} ({type(item)})"
         return bool(self.bits[item.ord])
 
     def __and__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":

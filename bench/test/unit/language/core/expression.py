@@ -46,7 +46,7 @@ def test_evaluate_conditional_property_node(session: Session, package: Package):
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
     page = package.blocks.append(Block.new(BlockType.PAGE, "Page"))
     page.actions.append(Code1)
-    Run1 = create_run_from_node(Code1)
+    Run1 = create_run_from_node(Code1, isolate=True)
 
     cond = Run.get_property("block").is_equal(page)
     assert evaluate_conditional(cond, Run1) is True

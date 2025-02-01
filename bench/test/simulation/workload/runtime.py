@@ -14,7 +14,9 @@ from bench.language import (
     RunnableNode,
     Session,
 )
+from bench.language.runtime.run import RunOptions
 from bench.runtime import MemoryCache, Runner, Runtime
+from bench.runtime.core.runner import create_run_from_node
 from bench.test.simulation.core import ClientHandle, HostHandle, make_remote_session
 
 from .spec import WorkloadSpec, WorkloadType
@@ -115,11 +117,22 @@ class RuntimeLambdaWorkload(RuntimeWorkload[RuntimeLambdaWorkloadSpec]):
         *,
         variables: Any | None = None,
         inputs: Any | None = None,
+        options: RunOptions | None = None,
         mode: NodeMode | None = None,
         return_error: bool = False,
     ) -> Runner:
-        runner = await self.runtime.run(
-            run, variables=variables, inputs=inputs, mode=mode, return_error=return_error
-        )
+        """Run something in the Runtime."""
+        if not isinstance(run, Run):
+            run = create_run_from_node(
+                run,
+                isolate=True,
+                variables=variables,
+                inputs=inputs,
+                options=options,
+                mode=mode,
+                parent=self.bench,
+                session=self.session,
+            )
+        runner = await self.runtime.run(run, return_error=return_error)
         assert runner is not None, f"no runner for {run!r}"
         return runner

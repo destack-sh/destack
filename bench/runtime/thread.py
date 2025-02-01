@@ -17,6 +17,7 @@ from bench.language import (
     Run,
     WatchGetUpdate,
 )
+from bench.language.core.const import RUNTIME_NODE_TYPES
 from bench.pb2 import (
     RunRequest,
     RunResponse,
@@ -62,7 +63,7 @@ class RunHandle:
         return self.root.id in self.thread._active_runs
 
     def run(self, runs_to_resume: Collection[Run] = ()) -> None:
-        """Runs the handle if it should be but isn't."""
+        """Runs the handle if it should be running but isn't."""
         if self.root.status.is_terminal:
             return  # nothing to run anymore
         if self.task is None or self.task.done():
@@ -74,7 +75,7 @@ class RunHandle:
             logger.debug("thread.run.resume", runs=runs_to_resume)
 
     def on_update(self, connection: GetConnection, update: WatchGetUpdate):
-        """React to updates on Runs/Interrupts :SupergraphWatch."""
+        """React to updates on Runs/Interruptions :SupergraphWatch."""
         runs_to_resume: set[Run] = set()
         for node in update.updated.values():
             # react to Run/Interruption updates in Runtime
@@ -240,6 +241,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                         run = await Run.include_descendants(
                             NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION
                         ).get(run_ptr, live=True)
+                        run._graph.add_types(*RUNTIME_NODE_TYPES)
                     assert run.bench_id == self._bench_id, f"{run!r} is not in {self!r}"
                     assert run.root_ptr is None, f"{run!r} is not a root Run"
                     assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"

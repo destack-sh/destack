@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, final
 
 from bench.language import Bench, Client, ClientType, Machine, ResourceStatus
+from bench.language.core.const import NodeType
 from bench.pb2.lang_pb2 import ClientData, MachineData
 from bench.system import ACCESS_TOKEN_LENGTH
 from bench.utils.func import generate_access_token
@@ -54,6 +55,7 @@ class MachineHandle:
         async with session:
             # create machine and client
             bench = await Bench.select_all().get(slug=self.spec.bench)
+            bench._graph.add_types(NodeType.MACHINE, NodeType.CLIENT)
             machine = Machine(parent=bench, name=self.spec.name, status=ResourceStatus.UP)
             session._create(machine)
             client = Client(

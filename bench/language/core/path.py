@@ -764,12 +764,13 @@ def evaluate_path(
         elif element.type == PathElementType.CONTEXT:
             current = context
         elif element.type == PathElementType.RUN:
-            runtime = context.active_session.runtime
+            from bench.language import Run
+
+            if not isinstance(context, Run) or not isinstance(current, Node):
+                raise PathLogicError(f"cannot get run of {context!r} in {path!r}")
             run_selector = element.run or PathRunSelector.LATEST
-            if not isinstance(current, Node):
-                raise PathLogicError(f"cannot get run of {current!r} in {path!r}")
             if run_selector == PathRunSelector.LATEST:
-                current = runtime.get_latest_run(cast("RunnableNode", current))
+                current = context.get_latest_run(cast("RunnableNode", current))
             else:
                 assert_never(run_selector)
         else:

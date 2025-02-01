@@ -948,7 +948,7 @@ async def test_run_flow_abort(runtime: RuntimeLambdaWorkload):
     runtime.page().blocks.append(Flow)
     await runtime.commit()
 
-    run = create_run_from_node(Flow)
+    run = create_run_from_node(Flow, isolate=True)
     run_task = asyncio.create_task(runtime.run_in_runtime(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)
@@ -1103,7 +1103,7 @@ async def test_run_flow_breakpoint(runtime: RuntimeLambdaWorkload):
     await runtime.commit()
 
     # check that all yield points are hit in order
-    run = create_run_from_node(Flow)
+    run = create_run_from_node(Flow, isolate=True)
     runner = None
     for yield_point in (
         Start,
