@@ -57,6 +57,7 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
             global_store=self.simulation.global_store,
             regional_store=self.simulation.regional_store,
             oracle=self.oracle,
+            on_error=self.simulation.on_error,
         )
         await service.start()
         return service

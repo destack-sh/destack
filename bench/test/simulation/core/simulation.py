@@ -66,7 +66,7 @@ class Simulation:
         self.tasks = TaskManager(
             owner=self, logger=logger, oracle=self.oracle, on_error=self.on_error
         )
-        self.errors: list[Exception] = []
+        self.errors: list[BaseException] = []
         self.has_error = asyncio.Event()
 
         # content
@@ -144,8 +144,8 @@ class Simulation:
             self.workloads_by_group[workload_spec.group].append(workload)
         return workload
 
-    def on_error(self, error: Exception):
-        logger.error("simulation.error", simulation=self, exc_infoerror=error)
+    def on_error(self, error: BaseException):
+        logger.error("simulation.error", simulation=self, exc_info=error)
         self.errors.append(error)
         self.has_error.set()
 

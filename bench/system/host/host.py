@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from itertools import chain
-from typing import Any, Literal, Mapping, Sequence, override
+from typing import Any, Callable, Literal, Mapping, Sequence, override
 from uuid import UUID
 
 import structlog
@@ -116,7 +116,14 @@ class HostService(GraphIoServiceBase, Host, HostBase):
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
-    def __init__(self, bench_id: UUID, global_store: Store, regional_store: Store, oracle: Oracle):
+    def __init__(
+        self,
+        bench_id: UUID,
+        global_store: Store,
+        regional_store: Store,
+        oracle: Oracle,
+        on_error: Callable[[BaseException], None] | None = None,
+    ):
         GraphIoServiceBase.__init__(
             self,
             bench_id=bench_id,
@@ -149,12 +156,11 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         self._regional_pg_engine: PostgresEngine | None = None
         self._local_pg_engine: PostgresEngine | None = None
         self._engines: tuple[Engine, ...] = ()
-
-        # processing
         self._local_epoch = 0
         self._session: Session | None = None
         self._provisioners: tuple[Provisioner, ...] = ()
         self._plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
+        self._on_error = on_error
 
     def __str__(self):
         return f"{self._bench or self.bench_id}"
@@ -178,8 +184,9 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         return self._main_package
 
     @override
-    def on_error(self, source: HostPlugin, error: Exception) -> None:
-        pass  # error is already reported, we just keep running?
+    def on_error(self, source: HostPlugin, error: BaseException) -> None:
+        if self._on_error is not None:
+            self._on_error(error)
 
     @property
     def graphs(self) -> tuple[NodeGraph, ...]:
