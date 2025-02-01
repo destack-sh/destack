@@ -1163,6 +1163,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                     node_types=(child.metatype,),
                     supergraph=self._supergraph,
                 )
+                self._supergraph.add_graph(graph)
             attach_node(child, self, move=move, graph=graph)
         else:
             raise ValueError(f"cannot append {child!r} to {self!r}")

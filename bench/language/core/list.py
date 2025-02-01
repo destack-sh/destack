@@ -147,6 +147,7 @@ class NodeList[V: Node](abc.ABC):
                 node_types=(self._child_node_type,),
                 supergraph=parent._supergraph,
             )
+            graph.supergraph.add_graph(graph)
             return graph
 
     def create(self, **kwargs) -> V:

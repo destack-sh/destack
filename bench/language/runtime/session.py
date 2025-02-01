@@ -53,6 +53,7 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
+from bench.language.registry import DESCENDANT_NODE_TYPES
 from bench.pb2 import (
     ClientOriginData,
     ContextData,
@@ -706,6 +707,10 @@ class Session(RuntimeNode[SessionData]):
 
     def _make_pending_graph(self) -> NodeGraph:
         node_types = {node.metatype for node in self._pending_nodes_by_id.values()}
+        descendant_node_types = set()  # include descendants for cascading edits
+        for node_type in node_types:
+            descendant_node_types.update(DESCENDANT_NODE_TYPES[node_type])
+        node_types = node_types | descendant_node_types
         graph = NodeGraph(
             scope=self._default_scope,
             node_types=bittuple(*node_types, enum_cls=NodeType),
