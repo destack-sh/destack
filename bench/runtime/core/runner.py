@@ -54,6 +54,8 @@ from bench.language import (
     active_session,
     get_tracing_context,
 )
+from bench.language.core.const import RUNTIME_NODE_TYPES
+from bench.language.core.graph import NodeGraph
 
 from .error import InterruptionCancelledError, RunImpossibleError
 from .options import BASE_RUN_OPTIONS_BY_KIND
@@ -564,6 +566,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
 def create_run_from_node(
     node: "RunnableNode",
     *,
+    isolate: bool,
     variables: Any | None = None,
     inputs: Any | None = None,
     options: RunOptions | None = None,
@@ -596,15 +599,26 @@ def create_run_from_node(
     else:
         assert_never(node)
 
+    # graph
+    parent = parent or node.bench
+    assert parent is not None, f"no parent for {node!r}"
+    if isolate:  # new graph for isolated run
+        graph = NodeGraph(
+            scope=parent._graph.scope, node_types=RUNTIME_NODE_TYPES, supergraph=session._supergraph
+        )
+    else:
+        graph = parent._graph
+
     # build run
     tracing = get_tracing_context()
     run = Run(
-        parent=parent or node.bench,
+        parent=parent,
         type=kind,
         block=block,
         action=action,
         pipe=pipe,
         mode=mode or tracing.mode,
+        _graph=graph,
         _skip_validate_self=True,
     )
 

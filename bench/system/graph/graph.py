@@ -259,6 +259,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             _supergraph=supergraph,
             _split_read=self.split_reads,
             _oracle=self.oracle,
+            _skip_add_self=True,
         )
 
     def _parse_commit(

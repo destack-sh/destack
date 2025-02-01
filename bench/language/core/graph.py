@@ -16,7 +16,7 @@ from opentelemetry import trace
 
 from bench.pb2 import AnyNodeData, GraphScopeData
 
-from .const import EMPTY_LIST, NodeType, ObjectType, bittuple
+from .const import EMPTY_LIST, SOURCE_NODE_TYPES, NodeType, ObjectType, bittuple
 
 if TYPE_CHECKING:
     from bench.language import Node, NodeReference
@@ -98,6 +98,11 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         """Number of nodes in the graph"""
         return len(self._nodes_by_id)
 
+    def add_types(self, *node_types: NodeType):
+        """Adds more node types to the graph"""
+        # NOTE :Architecture: manually tracking which types go in which graph seems unwieldy
+        self.node_types |= bittuple(*node_types)
+
     def get(self, node_key: K) -> Optional[V]:
         """Gets a node by id"""
         assert isinstance(node_key, self.key_type), f"expected str, got {node_key!r}"
@@ -106,7 +111,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
             return node
         return self._nodes_by_ck.get(node_key)
 
-    def get_or_fail(self, node_key: K) -> V:
+    def get_or_error(self, node_key: K) -> V:
         """Gets a node by id, raising an error if not found"""
         node = self.get(node_key)
         if node is None:
@@ -136,7 +141,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
     def _get_parent_ptr(self, node: V) -> "NodeReferenceData | NodeReference | None": ...
 
     def _reindex(self):
-        """Discoard and rebuild all indexes (useful if node identities change for internally)."""
+        """Discoard and rebuild all indexes (internal use when node identities change)."""
         nodes = tuple(self._nodes_by_id.values())
         self.clear()
         for node in nodes:
@@ -147,14 +152,15 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         assert isinstance(
             node.id, self.key_type
         ), f"cannot add {node!r} with id {node.id!r} in {self!r}"
+        assert node.metatype in self.node_types, f"{node!r} does not belong in in {self!r}"
         if node.id in self._nodes_by_id:
             existing = self._nodes_by_id[node.id]
             raise GraphConsistencyError(
                 f"node {node!r} (id={node.id}) already exists in {self!r}: {existing!r} (id={existing.id})"
             )
         self._nodes_by_id[node.id] = node
-        if hasattr(node, "ck"):
-            self._nodes_by_ck[getattr(node, "ck")] = node
+        if node.metatype in SOURCE_NODE_TYPES and (ck := getattr(node, "ck")):
+            self._nodes_by_ck[ck] = node
         if self._get_parent_ptr(node) is not None:
             self._add_to_parent(node)
 
@@ -344,7 +350,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
     # utilities
 
-    __getitem__ = get_or_fail
+    __getitem__ = get_or_error
 
     def __contains__(self, item: K):
         return self.get(item) is not None
@@ -443,7 +449,7 @@ class NodeSuperGraph:
     @property
     def root(self) -> "Node":
         assert self._root_ptr is not None, f"{self!r} has no root"
-        return self.get_or_fail(self._root_ptr)
+        return self.get_or_error(self._root_ptr)
 
     def add_graph(self, graph: NodeGraph):
         """Add a graph to this supergraph."""
@@ -489,14 +495,18 @@ class NodeSuperGraph:
                     return node
             return None
 
-    def get_or_fail(self, ptr: "UUID | NodeReference") -> "Node":
+    def get_or_error(self, ptr: "UUID | NodeReference") -> "Node":
         """Get a node by some key (error if not exists)."""
         node = self.get(ptr)
         if node is None:
             raise KeyError(f"node {ptr!r} not found in {self!r}")
         return node
 
-    __getitem__ = get_or_fail
+    def get_graphs(self, node_type: NodeType) -> tuple[NodeGraph, ...]:
+        """Get all graphs that have a certain node type."""
+        return self._graphs_by_node_type.get(node_type, ())
+
+    __getitem__ = get_or_error
 
     def __contains__(self, ptr: "UUID | NodeReference") -> bool:
         return self.get(ptr) is not None

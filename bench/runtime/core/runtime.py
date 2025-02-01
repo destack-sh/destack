@@ -37,8 +37,6 @@ from bench.language import (
     Resource,
     ResourceStatus,
     Run,
-    RunnableNode,
-    RunOptions,
     RunSpanType,
     RunStatus,
     Session,
@@ -55,6 +53,7 @@ from bench.language import (
     run_span,
     to_type_scalar,
 )
+from bench.language.core.const import RUNTIME_NODE_TYPES
 from bench.language.runtime.run import RunSpan
 from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
 from bench.utils.func import group_by
@@ -69,7 +68,6 @@ from .runner import (
     RunnerCompletedEvent,
     RunnerFailedEvent,
     RunnerInterruptedEvent,
-    create_run_from_node,
     restore_runner,
 )
 
@@ -113,6 +111,7 @@ class Runtime:
         assert session.bench is not None, f"{session!r} is not attached"
         assert session.bench is not None, f"{session!r} is not attached"
         self.session = session
+        self.session._graph.add_types(*RUNTIME_NODE_TYPES)
         self.session_ptr = session.to_ref()
         self.bench = session.bench
         self.cache = cache
@@ -151,24 +150,6 @@ class Runtime:
     def active_mode(self) -> NodeMode:
         runner = self._active_runner.get(None)
         return runner.mode if runner else self.session.mode
-
-    def get_runs(self, runnable: RunnableNode) -> list[Run]:
-        """Find all Runs of a Node in this Runtime."""
-        matching_runs: list[Run] = []
-        for graph in self.session._supergraph._graphs_by_node_type.get(NodeType.RUN, ()):
-            for node in graph.nodes:
-                if type(node) is Run and node.base == runnable:
-                    matching_runs.append(node)
-        matching_runs.sort(
-            key=lambda r: r.terminated_at or r.interrupted_at or r.started_at or r.created_at,
-            reverse=True,
-        )
-        return matching_runs
-
-    def get_latest_run(self, runnable: RunnableNode) -> Run | None:
-        """Find the latest Run of a Node in this Runtime."""
-        matching_runs = self.get_runs(runnable)
-        return matching_runs[0] if matching_runs else None
 
     def _evaluate_computed_value(self, runner: Runner, computed_value: ComputedValue):
         """Evaluates the ComputedValue in/to the Run/Runner."""
@@ -506,8 +487,8 @@ class Runtime:
         # nocheckin: load remote Nodes when preparing Run
         #  (Resources, File, Records, Messages, ...)
 
-        # compute variables/inputs/options from context (on initial attempt)
-        # init variables/inputs from node
+        # compute variables/inputs/options from context
+        # init variables/inputs from action
         if isinstance(runner.node, Action):
             if runner.variables is not None and runner.node.variables_packed is not None:
                 runner.variables.set_default(runner.node.variables, _skip_validate=True)
@@ -710,9 +691,8 @@ class Runtime:
             if span.started_at is None:
                 span.started_at = self.oracle.utc()
             span.status = RunStatus.RUNNING
-
-            # commit intermediate session edits
             self.session.commit_optimistic()
+
             # actually attempt Run
             try:
                 assert (
@@ -811,28 +791,14 @@ class Runtime:
 
     async def run(
         self,
-        run: Run | RunnableNode,
+        run: Run,
         *,
-        variables: Any | None = None,
-        inputs: Any | None = None,
-        options: RunOptions | None = None,
-        mode: NodeMode | None = None,
         return_error: bool = False,
         optimistic: bool = False,
     ) -> Runner | None:
         """Start or resume a top-level Run in this Runtime until termination/interruption."""
         runner = None
         async with self.session.active():
-            if not isinstance(run, Run):
-                run = create_run_from_node(
-                    run,
-                    variables=variables,
-                    inputs=inputs,
-                    options=options,
-                    mode=mode,
-                    parent=self.active_run,
-                    session=self.session,
-                )
             try:
                 runner = restore_runner(runtime=self, run=run)
                 await self.run_runner(runner)

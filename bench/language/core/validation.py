@@ -48,16 +48,6 @@ def on_invalid_raise(value: Any, message: Optional[str], site: ValidationSite | 
 
 
 @dataclass(slots=True)
-class ValidationCollector:
-    """Collects all validation errors."""
-
-    errors: list[ValidationError] = dataclasses.field(default_factory=list)
-
-    def __call__(self, value: Any, message: Optional[str], site: ValidationSite | None):
-        self.errors.append(ValidationError(value, message, site))
-
-
-@dataclass(slots=True)
 class TypeConstraintIn:
     """A mini-TypeConstraint so we can define constraints without having to import :TypeConstraint."""
 

@@ -163,7 +163,7 @@ async def test_run_code_invalid_inputs(runtime: RuntimeLambdaWorkload):
     runtime.page().actions.append(Code1)
     await runtime.commit()
 
-    run = create_run_from_node(Code1)
+    run = create_run_from_node(Code1, isolate=True)
     runner = await runtime.run_in_runtime(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert len(runner.attempts) == 0
@@ -183,7 +183,7 @@ async def test_run_code_invalid_outputs(runtime: RuntimeLambdaWorkload):
     runtime.page().actions.append(Code1)
     await runtime.commit()
 
-    run = create_run_from_node(Code1)
+    run = create_run_from_node(Code1, isolate=True)
     runner = await runtime.run_in_runtime(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
@@ -439,7 +439,7 @@ async def test_run_code_abort(runtime: RuntimeLambdaWorkload):
     runtime.page().actions.append(CodeBlock)
     await runtime.commit()
 
-    run = create_run_from_node(CodeBlock)
+    run = create_run_from_node(CodeBlock, isolate=True)
     run_task = asyncio.create_task(runtime.run_in_runtime(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)

@@ -87,7 +87,7 @@ class ClientCache:
         """Checks if a Client is cached."""
         return client_id in self._cache
 
-    async def get_or_error(self, client_id: UUID, client_access_token: str) -> Client:
+    async def get_and_check(self, client_id: UUID, client_access_token: str) -> Client:
         """Gets a valid Client by ID with a matching access token."""
         # get client
         client = self._cache.get(client_id)
@@ -98,10 +98,13 @@ class ClientCache:
                 self._locks[client_id] = lock
             async with lock:
                 client = self._cache.get(client_id)
-                if client is None:
+                if client is None:  # move Node graph to our own graph
                     client = await _do_get_client(client_id)
-                    assert client.parent is not None, f"no parent for {client!r}"
-                    client.parent._move_to_graph(self._client_graph, force=True)
+                    parent_id = client.parent_id
+                    assert parent_id is not None, f"no parent for {client!r}"
+                    parent = client._graph.get(parent_id)
+                    assert parent is not None, f"no parent for {client!r}"
+                    parent._move_to_graph(self._client_graph, force=True)
                     self._cache[client_id] = client
         # check access
         if client.access_token != client_access_token:

@@ -244,12 +244,12 @@ class HostService(GraphIoServiceBase, Host, HostBase):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "missing client type")
             client_id = UUID(metadata.client_id)
             if self._client_cache.has(client_id):
-                client = await self._client_cache.get_or_error(
+                client = await self._client_cache.get_and_check(
                     client_id, metadata.client_access_token
                 )
             else:
                 async with self.global_session():
-                    client = await self._client_cache.get_or_error(
+                    client = await self._client_cache.get_and_check(
                         client_id, metadata.client_access_token
                     )
             if isinstance(client.parent, User):
@@ -383,6 +383,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             _supergraph=self._bench._supergraph,
             _split_read=True,
             _oracle=self.oracle,
+            _skip_add_self=True,
         )
         self._bench._track_rec(self._session)
         self._main_package._track_rec(self._session)

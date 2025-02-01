@@ -89,7 +89,6 @@ def make_example_bench() -> tuple[Bench, Package, Session, User]:
     graph = NodeGraph(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES, supergraph=supergraph)
     now = datetime.now(tz=pytz.utc)
     session = Session(
-        parent=None,
         _default_scope=EMPTY_SCOPE_DATA,
         _engines=(NullEngine(name="fake", scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES),),
         _local_epoch=0,

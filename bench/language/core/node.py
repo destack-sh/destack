@@ -502,6 +502,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     _connection: "GetConnection | SearchConnection" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
 
+    if TYPE_CHECKING:
+        _skip_add_self: bool = False
+
     def __init__(
         self, *, _skip_add_self: bool = False, _skip_validate_self: bool = False, **kwargs
     ):
@@ -547,7 +550,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         else:
             # no parent, create our own graph
             # if we're not in a graph, start a new one
-            # NOTE :Cleanup: NodeGraph definition "depends on itself", causing pyright errors
             graph = NodeGraph(  # type: ignore
                 scope=EMPTY_SCOPE_DATA,
                 node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype].tuple),
@@ -563,8 +565,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             assert prop.reference_list_type is not None
             node_list = prop.reference_list_type(self, prop)
             self.__dict__[name] = node_list
-            existing = kwargs.get(name, UNSET)
-            if existing is not UNSET:
+            if (existing := kwargs.get(name, UNSET)) is not UNSET:
                 node_list.extend(*existing)
 
         # parse extraneous kwargs

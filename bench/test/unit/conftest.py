@@ -77,7 +77,6 @@ def create_omni_session(omni_store: Store, oracle: Oracle):
 
     omni_pg_engine = pg_engine_from_store(name="pg-omni", store=omni_store, area=None)
     session = Session(
-        parent=None,
         _default_scope=EMPTY_SCOPE_DATA,
         _engines=(omni_pg_engine,),
         _local_epoch=0,

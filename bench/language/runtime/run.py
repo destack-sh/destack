@@ -452,13 +452,22 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         return False
 
     def get_runs(self, runnable: "RunnableNode", recursive: bool = True) -> list["Run"]:
-        """Find all Runs of a Node in this Runtime."""
+        """Find all Runs of a Node in this Run."""
         matching_runs: list[Run] = []
         for run in self._graph.get_descendants(self, NodeType.RUN, recursive=recursive):
             run = cast(Run, run)
             if run.base_ck == runnable.ck:
                 matching_runs.append(run)
+        matching_runs.sort(
+            key=lambda r: r.terminated_at or r.started_at or r.created_at,
+            reverse=True,
+        )
         return matching_runs
+
+    def get_latest_run(self, runnable: "RunnableNode") -> "Run | None":
+        """Find the latest Run of a Node in this Run."""
+        matching_runs = self.get_runs(runnable)
+        return matching_runs[0] if matching_runs else None
 
     def pause(self):
         """Mark this Run as paused."""

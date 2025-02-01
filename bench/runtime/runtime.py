@@ -93,7 +93,7 @@ class RuntimeThreadHandle:
         if self.mode == RuntimeThreadMode.LOCAL:
             # run directly
             assert self.service._host is not None, f"no host for {self!r}"
-            self._client = self._thread = RuntimeThread(
+            self._thread = RuntimeThread(
                 id=self.id,
                 bench_id=self.service._bench_id,
                 supervisor_url=self.service._supervisor_url,
@@ -104,6 +104,7 @@ class RuntimeThreadHandle:
                 oracle=self.service.oracle,
                 mode=self.service._mode,
             )
+            self._client = self._thread
             await self._thread.start()
         elif self.mode == RuntimeThreadMode.PROCESS:
             # run subprocess
@@ -316,7 +317,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                 elif isinstance(run.thread.client, RuntimeClient):
                     _ = await run.thread.client.run(request)
                 else:
-                    raise RuntimeError(f"unexpected : {type(run.thread.client)}")
+                    assert_never(run.thread.client)
                 extra_healthcheck.cancel()  # no longer needed
                 logger.info("runtime.run", thread=run.thread, run=run.run_ptr, span="current")
             except Exception as e:
