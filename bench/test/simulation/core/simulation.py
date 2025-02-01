@@ -10,6 +10,7 @@ from opentelemetry import trace
 from bench.language import NodeArea, Store
 from bench.proto import SupervisorClient
 from bench.system import StoreMap, pg_engine_from_store
+from bench.test.simulation.core.bench import BenchHandle
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.task import TaskManager
 
@@ -18,7 +19,7 @@ from .host import HostHandle
 from .machine import MachineHandle
 from .network import Network
 from .oracle import SimulatedEventLoop, SimulatedOracle
-from .spec import ClientSpec, HostSpec, MachineSpec, SimulationSpec, UserSpec
+from .spec import BenchSpec, ClientSpec, HostSpec, MachineSpec, SimulationSpec, UserSpec
 from .supervisor import SupervisorHandle
 from .transport import SimulatedChannel
 from .user import UserHandle
@@ -71,6 +72,7 @@ class Simulation:
 
         # content
         self.supervisor = SupervisorHandle("supervisor", spec.supervisor, self.oracle, self)
+        self.benches_by_name: dict[str, BenchHandle] = {}
         self.hosts_by_name: dict[str, HostHandle] = {}
         self.users_by_name: dict[str, UserHandle] = {}
         self.machines_by_name: dict[str, MachineHandle] = {}
@@ -108,6 +110,13 @@ class Simulation:
         ), f"{self!r} has no client: '{name}' (available: {list(self.clients_by_name)})"
         return client
 
+    def get_bench(self, name: str) -> "BenchHandle":
+        bench = self.benches_by_name.get(name)
+        assert (
+            bench is not None
+        ), f"{self!r} has no bench: '{name}' (available: {list(self.benches_by_name)})"
+        return bench
+
     def get_host(self, name: str) -> "HostHandle":
         host = self.hosts_by_name.get(name)
         assert (
@@ -121,10 +130,12 @@ class Simulation:
         return self.workloads_by_group[name]
 
     def get_bench_id(self, name: str) -> UUID:
-        host = self.get_host(name)
-        return host.bench_id
+        bench = self.get_bench(name)
+        return bench.bench_id
 
-    def init(self):
+    def prepare(self):
+        """Initialize the simulation from ths spec."""
+
         def add_user(user_spec: UserSpec) -> UserHandle:
             """Add a User to the simulation."""
             if user_spec.name in self.users_by_name:
@@ -137,7 +148,7 @@ class Simulation:
             """Add a Machine to the simulation."""
             if machine_spec.name in self.machines_by_name:
                 raise ValueError(f"duplicate machine name: {machine_spec.name} in {self!r}")
-            machine = MachineHandle(machine_spec, self)
+            machine = MachineHandle(machine_spec.name, machine_spec, self.oracle, self)
             self.machines_by_name[machine_spec.name] = machine
             return machine
 
@@ -156,12 +167,20 @@ class Simulation:
             parent.clients_by_name[client_spec.name] = client
             return client
 
+        def add_bench(bench_spec: BenchSpec) -> BenchHandle:
+            """Add a Bench to the simulation."""
+            if bench_spec.name in self.benches_by_name:
+                raise ValueError(f"duplicate bench name: {bench_spec.name} in {self!r}")
+            bench = BenchHandle(bench_spec, self.oracle, self)
+            self.benches_by_name[bench_spec.name] = bench
+            return bench
+
         def add_host(host_spec: HostSpec) -> HostHandle:
             """Add a Host to the simulation."""
-            if host_spec.bench.name in self.hosts_by_name:
-                raise ValueError(f"duplicate host name: {host_spec.bench.name} in {self!r}")
-            host = HostHandle(host_spec.bench.name, host_spec, self.oracle, self)
-            self.hosts_by_name[host_spec.bench.name] = host
+            if host_spec.bench in self.hosts_by_name:
+                raise ValueError(f"duplicate Host for Bench: {host_spec.bench} in {self!r}")
+            host = HostHandle(host_spec.bench, host_spec, self.oracle, self)
+            self.hosts_by_name[host_spec.bench] = host
             return host
 
         def add_workload(workload_spec: "WorkloadSpec") -> "Workload":
@@ -183,6 +202,8 @@ class Simulation:
         # add everything from spec
         for user in self.spec.users:
             add_user(user)
+        for bench in self.spec.benches:
+            add_bench(bench)
         for machine in self.spec.machines:
             add_machine(machine)
         for client in self.spec.clients:
@@ -195,9 +216,9 @@ class Simulation:
     async def run(self):
         """Run the simulation."""
         # prepare services and such
-        #  (use direct supervisor channel to bootstrap)
         with tracer.start_as_current_span("simulation.prepare"):
-            self.init()
+            self.prepare()
+            # supervisor first (always needed)
             await self.supervisor.start()
             async with SimulatedChannel(
                 self.supervisor.service, oracle=self.oracle
@@ -209,11 +230,11 @@ class Simulation:
                 for client in self.clients_by_name.values():
                     if isinstance(client.parent, UserHandle):
                         await client.prepare(supervisor_client)
-                # prepare hosts (create benches)
-                for host in self.hosts_by_name.values():
-                    user = self.users_by_name.get(host.spec.bench.owner)
-                    assert user is not None, f"{host!r} owner has no clients in {self!r}"
-                    await host.prepare(supervisor_client, user.some_client)
+                # prepare benches
+                for bench in self.benches_by_name.values():
+                    user = self.users_by_name.get(bench.spec.owner)
+                    assert user, f"no user {bench.spec.owner} for {bench!r} in {self!r}"
+                    await bench.prepare(supervisor_client, user.some_client)
                 # prepare machines and their clients
                 for machine in self.machines_by_name.values():
                     await machine.prepare()
@@ -221,7 +242,7 @@ class Simulation:
                     if isinstance(client.parent, MachineHandle):
                         await client.prepare(supervisor_client)
 
-        # start hosts
+        # start services
         await asyncio.gather(*(host.start() for host in self.hosts_by_name.values()))
         # prepare workloads
         await asyncio.gather(*(workload.prepare() for workload in self.workloads))

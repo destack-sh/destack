@@ -1,6 +1,6 @@
 import abc
 import enum
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING
 
 from bench.proto import ServiceBase
 from bench.utils.oracle import Oracle
@@ -38,24 +38,26 @@ class ServiceHandle[SpecT: ServiceSpec, S: ServiceBase, C: object](abc.ABC):
         return self._service
 
     @abc.abstractmethod
-    async def _do_start(self) -> S: ...
+    async def start(self) -> S:
+        """Start the service (and set self._service)."""
+        ...
 
     @abc.abstractmethod
-    async def _make_client(self, channel: SimulatedChannel) -> C: ...
+    async def get_client(self, channel: SimulatedChannel) -> C:
+        """Get a client for the service."""
+        ...
 
     async def connect(self, client: "ClientHandle") -> C:
+        """Connect to the service via a client."""
         channel = await self.simulation.network.connect(client, self)
-        return await self._make_client(channel)
-
-    @final
-    async def start(self):
-        # TODO :Test: degrade, fail & recover services according to spec
-        self._service = await self._do_start()
+        return await self.get_client(channel)
 
     def close(self):
+        """Close the service."""
         if self._service is not None:
             self._service.close()
 
     async def wait_closed(self):
+        """Wait for the service to close."""
         if self._service is not None:
             await self._service.wait_closed()

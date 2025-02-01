@@ -211,6 +211,7 @@ def simulated_runtime(
     machines: tuple[MachineSpec, ...] = (),
     clients: tuple[ClientSpec, ...] = (),
     supervisor: SupervisorSpec | None = None,
+    benches: tuple[BenchSpec, ...] = (),
     hosts: tuple[HostSpec, ...] = (),
     workloads: tuple[WorkloadSpec, ...] = (),
 ):
@@ -222,7 +223,8 @@ def simulated_runtime(
         ClientSpec(name="user-client", parent=("user", "user")),
         ClientSpec(name="user-machine-client", parent=("machine", "user-machine")),
     )
-    hosts = hosts or (HostSpec(bench=BenchSpec(name="user", owner="user")),)
+    benches = benches or (BenchSpec(name="user", owner="user"),)
+    hosts = hosts or (HostSpec(bench="user"),)
 
     def decorator(test_func: Callable[[RuntimeLambdaWorkload], Awaitable[None]]):
         lambda_workload = RuntimeLambdaWorkloadSpec(

@@ -63,7 +63,8 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
         profile=TestProfile.QUICK,
         users=(UserSpec(name="alice"),),
         clients=(ClientSpec(name="alice-1", parent=("user", "alice")),),
-        hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
+        benches=(BenchSpec(name="alice", owner="alice"),),
+        hosts=(HostSpec(bench="alice"),),
     ),
     SimulationSpec(
         name="MultiHostEmpty",
@@ -74,10 +75,8 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
             ClientSpec(name="alice-1", parent=("user", "alice")),
             ClientSpec(name="bob-1", parent=("user", "bob")),
         ),
-        hosts=(
-            HostSpec(bench=BenchSpec(name="alice", owner="alice")),
-            HostSpec(bench=BenchSpec(name="bob", owner="bob")),
-        ),
+        benches=(BenchSpec(name="alice", owner="alice"), BenchSpec(name="bob", owner="bob")),
+        hosts=(HostSpec(bench="alice"), HostSpec(bench="bob")),
     ),
     #
     # Simple
@@ -87,7 +86,8 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
         description="Write a block tree with one client, read with another client",
         users=(UserSpec(name="alice"),),
         clients=(ClientSpec(name="alice-1", parent=("user", "alice")),),
-        hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
+        benches=(BenchSpec(name="alice", owner="alice"),),
+        hosts=(HostSpec(bench="alice"),),
         workloads=(
             WriteBlockTreeSpec(bench="alice", client="alice-1", transactions=10),
             ReadPackageSpec(bench="alice", client="alice-1"),
@@ -102,7 +102,8 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
             ClientSpec(name="alice-2", parent=("user", "alice")),
             ClientSpec(name="alice-3", parent=("user", "alice")),
         ),
-        hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
+        benches=(BenchSpec(name="alice", owner="alice"),),
+        hosts=(HostSpec(bench="alice"),),
         workloads=(
             WriteBlockTreeSpec(
                 bench="alice", client="alice-1", transactions=10, group="alice-0-main"
@@ -120,7 +121,8 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
             ClientSpec(name="alice-1", parent=("user", "alice")),
             ClientSpec(name="alice-2", parent=("user", "alice")),
         ),
-        hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
+        benches=(BenchSpec(name="alice", owner="alice"),),
+        hosts=(HostSpec(bench="alice"),),
         workloads=(
             WriteBlockTreeSpec(bench="alice", client="alice-1", transactions=10),
             WatchLogsSpec(bench="alice", client="alice-1", tail_user="alice", group="alice-0-main"),
