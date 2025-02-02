@@ -28,7 +28,7 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
 
     @override
     async def start(self) -> HostService:
-        service = HostService(
+        self._service = HostService(
             id=self.id,
             bench_id=self.simulation.get_bench_id(self.spec.bench),
             global_store=self.simulation.global_store,
@@ -37,9 +37,8 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
             oracle=self.oracle,
             on_error=self.simulation.on_error,
         )
-        await service.start()
-        self._service = service
-        return service
+        await self._service.start()
+        return self._service
 
     @override
     async def get_client(self, channel: SimulatedChannel) -> HostClient:

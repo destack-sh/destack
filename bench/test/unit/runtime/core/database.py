@@ -9,6 +9,7 @@ from grpclib import GRPCError, Status
 
 from bench.language import Block, BlockType, Field, FileType, PrimitiveType, Text, TypeBase, md
 from bench.language.core.const import TypeKind
+from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
 from bench.utils.string import Casing, to_casing
@@ -54,7 +55,7 @@ class SampleGenerator:
 
 
 @simulated_runtime()
-async def test_create_record_kwargs(runtime: RuntimeLambdaWorkload):  # noqa: RUF029
+async def test_create_record_kwargs(simulation: Simulation, runtime: RuntimeLambdaWorkload):  # noqa: RUF029
     """Create a Record with keyword arguments (into value)."""
     Database1 = Block.new(
         BlockType.DATABASE,
@@ -82,7 +83,7 @@ async def test_create_record_kwargs(runtime: RuntimeLambdaWorkload):  # noqa: RU
 
 
 @simulated_runtime()
-async def test_create_empty_database_block(runtime: RuntimeLambdaWorkload):
+async def test_create_empty_database_block(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a blank database and query it."""
     Database1 = Block.new(BlockType.DATABASE, "Database1")
     runtime.page().blocks.append(Database1)
@@ -101,7 +102,9 @@ async def test_create_empty_database_block(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_create_database_and_records_simultaneously(runtime: RuntimeLambdaWorkload):
+async def test_create_database_and_records_simultaneously(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Create a database and records within it in the same transaction/commit."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
     runtime.page().blocks.append(Database1)
@@ -116,7 +119,7 @@ async def test_create_database_and_records_simultaneously(runtime: RuntimeLambda
 
 
 @simulated_runtime()
-async def test_update_record(runtime: RuntimeLambdaWorkload):
+async def test_update_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Update a record with a simple Field and query it."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
     runtime.page().blocks.append(Database1)
@@ -135,7 +138,7 @@ async def test_update_record(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_update_database_and_record(runtime: RuntimeLambdaWorkload):
+async def test_update_database_and_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Updates a database and records within and across transactions."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Id", int)])
     runtime.page().blocks.append(Database1)
@@ -181,7 +184,7 @@ async def test_update_database_and_record(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_create_record_with_ptrs(runtime: RuntimeLambdaWorkload):
+async def test_create_record_with_ptrs(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Database with pointer fields (scalar and list)."""
     Database1 = Block.new(
         BlockType.DATABASE,
@@ -198,7 +201,7 @@ async def test_create_record_with_ptrs(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_move_database(runtime: RuntimeLambdaWorkload):
+async def test_move_database(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Move a database between parents while creating a Record."""
     # create database in Page1
     Page1 = runtime.page("Page1")
@@ -234,7 +237,7 @@ async def test_move_database(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_delete_restore_database(runtime: RuntimeLambdaWorkload):
+async def test_delete_restore_database(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Delete a database, querying it shouldn't work. Restore, and it should work again."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
     Record1 = Database1.records.create(Name="Record1")
@@ -256,7 +259,7 @@ async def test_delete_restore_database(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_delete_restore_record(runtime: RuntimeLambdaWorkload):
+async def test_delete_restore_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Deleting a Record should remove it from default view, restoring should re-add it."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
     runtime.page().blocks.append(Database1)
@@ -292,7 +295,9 @@ async def test_delete_restore_record(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_delete_restore_database_field(runtime: RuntimeLambdaWorkload):
+async def test_delete_restore_database_field(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Delete and restore a Field in a Database."""
     Field1 = Field.member("Field1", str)
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field1])
@@ -314,7 +319,7 @@ async def test_delete_restore_database_field(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_morph_database_field_type(runtime: RuntimeLambdaWorkload):
+async def test_morph_database_field_type(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """
     Update a Fields type and set/get its values.
     The values belonging to different types should be preserved (should map to different columns).
@@ -357,7 +362,7 @@ async def test_morph_database_field_type(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_record_recursive_reference(runtime: RuntimeLambdaWorkload):
+async def test_record_recursive_reference(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Record with a recursive reference to itself."""
     Database1 = Block.new(BlockType.DATABASE, "Database1")
     Database1.fields.append(Field.member("Record", Database1))
@@ -372,7 +377,7 @@ async def test_record_recursive_reference(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_search_record(runtime: RuntimeLambdaWorkload):
+async def test_search_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Insert, update and query Records with various filters."""
     Database1 = Block.new(
         BlockType.DATABASE,
@@ -417,7 +422,7 @@ async def test_search_record(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_database_isolation(runtime: RuntimeLambdaWorkload):
+async def test_database_isolation(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create two databases and ensure they don't interfere with each other."""
 
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])

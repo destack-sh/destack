@@ -289,7 +289,7 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
         runtime = self._session.runtime
         if runtime and _trigger_runtime:
             runs_to_resume = runtime.get_interrupted_runs(self._graph, self)
-            runtime.resume(*runs_to_resume)
+            runtime.resume_run(*runs_to_resume)
 
     def cancel(self, _trigger_runtime: bool = True) -> None:
         """Mark this Interrupt as cancelled."""
@@ -301,7 +301,7 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
         runtime = self._session.runtime
         if runtime and _trigger_runtime:
             runs_to_resume = runtime.get_interrupted_runs(self._graph, self)
-            runtime.resume(*runs_to_resume)
+            runtime.resume_run(*runs_to_resume)
 
     @staticmethod
     def from_run(

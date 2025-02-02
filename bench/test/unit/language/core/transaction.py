@@ -11,12 +11,13 @@ from bench.language import (
     VariableBlock,
     Vector2,
 )
+from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
 
 
 @simulated_runtime()
-async def test_trace_edits(runtime: RuntimeLambdaWorkload):
+async def test_trace_edits(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Edits to nested objects should be traced correctly."""
     session = runtime.session
     Message1 = Block.new(

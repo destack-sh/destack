@@ -1,11 +1,12 @@
 from bench.language import sync_node
 from bench.language.builtin import make_builtins
+from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
 
 
 @simulated_runtime()
-async def test_sync_builtins(runtime: RuntimeLambdaWorkload) -> None:
+async def test_sync_builtins(simulation: Simulation, runtime: RuntimeLambdaWorkload) -> None:
     """Sync the Builtins page."""
     Builtins = make_builtins(runtime.session)
     sync_node(

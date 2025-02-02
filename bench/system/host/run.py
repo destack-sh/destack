@@ -67,7 +67,7 @@ class RunPlugin(HostPlugin[Run]):
         # queue new operation
         pending_op = PendingRunOperation(run=run, retry=self._retry.new(self.host.oracle))
         self._run_queue.put_nowait(pending_op)
-        logger.trace("scheduler.run.queue", host=self, run=run)
+        logger.trace("run.run.queue", host=self, run=run)
         return pending_op
 
     @override
@@ -85,7 +85,7 @@ class RunPlugin(HostPlugin[Run]):
             ):
                 self._queue_run(run.root or run)
 
-    @tracer.start_as_current_span("scheduler.process_run")
+    @tracer.start_as_current_span("run.process_run")
     @connection_capture("seal")
     async def _process_run(self, op: PendingRunOperation) -> None:
         """Push Runs to relevant Machines."""
@@ -122,10 +122,10 @@ class RunPlugin(HostPlugin[Run]):
                 )
                 request = RunRequest(run_ptr=run._to_ref_data(), is_blocking=False)
                 _ = await runtime.run(request)
-                log.debug("scheduler.run", machine=machine, span="current")
+                log.debug("run.run", machine=machine, span="current")
                 return  # success
             except Exception as e:
-                log.error("scheduler.run.error", machine=machine, error=e)
+                log.error("run.run.error", machine=machine, error=e)
                 op.retry.on_error(e)
                 continue
 
@@ -144,9 +144,7 @@ class RunPlugin(HostPlugin[Run]):
                 if run.started_at is not None:
                     run.duration = run.terminated_at - run.started_at
                 run.error = error
-            log.error(
-                "scheduler.run.failed", machines=available_machines, error=error, span="current"
-            )
+            log.error("run.run.failed", machines=available_machines, error=error, span="current")
         else:
             # retry later
             retry_interval = op.retry.get_wait_interval()
@@ -156,7 +154,7 @@ class RunPlugin(HostPlugin[Run]):
                 callback=lambda: op.is_cancelled or self._run_queue.put_nowait(op),
             )
             log.trace(
-                "scheduler.run.retry",
+                "run.run.retry",
                 machines=available_machines,
                 interval=op.retry.get_wait_interval,
                 retry=op.retry,

@@ -16,12 +16,13 @@ from bench.language import (
     code,
 )
 from bench.runtime import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_RUN, create_run_from_node
+from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
 
 
 @simulated_runtime()
-async def test_run_code_empty(runtime: RuntimeLambdaWorkload):
+async def test_run_code_empty(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Empty Code with optional input/output Fields should work."""
     Code1 = Action.new(
         ActionType.CODE,
@@ -36,7 +37,7 @@ async def test_run_code_empty(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_code_with_syntax_error(runtime: RuntimeLambdaWorkload):
+async def test_run_code_with_syntax_error(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Code Action with a syntax error should re-raise that error (at runtime)."""
     InvalidCode = Action.new(ActionType.CODE, "InvalidCode", code=code("!!invalid!!"))
     runtime.page().actions.append(InvalidCode)
@@ -49,7 +50,7 @@ async def test_run_code_with_syntax_error(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_code_capture_logs(runtime: RuntimeLambdaWorkload):
+async def test_run_code_capture_logs(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """All logging functions should be captured."""
     Logs101 = Action.new(
         ActionType.CODE,
@@ -95,7 +96,9 @@ panic('panic1')
 
 
 @simulated_runtime()
-async def test_run_code_capture_logs_on_error(runtime: RuntimeLambdaWorkload):
+async def test_run_code_capture_logs_on_error(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Logs should also be captured if the code raises an error."""
     Logs102 = Action.new(
         ActionType.CODE,
@@ -118,7 +121,9 @@ print('print3')
 
 
 @simulated_runtime()
-async def test_run_code_capture_log_size_overflow(runtime: RuntimeLambdaWorkload):
+async def test_run_code_capture_log_size_overflow(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Logs should only be captured up to a certain size."""
     Logs103 = Action.new(
         ActionType.CODE,
@@ -136,7 +141,9 @@ for i in range(0, {MAX_LOGS_PER_RUN + 5}):
 
 
 @simulated_runtime()
-async def test_run_code_capture_log_line_overflow(runtime: RuntimeLambdaWorkload):
+async def test_run_code_capture_log_line_overflow(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Logs should only be captured up to a certain size."""
     Logs103 = Action.new(
         ActionType.CODE,
@@ -152,7 +159,7 @@ async def test_run_code_capture_log_line_overflow(runtime: RuntimeLambdaWorkload
 
 
 @simulated_runtime()
-async def test_run_code_invalid_inputs(runtime: RuntimeLambdaWorkload):
+async def test_run_code_invalid_inputs(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Code block with invalid inputs should fail immediately (no attempts)."""
     Code1 = Action.new(
         ActionType.CODE,
@@ -172,7 +179,7 @@ async def test_run_code_invalid_inputs(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_code_invalid_outputs(runtime: RuntimeLambdaWorkload):
+async def test_run_code_invalid_outputs(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Code block with invalid outputs should fail."""
     Code1 = Action.new(
         ActionType.CODE,
@@ -190,7 +197,7 @@ async def test_run_code_invalid_outputs(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_code_coerce(runtime: RuntimeLambdaWorkload):
+async def test_run_code_coerce(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Inputs and outputs should be coerced to the correct type (if possible)."""
     Code1 = Action.new(
         ActionType.CODE,
@@ -233,7 +240,7 @@ return {
 
 
 @simulated_runtime()
-async def test_run_code_inputs_in_context(runtime: RuntimeLambdaWorkload):
+async def test_run_code_inputs_in_context(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """All the input fields values should be in context (even if not used and unset)."""
     Function = Action.new(
         ActionType.CODE,
@@ -260,7 +267,7 @@ assert Very_WEIRD__THER_Input == 7
 
 
 @simulated_runtime()
-async def test_run_code_output_none(runtime: RuntimeLambdaWorkload):
+async def test_run_code_output_none(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """A noop code function should work and return None."""
     Function = Action.new(
         ActionType.CODE,
@@ -275,7 +282,7 @@ async def test_run_code_output_none(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_code_output_scalar(runtime: RuntimeLambdaWorkload):
+async def test_run_code_output_scalar(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """
     Run a code function with a scalar, should coerce into object.
     NOTE: we use hosted_runtime here as we edit the node subtype property ActionBlock.code
@@ -320,7 +327,7 @@ async def test_run_code_output_scalar(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_code_output_choice(runtime: RuntimeLambdaWorkload):
+async def test_run_code_output_choice(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a code function with a dict and a Choice type, should coerce into object."""
     Color = Block.new(
         BlockType.CHOICE,
@@ -345,7 +352,7 @@ return {"Color": Color.Red}
 
 
 @simulated_runtime()
-async def test_run_code_output_generic_node(runtime: RuntimeLambdaWorkload):
+async def test_run_code_output_generic_node(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a code function that outputs a generic node field."""
     Function = Action.new(
         ActionType.CODE,
@@ -363,7 +370,9 @@ return {"Output": [self]}
 
 
 @simulated_runtime()
-async def test_run_code_return_detached_node(runtime: RuntimeLambdaWorkload):
+async def test_run_code_return_detached_node(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Run a code function that returns a detached Node. Should error."""
     Function = Action.new(
         ActionType.CODE,
@@ -393,7 +402,9 @@ return {'Text': text}
 
 
 @simulated_runtime()
-async def test_run_code_raise_retryable_error(runtime: RuntimeLambdaWorkload):
+async def test_run_code_raise_retryable_error(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Raise a retryable error. Should be detected and retried."""
     CodeBlock = Action.new(
         ActionType.CODE,
@@ -411,7 +422,9 @@ async def test_run_code_raise_retryable_error(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_code_raise_unretryable_error(runtime: RuntimeLambdaWorkload):
+async def test_run_code_raise_unretryable_error(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Raise an unretryable error. Should be detected and not retried."""
     CodeBlock = Action.new(
         ActionType.CODE,
@@ -429,7 +442,7 @@ async def test_run_code_raise_unretryable_error(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_code_abort(runtime: RuntimeLambdaWorkload):
+async def test_run_code_abort(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a long async code script and abort it."""
     CodeBlock = Action.new(
         ActionType.CODE,
@@ -443,7 +456,7 @@ async def test_run_code_abort(runtime: RuntimeLambdaWorkload):
     run_task = asyncio.create_task(runtime.run_in_runtime(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)
-    runtime.runtime.stop(run)
+    runtime.runtime.stop_run(run)
     runner = await run_task
     # run should be aborted
     assert runner.status == RunStatus.ABORTED

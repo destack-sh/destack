@@ -32,6 +32,7 @@ from bench.language import (
     to_type,
 )
 from bench.proto import unpack_builtin_object
+from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.strategies import structs
 from bench.test.unit.conftest import simulated_runtime
@@ -220,7 +221,7 @@ def test_builtin_object_clone(obj: BuiltinObject, session: Session):
 
 
 @simulated_runtime()
-async def test_add_detached_subtree(runtime: RuntimeLambdaWorkload):
+async def test_add_detached_subtree(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     choice = Block.new(BlockType.CHOICE, "Letter")
     for i in range(0, 26):
         letter = chr(65 + i)
@@ -230,7 +231,7 @@ async def test_add_detached_subtree(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_clone_subtree(runtime: RuntimeLambdaWorkload):
+async def test_clone_subtree(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Clone a Node subtree."""
     choice = Block.new(BlockType.CHOICE, "Letter")
     for i in range(0, 26):
@@ -247,7 +248,7 @@ async def test_clone_subtree(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_clone_consistency(runtime: RuntimeLambdaWorkload):
+async def test_clone_consistency(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Clone consistency test with references."""
     choice = Block.new(BlockType.CHOICE, "Letter", fields=[Field.option("A"), Field.option("B")])
     action = Action.new(
@@ -270,7 +271,7 @@ async def test_clone_consistency(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_move_subtree(runtime: RuntimeLambdaWorkload):
+async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Move Nodes between parents (within a Package)."""
     Page1 = runtime.page("Page1")
     Page2 = runtime.page("Page2")

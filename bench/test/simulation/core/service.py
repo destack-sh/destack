@@ -39,7 +39,7 @@ class ServiceHandle[SpecT: ServiceSpec, S: ServiceBase, C: object](abc.ABC):
 
     @abc.abstractmethod
     async def start(self) -> S:
-        """Start the service (and set self._service)."""
+        """Start the service (*and* set self._service)."""
         ...
 
     @abc.abstractmethod

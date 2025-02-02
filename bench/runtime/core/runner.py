@@ -566,7 +566,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
 def create_run_from_node(
     node: "RunnableNode",
     *,
-    isolate: bool,
+    isolate: bool = True,
     variables: Any | None = None,
     inputs: Any | None = None,
     options: RunOptions | None = None,

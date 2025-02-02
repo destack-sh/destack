@@ -102,11 +102,15 @@ async def unary_stream_rpc[ReqT, RepT](
 
 
 class Network(abc.ABC):
-    """A Network for connecting services and clients"""
+    """A Network for connecting gRPC Services and Clients"""
 
     @abc.abstractmethod
     async def get_channel(self, connection_uri: str, *, source_id: str) -> Channel:
-        """Get a Channel to the given connection URI."""
+        """
+        Get a gRPC Channel to the given connection URI.
+        The source_id should match the 'calling' Service's id
+         and is used for internal tracking and routing (esp. in Simulation).
+        """
         ...
 
 
@@ -115,7 +119,9 @@ class NullNetwork(Network):
 
     @override
     async def get_channel(self, connection_uri: str, *, source_id: str) -> Channel:
-        raise NotImplementedError
+        raise NotImplementedError(
+            f"{self.__class__.__name__} is disabled: {connection_uri=}, {source_id=}"
+        )
 
 
 class RealNetwork(Network):
