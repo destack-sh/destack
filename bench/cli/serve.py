@@ -145,7 +145,9 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
         description="How to run runtime threads",
     )
     network = RealNetwork()
-    supervisor_client = SupervisorClient(network.get_channel(supervisor_url, source_id="runtime"))
+    supervisor_client = SupervisorClient(
+        await network.get_channel(supervisor_url, source_id="runtime")
+    )
 
     if thread_id < 0:
         runtime = RuntimeService(

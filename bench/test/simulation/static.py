@@ -18,6 +18,8 @@ from bench.test.simulation.core import (
     BenchSpec,
     ClientSpec,
     HostSpec,
+    MachineSpec,
+    RuntimeSpec,
     Simulation,
     SimulationSpec,
     UserSpec,
@@ -77,6 +79,17 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
         ),
         benches=(BenchSpec(name="alice", owner="alice"), BenchSpec(name="bob", owner="bob")),
         hosts=(HostSpec(bench="alice"), HostSpec(bench="bob")),
+    ),
+    SimulationSpec(
+        name="SingleRuntimeEmpty",
+        description="Create a single runtime with no workloads",
+        profile=TestProfile.QUICK,
+        users=(UserSpec(name="alice"),),
+        machines=(MachineSpec(name="alice-machine", bench="alice"),),
+        clients=(ClientSpec(name="alice-1", parent=("user", "alice")),),
+        benches=(BenchSpec(name="alice", owner="alice"),),
+        hosts=(HostSpec(bench="alice"),),
+        runtimes=(RuntimeSpec(name="alice-runtime", machine="alice-machine"),),
     ),
     #
     # Simple

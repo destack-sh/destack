@@ -105,7 +105,7 @@ class Network(abc.ABC):
     """A Network for connecting services and clients"""
 
     @abc.abstractmethod
-    def get_channel(self, connection_uri: str, *, source_id: str | None) -> Channel:
+    async def get_channel(self, connection_uri: str, *, source_id: str) -> Channel:
         """Get a Channel to the given connection URI."""
         ...
 
@@ -114,7 +114,7 @@ class NullNetwork(Network):
     """A Network that does nothing."""
 
     @override
-    def get_channel(self, connection_uri: str, *, source_id: str | None) -> Channel:
+    async def get_channel(self, connection_uri: str, *, source_id: str) -> Channel:
         raise NotImplementedError
 
 
@@ -125,7 +125,7 @@ class RealNetwork(Network):
         self.channels = cachetools.TTLCache(maxsize=128, ttl=300)
 
     @override
-    def get_channel(self, connection_uri: str, *, source_id: str | None) -> Channel:
+    async def get_channel(self, connection_uri: str, *, source_id: str) -> Channel:
         channel = self.channels.get(connection_uri)
         if channel is not None:
             return channel

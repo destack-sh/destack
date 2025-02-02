@@ -1,6 +1,5 @@
 import asyncio
 from typing import TYPE_CHECKING, NamedTuple, final, override
-from urllib.parse import urlparse
 
 from grpclib.client import Channel
 
@@ -22,16 +21,21 @@ class ConnectionPair(NamedTuple):
 
 
 class SimulatedNetwork(Network):
-    """A Network for connecting services and clients"""
+    """A Network for connecting Services and Clients"""
 
     def __init__(self, network: "NetworkHandle", simulation: "Simulation"):
         self.network = network
         self.simulation = simulation
 
     @override
-    def get_channel(self, connection_uri: str, *, source_id: str | None) -> Channel:
-        connection_info = urlparse(connection_uri)  # :SimulatedConnections
-        raise NotImplementedError(f"nocheckin: simulate channel to {connection_uri}")
+    async def get_channel(self, connection_uri: str, *, source_id: str) -> Channel:
+        # trim prefix and port
+        service_id = connection_uri.rsplit("/", 1)[1]
+        service_id = service_id.rsplit(":", 1)[0]
+        assert service_id, f"unexpected connection uri: {connection_uri}"
+        service = self.simulation.get_service(service_id)
+        channel = await self.network.connect(source_id, service)
+        return channel.channel
 
 
 @final

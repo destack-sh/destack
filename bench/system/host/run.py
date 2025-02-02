@@ -118,7 +118,7 @@ class RunPlugin(HostPlugin[Run]):
             try:
                 assert machine.connection_uri, f"missing connection uri for machine {machine!r}"
                 runtime = RuntimeClient(
-                    self.network.get_channel(machine.connection_uri, source_id=self.host.id)
+                    await self.network.get_channel(machine.connection_uri, source_id=self.host.id)
                 )
                 request = RunRequest(run_ptr=run._to_ref_data(), is_blocking=False)
                 _ = await runtime.run(request)

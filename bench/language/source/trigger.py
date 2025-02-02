@@ -54,7 +54,6 @@ class TriggerEffect(BuiltinEnum):
     # run
     START_RUN = 1, "Start a new Run"
     CONTINUE_RUN = 2, "Continue an existing or start a new Run"
-    ENSURE_RUN = 3, "Ensure a Run exists"
     # interruption
     CANCEL_INTERRUPTION = 20, "Cancel an Interruption"
     COMPLETE_INTERRUPTION = 21, "Complete an Interruption"

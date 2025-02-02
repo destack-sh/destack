@@ -52,12 +52,8 @@ class ServiceHandle[SpecT: ServiceSpec, S: ServiceBase, C: object](abc.ABC):
         channel = await self.simulation.network.connect(source_id, self)
         return await self.get_client(channel)
 
-    def close(self):
+    async def close(self):
         """Close the service."""
         if self._service is not None:
             self._service.close()
-
-    async def wait_closed(self):
-        """Wait for the service to close."""
-        if self._service is not None:
             await self._service.wait_closed()
