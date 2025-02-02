@@ -315,9 +315,7 @@ class Simulation:
         self.tasks.close()
 
     async def _wait_closed(self):
-        await asyncio.gather(
-            self.supervisor.wait_closed(),
-            *(host.wait_closed() for host in self.hosts_by_name.values()),
-            self.tasks.wait_closed(),
-            return_exceptions=True,
-        )
+        await self.supervisor.wait_closed()
+        for host in self.hosts_by_name.values():
+            await host.wait_closed()
+        await self.tasks.wait_closed()

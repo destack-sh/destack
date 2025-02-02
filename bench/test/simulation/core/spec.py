@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 
 @dataclass
 class SimulationSpec:
-    """A simulation to run."""
+    """The Simulation configuration."""
 
     name: str
     description: str
@@ -35,14 +35,14 @@ class SimulationSpec:
 
 @dataclass
 class UserSpec:
-    """A User to run a Bench"""
+    """A User"""
 
     name: str
 
 
 @dataclass
 class OrganizationSpec:
-    """An Organization to run a Bench"""
+    """An Organization"""
 
     name: str
     members: tuple["UserSpec", ...] = ()
@@ -50,7 +50,7 @@ class OrganizationSpec:
 
 @dataclass
 class BenchSpec:
-    """A bench to operate on"""
+    """A Bench"""
 
     name: str
     owner: str
@@ -66,7 +66,7 @@ class NetworkSpec:
 
 @dataclass
 class ServiceSpec:
-    """A service to simulate"""
+    """A Service to simulate"""
 
     failure_probability: float | SampledFloat = 0.0
     recovery_probability: float | SampledFloat = 1.0
@@ -75,14 +75,14 @@ class ServiceSpec:
 
 @dataclass
 class SupervisorSpec(ServiceSpec):
-    """A supervisor service"""
+    """A Supervisor service"""
 
     pass
 
 
 @dataclass
 class HostSpec(ServiceSpec):
-    """A Host to run a Bench"""
+    """A Host Service to run a Bench"""
 
     bench: str = ""
 

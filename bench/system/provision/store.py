@@ -28,7 +28,7 @@ class StoreProvisioner(Provisioner[Store, Store]):
     async def _do_migrate(self, resource: Store):
         """Migrate the store to its indicated 'version'."""
         assert resource.version, f"{resource!r} has no version"
-        async with pg_connection(resource) as conn:
+        async with pg_connection(resource, owner=self) as conn:
             await sql_migrate(
                 conn.cursor,
                 target=resource.version,
@@ -93,7 +93,7 @@ class LocalhostStoreProvisioner(StoreProvisioner):
                 resource.external_name = f"{ENV}-{resource.bench_id}"
         # create database through existing connection
         # (use same postgres instance as global store)
-        async with pg_connection(self.host.global_store, autocommit=True) as conn:
+        async with pg_connection(self.host.global_store, owner=self, autocommit=True) as conn:
             await conn.execute(sqlstr(f'CREATE DATABASE "{resource.external_name}"'))
         async with self.host.session(commit=True):
             connection_uri = self.host.global_store.connection_uri
@@ -106,5 +106,5 @@ class LocalhostStoreProvisioner(StoreProvisioner):
     @override
     async def _do_decommission(self, resource: Store):
         # drop database through existing connection
-        async with pg_connection(self.host.global_store, autocommit=True) as conn:
+        async with pg_connection(self.host.global_store, owner=self, autocommit=True) as conn:
             await conn.execute(sqlstr(f'DROP DATABASE "{resource.external_name}"'))

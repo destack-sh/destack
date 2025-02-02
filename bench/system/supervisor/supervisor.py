@@ -430,9 +430,10 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
 
             await session.commit()
 
+        # update user with new bench (supervisor and host may be in same process)
         if isinstance(owner, User):
-            # update user with new bench (supervisor and host may be in same process)
             purge_client_caches(owner)
+
         logger.info("supervisor.create_bench", bench=bench, span="current")
         return CreateBenchResponse(bench=bench._to_data())
 

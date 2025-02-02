@@ -38,6 +38,7 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
             on_error=self.simulation.on_error,
         )
         await service.start()
+        self._service = service
         return service
 
     @override
@@ -48,6 +49,6 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
     async def wait_closed(self):
         await super().wait_closed()
         # manually decommission stores (bootstrapping problem since the Host session uses the store)
-        async with pg_connection(self.simulation.global_store, autocommit=True) as conn:
+        async with pg_connection(self.simulation.global_store, owner=self, autocommit=True) as conn:
             for store in self.service.bench.stores:
                 await conn.execute(sqlstr(f'DROP DATABASE "{store.external_name}"'))

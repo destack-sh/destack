@@ -18,6 +18,7 @@ from opentelemetry import trace
 from bench.language import (
     VERSION,
     Bench,
+    BenchStatus,
     NodeReference,
     NodeSuperGraph,
     NodeType,
@@ -66,6 +67,7 @@ def make_global_store(name: str):
         region=Region.ZURICH,
         encryption_key=pg_crypto_key,
         _supergraph=supergraph,
+        status=BenchStatus.ACTIVATED,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
@@ -100,6 +102,7 @@ def make_regional_store(name: str):
         region=Region.ZURICH,
         encryption_key=pg_crypto_key,
         _supergraph=supergraph,
+        status=BenchStatus.ACTIVATED,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
@@ -118,7 +121,7 @@ def make_regional_store(name: str):
 
 async def create_blank_test_db(store: Store):
     """Creates a blank postgres database"""
-    async with pg_connection(global_store_from_env(), autocommit=True) as conn:
+    async with pg_connection(global_store_from_env(), owner=store, autocommit=True) as conn:
         await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{store.external_name}"'))
         await conn.execute(sqlstr(f'CREATE DATABASE "{store.external_name}"'))
 
@@ -126,7 +129,7 @@ async def create_blank_test_db(store: Store):
 async def create_test_db(store: Store, schema: Schema):
     """Creates a postgres DB with one of our schemas"""
     await create_blank_test_db(store)
-    async with pg_connection(store, autocommit=True) as conn:
+    async with pg_connection(store, owner=store, autocommit=True) as conn:
         old_schema = await introspect_sql_schema(
             conn.cursor,
             include_table_prefixes=(BENCH_TABLE_PREFIX,),
@@ -140,7 +143,7 @@ async def create_test_db(store: Store, schema: Schema):
 async def delete_test_db(store: Store):
     """Deletes a postgres DB with one of our schemas"""
     await get_pg_pool(store).close()
-    async with pg_connection(global_store_from_env(), autocommit=True) as conn:
+    async with pg_connection(global_store_from_env(), owner=store, autocommit=True) as conn:
         await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{store.external_name}"'))
 
 

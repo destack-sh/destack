@@ -28,6 +28,7 @@ enum EnumType {
   ENUM_TYPE_REGION_ZONE = 20221;
   ENUM_TYPE_REGION_AREA = 20222;
   ENUM_TYPE_REGION_CONTINENT = 20223;
+  ENUM_TYPE_BENCH_STATUS = 20230;
   ENUM_TYPE_ACCESS_MODE = 20300;
   ENUM_TYPE_ACCESS_KIND = 20301;
   ENUM_TYPE_POLICY_EFFECT = 20302;
@@ -433,6 +434,7 @@ enum BenchType {
   BENCH_TYPE_REGION_ZONE = 20221;
   BENCH_TYPE_REGION_AREA = 20222;
   BENCH_TYPE_REGION_CONTINENT = 20223;
+  BENCH_TYPE_BENCH_STATUS = 20230;
   BENCH_TYPE_ACCESS_MODE = 20300;
   BENCH_TYPE_ACCESS_KIND = 20301;
   BENCH_TYPE_POLICY_EFFECT = 20302;
@@ -666,6 +668,13 @@ enum RegionContinent {
   REGION_CONTINENT_ASIA = 6000;
   REGION_CONTINENT_AUSTRALIA = 7000;
   REGION_CONTINENT_PRIVATE = 9000;
+}
+
+// The status of a Bench
+enum BenchStatus {
+  BENCH_STATUS_UNSPECIFIED = 0;
+  BENCH_STATUS_RESERVED = 20;
+  BENCH_STATUS_ACTIVATED = 50;
 }
 
 enum AccessMode {
@@ -1812,7 +1821,7 @@ enum UserStatus {
 
 enum OrganizationStatus {
   ORGANIZATION_STATUS_UNSPECIFIED = 0;
-  ORGANIZATION_STATUS_REGISTERED = 40;
+  ORGANIZATION_STATUS_REGISTERED = 20;
   ORGANIZATION_STATUS_ACTIVATED = 50;
 }
 
@@ -2551,8 +2560,9 @@ message BenchData {
   optional NodeReferenceData owner_ptr = 36;
   Region region = 37;
   optional string encryption_key = 38;
-  optional NodeReferenceData main_store_ptr = 40;
-  optional NodeReferenceData main_package_ptr = 50;
+  BenchStatus status = 40;
+  optional NodeReferenceData main_store_ptr = 50;
+  optional NodeReferenceData main_package_ptr = 51;
 }
 
 message HandleData {

@@ -18,8 +18,6 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
 
     watch_types = bittuple(NodeType.TRIGGER, NodeType.MESSAGE)
 
-    # nocheckin
-
     @override
     async def start(self) -> None:
         # fetch active triggers (from runtime, source is already loaded)
