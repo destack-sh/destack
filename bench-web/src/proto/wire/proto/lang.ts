@@ -2411,11 +2411,15 @@ export interface BenchData {
      */
     encryptionKey?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_store_ptr = 40;
+     * @generated from protobuf field: symbolx.bench.BenchStatus status = 40;
+     */
+    status: BenchStatus;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_store_ptr = 50;
      */
     mainStorePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_package_ptr = 50;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_package_ptr = 51;
      */
     mainPackagePtr?: NodeReferenceData;
 }
@@ -6425,6 +6429,10 @@ export enum EnumType {
      */
     REGION_CONTINENT = 20223,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_BENCH_STATUS = 20230;
+     */
+    BENCH_STATUS = 20230,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_ACCESS_MODE = 20300;
      */
     ACCESS_MODE = 20300,
@@ -8017,6 +8025,10 @@ export enum BenchType {
      */
     REGION_CONTINENT = 20223,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_BENCH_STATUS = 20230;
+     */
+    BENCH_STATUS = 20230,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MODE = 20300;
      */
     ACCESS_MODE = 20300,
@@ -8850,6 +8862,25 @@ export enum RegionContinent {
      * @generated from protobuf enum value: REGION_CONTINENT_PRIVATE = 9000;
      */
     PRIVATE = 9000
+}
+/**
+ * The status of a Bench
+ *
+ * @generated from protobuf enum symbolx.bench.BenchStatus
+ */
+export enum BenchStatus {
+    /**
+     * @generated from protobuf enum value: BENCH_STATUS_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: BENCH_STATUS_RESERVED = 20;
+     */
+    RESERVED = 20,
+    /**
+     * @generated from protobuf enum value: BENCH_STATUS_ACTIVATED = 50;
+     */
+    ACTIVATED = 50
 }
 /**
  * @generated from protobuf enum symbolx.bench.AccessMode
@@ -12721,9 +12752,9 @@ export enum OrganizationStatus {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ORGANIZATION_STATUS_REGISTERED = 40;
+     * @generated from protobuf enum value: ORGANIZATION_STATUS_REGISTERED = 20;
      */
-    REGISTERED = 40,
+    REGISTERED = 20,
     /**
      * @generated from protobuf enum value: ORGANIZATION_STATUS_ACTIVATED = 50;
      */
@@ -19309,8 +19340,9 @@ class BenchData$Type extends MessageType$<BenchData> {
             { no: 36, name: "owner_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 37, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 38, name: "encryption_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "main_store_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "main_package_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.BenchStatus", BenchStatus, "BENCH_STATUS_"] },
+            { no: 50, name: "main_store_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 51, name: "main_package_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<BenchData>): BenchData {
@@ -19320,6 +19352,7 @@ class BenchData$Type extends MessageType$<BenchData> {
         message.slug = "";
         message.name = "";
         message.region = 0;
+        message.status = 0;
         if (value !== undefined)
             reflectionMergePartial<BenchData>(this, message, value);
         return message;
@@ -19383,10 +19416,13 @@ class BenchData$Type extends MessageType$<BenchData> {
                 case /* optional string encryption_key */ 38:
                     message.encryptionKey = reader.string();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData main_store_ptr */ 40:
+                case /* symbolx.bench.BenchStatus status */ 40:
+                    message.status = reader.int32();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData main_store_ptr */ 50:
                     message.mainStorePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainStorePtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData main_package_ptr */ 50:
+                case /* optional symbolx.bench.NodeReferenceData main_package_ptr */ 51:
                     message.mainPackagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainPackagePtr);
                     break;
                 default:
@@ -19455,12 +19491,15 @@ class BenchData$Type extends MessageType$<BenchData> {
         /* optional string encryption_key = 38; */
         if (message.encryptionKey !== undefined)
             writer.tag(38, WireType.LengthDelimited).string(message.encryptionKey);
-        /* optional symbolx.bench.NodeReferenceData main_store_ptr = 40; */
+        /* symbolx.bench.BenchStatus status = 40; */
+        if (message.status !== 0)
+            writer.tag(40, WireType.Varint).int32(message.status);
+        /* optional symbolx.bench.NodeReferenceData main_store_ptr = 50; */
         if (message.mainStorePtr)
-            NodeReferenceData.internalBinaryWrite(message.mainStorePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData main_package_ptr = 50; */
+            NodeReferenceData.internalBinaryWrite(message.mainStorePtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData main_package_ptr = 51; */
         if (message.mainPackagePtr)
-            NodeReferenceData.internalBinaryWrite(message.mainPackagePtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.mainPackagePtr, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28975,6 +29014,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.REGION_ZONE]: RegionZone,
   [EnumType.REGION_AREA]: RegionArea,
   [EnumType.REGION_CONTINENT]: RegionContinent,
+  [EnumType.BENCH_STATUS]: BenchStatus,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
@@ -29381,6 +29421,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.REGION_ZONE]: RegionZone,
   [EnumType.REGION_AREA]: RegionArea,
   [EnumType.REGION_CONTINENT]: RegionContinent,
+  [EnumType.BENCH_STATUS]: BenchStatus,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
@@ -29500,8 +29541,9 @@ export enum BenchProperty {
   ownerPtr = 36,
   region = 37,
   encryptionKey = 38,
-  mainStorePtr = 40,
-  mainPackagePtr = 50,
+  status = 40,
+  mainStorePtr = 50,
+  mainPackagePtr = 51,
 }
 
 export enum HandleProperty {
@@ -31629,8 +31671,9 @@ export const BenchDataInfo: Record<BenchProperty, PropertyInfo> = {
   [BenchProperty.ownerPtr]: { id: 36, name: 'owner_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION], referenceStruct: StructType.NODE_REFERENCE },
   [BenchProperty.region]: { id: 37, name: 'region', component: ObjectType.BENCH, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BenchProperty.encryptionKey]: { id: 38, name: 'encryption_key', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [BenchProperty.mainStorePtr]: { id: 40, name: 'main_store_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.mainPackagePtr]: { id: 50, name: 'main_package_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [BenchProperty.status]: { id: 40, name: 'status', component: ObjectType.BENCH, enumType: EnumType.BENCH_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.mainStorePtr]: { id: 50, name: 'main_store_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
+  [BenchProperty.mainPackagePtr]: { id: 51, name: 'main_package_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const HandleDataInfo: Record<HandleProperty, PropertyInfo> = {
   [HandleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.HANDLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

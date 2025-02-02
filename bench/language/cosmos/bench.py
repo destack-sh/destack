@@ -6,10 +6,13 @@ from bench.language.core import (
     REGION,
     SLUG_CONSTRAINT,
     BenchNode,
+    BuiltinEnum,
+    EnumType,
     LocalNodeList,
     NodeType,
     Region,
     StructType,
+    enum_,
     node_,
     p_kernel,
     p_node_children,
@@ -35,6 +38,14 @@ if TYPE_CHECKING:
     )
 
 # pyright: reportIncompatibleVariableOverride=false
+
+
+@enum_(EnumType.BENCH_STATUS)
+class BenchStatus(BuiltinEnum):
+    """The status of a Bench"""
+
+    RESERVED = 20  # not yet initialized
+    ACTIVATED = 50
 
 
 @node_(NodeType.BENCH, roots=())
@@ -70,14 +81,15 @@ class Bench(BenchNode[BenchData]):
         default_factory=lambda: generate_encryption_key(32),
     )
 
-    # resources
-    main_store: Optional["Store"] = p_system(
-        40, require=False, array=False, references=NodeType.STORE, fk=True, same_bench=True
-    )
+    # status
+    status: BenchStatus = p_system(40, default=BenchStatus.RESERVED)
 
     # content
+    main_store: Optional["Store"] = p_system(
+        50, require=False, array=False, references=NodeType.STORE, fk=True, same_bench=True
+    )
     main_package: Optional["Package"] = p_regular(
-        50,
+        51,
         require=False,
         array=False,
         references=NodeType.PACKAGE,
@@ -85,6 +97,8 @@ class Bench(BenchNode[BenchData]):
         same_bench=True,
     )
     if TYPE_CHECKING:
+        main_store_id: Optional[UUID] = None
+        main_store_ptr: Optional[NodeReference] = None
         main_package_id: Optional[UUID] = None
         main_package_ptr: Optional[NodeReference] = None
 

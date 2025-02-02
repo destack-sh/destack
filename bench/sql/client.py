@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import ClassVar, cast
+from typing import Any, ClassVar, cast
 
 import psycopg
 import structlog
@@ -61,12 +61,14 @@ def get_pg_pool(store: Store) -> "PostgresConnectionPool":
 
 
 @asynccontextmanager
-async def pg_connection(store: Store, *, autocommit: bool = False):
+async def pg_connection(store: Store, *, owner: Any | None = None, autocommit: bool = False):
     """Opens a connection to the given store."""
     pool = get_pg_pool(store)
     if not pool.is_open:
         await pool.open()
-    connection = await pool.acquire(autocommit=autocommit)
+    connection = await pool.acquire(
+        owner=owner if owner is not None else store, autocommit=autocommit
+    )
     try:
         yield connection
     finally:
@@ -137,6 +139,13 @@ class PostgresConnectionPool:
             return  # already closed
         assert self._pool is not None, f"already closed: {self._pool!r}"
         await self._pool.close()
+        # force close current connections
+        for connection in self._connections:
+            if connection._conn is not None:
+                connection._conn.cancel()
+                await connection._conn.close()
+                await self._pool.putconn(connection._conn)
+        self._connections.clear()
         self._pool = None
         logger.trace("postgres.pool.close", pool=self, span="current")
 
@@ -147,7 +156,7 @@ class PostgresConnectionPool:
             await self._do_close()
 
     @tracer.start_as_current_span("postgres.pool.acquire")
-    async def acquire(self, autocommit: bool = False) -> "PostgresConnection":
+    async def acquire(self, owner: Any, autocommit: bool = False) -> "PostgresConnection":
         """Connects to the pool."""
         async with self._pool_lock:
             if not self.is_open:
@@ -164,7 +173,7 @@ class PostgresConnectionPool:
                 span="current",
             )
             raise
-        connection = PostgresConnection(self, conn)
+        connection = PostgresConnection(owner, self, conn)
         self._connections.append(connection)
         if autocommit != connection.autocommit:
             await conn.set_autocommit(autocommit)
@@ -198,9 +207,14 @@ class PostgresConnection:
     _connection_id: ClassVar[int] = 0
 
     def __init__(
-        self, pool: PostgresConnectionPool, conn: psycopg.AsyncConnection, autocommit: bool = False
+        self,
+        owner: Any,
+        pool: PostgresConnectionPool,
+        conn: psycopg.AsyncConnection,
+        autocommit: bool = False,
     ):
         self.id = self._connection_id
+        self.owner = owner
         self.pool = pool
         PostgresConnection._connection_id += 1
         self._conn = conn

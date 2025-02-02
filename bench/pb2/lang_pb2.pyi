@@ -40,6 +40,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_REGION_ZONE: _ClassVar[EnumType]
     ENUM_TYPE_REGION_AREA: _ClassVar[EnumType]
     ENUM_TYPE_REGION_CONTINENT: _ClassVar[EnumType]
+    ENUM_TYPE_BENCH_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_MODE: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_KIND: _ClassVar[EnumType]
     ENUM_TYPE_POLICY_EFFECT: _ClassVar[EnumType]
@@ -445,6 +446,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_REGION_ZONE: _ClassVar[BenchType]
     BENCH_TYPE_REGION_AREA: _ClassVar[BenchType]
     BENCH_TYPE_REGION_CONTINENT: _ClassVar[BenchType]
+    BENCH_TYPE_BENCH_STATUS: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_MODE: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_KIND: _ClassVar[BenchType]
     BENCH_TYPE_POLICY_EFFECT: _ClassVar[BenchType]
@@ -671,6 +673,12 @@ class RegionContinent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     REGION_CONTINENT_ASIA: _ClassVar[RegionContinent]
     REGION_CONTINENT_AUSTRALIA: _ClassVar[RegionContinent]
     REGION_CONTINENT_PRIVATE: _ClassVar[RegionContinent]
+
+class BenchStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    BENCH_STATUS_UNSPECIFIED: _ClassVar[BenchStatus]
+    BENCH_STATUS_RESERVED: _ClassVar[BenchStatus]
+    BENCH_STATUS_ACTIVATED: _ClassVar[BenchStatus]
 
 class AccessMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1846,6 +1854,7 @@ ENUM_TYPE_REGION: EnumType
 ENUM_TYPE_REGION_ZONE: EnumType
 ENUM_TYPE_REGION_AREA: EnumType
 ENUM_TYPE_REGION_CONTINENT: EnumType
+ENUM_TYPE_BENCH_STATUS: EnumType
 ENUM_TYPE_ACCESS_MODE: EnumType
 ENUM_TYPE_ACCESS_KIND: EnumType
 ENUM_TYPE_POLICY_EFFECT: EnumType
@@ -2239,6 +2248,7 @@ BENCH_TYPE_REGION: BenchType
 BENCH_TYPE_REGION_ZONE: BenchType
 BENCH_TYPE_REGION_AREA: BenchType
 BENCH_TYPE_REGION_CONTINENT: BenchType
+BENCH_TYPE_BENCH_STATUS: BenchType
 BENCH_TYPE_ACCESS_MODE: BenchType
 BENCH_TYPE_ACCESS_KIND: BenchType
 BENCH_TYPE_POLICY_EFFECT: BenchType
@@ -2429,6 +2439,9 @@ REGION_CONTINENT_AFRICA: RegionContinent
 REGION_CONTINENT_ASIA: RegionContinent
 REGION_CONTINENT_AUSTRALIA: RegionContinent
 REGION_CONTINENT_PRIVATE: RegionContinent
+BENCH_STATUS_UNSPECIFIED: BenchStatus
+BENCH_STATUS_RESERVED: BenchStatus
+BENCH_STATUS_ACTIVATED: BenchStatus
 ACCESS_MODE_UNSPECIFIED: AccessMode
 ACCESS_MODE_ADAPTIVE: AccessMode
 ACCESS_MODE_ATOMIC: AccessMode
@@ -4554,7 +4567,7 @@ class UserData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., slug: _Optional[str] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[UserStatus, str]] = ..., main_bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., main_handle_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., email: _Optional[str] = ..., password_salt: _Optional[bytes] = ..., password_hash: _Optional[bytes] = ..., last_logged_in_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., is_staff: bool = ...) -> None: ...
 
 class BenchData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "subnode_packed", "main_handle_ptr", "slug", "name", "text", "icon", "owner_ptr", "region", "encryption_key", "main_store_ptr", "main_package_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "subnode_packed", "main_handle_ptr", "slug", "name", "text", "icon", "owner_ptr", "region", "encryption_key", "status", "main_store_ptr", "main_package_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4573,6 +4586,7 @@ class BenchData(_message.Message):
     OWNER_PTR_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
     ENCRYPTION_KEY_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
     MAIN_STORE_PTR_FIELD_NUMBER: _ClassVar[int]
     MAIN_PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
@@ -4593,9 +4607,10 @@ class BenchData(_message.Message):
     owner_ptr: NodeReferenceData
     region: Region
     encryption_key: str
+    status: BenchStatus
     main_store_ptr: NodeReferenceData
     main_package_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., main_handle_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., slug: _Optional[str] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., owner_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., encryption_key: _Optional[str] = ..., main_store_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., main_package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., main_handle_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., slug: _Optional[str] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., owner_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., encryption_key: _Optional[str] = ..., status: _Optional[_Union[BenchStatus, str]] = ..., main_store_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., main_package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class HandleData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "subnode_packed", "slug")

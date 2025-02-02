@@ -24,8 +24,8 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.ORGANIZATION_STATUS)
-class OrganizationStatus(BuiltinEnum):  # NOTE: see UserStatus
-    REGISTERED = 40  # created org
+class OrganizationStatus(BuiltinEnum):
+    REGISTERED = 20  # created org
     ACTIVATED = 50  # has main bench
 
 

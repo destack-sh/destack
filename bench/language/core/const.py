@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.01.31.0"
+VERSION = "2025.02.02.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -299,6 +299,7 @@ class EnumType(BuiltinEnum):
     REGION_ZONE = 20221
     REGION_AREA = 20222
     REGION_CONTINENT = 20223
+    BENCH_STATUS = 20230
 
     # auth (20300-20399)
     ACCESS_MODE = 20300

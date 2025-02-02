@@ -9,6 +9,7 @@ from google.protobuf.message import Message as ProtoMessage
 from google.protobuf.struct_pb2 import Struct as ProtoStruct
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
+from more_itertools import first
 from opentelemetry import trace
 
 from bench.language import (
@@ -19,6 +20,7 @@ from bench.language import (
     SOURCE_NODE_TYPES,
     STATIC_RESOURCE_NODE_TYPES,
     Bench,
+    BenchStatus,
     Block,
     C,
     ClientType,
@@ -40,17 +42,18 @@ from bench.language import (
     NodeType,
     Ownable,
     Package,
+    PackageType,
     Query,
     Session,
     Store,
     Subject,
     User,
+    bittuple,
     edit_data_graph,
     edit_graph,
     pack_value_scalar,
     patch_graph,
 )
-from bench.language.core import bittuple
 from bench.proto import (
     DownloadFilesRequest,
     DownloadFilesResponse,
@@ -79,6 +82,7 @@ from bench.system.graph import (
     validate_edit,
 )
 from bench.system.provision import Provisioner, get_provisioners
+from bench.system.provision.store import StoreProvisioner
 from bench.utils.env import ENV
 from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle
@@ -302,24 +306,59 @@ class HostService(GraphIoServiceBase, HostBase):
             return None
         return node
 
+    async def _activate(self, session: Session, bench: Bench) -> None:
+        """Initializes the given Bench for the first time."""
+        assert bench.status == BenchStatus.RESERVED, f"{bench!r} has unexpected status"
+        assert bench.main_store, f"{bench!r} has no main store"
+
+        # use temporary session in HostService during setup
+        session.parent = bench
+        self._session = session
+
+        # immediately provision local Store
+        provisioners = get_provisioners(self, bench)
+        store_provisioner = first(
+            (p for p in provisioners if isinstance(p, StoreProvisioner)), None
+        )
+        assert store_provisioner is not None, f"{bench!r} has no store provisioner"
+        await store_provisioner.provision(bench.main_store)
+        for provisioner in provisioners:
+            provisioner.close()
+        await asyncio.gather(*(provisioner.wait_closed() for provisioner in provisioners))
+
+        # main Package
+        main_package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
+        await session.flush(optimistic=True)
+        bench.main_package = main_package
+
+        # commit
+        bench.status = BenchStatus.ACTIVATED
+        await session.commit()
+        self._session = None
+        logger.info("host.activate", host=self, bench=bench)
+
     async def start(self) -> None:
         trace.get_current_span().set_attribute("bench_id", str(self.bench_id))
         await super().start()
 
         # load bench
-        #  (in different session because we don't have the actual engines yet)
-        async with self.global_session(readonly=True) as session:
+        #  (in different session because we don't have the local engines yet)
+        async with self.global_session() as session:
             # get bench main store so we can get all bench data (some of which is local)
             tmp_bench = await Bench.include_descendants(Store).select_all().get(self.bench_ptr)
             assert tmp_bench.main_store, f"{tmp_bench!r} has no main store"
-            tmp_bench._untrack_rec()
             session._engines += (
                 local_pg_engine_from_store(
                     name=f"pg-local-{tmp_bench.slug}", store=tmp_bench.main_store
                 ),
             )
 
+            # initialize bench if not already initialized
+            if tmp_bench.status < BenchStatus.ACTIVATED:
+                await self._activate(session, tmp_bench)
+
             # load full bench
+            tmp_bench._untrack_rec()
             self._bench = await BENCH_QUERY.get(self.bench_ptr, mode="both")
             assert self._bench.main_store, f"{self._bench!r} has no main store"
             session.parent = self._bench  # patch in bench for pg context

@@ -77,8 +77,9 @@ class PostgresEngine(Engine):
     @override
     async def channel(self, session: "Session") -> "PostgresChannel":
         pool = get_pg_pool(self.store)
-        conn = await pool.acquire()
-        channel = PostgresChannel(self, session, conn)
+        channel = PostgresChannel(self, session, connection=None)
+        conn = await pool.acquire(owner=channel)
+        channel._connection = conn
         logger.trace("postgres.channel.open", channel=channel, conn=conn)
         return channel
 
@@ -115,17 +116,23 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
         self,
         engine: "PostgresEngine",
         session: "Session",
-        connection: "PostgresConnection",
+        connection: "PostgresConnection | None",
     ):
         super().__init__(engine, session)
-        self.connection = connection
+        self._connection = connection
 
     def __str__(self):
         return f"engine={self.engine!r}, session={self.session}"
 
     @property
     def cur(self) -> psycopg.AsyncCursor:
-        return self.connection.cursor
+        assert self._connection is not None, f"{self!r} has no connection"
+        return self._connection.cursor
+
+    @property
+    def connection(self) -> "PostgresConnection":
+        assert self._connection is not None, f"{self!r} has no connection"
+        return self._connection
 
     @override
     def _get_connection_cls(
@@ -160,7 +167,7 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
         async with self.connection.lock:
             pool = self.connection.pool
             await pool.close()
-            self.connection = await pool.acquire()
+            self._connection = await pool.acquire(owner=self)
 
     @override
     @_pg_method

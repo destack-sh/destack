@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 @enum_(EnumType.USER_STATUS)
-class UserStatus(BuiltinEnum):  # NOTE: see OrganizationStatus
+class UserStatus(BuiltinEnum):
     INVITED = 10  # invited via email
     RESERVED = 20  # reserved a handle, unconfirmed
     WAITLISTED = 30  # got handle, waiting

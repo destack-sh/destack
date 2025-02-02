@@ -21,6 +21,7 @@ from bench.language import (
     OBJECT_TYPES,
     STRUCT_TYPES,
     Bench,
+    BenchStatus,
     BuiltinObject,
     NodeGraph,
     NodeSuperGraph,
@@ -33,7 +34,7 @@ from bench.language import (
     User,
     UserStatus,
 )
-from bench.sql.graph import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
+from bench.sql import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
 from bench.system import pg_engine_from_store
 from bench.system.core.sharding import StoreMap
 from bench.test.conftest import _setup_test_env
@@ -137,7 +138,7 @@ async def session_async(request):
 
 
 def make_package(session: Session):
-    bench = Bench(name="test", slug="test")
+    bench = Bench(name="test", slug="test", status=BenchStatus.ACTIVATED)
     bench.main_store = bench.stores.create(name="Store")
     package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
     session.parent = bench

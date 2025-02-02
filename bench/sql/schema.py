@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.01.31.0"
+VERSION = "2025.02.02.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -44,6 +44,7 @@ BENCH_TABLE = Table(
         Column("owner_type", PrimitiveType.INT16, is_nullable=True),
         Column("region", PrimitiveType.INT16),
         Column("encryption_key", PrimitiveType.STRING, is_encrypted=True),
+        Column("status", PrimitiveType.INT16, default="20"),
         Column("main_store_id", PrimitiveType.UUID, is_nullable=True),
         Column("main_package_id", PrimitiveType.UUID, is_nullable=True),
         Column("main_package_ck", PrimitiveType.UUID, is_nullable=True),
