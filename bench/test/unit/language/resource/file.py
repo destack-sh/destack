@@ -3,6 +3,7 @@ import io
 from PIL import Image
 
 from bench.language import FileFormat, FileIn, FileType, extract_file_info, upload_file
+from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
 
@@ -33,7 +34,9 @@ async def _test_upload_and_download_file(
 
 
 @simulated_runtime()
-async def test_upload_and_download_markdown_file(runtime: RuntimeLambdaWorkload):
+async def test_upload_and_download_markdown_file(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     await _test_upload_and_download_file(
         runtime,
         b"# it's a me\nmarkdown!",
@@ -44,7 +47,9 @@ async def test_upload_and_download_markdown_file(runtime: RuntimeLambdaWorkload)
 
 
 @simulated_runtime()
-async def test_upload_and_download_text_file(runtime: RuntimeLambdaWorkload):
+async def test_upload_and_download_text_file(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     await _test_upload_and_download_file(
         runtime,
         "hello world",
@@ -55,7 +60,9 @@ async def test_upload_and_download_text_file(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_upload_and_download_image_file(runtime: RuntimeLambdaWorkload):
+async def test_upload_and_download_image_file(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     await _test_upload_and_download_file(
         runtime,
         IMAGE_BYTES,
@@ -66,7 +73,7 @@ async def test_upload_and_download_image_file(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_extract_file_info_image(runtime: RuntimeLambdaWorkload):
+async def test_extract_file_info_image(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     file_info, _ = await extract_file_info(IMAGE_BYTES, name="image")
     assert file_info.mime_type == "image/png"
     assert file_info.size == len(IMAGE_BYTES)

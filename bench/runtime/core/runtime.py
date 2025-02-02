@@ -752,7 +752,7 @@ class Runtime:
                         span.duration = span.terminated_at - span.started_at  # type: ignore
                     # close any remaining (directly) contained open Interruptions
                     if type(span) is Run:
-                        self.close(span)
+                        self.close_run(span)
 
                 # commit intermediate session edits
                 self.session.commit_optimistic()
@@ -840,7 +840,7 @@ class Runtime:
                 interrupted_runs.append(run)
         return interrupted_runs
 
-    def resume(self, *runs: Run):
+    def resume_run(self, *runs: Run):
         """Resume interrupted Runs. Does *not* mark the Run or close open Interruptions."""
         runs_by_parent_id: dict[UUID | None, list[Run]] = group_by(
             runs, key=lambda run: run.parent_id
@@ -852,7 +852,7 @@ class Runtime:
             if parent_runner is not None:
                 parent_runner.resume(child_runs)
 
-    def stop(self, run: Run):
+    def stop_run(self, run: Run):
         """Kill a Run that is currently active in this Runtime (and any inside it)."""
         root_runner = self._active_runners_by_id.get(run.id)
         if root_runner is None:
@@ -861,10 +861,10 @@ class Runtime:
             if not runner.status.is_terminal:
                 runner.stop()
                 if runner.tracked_run is not None:
-                    self.close(runner.tracked_run, resume=not runner.is_root)
+                    self.close_run(runner.tracked_run, resume=not runner.is_root)
                 logger.debug("runtime.run.stop", runner=runner)
 
-    def close(self, span: Run | RunSpan, resume: bool = True):
+    def close_run(self, span: Run | RunSpan, resume: bool = True):
         """Close the Interruptions in a Run."""
         closed_interruptions: list[Interruption] | None = None
         for interruption in span._graph.iter_descendants(span, NodeType.INTERRUPTION):
@@ -878,4 +878,12 @@ class Runtime:
         # trigger resume for Interruptions (if we can still run, i.e. not at root)
         if resume and span.parent_ptr is not None and closed_interruptions:
             runs_to_resume = self.get_interrupted_runs(span._graph, *closed_interruptions)
-            self.resume(*runs_to_resume)
+            self.resume_run(*runs_to_resume)
+
+    # nocheckin: handle Runtime close? refuse new runs?
+
+    def close(self):
+        pass
+
+    async def wait_closed(self):
+        pass

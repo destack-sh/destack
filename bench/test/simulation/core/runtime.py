@@ -35,7 +35,7 @@ class RuntimeHandle(ServiceHandle[RuntimeSpec, RuntimeService, RuntimeClient]):
     async def start(self) -> RuntimeService:
         machine = self.simulation.get_machine(self.spec.machine)
         supervisor = await self.simulation.supervisor.connect(self.spec.name)
-        service = RuntimeService(
+        self._service = RuntimeService(
             id=self.id,
             supervisor=supervisor,
             network=self.simulation.network.network,
@@ -49,9 +49,8 @@ class RuntimeHandle(ServiceHandle[RuntimeSpec, RuntimeService, RuntimeClient]):
             max_concurrency_per_thread=self.spec.max_concurrency_per_thread,
             mode=RuntimeThreadMode.LOCAL,
         )
-        await service.start()
-        self._service = service
-        return service
+        await self._service.start()
+        return self._service
 
     async def get_client(self, channel: SimulatedChannel) -> RuntimeClient:
         return RuntimeClient(channel=channel.channel)

@@ -111,7 +111,7 @@ class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
                 continue  # ignore boundary Actions
             runner.stop()
             if runner.tracked_run is not None:
-                self.runtime.close(runner.tracked_run, resume=not self.is_root)
+                self.runtime.close_run(runner.tracked_run, resume=not self.is_root)
 
     def _complete(self, outputs: CustomObject | None) -> None:
         """Complete this Flow, aborting all active Actions."""

@@ -23,12 +23,13 @@ from bench.language import (
 )
 from bench.runtime import Interrupted, create_run_from_node, make_runner
 from bench.runtime.flow.action import CodeActionRunner
+from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
 
 
 @simulated_runtime()
-async def test_run_flow_empty(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_empty(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Empty Code without any fields should fail."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     runtime.page().blocks.append(Flow1)
@@ -39,7 +40,7 @@ async def test_run_flow_empty(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_spurious(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_spurious(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Flow with Actions that go nowhere."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Flow1.actions.append(Action.new(ActionType.START, "Start"))
@@ -55,7 +56,7 @@ async def test_run_flow_spurious(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_trivial(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_trivial(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Trivial flow with Start->Complete, no value."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -70,7 +71,7 @@ async def test_run_flow_trivial(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_with_default_values(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_with_default_values(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with default values in Complete action."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -95,7 +96,7 @@ async def test_run_flow_with_default_values(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_code(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_code(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a code action with values."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -136,7 +137,9 @@ async def test_run_flow_code(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_computed_value_chain(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_computed_value_chain(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Run a Flow with Actions chaining computed inputs."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -216,7 +219,9 @@ async def test_run_flow_computed_value_chain(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_invalid_computed_source(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_invalid_computed_source(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Run a Flow with invalid computed values (invalid source). Should fail."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -241,7 +246,9 @@ async def test_run_flow_invalid_computed_source(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_invalid_computed_target(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_invalid_computed_target(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Run a Flow with an invalid computed value (invalid target). Should pass (?)."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -269,7 +276,7 @@ async def test_run_flow_invalid_computed_target(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_computed_value_mode(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_computed_value_mode(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with computed value set if source is set."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -325,7 +332,7 @@ async def test_run_flow_computed_value_mode(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_code_dynamic(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_code_dynamic(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Code action with Action.code set dynamically in a Variable."""
     Flow1 = Block.new(
         BlockType.FLOW, "Flow1", fields=(Field.variable("Code", Code), Field.output("Output", int))
@@ -360,7 +367,7 @@ async def test_run_flow_code_dynamic(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_create_in_test_mode(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_create_in_test_mode(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Flow with Start->Complete in test mode, creating a simple Node. Should be in same node."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -397,7 +404,9 @@ return {'Block': block}
 
 
 @simulated_runtime()
-async def test_run_flow_computed_run_options(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_computed_run_options(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Run a Flow with computed run options."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1", fields=(Field.variable("Attempts", int),))
     Start = Action.new(ActionType.START, "Start")
@@ -433,7 +442,7 @@ else:
 
 
 @simulated_runtime()
-async def test_run_flow_pipe_from_nowhere(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_pipe_from_nowhere(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a flow with a pipe from nowhere. Should not be run and just be ignored."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -450,7 +459,7 @@ async def test_run_flow_pipe_from_nowhere(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_pipe_to_nowhere(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_pipe_to_nowhere(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a flow with a pipe to nowhere. Should not be run and just be ignored."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -468,7 +477,9 @@ async def test_run_flow_pipe_to_nowhere(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_force_invalid_output(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_force_invalid_output(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Complete the flow with invalid output (should fail)."""
     Flow1 = Block.new(
         BlockType.FLOW, "Flow1", fields=(Field.output("Output1", str, is_required=True),)
@@ -486,7 +497,7 @@ async def test_run_flow_force_invalid_output(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_force_invalid_input(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_force_invalid_input(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a action with a trigger port that forces a Run of a Action with invalid inputs (should fail)."""
     Flow1 = Block.new(
         BlockType.FLOW, "Flow1", fields=(Field.output("Output1", str, is_required=True),)
@@ -511,7 +522,7 @@ async def test_run_flow_force_invalid_input(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_error(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_error(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a code Action that raises an error. Flow should abort and fail."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -527,7 +538,7 @@ async def test_run_flow_error(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_fail_action(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_fail_action(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with a Fail action."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -559,7 +570,7 @@ async def test_run_flow_fail_action(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_create_action(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_create_action(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a CreateAction to create a Record."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=(Field.member("Rating", int),))
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
@@ -588,7 +599,9 @@ async def test_run_flow_create_action(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_create_action_dynamic(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_create_action_dynamic(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Run a CreateAction with a dynamic node_partial."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=(Field.member("Rating", int),))
     Flow1 = Block.new(
@@ -641,7 +654,7 @@ async def test_run_flow_create_action_dynamic(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_duplicate_action(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_duplicate_action(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a DuplicateAction to clone a Record."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=(Field.member("Rating", int),))
     Record1 = Database1.records.create(Rating=1)
@@ -660,7 +673,7 @@ async def test_run_flow_duplicate_action(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_update_action(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_update_action(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run an UpdateAction to update a Record."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=(Field.member("Rating", int),))
     Record1 = Database1.records.create(name="Record1", Rating=1)
@@ -684,7 +697,7 @@ async def test_run_flow_update_action(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_delete_action(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_delete_action(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a DeleteAction to delete a Record."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=(Field.member("Rating", int),))
     Record1 = Database1.records.create(Rating=1)
@@ -700,7 +713,7 @@ async def test_run_flow_delete_action(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_race(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_race(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run multiple actions in parallel, losers should be aborted on completion of winner."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -726,7 +739,7 @@ async def test_run_flow_race(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_call_none(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_call_none(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Runs a Flow with no calls selected."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -753,7 +766,7 @@ return {
 
 
 @simulated_runtime()
-async def test_run_flow_call_tool(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_call_tool(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with a tool call."""
     Flow = Block.new(
         BlockType.FLOW,
@@ -799,7 +812,7 @@ return {
 
 
 @simulated_runtime()
-async def test_run_flow_call_route(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_call_route(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Runs a Flow with some basic routing plans."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -869,7 +882,7 @@ return {
 
 
 @simulated_runtime()
-async def test_run_flow_call_plan(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_call_plan(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with more complex call plans."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -936,7 +949,7 @@ return {
 
 
 @simulated_runtime()
-async def test_run_flow_abort(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_abort(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a long async flow script and abort it. All pending actions should be aborted."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -952,7 +965,7 @@ async def test_run_flow_abort(runtime: RuntimeLambdaWorkload):
     run_task = asyncio.create_task(runtime.run_in_runtime(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)
-    runtime.runtime.stop(run)
+    runtime.runtime.stop_run(run)
     runner = await run_task
     # flow should be aborted
     assert runner.status == RunStatus.ABORTED
@@ -963,7 +976,7 @@ async def test_run_flow_abort(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_yield(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with a Yield action, then resume from the Yield."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -1002,7 +1015,7 @@ async def test_run_flow_yield(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_yield_nested(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a FLow inside another Flow and yield from there. Should propagate and resume properly."""
     # inner flow
     FlowInner = Block.new(BlockType.FLOW, "FlowInner")
@@ -1045,7 +1058,7 @@ async def test_run_flow_yield_nested(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_yield_cancelled(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_yield_cancelled(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with a Yield action, then cancel it."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -1068,7 +1081,7 @@ async def test_run_flow_yield_cancelled(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_breakpoint(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with breakpoints all over. Should yield and resume properly."""
     Flow = Block.new(
         BlockType.FLOW,
@@ -1140,7 +1153,7 @@ async def test_run_flow_breakpoint(runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_run_flow_pause_resume(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_pause_resume(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a long async Flow and pause it, then resume it."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")

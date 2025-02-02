@@ -13,13 +13,16 @@ from bench.language import (
     ResourceStatus,
     RunStatus,
 )
+from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
 
 
 @pytest.mark.browser
 @simulated_runtime()
-async def test_acquire_browser_resource_directly(runtime: RuntimeLambdaWorkload):
+async def test_acquire_browser_resource_directly(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
     """Acquire a Browser directly and wait for it to be ready."""
     browser = Browser.new(name="My Lil' Browser")
     runtime.bench.append(browser)
@@ -30,7 +33,7 @@ async def test_acquire_browser_resource_directly(runtime: RuntimeLambdaWorkload)
 @pytest.mark.browser
 @pytest.mark.slow
 @simulated_runtime()
-async def test_run_flow_browser_go_to_url(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_browser_go_to_url(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Use a Browser as a 'variable' in a Flow to open a URL and observe the state."""
     Flow = Block.new(BlockType.FLOW, name="Flow", fields=[Field.variable("Browser", Browser)])
     Start = Action.new(ActionType.START, name="Start")

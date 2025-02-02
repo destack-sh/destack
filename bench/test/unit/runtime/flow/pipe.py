@@ -5,12 +5,13 @@ from bench.language import (
     BlockType,
     PipeType,
 )
+from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
 
 
 @simulated_runtime()
-async def test_run_flow_pipe_directly(runtime: RuntimeLambdaWorkload):
+async def test_run_flow_pipe_directly(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Pipe directly."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Action.new(ActionType.START, "Start")

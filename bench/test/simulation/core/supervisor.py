@@ -36,7 +36,7 @@ class SupervisorHandle(ServiceHandle[SupervisorSpec, SupervisorService, Supervis
 
     @override
     async def start(self) -> SupervisorService:
-        service = SupervisorService(
+        self._service = SupervisorService(
             id=self.id,
             global_store=self.simulation.global_store,
             store_map=self.simulation.store_map,
@@ -45,9 +45,8 @@ class SupervisorHandle(ServiceHandle[SupervisorSpec, SupervisorService, Supervis
             host_map=SimulatedHostMap(self.simulation),
             on_error=self.simulation.on_error,
         )
-        await service.start()
-        self._service = service
-        return service
+        await self._service.start()
+        return self._service
 
     @override
     async def get_client(self, channel: SimulatedChannel) -> SupervisorClient:

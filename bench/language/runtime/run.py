@@ -477,7 +477,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         self.paused_at = self._session._oracle.utc()
         thread = self.thread
         if thread:
-            thread.pause(self)
+            thread.pause_run(self)
 
     def resume(self):
         """Mark this Run as resumed."""
@@ -485,7 +485,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         self.resumed_at = self._session._oracle.utc()
         thread = self.thread
         if thread:
-            thread.resume(self)
+            thread.resume_run(self)
 
     def stop(self):
         """Mark this Run as stopped."""
@@ -493,7 +493,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         self.stopped_at = self._session._oracle.utc()
         thread = self.thread
         if thread:
-            thread.stop(self)
+            thread.stop_run(self)
 
     def _mark_stopped(self):
         """Mark this Run as stopped."""

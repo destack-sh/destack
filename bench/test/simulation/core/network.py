@@ -29,7 +29,7 @@ class SimulatedNetwork(Network):
 
     @override
     async def get_channel(self, connection_uri: str, *, source_id: str) -> Channel:
-        # trim prefix and port
+        # trim prefix and port (we expect something like simulation://<id>:<port>)
         service_id = connection_uri.rsplit("/", 1)[1]
         service_id = service_id.rsplit(":", 1)[0]
         assert service_id, f"unexpected connection uri: {connection_uri}"

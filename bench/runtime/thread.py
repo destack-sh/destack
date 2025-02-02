@@ -72,7 +72,7 @@ class RunHandle:
             self.task = asyncio.create_task(self.thread._do_run(self))
         else:
             # resume active
-            self.runtime.resume(*runs_to_resume)
+            self.runtime.resume_run(*runs_to_resume)
             logger.debug("thread.run.resume", runs=runs_to_resume)
 
     def on_update(self, connection: GetConnection, update: WatchGetUpdate):
@@ -113,7 +113,7 @@ class RunHandle:
         """Stop an owned Run."""
         if self.is_active:
             # kill active Run
-            self.runtime.stop(run)
+            self.runtime.stop_run(run)
         else:
             # mark inner Runs/Interrupts as killed
             for node in chain(
@@ -122,7 +122,7 @@ class RunHandle:
                 node = cast(Run, node)
                 if not node.status.is_terminal:
                     node._mark_stopped()
-                    self.runtime.close(run, resume=False)
+                    self.runtime.close_run(run, resume=False)
             if run.id == self.root.id:
                 self.close()
             else:
@@ -223,7 +223,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
         logger.info("thread.start", process=self, bench=self._bench)
 
-    async def _load(self, run_ptr: NodeReference) -> RunHandle:
+    async def _load_run(self, run_ptr: NodeReference) -> RunHandle:
         """Load the Run tree for execution."""
         assert run_ptr.id is not None, f"missing id for {run_ptr!r}"
         assert self._session is not None, f"no session for {self!r}"
@@ -276,20 +276,20 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             finally:
                 del self._active_runs[handle.root.id]
 
-    def pause(self, run: Run):
+    def pause_run(self, run: Run):
         """Pause an owned Run."""
         handle = self._owned_runs.get(run.root_id or run.id)
         assert handle is not None, f"no handle for {run!r} in {self!r}"
         handle.pause(run)
 
-    def resume(self, run: Run):
+    def resume_run(self, run: Run):
         """Resume an owned Run."""
         handle = self._owned_runs.get(run.root_id or run.id)
         assert handle is not None, f"no handle for {run!r} in {self!r}"
         handle.run()
-        self.runtime.resume(run)
+        self.runtime.resume_run(run)
 
-    def stop(self, run: Run):
+    def stop_run(self, run: Run):
         """Stop an owned Run."""
         handle = self._owned_runs.get(run.root_id or run.id)
         assert handle is not None, f"no handle for {run!r} in {self!r}"
@@ -303,8 +303,20 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         run_ptr = wiring.unpack_builtin_object_validate(
             request.run_ptr, supergraph=None, expect=NodeReference
         )
-        handle = await self._load(run_ptr)
+        handle = await self._load_run(run_ptr)
         handle.run()
         if request.is_blocking and handle.task is not None:
             await handle.task
         return RunResponse()
+
+    @override
+    def close(self) -> None:
+        if self._runtime is not None:
+            self._runtime.close()
+        super(RuntimeServiceBase).close()
+
+    @override
+    async def wait_closed(self) -> None:
+        if self._runtime is not None:
+            await self._runtime.wait_closed()
+        await super().wait_closed()
