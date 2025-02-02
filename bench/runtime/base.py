@@ -219,7 +219,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
                 )
                 protocol = "https" if host_info.ssl else "http"
                 connection_uri = f"{protocol}://{domain}:{host_info.grpc_port}"
-                host_channel = self.network.get_channel(connection_uri, source_id=self.id)
+                host_channel = await self.network.get_channel(connection_uri, source_id=self.id)
                 return HostClient(host_channel)
             except Exception as e:
                 interval = retry.get_wait_interval()

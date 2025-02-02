@@ -20,7 +20,7 @@ class SimulatedHostMap(HostMap):
     def get(self, bench_id: UUID, region: Region) -> HostInfo:
         bench = self.simulation.get_bench(bench_id)
         host = self.simulation.get_host(bench.name)
-        domain = f"{host.id}"
+        domain = f"{host.id}"  # :SimulatedNetwork
         return HostInfo(host_domain=domain, grpc_port=0, grpc_web_port=0, ssl=False)
 
 

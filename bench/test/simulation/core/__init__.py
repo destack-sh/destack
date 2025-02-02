@@ -2,6 +2,7 @@ from .client import ClientHandle
 from .host import HostHandle
 from .machine import MachineHandle
 from .oracle import SimulatedEventLoop, SimulatedEventLoopPolicy, SimulatedOracle
+from .runtime import RuntimeHandle
 from .sample import Samplable, SampledFloat, SampledInt, SampledValue, to_value
 from .service import ServiceHandle
 from .session import make_remote_session
@@ -12,6 +13,7 @@ from .spec import (
     HostSpec,
     MachineSpec,
     NetworkSpec,
+    RuntimeSpec,
     ServiceSpec,
     SimulationSpec,
     SupervisorSpec,
@@ -30,6 +32,8 @@ __all__ = [
     "MachineHandle",
     "MachineSpec",
     "NetworkSpec",
+    "RuntimeHandle",
+    "RuntimeSpec",
     "Samplable",
     "SampledFloat",
     "SampledInt",

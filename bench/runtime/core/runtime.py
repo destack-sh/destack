@@ -484,7 +484,7 @@ class Runtime:
         """Prepare the Run for execution (only for Runs, not RunSpans)"""
         assert type(runner.tracked) is Run, f"expected Run, got {runner.tracked!r}"
 
-        # nocheckin: load remote Nodes when preparing Run
+        # nocheckin: load remote Nodes when preparing Run (also see :IsolatedGraph)
         #  (Resources, File, Records, Messages, ...)
 
         # compute variables/inputs/options from context

@@ -46,8 +46,8 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
         return HostClient(channel=channel.channel)
 
     @override
-    async def wait_closed(self):
-        await super().wait_closed()
+    async def close(self):
+        await super().close()
         # manually decommission stores (bootstrapping problem since the Host session uses the store)
         async with pg_connection(self.simulation.global_store, owner=self, autocommit=True) as conn:
             for store in self.service.bench.stores:

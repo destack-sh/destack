@@ -28,6 +28,7 @@ class SimulationSpec:
     benches: tuple["BenchSpec", ...] = ()
     machines: tuple["MachineSpec", ...] = ()
     clients: tuple["ClientSpec", ...] = ()
+    runtimes: tuple["RuntimeSpec", ...] = ()
     supervisor: "SupervisorSpec" = field(default_factory=lambda: SupervisorSpec())
     hosts: tuple["HostSpec", ...] = ()
     workloads: tuple["WorkloadSpec", ...] = ()
@@ -88,11 +89,19 @@ class HostSpec(ServiceSpec):
 
 
 @dataclass
-class MachineSpec(ServiceSpec):
+class MachineSpec:
     """A Machine that's a Runtime for a Bench"""
 
     name: str = ""
     bench: str = ""
+
+
+@dataclass
+class RuntimeSpec(ServiceSpec):
+    """A Machine that's a Runtime for a Bench"""
+
+    name: str = ""
+    machine: str = ""
     max_threads: int = 1
     max_concurrency_per_thread: int = 8
 

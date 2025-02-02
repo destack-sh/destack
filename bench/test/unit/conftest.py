@@ -50,6 +50,7 @@ from bench.test.simulation.core import (
     HostSpec,
     MachineSpec,
     NetworkSpec,
+    RuntimeSpec,
     SimulatedEventLoopPolicy,
     Simulation,
     SimulationSpec,
@@ -206,7 +207,8 @@ async def run_dynamic_simulation(spec: SimulationSpec):
 # nocheckin :Test :Performance: re-use Simulations somehow (like databases?)
 
 
-def simulated_runtime(
+def make_simulation_spec(
+    func: Callable,
     network: NetworkSpec | None = None,
     users: tuple[UserSpec, ...] = (),
     machines: tuple[MachineSpec, ...] = (),
@@ -214,10 +216,9 @@ def simulated_runtime(
     supervisor: SupervisorSpec | None = None,
     benches: tuple[BenchSpec, ...] = (),
     hosts: tuple[HostSpec, ...] = (),
+    runtimes: tuple[RuntimeSpec, ...] = (),
     workloads: tuple[WorkloadSpec, ...] = (),
-):
-    """Run a test in a simulated Runtime."""
-
+) -> SimulationSpec:
     users = users or (UserSpec(name="user"),)
     machines = machines or (MachineSpec(name="user-machine", bench="user"),)
     clients = clients or (
@@ -226,6 +227,32 @@ def simulated_runtime(
     )
     benches = benches or (BenchSpec(name="user", owner="user"),)
     hosts = hosts or (HostSpec(bench="user"),)
+    spec = SimulationSpec(
+        name=func.__name__,
+        description=func.__doc__ or "",
+        network=network or NetworkSpec(),
+        users=users,
+        machines=machines,
+        clients=clients,
+        supervisor=supervisor or SupervisorSpec(),
+        benches=benches,
+        hosts=hosts,
+        runtimes=runtimes,
+        workloads=workloads,
+    )
+    return spec
+
+
+def simulated_runtime(
+    network: NetworkSpec | None = None,
+    users: tuple[UserSpec, ...] = (),
+    machines: tuple[MachineSpec, ...] = (),
+    clients: tuple[ClientSpec, ...] = (),
+    supervisor: SupervisorSpec | None = None,
+    benches: tuple[BenchSpec, ...] = (),
+    hosts: tuple[HostSpec, ...] = (),
+):
+    """Run a 'lambda workload' test as a Machine's Runtime inside a Simulation."""
 
     def decorator(test_func: Callable[[RuntimeLambdaWorkload], Awaitable[None]]):
         lambda_workload = RuntimeLambdaWorkloadSpec(
@@ -235,16 +262,16 @@ def simulated_runtime(
             type=WorkloadType.RUNTIME_LAMBDA,
             func=test_func,
         )
-        spec = SimulationSpec(
-            name=test_func.__name__,
-            description=test_func.__doc__ or "",
-            network=network or NetworkSpec(),
+        spec = make_simulation_spec(
+            func=test_func,
+            network=network,
             users=users,
             machines=machines,
             clients=clients,
-            supervisor=supervisor or SupervisorSpec(),
+            supervisor=supervisor,
+            benches=benches,
             hosts=hosts,
-            workloads=(*workloads, lambda_workload),
+            workloads=(lambda_workload,),
         )
 
         @functools.wraps(test_func)

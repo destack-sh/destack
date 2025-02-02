@@ -1,17 +1,12 @@
 from typing import TYPE_CHECKING, final
-from uuid import UUID
 
-from bench.language import Bench, Client, ClientType, Machine, NodeType, ResourceStatus
-from bench.pb2 import ClientData, MachineData, RuntimeClient
-from bench.runtime import RuntimeService
-from bench.runtime.base import RuntimeThreadMode
+from bench.language import Bench, Client, ClientType, Machine, MachineType, NodeType, ResourceStatus
+from bench.pb2 import ClientData, MachineData
 from bench.system import ACCESS_TOKEN_LENGTH
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import Oracle
 
-from .service import ServiceHandle
 from .spec import MachineSpec
-from .transport import SimulatedChannel
 
 if TYPE_CHECKING:
     from .client import ClientHandle
@@ -19,13 +14,16 @@ if TYPE_CHECKING:
 
 
 @final
-class MachineHandle(ServiceHandle[MachineSpec, RuntimeService, RuntimeClient]):
+class MachineHandle:
     """A (Runtime) Machine in a Bench"""
 
     def __init__(
         self, id: str, spec: MachineSpec, oracle: Oracle, simulation: "Simulation"
     ) -> None:
-        super().__init__(id, spec, oracle, simulation)
+        self.id = id
+        self.spec = spec
+        self.oracle = oracle
+        self.simulation = simulation
         self.clients_by_name: dict[str, ClientHandle] = {}
         self._machine_data: MachineData | None = None
         self._client_data: ClientData | None = None
@@ -65,8 +63,9 @@ class MachineHandle(ServiceHandle[MachineSpec, RuntimeService, RuntimeClient]):
             machine = Machine(
                 parent=bench,
                 name=self.spec.name,
+                type=MachineType.RUNTIME,
                 status=ResourceStatus.UP,
-                connection_uri=f"simulation://{self.id}",  # :SimulatedConnections
+                connection_uri=f"simulation://{self.id}",  # :SimulatedNetwork
             )
             session._create(machine)
             client = Client(
@@ -85,26 +84,3 @@ class MachineHandle(ServiceHandle[MachineSpec, RuntimeService, RuntimeClient]):
         self._client_data.ClearField("parent_ptr")
         self._machine_data = machine._to_data()
         self._machine_data.ClearField("parent_ptr")
-
-    async def start(self) -> RuntimeService:
-        supervisor = await self.simulation.supervisor.connect(self.spec.name)
-        service = RuntimeService(
-            id=self.id,
-            supervisor=supervisor,
-            network=self.simulation.network.network,
-            oracle=self.simulation.oracle,
-            bench_id=self.simulation.get_bench_id(self.spec.bench),
-            client_type=ClientType.MACHINE,
-            client_id=UUID(self.client_data.id),
-            client_access_token=self.access_token,
-            machine_id=UUID(self.machine_data.id),
-            max_threads=self.spec.max_threads,
-            max_concurrency_per_thread=self.spec.max_concurrency_per_thread,
-            mode=RuntimeThreadMode.LOCAL,
-        )
-        await service.start()
-        self._service = service
-        return service
-
-    async def get_client(self, channel: SimulatedChannel) -> RuntimeClient:
-        return RuntimeClient(channel=channel.channel)

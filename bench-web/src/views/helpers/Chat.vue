@@ -110,6 +110,7 @@ const {
   graph,
   isStale,
   isConnecting,
+  isConnected,
 } = useSearchConnection(
   { name: "chat", live: true },
   computed(
@@ -556,7 +557,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         }"
       >
         <!-- Loading -->
-        <span v-if="isConnecting" class="">
+        <span v-if="!isConnected || isStale" class="">
           <i class="fas fa-spinner-third animate-spin text-gray-400" />
         </span>
         <!-- Empty -->

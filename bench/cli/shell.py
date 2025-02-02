@@ -56,8 +56,8 @@ async def shell(
 
     supervisor_url = get_from_env("SUPERVISOR_URL")
     network = RealNetwork()
-    supervisor = SupervisorClient(network.get_channel(supervisor_url, source_id="shell"))
-    host = HostClient(network.get_channel(supervisor_url, source_id="shell"))
+    supervisor = SupervisorClient(await network.get_channel(supervisor_url, source_id="shell"))
+    host = HostClient(await network.get_channel(supervisor_url, source_id="shell"))
 
     # load global Bench
     global_store = global_store_from_env()
