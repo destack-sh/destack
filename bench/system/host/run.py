@@ -21,9 +21,9 @@ from bench.language import (
     RunStatus,
     Session,
     Text,
+    bittuple,
+    isolated_graph,
 )
-from bench.language.connection.connection import connection_capture
-from bench.language.core import bittuple
 from bench.proto import RunRequest, RuntimeClient
 from bench.system.host.core import Commit, HostPlugin
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
@@ -86,7 +86,7 @@ class RunPlugin(HostPlugin[Run]):
                 self._queue_run(run.root or run)
 
     @tracer.start_as_current_span("run_plugin.process_run")
-    @connection_capture("close_and_release")
+    @isolated_graph()
     async def _process_run(self, op: _RunHandle) -> None:
         """Push Runs to relevant Machines."""
         op.retry.on_attempt()

@@ -6,6 +6,7 @@ from bench.language.core import Node, NodeReference
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.utils.func import group_by
 
+from .capture import capture
 from .connection import GetConnection, SearchConnection
 from .engine import WatchGetUpdate
 
@@ -27,6 +28,7 @@ class NodeLink:
         }
         self._connection: GetConnection | SearchConnection | None = None
         self._subs: list[Callable[[], None]] = []
+        capture(self)
 
     def __str__(self):
         return f"{self.nodes_ptr} <-> {self._connection}"

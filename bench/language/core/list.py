@@ -78,12 +78,15 @@ def attach_node[N: "Node"](node: N, parent: "Node", graph: "NodeGraph", move: bo
 
     # move node (and descendants) to this parent's graph
     if node._graph is not graph:
+        from bench.language.connection import uncapture
+
         old_graph = node._graph
         assert graph.supergraph.has(
             node._graph.supergraph
         ), f"{node!r} not in same supergraph as {parent!r} ({node._graph.supergraph!r} != {graph.supergraph!r})"
         moved = node._move_to_graph(graph)
         graph.supergraph.remove_graph(old_graph)  # must be in same supergraph
+        uncapture(old_graph)
     else:
         moved = (node,)  # already in the graph
         graph.update(node)
@@ -139,6 +142,8 @@ class NodeList[V: Node](abc.ABC):
         if self._child_node_type in parent._graph.node_types:
             return parent._graph
         else:
+            from bench.language.connection import capture
+
             from .graph import NodeGraph
 
             # make new graph for child node :IsolatedGraph
@@ -148,6 +153,7 @@ class NodeList[V: Node](abc.ABC):
                 supergraph=parent._supergraph,
             )
             graph.supergraph.add_graph(graph)
+            capture(graph)
             return graph
 
     def create(self, **kwargs) -> V:
