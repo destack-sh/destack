@@ -267,7 +267,7 @@ class CustomObject(Mapping[str, Any]):
             storage_key = key.key
         return storage_key
 
-    def _do_get(self, key: "Field | Property") -> SomeValue:
+    def _do_get(self, key: "Field | Property", _raw: bool = False) -> SomeValue:
         storage_key = self._get_storage_key(key)
         value = self._value.get(storage_key)
         if value is None:
@@ -276,9 +276,12 @@ class CustomObject(Mapping[str, Any]):
                 return default
             else:
                 return None
-        elif getattr(type(value), "metatype", None) == StructType.NODE_REFERENCE:
+
+        from .node import NodeReference
+
+        if isinstance(value, NodeReference) and not _raw:
             # auto resolve references
-            resolved_value = self._supergraph.get(cast("NodeReference", value))
+            resolved_value = self._supergraph.get(value)
             return resolved_value
         else:
             return value

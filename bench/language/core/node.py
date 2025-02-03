@@ -1178,6 +1178,16 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             n._graph = graph
         return moved
 
+    def _detach_rec(self):
+        """Removes this node from the graph / supergraph."""
+        self._graph.remove(self)
+        if len(self._graph) == 0:
+            from bench.language.connection import uncapture
+
+            # remove entire graph from supergraph if it was just this node (and its descendants)
+            self._supergraph.remove_graph(self._graph)
+            uncapture(self._graph)
+
     async def wait_until(self, condition: Callable[[Self], bool]):
         """Wait until the given condition is true."""
         runtime = active_session().runtime

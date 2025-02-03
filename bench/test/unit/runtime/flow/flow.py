@@ -664,6 +664,7 @@ async def test_run_flow_duplicate_action(simulation: Simulation, runtime: Runtim
     runtime.page().blocks.extend(Database1, Flow1)
     await runtime.commit()
 
+    Record1._detach_rec()  # detach to also test remote loading
     runner = await runtime.run_in_runtime(
         Clone, inputs={"node": Record1, "node_partial": Record.partial(block=Database1, Rating=3)}
     )
@@ -683,6 +684,7 @@ async def test_run_flow_update_action(simulation: Simulation, runtime: RuntimeLa
     runtime.page().blocks.extend(Database1, Flow1)
     await runtime.commit()
 
+    Record1._detach_rec()  # detach to also test remote loading
     runner = await runtime.run_in_runtime(
         Update,
         inputs={
@@ -707,6 +709,7 @@ async def test_run_flow_delete_action(simulation: Simulation, runtime: RuntimeLa
     runtime.page().blocks.extend(Database1, Flow1)
     await runtime.commit()
 
+    Record1._detach_rec()  # detach to also test remote loading
     runner = await runtime.run_in_runtime(Delete, inputs={"node": Record1})
     assert runner.status == RunStatus.COMPLETED
     assert await Database1.records.search() == []
