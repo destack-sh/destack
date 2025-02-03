@@ -217,7 +217,7 @@ class HostPlugin[T: Node]:
         self.tasks = TaskManager(
             owner=self,
             logger=logger,
-            on_error=lambda e: host.on_error(source=self, error=e),
+            on_error=lambda e: host.on_error(e),
             task_id_prefix=f"{self.bench.slug}_{self.__class__.__name__}",
             oracle=host.oracle,
         )

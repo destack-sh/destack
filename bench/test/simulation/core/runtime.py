@@ -48,6 +48,7 @@ class RuntimeHandle(ServiceHandle[RuntimeSpec, RuntimeService, RuntimeClient]):
             max_threads=self.spec.max_threads,
             max_concurrency_per_thread=self.spec.max_concurrency_per_thread,
             mode=RuntimeThreadMode.LOCAL,
+            on_error=self.simulation.on_error,
         )
         await self._service.start()
         return self._service

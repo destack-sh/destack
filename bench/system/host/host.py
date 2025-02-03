@@ -142,6 +142,7 @@ class HostService(GraphIoServiceBase, HostBase):
             network=network,
             oracle=oracle,
             scope=GraphScope(bench_id=bench_id)._to_data(),
+            on_error=on_error,
         )
 
         self.bench_id = bench_id
@@ -170,7 +171,6 @@ class HostService(GraphIoServiceBase, HostBase):
         self._session: Session | None = None
         self._provisioners: tuple[Provisioner, ...] = ()
         self._plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
-        self._on_error = on_error
 
     def __str__(self):
         return f"{self._bench or self.bench_id}"
@@ -192,10 +192,6 @@ class HostService(GraphIoServiceBase, HostBase):
     def main_package(self) -> Package:
         assert self._main_package is not None, f"main package not loaded in {self}"
         return self._main_package
-
-    def on_error(self, source: HostPlugin, error: BaseException) -> None:
-        if self._on_error is not None:
-            self._on_error(error)
 
     @property
     def graphs(self) -> tuple[NodeGraph, ...]:

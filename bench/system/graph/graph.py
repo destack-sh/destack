@@ -2,7 +2,17 @@ import abc
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import AsyncIterator, Literal, Mapping, NamedTuple, Sequence, cast, final, override
+from typing import (
+    AsyncIterator,
+    Callable,
+    Literal,
+    Mapping,
+    NamedTuple,
+    Sequence,
+    cast,
+    final,
+    override,
+)
 from uuid import UUID
 
 import pytz
@@ -173,8 +183,11 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         network: Network,
         oracle: Oracle,
         scope: GraphScopeData,
+        on_error: Callable[[BaseException], None] | None = None,
     ):
-        super().__init__(id=id, logger=logger, tracer=tracer, network=network, oracle=oracle)
+        super().__init__(
+            id=id, logger=logger, tracer=tracer, network=network, oracle=oracle, on_error=on_error
+        )
         self._local_epoch: int = 0
         self.bench_id: UUID | None = bench_id
         self.node_types: bittuple[NodeType] = node_types

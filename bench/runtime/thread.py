@@ -218,7 +218,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         self._runtime = Runtime(
             session=self._session,
             cache=cache,
-            oracle=self._oracle,
+            oracle=self.oracle,
             thread=self,
             static_glbls=STATIC_CODE_GLOBALS,
             dynamic_glbls=DYNAMIC_CODE_GLOBALS,

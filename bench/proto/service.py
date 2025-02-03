@@ -75,14 +75,22 @@ class ServiceBase(abc.ABC):
     name: ClassVar[str]
 
     def __init__(
-        self, *, id: str, logger: Any, tracer: trace.Tracer, network: "Network", oracle: Oracle
+        self,
+        *,
+        id: str,
+        logger: Any,
+        tracer: trace.Tracer,
+        network: "Network",
+        oracle: Oracle,
+        on_error: Callable[[BaseException], None] | None = None,
     ):
         self.id = id
         self.logger = logger
         self.tracer = tracer
         self.network = network
-        self._oracle = oracle
         self.tasks = TaskManager(owner=self, logger=logger, oracle=oracle)
+        self.oracle = oracle
+        self._on_error = on_error
 
     def __str__(self) -> str:
         return ""
@@ -95,10 +103,9 @@ class ServiceBase(abc.ABC):
         else:
             return f"<{self.__class__.__name__}>"
 
-    @property
-    def oracle(self) -> Oracle:
-        # wrap as property to comply with HostSpec
-        return self._oracle
+    def on_error(self, exc: BaseException) -> None:
+        if self._on_error:
+            self._on_error(exc)
 
     def get_service_baggage(self) -> dict[str, Any]:
         return {}
@@ -201,11 +208,13 @@ class ServiceBase(abc.ABC):
                     log.info(rpc_name, span="current")
                 except GRPCError as e:
                     # pass through GRPC errors
-                    log.info(f"{rpc_name}.error", exc_info=e, span="current")
+                    log.error(f"{rpc_name}.error", exc_info=e, span="current")
+                    self.on_error(e)
                     raise
                 except BenchError as e:
                     # wrap error
-                    log.info(f"{rpc_name}.error", exc_info=e, span="current")
+                    log.error(f"{rpc_name}.error", exc_info=e, span="current")
+                    self.on_error(e)
                     status = get_grpc_status_from_bench_error(e)
                     raise GRPCError(status, str(e)) from e
                 except Exception as e:
