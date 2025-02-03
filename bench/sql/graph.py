@@ -36,6 +36,7 @@ from bench.language import (
     NODE_CLASSES,
     NODE_TYPES,
     PARENT_NODE_TYPES,
+    PROPERTY_META_KEY_BY_TYPE,
     UNSET,
     Bench,
     Block,
@@ -58,6 +59,7 @@ from bench.language import (
     PrimitiveType,
     PrimitiveValue,
     Property,
+    PropertyReferenceType,
     Query,
     QueryType,
     Record,
@@ -65,6 +67,7 @@ from bench.language import (
     SelectOptions,
     SortType,
     TypeKind,
+    bittuple,
     get_default_query_filter,
     pack_builtin_object_data,
     pack_proto_date,
@@ -79,8 +82,6 @@ from bench.language import (
     unpack_value,
     unpack_value_data,
 )
-from bench.language.core import bittuple
-from bench.language.core.property import PROPERTY_META_KEY_BY_TYPE, PropertyReferenceType
 from bench.pb2 import (
     AnyNodeData,
     Date,

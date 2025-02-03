@@ -22,13 +22,6 @@ from bench.language.registry import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_compl
 from bench.pb2 import AnyNodeData
 from bench.utils.func import stable_hash
 
-from .connection import (
-    AggregateOptions,
-    ConnectMode,
-    GetConnection,
-    SearchConnection,
-    SearchOptions,
-)
 from .const import (
     AggregationType,
     BenchError,
@@ -46,11 +39,15 @@ from .struct import Struct, struct_
 
 if TYPE_CHECKING:
     from bench.language import (
+        AggregateOptions,
         Block,
         Channel,
+        ConnectMode,
         Field,
+        GetConnection,
         NodeReference,
         PropertyReference,
+        SearchConnection,
         SelectOptions,
     )
 
@@ -514,7 +511,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         self,
         filter: Union["Expression", "NodeReference", None] = None,
         live: bool = False,
-        mode: ConnectMode = "unpacked",
+        mode: "ConnectMode" = "unpacked",
         **kwargs,
     ) -> NodeT: ...
     @overload
@@ -522,7 +519,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         self,
         filter: Sequence["NodeReference"],
         live: bool = False,
-        mode: ConnectMode = "unpacked",
+        mode: "ConnectMode" = "unpacked",
         **kwargs,
     ) -> list[NodeT]: ...
     @tracer.start_as_current_span("query.get")
@@ -530,7 +527,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         self,
         filter: Union["Expression", "NodeReference", Sequence["NodeReference"], None] = None,
         live: bool = False,
-        mode: ConnectMode = "unpacked",
+        mode: "ConnectMode" = "unpacked",
         **kwargs,
     ) -> NodeT | list[NodeT]:
         """
@@ -545,7 +542,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         self,
         filter: Union["Expression", "NodeReference", None] = None,
         live: bool = False,
-        mode: ConnectMode = "unpacked",
+        mode: "ConnectMode" = "unpacked",
         **kwargs,
     ) -> tuple[NodeT, "GetConnection[Any, NodeT] | SearchConnection[Any, NodeT]"]: ...
     @overload
@@ -553,7 +550,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         self,
         filter: Sequence["NodeReference"],
         live: bool = False,
-        mode: ConnectMode = "unpacked",
+        mode: "ConnectMode" = "unpacked",
         **kwargs,
     ) -> tuple[list[NodeT], "GetConnection[Any, NodeT] | SearchConnection[Any, NodeT]"]: ...
     @tracer.start_as_current_span("query.get_connection")
@@ -561,7 +558,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         self,
         filter: Union["Expression", "NodeReference", Sequence["NodeReference"], None] = None,
         live: bool = False,
-        mode: ConnectMode = "unpacked",
+        mode: "ConnectMode" = "unpacked",
         **kwargs,
     ) -> tuple[NodeT | list[NodeT], "GetConnection[Any, NodeT] | SearchConnection[Any, NodeT]"]:
         """
@@ -609,7 +606,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         self,
         filter: Optional["Expression"] = None,
         live: bool = False,
-        mode: ConnectMode = "both",
+        mode: "ConnectMode" = "both",
         **kwargs,
     ) -> list[NodeT]:
         """Fetches the nodes matching the query."""
@@ -621,10 +618,12 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         self,
         filter: Optional["Expression"] = None,
         live: bool = False,
-        mode: ConnectMode = "both",
+        mode: "ConnectMode" = "both",
         **kwargs,
     ) -> tuple[list[NodeT], "SearchConnection"]:
         """Fetches the nodes matching the query and returns the connection."""
+        from bench.language import SearchOptions
+
         filter = coerce_conditional(
             node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
         )
@@ -656,9 +655,11 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
 
     @tracer.start_as_current_span("query.count")
     async def count(
-        self, filter: Optional["Expression"] = None, mode: ConnectMode = "unpacked", **kwargs
+        self, filter: Optional["Expression"] = None, mode: "ConnectMode" = "unpacked", **kwargs
     ) -> int:
         """Returns the number of results."""
+        from bench.language import AggregateOptions
+
         from .expression import A, coerce_conditional
 
         # prepare
@@ -679,7 +680,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
 
     @tracer.start_as_current_span("query.exists")
     async def exists(
-        self, filter: Optional["Expression"] = None, mode: ConnectMode = "unpacked", **kwargs
+        self, filter: Optional["Expression"] = None, mode: "ConnectMode" = "unpacked", **kwargs
     ) -> bool:
         """Whether any nodes match the query."""
         from .expression import A, coerce_conditional

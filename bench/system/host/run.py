@@ -22,8 +22,8 @@ from bench.language import (
     Session,
     Text,
 )
+from bench.language.connection.connection import connection_capture
 from bench.language.core import bittuple
-from bench.language.core.connection import connection_capture
 from bench.proto import RunRequest, RuntimeClient
 from bench.system.host.core import Commit, HostPlugin
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState

@@ -12,11 +12,11 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench import pb2
+from bench.language.connection import Channel, WritableChannel
 from bench.language.core import (
     EDIT_SUBJECT_TYPES,
     TK_LENGTH_B64,
     BuiltinObject,
-    Channel,
     CustomObject,
     EditOperationType,
     EditSubject,
@@ -30,7 +30,6 @@ from bench.language.core import (
     PrimitiveType,
     Struct,
     StructType,
-    WritableChannel,
     p_internal,
     p_system,
     p_value_packed,

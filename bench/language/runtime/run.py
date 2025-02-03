@@ -518,7 +518,10 @@ class Run(RuntimeNode[RunData], HasNodeBase):
 
     cancel = abort = stop
 
+    async def wait_until_status(self, status: RunStatus):
+        """Wait until this Run reaches the given status."""
+        await self.wait_until(lambda self: self.status == status)
 
-#
-# Control flow
-#
+    async def wait_until_terminated(self):
+        """Wait until this Run is terminated."""
+        await self.wait_until(lambda self: self.status.is_terminal)

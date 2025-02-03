@@ -1,4 +1,5 @@
 from .auth import *  # noqa: F403
+from .connection import *  # noqa: F403
 from .core import *  # noqa: F403
 from .cosmos import *  # noqa: F403
 from .finance import *  # noqa: F403
