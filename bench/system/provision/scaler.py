@@ -57,7 +57,7 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
 
     @final
     @tracer.start_as_current_span("scaler.reconcile")
-    @connection_capture("seal")
+    @connection_capture("close_and_release")
     async def _do_reconcile(self, scalers: tuple[Scaler, ...] | None = None) -> None:
         """Reconcile the Scalers and the Resources they scale."""
 

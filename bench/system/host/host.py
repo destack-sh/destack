@@ -365,7 +365,7 @@ class HostService(GraphIoServiceBase, HostBase):
             self._main_package = await PACKAGE_QUERY.get(self._bench.main_package_ptr, mode="both")
 
             # cleanup
-            tmp_bench.connection.release()
+            tmp_bench.connection.detach()
             del tmp_bench
             self._bench._untrack_rec()
             self._main_package._untrack_rec()

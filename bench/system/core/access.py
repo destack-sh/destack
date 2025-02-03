@@ -115,7 +115,7 @@ class ClientCache:
         """Purges all Client caches for a User."""
         for key, client in list(self._cache.items()):
             if client.parent_id == user.id:
-                client.connection.release()
+                client.connection.detach()
                 self._cache.pop(key)
 
 

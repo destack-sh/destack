@@ -711,7 +711,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             scalar = getattr(node, properties_names[0])
         else:
             scalar = tuple(getattr(node, p) for p in properties_names)
-        connection.release()
+        connection.detach()
         return scalar
 
     @tracer.start_as_current_span("query.scalar_maybe")
@@ -726,7 +726,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
                 scalar = getattr(node, properties_names[0])
             else:
                 scalar = tuple(getattr(node, p) for p in properties_names)
-            connection.release()
+            connection.detach()
             return scalar
         elif len(results) == 0:
             return None
@@ -743,7 +743,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             scalars = [getattr(node, properties_names[0]) for node in nodes]
         else:
             scalars = [tuple(getattr(node, p) for p in properties_names) for node in nodes]
-        connection.release()
+        connection.detach()
         return scalars
 
     def _to_properties(self, properties: tuple[FieldOrProperty, ...]) -> tuple["Property", ...]:
