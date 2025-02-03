@@ -551,17 +551,21 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             if self.metatype in parent._graph.node_types:
                 self._graph = parent._graph
             else:
-                # nocheckin :Cleanup: prune all the :IsolatedGraphs somewhere?
                 # have parent graph but it's not the right one :IsolatedGraph
+                from bench.language.connection import capture
+
                 self._graph = NodeGraph(
                     scope=parent._graph.scope,
                     node_types=(self.metatype,),
                     supergraph=self._supergraph,
                 )
                 self._supergraph.add_graph(self._graph)
+                capture(self._graph)
         else:
             # no parent, create our own graph
             # if we're not in a graph, start a new one :IsolatedGraph
+            from bench.language.connection import capture
+
             graph = NodeGraph(  # type: ignore
                 scope=EMPTY_SCOPE_DATA,
                 node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype]),
@@ -569,6 +573,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             )
             self._graph = graph
             self._supergraph.add_graph(graph)
+            capture(graph)
         if not _skip_add_self:
             self._graph.add(self)
 

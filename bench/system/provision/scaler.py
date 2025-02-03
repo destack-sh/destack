@@ -18,7 +18,7 @@ from bench.language import (
     ScalerType,
     Session,
     bittuple,
-    connection_capture,
+    isolated_graph,
 )
 from bench.system.host import Commit
 from bench.utils.func import group_by
@@ -57,7 +57,7 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
 
     @final
     @tracer.start_as_current_span("scaler.reconcile")
-    @connection_capture("close_and_release")
+    @isolated_graph()
     async def _do_reconcile(self, scalers: tuple[Scaler, ...] | None = None) -> None:
         """Reconcile the Scalers and the Resources they scale."""
 

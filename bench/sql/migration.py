@@ -350,7 +350,7 @@ async def _do_sql_migrate(
                 migration.applied_at = oracle.utc()
             else:
                 migration.applied_at = None
-            logger.debug(
+            logger.trace(
                 "migration.apply", cur=cur, migration=migration, store=store, span="current"
             )
 

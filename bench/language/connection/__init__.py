@@ -1,9 +1,9 @@
+from .capture import GraphCapture, capture, isolated_graph, uncapture
 from .connection import (
     AggregateConnection,
     Connection,
     GetConnection,
     SearchConnection,
-    connection_capture,
 )
 from .engine import (
     AggregateOptions,
@@ -68,6 +68,7 @@ __all__ = [
     "GetOptions",
     "GetResult",
     "GetResultData",
+    "GraphCapture",
     "MemoryChannel",
     "MemoryEngine",
     "MemoryGetConnection",
@@ -95,7 +96,9 @@ __all__ = [
     "WatchSearchUpdate",
     "WatchSearchUpdateData",
     "WritableChannel",
-    "connection_capture",
+    "capture",
+    "isolated_graph",
     "link_nodes",
     "scope_includes",
+    "uncapture",
 ]

@@ -1,38 +1,18 @@
-#
-# Queries
-#
 import abc
 import asyncio
 import contextlib
-import contextvars
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    AsyncIterator,
-    Callable,
-    Literal,
-    Self,
-    cast,
-    final,
-    override,
-)
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Self, cast, final, override
 from uuid import UUID
 
 import structlog
 from opentelemetry import trace
 
-from bench.language.core import (
-    EditType,
-    Node,
-    patch_graph,
-)
-from bench.pb2 import (
-    AnyNodeData,
-    GraphScopeData,
-)
+from bench.language.core import EditType, Node, patch_graph
+from bench.pb2 import AnyNodeData, GraphScopeData
 from bench.utils.task import create_task
 from bench.utils.tenacity import RetryOptions
 
+from .capture import capture
 from .engine import (
     AggregateOptions,
     AggregateResult,
@@ -67,35 +47,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-_graph_captures: contextvars.ContextVar[list[Callable[["Connection"], None]] | None] = (
-    contextvars.ContextVar("graph_captures", default=None)
-)
-
-
-# nocheckin: connection_capture -> GraphCapture (with Connections, NodeLinks, :IsolatedGraphs, ..)
-@contextlib.asynccontextmanager
-async def connection_capture(  # noqa: RUF029
-    on_exit: Literal["release", "close", "close_and_release"] | None = None,
-):
-    """Capture all connections created in this context."""
-
-    # watch for connections
-    connections: list[Connection] = []
-    if (connection_captures := _graph_captures.get()) is None:
-        connection_captures = []
-        _graph_captures.set(connection_captures)
-    connection_captures.append(connections.append)
-    yield connections
-    connection_captures.remove(connections.append)
-
-    # auto-handle new connections
-    if on_exit == "close" or on_exit == "close_and_release":
-        for connection in connections:
-            connection.close()
-    if on_exit == "release" or on_exit == "close_and_release":
-        for connection in connections:
-            connection.detach()
 
 
 class Connection[
@@ -137,9 +88,7 @@ class Connection[
         self._update_subscribers: list[Callable[[Any, UpdateT], None]] = []
 
         # capture
-        if (captures := _graph_captures.get()) is not None:
-            for capture in captures:
-                capture(self)
+        capture(self)
 
     def __str__(self):
         is_live_postfix = " (live)" if self.is_live else ""

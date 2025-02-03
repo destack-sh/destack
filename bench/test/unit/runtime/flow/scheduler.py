@@ -19,8 +19,6 @@ async def test_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     run = create_run_from_node(flow)
     await run.wait_until_terminated()
     assert run.status == RunStatus.COMPLETED
-    # nocheckin: wait for Run?
-    #  (this feels related to Runtime.wait_for and also the load remote nodes thing)
 
 
 @simulated_runtime()

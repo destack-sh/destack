@@ -12,6 +12,7 @@ from bench.language import (
     DEFAULT_CHECK_OPTIONS,
     NODE_CLASS_BY_TYPE,
     RUN_STATUS_BY_INTERRUPTION_TYPE,
+    RUNTIME_NODE_TYPES,
     Action,
     BenchError,
     BreakpointSite,
@@ -36,6 +37,7 @@ from bench.language import (
     Resource,
     ResourceStatus,
     Run,
+    RunSpan,
     RunSpanType,
     RunStatus,
     Session,
@@ -47,13 +49,12 @@ from bench.language import (
     evaluate_path,
     is_node_type,
     is_value,
+    isolated_graph,
     link_nodes,
     on_invalid_raise,
     run_span,
     to_type_scalar,
 )
-from bench.language.core.const import RUNTIME_NODE_TYPES
-from bench.language.runtime.run import RunSpan
 from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
 from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
@@ -158,11 +159,13 @@ class Runtime:
         pass
 
     async def wait_stopped(self):
-        """Wait for the Runtime to stop (all active Runs to stop)."""
-        await asyncio.gather(
-            *(runner.task for runner in self._active_root_runners if runner.task),
-            return_exceptions=True,
-        )
+        """Wait for the Runtime to stop (all active Runs to stop + commit)."""
+        active_runners = tuple(runner for runner in self._active_root_runners if runner.task)
+        if active_runners:
+            logger.debug("runtime.wait_stopped.runners", runners=active_runners)
+            await asyncio.gather(
+                *(runner.task for runner in active_runners if runner.task), return_exceptions=True
+            )
         await self.session.commit()
 
     def _evaluate_computed_value(self, runner: Runner, computed_value: ComputedValue):
@@ -465,7 +468,7 @@ class Runtime:
         """Prepare the Run for execution (only for Runs, not RunSpans)"""
         assert type(runner.tracked) is Run, f"expected Run, got {runner.tracked!r}"
 
-        # nocheckin: load remote Nodes when preparing Run (also see :IsolatedGraph)
+        # nocheckin: load remote Nodes when preparing Run
         #  (Resources, File, Records, Messages, ...)
 
         # compute variables/inputs/options from context
@@ -773,6 +776,7 @@ class Runtime:
         runner.outer_task = asyncio.create_task(self._wrap_run_runner(runner))
         return runner
 
+    @isolated_graph()
     async def run(
         self,
         run: Run,
