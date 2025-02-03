@@ -1,7 +1,7 @@
 import json
 from base64 import b64decode, b64encode
 from itertools import chain
-from typing import Any, Collection, Mapping, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Mapping, Union, cast
 from uuid import UUID
 
 import pytz
@@ -17,7 +17,6 @@ from bench.language.core import (
     NULL_SUPERGRAPH,
     BuiltinEnumOrUnion,
     BuiltinObject,
-    Connection,
     CustomObject,
     Node,
     NodeDataGraph,
@@ -41,6 +40,8 @@ from bench.language.runtime import Session
 from bench.pb2 import AnyNodeData, AnyStructData, NodeReferenceData, RpcMetadata
 from bench.utils.string import Casing, to_casing
 
+if TYPE_CHECKING:
+    from bench.language.connection import Connection
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
@@ -301,7 +302,7 @@ def unpack_builtin_object[T: BuiltinObject](
     expect: type[T] | None = None,
     supergraph: NodeSuperGraph | None,
     session: Session | None = None,
-    connection: Connection | None = None,
+    connection: "Connection | None" = None,
     # for nodes
     graph: NodeGraph | None = None,
     # NOTE: by default new Nodes add themselves to their graph, but during
@@ -384,7 +385,7 @@ def unpack_node_graph(
     parent: Node | None = None,
     session: Session | None = None,
     exclude: set[NodeType] | tuple[NodeType, ...] | None = (),
-    connection: Connection | None = None,
+    connection: "Connection | None" = None,
 ) -> NodeGraph:
     """Unpacks the node data(s) into a node graph."""
     trace.get_current_span().set_attribute("nodes", len(data_graph))
@@ -431,7 +432,7 @@ def unpack_node_roots(
     session: Session | None = None,
     exclude: set[NodeType] | None = None,
     roots: Collection[NodeReferenceData] | None = None,
-    connection: Connection | None = None,
+    connection: "Connection | None" = None,
 ) -> tuple[tuple[Node, ...], NodeGraph]:
     """Unpack nodes and their descendants. Returns the actual roots (or passed ones)."""
 

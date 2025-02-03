@@ -17,18 +17,23 @@ from attr import dataclass
 from opentelemetry import trace
 
 from bench import pb2
+from bench.language.connection import (
+    Channel,
+    ChannelUnavailableError,
+    Connection,
+    Engine,
+    NullEngine,
+    SplitChannel,
+    scope_includes,
+)
 from bench.language.core import (
     ACTIVE_SESSION,
     EMPTY_SCOPE_DATA,
     NODE_TYPES,
     BenchError,
     BenchNode,
-    Channel,
-    ChannelUnavailableError,
-    Connection,
     EditSubject,
     EditType,
-    Engine,
     HasContext,
     Node,
     NodeDataGraph,
@@ -36,11 +41,9 @@ from bench.language.core import (
     NodeMode,
     NodeReference,
     NodeType,
-    NullEngine,
     RuntimeNode,
     SessionStatus,
     SourceNode,
-    SplitChannel,
     Struct,
     StructType,
     bittuple,
@@ -49,7 +52,6 @@ from bench.language.core import (
     p_runtime,
     p_system,
     repr_scope,
-    scope_includes,
     struct_,
     timed_node_,
 )
@@ -462,14 +464,14 @@ class Session(RuntimeNode[SessionData]):
     #
 
     def _subscribe_on_edit(self, node: Node, sub: Callable[[Node], None]) -> Callable[[], None]:
-        """Subscribe to edits on a node :SupergraphWatch."""
+        """Subscribe to edits on a node."""
         if node.id not in self._on_edit_subs:
             self._on_edit_subs[node.id] = []
         self._on_edit_subs[node.id].append(sub)
         return lambda: self._unsubscribe_on_edit(node, sub)
 
     def _unsubscribe_on_edit(self, node: Node, sub: Callable[[Node], None]) -> None:
-        """Unsubscribe from edits on a node :SupergraphWatch."""
+        """Unsubscribe from edits on a node."""
         if node.id in self._on_edit_subs:
             self._on_edit_subs[node.id].remove(sub)
             if not self._on_edit_subs[node.id]:
@@ -748,7 +750,8 @@ class Session(RuntimeNode[SessionData]):
                 if self._on_commit_prepare is not None:
                     # NOTE :Architecture: we exclude state nodes from preflush before commit prepare
                     #  because our DatabasePlugin needs to update schemas before touching any Records.
-                    self._preflush(include_runtime=True, include_state=False)  # nocheckin <--
+                    # nocheckin MessageTriggerPlugin needs Messages preflushed no?
+                    self._preflush(include_runtime=True, include_state=False)
                     edits, cascaded_edits = await self._tx.flush(
                         filter=lambda e: not NodeType(e.node_ptr.node_type).is_state
                     )

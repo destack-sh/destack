@@ -76,7 +76,7 @@ class _RunHandle:
             logger.debug("thread.run.resume", runs=runs_to_resume)
 
     def on_update(self, connection: GetConnection, update: WatchGetUpdate):
-        """React to updates on Runs/Interruptions :SupergraphWatch."""
+        """React to updates on Runs/Interruptions."""
         runs_to_resume: set[Run] = set()
         for node in update.updated.values():
             # react to Run/Interruption updates in Runtime
@@ -107,6 +107,7 @@ class _RunHandle:
     def pause(self, run: Run):
         """Pause a Run."""
         # nothing to do? (pause is trapped automatically if active)
+        assert run.paused_at is not None, f"{run!r} is not paused"
         self.log.debug("run.pause", run=run)
 
     def stop(self, run: Run):

@@ -154,8 +154,8 @@ class Runtime:
 
     def stop(self):
         """Stop the Runtime."""
-        # TODO :Robustness: handle Runtime stop? refuse new runs?
-        #  (maybe auto-pause all active Runners so we can transfer them to a new Runtime?)
+        # TODO :Robustness!: handle Runtime stop better? pause existing Runs?
+        #  (maybe auto-interrupt all active Runners so we can transfer them to a new Runtime?)
         pass
 
     async def wait_stopped(self):
@@ -266,7 +266,7 @@ class Runtime:
     ):
         """
         Wait for the given nodes to reach a certain state.
-        NOTE :Architecture: use Interruptions instead of 'busy' (async) wait in Runtime?
+        NOTE :Architecture: use Triggers/Interruptions instead of 'busy' (async) wait in Runtime?
         NOTE :Architecture: factor out keeping live connections into general Runtime behavior?
         """
         if condition():
@@ -312,7 +312,6 @@ class Runtime:
 
         try:
             # create live connections if needed
-            # NOTE :Architecture: auto-update entire supergraph from connections? :SupergraphWatch
             stale_nodes = [node for node in nodes if not node._is_live]
             stale_nodes_by_type = group_by(stale_nodes, lambda node: node.metatype)
             for node_type, stale_nodes in stale_nodes_by_type.items():
