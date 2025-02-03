@@ -1,14 +1,23 @@
 import asyncio
-from typing import Callable, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Callable, Mapping, Sequence, cast
 from uuid import UUID
 
-from bench.language.core import Node, NodeReference
+import structlog
+from opentelemetry import trace
+
+from bench.language.core import Node, NodeNotFoundError, NodeReference, NodeType
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.utils.func import group_by
 
 from .capture import capture
 from .connection import GetConnection, SearchConnection
 from .engine import WatchGetUpdate
+
+tracer = trace.get_tracer(__name__)
+logger = structlog.get_logger(__name__)
+
+if TYPE_CHECKING:
+    from bench.language import Block
 
 
 class NodeLink:
@@ -18,9 +27,10 @@ class NodeLink:
     Useful when we get a Node from one source and the need to make it live after the fact.
     """
 
-    def __init__(self, nodes: Sequence[Node | NodeReference]) -> None:
+    def __init__(self, nodes: Sequence[Node | NodeReference], block: "Block | None") -> None:
         assert len(nodes) > 0, f"no nodes to link for {self!r}"
         self.nodes = nodes
+        self.block = block
         self.nodes_ptr: tuple[NodeReference, ...] = tuple(n.to_ref() for n in nodes)
         self.node_cls = NODE_CLASS_BY_TYPE[self.nodes_ptr[0].node_type]
         self.nodes_by_id: dict[UUID, Node] = {
@@ -45,6 +55,11 @@ class NodeLink:
             and not self._connection.is_open
         )
 
+    def on_update(self, sub: Callable[[], None]):
+        """Subscribe to updates from the Connection."""
+        self._subs.append(sub)
+        return lambda: self._subs.remove(sub)
+
     def _apply_update(self, update: WatchGetUpdate):
         """'Apply' the updates from a live connection to our graphs (patching nodes in place)."""
         touched_our_nodes = False
@@ -57,23 +72,19 @@ class NodeLink:
             for sub in self._subs:
                 sub()
 
-    def on_update(self, sub: Callable[[], None]):
-        """Subscribe to updates from the Connection."""
-        self._subs.append(sub)
-        return lambda: self._subs.remove(sub)
-
     async def link(self):
         """Link given Nodes to a live Connection."""
         assert self._connection is None, f"{self!r} is already linked"
         node_cls = NODE_CLASS_BY_TYPE[self.nodes_ptr[0].node_type]
-        live_nodes = await node_cls.select_all().get(self.nodes_ptr, live=True)
+        query = node_cls.select_all()
+        if self.block is not None:
+            query._base_block = self.block
+        live_nodes, connection = await query.get_connection(self.nodes_ptr, live=True)
         for live_node in live_nodes:  # patch immediately
             our_node = self.nodes_by_id.get(live_node.id)
             if our_node is not None:
                 our_node._link = self
                 our_node._patch_from(live_node)
-        connection = live_nodes[0]._connection
-        assert live_nodes and connection, f"no live connection for {self!r}"
         connection.on_update(lambda c, u: self._apply_update(cast(WatchGetUpdate, u)))
         self._connection = connection
 
@@ -91,6 +102,12 @@ class NodeLink:
 
 async def link_nodes(nodes: Sequence[Node | NodeReference]) -> Sequence[NodeLink]:
     """Link given Nodes to live Connections."""
+    from bench.language import Block
+
+    if not nodes:
+        return []
+    supergraph = nodes[0]._supergraph
+
     # group nodes
     nodes_ptr: tuple[NodeReference, ...] = tuple(n.to_ref() for n in nodes)
     nodes_by_id: Mapping[UUID, Node] = {node.id: node for node in nodes if isinstance(node, Node)}
@@ -98,11 +115,21 @@ async def link_nodes(nodes: Sequence[Node | NodeReference]) -> Sequence[NodeLink
 
     # link them
     links: list[NodeLink] = []
-    for link_nodes_ptr in nodes_by_type_and_base.values():
+    for (_, link_base_ck), link_nodes_ptr in nodes_by_type_and_base.items():
+        # base
+        if link_base_ck is not None:
+            base_ptr = NodeReference(node_type=NodeType.BLOCK, ck=link_base_ck)
+            block = supergraph.get(base_ptr)
+            if not isinstance(block, Block):
+                raise NodeNotFoundError(base_ptr)
+        else:
+            block = None
+
+        # nodes
         link_nodes = [
             nodes_by_id.get(cast(UUID, node_ptr.id), node_ptr) for node_ptr in link_nodes_ptr
         ]
-        link = NodeLink(link_nodes)
+        link = NodeLink(link_nodes, block=block)
         links.append(link)
     await asyncio.gather(*(link.link() for link in links))
 
