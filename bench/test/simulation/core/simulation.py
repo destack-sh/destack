@@ -361,6 +361,8 @@ class Simulation:
         finally:
             # cleanup
             self.tasks.close()
+            for runtime in self.runtimes_by_name.values():
+                await runtime.close()
             await self.supervisor.close()
             for host in self.hosts_by_name.values():
                 await host.close()

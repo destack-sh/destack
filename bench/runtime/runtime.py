@@ -196,20 +196,20 @@ class RuntimeThreadHandle:
                 await self.restart()
             raise
 
-    def close(self):
+    def stop(self):
         if self.mode == RuntimeThreadMode.LOCAL:
             if self._thread is not None:
-                self._thread.close()
+                self._thread.stop()
         elif self.mode == RuntimeThreadMode.PROCESS:
             if self._process is not None:
                 self._process.terminate()
         else:
             assert_never(self.mode)
 
-    async def wait_closed(self):
+    async def wait_stopped(self):
         if self.mode == RuntimeThreadMode.LOCAL:
             if self._thread is not None:
-                await self._thread.wait_closed()
+                await self._thread.wait_stopped()
         elif self.mode == RuntimeThreadMode.PROCESS:
             if self._process is not None:
                 await self._process.wait()
@@ -219,6 +219,7 @@ class RuntimeThreadHandle:
 
 class RuntimeService(RuntimeServiceBase, RuntimeBase):
     kind = ServiceKind.INTERNAL  # :ServiceKind
+    name = "runtime"
 
     def __init__(
         self,
@@ -257,6 +258,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         self._run_semaphore = asyncio.BoundedSemaphore(max_threads * max_concurrency_per_thread)
         self._threads: list[RuntimeThreadHandle] = []
         self._active_runs: list[RunHandle] = []
+        self._is_stopping = False
 
     def __str__(self):
         return f"{self._client_id} on {self._bench_id}"
@@ -290,14 +292,15 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         await asyncio.gather(*(t.start() for t in self._threads))
         logger.info("runtime.start", runtime=self)
 
-    def close(self):
-        super().close()
+    def stop(self):
+        super().stop()
+        self._is_stopping = True
         for thread in self._threads:
-            thread.close()
+            thread.stop()
 
-    async def wait_closed(self):
-        await super().wait_closed()
-        await asyncio.gather(*(t.wait_closed() for t in self._threads))
+    async def wait_stopped(self):
+        await super().wait_stopped()
+        await asyncio.gather(*(t.wait_stopped() for t in self._threads), return_exceptions=True)
 
     @tracer.start_as_current_span("runtime.run")
     async def _do_run(self, run: RunHandle):
@@ -341,6 +344,10 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
     async def run(self, request: RunRequest, headers: Mapping) -> RunResponse:
         assert self._main_package, f"{self!r} has no main package"
         set_baggage(bench_id=self._bench_id, client_id=self._client_id, run_id=request.run_ptr.id)
+
+        # refuse if stopping
+        if self._is_stopping:
+            raise grpclib.GRPCError(grpclib.Status.ABORTED, "Runtime is stopping")
 
         # NOTE :UX: mark run as queued as we queue it for a thread
         #  (without having a race condition because of optimistic commits on both sides;

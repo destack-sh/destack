@@ -83,6 +83,7 @@ class HostRouterService(ServiceBase, HostBase):
     """
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
+    name = "host_router"
 
     def __init__(
         self, id: str, global_store: Store, regional_store: Store, network: Network, oracle: Oracle
@@ -108,12 +109,12 @@ class HostRouterService(ServiceBase, HostBase):
             benches: list[Bench] = await Bench.search()
         await asyncio.gather(*(self._start_host(bench.id) for bench in benches))
 
-    def close(self) -> None:
+    def stop(self) -> None:
         for host in self.hosts.values():
-            host.close()
+            host.stop()
 
-    async def wait_closed(self) -> None:
-        await asyncio.gather(*[host.wait_closed() for host in self.hosts.values()])
+    async def wait_stopped(self) -> None:
+        await asyncio.gather(*[host.wait_stopped() for host in self.hosts.values()])
 
     async def _start_host(self, bench_id: UUID) -> "HostService":
         """Starts a Host for the given Bench."""

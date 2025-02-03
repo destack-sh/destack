@@ -1,10 +1,12 @@
 import asyncio
+import signal
+from contextlib import contextmanager
 from time import time_ns
+from typing import Collection, Iterator
 from uuid import UUID
 
 import structlog
 import typer
-from grpclib.utils import graceful_exit
 
 from bench.cli.utils import async_to_sync
 from bench.language import ClientType
@@ -20,6 +22,53 @@ app = typer.Typer(short_help="run the services")
 logger = structlog.get_logger(__name__)
 
 
+@contextmanager
+def graceful_exit(
+    server: GrpcServer,
+    *,
+    signals: Collection[int] = (signal.SIGINT, signal.SIGTERM),
+) -> Iterator[None]:
+    """
+    Utility context-manager to help properly shutdown server in response to the OS signals.
+    Adapted from grpclib.utils.graceful_exit.
+    """
+    loop = asyncio.get_event_loop()
+    signals = set(signals)
+    flag: list[bool] = []
+
+    def _stop(sig_num: "signal.Signals") -> None:
+        fail = False
+        server.close()
+        for service in server._services:
+            try:
+                service.stop()
+            except RuntimeError:
+                # probably server wasn't started yet
+                fail = True
+        if fail:
+            # using second stage in case of error will ensure that non-closed
+            # server wont start later
+            _kill(sig_num)
+
+    def _kill(sig_num: "signal.Signals") -> None:
+        raise SystemExit(128 + sig_num)
+
+    def _exit_handler(sig_num: "signal.Signals") -> None:
+        if flag:
+            _kill(sig_num)
+        else:
+            _stop(sig_num)
+            flag.append(True)
+
+    for sig_num in signals:
+        loop.add_signal_handler(sig_num, _exit_handler, sig_num)  # type: ignore
+    try:
+        yield
+    finally:
+        for sig_num in signals:
+            loop.remove_signal_handler(sig_num)
+
+
 async def _do_serve(
     handlers: list[ServiceBase], *, network: Network, host: str, port: int, watch: bool
 ):
@@ -30,7 +79,7 @@ async def _do_serve(
     if IS_DEV and watch:
         _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
     try:
-        with graceful_exit([server]):
+        with graceful_exit(server):
             await server.start(host=host, port=port)
             await server.wait_closed()
     finally:

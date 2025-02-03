@@ -126,6 +126,7 @@ class Runtime:
         self.session._runtime = self
         self._active_runner: ContextVar[Runner | None] = ContextVar("active_runner")
         self._active_runners_by_id: dict[UUID, Runner] = {}
+        self._active_root_runners: list[Runner] = []
 
     def __str__(self):
         return f"{len(self._active_runners_by_id)} active, {self.session!r}"
@@ -150,6 +151,20 @@ class Runtime:
     def active_mode(self) -> NodeMode:
         runner = self._active_runner.get(None)
         return runner.mode if runner else self.session.mode
+
+    def stop(self):
+        """Stop the Runtime."""
+        # TODO :Robustness: handle Runtime stop? refuse new runs?
+        #  (maybe auto-pause all active Runners so we can transfer them to a new Runtime?)
+        pass
+
+    async def wait_stopped(self):
+        """Wait for the Runtime to stop (all active Runs to stop)."""
+        await asyncio.gather(
+            *(runner.task for runner in self._active_root_runners if runner.task),
+            return_exceptions=True,
+        )
+        await self.session.commit()
 
     def _evaluate_computed_value(self, runner: Runner, computed_value: ComputedValue):
         """Evaluates the ComputedValue in/to the Run/Runner."""
@@ -681,6 +696,8 @@ class Runtime:
     async def run_runner(self, runner: Runner[Any]):
         """Runs a Runner, retrying automatically and updating the tracked Run along the way."""
         async with self.session.active():
+            if runner.parent is None:
+                self._active_root_runners.append(runner)
             self._active_runners_by_id[runner.id] = runner
             span = runner.tracked
             self._set_context(span)
@@ -759,6 +776,8 @@ class Runtime:
 
                 # notify
                 self._active_runners_by_id.pop(runner.id, None)
+                if runner.parent is None:
+                    self._active_root_runners.remove(runner)
                 if runner.status.is_interrupted:
                     assert runner.interruption is not None, f"missing interruption for {runner!r}"
                     runner.fire_event(
@@ -879,11 +898,3 @@ class Runtime:
         if resume and span.parent_ptr is not None and closed_interruptions:
             runs_to_resume = self.get_interrupted_runs(span._graph, *closed_interruptions)
             self.resume_run(*runs_to_resume)
-
-    # nocheckin: handle Runtime close? refuse new runs?
-
-    def close(self):
-        pass
-
-    async def wait_closed(self):
-        pass
