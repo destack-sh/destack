@@ -55,5 +55,5 @@ class ServiceHandle[SpecT: ServiceSpec, S: ServiceBase, C: object](abc.ABC):
     async def close(self):
         """Close the service."""
         if self._service is not None:
-            self._service.close()
-            await self._service.wait_closed()
+            self._service.stop()
+            await self._service.wait_stopped()

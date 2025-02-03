@@ -77,6 +77,7 @@ SUPERVISOR_NODE_TYPES = USER_NODE_TYPES | bittuple(NodeType.BENCH)
 
 class SupervisorService(GraphIoServiceBase, SupervisorBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
+    name = "supervisor"
 
     def __init__(
         self,
@@ -111,11 +112,11 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
     async def start(self) -> None:
         await super().start()
 
-    def close(self) -> None:
-        super().close()
+    def stop(self) -> None:
+        super().stop()
 
-    async def wait_closed(self) -> None:
-        await super().wait_closed()
+    async def wait_stopped(self) -> None:
+        await super().wait_stopped()
 
     @override
     def get_engines(self):

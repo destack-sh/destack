@@ -10,7 +10,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.pb2 import HealthBase, HealthCheckRequest, HealthCheckResponse
+from bench.pb2 import HealthBase, HealthCheckRequest, HealthCheckResponse, ServiceKind
 from bench.utils.oracle import Oracle
 
 from .network import Network
@@ -22,6 +22,9 @@ tracer = trace.get_tracer(__name__)
 
 class HealthService(ServiceBase, HealthBase):
     """Health check service."""
+
+    kind = ServiceKind.PUBLIC  # :ServiceKind
+    name = "health"
 
     def __init__(
         self, id: str, services: Collection[ServiceBase], network: Network, oracle: Oracle

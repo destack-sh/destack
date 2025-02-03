@@ -120,6 +120,7 @@ class HostService(GraphIoServiceBase, HostBase):
     """
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
+    name = "host"
 
     def __init__(
         self,
@@ -459,13 +460,13 @@ class HostService(GraphIoServiceBase, HostBase):
             plugins=self._plugins,
         )
 
-    def close(self) -> None:
-        super().close()
+    def stop(self) -> None:
+        super().stop()
         for plugin in self._plugins:
             plugin.close()
 
-    async def wait_closed(self) -> None:
-        await super().wait_closed()
+    async def wait_stopped(self) -> None:
+        await super().wait_stopped()
         await asyncio.gather(*(plugin.wait_closed() for plugin in self._plugins))
         if self._session is not None:
             await self._session.close()

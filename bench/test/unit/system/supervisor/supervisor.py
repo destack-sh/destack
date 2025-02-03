@@ -41,8 +41,8 @@ async def supervisor_service(global_store: Store, regional_store: Store):
     )
     await supervisor_service.start()
     yield supervisor_service
-    supervisor_service.close()
-    await supervisor_service.wait_closed()
+    supervisor_service.stop()
+    await supervisor_service.wait_stopped()
 
 
 @pytest.fixture

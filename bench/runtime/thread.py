@@ -39,7 +39,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class RunHandle:
+class _RunHandle:
     """A handle for a Run in a RuntimeThread."""
 
     def __init__(
@@ -105,12 +105,12 @@ class RunHandle:
             self.run(runs_to_resume=runs_to_resume)
 
     def pause(self, run: Run):
-        """Pause an owned Run."""
+        """Pause a Run."""
         # nothing to do? (pause is trapped automatically if active)
         self.log.debug("run.pause", run=run)
 
     def stop(self, run: Run):
-        """Stop an owned Run."""
+        """Stop a Run."""
         if self.is_active:
             # kill active Run
             self.runtime.stop_run(run)
@@ -128,12 +128,14 @@ class RunHandle:
             else:
                 self.run()  # not active, start running again
             self.runtime.session.commit_optimistic()
-        self.log.debug("thread.stop", run=run)
+        self.log.debug("run.stop", run=run)
 
     def close(self):
         """Close this RunHandle."""
         self.connection.close(release=True)
-        del self.thread._owned_runs[self.root.id]
+        if self.root.id in self.thread._managed_runs:
+            del self.thread._managed_runs[self.root.id]
+        self.log.trace("run.close", run=self.root)
 
 
 class RuntimeThread(RuntimeServiceBase, RuntimeBase):
@@ -143,6 +145,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
     """
 
     kind = ServiceKind.INTERNAL
+    name = "runtime_thread"
 
     def __init__(
         self,
@@ -176,8 +179,8 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         self._mode = mode
         self._runtime: Runtime | None = None
         self._lock_by_run: dict[UUID, asyncio.Lock] = {}  # locks for each Run
-        self._owned_runs: dict[UUID, RunHandle] = {}  # Runs this Thread is responsible for
-        self._active_runs: dict[UUID, RunHandle] = {}  # Runs currently active in this Thread
+        self._managed_runs: dict[UUID, _RunHandle] = {}  # Runs this Thread is responsible for
+        self._active_runs: dict[UUID, _RunHandle] = {}  # Runs currently active in this Thread
 
     def __str__(self):
         bench_str = repr(self.bench) if self._bench else self._bench_id
@@ -221,10 +224,26 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             dynamic_glbls=DYNAMIC_CODE_GLOBALS,
         )
         asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
-        logger.info("thread.start", process=self, bench=self._bench)
+        logger.info("runtime_thread.start", process=self, bench=self._bench)
 
-    async def _load_run(self, run_ptr: NodeReference) -> RunHandle:
-        """Load the Run tree for execution."""
+    @override
+    def stop(self) -> None:
+        if self._runtime is not None:
+            self._runtime.stop()
+        super().stop()
+
+    @override
+    async def wait_stopped(self) -> None:
+        if self._runtime is not None:
+            await self._runtime.wait_stopped()
+        await super().wait_stopped()
+        for run in tuple(self._managed_runs.values()):
+            if run.task is not None:
+                await run.task
+            run.close()
+
+    async def _load_run(self, run_ptr: NodeReference) -> _RunHandle:
+        """Load the Run for execution."""
         assert run_ptr.id is not None, f"missing id for {run_ptr!r}"
         assert self._session is not None, f"no session for {self!r}"
         assert self._main_package is not None, f"no main package for {self!r}"
@@ -237,7 +256,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             self._lock_by_run[run_ptr.id] = lock
 
         async with lock:
-            if run_ptr.id not in self._owned_runs:
+            if run_ptr.id not in self._managed_runs:
                 # actually load the Run
                 self._set_baggage()
                 with tracer.start_as_current_span("thread.load"):
@@ -249,15 +268,15 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                     assert run.bench_id == self._bench_id, f"{run!r} is not in {self!r}"
                     assert run.root_ptr is None, f"{run!r} is not a root Run"
                     assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
-                    handle = RunHandle(run, run._connection, lock, self)
-                    self._owned_runs[run_ptr.id] = handle
+                    handle = _RunHandle(run, run._connection, lock, self)
+                    self._managed_runs[run_ptr.id] = handle
                     run._connection.on_update(handle.on_update)
             else:
                 # already loaded
-                handle = self._owned_runs[run_ptr.id]
+                handle = self._managed_runs[run_ptr.id]
         return handle
 
-    async def _do_run(self, handle: RunHandle) -> None:
+    async def _do_run(self, handle: _RunHandle) -> None:
         """Process a Run (once) until termination/interruption."""
         assert self._session is not None, f"no session for {self!r}"
         assert self._runtime is not None, f"no runtime for {self!r}"
@@ -268,8 +287,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             self._active_runs[handle.root.id] = handle
             try:
                 await self._runtime.run(handle.root, return_error=True, optimistic=True)
-                logger.info("thread.run", process=self, run=handle.root, span="current")
-
+                logger.info("runtime_thread.run", process=self, run=handle.root, span="current")
                 # done, close handle
                 if handle.root.status.is_terminal:
                     handle.close()
@@ -277,21 +295,21 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                 del self._active_runs[handle.root.id]
 
     def pause_run(self, run: Run):
-        """Pause an owned Run."""
-        handle = self._owned_runs.get(run.root_id or run.id)
+        """Pause a Run."""
+        handle = self._managed_runs.get(run.root_id or run.id)
         assert handle is not None, f"no handle for {run!r} in {self!r}"
         handle.pause(run)
 
     def resume_run(self, run: Run):
-        """Resume an owned Run."""
-        handle = self._owned_runs.get(run.root_id or run.id)
+        """Resume a Run."""
+        handle = self._managed_runs.get(run.root_id or run.id)
         assert handle is not None, f"no handle for {run!r} in {self!r}"
         handle.run()
         self.runtime.resume_run(run)
 
     def stop_run(self, run: Run):
-        """Stop an owned Run."""
-        handle = self._owned_runs.get(run.root_id or run.id)
+        """Stop a Run."""
+        handle = self._managed_runs.get(run.root_id or run.id)
         assert handle is not None, f"no handle for {run!r} in {self!r}"
         handle.stop(run)
 
@@ -308,15 +326,3 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         if request.is_blocking and handle.task is not None:
             await handle.task
         return RunResponse()
-
-    @override
-    def close(self) -> None:
-        if self._runtime is not None:
-            self._runtime.close()
-        super(RuntimeServiceBase).close()
-
-    @override
-    async def wait_closed(self) -> None:
-        if self._runtime is not None:
-            await self._runtime.wait_closed()
-        await super().wait_closed()

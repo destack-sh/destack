@@ -72,6 +72,7 @@ class ServiceBase(abc.ABC):
     """gRPC service with some extra stuff for custom loops, auth, logging, metadata, ..."""
 
     kind: ClassVar[ServiceKind]
+    name: ClassVar[str]
 
     def __init__(
         self, *, id: str, logger: Any, tracer: trace.Tracer, network: "Network", oracle: Oracle
@@ -106,13 +107,15 @@ class ServiceBase(abc.ABC):
         """Start the service. Should be ready for service when returning."""
         pass
 
-    def close(self) -> None:
-        """Close the service.."""
+    def stop(self) -> None:
+        """Stop the service.."""
         self.tasks.close()
+        logger.debug(f"{self.name}.stopping", service=self)
 
-    async def wait_closed(self) -> None:
+    async def wait_stopped(self) -> None:
         """Wait for the service to be fully closed."""
         await self.tasks.wait_closed()
+        logger.info(f"{self.name}.stop", service=self)
 
     def __mapping__(self) -> Mapping[str, grpclib.const.Handler]:
         # combine mappings from non-overlapping superclasses

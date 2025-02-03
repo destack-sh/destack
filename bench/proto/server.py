@@ -43,16 +43,16 @@ class GrpcServer(grpclib.server.Server):
         self._port = port
         await asyncio.gather(*(h.start() for h in self._services))
         logger.info("server.start", server=self)
-        await super().start(host=host, port=port, **kwargs)
+        await super().start(host=host, port=port, **kwargs)  # wait until closed
 
     def close(self) -> None:
         for task in self._services:
-            task.close()
+            task.stop()
         super().close()
         export_now()
         logger.debug("server.close", server=self)
 
     async def wait_closed(self) -> None:
         await super().wait_closed()
-        await asyncio.gather(*(h.wait_closed() for h in self._services))
+        await asyncio.gather(*(h.wait_stopped() for h in self._services))
         logger.debug("server.wait_closed", server=self)
