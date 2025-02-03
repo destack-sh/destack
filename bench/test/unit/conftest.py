@@ -9,7 +9,6 @@ from typing import Awaitable, Callable, Literal, Mapping
 import pytest
 
 from bench.test.conftest import _setup_test_env
-from bench.test.simulation.workload.client import ClientLambdaWorkload, ClientLambdaWorkloadSpec
 
 # NOTE: must run setup before importing from bench
 _setup_test_env()
@@ -220,14 +219,14 @@ def make_simulation_spec(
     runtimes: tuple[RuntimeSpec, ...] = (),
     workloads: tuple[WorkloadSpec, ...] = (),
 ) -> SimulationSpec:
-    users = users or (UserSpec(name="user"),)
-    machines = machines or (MachineSpec(name="user-machine", bench="user"),)
+    users = users or (UserSpec(name="alice"),)
+    machines = machines or (MachineSpec(name="alice-machine", bench="alice"),)
     clients = clients or (
-        ClientSpec(name="user-client", parent=("user", "user")),
-        ClientSpec(name="user-machine-client", parent=("machine", "user-machine")),
+        ClientSpec(name="alice-client", parent=("user", "alice")),
+        ClientSpec(name="alice-machine-client", parent=("machine", "alice-machine")),
     )
-    benches = benches or (BenchSpec(name="user", owner="user"),)
-    hosts = hosts or (HostSpec(bench="user"),)
+    benches = benches or (BenchSpec(name="alice", owner="alice"),)
+    hosts = hosts or (HostSpec(bench="alice"),)
     spec = SimulationSpec(
         name=func.__name__,
         description=func.__doc__ or "",
@@ -252,63 +251,18 @@ def simulated_runtime(
     supervisor: SupervisorSpec | None = None,
     benches: tuple[BenchSpec, ...] = (),
     hosts: tuple[HostSpec, ...] = (),
-    runtimes: tuple[RuntimeSpec, ...] = (),
+    runtimes: tuple[RuntimeSpec, ...] | Literal[True] = (),
 ):
     """Run a 'lambda workload' test as a Machine's Runtime inside a Simulation."""
+    if runtimes is True:
+        runtimes = (RuntimeSpec(name="alice-runtime", machine="alice-machine"),)
 
     def decorator(test_func: Callable[[Simulation, RuntimeLambdaWorkload], Awaitable[None]]):
         lambda_workload = RuntimeLambdaWorkloadSpec(
-            client="user-machine-client",
-            bench="user",
+            client="alice-machine-client",
+            bench="alice",
             name=test_func.__name__,
             type=WorkloadType.RUNTIME_LAMBDA,
-            func=test_func,
-        )
-        spec = make_simulation_spec(
-            func=test_func,
-            network=network,
-            users=users,
-            machines=machines,
-            clients=clients,
-            supervisor=supervisor,
-            benches=benches,
-            hosts=hosts,
-            runtimes=runtimes,
-            workloads=(lambda_workload,),
-        )
-
-        @functools.wraps(test_func)
-        async def test_func_in_simulation():
-            await run_dynamic_simulation(spec)
-
-        # zero out signature so pytest doesn't try to get any fixture arguments
-        test_func_in_simulation.__signature__ = inspect.Signature()  # type: ignore
-
-        return test_func_in_simulation
-
-    return decorator
-
-
-def simulated_client(
-    network: NetworkSpec | None = None,
-    users: tuple[UserSpec, ...] = (),
-    machines: tuple[MachineSpec, ...] = (),
-    clients: tuple[ClientSpec, ...] = (),
-    supervisor: SupervisorSpec | None = None,
-    benches: tuple[BenchSpec, ...] = (),
-    hosts: tuple[HostSpec, ...] = (),
-    runtimes: tuple[RuntimeSpec, ...] | Literal[True] = (),
-):
-    """Run a 'lambda workload' test as a User's Client inside a Simulation."""
-    if runtimes is True:
-        runtimes = (RuntimeSpec(name="user-runtime", machine="user-machine"),)
-
-    def decorator(test_func: Callable[[Simulation, ClientLambdaWorkload], Awaitable[None]]):
-        lambda_workload = ClientLambdaWorkloadSpec(
-            client="user-client",
-            bench="user",
-            name=test_func.__name__,
-            type=WorkloadType.CLIENT_LAMBDA,
             func=test_func,
         )
         spec = make_simulation_spec(

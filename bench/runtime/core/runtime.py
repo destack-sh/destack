@@ -20,7 +20,6 @@ from bench.language import (
     ComputedValue,
     ComputedValueKind,
     ComputedValueMode,
-    Connection,
     CustomObject,
     Error,
     ErrorKind,
@@ -43,12 +42,12 @@ from bench.language import (
     Type,
     TypeIn,
     ValidationError,
-    WatchGetUpdate,
     check_value,
     coerce_value,
     evaluate_path,
     is_node_type,
     is_value,
+    link_nodes,
     on_invalid_raise,
     run_span,
     to_type_scalar,
@@ -258,7 +257,7 @@ class Runtime:
         return True
 
     @tracer.start_as_current_span("runtime.wait_for")
-    async def _wait_for(
+    async def wait_for(
         self,
         nodes: Sequence[Node],
         condition: Callable[[], bool],
@@ -267,7 +266,6 @@ class Runtime:
         """
         Wait for the given nodes to reach a certain state.
         NOTE :Architecture: use Triggers/Interruptions instead of 'busy' (async) wait in Runtime?
-        NOTE :Architecture: factor out keeping live connections into general Runtime behavior?
         """
         if condition():
             return  # already good
@@ -278,60 +276,25 @@ class Runtime:
             await self.session.commit()
 
         log = logger.bind(runtime=self, nodes=nodes, condition=condition)
-        nodes_by_id: dict[UUID, Node] = {node.id: node for node in nodes}
-        connections: list[Connection] = []
         subs: list[Callable[[], None]] = []
+        links = None
         complete_signal = asyncio.Event()
-
-        def _stop():
-            """Stop waiting."""
-            for connection in connections:
-                connection.close()
-            connections.clear()
-            for sub in subs:
-                sub()
-            subs.clear()
 
         def _check():
             """Check if the condition is met, stop if so."""
             if condition():
                 log.debug("runtime.wait_for.complete")
                 complete_signal.set()
-                _stop()
-
-        def _apply_update(update: WatchGetUpdate):
-            """'Apply' the updates from a live connection to our graphs (patching nodes in place)."""
-            touched_any = False
-            for live_node in update.updated.values():
-                our_node = nodes_by_id.get(live_node.id)
-                if our_node is not None:
-                    touched_any = True
-                    our_node._patch_from(live_node)
-            if touched_any:
-                _check()
 
         try:
-            # create live connections if needed
-            stale_nodes = [node for node in nodes if not node._is_live]
-            stale_nodes_by_type = group_by(stale_nodes, lambda node: node.metatype)
-            for node_type, stale_nodes in stale_nodes_by_type.items():
-                node_cls = NODE_CLASS_BY_TYPE[node_type]
-                live_nodes = await node_cls.select_all().get(
-                    tuple(n.to_ref() for n in stale_nodes), live=True
-                )
-                for live_node in live_nodes:  # also patch immediately
-                    our_node = nodes_by_id.get(live_node.id)
-                    if our_node is not None:
-                        our_node._patch_from(live_node)
-                connection = live_nodes[0]._connection
-                assert live_nodes and connection, f"no live connection for {stale_nodes!r}"
-                connections.append(connection)
-                connection.on_update(lambda c, u: _apply_update(cast(WatchGetUpdate, u)))
-                log.trace("runtime.wait_for.subscribe", connection=connection)
-
             # subscribe
+            stale_nodes = [node for node in nodes if not node._is_live]
+            links = await link_nodes(stale_nodes)
+            for link in links:
+                subs.append(link.on_update(_check))
             for node in nodes:
-                subs.append(self.session._subscribe_on_edit(node, lambda _: _check()))
+                subs.append(self.session.on_edit(node, lambda _: _check()))
+            log.trace("runtime.wait_for.subscribe", links=links)
 
             # wait for condition
             log.debug("runtime.wait_for")
@@ -344,7 +307,11 @@ class Runtime:
             log.error("runtime.wait_for.error", exc_info=e)
             raise
         finally:
-            _stop()
+            if links is not None:
+                for link in links:
+                    link.close()
+            for sub in subs:
+                sub()
 
     def _get_resource[R: Resource = Resource](
         self, runner: Runner, resource_type: Type | TypeIn | type[R]
@@ -561,7 +528,7 @@ class Runtime:
                         span.nodes = cast(list["Node"], resources)
                     for field, resource in zip(missing_resource_slots, resources):
                         variables._do_set(field, resource, validate=False)
-                    await self._wait_for(
+                    await self.wait_for(
                         nodes=resources,
                         condition=lambda: all(
                             resource.status == ResourceStatus.UP for resource in resources

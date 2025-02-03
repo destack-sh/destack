@@ -86,7 +86,7 @@ class RunPlugin(HostPlugin[Run]):
                 self._queue_run(run.root or run)
 
     @tracer.start_as_current_span("run_plugin.process_run")
-    @connection_capture("seal")
+    @connection_capture("close_and_release")
     async def _process_run(self, op: _RunHandle) -> None:
         """Push Runs to relevant Machines."""
         op.retry.on_attempt()

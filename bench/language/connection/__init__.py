@@ -37,6 +37,7 @@ from .engine import (
     WritableChannel,
     scope_includes,
 )
+from .link import NodeLink, link_nodes
 from .memory import MemoryChannel, MemoryEngine, MemoryGetConnection
 from .remote import (
     RemoteAggregateConnection,
@@ -70,6 +71,7 @@ __all__ = [
     "MemoryChannel",
     "MemoryEngine",
     "MemoryGetConnection",
+    "NodeLink",
     "NullEngine",
     "RemoteAggregateConnection",
     "RemoteChannel",
@@ -94,5 +96,6 @@ __all__ = [
     "WatchSearchUpdateData",
     "WritableChannel",
     "connection_capture",
+    "link_nodes",
     "scope_includes",
 ]

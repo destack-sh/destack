@@ -73,8 +73,11 @@ _connection_captures: contextvars.ContextVar[list[Callable[["Connection"], None]
 )
 
 
+# nocheckin: connection_capture -> GraphCapture (with Connections, NodeLinks, :IsolatedGraphs, ..)
 @contextlib.asynccontextmanager
-async def connection_capture(on_exit: Literal["release", "close", "seal"] | None = None):  # noqa: RUF029
+async def connection_capture(  # noqa: RUF029
+    on_exit: Literal["release", "close", "close_and_release"] | None = None,
+):
     """Capture all connections created in this context."""
 
     # watch for connections
@@ -87,12 +90,12 @@ async def connection_capture(on_exit: Literal["release", "close", "seal"] | None
     connection_captures.remove(connections.append)
 
     # auto-handle new connections
-    if on_exit == "close" or on_exit == "seal":
+    if on_exit == "close" or on_exit == "close_and_release":
         for connection in connections:
             connection.close()
-    if on_exit == "release" or on_exit == "seal":
+    if on_exit == "release" or on_exit == "close_and_release":
         for connection in connections:
-            connection.release()
+            connection.detach()
 
 
 class Connection[
@@ -151,6 +154,11 @@ class Connection[
     @property
     def session(self) -> "Session":
         return self.channel.session
+
+    @property
+    def is_open(self) -> bool:
+        """Whether the connection is open."""
+        return not self._is_closed
 
     @property
     def has_result(self) -> bool:
@@ -340,7 +348,7 @@ class Connection[
         if self._connect_task is not None:
             self._connect_task.cancel()
         if release:
-            self.release()
+            self.detach()
         self.log.trace(f"connect.{self.type_name}.close")
 
     @final
@@ -352,16 +360,16 @@ class Connection[
             self._connect_task = None
 
     @final
-    def release(self):
+    def detach(self):
         """Release any acquired graphs."""
         if self._result is not None:
-            self._release_result(self._result)
+            self._detach_result(self._result)
             self.log.trace(f"connect.{self.type_name}.release")
         self._result = None
         self._result_data = None
 
     @abc.abstractmethod
-    def _release_result(self, result: ResultT):
+    def _detach_result(self, result: ResultT):
         """Release the result."""
         ...
 
@@ -393,7 +401,7 @@ class GetConnection[ChannelT: Channel, T: Node](
         return old_result
 
     @override
-    def _release_result(self, result: GetResult):
+    def _detach_result(self, result: GetResult):
         result.graph.supergraph.remove_graph(result.graph)
 
     @override
@@ -501,7 +509,7 @@ class SearchConnection[ChannelT: Channel, T: Node](
         return old_result
 
     @override
-    def _release_result(self, result: SearchResult):
+    def _detach_result(self, result: SearchResult):
         result.graph.supergraph.remove_graph(result.graph)
 
     @override
@@ -611,7 +619,7 @@ class AggregateConnection[ChannelT: Channel](
         return new_result  # nothing to patch
 
     @override
-    def _release_result(self, result: AggregateResult):
+    def _detach_result(self, result: AggregateResult):
         pass  # nothing to release
 
     @override

@@ -1,20 +1,20 @@
 from bench.language import Block, BlockType, RunStatus
 from bench.runtime import create_run_from_node
 from bench.test.simulation.core import Simulation
-from bench.test.simulation.workload import ClientLambdaWorkload, RuntimeLambdaWorkload
-from bench.test.unit.conftest import simulated_client, simulated_runtime
+from bench.test.simulation.workload import RuntimeLambdaWorkload
+from bench.test.unit.conftest import simulated_runtime
 
 # NOTE: 'scheduler' == entirety of Plugins and systems to create/continue Runs somehow
 #  (on Triggers or when manually requested by creating Runs in a Client)
 
 
-@simulated_client(runtimes=True)
-async def test_run(simulation: Simulation, client: ClientLambdaWorkload):
-    """Create a Run and wait for it to be executed."""
-    page = client.page()
+@simulated_runtime(runtimes=True)
+async def test_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
+    """Create a Run and wait for it to execute in another Runtime."""
+    page = runtime.page()
     flow = Block.new(BlockType.FLOW, "Flow")
     page.blocks.append(flow)
-    await client.commit()
+    await runtime.commit()
 
     run = create_run_from_node(flow)
     await run.wait_until_terminated()

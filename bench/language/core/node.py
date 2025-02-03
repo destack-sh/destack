@@ -36,7 +36,7 @@ from bench.language.registry import (
     NODE_CLASS_BY_TYPE,
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData
-from bench.utils.env import IS_DEV, IS_TEST
+from bench.utils.env import IS_DEV
 from bench.utils.func import dualmethod, stable_hash
 from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
@@ -108,6 +108,7 @@ if TYPE_CHECKING:
         Field,
         GetConnection,
         Machine,
+        NodeLink,
         NodeReference,
         Package,
         PathIn,
@@ -499,6 +500,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     # ...
 
     _graph: "NodeGraph" = p_runtime(default=None)
+    _link: "NodeLink | None" = p_runtime(default=None)
     _connection: "GetConnection | SearchConnection" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
 
@@ -964,27 +966,18 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     @property
     def _is_live(self) -> bool:
-        """Whether this node is live."""
+        """Whether this Node is live."""
         return (
             self._connection is not None
             and self._connection.is_live
             and not self._connection._is_closed
-        )
+        ) or (self._link is not None and self._link.is_active)
 
     @property
     def _data_graph(self) -> "NodeDataGraph":
         assert self._connection is not None, f"no connection for {self!r}"
         assert self._connection.result_data is not None, f"no data graph for {self!r}"
         return self._connection.result_data.graph
-
-    def _unload_rec(self):
-        """Unloads this node from the graph (and supergraph). Only meant for testing."""
-        assert IS_TEST, f"cannot unload {self!r} (not in test mode)"
-        if len(self._graph) == 1:
-            # remove entire graph from supergraph if it was just this node (and its descendants)
-            self._supergraph.remove_graph(self._graph)
-        else:
-            self._graph.remove(self)
 
     @final
     def _track_self(self, session: "Session"):
@@ -1183,7 +1176,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     async def wait_until(self, condition: Callable[[Self], bool]):
         """Wait until the given condition is true."""
         runtime = active_session().runtime
-        await runtime._wait_for(nodes=[self], condition=lambda: condition(self))
+        await runtime.wait_for(nodes=[self], condition=lambda: condition(self))
 
     @classmethod
     def get_child_property_or_error(cls, node_type: NodeType) -> Property:

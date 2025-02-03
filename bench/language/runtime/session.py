@@ -239,17 +239,17 @@ class Session(RuntimeNode[SessionData]):
 
     @property
     def runtime(self) -> "Runtime":
-        assert self._runtime is not None, f"no runner in {self!r}"
+        assert self._runtime is not None, f"no active Runtime in {self!r}"
         return self._runtime
 
     @property
     def host(self) -> HostClient:
-        assert self._host is not None, f"no host in {self!r}"
+        assert self._host is not None, f"no active Host in {self!r}"
         return self._host
 
     @property
     def supervisor(self) -> SupervisorClient:
-        assert self._supervisor is not None, f"no supervisor in {self!r}"
+        assert self._supervisor is not None, f"no active Supervisor in {self!r}"
         return self._supervisor
 
     @property
@@ -463,7 +463,7 @@ class Session(RuntimeNode[SessionData]):
     # Edits
     #
 
-    def _subscribe_on_edit(self, node: Node, sub: Callable[[Node], None]) -> Callable[[], None]:
+    def on_edit(self, node: Node, sub: Callable[[Node], None]) -> Callable[[], None]:
         """Subscribe to edits on a node."""
         if node.id not in self._on_edit_subs:
             self._on_edit_subs[node.id] = []
