@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import time
 from asyncio.unix_events import DefaultEventLoopPolicy, SelectorEventLoop
 from datetime import datetime, timedelta
@@ -94,17 +95,23 @@ class SimulatedOracle(Oracle):
         await event.wait()
 
     @override
-    def call_later(self, delay: float, callback: Callable, *args) -> asyncio.TimerHandle:
-        return self.call_at(self.time() + delay, callback, *args)
+    def call_later(
+        self, delay: float, callback: Callable, *args, context: contextvars.Context | None = None
+    ) -> asyncio.TimerHandle:
+        return self.call_at(self.time() + delay, callback, *args, context=context)
 
     @override
-    def call_at(self, when: float, callback: Callable, *args) -> asyncio.TimerHandle:
+    def call_at(
+        self, when: float, callback: Callable, *args, context: contextvars.Context | None = None
+    ) -> asyncio.TimerHandle:
         duration = when - self.time()
         assert duration <= MAX_SCHEDULE_DURATION, f"call_at duration too long: {duration:.3f}s"
         # time includes oracle's static offset, so normalize to loop time
         when_loop = when - (self._static_offset_ns / 1e9)
-        return self._loop.call_at(when_loop, callback, *args)
+        return self._loop.call_at(when_loop, callback, *args, context=context)
 
     @override
-    def call_soon(self, callback: Callable, *args) -> None:
-        self._loop.call_soon(callback, *args)
+    def call_soon(
+        self, callback: Callable, *args, context: contextvars.Context | None = None
+    ) -> None:
+        self._loop.call_soon(callback, *args, context=context)
