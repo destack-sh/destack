@@ -30,6 +30,7 @@ from bench.language import (
     Node,
     NodeGraph,
     NodeMode,
+    NodeReference,
     NodeType,
     PathElementType,
     PathError,
@@ -55,6 +56,8 @@ from bench.language import (
     run_span,
     to_type_scalar,
 )
+from bench.language.core.const import ReferenceKind, TypeKind
+from bench.language.core.value import get_custom_object_properties
 from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
 from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
@@ -463,13 +466,65 @@ class Runtime:
                 if started_at is not None:
                     span.duration = terminated_at - started_at
 
+    @tracer.start_as_current_span("runtime.load")
+    async def _load_run(self, runner: Runner):
+        """
+        Load remote Nodes required for the given Runner.
+        NOTE :Architecture: unclear which remote Nodes to load for Runs and how
+         (should we only load top level references? Text mentions? expand Messages into Threads?
+           entire Run trees? this seems related to the context/projection stuff in model instruct)
+        NOTE :Robustness: isn't there a race condition in checking & loading Nodes across Runners?
+         (and what if a Node only exists temporarily, loaded by a different concurrent Run?)
+        """
+
+        # gather inputs, variables & outputs
+        nodes_ptr_by_id: dict[UUID, NodeReference] = {}
+        for obj in (runner.inputs, runner.variables, runner.outputs):
+            if obj is None:
+                continue
+            # properties
+            for prop in get_custom_object_properties(obj._type, obj._value):
+                if prop.reference_kind != ReferenceKind.NODE_REGULAR:
+                    continue
+                prop_value = cast(Any, obj._do_get(prop, _raw=True))
+                if prop_value is not None:
+                    if not prop.is_list:
+                        nodes_ptr_by_id[prop_value.id] = prop_value
+                    else:
+                        for node_ptr in prop_value:
+                            nodes_ptr_by_id[node_ptr.id] = node_ptr
+            # fields
+            for field in obj.fields:
+                if field.kind != TypeKind.NODE and field.kind != TypeKind.BASED_NODE:
+                    continue
+                field_value = cast(Any, obj._do_get(field, _raw=True))
+                if field_value is not None:
+                    if not field.is_list:
+                        nodes_ptr_by_id[field_value.id] = field_value
+                    else:
+                        for node_ptr in field_value:
+                            nodes_ptr_by_id[node_ptr.id] = node_ptr
+        if not nodes_ptr_by_id:
+            return
+
+        # filter missing nodes
+        supergraph = self.session._supergraph
+        missing_nodes_ptr: list[NodeReference] = []
+        for node_ptr in nodes_ptr_by_id.values():
+            node = supergraph.get(node_ptr)
+            if node is None:
+                missing_nodes_ptr.append(node_ptr)
+        if not missing_nodes_ptr:
+            return
+
+        # load missing nodes
+        missing_links = await link_nodes(missing_nodes_ptr)
+        logger.debug("runtime.load_run.missing", nodes=missing_nodes_ptr, links=missing_links)
+
     @tracer.start_as_current_span("runtime.prepare")
     async def _prepare_run(self, runner: Runner):
         """Prepare the Run for execution (only for Runs, not RunSpans)"""
         assert type(runner.tracked) is Run, f"expected Run, got {runner.tracked!r}"
-
-        # nocheckin: load remote Nodes when preparing Run
-        #  (Resources, File, Records, Messages, ...)
 
         # compute variables/inputs/options from context
         # init variables/inputs from action
@@ -497,7 +552,7 @@ class Runtime:
                 variables = runner.variables
                 assert variables is not None, f"missing variables in {runner!r}"
                 try:
-                    missing_resource_slots: list[Field] = []
+                    missing_resource_fields: list[Field] = []
                     for field in variable_fields:
                         variable_value = variables._do_get(field)
                         if (
@@ -505,7 +560,7 @@ class Runtime:
                             and is_node_type(field.bench_type)
                             and NodeType(field.bench_type).is_resource
                         ):
-                            missing_resource_slots.append(field)
+                            missing_resource_fields.append(field)
                             continue
                         else:
                             check_value(
@@ -520,16 +575,16 @@ class Runtime:
                     raise
 
             # acquire missing resource variables
-            if missing_resource_slots:
+            if missing_resource_fields:
                 with run_span(
                     tracer, "runtime.acquire_resources", RunSpanType.ACQUIRE, runner=runner
                 ) as span:
                     resources = await self._get_or_create_resources(
-                        runner=runner, resources=missing_resource_slots
+                        runner=runner, resources=missing_resource_fields
                     )
                     if span is not None:
                         span.nodes = cast(list["Node"], resources)
-                    for field, resource in zip(missing_resource_slots, resources):
+                    for field, resource in zip(missing_resource_fields, resources):
                         variables._do_set(field, resource, validate=False)
                     await self.wait_for(
                         nodes=resources,
@@ -560,7 +615,7 @@ class Runtime:
                     raise
 
     @tracer.start_as_current_span("runtime.run.run")
-    async def _do_run_run(self, runner: Runner):
+    async def _run_run(self, runner: Runner):
         """Runs a Runner, retrying automatically for Runs if needed."""
         # Runner = Run, retry with attempts & breakpoints
         runner.status = RunStatus.RUNNING
@@ -645,7 +700,7 @@ class Runtime:
             runner.error = last_attempt.error
 
     @tracer.start_as_current_span("runtime.run.span")
-    async def _do_run_span(self, runner: Runner):
+    async def _run_span(self, runner: Runner):
         """Runs a RunSpan Runner."""
         # Runner = RunSpan, attempt only once (no breakpoints)
         runner.status = RunStatus.RUNNING
@@ -684,11 +739,12 @@ class Runtime:
                     runner.parent is None or not runner.parent.status.is_terminal
                 ), f"parent {runner.parent!r} was terminated"
                 if runner.tracked_span is not None:
-                    await self._do_run_span(runner)
+                    await self._run_span(runner)
                 elif runner.tracked_run is not None:
+                    await self._load_run(runner)
                     if runner.status < RunStatus.RUNNING:
                         await self._prepare_run(runner)
-                    await self._do_run_run(runner)
+                    await self._run_run(runner)
                 else:
                     raise RuntimeError(f"missing tracked for {runner!r}")
             except Interrupted as e:
@@ -776,7 +832,6 @@ class Runtime:
         runner.outer_task = asyncio.create_task(self._wrap_run_runner(runner))
         return runner
 
-    @isolated_graph()
     async def run(
         self,
         run: Run,
@@ -786,7 +841,7 @@ class Runtime:
     ) -> Runner | None:
         """Start or resume a top-level Run in this Runtime until termination/interruption."""
         runner = None
-        async with self.session.active():
+        async with isolated_graph(), self.session.active():
             try:
                 runner = restore_runner(runtime=self, run=run)
                 await self.run_runner(runner)

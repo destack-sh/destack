@@ -63,11 +63,11 @@ class RunPlugin(HostPlugin[Run]):
         self.tasks.start_queue(self._run_queue, self._process_run, skip_errors=True)
 
     def _queue_run(self, run: Run) -> _RunHandle:
-        """Queues a Run operation."""
+        """Queues a Run."""
         # queue new operation
         pending_op = _RunHandle(run=run, retry=self._retry.new(self.host.oracle))
         self._run_queue.put_nowait(pending_op)
-        logger.trace("run_plugin.run.queue", host=self, run=run)
+        logger.trace("run_plugin.queue", host=self, run=run)
         return pending_op
 
     @override
