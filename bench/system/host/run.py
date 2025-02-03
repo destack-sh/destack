@@ -36,11 +36,11 @@ tracer = trace.get_tracer(__name__)
 
 
 @dataclass(slots=True)
-class PendingRunOperation:
+class _RunHandle:
     run: Run
     retry: RetryState
     retry_at: datetime | None = None
-    is_cancelled: bool = False  # whether this operation was overridden by a more recent one
+    is_cancelled: bool = False
 
 
 class RunPlugin(HostPlugin[Run]):
@@ -51,7 +51,7 @@ class RunPlugin(HostPlugin[Run]):
     def __init__(self, host: "HostService", bench: Bench, retry: RetryOptions = RETRY_GRPC):
         super().__init__(host, bench)
         self._retry = retry
-        self._run_queue: asyncio.Queue[PendingRunOperation] = asyncio.Queue()
+        self._run_queue: asyncio.Queue[_RunHandle] = asyncio.Queue()
 
     def __str__(self):
         return f"queue={self._run_queue.qsize()}"
@@ -62,12 +62,12 @@ class RunPlugin(HostPlugin[Run]):
         #  (like Runs 'stuck' on dead or since restarted Machines)
         self.tasks.start_queue(self._run_queue, self._process_run, skip_errors=True)
 
-    def _queue_run(self, run: Run) -> PendingRunOperation:
+    def _queue_run(self, run: Run) -> _RunHandle:
         """Queues a Run operation."""
         # queue new operation
-        pending_op = PendingRunOperation(run=run, retry=self._retry.new(self.host.oracle))
+        pending_op = _RunHandle(run=run, retry=self._retry.new(self.host.oracle))
         self._run_queue.put_nowait(pending_op)
-        logger.trace("run.run.queue", host=self, run=run)
+        logger.trace("run_plugin.run.queue", host=self, run=run)
         return pending_op
 
     @override
@@ -85,9 +85,9 @@ class RunPlugin(HostPlugin[Run]):
             ):
                 self._queue_run(run.root or run)
 
-    @tracer.start_as_current_span("run.process_run")
+    @tracer.start_as_current_span("run_plugin.process_run")
     @connection_capture("seal")
-    async def _process_run(self, op: PendingRunOperation) -> None:
+    async def _process_run(self, op: _RunHandle) -> None:
         """Push Runs to relevant Machines."""
         op.retry.on_attempt()
         run = op.run
@@ -122,10 +122,10 @@ class RunPlugin(HostPlugin[Run]):
                 )
                 request = RunRequest(run_ptr=run._to_ref_data(), is_blocking=False)
                 _ = await runtime.run(request)
-                log.debug("run.run", machine=machine, span="current")
+                log.debug("run_plugin.run", machine=machine, span="current")
                 return  # success
             except Exception as e:
-                log.error("run.run.error", machine=machine, error=e)
+                log.error("run_plugin.run.error", machine=machine, error=e)
                 op.retry.on_error(e)
                 continue
 
@@ -144,7 +144,9 @@ class RunPlugin(HostPlugin[Run]):
                 if run.started_at is not None:
                     run.duration = run.terminated_at - run.started_at
                 run.error = error
-            log.error("run.run.failed", machines=available_machines, error=error, span="current")
+            log.error(
+                "run_plugin.run.failed", machines=available_machines, error=error, span="current"
+            )
         else:
             # retry later
             retry_interval = op.retry.get_wait_interval()
@@ -154,7 +156,7 @@ class RunPlugin(HostPlugin[Run]):
                 callback=lambda: op.is_cancelled or self._run_queue.put_nowait(op),
             )
             log.trace(
-                "run.run.retry",
+                "run_plugin.run.retry",
                 machines=available_machines,
                 interval=op.retry.get_wait_interval,
                 retry=op.retry,

@@ -350,11 +350,6 @@ class Simulation:
             with tracer.start_as_current_span("simulation.check"):
                 await asyncio.gather(*(workload.check() for workload in self.workloads))
                 logger.info("simulation.check", simulation=self, span="current")
-                if self.errors:
-                    if len(self.errors) == 1:
-                        raise self.errors[0]
-                    else:
-                        raise RuntimeError(f"multiple errors in {self!r}: {self.errors}")
         except Exception as e:
             logger.error("simulation.error", simulation=self, exc_info=e)
             raise
@@ -368,3 +363,10 @@ class Simulation:
                 await host.close()
             await self.tasks.wait_closed()
             self.terminated_at = REAL_ORACLE.utc()
+
+            # raise for any? errors
+            if self.errors:
+                if len(self.errors) == 1:
+                    raise self.errors[0]
+                else:
+                    raise RuntimeError(f"multiple errors in {self!r}: {self.errors}")

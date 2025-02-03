@@ -1,7 +1,6 @@
 import abc
 import asyncio
 from dataclasses import dataclass
-from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -506,12 +505,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             return  # can't break into untracked Run
         if self.should_pause:
             self._trap_interruption(InterruptionType.PAUSE)
-
-    async def _wait_for(
-        self, nodes: Sequence[Node], complete_when: Callable[[], bool], timeout: timedelta
-    ):
-        """Wait for the given nodes to reach a certain state."""
-        return await self.runtime._wait_for(nodes, complete_when, timeout)
 
     def _get_resource[R: Resource = Resource](
         self, resource_type: Type | TypeIn | type[R]

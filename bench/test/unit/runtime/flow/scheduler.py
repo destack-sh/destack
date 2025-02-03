@@ -22,5 +22,6 @@ async def test_run(simulation: Simulation, client: ClientLambdaWorkload):
     await client.commit()
 
     run = create_run_from_node(flow)
+    await client.commit()
     # nocheckin: wait for Run? ensure RuntimeHandle waits for completion?
     #  (this feels related to Runtime.wait_for and also the load remote nodes thing)

@@ -2,7 +2,7 @@ import abc
 import asyncio
 import enum
 from contextlib import asynccontextmanager
-from typing import Any, override
+from typing import Any, Callable, override
 from uuid import UUID
 
 import cachetools
@@ -75,8 +75,11 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         client_access_token: str,
         machine_id: UUID | None,
         mode: "RuntimeThreadMode",
+        on_error: Callable[[BaseException], None] | None = None,
     ):
-        super().__init__(id=id, logger=logger, tracer=tracer, network=network, oracle=oracle)
+        super().__init__(
+            id=id, logger=logger, tracer=tracer, network=network, oracle=oracle, on_error=on_error
+        )
         self._mode = mode
 
         # services
@@ -165,7 +168,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             _supervisor=self._supervisor,
             _host=self._host,
             _supergraph=self._supergraph,
-            _oracle=self._oracle,
+            _oracle=self.oracle,
         )
         await self._session.open(_set_in_context=False)
 

@@ -5,7 +5,7 @@ import random
 import sys
 from asyncio.subprocess import Process
 from datetime import datetime
-from typing import Any, Awaitable, Mapping, assert_never, override
+from typing import Any, Awaitable, Callable, Mapping, assert_never, override
 from uuid import UUID
 
 import grpclib
@@ -236,6 +236,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         max_threads: int,
         max_concurrency_per_thread: int,
         mode: RuntimeThreadMode,
+        on_error: Callable[[BaseException], None] | None = None,
     ):
         super().__init__(
             id=id,
@@ -250,6 +251,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
             client_access_token=client_access_token,
             machine_id=machine_id,
             mode=mode,
+            on_error=on_error,
         )
 
         # processing
@@ -351,7 +353,8 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
 
         # NOTE :UX: mark run as queued as we queue it for a thread
         #  (without having a race condition because of optimistic commits on both sides;
-        #   i.e. never commit the 'mark as queued' after it already ran and mess up the status)
+        #   i.e. never commit the 'mark as queued' after it already ran and mess up the status;
+        #   we can probably work this sort of transition into the next auth system)
 
         # process it (queue and run)
         run_ptr = wiring.unpack_builtin_object_validate(
