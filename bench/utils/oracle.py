@@ -1,5 +1,6 @@
 import abc
 import asyncio
+import contextvars
 import random
 import time
 from datetime import datetime
@@ -111,17 +112,23 @@ class Oracle(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def call_later(self, delay: float, callback: Callable, *args) -> asyncio.TimerHandle:
+    def call_later(
+        self, delay: float, callback: Callable, *args, context: contextvars.Context | None = None
+    ) -> asyncio.TimerHandle:
         """Call a callback after a duration in seconds. Like asyncio.call_later. Timing is relative to oracle."""
         ...
 
     @abc.abstractmethod
-    def call_at(self, when: float, callback: Callable, *args) -> asyncio.TimerHandle:
+    def call_at(
+        self, when: float, callback: Callable, *args, context: contextvars.Context | None = None
+    ) -> asyncio.TimerHandle:
         """Call a callback at a specific time in seconds. Like asyncio.call_at. Timing is relative to oracle."""
         ...
 
     @abc.abstractmethod
-    def call_soon(self, callback: Callable, *args) -> None:
+    def call_soon(
+        self, callback: Callable, *args, context: contextvars.Context | None = None
+    ) -> None:
         """Call a callback as soon as possible. Like asyncio.call_soon."""
         ...
 
@@ -161,16 +168,22 @@ class RealOracle(Oracle):
         await asyncio.sleep(duration)
 
     @override
-    def call_later(self, delay: float, callback: Callable, *args) -> asyncio.TimerHandle:
-        return asyncio.get_event_loop().call_later(delay, callback, *args)
+    def call_later(
+        self, delay: float, callback: Callable, *args, context: contextvars.Context | None = None
+    ) -> asyncio.TimerHandle:
+        return asyncio.get_event_loop().call_later(delay, callback, *args, context=context)
 
     @override
-    def call_at(self, when: float, callback: Callable, *args) -> asyncio.TimerHandle:
-        return asyncio.get_event_loop().call_at(when, callback, *args)
+    def call_at(
+        self, when: float, callback: Callable, *args, context: contextvars.Context | None = None
+    ) -> asyncio.TimerHandle:
+        return asyncio.get_event_loop().call_at(when, callback, *args, context=context)
 
     @override
-    def call_soon(self, callback: Callable, *args) -> None:
-        asyncio.get_event_loop().call_soon(callback, *args)
+    def call_soon(
+        self, callback: Callable, *args, context: contextvars.Context | None = None
+    ) -> None:
+        asyncio.get_event_loop().call_soon(callback, *args, context=context)
 
 
 REAL_ORACLE = RealOracle()

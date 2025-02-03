@@ -68,8 +68,8 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-_connection_captures: contextvars.ContextVar[list[Callable[["Connection"], None]] | None] = (
-    contextvars.ContextVar("connection_captures", default=None)
+_graph_captures: contextvars.ContextVar[list[Callable[["Connection"], None]] | None] = (
+    contextvars.ContextVar("graph_captures", default=None)
 )
 
 
@@ -82,9 +82,9 @@ async def connection_capture(  # noqa: RUF029
 
     # watch for connections
     connections: list[Connection] = []
-    if (connection_captures := _connection_captures.get()) is None:
+    if (connection_captures := _graph_captures.get()) is None:
         connection_captures = []
-        _connection_captures.set(connection_captures)
+        _graph_captures.set(connection_captures)
     connection_captures.append(connections.append)
     yield connections
     connection_captures.remove(connections.append)
@@ -137,7 +137,7 @@ class Connection[
         self._update_subscribers: list[Callable[[Any, UpdateT], None]] = []
 
         # capture
-        if (captures := _connection_captures.get()) is not None:
+        if (captures := _graph_captures.get()) is not None:
             for capture in captures:
                 capture(self)
 

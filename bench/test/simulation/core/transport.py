@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 from typing import Collection
 
 import structlog
@@ -57,19 +58,21 @@ class SimulatedTransport(asyncio.Transport):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self!s}>"
 
-    def _write_soon(self, data: bytes) -> None:
+    def _receive_soon(self, data: bytes) -> None:
         if not self._protocol.connection.is_closing():
             self._protocol.data_received(data)
 
     def write(self, data: bytes | bytearray | memoryview) -> None:
-        if data:
+        if len(data) > 0:
             if self._latency_mean == 0:
                 latency = self._latency_min
             else:
                 latency = (
                     self._oracle.random.expovariate(1 / self._latency_mean) + self._latency_min
                 )
-            self._oracle.call_later(latency, self._write_soon, data)
+            # receive in isolated context
+            context = contextvars.Context()
+            self._oracle.call_later(latency, self._receive_soon, data, context=context)
 
     def is_closing(self) -> bool:
         return False
