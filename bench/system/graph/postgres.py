@@ -10,12 +10,12 @@ from bench.language import (
     AggregateResultData,
     AggregationType,
     Bench,
-    ChannelIncapableError,
-    ChannelUnavailableError,
     CommitResultData,
     Connection,
     ConnectionOptions,
     Engine,
+    EngineIncapableError,
+    EngineUnavailableError,
     FlushResultData,
     GetConnection,
     GetResultData,
@@ -29,7 +29,7 @@ from bench.language import (
     SearchResultData,
     Session,
     Store,
-    WritableChannel,
+    WritableConnector,
     bittuple,
     repr_enums,
     repr_scope,
@@ -75,9 +75,9 @@ class PostgresEngine(Engine):
         return f"{self.name!r}, [scope={repr_scope(self.scope)}, node_types={repr_enums(self.node_types)}, store={self.store!r}]"
 
     @override
-    async def channel(self, session: "Session") -> "PostgresChannel":
+    async def connector(self, session: "Session") -> "PostgresConnector":
         pool = get_pg_pool(self.store)
-        channel = PostgresChannel(self, session, connection=None)
+        channel = PostgresConnector(self, session, connection=None)
         conn = await pool.acquire(owner=channel)
         channel._connection = conn
         logger.trace("postgres.channel.open", channel=channel, conn=conn)
@@ -98,18 +98,18 @@ def _pg_method(func):
 
     @wraps(func)
     @tracer.start_as_current_span(f"postgres.{method_name}")
-    async def wrapper(self: "PostgresChannel", *args, **kwargs):
+    async def wrapper(self: "PostgresConnector", *args, **kwargs):
         from bench.sql import SqlConnectionError
 
         try:
             return await func(self, *args, **kwargs)
         except (SqlConnectionError, psycopg.OperationalError) as e:
-            raise ChannelUnavailableError(self, args[0] if args else None, reason=str(e)) from e
+            raise EngineUnavailableError(self, args[0] if args else None, reason=str(e)) from e
 
     return wrapper
 
 
-class PostgresChannel(WritableChannel[PostgresEngine]):
+class PostgresConnector(WritableConnector[PostgresEngine]):
     """A channel to a Postgres store (usually maps to a postgres connection)."""
 
     def __init__(
@@ -179,7 +179,7 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
         logger.trace("postgres.channel.close", channel=self, conn=self.connection)
 
 
-class PostgresGetConnection[T: Node](GetConnection[PostgresChannel, T]):
+class PostgresGetConnection[T: Node](GetConnection[PostgresConnector, T]):
     """Get from a Postgres channel."""
 
     @override
@@ -187,27 +187,27 @@ class PostgresGetConnection[T: Node](GetConnection[PostgresChannel, T]):
         assert query._roots, f"{query!r} has no roots"
         graph = NodeDataGraph(scope=self.scope, node_types=self.node_types)
         roots_ptr = [r._to_data() for r in query._roots]
-        async with self.channel.connection.lock:
+        async with self.connector.connection.lock:
             _ = await pg_graph_get(
-                cur=self.channel.cur,
-                ctx=self.channel.engine.context,
+                cur=self.connector.cur,
+                ctx=self.connector.engine.context,
                 query=query,
                 visited_graph=graph,
             )
         return GetResultData(graph=graph, roots_ptr=roots_ptr, epoch=None, connection_token=None)
 
 
-class PostgresSearchConnection[T: Node](SearchConnection[PostgresChannel, T]):
+class PostgresSearchConnection[T: Node](SearchConnection[PostgresConnector, T]):
     """Search a Postgres channel."""
 
     @override
     @_pg_method
     async def _do_read(self, query: "Query") -> SearchResultData:
-        async with self.channel.connection.lock:
+        async with self.connector.connection.lock:
             roots, graph, total = await pg_graph_search(
-                cur=self.channel.cur,
-                ctx=self.channel.engine.context,
-                scope=self.channel.engine.scope,
+                cur=self.connector.cur,
+                ctx=self.connector.engine.context,
+                scope=self.connector.engine.scope,
                 query=query,
                 count=self.options.count,
             )
@@ -229,22 +229,22 @@ class PostgresAggregateConnection(AggregateConnection):
     async def _do_read(self, query: "Query") -> AggregateResultData:
         assert query._aggregation is not None
         if query._aggregation.type == AggregationType.EXISTENCE:
-            async with self.channel.connection.lock:
+            async with self.connector.connection.lock:
                 exists = await pg_graph_exists(
-                    cur=self.channel.cur, ctx=self.channel.engine.context, query=query
+                    cur=self.connector.cur, ctx=self.connector.engine.context, query=query
                 )
             return AggregateResultData(
                 aggregation=AggregationResultData(exists=exists), epoch=None, connection_token=None
             )
         elif query._aggregation.type == AggregationType.COUNT:
-            async with self.channel.connection.lock:
+            async with self.connector.connection.lock:
                 count = await pg_graph_count(
-                    cur=self.channel.cur, ctx=self.channel.engine.context, query=query
+                    cur=self.connector.cur, ctx=self.connector.engine.context, query=query
                 )
             return AggregateResultData(
                 aggregation=AggregationResultData(count=count), epoch=None, connection_token=None
             )
         else:
-            raise ChannelIncapableError(
+            raise EngineIncapableError(
                 self, query, expression=query._aggregation, reason="unsupported"
             )

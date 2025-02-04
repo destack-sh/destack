@@ -24,7 +24,7 @@ from bench.language.registry import CHILD_NODE_TYPES
 from bench.pb2 import AnyNodeData, GraphScopeData
 
 from .connection import Connection, GetConnection, GetResultData
-from .engine import Channel, ConnectionOptions, Engine
+from .engine import ConnectionOptions, Connector, Engine
 
 if TYPE_CHECKING:
     from bench.language import Query, Session
@@ -35,7 +35,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class MemoryEngine(Engine["MemoryChannel"]):
+class MemoryEngine(Engine["MemoryConnector"]):
     """A read-only Engine that reads from an in-memory graph."""
 
     def __init__(
@@ -61,12 +61,12 @@ class MemoryEngine(Engine["MemoryChannel"]):
     def include_deleted(self) -> bool:
         return self._include_deleted
 
-    async def channel(self, session: "Session"):
-        return MemoryChannel(self, session)
+    async def connector(self, session: "Session"):
+        return MemoryConnector(self, session)
 
 
-class MemoryChannel(Channel[MemoryEngine]):
-    """A read-only Channel to an in-memory graph."""
+class MemoryConnector(Connector[MemoryEngine]):
+    """A read-only Connector to an in-memory graph."""
 
     def __init__(self, engine: "MemoryEngine", session: "Session"):
         super().__init__(engine, session)
@@ -92,16 +92,16 @@ class MemoryChannel(Channel[MemoryEngine]):
             raise RuntimeError(f"unsupported memory read {query!r}")
 
 
-class MemoryGetConnection[T: Node](GetConnection[MemoryChannel, T]):
-    """Search an in-memory Channel."""
+class MemoryGetConnection[T: Node](GetConnection[MemoryConnector, T]):
+    """Search an in-memory Connector."""
 
     @override
     async def _do_read(self, query: "Query") -> GetResultData:
         from bench.language import NodeDataGraph, NodeReference
 
-        loaded_graph = self.channel.engine.graph
+        loaded_graph = self.connector.engine.graph
         visited_graph = NodeDataGraph(
-            scope=self.channel.engine.scope, node_types=self.channel.engine.node_types
+            scope=self.connector.engine.scope, node_types=self.connector.engine.node_types
         )
 
         # get roots

@@ -29,8 +29,6 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
     p_system,
-    p_value_packed,
-    p_value_runtime,
     subnode_,
 )
 from bench.pb2 import BlockData
@@ -47,7 +45,6 @@ if TYPE_CHECKING:
         Record,
         RunOptions,
         Text,
-        Type,
         View,
     )
 
@@ -72,15 +69,6 @@ class Block(SourceNode[BlockData]):
     text: Optional["Text"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.TEXT
     )
-
-    variables_packed: Any = p_value_packed(40)
-    variables: Any = p_value_runtime(
-        packed=40, type=FieldType.VARIABLE, typ=lambda self: cast("Block", self).variable_type
-    )
-    # policies, roles, identity, ...?
-
-    # flags
-    # is_builtin, is_owned, is_test? (for testing)
 
     blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
@@ -186,15 +174,6 @@ class Block(SourceNode[BlockData]):
         elif isinstance(typ, NodeSubtypeStub):
             typ = cast(BlockType, typ._node_subtype)
         return Block(type=typ, name=name, **kwargs)  # type: ignore
-
-
-@subnode_(BlockType.VARIABLE, passthrough_get=("value",), passthrough_set=("value",))
-class VariableBlock(Block):
-    value_type: Optional["Type"] = p_regular(100, default=None, struct=StructType.TYPE)
-    value_packed: Any = p_value_packed(101)
-    value: Any = p_value_runtime(
-        101, type=FieldType.MEMBER, typ=lambda self: cast("VariableBlock", self).value_type
-    )
 
 
 @subnode_(BlockType.TEXT)

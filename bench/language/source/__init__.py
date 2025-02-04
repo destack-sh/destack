@@ -34,7 +34,8 @@ from .action import (
     UpdateAction,
     WaitAction,
 )
-from .block import Block, BlockType, DatabaseBlock, FlowBlock, TextBlock, VariableBlock
+from .block import Block, BlockType, DatabaseBlock, FlowBlock, TextBlock
+from .channel import Channel, ChannelType
 from .dependency import Dependency
 from .field import Field, InputField, MemberField, OptionField, OutputField, VariableField
 from .package import Package, PackageType
@@ -82,6 +83,8 @@ __all__ = [
     "Block",
     "BlockType",
     "ChangeAction",
+    "Channel",
+    "ChannelType",
     "ClickAction",
     "CodeAction",
     "CompleteAction",
@@ -146,7 +149,6 @@ __all__ = [
     "TriggerType",
     "TypeAction",
     "UpdateAction",
-    "VariableBlock",
     "VariableField",
     "Vector2",
     "Vector3",

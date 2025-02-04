@@ -15,7 +15,7 @@ from bench.system.graph.graph import (
 )
 from bench.system.graph.postgres import (
     PostgresAggregateConnection,
-    PostgresChannel,
+    PostgresConnector,
     PostgresEngine,
     PostgresGetConnection,
     PostgresSearchConnection,
@@ -31,7 +31,7 @@ __all__ = [
     "GraphIoServiceBase",
     "GraphLock",
     "PostgresAggregateConnection",
-    "PostgresChannel",
+    "PostgresConnector",
     "PostgresEngine",
     "PostgresGetConnection",
     "PostgresSearchConnection",

@@ -17,10 +17,10 @@ from .engine import (
     AggregateOptions,
     AggregateResult,
     AggregateResultData,
-    Channel,
-    ChannelIncapableError,
-    ChannelUnavailableError,
     ConnectionOptions,
+    Connector,
+    EngineIncapableError,
+    EngineUnavailableError,
     GetOptions,
     GetResult,
     GetResultData,
@@ -50,7 +50,7 @@ tracer = trace.get_tracer(__name__)
 
 
 class Connection[
-    ChannelT: Channel,
+    ConnectorT: Connector,
     OptionsT: ConnectionOptions,
     ResultT: Result,
     ResultDataT: ResultData,
@@ -61,13 +61,13 @@ class Connection[
 
     def __init__(
         self,
-        channel: ChannelT,
+        connector: ConnectorT,
         scope: GraphScopeData,
         query: "Query",
         retry: RetryOptions,
         options: OptionsT,
     ):
-        self.channel = channel
+        self.connector = connector
         self.scope = scope
         self.query = query
         self.type = query._type
@@ -102,7 +102,7 @@ class Connection[
 
     @property
     def session(self) -> "Session":
-        return self.channel.session
+        return self.connector.session
 
     @property
     def is_open(self) -> bool:
@@ -163,9 +163,9 @@ class Connection[
                             if not retry.on_error(e):
                                 raise
                             await self.session._oracle.sleep(interval)
-                            if isinstance(e, ChannelUnavailableError):
+                            if isinstance(e, EngineUnavailableError):
                                 # try reconnecting the channel
-                                await self.channel.reset()
+                                await self.connector.reset()
                                 self.log.debug("connect.reset")
                 else:
                     raise retry.to_error(operation=self.query)
@@ -286,7 +286,7 @@ class Connection[
         self, query: "Query", token: str | None, epoch: int
     ) -> AsyncIterator[UpdateDataT]:
         """Subscribes to updates for the connection."""
-        raise ChannelIncapableError(self, query, reason="live subscription not supported")
+        raise EngineIncapableError(self, query, reason="live subscription not supported")
 
     @final
     def close(self, release: bool = False):
@@ -323,9 +323,9 @@ class Connection[
         ...
 
 
-class GetConnection[ChannelT: Channel, T: Node](
+class GetConnection[ConnectorT: Connector, T: Node](
     Connection[
-        ChannelT, GetOptions, GetResult[T], GetResultData, WatchGetUpdateData, WatchGetUpdate
+        ConnectorT, GetOptions, GetResult[T], GetResultData, WatchGetUpdateData, WatchGetUpdate
     ]
 ):
     """Base for get connections (may be live)."""
@@ -425,9 +425,9 @@ class GetConnection[ChannelT: Channel, T: Node](
                 )
 
 
-class SearchConnection[ChannelT: Channel, T: Node](
+class SearchConnection[ConnectorT: Connector, T: Node](
     Connection[
-        ChannelT,
+        ConnectorT,
         SearchOptions,
         SearchResult[T],
         SearchResultData,
@@ -539,9 +539,9 @@ class SearchConnection[ChannelT: Channel, T: Node](
             result.roots = new_roots
 
 
-class AggregateConnection[ChannelT: Channel](
+class AggregateConnection[ConnectorT: Connector](
     Connection[
-        ChannelT,
+        ConnectorT,
         AggregateOptions,
         AggregateResult,
         AggregateResultData,

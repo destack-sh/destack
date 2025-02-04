@@ -19,7 +19,7 @@ from bench.sql import (
     introspect_sql_schema,
     map_database_block_to_table,
 )
-from bench.system.graph import PostgresChannel
+from bench.system.graph import PostgresConnector
 from bench.system.host.core import Commit, HostPlugin
 
 if TYPE_CHECKING:
@@ -97,11 +97,11 @@ class DatabasePlugin(HostPlugin[Block | Field]):
         # migrate from current to target schema
         # (usually nothing should happen here, but just in case we change something)
         async with self.host.session(readonly=False) as session:
-            channel = await session._get_channel_for(
-                self.host.scope, NodeType.RECORD, expect=PostgresChannel
+            connector = await session._get_connector_for(
+                self.host.scope, NodeType.RECORD, expect=PostgresConnector
             )
             old_schema = await introspect_sql_schema(
-                channel.cur,
+                connector.cur,
                 include_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
                 exclude_table_prefixes=(),
                 include_extensions=False,
@@ -114,8 +114,8 @@ class DatabasePlugin(HostPlugin[Block | Field]):
                 include_types=(MigrationOpType.CREATE, MigrationOpType.UPDATE),
             )
             if migration_ops:
-                await apply_sql_migration_ops(channel.cur, migration_ops)
-                session._touch_channel(channel)
+                await apply_sql_migration_ops(connector.cur, migration_ops)
+                session._touch_connector(connector)
                 await session.commit()
                 logger.debug("database.migrate", host=self, migration_ops=migration_ops)
 
@@ -134,8 +134,8 @@ class DatabasePlugin(HostPlugin[Block | Field]):
             return  # nothing to do
 
         # migrate schema for touched databases (and only those)
-        channel = await session._get_channel_for(
-            self.host.scope, NodeType.RECORD, expect=PostgresChannel
+        connector = await session._get_connector_for(
+            self.host.scope, NodeType.RECORD, expect=PostgresConnector
         )
 
         # load missing blocks' current schema (in case they were restored)
@@ -149,7 +149,7 @@ class DatabasePlugin(HostPlugin[Block | Field]):
         if restored_databases:
             table_prefixes = tuple(get_record_table_name(block) for block in restored_databases)
             old_schema = await introspect_sql_schema(
-                channel.cur,
+                connector.cur,
                 include_table_prefixes=table_prefixes,
                 exclude_table_prefixes=(),
                 include_extensions=False,
@@ -172,7 +172,7 @@ class DatabasePlugin(HostPlugin[Block | Field]):
             include_types=(MigrationOpType.CREATE, MigrationOpType.UPDATE),
         )
         if migration_ops:
-            await apply_sql_migration_ops(channel.cur, migration_ops)
+            await apply_sql_migration_ops(connector.cur, migration_ops)
 
         # patch context optimistically
         self.context.custom_tables_by_database.update(new_tables_by_block)

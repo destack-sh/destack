@@ -12,7 +12,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench import pb2
-from bench.language.connection import Channel, WritableChannel
+from bench.language.connection import Connector, WritableConnector
 from bench.language.core import (
     EDIT_SUBJECT_TYPES,
     TK_LENGTH_B64,
@@ -238,8 +238,8 @@ class Transaction:
     id: UUID
     session: "Session"
     is_readonly: bool = dataclasses.field(default=False)
-    _split_read_channel: Optional[Channel] = dataclasses.field(default=None)
-    _channels: list[Channel] = dataclasses.field(default_factory=list)
+    _split_read_connector: Optional[Connector] = dataclasses.field(default=None)
+    _connectors: list[Connector] = dataclasses.field(default_factory=list)
 
     """All edits from this transaction (since the previous commit)."""
     _edits: list[EditData] = dataclasses.field(default_factory=list)
@@ -520,12 +520,14 @@ class Transaction:
         # flush to engines
         cascaded_edits: list[EditData] = []
         for engine in self.session._engines:
-            # prepare edits & channel
+            # prepare edits & connector
             engine_edits = edits_by_engine_id.get(engine.id, [])
             if not (engine_edits or (is_commit and engine.id in self._touched_engine_ids)):
                 continue  # nothing to do
-            channel = await self.session._get_channel(engine)
-            assert isinstance(channel, WritableChannel), f"read-only {channel!r} for {engine!r}"
+            connector = await self.session._get_connector(engine)
+            assert isinstance(
+                connector, WritableConnector
+            ), f"read-only {connector!r} for {engine!r}"
 
             # flush/commit
             message = "transaction.commit.engine" if is_commit else "transaction.flush.engine"
@@ -533,9 +535,9 @@ class Transaction:
                 message, attributes={"engine": engine.__class__.__name__}
             ):
                 if is_commit:
-                    flush = await channel.commit(engine_edits)
+                    flush = await connector.commit(engine_edits)
                 else:
-                    flush = await channel.flush(engine_edits)
+                    flush = await connector.flush(engine_edits)
                 log.trace(message, engine=engine, edits=len(engine_edits))
             cascaded_edits.extend(flush.cascaded_edits)
             self._cascaded_edits.extend(flush.cascaded_edits)
@@ -563,7 +565,7 @@ class Transaction:
         return edits, cascaded_edits
 
     def reset(self):
-        """Resets the transaction, any edits and channels (without closing)."""
+        """Resets the transaction, any edits and connectors (without closing)."""
         self._edits = []
         self._cascaded_edits = []
         self._pending_edit_events = []

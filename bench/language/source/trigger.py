@@ -25,11 +25,13 @@ if TYPE_CHECKING:
     from bench.language import (
         Action,
         Block,
+        Channel,
         Interruption,
         Message,
         Package,
         Run,
         Text,
+        Thread,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -112,12 +114,11 @@ class ScheduleTrigger(Trigger):
 
 @subnode_(TriggerType.MESSAGE)
 class MessageTrigger(Trigger):
-    message: Optional["Message"] = p_regular(
-        101,
-        require=False,
-        array=False,
-        references=NodeType.MESSAGE,
-        description="The Message (thread) this Trigger is for.",
+    channel: Optional["Channel"] = p_regular(
+        100, require=False, array=False, references=NodeType.CHANNEL
+    )
+    thread: Optional["Thread"] = p_regular(
+        101, require=False, array=False, references=NodeType.THREAD
     )
     message_type: Optional["Block"] = p_regular(
         102,

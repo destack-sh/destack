@@ -32,10 +32,10 @@ from bench.language import (
     AccessError,
     Bench,
     Block,
-    ChannelUnavailableError,
     Context,
     EditType,
     Engine,
+    EngineUnavailableError,
     Expression,
     GetOptions,
     HasContext,
@@ -109,7 +109,7 @@ MAX_TIME_DRIFT_SECONDS = get_from_env(
     default=60,
     description="Maximum allowable delta between our time and client transaction time",
 )
-COMMIT_RETRY = RetryOptions(max_attempts=3, retry_on=(ChannelUnavailableError,))
+COMMIT_RETRY = RetryOptions(max_attempts=3, retry_on=(EngineUnavailableError,))
 
 
 class GraphLock:

@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.04.0"
+VERSION = "2025.02.04.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -434,8 +434,12 @@ class EnumType(BuiltinEnum):
     ORGANIZATION_STATUS = 22710
 
     # messages (22800-22899)
-    MESSAGE_TYPE = 22800
-    MESSAGE_STATUS = 22801
+    CHANNEL_TYPE = 22800
+    THREAD_TYPE = 22810
+    THREAD_STATUS = 22811
+    MESSAGE_TYPE = 22820
+    MESSAGE_STATUS = 22821
+    MESSAGE_PLATFORM = 22822
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
@@ -501,19 +505,23 @@ class NodeType(BuiltinEnum):
     # source (named, versioned, templatable)
     PACKAGE = 5000
     DEPENDENCY = 5002
-    BLOCK = 5020
+    # PAGE = 5020
+    BLOCK = 5021
     FIELD = 5022  # (based)
     VIEW = 5030
     ACTION = 5040
     PIPE = 5041
     TRIGGER = 5042
-    # BADGE? POLICY? (POLICY_)RULE?
+    CHANNEL = 5100
+
+    # ROLE/IDENTITY? BADGE? POLICY? (POLICY_)RULE?
     SPACE = 5200
 
     # state
-    MESSAGE = 5500  # (based, timed)
-    # MESSAGE_THREAD, MESSAGE_CHANNEL? nocheckin
+    THREAD = 5501  # (timed)
+    MESSAGE = 5502  # (based, timed)
     RECORD = 5510  # (based)
+    # REACTION?
 
     # runtime
     SESSION = 6000  # (timed)
@@ -939,7 +947,8 @@ REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
 
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(BuiltinEnum):
-    PAGE = 1, "Page of Blocks"  # nocheckin: separate PageBlock->Page
+    PAGE = 1, "Page of Blocks"
+    # nocheckin: separate PageBlock->Page? .. wait, also Database, Flow, View, Role, Identity??
     TEXT = 2, "Line of rich Text"
 
     # types
@@ -954,7 +963,6 @@ class BlockType(BuiltinEnum):
     FLOW = 22, "Flow of connected Actions"
 
     # data
-    VARIABLE = 30, "Single-value Variable"
     DATABASE = 31, "Database of Records"
 
     # view
@@ -969,10 +977,6 @@ class BlockType(BuiltinEnum):
         return self in BlockTypes.TYPES
 
     @property
-    def is_classy(self) -> bool:
-        return self in BlockTypes.CLASSES
-
-    @property
     def is_runnable(self) -> bool:
         return self in BlockTypes.RUNNABLE
 
@@ -983,7 +987,6 @@ BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
 class BlockTypes:
     TYPES = bittuple(*tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
     RUNNABLE = bittuple(*tuple(t for t in BLOCK_TYPES if 20 <= t.id < 30))
-    CLASSES = bittuple(BlockType.MESSAGE, *RUNNABLE, BlockType.VARIABLE, BlockType.DATABASE)
 
 
 class ReferenceKind(BuiltinEnum):

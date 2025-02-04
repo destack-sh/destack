@@ -65,12 +65,12 @@ FieldOrProperty = Union[
 NodeTypeOrClass = Union[NodeType, type[Node]]
 
 
-class ChannelError(BenchError):
-    """An error. From a channel."""
+class EngineError(BenchError):
+    """An error from an Engine/Connector/Connection."""
 
     def __init__(
         self,
-        medium: Union["Engine", "Channel", Any],
+        medium: Union["Engine", "Connector", Any],
         query: Optional["Query"] | Collection[EditData] = None,
         expression: Union["Expression", list["Expression"], None] = None,
         reason: str | None = None,
@@ -90,15 +90,11 @@ class ChannelError(BenchError):
         self.__cause__ = cause
 
 
-class ChannelUnavailableError(ChannelError):
-    """The channel is temporarily unavailable."""
-
+class EngineUnavailableError(EngineError):
     pass
 
 
-class ChannelIncapableError(ChannelError):
-    """The channel can't do this thing."""
-
+class EngineIncapableError(EngineError):
     pass
 
 
@@ -246,10 +242,10 @@ def origin_matches(origin: ClientOriginData, other: ClientOriginData) -> bool:
     return origin.id == other.id and origin.nonce == other.nonce
 
 
-# NOTE :Architecture :Cleanup: the whole Engine/Channel/Connection system seems convoluted
+# NOTE :Architecture :Cleanup: the whole Engine/Connector/Connection system seems convoluted
 
 
-class Engine[C: "Channel"](abc.ABC):
+class Engine[C: "Connector"](abc.ABC):
     """A Graph IO service to perform IO on some subgraph."""
 
     _engine_id: ClassVar[int] = 0
@@ -279,26 +275,26 @@ class Engine[C: "Channel"](abc.ABC):
     @property
     @abc.abstractmethod
     def is_readonly(self) -> bool:
-        """Whether this channel is read-only."""
+        """Whether this connector is read-only."""
         ...
 
     @property
     @abc.abstractmethod
     def include_deleted(self) -> bool:
-        """Whether this channel includes deleted nodes."""
+        """Whether this connector includes deleted nodes."""
         ...
 
     @abc.abstractmethod
-    async def channel(self, session: "Session") -> C:
-        """Opens an IO channel on this subgraph in a Session."""
+    async def connector(self, session: "Session") -> C:
+        """Opens an IO connector on this subgraph in a Session."""
         ...
 
 
 class NullEngine(Engine):
     """A null engine that does nothing."""
 
-    async def channel(self, session: "Session"):
-        raise ChannelIncapableError(self, reason="null engine")
+    async def connector(self, session: "Session"):
+        raise EngineIncapableError(self, reason="null engine")
 
     @property
     def include_deleted(self) -> bool:
@@ -309,8 +305,8 @@ class NullEngine(Engine):
         return True
 
 
-class Channel[E: Engine](abc.ABC):
-    """A channel to a specific Store to read from in a Session."""
+class Connector[E: Engine](abc.ABC):
+    """A connector for a specific Store to read from in a Session."""
 
     def __init__(self, engine: E, session: "Session"):
         self.engine = engine
@@ -328,16 +324,16 @@ class Channel[E: Engine](abc.ABC):
 
     @property
     def read_retry(self) -> RetryOptions:
-        return RetryOptions(retry_on=(ChannelUnavailableError,))
+        return RetryOptions(retry_on=(EngineUnavailableError,))
 
     @abc.abstractmethod
     async def reset(self):
-        """Resets this channel to its initial state."""
+        """Resets this connector to its initial state."""
         ...
 
     @abc.abstractmethod
     async def close(self):
-        """Closes this channel to all further operations."""
+        """Closes this connector to all further operations."""
         ...
 
     #
@@ -401,8 +397,8 @@ class CommitResultData:
     cascaded_edits: list[EditData]
 
 
-class WritableChannel[E: Engine](Channel[E]):
-    """A channel you can write to."""
+class WritableConnector[E: Engine](Connector[E]):
+    """A connector you can write to."""
 
     #
     # Transaction management

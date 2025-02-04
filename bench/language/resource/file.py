@@ -507,9 +507,6 @@ class FileBase(BuiltinObject):
     aspect_ratio: Optional[float] = p_internal(72, default=None)
     codec: Optional[str] = p_internal(73, default=None)
     duration: Optional[timedelta] = p_internal(74, default=None)
-    bitrate: Optional[int] = p_internal(75, default=None)
-    channels: Optional[int] = p_internal(76, default=None)
-    sample_rate: Optional[int] = p_internal(77, default=None)
 
     # cached content
     _original: Optional["File"] = p_runtime(default=None)  # if converted

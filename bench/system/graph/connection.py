@@ -320,13 +320,13 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
 
     @override
     async def connect(self, session: Session) -> GetResultData:
-        channel = await session._get_channel_for(
+        connector = await session._get_connector_for(
             self.scope,
             self.query.all_node_types,
             include_deleted=self.query.include_deleted,
             is_readonly=True,
         )
-        connection = await channel.get(self.query, GetOptions(live=False, mode="packed"))
+        connection = await connector.get(self.query, GetOptions(live=False, mode="packed"))
         self._result_data = connection.result_data
         return self._result_data
 
@@ -379,13 +379,13 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
 
     @override
     async def connect(self, session: Session) -> SearchResultData:
-        channel = await session._get_channel_for(
+        connector = await session._get_connector_for(
             self.scope,
             self.query.all_node_types,
             include_deleted=self.query.include_deleted,
             is_readonly=True,
         )
-        connection = await channel.search(
+        connection = await connector.search(
             self.query, SearchOptions(live=False, mode="packed", count=True)
         )
         self._result_data = connection.result_data
@@ -518,13 +518,13 @@ class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdateDa
 
     @override
     async def connect(self, session: Session) -> AggregateResultData:
-        channel = await session._get_channel_for(
+        connector = await session._get_connector_for(
             self.scope,
             self.query.all_node_types,
             include_deleted=self.query.include_deleted,
             is_readonly=True,
         )
-        connection = await channel.aggregate(
+        connection = await connector.aggregate(
             self.query, AggregateOptions(live=False, mode="packed")
         )
         self._result_data = connection.result_data

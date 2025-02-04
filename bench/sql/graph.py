@@ -41,10 +41,10 @@ from bench.language import (
     Bench,
     Block,
     C,
-    ChannelIncapableError,
     ConditionalType,
     EditOperationType,
     EditType,
+    EngineIncapableError,
     EnumType,
     Expression,
     ExpressionTypes,
@@ -474,7 +474,7 @@ def _pg_compile_conditional(
             op=PG_CONDITIONAL_OP_BY_BENCH[cond.type],
         )
         return clause
-    raise ChannelIncapableError("postgres", expression=cond, reason="unsupported conditional")
+    raise EngineIncapableError("postgres", expression=cond, reason="unsupported conditional")
 
 
 def _pg_compile_sort(
