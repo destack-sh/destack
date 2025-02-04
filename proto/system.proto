@@ -14,8 +14,8 @@ message GetNodesRequest {
   GraphScopeData scope = 1;
   // The 'root' nodes to get around.
   repeated NodeReferenceData roots = 2;  // must be of same type
-  // The relevant block (if any).
-  optional NodeReferenceData block_ptr = 3;
+  // The relevant base type (if any).
+  optional NodeReferenceData base_type_ptr = 3;
   // Ancestor nodes to include.
   repeated NodeType ancestor_types = 10;
   // Descendant nodes to include.
@@ -65,8 +65,8 @@ message SearchNodesRequest {
   GraphScopeData scope = 1;
   // The type of node to search.
   NodeType node_type = 2;
-  // The relevant block (if any).
-  optional NodeReferenceData block_ptr = 3;
+  // The relevant base type (if any).
+  optional NodeReferenceData base_type_ptr = 3;
   // Filter for the search.
   optional ExpressionData filter = 4;
   // Sort order for the search.

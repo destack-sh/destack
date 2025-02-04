@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.04.1"
+VERSION = "2025.02.04.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -505,15 +505,26 @@ class NodeType(BuiltinEnum):
     # source (named, versioned, templatable)
     PACKAGE = 5000
     DEPENDENCY = 5002
-    # PAGE = 5020
+    # page
+    PAGE = 5020
     BLOCK = 5021
-    FIELD = 5022  # (based)
-    VIEW = 5030
-    ACTION = 5040
-    PIPE = 5041
-    TRIGGER = 5042
+    # types
+    CHOICE = 5030
+    CLASS = 5031
+    # UNION?
+    FIELD = 5035  # (based)
+    # flow
+    FLOW = 5050
+    ACTION = 5051
+    PIPE = 5052
+    TRIGGER = 5053
+    # views
+    VIEW = 5080
+    # data
+    DATABASE = 5090
+    # messaging
     CHANNEL = 5100
-
+    # auth
     # ROLE/IDENTITY? BADGE? POLICY? (POLICY_)RULE?
     SPACE = 5200
 
@@ -947,46 +958,42 @@ REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
 
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(BuiltinEnum):
-    PAGE = 1, "Page of Blocks"
-    # nocheckin: separate PageBlock->Page? .. wait, also Database, Flow, View, Role, Identity??
-    TEXT = 2, "Line of rich Text"
+    # text
+    # NOTE: text BlockTypes should align with :TextLineTypes
+    PARAGRAPH = 2, "Line of rich Text"
+    ...  # TODO :Incomplete: add other :TextLineTypes as BlockTypes
 
     # types
     # CLASS?
-    CHOICE = 11, "Choice of Field options"
-    MESSAGE = 12, "Message type to communicate"
+    CHOICE = 100, "Choice of Field options"
+    CLASS = 101, "Class of Fields"
     # ALIAS   # refer to / 'redefine' an existing block or builtin (like a 'newtype')
     # RESOURCE, PROTOCOL, TAG, METRIC, ...?
 
-    # runnable
+    # nested
     # LIBRARY?
-    FLOW = 22, "Flow of connected Actions"
-
-    # data
-    DATABASE = 31, "Database of Records"
-
-    # view
-    VIEW = 40, "Graphical Interface"
-
-    # auth
-    ROLE = 50, "Role to assign"
-    IDENTITY = 51, "Unique Identity"
+    PAGE = 201, "Page of Blocks"
+    FLOW = 202, "Flow of connected Actions"
+    DATABASE = 203, "Database of Records"
+    VIEW = 204, "Graphical Interface"
+    FILE = 222, "File"
+    ROLE = 230, "Role to assign"
+    IDENTITY = 231, "Unique Identity"
+    # ...
 
     @property
     def is_type(self) -> bool:
-        return self in BlockTypes.TYPES
+        return self >= 100 and self < 200
 
     @property
-    def is_runnable(self) -> bool:
-        return self in BlockTypes.RUNNABLE
+    def is_nested(self) -> bool:
+        return self >= 200 and self < 300
 
 
 BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
-
-
-class BlockTypes:
-    TYPES = bittuple(*tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
-    RUNNABLE = bittuple(*tuple(t for t in BLOCK_TYPES if 20 <= t.id < 30))
+TEXT_BLOCK_TYPES: tuple[BlockType, ...] = tuple(t for t in BLOCK_TYPES if t.id < 100)
+TYPE_BLOCK_TYPES: tuple[BlockType, ...] = tuple(t for t in BLOCK_TYPES if 100 <= t.id < 200)
+NESTED_BLOCK_TYPES: tuple[BlockType, ...] = tuple(t for t in BLOCK_TYPES if 200 <= t.id < 300)
 
 
 class ReferenceKind(BuiltinEnum):

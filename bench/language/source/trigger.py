@@ -3,13 +3,11 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
     NAME_CONSTRAINT,
-    BlockType,
     BuiltinEnum,
     EnumType,
     NodeType,
     SourceNode,
     StructType,
-    constraint,
     enum_,
     node_,
     p_node_parent,
@@ -26,6 +24,7 @@ if TYPE_CHECKING:
         Action,
         Block,
         Channel,
+        Class,
         Interruption,
         Message,
         Package,
@@ -120,12 +119,11 @@ class MessageTrigger(Trigger):
     thread: Optional["Thread"] = p_regular(
         101, require=False, array=False, references=NodeType.THREAD
     )
-    message_type: Optional["Block"] = p_regular(
+    class_: Optional["Class"] = p_regular(
         102,
         require=False,
         array=False,
-        references=NodeType.BLOCK,
-        constraint=constraint(node_subtypes=[BlockType.MESSAGE]),
+        references=NodeType.CLASS,
         description="The Message type.",
     )
     reply_to: Optional["Message"] = p_regular(

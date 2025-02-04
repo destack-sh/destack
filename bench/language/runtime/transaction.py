@@ -312,7 +312,7 @@ class Transaction:
             now = session._oracle.utc()
         run = session._runtime.active_run if session._runtime is not None else None
         if run is not None:
-            subject_ptr = run.identity_ptr or run.action_ptr or run.block_ptr
+            subject_ptr = run.identity_ptr or run.action_ptr or run.flow_ptr
         elif session._subject is not None:
             subject_ptr = session._subject.to_ref()
         else:
@@ -434,8 +434,10 @@ class Transaction:
                 edit_context.run_ptr.CopyFrom(run._to_ref_data())
                 if run.root_ptr is not None:
                     edit_context.run_root_ptr.CopyFrom(run.root_ptr._to_data())
-                if run.block_ptr is not None:
-                    edit_context.block_ptr.CopyFrom(run.block_ptr._to_data())
+                if run.flow_ptr is not None:
+                    edit_context.flow_ptr.CopyFrom(run.flow_ptr._to_data())
+                if run.page_ptr is not None:
+                    edit_context.page_ptr.CopyFrom(run.page_ptr._to_data())
                 if run.action_ptr is not None:
                     edit_context.action_ptr.CopyFrom(run.action_ptr._to_data())
                 if run.identity_ptr is not None:

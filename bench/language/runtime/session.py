@@ -80,7 +80,9 @@ if TYPE_CHECKING:
         Action,
         Bench,
         Block,
+        Flow,
         NodeReference,
+        Page,
         Query,
         Run,
     )
@@ -274,8 +276,8 @@ class Session(RuntimeNode[SessionData]):
 
     def _get_scope_for_query(self, query: "Query") -> GraphScopeData:
         """Get the scope for a query in this session."""
-        if query._base_block is not None:
-            return self._get_scope_for_node(query._base_block)
+        if query._base_type is not None:
+            return self._get_scope_for_node(query._base_type)
         else:
             return self._default_scope
 
@@ -867,21 +869,22 @@ class Session(RuntimeNode[SessionData]):
 class EditContext(Struct):
     """Additional context for a specific edit (per-edit variable subset of Session context)."""
 
-    block: Optional["Block"] = p_internal(70, require=False, array=False, references=NodeType.BLOCK)
+    page: Optional["Page"] = p_internal(70, require=False, array=False, references=NodeType.PAGE)
+    flow: Optional["Flow"] = p_internal(71, require=False, array=False, references=NodeType.FLOW)
     action: Optional["Action"] = p_internal(
-        71, require=False, array=False, references=NodeType.ACTION
+        72, require=False, array=False, references=NodeType.ACTION
     )
     session: Optional["Session"] = p_internal(
-        72, require=False, array=False, references=NodeType.SESSION, same_bench=True
+        73, require=False, array=False, references=NodeType.SESSION, same_bench=True
     )
     run: Optional["Run"] = p_internal(
-        73, require=False, array=False, references=NodeType.RUN, same_bench=True
-    )
-    run_root: Optional["Run"] = p_internal(
         74, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
+    run_root: Optional["Run"] = p_internal(
+        75, require=False, array=False, references=NodeType.RUN, same_bench=True
+    )
     identity: Optional["Block"] = p_internal(
-        75, require=False, array=False, references=NodeType.BLOCK
+        76, require=False, array=False, references=NodeType.BLOCK
     )
     if TYPE_CHECKING:
         block_ptr: Optional[NodeReference] = None

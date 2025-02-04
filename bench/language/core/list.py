@@ -389,14 +389,14 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     #
 
     def _query(self) -> "Query[V, VD]":
-        from bench.language import Block, Expression, Query, SelectOptions
+        from bench.language import Database, Expression, Query, SelectOptions
 
-        assert isinstance(self._node, Block), f"can only query from a block: {self._node!r}"
+        assert isinstance(self._node, Database), f"cannot query from: {self._node!r}"
         created_at = self._child_node_cls.get_property("created_at")
         query = Query(
             type=QueryType.SEARCH,
             node_type=self._child_node_type,
-            base_block=self._node,
+            base_type=self._node,
             # sort by created_at by default
             sort=[Expression(type=SortType.ASCENDING, property=created_at)],
             # select all fields by default

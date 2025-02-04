@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: timescale/timescaledb:latest-pg16
+    image: paradedb/paradedb:latest-pg16
     restart: on-failure
     environment:
       POSTGRES_USER: bench

@@ -190,7 +190,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteConnector, T]):
         request = pb2.GetNodesRequest(
             scope=engine.scope,
             roots=roots_ptr,
-            block_ptr=query._base_block._to_ref_data() if query._base_block else None,
+            base_type_ptr=query._base_type._to_ref_data() if query._base_type else None,
             ancestor_types=[wiring.pack_enum(NodeType, t) for t in query._ancestor_types],
             descendant_types=[wiring.pack_enum(NodeType, t) for t in query._descendant_types],
             select=query._select._to_data() if query._select else None,
@@ -242,7 +242,7 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteConnector, T]):
         request = pb2.SearchNodesRequest(
             scope=engine.scope,
             node_type=wiring.pack_enum(NodeType, query._node_type),
-            block_ptr=query._base_block._to_ref_data() if query._base_block else None,
+            base_type_ptr=query._base_type._to_ref_data() if query._base_type else None,
             filter=wiring.pack_builtin_object_maybe(query._filter, ExpressionData),
             sort=(
                 [wiring.pack_builtin_object(s, ExpressionData) for s in query._sort]

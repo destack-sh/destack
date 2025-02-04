@@ -919,7 +919,7 @@ async def pg_graph_select(
     select = query._select or SelectOptions.default()
     node_type = query._node_type
     node_cls = NODE_CLASS_BY_TYPE[node_type]
-    block = query._base_block
+    block = query._base_type
     selected_properties = select.get_selected_properties(node_type)
     if node_type in BUILTIN_TABLE_BY_NODE_TYPE:
         node_table = BUILTIN_TABLE_BY_NODE_TYPE[node_type]
@@ -982,7 +982,7 @@ async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Qu
     # compile
     node_type = query._node_type
     node_cls = NODE_CLASS_BY_TYPE[node_type]
-    block = query._base_block
+    block = query._base_type
     if node_type in BUILTIN_TABLE_BY_NODE_TYPE:
         node_table = BUILTIN_TABLE_BY_NODE_TYPE[node_type]
     else:
@@ -1005,7 +1005,7 @@ async def pg_graph_exists(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Q
     # compile
     node_type = query._node_type
     node_cls = NODE_CLASS_BY_TYPE[node_type]
-    block = query._base_block
+    block = query._base_type
     if node_type in BUILTIN_TABLE_BY_NODE_TYPE:
         node_table = BUILTIN_TABLE_BY_NODE_TYPE[node_type]
     else:
@@ -1145,7 +1145,7 @@ async def pg_graph_get(
         root_query = Query(
             QueryType.GET,
             node_type=query._node_type,
-            base_block=query._base_block,
+            base_block=query._base_type,
             filter=root_filter,
             select=query._select,
             include_deleted=query.include_deleted,
@@ -1251,7 +1251,7 @@ async def pg_graph_search(
         get_query = Query(
             QueryType.GET,
             query._node_type,
-            base_block=query._base_block,
+            base_block=query._base_type,
             roots=roots_ptrs,
             ancestor_types=query._ancestor_types,
             descendant_types=query._descendant_types,

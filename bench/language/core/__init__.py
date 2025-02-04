@@ -152,6 +152,8 @@ from .graph import (
 from .icon import Icon, IconIn, IconType, reverse_icon, to_icon
 from .list import LocalNodeList, NodeList, RemoteNodeList, ValueList
 from .node import (
+    RUNNABLE_NODE_TYPES,
+    TYPE_BASE_NODE_TYPES,
     BenchNode,
     HasContext,
     HasNodeBase,
@@ -165,6 +167,7 @@ from .node import (
     RuntimeNode,
     SourceNode,
     StateNode,
+    TypeBaseNode,
     get_tracing_context,
     node_,
     node_component_,
@@ -367,6 +370,7 @@ __all__ = [
     "REGIONAL_NODE_TYPES",
     "RESOURCE_NODE_TYPES",
     "ROOT_NODE_TYPES",
+    "RUNNABLE_NODE_TYPES",
     "RUNTIME_NODE_TYPES",
     "SLUG_CONSTRAINT",
     "SOURCE_NODE_TYPES",
@@ -380,6 +384,7 @@ __all__ = [
     "TK_LENGTH_B64",
     "TK_LENGTH_BYTES",
     "TRACING",
+    "TYPE_BASE_NODE_TYPES",
     "TYPE_CONSTRAINT_BY_FORMAT",
     "UNSET",
     "USER_NODE_TYPES",
@@ -507,6 +512,7 @@ __all__ = [
     "TimeInterval",
     "Type",
     "TypeBase",
+    "TypeBaseNode",
     "TypeConstraint",
     "TypeConstraintIn",
     "TypeFormat",

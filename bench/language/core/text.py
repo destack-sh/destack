@@ -35,8 +35,8 @@ class TextOptionsBase(BuiltinObject):
 
 
 @enum_(EnumType.TEXT_LINE_TYPE)
-class TextLineType(BuiltinEnum):
-    PLAIN = 1
+class TextLineType(BuiltinEnum):  # :TextLineTypes
+    PARAGRAPH = 1
     # heading
     HEADING_1 = 10
     HEADING_2 = 11
@@ -124,7 +124,7 @@ class TextLine(TextOptionsBase, Struct):
     A line may contain hard breaks, so it's effectively a paragraph.
     """
 
-    type: TextLineType = p_regular(30, default=TextLineType.PLAIN)
+    type: TextLineType = p_regular(30, default=TextLineType.PARAGRAPH)
     spans: list["TextSpan"] = p_regular(33, array=True, struct=StructType.TEXT_SPAN)
 
     def __content_str__(self):
@@ -143,17 +143,19 @@ class TextLine(TextOptionsBase, Struct):
     @staticmethod
     def plain(text: str) -> "TextLine":
         if text:
-            return TextLine(type=TextLineType.PLAIN, spans=[TextSpan(content=text)])
+            return TextLine(type=TextLineType.PARAGRAPH, spans=[TextSpan(content=text)])
         else:
-            return TextLine(type=TextLineType.PLAIN, spans=[])
+            return TextLine(type=TextLineType.PARAGRAPH, spans=[])
 
     @staticmethod
     def code(text: str) -> "TextLine":
         # NOTE :CrummyMarkdown: we don't support proper code blocks yet
         if text:
-            return TextLine(type=TextLineType.PLAIN, spans=[TextSpan(content=text, is_code=True)])
+            return TextLine(
+                type=TextLineType.PARAGRAPH, spans=[TextSpan(content=text, is_code=True)]
+            )
         else:
-            return TextLine(type=TextLineType.PLAIN, spans=[])
+            return TextLine(type=TextLineType.PARAGRAPH, spans=[])
 
     @staticmethod
     def new(
@@ -400,7 +402,7 @@ def markdown_to_text(markdown: str) -> Text:
                 md_line = md_line[len(prefix) :]  # remove prefix
                 break
         else:
-            line_type = TextLineType.PLAIN
+            line_type = TextLineType.PARAGRAPH
         # restore hard breaks
         md_line = md_line.replace("<br>", "\n")
         # TODO :Incomplete: eat outermost marks in markdown parse

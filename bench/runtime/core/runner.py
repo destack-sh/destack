@@ -20,13 +20,13 @@ from opentelemetry import trace
 from bench.language import (
     Action,
     Bench,
-    Block,
     Breakpoint,
     BreakpointScope,
     BreakpointSite,
     Code,
     CustomObject,
     Error,
+    Flow,
     HasContext,
     Interruption,
     InterruptionStatus,
@@ -35,6 +35,7 @@ from bench.language import (
     Node,
     NodeMode,
     NodeType,
+    Page,
     Pipe,
     Resource,
     ResourceStatus,
@@ -61,7 +62,6 @@ from .options import BASE_RUN_OPTIONS_BY_KIND
 
 if TYPE_CHECKING:
     from .runtime import Runtime
-
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -236,12 +236,14 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if type(run) is Run or run == "track":
             # Runner = Run
             if run == "track":
+                page, flow, action, pipe, typ = _get_runnable_containers(node)
                 tracked_run = Run(
                     parent=parent_run or self.runtime.bench,
-                    type=self.runner_type,
-                    block=node if isinstance(node, Block) else node.block,
-                    action=node if isinstance(node, Action) else None,
-                    pipe=node if isinstance(node, Pipe) else None,
+                    type=typ,
+                    page=page,
+                    flow=flow,
+                    action=action,
+                    pipe=pipe,
                     options=options,
                     status=self.status,
                     mode=self.mode,
@@ -556,6 +558,42 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             self.status = self.tracked_run.status
 
 
+RUN_TYPE_BY_NODE_TYPE: dict[NodeType, RunType] = {
+    NodeType.ACTION: RunType.ACTION,
+    NodeType.FLOW: RunType.FLOW,
+    NodeType.PIPE: RunType.PIPE,
+}
+
+
+def _get_runnable_containers(
+    node: "RunnableNode",
+) -> tuple[Page | None, Flow | None, Action | None, Pipe | None, RunType]:
+    """Gets the containing ancestor Page, Flow, Action, Pipe, and RunKind for a RunnableNode."""
+    page: Page | None = None
+    flow: Flow | None = None
+    action: Action | None = None
+    pipe: Pipe | None = None
+
+    if isinstance(node, Flow):
+        flow = node
+        page = node.parent
+        typ = RunType.FLOW
+    elif isinstance(node, Action):
+        action = node
+        flow = node.flow
+        page = flow.parent if flow is not None else None
+        typ = RunType.ACTION
+    elif isinstance(node, Pipe):
+        pipe = node
+        flow = node.flow
+        page = flow.parent if flow is not None else None
+        typ = RunType.PIPE
+    else:
+        assert_never(node)
+
+    return page, flow, action, pipe, typ
+
+
 def create_run_from_node(
     node: "RunnableNode",
     *,
@@ -568,29 +606,12 @@ def create_run_from_node(
     session: "Session | None" = None,
 ) -> "Run":
     """Creates a Run from a runnable Node."""
-    from bench.language import Action, Block, coerce_custom_object_scalar
+    from bench.language import coerce_custom_object_scalar
 
     # context
     if session is None:
         session = active_session()
-    if isinstance(node, Block):
-        block = node
-        action = None
-        pipe = None
-        kind = node.run_type
-        assert kind is not None, f"no run kind for {node!r}"
-    elif isinstance(node, Action):
-        action = node
-        block = action.block
-        pipe = None
-        kind = RunType.ACTION
-    elif isinstance(node, Pipe):
-        pipe = node
-        block = pipe.block
-        action = None
-        kind = RunType.PIPE
-    else:
-        assert_never(node)
+    page, flow, action, pipe, typ = _get_runnable_containers(node)
 
     # graph
     parent = parent or node.bench
@@ -606,8 +627,9 @@ def create_run_from_node(
     tracing = get_tracing_context()
     run = Run(
         parent=parent,
-        type=kind,
-        block=block,
+        type=typ,
+        page=page,
+        flow=flow,
         action=action,
         pipe=pipe,
         mode=mode or tracing.mode,
@@ -633,11 +655,11 @@ def create_run_from_node(
     if options is None:
         if isinstance(run_options := getattr(node, "run_options", None), RunOptions):
             options = run_options.clone()
-            options.set_default(BASE_RUN_OPTIONS_BY_KIND[kind], copy=False)
+            options.set_default(BASE_RUN_OPTIONS_BY_KIND[typ], copy=False)
         else:
-            options = BASE_RUN_OPTIONS_BY_KIND[kind].clone()
+            options = BASE_RUN_OPTIONS_BY_KIND[typ].clone()
     else:
-        options.set_default(BASE_RUN_OPTIONS_BY_KIND[kind], copy=False)
+        options.set_default(BASE_RUN_OPTIONS_BY_KIND[typ], copy=False)
     run.options = options
 
     session._create(run)
@@ -688,7 +710,7 @@ def make_runner(
 ) -> "Runner":
     """Make a Runner from a runnable Node."""
 
-    RUN_TYPE = type or node.run_type
+    RUN_TYPE = type or RUN_TYPE_BY_NODE_TYPE.get(node.metatype)
     assert RUN_TYPE is not None, f"no run kind for {node!r}"
 
     # variables

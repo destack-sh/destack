@@ -28,7 +28,7 @@ from .const import (
     StructType,
     enum_,
 )
-from .node import Node, NodeReference
+from .node import Node, NodeReference, TypeBaseNode
 from .object import Property, PropertyReference
 from .path import PathIn, to_path
 from .property import p_regular, p_value_packed, p_value_runtime
@@ -324,7 +324,7 @@ class AggregationResult(Struct):
 def coerce_conditional(
     *,
     node_cls: type[Node],
-    block: Optional["Block"],
+    base_type: Optional["TypeBaseNode"],
     expr: Optional[Expression] = None,
     kwargs: Optional[dict[str, Any]] = None,
 ) -> Expression | None:
@@ -356,10 +356,10 @@ def coerce_conditional(
         target: Field | Property | None = None
         if prop := node_cls.__properties__.get(key):
             target = prop
-        elif block is not None and (field := block.fields.get(key)):
+        elif base_type is not None and (field := base_type.fields.get(key)):
             target = field
         if target is None:
-            raise TypeError(f"{node_cls!r} has no attribute {key!r} in {block!r}")
+            raise TypeError(f"{node_cls!r} has no attribute {key!r} in {base_type!r}")
         # coerce None to NOT_EXISTS/EXISTS
         if value is None:
             if op == ConditionalType.EQUALS:
@@ -384,7 +384,7 @@ def coerce_conditional(
 def coerce_sort(
     *,
     node_cls: type[Node],
-    block: Optional["Block"],
+    base_type: Optional["TypeBaseNode"],
     expr: "Sequence[Expression | str | Field | Property] | Expression | str | Field | Property | None",
     args: Sequence[str],
 ) -> Optional[list[Expression]]:
@@ -426,10 +426,10 @@ def coerce_sort(
             target = None
             if prop := node_cls.__properties__.get(field_key):
                 target = prop
-            elif block is not None and (field := block.fields.get(field_key)):
+            elif base_type is not None and (field := base_type.fields.get(field_key)):
                 target = field
             if target is None:
-                raise AttributeError(f"{node_cls!r} has no attribute {item!r} in {block!r}")
+                raise AttributeError(f"{node_cls!r} has no attribute {item!r} in {base_type!r}")
             elif isinstance(target, Property):
                 item = S(op, field=None, property=target)
             else:

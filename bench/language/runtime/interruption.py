@@ -32,8 +32,9 @@ from bench.pb2.lang_pb2 import InterruptionData, NodeReferenceData
 if TYPE_CHECKING:
     from bench.language import (
         Action,
-        Block,
+        Flow,
         Message,
+        Page,
         Pipe,
         Run,
         RunnableNode,
@@ -166,13 +167,14 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
     )
     if TYPE_CHECKING:
         root_ptr: Optional[NodeReference] = None
-    block: Optional["Block"] = p_internal(32, require=False, array=False, references=NodeType.BLOCK)
+    page: Optional["Page"] = p_internal(32, require=False, array=False, references=NodeType.PAGE)
+    flow: Optional["Flow"] = p_internal(33, require=False, array=False, references=NodeType.FLOW)
     action: Optional["Action"] = p_internal(
-        33, require=False, array=False, references=NodeType.ACTION
+        34, require=False, array=False, references=NodeType.ACTION
     )
-    pipe: Optional["Pipe"] = p_internal(34, require=False, array=False, references=NodeType.PIPE)
+    pipe: Optional["Pipe"] = p_internal(35, require=False, array=False, references=NodeType.PIPE)
     if TYPE_CHECKING:
-        block_ptr: Optional[NodeReference] = None
+        flow_ptr: Optional[NodeReference] = None
         action_ptr: Optional[NodeReference] = None
         pipe_ptr: Optional[NodeReference] = None
     attempt: Optional[int] = p_internal(37, require=False, default=None)
@@ -228,7 +230,7 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
         elif self.action_ptr:
             return self.action
         else:
-            return self.block
+            return self.flow
 
     @property
     def input_type(self) -> "TypeBase | None":
@@ -249,7 +251,7 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
         elif self.action_ptr is not None:
             return self.action_ptr
         else:
-            return self.block_ptr
+            return self.flow_ptr
 
     @property
     def base(self) -> Optional["RunnableNode"]:
@@ -258,7 +260,7 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
         elif self.action_ptr is not None:
             return self.action
         else:
-            return self.block
+            return self.flow
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
@@ -268,7 +270,7 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
         elif run_data.action_ptr.metatype != 0:
             return cast(InterruptionData, data).action_ptr
         else:
-            return cast(InterruptionData, data).block_ptr
+            return cast(InterruptionData, data).flow_ptr
 
     @property
     def is_open(self) -> bool:
@@ -314,7 +316,8 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
             type=kind,
             parent=run,
             session=run.session,
-            block=run.block,
+            page=run.page,
+            flow=run.flow,
             action=run.action,
             pipe=run.pipe,
             attempt=attempt,

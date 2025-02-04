@@ -53,7 +53,7 @@ def test_init_with_non_existing_property(session: "Session"):
     with pytest.raises(AttributeError):
         _ = Bench(slug="test", name="Test", _non_existing_property="wadabadaboo")  # type: ignore
     with pytest.raises(AttributeError):
-        _ = Block.new(BlockType.TEXT, name="Test", _non_existing_property="wadabadaboo")  # type: ignore
+        _ = Block.new(BlockType.PARAGRAPH, name="Test", _non_existing_property="wadabadaboo")  # type: ignore
 
 
 def test_get_set_non_existing_property(session: "Session"):
@@ -85,7 +85,7 @@ def test_node_passthrough(session: "Session"):
 
 def test_node_subtype_property_access(session: "Session"):
     # subtype -> regular property
-    Text1 = Block.new(BlockType.TEXT, "Text1", text=md("Hello!"))
+    Text1 = Block.new(BlockType.PARAGRAPH, "Text1", text=md("Hello!"))
     assert Text1.text is not None and Text1.text.to_markdown() == "Hello!"
     Text1.text = md("Hello, world!")
     assert Text1.text is not None and Text1.text.to_markdown() == "Hello, world!"
@@ -107,14 +107,14 @@ def test_node_subtype_property_access(session: "Session"):
 
 
 def test_node_subtype_property_reference(session: "Session"):
-    Text1 = Block.new(BlockType.TEXT, "Text1", text=md("Hello!"))
+    Text1 = Block.new(BlockType.PARAGRAPH, "Text1", text=md("Hello!"))
     Duplicate1 = Action.new(DuplicateAction, "BlockAction1", node=Text1)
     node_prop: Property = Duplicate1.get_property("node")
     assert node_prop.to_ref().resolve_or_error() is node_prop
 
 
 def test_node_subtype_pack_unpack(session: "Session"):
-    block = Block.new(BlockType.TEXT, "Text1", text=md("Hello!"))
+    block = Block.new(BlockType.PARAGRAPH, "Text1", text=md("Hello!"))
     # pack/unpack wiring
     block_data = block._to_data()
     unpacked_block = cast(
@@ -173,7 +173,7 @@ def test_node_pointers_consistency(session: "Session"):
     )
 
     # based pointers
-    message_a = Message(parent=bench_a, scope=block_a_1, block=block_a_1)
+    message_a = Message(parent=bench_a, scope=block_a_1, class_=block_a_1)
     assert message_a.bench_id == bench_a.id
     assert message_a.to_ref().equals(
         NodeReference(
@@ -192,7 +192,7 @@ def test_node_pointers_consistency(session: "Session"):
     package_b = bench_b.packages.create(type=PackageType.ROOT, name="Main B", slug="main-b")
     block_b = package_b.blocks.create(type=BlockType.MESSAGE)
     assert block_b.bench_id == bench_b.id
-    message_b = Message(parent=bench_b, scope=block_a_1, block=block_a_1)
+    message_b = Message(parent=bench_b, scope=block_a_1, class_=block_a_1)
     assert message_b.bench_id == bench_b.id
     assert message_b.to_ref().equals(
         NodeReference(

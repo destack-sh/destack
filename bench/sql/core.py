@@ -768,10 +768,9 @@ LOCAL_EXTENSIONS = (
     *BASE_EXTENSIONS,
     # Extension("vector"), # until timescaledb image is updated (see docker-compose.dev.yml)
     Extension("pg_trgm"),
-    Extension("timescaledb"),
 )
-GLOBAL_EXTENSIONS = (*BASE_EXTENSIONS,)
 REGIONAL_EXTENSIONS = (*BASE_EXTENSIONS,)
+GLOBAL_EXTENSIONS = (*BASE_EXTENSIONS,)
 ALL_EXTENSIONS = (
     *LOCAL_EXTENSIONS,
     *(ex for ex in GLOBAL_EXTENSIONS if not any(ex.name == e.name for e in LOCAL_EXTENSIONS)),
