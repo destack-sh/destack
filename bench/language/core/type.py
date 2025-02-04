@@ -516,7 +516,7 @@ def to_type_scalar(
     of: Literal["instance", "value"] = "instance",
 ) -> "Type":
     """Converts a type-like object to a Type."""
-    from bench.language import Choice, Class, FileType, Flow, Pipe
+    from bench.language import Block, Choice, Class, FileType, Flow, Pipe
 
     if isinstance(type_in, Block) and (node := type_in.node) is not None:
         type_in = cast(TypeIn, node)  # unpack inner node automatically
