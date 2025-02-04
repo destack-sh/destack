@@ -22,6 +22,7 @@ from bench.language import (
     Store,
     User,
     UserStatus,
+    View,
     ViewType,
 )
 from bench.sql import (
@@ -297,7 +298,7 @@ async def test_crud_node_pointers(omni_session: Session):
         session._track(bench)
         page1 = package.pages.create()
         block1 = page1.blocks.create(type=BlockType.VIEW)
-        view11 = block1.view.views.create(type=ViewType.COLOR, name="View1")
+        view11 = block1.node_as(View).views.create(type=ViewType.COLOR, name="View1")
         view11.node = block1
         await session.commit()
 

@@ -20,7 +20,6 @@ from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.utils.fractional import get_key_bounds, get_order_key
 
 from .const import NodeType, QueryType, SortType, active_session
-from .validation import on_invalid_raise
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -52,19 +51,19 @@ def attach_node[N: "Node"](node: N, parent: "Node", graph: "NodeGraph", move: bo
         # move
         if not move:
             raise ValueError(f"cannot attach {node!r} to {parent!r}: attached to {node.parent!r}")
+
+        # check package/bench
         if node.__is_in_package__:  # must be in same package
             # NOTE :Incomplete: support cross-package moves
             #  (would have to move descendants and update their .package_ptr?)
             pkg = cast("SourceNode", node).package
             assert cast("SourceNode", parent).package == pkg, f"cannot move {node!r} to {parent!r}"
-        if node.__is_in_bench__:  # must be in same bench
+        elif node.__is_in_bench__:  # must be in same bench
             bench = cast("BenchNode", node).bench
             assert cast("BenchNode", parent).bench == bench, f"cannot move {node!r} to {parent!r}"
     else:
         # create
         move = False  # not actually a move
-        if parent._session is not None:  # validate
-            node._validate_self((), invalid=on_invalid_raise)
 
     # check for circular ancestry
     seen: list[Node] = [node]
@@ -85,8 +84,10 @@ def attach_node[N: "Node"](node: N, parent: "Node", graph: "NodeGraph", move: bo
             node._graph.supergraph
         ), f"{node!r} not in same supergraph as {parent!r} ({node._graph.supergraph!r} != {graph.supergraph!r})"
         moved = node._move_to_graph(graph)
-        graph.supergraph.remove_graph(old_graph)  # must be in same supergraph
-        uncapture(old_graph)
+        if len(old_graph) == 0:
+            # clean up old graph
+            graph.supergraph.remove_graph(old_graph)
+            uncapture(old_graph)
     else:
         moved = (node,)  # already in the graph
         graph.update(node)
@@ -100,6 +101,21 @@ def attach_node[N: "Node"](node: N, parent: "Node", graph: "NodeGraph", move: bo
             # 'create' node in session if it's attached
             parent._session._create(*moved)
             parent._session._track_many(*moved)
+
+    # move and definition together
+    if move:
+        from bench.language import Block, InlineSourceNode
+
+        if isinstance(node, Block):
+            if (
+                (inner_node := node.node) is not None
+                and inner_node.block_id == node.id
+                and inner_node.parent_id != parent.id
+            ):
+                attach_node(inner_node, parent, graph, move=True)
+        elif isinstance(node, InlineSourceNode):
+            if (block := node.block) is not None and block.parent_id != parent.id:
+                attach_node(block, parent, graph, move=True)
 
     return node
 

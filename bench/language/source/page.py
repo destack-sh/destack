@@ -1,8 +1,10 @@
-from typing import TYPE_CHECKING, Optional, Union, override
+from typing import TYPE_CHECKING, Optional, Union, overload
 
 from bench.language.core import (
     NAME_CONSTRAINT,
+    InlineSourceNode,
     LocalNodeList,
+    Node,
     NodeType,
     SourceNode,
     StructType,
@@ -12,7 +14,6 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
-from bench.language.core.node import Node
 from bench.pb2 import BlockData
 from bench.utils.fractional import INTEGER_ZERO
 
@@ -46,10 +47,19 @@ class Page(SourceNode[BlockData]):
     def __content_str__(self):
         return ""
 
-    @override
-    def append(self, child: Node, move: bool = False):
-        # add InlineSourceNodes as Blocks if if not already defined
-        raise NotImplementedError(f"nocheckin: add {child!r} to {self!r}")
+    @overload
+    def append(self, child: InlineSourceNode, move: bool = False) -> "Block": ...
+    @overload
+    def append[T: Node](self, child: T, move: bool = False) -> T: ...
+    def append[T: Node](self, child: T, move: bool = False) -> "T | Block":
+        if not move and isinstance(child, InlineSourceNode):
+            # wrap InlineSourceNodes into Blocks
+            child_block = child.to_block()
+            self.blocks.append(child_block)
+            super().append(child, move)
+            return child_block
+        else:
+            return super().append(child, move)
 
     @staticmethod
     def new(name: str, **kwargs) -> "Page":

@@ -79,6 +79,7 @@ class ClientCache:
         self._client_graph: NodeGraph = NodeGraph(
             EMPTY_SCOPE_DATA, (NodeType.CLIENT, NodeType.USER, NodeType.BENCH), supergraph
         )
+        supergraph.add_graph(self._client_graph)
         self._cache = TTLCache[UUID, Client](maxsize=maxsize, ttl=ttl)
         self._locks: weakref.WeakValueDictionary[UUID, asyncio.Lock] = weakref.WeakValueDictionary()
         _caches.add(self)
@@ -104,7 +105,7 @@ class ClientCache:
                     assert parent_id is not None, f"no parent for {client!r}"
                     parent = client._graph.get(parent_id)
                     assert parent is not None, f"no parent for {client!r}"
-                    parent._move_to_graph(self._client_graph, force=True)
+                    parent._move_to_graph(self._client_graph)
                     self._cache[client_id] = client
         # check access
         if client.access_token != client_access_token:

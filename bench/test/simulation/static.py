@@ -95,8 +95,8 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
     # Simple
     #
     SimulationSpec(
-        name="SingleWriterBlockTree",
-        description="Write a block tree with one client, read with another client",
+        name="SingleWriterPageTree",
+        description="Write a page tree with one client, read with another client",
         users=(UserSpec(name="alice"),),
         clients=(ClientSpec(name="alice-1", parent=("user", "alice")),),
         benches=(BenchSpec(name="alice", owner="alice"),),
@@ -107,8 +107,8 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
         ),
     ),
     SimulationSpec(
-        name="SingleWriterMultiReaderBlockTree",
-        description="Write a block tree with one client, read with multiple clients",
+        name="SingleWriterMultiReaderPageTree",
+        description="Write a page tree with one client, read with multiple clients",
         users=(UserSpec(name="alice"),),
         clients=(
             ClientSpec(name="alice-1", parent=("user", "alice")),
@@ -128,7 +128,7 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
     ),
     SimulationSpec(
         name="SingleWriterLogTail",
-        description="Write a block tree with one client, watch logs multiple clients",
+        description="Write a page tree with one client, watch logs multiple clients",
         users=(UserSpec(name="alice"),),
         clients=(
             ClientSpec(name="alice-1", parent=("user", "alice")),
