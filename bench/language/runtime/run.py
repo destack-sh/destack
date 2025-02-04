@@ -42,7 +42,6 @@ if TYPE_CHECKING:
         Action,
         AudioOptions,
         Bench,
-        Block,
         Breakpoint,
         Call,
         CallExecutionMode,
@@ -53,6 +52,7 @@ if TYPE_CHECKING:
         CustomObject,
         Error,
         ErrorType,
+        Flow,
         ImageOptions,
         Interruption,
         Log,
@@ -60,6 +60,7 @@ if TYPE_CHECKING:
         ModelFamily,
         ModelType,
         NodeReference,
+        Page,
         Pipe,
         RunnableNode,
         TextOptions,
@@ -259,15 +260,19 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     if TYPE_CHECKING:
         root_ptr: Optional[NodeReference] = None
         root_id: Optional[UUID] = None
-    block: Optional["Block"] = p_internal(32, require=False, array=False, references=NodeType.BLOCK)
+    page: Optional["Page"] = p_internal(32, require=False, array=False, references=NodeType.PAGE)
+    flow: Optional["Flow"] = p_internal(33, require=False, array=False, references=NodeType.FLOW)
     action: Optional["Action"] = p_internal(
-        33, require=False, array=False, references=NodeType.ACTION
+        34, require=False, array=False, references=NodeType.ACTION
     )
-    pipe: Optional["Pipe"] = p_internal(34, require=False, array=False, references=NodeType.PIPE)
+    pipe: Optional["Pipe"] = p_internal(35, require=False, array=False, references=NodeType.PIPE)
     if TYPE_CHECKING:
-        block_ptr: Optional[NodeReference] = None
-        block_id: Optional[UUID] = None
-        block_ck: Optional[UUID] = None
+        page_ptr: Optional[NodeReference] = None
+        page_id: Optional[UUID] = None
+        page_ck: Optional[UUID] = None
+        flow_ptr: Optional[NodeReference] = None
+        flow_id: Optional[UUID] = None
+        flow_ck: Optional[UUID] = None
         action_ptr: Optional[NodeReference] = None
         action_id: Optional[UUID] = None
         action_ck: Optional[UUID] = None
@@ -350,13 +355,13 @@ class Run(RuntimeNode[RunData], HasNodeBase):
             return f"{self.type.bench_name}:{path}, {self.status.bench_name}"
 
     @property
-    def runnable(self) -> Union["Block", "Action", "Pipe", None]:
+    def runnable(self) -> Union["Flow", "Action", "Pipe", None]:
         if self.type == RunType.PIPE:
             return self.pipe
         elif self.type == RunType.ACTION:
             return self.action
         else:
-            return self.block
+            return self.flow
 
     @property
     def ancestors(self):
@@ -375,8 +380,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
             return pipe.variable_type
         elif (action := self.action) is not None:
             return action.variable_type
-        elif (block := self.block) is not None:
-            return block.variable_type
+        elif (flow := self.flow) is not None:
+            return flow.variable_type
         else:
             return None
 
@@ -386,8 +391,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
             return pipe.input_type
         elif (action := self.action) is not None:
             return action.input_type
-        elif (block := self.block) is not None:
-            return block.input_type
+        elif (flow := self.flow) is not None:
+            return flow.input_type
         else:
             return None
 
@@ -397,8 +402,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
             return pipe.output_type
         elif (action := self.action) is not None:
             return action.output_type
-        elif (block := self.block) is not None:
-            return block.output_type
+        elif (flow := self.flow) is not None:
+            return flow.output_type
         else:
             return None
 
@@ -408,8 +413,10 @@ class Run(RuntimeNode[RunData], HasNodeBase):
             return self.pipe_ptr
         elif self.action_ptr is not None:
             return self.action_ptr
+        elif self.flow_ptr is not None:
+            return self.flow_ptr
         else:
-            return self.block_ptr
+            return None
 
     @property
     def base(self) -> Optional["RunnableNode"]:
@@ -417,8 +424,10 @@ class Run(RuntimeNode[RunData], HasNodeBase):
             return self.pipe
         elif self.action_ptr is not None:
             return self.action
+        elif self.flow_ptr is not None:
+            return self.flow
         else:
-            return self.block
+            return None
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
@@ -428,7 +437,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         elif run_data.action_ptr.metatype != 0:
             return cast(RunData, data).action_ptr
         else:
-            return cast(RunData, data).block_ptr
+            return cast(RunData, data).flow_ptr
 
     @property
     def attempts(self) -> Sequence[RunSpan]:

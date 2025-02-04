@@ -35,7 +35,7 @@ from .const import (
     is_node_type,
     is_struct_type,
 )
-from .node import Node, NodeReference
+from .node import TYPE_BASE_NODE_TYPES, Node, NodeReference, TypeBaseNode
 from .object import (
     BuiltinObject,
     get_tk_b64_from_ck,
@@ -49,7 +49,18 @@ from .validation import TypeConstraintIn
 from .value import SomeValue
 
 if typing.TYPE_CHECKING:
-    from bench.language import Action, Block, Expression, Field, FileType
+    from bench.language import (
+        Action,
+        Block,
+        Choice,
+        Class,
+        Database,
+        Expression,
+        Field,
+        FileType,
+        Flow,
+        Pipe,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
@@ -260,8 +271,8 @@ class TypeBase(BuiltinObject):
     kind: TypeKind = p_internal(40)
     primitive_type: Optional[PrimitiveType] = p_regular(41, default=None)
     bench_type: Optional[BenchType] = p_regular(42, default=None)
-    base_type: Union["Block", "Action", None] = p_regular(
-        43, array=False, require=False, default=None, references=(NodeType.BLOCK, NodeType.ACTION)
+    base_type: Union[TypeBaseNode, None] = p_regular(
+        43, array=False, require=False, default=None, references=TYPE_BASE_NODE_TYPES
     )
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
@@ -339,30 +350,6 @@ class TypeBase(BuiltinObject):
             info_str += f" from {self._from_property!s}"
 
         return info_str
-
-    def morph_to(
-        self,
-        typ: "TypeIn",
-        of: Literal["instance", "value"] = "instance",
-        field_types: list[FieldType] | None = None,
-        constraint: TypeConstraintIn | TypeConstraint | None = None,
-        is_required: bool = False,
-        is_list: bool = False,
-    ):
-        """Change this type to another type."""
-        typ = to_type(
-            typ,
-            of=of,
-            field_types=field_types,
-            constraint=constraint,
-            is_required=is_required,
-            is_list=is_list,
-        )
-        for prop in TypeBase.__declared_properties__.values():
-            new_typ_value = getattr(typ, prop.name)
-            old_typ_value = getattr(self, prop.name)
-            if new_typ_value != old_typ_value:
-                setattr(self, prop.name, new_typ_value)
 
     def __call__(self, *args, **kwargs) -> "SomeValue":
         """Converts the given value to this type."""
@@ -482,7 +469,11 @@ class Type(Struct, TypeBase):
 
 TypeIn = Union[
     "TypeBase",
-    "Block",
+    "Database",
+    "Class",
+    "Choice",
+    "Flow",
+    "Pipe",
     "Action",
     "PrimitiveType",
     "BenchType",
@@ -499,15 +490,14 @@ def to_type_scalar(
     type_in: TypeIn,
     *,
     of: Literal["instance", "value"] = "instance",
-    field_types: list[FieldType] | None = None,
 ) -> "Type":
     """Converts a type-like object to a Type."""
-    from bench.language.resource import FileType
+    from bench.language import Choice, Class, FileType, Flow, Pipe
 
     if isinstance(type_in, TypeBase):
         return cast("Type", type_in)
-    elif isinstance(type_in, Node) and type_in.metatype in (NodeType.BLOCK, NodeType.ACTION):
-        type_scalar = cast("Block | Action", type_in).to_type_maybe(of=of, field_types=field_types)
+    elif isinstance(type_in, (Class, Choice, Flow, Pipe)):
+        type_scalar = type_in.to_type_maybe()
         if type_scalar is not None:
             assert isinstance(type_scalar, Type), f"expected Type, got {type_scalar!r}"
             return type_scalar
@@ -550,13 +540,12 @@ def to_type(
     type_in: TypeIn,
     *,
     of: Literal["instance", "value"] = "instance",
-    field_types: list[FieldType] | None = None,
     constraint: TypeConstraintIn | TypeConstraint | None = None,
     is_required: bool = False,
     is_list: bool = False,
 ) -> Type:
     """Converts a TypeIn into a Type."""
-    type_scalar = to_type_scalar(type_in, of=of, field_types=field_types)
+    type_scalar = to_type_scalar(type_in, of=of)
     if isinstance(constraint, TypeConstraintIn):
         constraint = constraint.into()
     type_scalar.constraint = constraint

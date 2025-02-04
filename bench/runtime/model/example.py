@@ -21,6 +21,7 @@ from bench.language import (
     Block,
     BlockType,
     CallTerminationMode,
+    Choice,
     CustomObject,
     Field,
     Node,
@@ -221,9 +222,8 @@ def example_(title: str, weight: int = 1):
 @example_("Field Reference")
 def basic_field_reference(package: Package):
     """How to reference a Field or any other Node."""
-    Sentiment = Block.new(
-        BlockType.CHOICE,
-        name="Sentiment",
+    Sentiment = Choice.new(
+        "Sentiment",
         fields=[
             Field.option("Happy"),
             Field.option("Sad"),

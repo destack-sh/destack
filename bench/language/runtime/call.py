@@ -2,7 +2,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from bench.language.core import (
-    BlockType,
     BuiltinEnum,
     CustomObject,
     EnumType,
@@ -11,7 +10,6 @@ from bench.language.core import (
     Struct,
     StructType,
     coerce_custom_object_scalar,
-    constraint,
     enum_,
     p_internal,
     p_regular,
@@ -21,7 +19,7 @@ from bench.language.core import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Action, Block, CustomObject, NodeReference, Text, TypeBase
+    from bench.language import Action, CustomObject, Flow, NodeReference, Text, TypeBase
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -56,11 +54,8 @@ class CallTerminationMode(BuiltinEnum):
 class Call(Struct):
     """A Call to something (to be materialized into a Run)."""
 
-    node: Union["Block", "Action", None] = p_regular(
-        33,
-        require=True,
-        references=(NodeType.BLOCK, NodeType.ACTION),
-        constraint=constraint(node_subtypes=[BlockType.FLOW]),
+    node: Union["Flow", "Action", None] = p_regular(
+        33, require=True, references=(NodeType.FLOW, NodeType.ACTION)
     )
     if TYPE_CHECKING:
         node_ptr: NodeReference | None = None
@@ -89,14 +84,14 @@ class Call(Struct):
     def value_type(self) -> Optional["TypeBase"]:
         node = self.node
         return (
-            node.to_type_maybe(of="value", field_types=[FieldType.VARIABLE, FieldType.INPUT])
+            node.to_type_maybe(field_types=[FieldType.VARIABLE, FieldType.INPUT])
             if node is not None
             else None
         )
 
     @staticmethod
     def new(
-        node: "Block | Action",
+        node: "Flow | Action",
         value: CustomObject | None = None,
         *,
         title: str | None = None,
@@ -151,7 +146,7 @@ class CallPlan(Struct):
 
 
 def call(
-    node: "Block | Action",
+    node: "Flow | Action",
     title: str | None = None,
     text: "Text | None" = None,
     **kwargs,

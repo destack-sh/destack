@@ -18,7 +18,7 @@ from bench.pb2 import ChannelData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Block, Icon, Package
+    from bench.language import Icon, Package, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -36,7 +36,7 @@ class Channel(SourceNode[ChannelData]):
     """
 
     # meta
-    parent: Union["Package", "Block", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
+    parent: Union["Page", "Package", None] = p_node_parent(4, NodeType.PAGE, NodeType.PACKAGE)
     type: ChannelType = p_regular(30, require=True, default=ChannelType.TEXT)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)

@@ -4,6 +4,7 @@ from uuid import UUID
 
 from bench.language.core import (
     NAME_CONSTRAINT,
+    TYPE_BASE_NODE_TYPES,
     FieldType,
     HasNodeBase,
     Node,
@@ -12,6 +13,7 @@ from bench.language.core import (
     SourceNode,
     StructType,
     TypeBase,
+    TypeBaseNode,
     TypeConstraint,
     TypeConstraintIn,
     TypeIn,
@@ -31,7 +33,7 @@ from bench.pb2 import AnyNodeData, FieldData, NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
 
 if typing.TYPE_CHECKING:
-    from bench.language import Action, Block, Icon, Text
+    from bench.language import Icon, Text
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -43,7 +45,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _IntoQuery):
     A custom attribute of some value, the user-defined counterpart to Properties in builtin objects.
     """
 
-    parent: Union["Block", "Action", None] = p_node_parent(4, NodeType.BLOCK, NodeType.ACTION)
+    parent: Union[TypeBaseNode, None] = p_node_parent(4, *TYPE_BASE_NODE_TYPES)
     type: FieldType = p_internal(30, default=FieldType.VARIABLE)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(32, default=INTEGER_ZERO)

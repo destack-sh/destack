@@ -150,12 +150,17 @@ enum NodeType {
   NODE_TYPE_SECRET = 2220;
   NODE_TYPE_PACKAGE = 5000;
   NODE_TYPE_DEPENDENCY = 5002;
+  NODE_TYPE_PAGE = 5020;
   NODE_TYPE_BLOCK = 5021;
-  NODE_TYPE_FIELD = 5022;
-  NODE_TYPE_VIEW = 5030;
-  NODE_TYPE_ACTION = 5040;
-  NODE_TYPE_PIPE = 5041;
-  NODE_TYPE_TRIGGER = 5042;
+  NODE_TYPE_CHOICE = 5030;
+  NODE_TYPE_CLASS = 5031;
+  NODE_TYPE_FIELD = 5035;
+  NODE_TYPE_FLOW = 5050;
+  NODE_TYPE_ACTION = 5051;
+  NODE_TYPE_PIPE = 5052;
+  NODE_TYPE_TRIGGER = 5053;
+  NODE_TYPE_VIEW = 5080;
+  NODE_TYPE_DATABASE = 5090;
   NODE_TYPE_CHANNEL = 5100;
   NODE_TYPE_SPACE = 5200;
   NODE_TYPE_THREAD = 5501;
@@ -252,12 +257,17 @@ enum ObjectType {
   OBJECT_TYPE_SECRET = 2220;
   OBJECT_TYPE_PACKAGE = 5000;
   OBJECT_TYPE_DEPENDENCY = 5002;
+  OBJECT_TYPE_PAGE = 5020;
   OBJECT_TYPE_BLOCK = 5021;
-  OBJECT_TYPE_FIELD = 5022;
-  OBJECT_TYPE_VIEW = 5030;
-  OBJECT_TYPE_ACTION = 5040;
-  OBJECT_TYPE_PIPE = 5041;
-  OBJECT_TYPE_TRIGGER = 5042;
+  OBJECT_TYPE_CHOICE = 5030;
+  OBJECT_TYPE_CLASS = 5031;
+  OBJECT_TYPE_FIELD = 5035;
+  OBJECT_TYPE_FLOW = 5050;
+  OBJECT_TYPE_ACTION = 5051;
+  OBJECT_TYPE_PIPE = 5052;
+  OBJECT_TYPE_TRIGGER = 5053;
+  OBJECT_TYPE_VIEW = 5080;
+  OBJECT_TYPE_DATABASE = 5090;
   OBJECT_TYPE_CHANNEL = 5100;
   OBJECT_TYPE_SPACE = 5200;
   OBJECT_TYPE_THREAD = 5501;
@@ -350,12 +360,17 @@ enum BenchType {
   BENCH_TYPE_SECRET = 2220;
   BENCH_TYPE_PACKAGE = 5000;
   BENCH_TYPE_DEPENDENCY = 5002;
+  BENCH_TYPE_PAGE = 5020;
   BENCH_TYPE_BLOCK = 5021;
-  BENCH_TYPE_FIELD = 5022;
-  BENCH_TYPE_VIEW = 5030;
-  BENCH_TYPE_ACTION = 5040;
-  BENCH_TYPE_PIPE = 5041;
-  BENCH_TYPE_TRIGGER = 5042;
+  BENCH_TYPE_CHOICE = 5030;
+  BENCH_TYPE_CLASS = 5031;
+  BENCH_TYPE_FIELD = 5035;
+  BENCH_TYPE_FLOW = 5050;
+  BENCH_TYPE_ACTION = 5051;
+  BENCH_TYPE_PIPE = 5052;
+  BENCH_TYPE_TRIGGER = 5053;
+  BENCH_TYPE_VIEW = 5080;
+  BENCH_TYPE_DATABASE = 5090;
   BENCH_TYPE_CHANNEL = 5100;
   BENCH_TYPE_SPACE = 5200;
   BENCH_TYPE_THREAD = 5501;
@@ -1027,20 +1042,21 @@ enum TypeFormat {
 
 enum BlockType {
   BLOCK_TYPE_UNSPECIFIED = 0;
-  BLOCK_TYPE_PAGE = 1;
-  BLOCK_TYPE_TEXT = 2;
-  BLOCK_TYPE_CHOICE = 11;
-  BLOCK_TYPE_MESSAGE = 12;
-  BLOCK_TYPE_FLOW = 22;
-  BLOCK_TYPE_DATABASE = 31;
-  BLOCK_TYPE_VIEW = 40;
-  BLOCK_TYPE_ROLE = 50;
-  BLOCK_TYPE_IDENTITY = 51;
+  BLOCK_TYPE_PARAGRAPH = 2;
+  BLOCK_TYPE_CHOICE = 100;
+  BLOCK_TYPE_CLASS = 101;
+  BLOCK_TYPE_PAGE = 201;
+  BLOCK_TYPE_FLOW = 202;
+  BLOCK_TYPE_DATABASE = 203;
+  BLOCK_TYPE_VIEW = 204;
+  BLOCK_TYPE_FILE = 222;
+  BLOCK_TYPE_ROLE = 230;
+  BLOCK_TYPE_IDENTITY = 231;
 }
 
 enum TextLineType {
   TEXT_LINE_TYPE_UNSPECIFIED = 0;
-  TEXT_LINE_TYPE_PLAIN = 1;
+  TEXT_LINE_TYPE_PARAGRAPH = 1;
   TEXT_LINE_TYPE_HEADING_1 = 10;
   TEXT_LINE_TYPE_HEADING_2 = 11;
   TEXT_LINE_TYPE_HEADING_3 = 12;
@@ -2296,12 +2312,13 @@ message ChangeData {
 
 message EditContextData {
   ObjectType metatype = 1;
-  optional NodeReferenceData block_ptr = 70;
-  optional NodeReferenceData action_ptr = 71;
-  optional NodeReferenceData session_ptr = 72;
-  optional NodeReferenceData run_ptr = 73;
-  optional NodeReferenceData run_root_ptr = 74;
-  optional NodeReferenceData identity_ptr = 75;
+  optional NodeReferenceData page_ptr = 70;
+  optional NodeReferenceData flow_ptr = 71;
+  optional NodeReferenceData action_ptr = 72;
+  optional NodeReferenceData session_ptr = 73;
+  optional NodeReferenceData run_ptr = 74;
+  optional NodeReferenceData run_root_ptr = 75;
+  optional NodeReferenceData identity_ptr = 76;
 }
 
 message ContextData {
@@ -2870,9 +2887,10 @@ message InterruptionData {
   optional google.protobuf.Value subnode_packed = 29;
   InterruptionType type = 30;
   optional NodeReferenceData root_ptr = 31;
-  optional NodeReferenceData block_ptr = 32;
-  optional NodeReferenceData action_ptr = 33;
-  optional NodeReferenceData pipe_ptr = 34;
+  optional NodeReferenceData page_ptr = 32;
+  optional NodeReferenceData flow_ptr = 33;
+  optional NodeReferenceData action_ptr = 34;
+  optional NodeReferenceData pipe_ptr = 35;
   optional int32 attempt = 37;
   optional BreakpointSite breakpoint_site = 38;
   InterruptionStatus status = 40;
@@ -2997,9 +3015,10 @@ message RunData {
   optional google.protobuf.Value subnode_packed = 29;
   RunType type = 30;
   optional NodeReferenceData root_ptr = 31;
-  optional NodeReferenceData block_ptr = 32;
-  optional NodeReferenceData action_ptr = 33;
-  optional NodeReferenceData pipe_ptr = 34;
+  optional NodeReferenceData page_ptr = 32;
+  optional NodeReferenceData flow_ptr = 33;
+  optional NodeReferenceData action_ptr = 34;
+  optional NodeReferenceData pipe_ptr = 35;
   RunOptionsData options = 39;
   repeated NodeReferenceData incoming_ptr = 40;
   optional NodeReferenceData plan_ptr = 41;
@@ -3289,23 +3308,9 @@ message BlockData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   BlockType type = 30;
-  string name = 32;
   string order_key = 33;
-  optional IconData icon = 34;
   optional TextData text = 35;
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
-message TextBlockData {
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
-message FlowBlockData {
-  optional RunOptionsData run_options = 100;
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
-message DatabaseBlockData {
+  optional NodeReferenceData node_ptr = 36;
 }
 
 message ChannelData {
@@ -3326,6 +3331,75 @@ message ChannelData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   ChannelType type = 30;
+  string name = 32;
+  string order_key = 33;
+  optional IconData icon = 34;
+  optional TextData text = 35;
+}
+
+message ChoiceData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  optional NodeReferenceData template_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
+  optional google.protobuf.Value subnode_packed = 29;
+  string name = 32;
+  string order_key = 33;
+  optional IconData icon = 34;
+  optional TextData text = 35;
+}
+
+message ClassData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  optional NodeReferenceData template_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
+  optional google.protobuf.Value subnode_packed = 29;
+  string name = 32;
+  string order_key = 33;
+  optional IconData icon = 34;
+  optional TextData text = 35;
+}
+
+message DatabaseData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  optional NodeReferenceData template_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
+  optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
   string order_key = 33;
   optional IconData icon = 34;
@@ -3411,6 +3485,29 @@ message VariableFieldData {
 message OptionFieldData {
 }
 
+message FlowData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  optional NodeReferenceData template_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
+  optional google.protobuf.Value subnode_packed = 29;
+  string name = 32;
+  string order_key = 33;
+  optional IconData icon = 34;
+  optional TextData text = 35;
+}
+
 message PackageData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3435,6 +3532,29 @@ message PackageData {
   optional IconData icon = 35;
   optional NodeReferenceData owned_by_ptr = 36;
   optional NodeReferenceData base_ptr = 40;
+}
+
+message PageData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  optional NodeReferenceData template_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
+  optional google.protobuf.Value subnode_packed = 29;
+  string name = 32;
+  string order_key = 33;
+  optional IconData icon = 34;
+  optional TextData text = 35;
 }
 
 message PipeData {
@@ -3662,7 +3782,7 @@ message ScheduleTriggerData {
 message MessageTriggerData {
   optional NodeReferenceData channel_ptr = 100;
   optional NodeReferenceData thread_ptr = 101;
-  optional NodeReferenceData message_type_ptr = 102;
+  optional NodeReferenceData class__ptr = 102;
   optional NodeReferenceData reply_to_ptr = 103;
 }
 
@@ -3680,7 +3800,7 @@ message MessageData {
   MessageType type = 30;
   MessagePlatform platform = 31;
   optional NodeReferenceData channel_ptr = 32;
-  optional NodeReferenceData block_ptr = 35;
+  optional NodeReferenceData class__ptr = 35;
   MessageStatus status = 40;
   optional google.protobuf.Timestamp failed_at = 42;
   optional google.protobuf.Timestamp sent_at = 43;
@@ -3709,7 +3829,7 @@ message RecordData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
-  NodeReferenceData block_ptr = 36;
+  NodeReferenceData database_ptr = 36;
   optional google.protobuf.Value value_packed = 40;
 }
 
@@ -3771,25 +3891,30 @@ message SomeNodeData {
     SecretData secret = 15;
     PackageData package = 16;
     DependencyData dependency = 17;
-    BlockData block = 18;
-    FieldData field = 19;
-    ViewData view = 20;
-    ActionData action = 21;
-    PipeData pipe = 22;
-    TriggerData trigger = 23;
-    ChannelData channel = 24;
-    SpaceData space = 25;
-    ThreadData thread = 26;
-    MessageData message = 27;
-    RecordData record = 28;
-    SessionData session = 29;
-    RunData run = 30;
-    RunSpanData run_span = 31;
-    RunPlanData run_plan = 32;
-    InterruptionData interruption = 33;
-    LogData log = 34;
-    SkipData skip = 35;
-    EmptyData empty = 36;
+    PageData page = 18;
+    BlockData block = 19;
+    ChoiceData choice = 20;
+    ClassData class = 21;
+    FieldData field = 22;
+    FlowData flow = 23;
+    ActionData action = 24;
+    PipeData pipe = 25;
+    TriggerData trigger = 26;
+    ViewData view = 27;
+    DatabaseData database = 28;
+    ChannelData channel = 29;
+    SpaceData space = 30;
+    ThreadData thread = 31;
+    MessageData message = 32;
+    RecordData record = 33;
+    SessionData session = 34;
+    RunData run = 35;
+    RunSpanData run_span = 36;
+    RunPlanData run_plan = 37;
+    InterruptionData interruption = 38;
+    LogData log = 39;
+    SkipData skip = 40;
+    EmptyData empty = 41;
   };
 }
 

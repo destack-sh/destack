@@ -99,13 +99,17 @@ if TYPE_CHECKING:
         Action,
         Bench,
         Block,
+        Choice,
+        Class,
         Client,
         ComputedSourceIn,
         ComputedValue,
         ComputedValueMode,
         CustomObject,
+        Database,
         Expression,
         Field,
+        Flow,
         GetConnection,
         Machine,
         NodeLink,
@@ -1228,7 +1232,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         cls,
         type: int | None = None,
         *,
-        block: "Block | None" = None,
+        base_type: "TypeBaseNode | None" = None,
         field_types: list[FieldType] | None = None,
     ) -> "Type":
         """Creates a Type object for a partial Node."""
@@ -1237,10 +1241,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         constraint = TypeConstraint(node_subtypes=[type]) if type is not None else None
         metatype = getattr(cls, "metatype", None)  # Node has no metatype
 
-        if block is not None:
+        if base_type is not None:
             return Type(
                 kind=TypeKind.PARTIAL_OBJECT,
-                base_type=block,
+                base_type=base_type,
                 base_field_types=field_types or [FieldType.MEMBER],
                 property_field_types=field_types or [],
                 bench_type=metatype,
@@ -1261,20 +1265,20 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         cls,
         type: int | None = None,
         *,
-        block: "Block | None" = None,
+        base_type: "TypeBaseNode | None" = None,
         field_types: list[FieldType] | None = None,
         **kwargs: Any,
     ) -> "CustomObject":
         """Creates a new partial Node of this type."""
         from .value import coerce_custom_object_scalar
 
-        typ = cls.partial_type(type, block=block, field_types=field_types)
+        typ = cls.partial_type(type, base_type=base_type, field_types=field_types)
         if cls is not Node:
             kwargs["metatype"] = cls.metatype
         if type is not None:
             kwargs["type"] = type
-        if block is not None:
-            kwargs["block"] = block
+        if base_type is not None:
+            kwargs["block"] = base_type
         return coerce_custom_object_scalar(kwargs, typ)
 
     @classmethod
@@ -1556,7 +1560,16 @@ class RuntimeNode[NodeDataT: AnyNodeData](
     """A Node that exists only (conceptually) at/in a Runtime."""
 
 
-RunnableNode = Union["Block", "Action", "Pipe"]
+RunnableNode = Union["Flow", "Action", "Pipe"]
+TypeBaseNode = Union["Flow", "Action", "Class", "Choice", "Database"]
+RUNNABLE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.PIPE)
+TYPE_BASE_NODE_TYPES = (
+    NodeType.FLOW,
+    NodeType.ACTION,
+    NodeType.CLASS,
+    NodeType.CHOICE,
+    NodeType.DATABASE,
+)
 
 
 @node_component_()

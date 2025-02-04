@@ -34,11 +34,16 @@ from .action import (
     UpdateAction,
     WaitAction,
 )
-from .block import Block, BlockType, DatabaseBlock, FlowBlock, TextBlock
+from .block import Block, BlockType
 from .channel import Channel, ChannelType
+from .choice import Choice
+from .class_ import Class
+from .database import Database
 from .dependency import Dependency
 from .field import Field, InputField, MemberField, OptionField, OutputField, VariableField
+from .flow import Flow
 from .package import Package, PackageType
+from .page import Page
 from .pipe import Pipe, PipeType, PortSide
 from .project import Projection, ProjectOptions
 from .render import (
@@ -85,17 +90,19 @@ __all__ = [
     "ChangeAction",
     "Channel",
     "ChannelType",
+    "Choice",
+    "Class",
     "ClickAction",
     "CodeAction",
     "CompleteAction",
     "CreateAction",
-    "DatabaseBlock",
+    "Database",
     "DeleteAction",
     "Dependency",
     "DuplicateAction",
     "FailAction",
     "Field",
-    "FlowBlock",
+    "Flow",
     "Font",
     "FontSize",
     "FontType",
@@ -117,6 +124,7 @@ __all__ = [
     "OutputField",
     "Package",
     "PackageType",
+    "Page",
     "Pipe",
     "PipeType",
     "PortSide",
@@ -138,7 +146,6 @@ __all__ = [
     "SpaceType",
     "Spacing",
     "StartAction",
-    "TextBlock",
     "ToolAction",
     "ToolFilter",
     "ToolSelection",

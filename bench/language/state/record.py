@@ -22,7 +22,7 @@ from bench.pb2 import AnyNodeData, NodeReferenceData, RecordData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Block, CustomObject, Icon, Text
+    from bench.language import CustomObject, Database, Icon, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -37,7 +37,7 @@ logger = structlog.get_logger(__name__)
 )
 class Record(StateNode[RecordData], HasNodeBase):
     """
-    A Record from a DatabaseBlock. May reference other Records (except for :ManyToManyRecords).
+    A Record from a Database. May reference other Records (except for :ManyToManyRecords).
     """
 
     # type: RecordType?
@@ -47,7 +47,7 @@ class Record(StateNode[RecordData], HasNodeBase):
     text: Optional["Text"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    block: "Block" = p_system(
+    database: "Database" = p_system(
         36,
         require=True,
         references=NodeType.BLOCK,
@@ -64,7 +64,7 @@ class Record(StateNode[RecordData], HasNodeBase):
     @final
     def __repr__(self):  # type: ignore
         # override the default __repr__ for records
-        block = self.block
+        block = self.database
         type_name = block.code_name if block is not None else "???"
         return f"<{type_name}Record {self!s}>"
 
@@ -76,12 +76,12 @@ class Record(StateNode[RecordData], HasNodeBase):
 
     @property
     def value_type(self) -> "TypeBase | None":
-        block = self.block
-        return block.to_type_maybe(of="value") if block is not None else None
+        database = self.database
+        return database.to_type_maybe() if database is not None else None
 
     @property
-    def base(self) -> "Block | None":
-        return self.block
+    def base(self) -> "Database | None":
+        return self.database
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:

@@ -15,7 +15,7 @@ from bench.language import (
     CallTerminationMode,
     CustomObject,
     Error,
-    FlowBlock,
+    Flow,
     HasContext,
     Interruption,
     Pipe,
@@ -67,7 +67,7 @@ class TickPipeResult(NamedTuple):
     is_handled: bool
 
 
-class FlowRunner[N: FlowBlock | Action = FlowBlock](Runner[N], ABC):
+class FlowRunner[N: Flow | Action = Flow](Runner[N], ABC):
     """Runs a Flow or sub-Flow (within an Action)."""
 
     runner_type: ClassVar[RunType] = RunType.FLOW

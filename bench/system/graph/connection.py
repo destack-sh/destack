@@ -369,7 +369,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
     def __init__(self, scope: GraphScopeData, query: Query, oracle: Oracle):
         super().__init__(scope, query, oracle)
         self._filter = query._filter
-        self._block_ck = str(query._base_block.ck) if query._base_block else None
+        self._block_ck = str(query._base_type.ck) if query._base_type else None
         self._result_roots_ids: set[str] | None = None
 
     read_type: ClassVar[QueryType] = QueryType.SEARCH

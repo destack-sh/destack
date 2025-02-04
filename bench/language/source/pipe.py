@@ -27,7 +27,9 @@ if TYPE_CHECKING:
         Action,
         Block,
         Color,
+        Flow,
         NodeReference,
+        Page,
         RunOptions,
         Text,
     )
@@ -120,15 +122,29 @@ class Pipe(SourceNode[PipeData]):
         return RunType.PIPE
 
     @property
-    def block(self) -> "Block | None":
-        """Gets the containing ancestor Block (if any)"""
-        from bench.language.source.block import Block
+    def page(self) -> "Page | None":
+        """Gets the containing ancestor Page (if any)"""
+        from bench.language import Page
 
         parent = self.parent
         while parent is not None:
-            if isinstance(parent, Block):
+            if isinstance(parent, Page):
                 return parent
             parent = parent.parent
+        return None
+
+    @property
+    def flow(self) -> "Flow | None":
+        """Gets the containing ancestor Flow (if any)"""
+        from bench.language import Flow
+
+        parent = self.parent
+        while parent is not None:
+            if isinstance(parent, Flow):
+                return parent
+        return None
+
+    def to_type_maybe(self) -> "TypeBase | None":
         return None
 
     @property

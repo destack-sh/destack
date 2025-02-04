@@ -6,7 +6,6 @@ import structlog
 
 from bench.language.core import (
     TITLE_CONSTRAINT,
-    BlockType,
     BuiltinEnum,
     EnumType,
     FieldType,
@@ -17,7 +16,6 @@ from bench.language.core import (
     StateNode,
     StructType,
     TypeBase,
-    constraint,
     enum_,
     p_internal,
     p_node_parent,
@@ -31,7 +29,7 @@ from bench.language.runtime.interruption import Interruption
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Channel, NodeReference, Text, Thread
+    from bench.language import Bench, Channel, Class, NodeReference, Text, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -84,12 +82,11 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         same_bench=True,
         references=NodeType.MESSAGE,
     )
-    block: "Block | None" = p_internal(
+    class_: "Class | None" = p_internal(
         35,
         require=False,
         array=False,
-        references=NodeType.BLOCK,
-        constraint=constraint(node_subtypes=[BlockType.MESSAGE]),
+        references=NodeType.CLASS,
         description="The Message type.",
     )
     if TYPE_CHECKING:
@@ -135,7 +132,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
 
     @property
     def base(self):
-        return self.block
+        return self.class_
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
@@ -143,5 +140,5 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
 
     @property
     def value_type(self) -> "TypeBase | None":
-        block = self.block
-        return block.to_type_maybe(of="value") if block is not None else None
+        class_ = self.class_
+        return class_.to_type() if class_ is not None else None

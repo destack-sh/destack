@@ -436,7 +436,7 @@ def make_chat_prompt(
         )
 
     # flow
-    if (flow := action.block) is not None and flow.type == BlockType.FLOW:
+    if (flow := action.page) is not None and flow.type == BlockType.FLOW:
         from bench.runtime.flow import FlowRunner
 
         connected_actions = [

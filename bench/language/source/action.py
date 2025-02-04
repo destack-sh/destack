@@ -6,7 +6,6 @@ import cachetools
 
 from bench.language.core import (
     NAME_CONSTRAINT,
-    BlockType,
     BuiltinEnum,
     BuiltinObject,
     EnumType,
@@ -25,7 +24,6 @@ from bench.language.core import (
     TypeConstraint,
     TypeKind,
     coerce_custom_object_scalar,
-    constraint,
     enum_,
     node_,
     object_,
@@ -52,10 +50,12 @@ if TYPE_CHECKING:
         Expression,
         Field,
         File,
+        Flow,
         Icon,
         Machine,
         Message,
         NodeReference,
+        Page,
         Pipe,
         PipeType,
         RunOptions,
@@ -186,7 +186,7 @@ class Action(SourceNode[ActionData]):
     A data or control flow node in a Flow. Actions are connected by Pipes.
     """
 
-    parent: Union["Block", "Action", None] = p_node_parent(4, NodeType.BLOCK, NodeType.ACTION)
+    parent: Union["Flow", "Action", None] = p_node_parent(4, NodeType.FLOW, NodeType.ACTION)
 
     # common
     type: ActionType = p_regular(
@@ -228,12 +228,11 @@ class Action(SourceNode[ActionData]):
         description="The implementation code for this action.",
         field_type=FieldType.INPUT,
     )
-    tool: Union["Block", None] = p_regular(
+    tool: Union["Flow", None] = p_regular(
         53,
         require=False,
         array=False,
-        references=(NodeType.BLOCK,),
-        constraint=constraint(node_subtypes=[BlockType.FLOW]),
+        references=(NodeType.FLOW,),
         description="The implementation for this action.",
         field_type=FieldType.INPUT,
     )
@@ -279,18 +278,28 @@ class Action(SourceNode[ActionData]):
     triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
 
     @property
-    def block(self) -> "Block | None":
-        """Gets the containing ancestor Block (if any)"""
-        from bench.language.source.block import Block
+    def page(self) -> "Page | None":
+        """Gets the containing ancestor Page (if any)"""
+        from bench.language import Page
 
         parent = self.parent
         while parent is not None:
-            if isinstance(parent, Block):
+            if isinstance(parent, Page):
                 return parent
             parent = parent.parent
         return None
 
     @property
+    def flow(self) -> "Flow | None":
+        """Gets the containing ancestor Flow (if any)"""
+        from bench.language import Flow
+
+        parent = self.parent
+        while parent is not None:
+            if isinstance(parent, Flow):
+                return parent
+        return None
+
     def run_type(self) -> RunType:
         return RunType.ACTION
 
@@ -300,7 +309,7 @@ class Action(SourceNode[ActionData]):
         target: "Action",
         name: str | None = None,
         *,
-        parent: Union["Block", "Action", None] = None,
+        parent: Union["Flow", "Action", None] = None,
         run_options: "RunOptions | None" = None,
     ) -> "Pipe":
         """Connects a target Action to this Action."""
@@ -454,13 +463,13 @@ class ToolSelection(Struct):
     """
 
     filter: ToolFilter | None = p_regular(35, default=None)
-    tool_nodes: list[Union["Block", "Action"]] = p_regular(
-        40, array=True, require=False, references=NodeType.ACTION
+    tool_nodes: list[Union["Flow", "Action"]] = p_regular(
+        40, array=True, require=False, references=(NodeType.ACTION, NodeType.FLOW)
     )
     tool_types: list[ActionType] = p_regular(41, array=True, require=False)
     tool_categories: list[ActionCategory] = p_regular(42, array=True, require=False)
 
-    def supports(self, action_type: ActionType, tool: Union["Block", "Action", None]) -> bool:
+    def supports(self, action_type: ActionType, tool: Union["Flow", "Action", None]) -> bool:
         """Whether this tool filter includes the given Action."""
         if self.filter is None or self.filter == ToolFilter.ANY:
             return True
@@ -481,7 +490,7 @@ class ToolSelection(Struct):
             assert_never(self.filter)
 
     @staticmethod
-    def custom(*tools: Union["Block", "Action"]) -> "ToolSelection":
+    def custom(*tools: Union["Flow", "Action"]) -> "ToolSelection":
         return ToolSelection(filter=ToolFilter.SELECT_CUSTOM, tool_nodes=list(tools))
 
     @staticmethod
@@ -493,7 +502,7 @@ class ToolSelection(Struct):
         )
 
     @staticmethod
-    def only(*tools: Union["ActionType", "ActionCategory", "Block", "Action"]) -> "ToolSelection":
+    def only(*tools: Union["ActionType", "ActionCategory", "Flow", "Action"]) -> "ToolSelection":
         return ToolSelection(
             filter=ToolFilter.SELECT,
             tool_types=[t for t in tools if isinstance(t, ActionType)],
