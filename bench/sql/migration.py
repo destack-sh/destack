@@ -65,8 +65,6 @@ if TYPE_CHECKING:
 MIGRATIONS_PATH = REPOSITORY_PATH / "bench/migrations"
 MIGRATIONS_TEMPLATE_PATH = REPOSITORY_PATH / "bench/migrations/0000_template.py"
 
-EXTENSIONS = ("pgcrypto",)
-
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 

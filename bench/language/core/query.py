@@ -41,8 +41,8 @@ if TYPE_CHECKING:
     from bench.language import (
         AggregateOptions,
         Block,
-        Channel,
         ConnectMode,
+        Connector,
         Field,
         GetConnection,
         NodeReference,
@@ -496,10 +496,10 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
     async def __aiter__(self):
         return iter(await self.search())
 
-    async def _get_read_channel(self) -> "Channel":
+    async def _get_read_connector(self) -> "Connector":
         session = active_session()
         scope = session._get_scope_for_query(self)
-        return await session._get_channel_for(
+        return await session._get_connector_for(
             scope,
             self.all_node_types,
             include_deleted=self.include_deleted,
@@ -573,8 +573,8 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             query = self.clone()
             query._roots = [filter] if isinstance(filter, NodeReference) else list(filter)
             query._type = QueryType.GET
-            channel = await query._get_read_channel()
-            connection = await channel.get(query, GetOptions(mode=mode, live=live))
+            connector = await query._get_read_connector()
+            connection = await connector.get(query, GetOptions(mode=mode, live=live))
 
             # coerce to node/list of nodes
             if len(connection.result.roots) != len(query._roots):
@@ -628,8 +628,8 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
         )
         query = self.where(filter) if filter is not None else self
-        channel = await query._get_read_channel()
-        connection = await channel.search(query, SearchOptions(live=live, mode=mode, count=False))
+        connector = await query._get_read_connector()
+        connection = await connector.search(query, SearchOptions(live=live, mode=mode, count=False))
         return cast(list[NodeT], connection.result.roots), connection
 
     tolist = search  # type: ignore
@@ -672,8 +672,8 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         trace.get_current_span().set_attribute("query", repr(query))
 
         # query
-        channel = await query._get_read_channel()
-        connection = await channel.aggregate(query, AggregateOptions(live=False, mode=mode))
+        connector = await query._get_read_connector()
+        connection = await connector.aggregate(query, AggregateOptions(live=False, mode=mode))
         aggregation = connection.result_data.aggregation
         assert aggregation.count is not None, f"missing count in {connection!r}"
         return aggregation.count
@@ -695,8 +695,8 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         trace.get_current_span().set_attribute("query", repr(query))
 
         # query
-        channel = await query._get_read_channel()
-        connection = await channel.aggregate(query, AggregateOptions(live=False, mode=mode))
+        connector = await query._get_read_connector()
+        connection = await connector.aggregate(query, AggregateOptions(live=False, mode=mode))
         aggregation = connection.result_data.aggregation
         assert aggregation.exists is not None, f"missing exists in {connection!r}"
         return aggregation.exists

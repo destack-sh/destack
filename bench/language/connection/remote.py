@@ -32,17 +32,17 @@ from bench.utils.tenacity import RETRY_GRPC, RETRY_GRPC_FOREVER, RetryOptions
 from .connection import AggregateConnection, Connection, GetConnection, SearchConnection
 from .engine import (
     AggregateResultData,
-    ChannelIncapableError,
-    ChannelUnavailableError,
     CommitResultData,
     ConnectionOptions,
     Engine,
+    EngineIncapableError,
+    EngineUnavailableError,
     FlushResultData,
     GetResultData,
     SearchResultData,
     WatchGetUpdateData,
     WatchSearchUpdateData,
-    WritableChannel,
+    WritableConnector,
 )
 
 if TYPE_CHECKING:
@@ -59,7 +59,7 @@ def _grpc_wrap_error(query: "Query", e: GRPCError):
     return e  # NOTE :UX: wrap remote grpc errors :BadRemoteErrors
 
 
-class RemoteEngine(Engine["RemoteChannel"]):
+class RemoteEngine(Engine["RemoteConnector"]):
     """An engine that proxies to a remote graph store."""
 
     def __init__(
@@ -83,8 +83,8 @@ class RemoteEngine(Engine["RemoteChannel"]):
         return f"{self.name} [scope={repr_scope(self.scope)}, node_types={repr_enums(self.node_types)}, remote={self.remote.__class__.__name__}]"
 
     @override
-    async def channel(self, session: "Session") -> "RemoteChannel":
-        return RemoteChannel(self, session)
+    async def connector(self, session: "Session") -> "RemoteConnector":
+        return RemoteConnector(self, session)
 
     @property
     def include_deleted(self) -> bool:
@@ -95,19 +95,19 @@ class RemoteEngine(Engine["RemoteChannel"]):
         return False
 
 
-class RemoteChannel(WritableChannel[RemoteEngine]):
-    """A channel to a remote graph."""
+class RemoteConnector(WritableConnector[RemoteEngine]):
+    """A connector to a remote graph."""
 
     def __str__(self):
         return f"engine={self.engine!r}, session={self.session}"
 
     @override
     async def reset(self):
-        pass  # remote channels use a shared client
+        pass  # remote connectors use a shared client
 
     @override
     async def close(self):
-        pass  # remote channels use a shared client
+        pass  # remote connectors use a shared client
 
     def _get_connection_cls(
         self, query: "Query", scope: GraphScopeData, options: ConnectionOptions
@@ -133,14 +133,14 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
 
         @wraps(func)
         @tracer.start_as_current_span(f"remote.{method_name}")
-        async def wrapper(self: "RemoteChannel", *args, **kwargs):
+        async def wrapper(self: "RemoteConnector", *args, **kwargs):
             retry = self.engine.write_retry.new(self.session._oracle)
             while retry.should_retry:
                 retry.on_attempt()
                 try:
                     return await func(self, *args, **kwargs)
                 except Exception as e:
-                    logger.error(f"remote.{method_name}.error", channel=self, exc_info=True)
+                    logger.error(f"remote.{method_name}.error", connector=self, exc_info=True)
                     retry.on_error(e)
                     if not isinstance(e, self.read_retry.retry_on):
                         raise
@@ -148,7 +148,7 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
                         await self.session._oracle.sleep(retry.get_wait_interval())
             error = retry.to_error()
             if isinstance(error, (OSError,)):
-                raise ChannelUnavailableError(
+                raise EngineUnavailableError(
                     self, args[0] if args else None, reason=str(error)
                 ) from error
             else:
@@ -159,7 +159,7 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
     @override
     @_rpc
     async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResultData:
-        raise ChannelIncapableError(self, edits, reason="flush not yet supported")
+        raise EngineIncapableError(self, edits, reason="flush not yet supported")
 
     @override
     @_rpc
@@ -177,15 +177,15 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
         return CommitResultData(cascaded_edits=list(response.cascaded_edits))
 
 
-class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
-    """Search a remote channel live."""
+class RemoteGetConnection[T: Node](GetConnection[RemoteConnector, T]):
+    """Search a remote connector live."""
 
     @override
     async def _do_read(self, query: "Query") -> GetResultData:
         from bench.proto import wiring
 
         assert query._roots, f"{query!r} has no roots"
-        engine = self.channel.engine
+        engine = self.connector.engine
         roots_ptr = [r._to_data() for r in query._roots]
         request = pb2.GetNodesRequest(
             scope=engine.scope,
@@ -197,7 +197,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
             include_deleted=query._include_deleted,
         )
         try:
-            response = await self.channel.engine.remote.get_nodes(
+            response = await self.connector.engine.remote.get_nodes(
                 request, metadata=engine.rpc_headers
             )
         except GRPCError as e:
@@ -220,7 +220,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
         assert token is not None, f"{self!r} has no token"
         assert epoch is not None, f"{self!r} has no epoch"
         watch_req = WatchGetRequest(scope=self.scope, connection_token=token, since_epoch=epoch)
-        async for rep in unary_stream_rpc(self.channel.engine.remote.watch_get, watch_req):
+        async for rep in unary_stream_rpc(self.connector.engine.remote.watch_get, watch_req):
             update = WatchGetUpdateData(
                 edits=list(rep.edits),
                 cascaded_edits=list(rep.cascaded_edits),
@@ -231,14 +231,14 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
             yield update
 
 
-class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
-    """Search a remote channel live."""
+class RemoteSearchConnection[T: Node](SearchConnection[RemoteConnector, T]):
+    """Search a remote connector live."""
 
     @override
     async def _do_read(self, query: "Query") -> SearchResultData:
         from bench.proto import wiring
 
-        engine = self.channel.engine
+        engine = self.connector.engine
         request = pb2.SearchNodesRequest(
             scope=engine.scope,
             node_type=wiring.pack_enum(NodeType, query._node_type),
@@ -259,7 +259,7 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
         if query._skip:
             request.skip = query._skip
         try:
-            response = await self.channel.engine.remote.search_nodes(
+            response = await self.connector.engine.remote.search_nodes(
                 request, metadata=engine.rpc_headers
             )
         except GRPCError as e:
@@ -285,7 +285,7 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
         assert token is not None, f"{self!r} has no token"
         assert epoch is not None, f"{self!r} has no epoch"
         watch_req = WatchSearchRequest(scope=self.scope, connection_token=token, since_epoch=epoch)
-        async for rep in unary_stream_rpc(self.channel.engine.remote.watch_search, watch_req):
+        async for rep in unary_stream_rpc(self.connector.engine.remote.watch_search, watch_req):
             update = WatchSearchUpdateData(
                 edits=list(rep.edits),
                 cascaded_edits=list(rep.cascaded_edits),
@@ -298,14 +298,14 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
             yield update
 
 
-class RemoteAggregateConnection(AggregateConnection[RemoteChannel]):
-    """Aggregate a remote channel live."""
+class RemoteAggregateConnection(AggregateConnection[RemoteConnector]):
+    """Aggregate a remote connector live."""
 
     @override
     async def _do_read(self, query: "Query") -> AggregateResultData:
         from bench.proto import wiring
 
-        engine = self.channel.engine
+        engine = self.connector.engine
         assert query._aggregation is not None, f"{query!r} has no aggregation"
         request = pb2.AggregateNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),

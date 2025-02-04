@@ -123,8 +123,12 @@ enum EnumType {
   ENUM_TYPE_PICKER_VARIANT = 22616;
   ENUM_TYPE_USER_STATUS = 22700;
   ENUM_TYPE_ORGANIZATION_STATUS = 22710;
-  ENUM_TYPE_MESSAGE_TYPE = 22800;
-  ENUM_TYPE_MESSAGE_STATUS = 22801;
+  ENUM_TYPE_CHANNEL_TYPE = 22800;
+  ENUM_TYPE_THREAD_TYPE = 22810;
+  ENUM_TYPE_THREAD_STATUS = 22811;
+  ENUM_TYPE_MESSAGE_TYPE = 22820;
+  ENUM_TYPE_MESSAGE_STATUS = 22821;
+  ENUM_TYPE_MESSAGE_PLATFORM = 22822;
 }
 
 enum NodeType {
@@ -146,14 +150,16 @@ enum NodeType {
   NODE_TYPE_SECRET = 2220;
   NODE_TYPE_PACKAGE = 5000;
   NODE_TYPE_DEPENDENCY = 5002;
-  NODE_TYPE_BLOCK = 5020;
+  NODE_TYPE_BLOCK = 5021;
   NODE_TYPE_FIELD = 5022;
   NODE_TYPE_VIEW = 5030;
   NODE_TYPE_ACTION = 5040;
   NODE_TYPE_PIPE = 5041;
   NODE_TYPE_TRIGGER = 5042;
+  NODE_TYPE_CHANNEL = 5100;
   NODE_TYPE_SPACE = 5200;
-  NODE_TYPE_MESSAGE = 5500;
+  NODE_TYPE_THREAD = 5501;
+  NODE_TYPE_MESSAGE = 5502;
   NODE_TYPE_RECORD = 5510;
   NODE_TYPE_SESSION = 6000;
   NODE_TYPE_RUN = 6010;
@@ -246,14 +252,16 @@ enum ObjectType {
   OBJECT_TYPE_SECRET = 2220;
   OBJECT_TYPE_PACKAGE = 5000;
   OBJECT_TYPE_DEPENDENCY = 5002;
-  OBJECT_TYPE_BLOCK = 5020;
+  OBJECT_TYPE_BLOCK = 5021;
   OBJECT_TYPE_FIELD = 5022;
   OBJECT_TYPE_VIEW = 5030;
   OBJECT_TYPE_ACTION = 5040;
   OBJECT_TYPE_PIPE = 5041;
   OBJECT_TYPE_TRIGGER = 5042;
+  OBJECT_TYPE_CHANNEL = 5100;
   OBJECT_TYPE_SPACE = 5200;
-  OBJECT_TYPE_MESSAGE = 5500;
+  OBJECT_TYPE_THREAD = 5501;
+  OBJECT_TYPE_MESSAGE = 5502;
   OBJECT_TYPE_RECORD = 5510;
   OBJECT_TYPE_SESSION = 6000;
   OBJECT_TYPE_RUN = 6010;
@@ -342,14 +350,16 @@ enum BenchType {
   BENCH_TYPE_SECRET = 2220;
   BENCH_TYPE_PACKAGE = 5000;
   BENCH_TYPE_DEPENDENCY = 5002;
-  BENCH_TYPE_BLOCK = 5020;
+  BENCH_TYPE_BLOCK = 5021;
   BENCH_TYPE_FIELD = 5022;
   BENCH_TYPE_VIEW = 5030;
   BENCH_TYPE_ACTION = 5040;
   BENCH_TYPE_PIPE = 5041;
   BENCH_TYPE_TRIGGER = 5042;
+  BENCH_TYPE_CHANNEL = 5100;
   BENCH_TYPE_SPACE = 5200;
-  BENCH_TYPE_MESSAGE = 5500;
+  BENCH_TYPE_THREAD = 5501;
+  BENCH_TYPE_MESSAGE = 5502;
   BENCH_TYPE_RECORD = 5510;
   BENCH_TYPE_SESSION = 6000;
   BENCH_TYPE_RUN = 6010;
@@ -529,8 +539,12 @@ enum BenchType {
   BENCH_TYPE_PICKER_VARIANT = 22616;
   BENCH_TYPE_USER_STATUS = 22700;
   BENCH_TYPE_ORGANIZATION_STATUS = 22710;
-  BENCH_TYPE_MESSAGE_TYPE = 22800;
-  BENCH_TYPE_MESSAGE_STATUS = 22801;
+  BENCH_TYPE_CHANNEL_TYPE = 22800;
+  BENCH_TYPE_THREAD_TYPE = 22810;
+  BENCH_TYPE_THREAD_STATUS = 22811;
+  BENCH_TYPE_MESSAGE_TYPE = 22820;
+  BENCH_TYPE_MESSAGE_STATUS = 22821;
+  BENCH_TYPE_MESSAGE_PLATFORM = 22822;
 }
 
 enum NodeMode {
@@ -1018,7 +1032,6 @@ enum BlockType {
   BLOCK_TYPE_CHOICE = 11;
   BLOCK_TYPE_MESSAGE = 12;
   BLOCK_TYPE_FLOW = 22;
-  BLOCK_TYPE_VARIABLE = 30;
   BLOCK_TYPE_DATABASE = 31;
   BLOCK_TYPE_VIEW = 40;
   BLOCK_TYPE_ROLE = 50;
@@ -1824,13 +1837,28 @@ enum OrganizationStatus {
   ORGANIZATION_STATUS_ACTIVATED = 50;
 }
 
+enum ChannelType {
+  CHANNEL_TYPE_UNSPECIFIED = 0;
+  CHANNEL_TYPE_TEXT = 1;
+  CHANNEL_TYPE_VOICE = 2;
+}
+
+enum ThreadType {
+  THREAD_TYPE_UNSPECIFIED = 0;
+  THREAD_TYPE_SOURCE = 1;
+  THREAD_TYPE_RUN = 2;
+}
+
+enum ThreadStatus {
+  THREAD_STATUS_UNSPECIFIED = 0;
+  THREAD_STATUS_OPEN = 1;
+  THREAD_STATUS_CLOSED = 2;
+}
+
 enum MessageType {
   MESSAGE_TYPE_UNSPECIFIED = 0;
-  MESSAGE_TYPE_BENCH = 1;
-  MESSAGE_TYPE_FEDERATED = 2;
-  MESSAGE_TYPE_WEBHOOK = 10;
-  MESSAGE_TYPE_EMAIL = 20;
-  MESSAGE_TYPE_SMS = 21;
+  MESSAGE_TYPE_DEFAULT = 1;
+  MESSAGE_TYPE_BLOCK = 2;
 }
 
 enum MessageStatus {
@@ -1841,6 +1869,15 @@ enum MessageStatus {
   MESSAGE_STATUS_FAILED = 40;
   MESSAGE_STATUS_RECEIVED = 50;
   MESSAGE_STATUS_READ = 60;
+}
+
+enum MessagePlatform {
+  MESSAGE_PLATFORM_UNSPECIFIED = 0;
+  MESSAGE_PLATFORM_BENCH = 1;
+  MESSAGE_PLATFORM_BENCH_FEDERATED = 2;
+  MESSAGE_PLATFORM_WEBHOOK = 10;
+  MESSAGE_PLATFORM_EMAIL = 20;
+  MESSAGE_PLATFORM_SMS = 21;
 }
 
 message GraphScopeData {
@@ -2127,9 +2164,6 @@ message FileInfoData {
   optional float aspect_ratio = 72;
   optional string codec = 73;
   optional google.protobuf.Duration duration = 74;
-  optional int32 bitrate = 75;
-  optional int32 channels = 76;
-  optional int32 sample_rate = 77;
 }
 
 message MachineImageData {
@@ -2655,9 +2689,6 @@ message FileData {
   optional float aspect_ratio = 72;
   optional string codec = 73;
   optional google.protobuf.Duration duration = 74;
-  optional int32 bitrate = 75;
-  optional int32 channels = 76;
-  optional int32 sample_rate = 77;
   FileRetentionMode retention = 80;
   optional google.protobuf.Timestamp expires_at = 81;
 }
@@ -3262,13 +3293,6 @@ message BlockData {
   string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
-  optional google.protobuf.Value variables_packed = 40;
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
-message VariableBlockData {
-  optional TypeData value_type = 100;
-  optional google.protobuf.Value value_packed = 101;
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
@@ -3282,6 +3306,30 @@ message FlowBlockData {
 
 // A building block with logic, types, UI, state, auth, AI, ...
 message DatabaseBlockData {
+}
+
+message ChannelData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  optional NodeReferenceData template_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
+  optional google.protobuf.Value subnode_packed = 29;
+  ChannelType type = 30;
+  string name = 32;
+  string order_key = 33;
+  optional IconData icon = 34;
+  optional TextData text = 35;
 }
 
 message DependencyData {
@@ -3612,7 +3660,8 @@ message ScheduleTriggerData {
 // A Trigger is an event-driven condition that affects the runtime.
 // Depending on its type and scope, it causes some effect (like starting a Run or interrupting a Task).
 message MessageTriggerData {
-  optional NodeReferenceData message_ptr = 101;
+  optional NodeReferenceData channel_ptr = 100;
+  optional NodeReferenceData thread_ptr = 101;
   optional NodeReferenceData message_type_ptr = 102;
   optional NodeReferenceData reply_to_ptr = 103;
 }
@@ -3629,10 +3678,9 @@ message MessageData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional google.protobuf.Value subnode_packed = 29;
   MessageType type = 30;
-  optional NodeReferenceData root_ptr = 31;
-  optional NodeReferenceData scope_ptr = 33;
-  optional NodeReferenceData run_ptr = 34;
-  optional NodeReferenceData block_ptr = 36;
+  MessagePlatform platform = 31;
+  optional NodeReferenceData channel_ptr = 32;
+  optional NodeReferenceData block_ptr = 35;
   MessageStatus status = 40;
   optional google.protobuf.Timestamp failed_at = 42;
   optional google.protobuf.Timestamp sent_at = 43;
@@ -3663,6 +3711,27 @@ message RecordData {
   optional TextData text = 35;
   NodeReferenceData block_ptr = 36;
   optional google.protobuf.Value value_packed = 40;
+}
+
+message ThreadData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  ThreadType type = 30;
+  optional NodeReferenceData channel_ptr = 32;
+  optional NodeReferenceData scope_ptr = 33;
+  optional NodeReferenceData run_ptr = 34;
+  ThreadStatus status = 50;
+  optional google.protobuf.Timestamp closed_at = 55;
+  optional string title = 60;
+  optional TextData text = 61;
 }
 
 enum BuiltinEnum {
@@ -3708,17 +3777,19 @@ message SomeNodeData {
     ActionData action = 21;
     PipeData pipe = 22;
     TriggerData trigger = 23;
-    SpaceData space = 24;
-    MessageData message = 25;
-    RecordData record = 26;
-    SessionData session = 27;
-    RunData run = 28;
-    RunSpanData run_span = 29;
-    RunPlanData run_plan = 30;
-    InterruptionData interruption = 31;
-    LogData log = 32;
-    SkipData skip = 33;
-    EmptyData empty = 34;
+    ChannelData channel = 24;
+    SpaceData space = 25;
+    ThreadData thread = 26;
+    MessageData message = 27;
+    RecordData record = 28;
+    SessionData session = 29;
+    RunData run = 30;
+    RunSpanData run_span = 31;
+    RunPlanData run_plan = 32;
+    InterruptionData interruption = 33;
+    LogData log = 34;
+    SkipData skip = 35;
+    EmptyData empty = 36;
   };
 }
 

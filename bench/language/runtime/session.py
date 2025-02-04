@@ -18,12 +18,12 @@ from opentelemetry import trace
 
 from bench import pb2
 from bench.language.connection import (
-    Channel,
-    ChannelUnavailableError,
     Connection,
+    Connector,
     Engine,
+    EngineUnavailableError,
     NullEngine,
-    SplitChannel,
+    SplitConnector,
     scope_includes,
 )
 from bench.language.core import (
@@ -151,9 +151,9 @@ class Session(RuntimeNode[SessionData]):
 
     # connections
     _split_read: bool = p_runtime(default=False)
-    _split_read_channel: Channel | None = p_runtime(default=None)
+    _split_read_connector: Connector | None = p_runtime(default=None)
     _engines: tuple["Engine", ...] = p_runtime(default_factory=tuple)
-    _channels: list[Channel] = p_runtime(default_factory=list)
+    _connectors: list[Connector] = p_runtime(default_factory=list)
     _connections: list[Connection] = p_runtime(default_factory=list)
     _lock_by_engine_id: dict[int, asyncio.Lock] = p_runtime(default_factory=dict)
 
@@ -306,45 +306,45 @@ class Session(RuntimeNode[SessionData]):
             )
         return candidate_engines[0]
 
-    async def _get_channel(self, engine: Engine) -> Channel:
-        """Gets or creates a Channel into an Engine"""
-        for channel in self._channels:
-            if channel.engine.id == engine.id:
-                return channel
+    async def _get_connector(self, engine: Engine) -> Connector:
+        """Gets or creates a Connector into an Engine"""
+        for connector in self._connectors:
+            if connector.engine.id == engine.id:
+                return connector
         else:
             # acquire under lock to avoid race condition
             if engine.id not in self._lock_by_engine_id:
                 self._lock_by_engine_id[engine.id] = asyncio.Lock()
             async with self._lock_by_engine_id[engine.id]:
-                # check again in case another task created channel while waiting
-                for channel in self._channels:
-                    if channel.engine.id == engine.id:
-                        return channel
-                # acquire channel
-                channel = await engine.channel(self)
-                self._channels.append(channel)
-                return channel
+                # check again in case another task created connector while waiting
+                for connector in self._connectors:
+                    if connector.engine.id == engine.id:
+                        return connector
+                # acquire connector
+                connector = await engine.connector(self)
+                self._connectors.append(connector)
+                return connector
 
-    def _touch_channel(self, channel: Channel):
-        """Touch a Channel to mark it as used in the current transaction."""
-        self.tx._touched_engine_ids.add(channel.engine.id)
+    def _touch_connector(self, connector: Connector):
+        """Touch a Connector to mark it as used in the current transaction."""
+        self.tx._touched_engine_ids.add(connector.engine.id)
 
-    async def _get_channel_for[ChannelT: Channel](
+    async def _get_connector_for[ConnectorT: Connector](
         self,
         scope: GraphScopeData,
         node_types: NodeType | Iterable[NodeType],
         *,
         is_readonly: bool = False,
         include_deleted: bool = False,
-        expect: type[ChannelT] = Channel,
-    ) -> ChannelT:
-        """Gets or creates a store Channel to read/write Nodes."""
+        expect: type[ConnectorT] = Connector,
+    ) -> ConnectorT:
+        """Gets or creates a store Connector to read/write Nodes."""
         if is_readonly and self._split_read:
-            if self._split_read_channel is None:
-                self._split_read_channel = SplitChannel(
+            if self._split_read_connector is None:
+                self._split_read_connector = SplitConnector(
                     NullEngine("split", self._default_scope, NODE_TYPES), self
                 )
-            channel = self._split_read_channel
+            connector = self._split_read_connector
         else:
             engine = self._get_engine(
                 scope=scope,
@@ -352,10 +352,10 @@ class Session(RuntimeNode[SessionData]):
                 is_readonly=is_readonly,
                 include_deleted=include_deleted,
             )
-            channel = await self._get_channel(engine)
-        if not isinstance(channel, expect):
-            raise BenchError(f"unexpected channel type {channel!r} for {expect!r}")
-        return channel
+            connector = await self._get_connector(engine)
+        if not isinstance(connector, expect):
+            raise BenchError(f"unexpected connector type {connector!r} for {expect!r}")
+        return connector
 
     def _on_connection_begin(self, connection: Connection):
         """Called when a connection begins."""
@@ -402,14 +402,14 @@ class Session(RuntimeNode[SessionData]):
                 with suppress(asyncio.CancelledError):
                     await self._commit_loop_task
                 self._commit_loop_task = None
-            # close connections/channels
+            # close connections/connectors
             for connection in self._connections:
                 connection.close()
                 await connection.wait_closed()
             self._connections.clear()
-            for channel in self._channels:
-                await channel.close()
-            self._channels.clear()
+            for connector in self._connectors:
+                await connector.close()
+            self._connectors.clear()
             self._tx = None
 
         # close session
@@ -702,7 +702,7 @@ class Session(RuntimeNode[SessionData]):
                     span="current",
                 )
                 return edits, cascaded_edits
-        except ChannelUnavailableError as e:
+        except EngineUnavailableError as e:
             logger.error("session.flush.error", session=self, error=e)
             self._tx.reset()
             raise
@@ -786,10 +786,10 @@ class Session(RuntimeNode[SessionData]):
         except BaseException as e:
             if self._on_commit_failed is not None:
                 await self._on_commit_failed(self, e)
-            if isinstance(e, ChannelUnavailableError):
-                logger.error("session.commit.error", error=e, channels=self._channels)
-                for channel in self._channels:
-                    await channel.reset()
+            if isinstance(e, EngineUnavailableError):
+                logger.error("session.commit.error", error=e, connectors=self._connectors)
+                for connector in self._connectors:
+                    await connector.reset()
                 self._tx.reset()
             raise
         finally:

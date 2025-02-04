@@ -27,8 +27,8 @@ from bench.utils.func import group_by
 
 from .connection import Connection, GetConnection, SearchConnection
 from .engine import (
-    Channel,
     ConnectionOptions,
+    Connector,
     Engine,
     GetOptions,
     GetResultData,
@@ -47,8 +47,8 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class SplitChannel(Channel[NullEngine]):
-    """A read-only channel splits queries across channels."""
+class SplitConnector(Connector[NullEngine]):
+    """A read-only connector splits queries across connectors."""
 
     @override
     async def reset(self):
@@ -123,7 +123,7 @@ class SplitConnection(Connection):
             is_readonly=True,
             include_deleted=query.include_deleted,
         )
-        channel = await self.session._get_channel(engine)
+        connector = await self.session._get_connector(engine)
 
         # descend into potential parents (for potential children)
         nodes_by_type = group_by(combined_graph.nodes, lambda n: NodeType(n.metatype)).items()
@@ -150,7 +150,7 @@ class SplitConnection(Connection):
                     include_deleted=query.include_deleted,
                     select=query._select,
                 )
-                descendant_connection = await channel.search(
+                descendant_connection = await connector.search(
                     descendant_query,
                     SearchOptions(live=False, mode="packed", count=False),
                 )
@@ -188,7 +188,7 @@ class SplitConnection(Connection):
             is_readonly=True,
             include_deleted=query.include_deleted,
         )
-        channel = await self.session._get_channel(engine)
+        connector = await self.session._get_connector(engine)
 
         # get parents by type
         inner_roots_parents_by_type = group_by(
@@ -209,7 +209,7 @@ class SplitConnection(Connection):
                 include_deleted=query.include_deleted,
                 select=query._select,
             )
-            ancestor_connection = await channel.get(ancestor_query, self.options)
+            ancestor_connection = await connector.get(ancestor_query, self.options)
             combined_graph.extend(ancestor_connection.result_data.graph.nodes)
 
         return covered_types
@@ -256,7 +256,7 @@ class SplitConnection(Connection):
         return combined_graph
 
 
-class SplitSearchConnection[T: Node](SearchConnection[SplitChannel, T], SplitConnection):
+class SplitSearchConnection[T: Node](SearchConnection[SplitConnector, T], SplitConnection):
     """Search across multiple connections."""
 
     @override
@@ -269,8 +269,8 @@ class SplitSearchConnection[T: Node](SearchConnection[SplitChannel, T], SplitCon
             is_readonly=True,
             include_deleted=query.include_deleted,
         )
-        channel = await self.session._get_channel(engine)
-        connection = await channel.search(
+        connector = await self.session._get_connector(engine)
+        connection = await connector.search(
             query.trim_to(covered_types),
             SearchOptions(live=False, mode="packed", count=self.options.count),
         )
@@ -291,7 +291,7 @@ class SplitSearchConnection[T: Node](SearchConnection[SplitChannel, T], SplitCon
         return combined_result
 
 
-class SplitGetConnection[T: Node](GetConnection[SplitChannel, T], SplitConnection):
+class SplitGetConnection[T: Node](GetConnection[SplitConnector, T], SplitConnection):
     """Get across multiple connections."""
 
     @override
@@ -304,8 +304,8 @@ class SplitGetConnection[T: Node](GetConnection[SplitChannel, T], SplitConnectio
             is_readonly=True,
             include_deleted=query.include_deleted,
         )
-        channel = await self.session._get_channel(engine)
-        connection = await channel.get(
+        connector = await self.session._get_connector(engine)
+        connection = await connector.get(
             query.trim_to(covered_types), GetOptions(live=False, mode="packed")
         )
         result = connection.result_data

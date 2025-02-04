@@ -20,7 +20,6 @@ from bench.language.core import (
     constraint,
     enum_,
     p_internal,
-    p_node_ancestor,
     p_node_parent,
     p_regular,
     p_system,
@@ -32,7 +31,7 @@ from bench.language.runtime.interruption import Interruption
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, NodeReference, Package, Run, Text
+    from bench.language import Bench, Block, Channel, NodeReference, Text, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -41,8 +40,15 @@ logger = structlog.get_logger(__name__)
 
 @enum_(EnumType.MESSAGE_TYPE)
 class MessageType(BuiltinEnum):
+    DEFAULT = 1
+    BLOCK = 2
+    # ...
+
+
+@enum_(EnumType.MESSAGE_PLATFORM)
+class MessagePlatform(BuiltinEnum):
     BENCH = 1  # within one Bench
-    FEDERATED = 2  # from/to another Bench
+    BENCH_FEDERATED = 2  # from/to another Bench
     WEBHOOK = 10
     EMAIL = 20
     SMS = 21
@@ -67,23 +73,19 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     """
 
     # meta
-    parent: Union["Bench", "Message", None] = p_node_parent(4, NodeType.BENCH, NodeType.MESSAGE)
-    type: MessageType = p_regular(30, require=True, default=MessageType.BENCH)
-    root: "Message | None" = p_node_ancestor(
-        31, NodeType.MESSAGE, require=False, store=True, wire=True, is_bench_implicit=True
-    )
-    scope: Union["Block", "Package"] = p_regular(
-        33, require=False, references=(NodeType.BLOCK, NodeType.PACKAGE), same_bench=True
-    )
-    run: Optional["Run"] = p_regular(
-        34,
+    parent: Union["Bench", "Thread", None] = p_node_parent(4, NodeType.BENCH, NodeType.THREAD)
+    type: MessageType = p_regular(30, require=True, default=MessageType.DEFAULT)
+    platform: MessagePlatform = p_regular(31, require=True, default=MessagePlatform.BENCH)
+    channel: "Channel | None" = p_system(
+        32,
         require=False,
-        array=False,
-        references=NodeType.RUN,
-        description="The Run this Message is scoped to. If no Run, this is a general in-source Message.",
+        store=True,
+        wire=True,
+        same_bench=True,
+        references=NodeType.MESSAGE,
     )
     block: "Block | None" = p_internal(
-        36,
+        35,
         require=False,
         array=False,
         references=NodeType.BLOCK,

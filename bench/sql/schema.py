@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.04.0"
+VERSION = "2025.02.04.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -548,9 +548,6 @@ FILE_TABLE = Table(
         Column("aspect_ratio", PrimitiveType.FLOAT32, is_nullable=True),
         Column("codec", PrimitiveType.STRING, is_nullable=True),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
-        Column("bitrate", PrimitiveType.INT32, is_nullable=True),
-        Column("channels", PrimitiveType.INT32, is_nullable=True),
-        Column("sample_rate", PrimitiveType.INT32, is_nullable=True),
         Column("retention", PrimitiveType.INT16),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
@@ -751,7 +748,6 @@ BLOCK_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("variables_packed", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1018,6 +1014,45 @@ TRIGGER_TABLE = Table(
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
+CHANNEL_TABLE = Table(
+    "bench_channel",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("package_id", PrimitiveType.UUID, is_nullable=True),
+        Column("package_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("template_id", PrimitiveType.UUID, is_nullable=True),
+        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
+        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("type", PrimitiveType.INT16, default="1"),
+        Column("name", PrimitiveType.STRING),
+        Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
+        Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+    ),
+    indexes=(
+        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
+        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
+    ),
+)
+
 SPACE_TABLE = Table(
     "bench_space",
     (
@@ -1076,13 +1111,11 @@ SPACE_TABLE = Table(
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-MESSAGE_TABLE = Table(
-    "bench_message",
+THREAD_TABLE = Table(
+    "bench_thread",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
-        Column("parent_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
@@ -1095,8 +1128,8 @@ MESSAGE_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
-        Column("root_id", PrimitiveType.UUID, is_nullable=True),
-        Column("root_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("channel_id", PrimitiveType.UUID, is_nullable=True),
+        Column("channel_ck", PrimitiveType.UUID, is_nullable=True),
         Column("scope_id", PrimitiveType.UUID, is_nullable=True),
         Column("scope_ck", PrimitiveType.UUID, is_nullable=True),
         Column("scope_type", PrimitiveType.INT16, is_nullable=True),
@@ -1104,6 +1137,38 @@ MESSAGE_TABLE = Table(
         Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("status", PrimitiveType.INT16, default="1"),
+        Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("title", PrimitiveType.STRING, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+    ),
+    indexes=(
+        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
+        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
+    ),
+)
+
+MESSAGE_TABLE = Table(
+    "bench_message",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("type", PrimitiveType.INT16, default="1"),
+        Column("platform", PrimitiveType.INT16, default="1"),
+        Column("channel_id", PrimitiveType.UUID, is_nullable=True),
+        Column("channel_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
