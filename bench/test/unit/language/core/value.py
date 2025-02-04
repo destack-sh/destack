@@ -97,12 +97,12 @@ def test_partial_node_message(session: Session, package: Package) -> None:
 
     # set/get values on value and properties
     obj.Field1 = 42
-    obj.type = MessageType.LOCAL
+    obj.type = MessageType.BENCH
     obj.title = "My New Message"
     obj.block = message_type
     obj.Field4 = datetime(2024, 1, 1, tzinfo=pytz.utc)
     assert obj.Field1 == 42
-    assert obj.type == MessageType.LOCAL
+    assert obj.type == MessageType.BENCH
     assert obj.block == message_type
     assert obj.title == "My New Message"
     assert obj.Field4 == datetime(2024, 1, 1, tzinfo=pytz.utc)
@@ -115,7 +115,7 @@ def test_partial_node_message(session: Session, package: Package) -> None:
     # turn into full node
     full_obj = Message.from_partial(obj)
     assert full_obj.id is not None
-    assert full_obj.type == MessageType.LOCAL
+    assert full_obj.type == MessageType.BENCH
     assert full_obj.title == "My New Message"
     assert full_obj.value
     assert full_obj.value.Field1 == 42
@@ -129,10 +129,10 @@ def test_partial_node_message_extraneous_property(session: Session, package: Pac
         "MyMessage",
         fields=(Field.member("Field1", int),),
     )
-    _ = Message.partial(type=MessageType.LOCAL, block=message_type, Field1=42)
+    _ = Message.partial(type=MessageType.BENCH, block=message_type, Field1=42)
     with pytest.raises(ValueError):
         _ = Message.partial(
-            type=MessageType.LOCAL, block=message_type, Field1=42, my_extraneous_something="value"
+            type=MessageType.BENCH, block=message_type, Field1=42, my_extraneous_something="value"
         )
 
 

@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from uuid import UUID
 
 import structlog
 
@@ -40,7 +41,7 @@ logger = structlog.get_logger(__name__)
 
 @enum_(EnumType.MESSAGE_TYPE)
 class MessageType(BuiltinEnum):
-    LOCAL = 1  # within one Bench
+    BENCH = 1  # within one Bench
     FEDERATED = 2  # from/to another Bench
     WEBHOOK = 10
     EMAIL = 20
@@ -67,11 +68,11 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
 
     # meta
     parent: Union["Bench", "Message", None] = p_node_parent(4, NodeType.BENCH, NodeType.MESSAGE)
-    type: MessageType = p_regular(30, require=True, default=MessageType.LOCAL)
+    type: MessageType = p_regular(30, require=True, default=MessageType.BENCH)
     root: "Message | None" = p_node_ancestor(
         31, NodeType.MESSAGE, require=False, store=True, wire=True, is_bench_implicit=True
     )
-    origin: Union["Block", "Package"] = p_regular(
+    scope: Union["Block", "Package"] = p_regular(
         33, require=False, references=(NodeType.BLOCK, NodeType.PACKAGE), same_bench=True
     )
     run: Optional["Run"] = p_regular(
@@ -90,7 +91,8 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         description="The Message type.",
     )
     if TYPE_CHECKING:
-        origin_ptr: Optional[NodeReference] = None
+        scope_id: Optional[UUID] = None
+        scope_ptr: Optional[NodeReference] = None
 
     # status
     status: MessageStatus = p_internal(40, default=MessageStatus.SENT)

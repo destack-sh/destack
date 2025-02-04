@@ -259,22 +259,14 @@ def map_builtin_object_to_table(
                 constraints.append(constraint)
         columns.append(column)
 
-    # extra constraints/indexes
-    for uniqued_columns in node.__extra_uniques__:
-        uniqued_columns = tuple(sorted(uniqued_columns))  # for consistency
-        index_name = f"bench_idx_{'_'.join(uniqued_columns)}"
-        index = Index(index_name, type=IndexType.BTREE, is_unique=True, columns=uniqued_columns)
-        constraint = Constraint(
-            index.inner_name,
-            type=ConstraintType.UNIQUE,
-            columns=uniqued_columns,
-            index=index.inner_name,
+    # extras
+    for index in node.__indexes__:
+        assert not index.name or not index.name.startswith(
+            "bench_"
+        ), f"index shouldn't include prefix: {index!r}"
+        extra_index = Index.from_index_in(
+            f"bench_idx_{index.name or '_'.join(index.columns)}", index
         )
-        indexes.append(index)
-        constraints.append(constraint)
-    for index in node.__extra_indexes__:
-        index_name = f"bench_idx_{'_'.join(index)}"
-        extra_index = Index(index_name, type=IndexType.BTREE, is_unique=False, columns=index)
         indexes.append(extra_index)
 
     table = Table(

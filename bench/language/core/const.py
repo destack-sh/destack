@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.02.0"
+VERSION = "2025.02.04.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -512,6 +512,7 @@ class NodeType(BuiltinEnum):
 
     # state
     MESSAGE = 5500  # (based, timed)
+    # MESSAGE_THREAD, MESSAGE_CHANNEL? nocheckin
     RECORD = 5510  # (based)
 
     # runtime
@@ -938,7 +939,7 @@ REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
 
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(BuiltinEnum):
-    PAGE = 1, "Page of Blocks"
+    PAGE = 1, "Page of Blocks"  # nocheckin: separate PageBlock->Page
     TEXT = 2, "Line of rich Text"
 
     # types

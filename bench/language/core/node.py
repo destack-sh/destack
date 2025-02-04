@@ -127,8 +127,18 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
+class IndexIn(NamedTuple):
+    """Index to be turned into a SQL Index."""
+
+    columns: tuple[str, ...]
+    cover: tuple[str, ...] = ()
+    is_unique: bool = False
+    condition: str | None = None
+    name: str | None = None
+
+
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def node_component(
+def node_component_(
     node_type: NodeType | None = None,
     passthrough_set: str | tuple[str, ...] | None = None,
     passthrough_get: str | tuple[str, ...] | None = None,
@@ -198,8 +208,7 @@ def node_(
     stored: bool = True,
     stored_value_unraveled: bool = False,
     roots: tuple[NodeType, ...] = (NodeType.BENCH,),
-    index: tuple[tuple[str, ...], ...] = (),
-    unique: tuple[tuple[str, ...], ...] = (),
+    index: tuple[IndexIn, ...] = (),
     has_subtypes: bool = False,
 ):
     """Register a class as a concrete node for the given node type."""
@@ -207,8 +216,12 @@ def node_(
     in_package = node_type in PACKAGE_NODE_TYPES
     in_bench = node_type in BENCH_NODE_TYPES
 
+    # default index for nodes with parents
+    if roots:
+        index = (*index, IndexIn(columns=("parent_id",), cover=("id",)))
+
     def decorate(cls: type["Node"]) -> type["Node"]:
-        cls = node_component(
+        cls = node_component_(
             node_type=node_type,
             passthrough_get=passthrough_get,
             passthrough_set=passthrough_set,
@@ -228,8 +241,7 @@ def node_(
         else:
             raise ValueError(f"unknown node store for {node_type}")
 
-        cls.__extra_indexes__ = index
-        cls.__extra_uniques__ = unique
+        cls.__indexes__ = index
 
         cls.__roots__ = bittuple(*roots, enum_cls=NodeType)
         cls.__is_in_package__ = in_package
@@ -262,7 +274,7 @@ def subnode_(
                 break
         else:
             raise RuntimeError(f"no base class found for {cls}")
-        cls = node_component(
+        cls = node_component_(
             node_type=base_cls.metatype,
             passthrough_get=passthrough_get,
             passthrough_set=passthrough_set,
@@ -323,8 +335,7 @@ def timed_node_(
     node_type: NodeType,
     passthrough_get: str | tuple[str, ...] | None = None,
     passthrough_set: str | tuple[str, ...] | None = None,
-    index: tuple[tuple[str, ...], ...] = (),
-    unique: tuple[tuple[str, ...], ...] = (),
+    index: tuple[IndexIn, ...] = (),
     has_subtypes: bool = False,
 ):
     """Register a class as a concrete node for the given node type."""
@@ -332,8 +343,7 @@ def timed_node_(
         node_type=node_type,
         passthrough_get=passthrough_get,
         passthrough_set=passthrough_set,
-        index=(*index, ("created_at",)),
-        unique=(*unique,),
+        index=(*index, IndexIn(columns=("created_at",))),
         has_subtypes=has_subtypes,
     )
 
@@ -402,7 +412,7 @@ def _node_ancestor_ptr_ref(prop: Property) -> property:
     return property(get_ancestor_ptr, set)
 
 
-@node_component()
+@node_component_()
 class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     """
     A Node with properties and an identity.
@@ -439,8 +449,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __is_stored__: ClassVar[bool] = False  # stored in primary store (runtime or local)
     __is_stored_value_unraveled__: ClassVar[bool] = False  # custom storage logic (for records)
     __area__: ClassVar[NodeArea]
-    __extra_indexes__: ClassVar[tuple[tuple[str, ...], ...]] = ()  # extra indexes for PG
-    __extra_uniques__: ClassVar[tuple[tuple[str, ...], ...]] = ()  # extra constraints for PG
+    __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
+    __uniques__: ClassVar[tuple[IndexIn, ...]] = ()
 
     # 1-9: node identity
     # Node.metatype: 1
@@ -1453,7 +1463,7 @@ def get_tracing_context() -> TracingContext:
         return TracingContext(mode=NodeMode.PRODUCTION)
 
 
-@node_component()
+@node_component_()
 class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
     """A Node inside a Bench."""
 
@@ -1469,7 +1479,7 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
         return self.parent_ptr is not None and self.bench is not None
 
 
-@node_component()
+@node_component_()
 class SourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC):
     """
     A Node in a Package with a persistent identity that can be instanced (with computed values).
@@ -1524,14 +1534,14 @@ class SourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC
         ]
 
 
-@node_component()
+@node_component_()
 class StateNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
     """A Node in a Bench with a persistent cross-Package identity."""
 
     parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH)
 
 
-@node_component()
+@node_component_()
 class HasTimeIdentity(BuiltinObject, abc.ABC):
     """A Node with a time-based identity."""
 
@@ -1539,7 +1549,7 @@ class HasTimeIdentity(BuiltinObject, abc.ABC):
     __ck_factory__: ClassVar[Callable[[], UUID]] = UUIDT
 
 
-@node_component()
+@node_component_()
 class RuntimeNode[NodeDataT: AnyNodeData](
     HasTimeIdentity, BenchNode[NodeDataT], HasContext, HasTrace, abc.ABC
 ):
@@ -1549,7 +1559,7 @@ class RuntimeNode[NodeDataT: AnyNodeData](
 RunnableNode = Union["Block", "Action", "Pipe"]
 
 
-@node_component()
+@node_component_()
 class HasNodeBase(BuiltinObject, abc.ABC):
     """A Node which may have a 'base' in another Node (e.g., its type definition)."""
 

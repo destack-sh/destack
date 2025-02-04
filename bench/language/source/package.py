@@ -7,6 +7,7 @@ from bench.language.core import (
     SLUG_CONSTRAINT,
     BuiltinEnum,
     EnumType,
+    IndexIn,
     LocalNodeList,
     NodeType,
     Owner,
@@ -35,7 +36,7 @@ class PackageType(BuiltinEnum):
     SNAPSHOT = 10
 
 
-@node_(NodeType.PACKAGE, unique=(("bench_id", "slug"),))
+@node_(NodeType.PACKAGE, index=(IndexIn(columns=("bench_id", "slug"), is_unique=True),))
 class Package(SourceNode[PackageData]):
     """A Package is an isolated segment of a Bench."""
 

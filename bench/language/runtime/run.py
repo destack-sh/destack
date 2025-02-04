@@ -33,6 +33,7 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
+from bench.language.core.node import IndexIn
 from bench.pb2 import AnyNodeData, NodeReferenceData, RunData, RunPlanData, RunSpanData
 from bench.utils.tenacity import RetryOptions
 
@@ -243,7 +244,7 @@ class RunSpan(RuntimeNode[RunSpanData]):
         return self.error is None or self.error.is_retryable
 
 
-@timed_node_(NodeType.RUN, index=(("trigger_id", "trigger_key"),))
+@timed_node_(NodeType.RUN, index=((IndexIn(columns=("trigger_id", "trigger_key"))),))
 class Run(RuntimeNode[RunData], HasNodeBase):
     """
     Run a Block, Action or some lambda (Code) in a Session.

@@ -20,7 +20,7 @@ from bench.language.core import (
     active_session,
     bittuple,
     enum_,
-    node_component,
+    node_component_,
     p_internal,
     p_node_parent,
     p_regular,
@@ -75,7 +75,7 @@ EXTANT_RESOURCE_STATUSES = bittuple(*(s for s in ResourceStatus if 10 <= s.value
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
 
-@node_component()
+@node_component_()
 class Resource[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC):
     """
     A Resource in a Bench.
@@ -151,7 +151,7 @@ class Resource[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC):
         await self.wait_until(lambda r: r.status == ResourceStatus.UP)
 
 
-@node_component()
+@node_component_()
 class StaticResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
     """
     A 'static' Resource in a Bench.
@@ -175,7 +175,7 @@ class StaticResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
         return resource
 
 
-@node_component()
+@node_component_()
 class DynamicResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
     """
     A 'dynamic' Resource in a Bench.

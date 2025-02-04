@@ -462,7 +462,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
         const op = `${this.kind}:${this.meta.name}`;
         toaster.error({
           title: `Connection ${retry ? "lost" : "failed"}`,
-          text: `Connection failed: ${IS_DEV ? error.message : (error as RpcError).code}`,
+          text: `Connection failed: ${IS_DEV ? error.message : HUMANIZED_OPERATION_STATUS[(error as RpcError).code]}`,
           override: `connection:${this.meta.id}`,
           summarize: {
             key: "connection.error",
@@ -475,7 +475,8 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
                   .map((info) => HUMANIZED_OPERATION_STATUS[info.error.code])
                   .filter((e) => e != null && e.length > 0),
               );
-              return [...errors].join(", ") ?? "Unknown error";
+              const errorsText = [...errors].join(", ") ?? "Unknown error";
+              return `Connection failed: ${errorsText}`;
             },
           },
         });
@@ -547,17 +548,9 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
           // retry if needed
           if (retryCount > 0) {
             toaster.success({
-              title: "Reconnected",
-              text: `'${this.kind}:${this.meta.name}' connection restored.`,
+              title: "Connection restored",
+              text: `Connection restored.`,
               override: `connection:${this.meta.id}`,
-              summarize: {
-                key: "connection.reconnect",
-                info: [{ name: this.meta.name }],
-                title: (infos) => `Connection restored`,
-                text: (infos) => {
-                  return infos.map((info) => `'${info.name}'`).join(", ");
-                },
-              },
             });
             retryCount = 0;
             lastErrorCode = null;
