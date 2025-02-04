@@ -4,6 +4,7 @@ from bench.language import (
     Choice,
     Expression,
     Field,
+    Flow,
     Package,
     Run,
     S,
@@ -43,9 +44,11 @@ def test_evaluate_conditional_property_stringy(session: Session):
 
 
 def test_evaluate_conditional_property_node(session: Session, package: Package):
-    Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
     Page1 = package.pages.create(name="Page1")
-    Page1.append(Code1)
+    Flow1 = Flow.new("Flow1")
+    Page1.append(Flow1)
+    Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
+    Flow1.append(Code1)
     Run1 = create_run_from_node(Code1, isolate=True)
 
     cond = Run.get_property("action").is_equal(Code1)

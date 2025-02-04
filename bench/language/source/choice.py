@@ -5,6 +5,7 @@ from bench.language.core import (
     InlineSourceNode,
     LocalNodeList,
     NodeType,
+    Type,
     TypeBase,
     TypeKind,
     node_,
@@ -31,7 +32,7 @@ class Choice(InlineSourceNode[ChoiceData]):
         return ""
 
     def to_type_maybe(self) -> "TypeBase | None":
-        return TypeBase(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.FIELD)
+        return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.FIELD)
 
     def to_type(self) -> "TypeBase":
         typ = self.to_type_maybe()

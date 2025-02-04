@@ -368,8 +368,8 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
 
     @override
     def create(self, **kwargs) -> V:
-        if "block" in self._child_node_cls.__properties__ and "block" not in kwargs:
-            kwargs["block"] = self._node
+        if "database" not in kwargs:
+            kwargs["database"] = self._node
         parent = self._get_parent()
         graph = self._get_child_graph(parent)
         node = self._child_node_cls(**kwargs, parent=parent)
@@ -381,11 +381,8 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
         parent = self._get_parent()
         graph = self._get_child_graph(parent)
         attach_node(node, parent=parent, graph=graph, move=move)
-        if (
-            "block" in self._child_node_cls.__properties__
-            and getattr(node, "block_id") != self._node.id
-        ):
-            node._do_set("block", self._node)
+        if getattr(node, "database_id") != self._node.id:
+            node._do_set("database", self._node)
         return node
 
     @override
@@ -394,11 +391,8 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
         graph = self._get_child_graph(parent)
         for node in nodes:
             attach_node(node, parent=parent, graph=graph, move=move)
-            if (
-                "block" in self._child_node_cls.__properties__
-                and getattr(node, "block_id") != self._node.id
-            ):
-                node._do_set("block", self._node)
+            if getattr(node, "database_id") != self._node.id:
+                node._do_set("database", self._node)
 
     #
     # Querying
