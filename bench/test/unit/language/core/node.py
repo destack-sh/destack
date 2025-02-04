@@ -18,6 +18,7 @@ from bench.language import (
     Client,
     ClientType,
     Code,
+    Database,
     DuplicateAction,
     Field,
     Flow,
@@ -69,7 +70,7 @@ def test_get_set_non_existing_property(session: "Session"):
 
 def test_node_subtype_property_access(session: "Session"):
     # subtype -> regular property
-    Text1 = Block.new(BlockType.PARAGRAPH, "Text1", text=md("Hello!"))
+    Text1 = Block.new(BlockType.PARAGRAPH, text=md("Hello!"))
     assert Text1.text is not None and Text1.text.to_markdown() == "Hello!"
     Text1.text = md("Hello, world!")
     assert Text1.text is not None and Text1.text.to_markdown() == "Hello, world!"
@@ -83,14 +84,14 @@ def test_node_subtype_property_access(session: "Session"):
 
 
 def test_node_subtype_property_reference(session: "Session"):
-    Text1 = Block.new(BlockType.PARAGRAPH, "Text1", text=md("Hello!"))
+    Text1 = Block.new(BlockType.PARAGRAPH, text=md("Hello!"))
     Duplicate1 = Action.new(DuplicateAction, "BlockAction1", node=Text1)
     node_prop: Property = Duplicate1.get_property("node")
     assert node_prop.to_ref().resolve_or_error() is node_prop
 
 
 def test_node_subtype_pack_unpack(session: "Session"):
-    block = Block.new(BlockType.PARAGRAPH, "Text1", text=md("Hello!"))
+    block = Block.new(BlockType.PARAGRAPH, text=md("Hello!"))
     # pack/unpack wiring
     block_data = block._to_data()
     unpacked_block = cast(
@@ -147,7 +148,8 @@ def test_node_pointers_consistency(session: "Session"):
     )
 
     # based pointers
-    class_a_1 = page_a_1.append(Class.new("Class1"))
+    class_a_1 = Class.new("Class1")
+    page_a_1.append(class_a_1)
     message_a = Message(parent=bench_a, class_=class_a_1)
     assert message_a.bench_id == bench_a.id
     assert message_a.to_ref().equals(
@@ -167,7 +169,8 @@ def test_node_pointers_consistency(session: "Session"):
     package_b = bench_b.packages.create(type=PackageType.ROOT, name="Main B", slug="main-b")
     page_b = package_b.pages.create()
     assert page_b.bench_id == bench_b.id
-    class_b_1 = page_b.append(Class.new("Class1"))
+    class_b_1 = Class.new("Class1")
+    page_b.append(class_b_1)
     message_b = Message(parent=bench_b, class_=class_b_1)
     assert message_b.bench_id == bench_b.id
     assert message_b.to_ref().equals(
@@ -240,9 +243,9 @@ async def test_clone_consistency(simulation: Simulation, runtime: RuntimeLambdaW
 
     # references should be consistent within new subtree
     page_clone = runtime.page().clone()
-    flow_clone = page_clone.blocks.Flow.flow
+    flow_clone = page_clone.blocks.Flow.node_as(Flow)
     assert flow_clone is not None
-    choice_clone = page_clone.blocks.Letter.choice
+    choice_clone = page_clone.blocks.Letter.node_as(Choice)
     assert choice_clone is not None
     action_clone = flow_clone.actions.Action
     assert action_clone is not None
@@ -255,19 +258,11 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
     """Move Nodes between parents (within a Package)."""
     Page1 = runtime.page("Page1")
     Page2 = runtime.page("Page2")
-    Block1 = Page1.blocks.append(
-        Block.new(BlockType.CHOICE, "Block1", fields=[Field.option("A"), Field.option("B")])
+    Block1 = Page1.append(Choice.new("Block1", fields=[Field.option("A"), Field.option("B")]))
+    Block2 = Page1.append(
+        Flow.new("Block2", Field.input("Text", Text), Field.output("Choice", Block1))
     )
-    Block2 = Page1.blocks.append(
-        Block.new(
-            BlockType.FLOW,
-            "Block2",
-            fields=[Field.input("Text", Text), Field.output("Choice", Block1.choice)],
-        )
-    )
-    Block3 = Page1.blocks.append(
-        Block.new(BlockType.DATABASE, "Block3", fields=[Field.member("Text", Text)])
-    )
+    Block3 = Page1.append(Database.new("Block3", fields=[Field.member("Text", Text)]))
     await runtime.commit()
 
     # can't just append directly

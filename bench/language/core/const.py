@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.04.4"
+VERSION = "2025.02.04.5"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -960,37 +960,35 @@ REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
 
 
 @enum_(EnumType.BLOCK_TYPE)
-class BlockType(BuiltinEnum):
+class BlockType(BuiltinEnum):  # NOTE: see NodeType
+    PAGE = 5020, "Page of Blocks"
+    # types
+    CHOICE = 5030, "Choice of Field options"
+    CLASS = 5031, "Class of Fields"
+    # flow
+    FLOW = 5050, "Flow of connected Actions"
+    ACTION = 5051, "Action in a Flow"
+    PIPE = 5052, "Pipe between Actions"
+    TRIGGER = 5053, "Trigger for a Flow"
+    # views
+    VIEW = 5080, "Graphical Interface"
+    # data
+    DATABASE = 5090, "Database of Records"
+    # auth
+    ROLE = 5110, "Role to assign"
+    IDENTITY = 5111, "Unique Identity"
+
     # text
     # NOTE: text BlockTypes should align with :TextLineTypes
-    PARAGRAPH = 2, "Line of rich Text"
-    ...  # TODO :Incomplete: add other :TextLineTypes as BlockTypes
+    PARAGRAPH = 10000, "Line of rich Text"
+    # ...  # TODO :Incomplete: add other :TextLineTypes as BlockTypes
 
-    # types
-    # CLASS?
-    CHOICE = 100, "Choice of Field options"
-    CLASS = 101, "Class of Fields"
-    # ALIAS   # refer to / 'redefine' an existing block or builtin (like a 'newtype')
-    # RESOURCE, PROTOCOL, TAG, METRIC, ...?
-
-    # nested
-    # LIBRARY?
-    PAGE = 201, "Page of Blocks"
-    FLOW = 202, "Flow of connected Actions"
-    DATABASE = 203, "Database of Records"
-    VIEW = 204, "Graphical Interface"
-    FILE = 222, "File"
-    ROLE = 230, "Role to assign"
-    IDENTITY = 231, "Unique Identity"
+    # layout?
     # ...
 
     @property
-    def is_type(self) -> bool:
-        return self >= 100 and self < 200
-
-    @property
     def is_nested(self) -> bool:
-        return self >= 200 and self < 300
+        return self <= 10000
 
 
 BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)

@@ -1,22 +1,20 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.core import (
-    NAME_CONSTRAINT,
     TITLE_CONSTRAINT,
     BuiltinEnum,
     EnumType,
+    InlineSourceNode,
     LocalNodeList,
     Node,
     NodeReference,
     NodeType,
     PrimitiveType,
     Selection,
-    SourceNode,
     Struct,
     StructType,
     enum_,
     node_,
-    p_internal,
     p_node_children,
     p_node_parent,
     p_regular,
@@ -25,13 +23,11 @@ from bench.language.core import (
     subnode_,
 )
 from bench.pb2 import ViewData
-from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import (
         Block,
         Expression,
-        Icon,
         Message,
         Space,
         Text,
@@ -386,26 +382,21 @@ class RectangleConstraint(Struct):
 
 
 @node_(NodeType.VIEW, has_subtypes=True)
-class View(SourceNode[ViewData]):
+class View(InlineSourceNode[ViewData]):
     """A View is a graphical interface in a Bench."""
 
     parent: Union["Space", "View", "Block", None] = p_node_parent(
         4, NodeType.SPACE, NodeType.VIEW, NodeType.BLOCK
     )
 
-    # common
+    # meta
     type: ViewType = p_regular(30, require=True, primitive_type=PrimitiveType.INT32)
-    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
-    title: Optional[str] = p_regular(32, default=None, constraint=TITLE_CONSTRAINT)
-    order_key: str = p_internal(34, default=INTEGER_ZERO)
-    icon: Optional["Icon"] = p_regular(
-        35, default=None, require=False, array=False, struct=StructType.ICON
-    )
     subviews_packed: dict[str, Any] | None = p_value_packed(39)
 
     # content
+    title: Optional[str] = p_regular(40, default=None, constraint=TITLE_CONSTRAINT)
     value_type: Optional["Type"] = p_regular(
-        40, default=None, require=False, struct=StructType.TYPE
+        41, default=None, require=False, struct=StructType.TYPE
     )
     node: Optional["Node"] = p_regular(
         42, default=None, require=False, array=False, references="any"

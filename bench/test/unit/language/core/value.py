@@ -10,12 +10,12 @@ from bench.language import (
     Action,
     ActionType,
     Block,
-    BlockType,
     BuiltinObject,
     Class,
     Code,
     CreateAction,
     CustomObject,
+    Database,
     DuplicateAction,
     Field,
     FieldType,
@@ -197,7 +197,7 @@ def test_partial_node_with_nested_value_packed(session: Session, package: Packag
     assert obj.node_partial is None
 
     # set/get nested value
-    node_partial = Record.partial(block=Block.new(BlockType.DATABASE, "Database1"))
+    node_partial = Record.partial(database=Database.new("Database1"))
     obj.node_partial = node_partial
     assert obj.node_partial == node_partial
 

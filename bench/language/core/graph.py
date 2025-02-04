@@ -245,7 +245,8 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
             assert parent_id, f"{node!r} has no parent for {self!r}"
         else:
             del self._parent_by_node[cast(K, node.id)]
-        assert parent_id in self._nodes_by_parent, f"{node!r} has no parent in {self!r}"
+        if parent_id not in self._nodes_by_parent:
+            return  # we don't have this parent
         metatype = node.metatype
         assert metatype in self._nodes_by_parent[parent_id], f"{node!r} not in {self!r}"
         # node may be different instance, find by id

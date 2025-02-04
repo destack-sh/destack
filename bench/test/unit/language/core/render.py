@@ -190,10 +190,8 @@ def test_render_bad_names(session: Session, package: Package):
 
 @_render_test
 def test_render_choice_block(session: Session, package: Package):
-    ShapeType = Block.new(
-        BlockType.CHOICE,
-        "ShapeType",
-        fields=[Field.option("Circle"), Field.option("Square"), Field.option("Triangle")],
+    ShapeType = Choice.new(
+        "ShapeType", Field.option("Circle"), Field.option("Square"), Field.option("Triangle")
     )
     return {"ShapeType": ShapeType}
 

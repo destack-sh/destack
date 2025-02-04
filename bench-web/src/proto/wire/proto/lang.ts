@@ -4978,10 +4978,6 @@ export interface ChoiceData {
      */
     name: string;
     /**
-     * @generated from protobuf field: string order_key = 33;
-     */
-    orderKey: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.IconData icon = 34;
      */
     icon?: IconData;
@@ -4990,7 +4986,7 @@ export interface ChoiceData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData block_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 36;
      */
     blockPtr?: NodeReferenceData;
 }
@@ -5067,10 +5063,6 @@ export interface ClassData {
      */
     name: string;
     /**
-     * @generated from protobuf field: string order_key = 33;
-     */
-    orderKey: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.IconData icon = 34;
      */
     icon?: IconData;
@@ -5079,7 +5071,7 @@ export interface ClassData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData block_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 36;
      */
     blockPtr?: NodeReferenceData;
 }
@@ -5156,10 +5148,6 @@ export interface DatabaseData {
      */
     name: string;
     /**
-     * @generated from protobuf field: string order_key = 33;
-     */
-    orderKey: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.IconData icon = 34;
      */
     icon?: IconData;
@@ -5168,7 +5156,7 @@ export interface DatabaseData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData block_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 36;
      */
     blockPtr?: NodeReferenceData;
 }
@@ -5502,10 +5490,6 @@ export interface FlowData {
      */
     name: string;
     /**
-     * @generated from protobuf field: string order_key = 33;
-     */
-    orderKey: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.IconData icon = 34;
      */
     icon?: IconData;
@@ -5514,7 +5498,7 @@ export interface FlowData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData block_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 36;
      */
     blockPtr?: NodeReferenceData;
 }
@@ -5591,10 +5575,6 @@ export interface IdentityData {
      */
     name: string;
     /**
-     * @generated from protobuf field: string order_key = 33;
-     */
-    orderKey: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.IconData icon = 34;
      */
     icon?: IconData;
@@ -5603,7 +5583,7 @@ export interface IdentityData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData block_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 36;
      */
     blockPtr?: NodeReferenceData;
 }
@@ -5979,27 +5959,31 @@ export interface ViewData {
      */
     type: ViewType;
     /**
-     * @generated from protobuf field: string name = 31;
+     * @generated from protobuf field: string name = 32;
      */
     name: string;
     /**
-     * @generated from protobuf field: optional string title = 32;
-     */
-    title?: string;
-    /**
-     * @generated from protobuf field: string order_key = 34;
-     */
-    orderKey: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.IconData icon = 35;
+     * @generated from protobuf field: optional symbolx.bench.IconData icon = 34;
      */
     icon?: IconData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
+     */
+    text?: TextData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 36;
+     */
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional google.protobuf.Value subviews_packed = 39;
      */
     subviewsPacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TypeData value_type = 40;
+     * @generated from protobuf field: optional string title = 40;
+     */
+    title?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TypeData value_type = 41;
      */
     valueType?: TypeData;
     /**
@@ -6118,10 +6102,6 @@ export interface UserWizardViewData {
  * @generated from protobuf message symbolx.bench.ChatViewData
  */
 export interface ChatViewData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 100;
-     */
-    text?: TextData;
     /**
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData nodes_ptr = 101;
      */
@@ -6335,10 +6315,6 @@ export interface RoleData {
      */
     name: string;
     /**
-     * @generated from protobuf field: string order_key = 33;
-     */
-    orderKey: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.IconData icon = 34;
      */
     icon?: IconData;
@@ -6347,7 +6323,7 @@ export interface RoleData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData block_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 36;
      */
     blockPtr?: NodeReferenceData;
 }
@@ -10932,45 +10908,53 @@ export enum BlockType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_PARAGRAPH = 2;
+     * @generated from protobuf enum value: BLOCK_TYPE_PAGE = 5020;
      */
-    PARAGRAPH = 2,
+    PAGE = 5020,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_CHOICE = 100;
+     * @generated from protobuf enum value: BLOCK_TYPE_CHOICE = 5030;
      */
-    CHOICE = 100,
+    CHOICE = 5030,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_CLASS = 101;
+     * @generated from protobuf enum value: BLOCK_TYPE_CLASS = 5031;
      */
-    CLASS = 101,
+    CLASS = 5031,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_PAGE = 201;
+     * @generated from protobuf enum value: BLOCK_TYPE_FLOW = 5050;
      */
-    PAGE = 201,
+    FLOW = 5050,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_FLOW = 202;
+     * @generated from protobuf enum value: BLOCK_TYPE_ACTION = 5051;
      */
-    FLOW = 202,
+    ACTION = 5051,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_DATABASE = 203;
+     * @generated from protobuf enum value: BLOCK_TYPE_PIPE = 5052;
      */
-    DATABASE = 203,
+    PIPE = 5052,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_VIEW = 204;
+     * @generated from protobuf enum value: BLOCK_TYPE_TRIGGER = 5053;
      */
-    VIEW = 204,
+    TRIGGER = 5053,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_FILE = 222;
+     * @generated from protobuf enum value: BLOCK_TYPE_VIEW = 5080;
      */
-    FILE = 222,
+    VIEW = 5080,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_ROLE = 230;
+     * @generated from protobuf enum value: BLOCK_TYPE_DATABASE = 5090;
      */
-    ROLE = 230,
+    DATABASE = 5090,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_IDENTITY = 231;
+     * @generated from protobuf enum value: BLOCK_TYPE_ROLE = 5110;
      */
-    IDENTITY = 231
+    ROLE = 5110,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_IDENTITY = 5111;
+     */
+    IDENTITY = 5111,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_PARAGRAPH = 10000;
+     */
+    PARAGRAPH = 10000
 }
 /**
  * @generated from protobuf enum symbolx.bench.TextLineType
@@ -26195,7 +26179,6 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
             { no: 28, name: "computed_values", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ComputedValueData },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "text", kind: "message", T: () => TextData },
             { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData }
@@ -26209,7 +26192,6 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
         message.mode = 0;
         message.computedValues = [];
         message.name = "";
-        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<ChoiceData>(this, message, value);
         return message;
@@ -26270,16 +26252,13 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
                 case /* string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* string order_key */ 33:
-                    message.orderKey = reader.string();
-                    break;
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
                 case /* optional symbolx.bench.TextData text */ 35:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* symbolx.bench.NodeReferenceData block_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 36:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 default:
@@ -26345,16 +26324,13 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* string order_key = 33; */
-        if (message.orderKey !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 35; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData block_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 36; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
@@ -26388,7 +26364,6 @@ class ClassData$Type extends MessageType$<ClassData> {
             { no: 28, name: "computed_values", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ComputedValueData },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "text", kind: "message", T: () => TextData },
             { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData }
@@ -26402,7 +26377,6 @@ class ClassData$Type extends MessageType$<ClassData> {
         message.mode = 0;
         message.computedValues = [];
         message.name = "";
-        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<ClassData>(this, message, value);
         return message;
@@ -26463,16 +26437,13 @@ class ClassData$Type extends MessageType$<ClassData> {
                 case /* string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* string order_key */ 33:
-                    message.orderKey = reader.string();
-                    break;
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
                 case /* optional symbolx.bench.TextData text */ 35:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* symbolx.bench.NodeReferenceData block_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 36:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 default:
@@ -26538,16 +26509,13 @@ class ClassData$Type extends MessageType$<ClassData> {
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* string order_key = 33; */
-        if (message.orderKey !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 35; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData block_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 36; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
@@ -26581,7 +26549,6 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
             { no: 28, name: "computed_values", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ComputedValueData },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "text", kind: "message", T: () => TextData },
             { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData }
@@ -26595,7 +26562,6 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         message.mode = 0;
         message.computedValues = [];
         message.name = "";
-        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<DatabaseData>(this, message, value);
         return message;
@@ -26656,16 +26622,13 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
                 case /* string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* string order_key */ 33:
-                    message.orderKey = reader.string();
-                    break;
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
                 case /* optional symbolx.bench.TextData text */ 35:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* symbolx.bench.NodeReferenceData block_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 36:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 default:
@@ -26731,16 +26694,13 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* string order_key = 33; */
-        if (message.orderKey !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 35; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData block_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 36; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
@@ -27384,7 +27344,6 @@ class FlowData$Type extends MessageType$<FlowData> {
             { no: 28, name: "computed_values", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ComputedValueData },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "text", kind: "message", T: () => TextData },
             { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData }
@@ -27398,7 +27357,6 @@ class FlowData$Type extends MessageType$<FlowData> {
         message.mode = 0;
         message.computedValues = [];
         message.name = "";
-        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<FlowData>(this, message, value);
         return message;
@@ -27459,16 +27417,13 @@ class FlowData$Type extends MessageType$<FlowData> {
                 case /* string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* string order_key */ 33:
-                    message.orderKey = reader.string();
-                    break;
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
                 case /* optional symbolx.bench.TextData text */ 35:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* symbolx.bench.NodeReferenceData block_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 36:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 default:
@@ -27534,16 +27489,13 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* string order_key = 33; */
-        if (message.orderKey !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 35; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData block_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 36; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
@@ -27577,7 +27529,6 @@ class IdentityData$Type extends MessageType$<IdentityData> {
             { no: 28, name: "computed_values", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ComputedValueData },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "text", kind: "message", T: () => TextData },
             { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData }
@@ -27591,7 +27542,6 @@ class IdentityData$Type extends MessageType$<IdentityData> {
         message.mode = 0;
         message.computedValues = [];
         message.name = "";
-        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<IdentityData>(this, message, value);
         return message;
@@ -27652,16 +27602,13 @@ class IdentityData$Type extends MessageType$<IdentityData> {
                 case /* string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* string order_key */ 33:
-                    message.orderKey = reader.string();
-                    break;
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
                 case /* optional symbolx.bench.TextData text */ 35:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* symbolx.bench.NodeReferenceData block_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 36:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 default:
@@ -27727,16 +27674,13 @@ class IdentityData$Type extends MessageType$<IdentityData> {
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* string order_key = 33; */
-        if (message.orderKey !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 35; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData block_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 36; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
@@ -28419,12 +28363,13 @@ class ViewData$Type extends MessageType$<ViewData> {
             { no: 28, name: "computed_values", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ComputedValueData },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ViewType", ViewType, "VIEW_TYPE_"] },
-            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "icon", kind: "message", T: () => IconData },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 35, name: "text", kind: "message", T: () => TextData },
+            { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 39, name: "subviews_packed", kind: "message", T: () => Value },
-            { no: 40, name: "value_type", kind: "message", T: () => TypeData },
+            { no: 40, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 41, name: "value_type", kind: "message", T: () => TypeData },
             { no: 42, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 60, name: "position", kind: "message", T: () => OffsetData },
             { no: 61, name: "size", kind: "message", T: () => RectangleData },
@@ -28453,7 +28398,6 @@ class ViewData$Type extends MessageType$<ViewData> {
         message.computedValues = [];
         message.type = 0;
         message.name = "";
-        message.orderKey = "";
         message.isHidden = false;
         message.isDisabled = false;
         message.isInput = false;
@@ -28520,22 +28464,25 @@ class ViewData$Type extends MessageType$<ViewData> {
                 case /* symbolx.bench.ViewType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* string name */ 31:
+                case /* string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* optional string title */ 32:
-                    message.title = reader.string();
-                    break;
-                case /* string order_key */ 34:
-                    message.orderKey = reader.string();
-                    break;
-                case /* optional symbolx.bench.IconData icon */ 35:
+                case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional symbolx.bench.TextData text */ 35:
+                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 36:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional google.protobuf.Value subviews_packed */ 39:
                     message.subviewsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional symbolx.bench.TypeData value_type */ 40:
+                case /* optional string title */ 40:
+                    message.title = reader.string();
+                    break;
+                case /* optional symbolx.bench.TypeData value_type */ 41:
                     message.valueType = TypeData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData node_ptr */ 42:
@@ -28652,24 +28599,27 @@ class ViewData$Type extends MessageType$<ViewData> {
         /* symbolx.bench.ViewType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* string name = 31; */
+        /* string name = 32; */
         if (message.name !== "")
-            writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string title = 32; */
-        if (message.title !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.title);
-        /* string order_key = 34; */
-        if (message.orderKey !== "")
-            writer.tag(34, WireType.LengthDelimited).string(message.orderKey);
-        /* optional symbolx.bench.IconData icon = 35; */
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
+        /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
-            IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TextData text = 35; */
+        if (message.text)
+            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 36; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value subviews_packed = 39; */
         if (message.subviewsPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subviewsPacked), writer.tag(39, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TypeData value_type = 40; */
+        /* optional string title = 40; */
+        if (message.title !== undefined)
+            writer.tag(40, WireType.LengthDelimited).string(message.title);
+        /* optional symbolx.bench.TypeData value_type = 41; */
         if (message.valueType)
-            TypeData.internalBinaryWrite(message.valueType, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+            TypeData.internalBinaryWrite(message.valueType, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData node_ptr = 42; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
@@ -28889,7 +28839,6 @@ export const UserWizardViewData = new UserWizardViewData$Type();
 class ChatViewData$Type extends MessageType$<ChatViewData> {
     constructor() {
         super("symbolx.bench.ChatViewData", [
-            { no: 100, name: "text", kind: "message", T: () => TextData },
             { no: 101, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 102, name: "reply_to_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
@@ -28906,9 +28855,6 @@ class ChatViewData$Type extends MessageType$<ChatViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional symbolx.bench.TextData text */ 100:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
                 case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 101:
                     message.nodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
@@ -28927,9 +28873,6 @@ class ChatViewData$Type extends MessageType$<ChatViewData> {
         return message;
     }
     internalBinaryWrite(message: ChatViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.TextData text = 100; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 101; */
         for (let i = 0; i < message.nodesPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(101, WireType.LengthDelimited).fork(), options).join();
@@ -29449,7 +29392,6 @@ class RoleData$Type extends MessageType$<RoleData> {
             { no: 28, name: "computed_values", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ComputedValueData },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "text", kind: "message", T: () => TextData },
             { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData }
@@ -29463,7 +29405,6 @@ class RoleData$Type extends MessageType$<RoleData> {
         message.mode = 0;
         message.computedValues = [];
         message.name = "";
-        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<RoleData>(this, message, value);
         return message;
@@ -29524,16 +29465,13 @@ class RoleData$Type extends MessageType$<RoleData> {
                 case /* string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* string order_key */ 33:
-                    message.orderKey = reader.string();
-                    break;
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
                 case /* optional symbolx.bench.TextData text */ 35:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* symbolx.bench.NodeReferenceData block_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 36:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 default:
@@ -29599,16 +29537,13 @@ class RoleData$Type extends MessageType$<RoleData> {
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* string order_key = 33; */
-        if (message.orderKey !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 35; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData block_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 36; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
@@ -32694,7 +32629,6 @@ export enum ChoiceProperty {
   computedValues = 28,
   subnodePacked = 29,
   name = 32,
-  orderKey = 33,
   icon = 34,
   text = 35,
   blockPtr = 36,
@@ -32718,7 +32652,6 @@ export enum ClassProperty {
   computedValues = 28,
   subnodePacked = 29,
   name = 32,
-  orderKey = 33,
   icon = 34,
   text = 35,
   blockPtr = 36,
@@ -32780,7 +32713,6 @@ export enum FlowProperty {
   computedValues = 28,
   subnodePacked = 29,
   name = 32,
-  orderKey = 33,
   icon = 34,
   text = 35,
   blockPtr = 36,
@@ -32897,12 +32829,13 @@ export enum ViewProperty {
   computedValues = 28,
   subnodePacked = 29,
   type = 30,
-  name = 31,
-  title = 32,
-  orderKey = 34,
-  icon = 35,
+  name = 32,
+  icon = 34,
+  text = 35,
+  blockPtr = 36,
   subviewsPacked = 39,
-  valueType = 40,
+  title = 40,
+  valueType = 41,
   nodePtr = 42,
   position = 60,
   size = 61,
@@ -32940,7 +32873,6 @@ export enum DatabaseProperty {
   computedValues = 28,
   subnodePacked = 29,
   name = 32,
-  orderKey = 33,
   icon = 34,
   text = 35,
   blockPtr = 36,
@@ -32988,7 +32920,6 @@ export enum RoleProperty {
   computedValues = 28,
   subnodePacked = 29,
   name = 32,
-  orderKey = 33,
   icon = 34,
   text = 35,
   blockPtr = 36,
@@ -33012,7 +32943,6 @@ export enum IdentityProperty {
   computedValues = 28,
   subnodePacked = 29,
   name = 32,
-  orderKey = 33,
   icon = 34,
   text = 35,
   blockPtr = 36,
@@ -33562,7 +33492,6 @@ export enum UserWizardViewProperty {
 }
 
 export enum ChatViewProperty {
-  text = 100,
   nodesPtr = 101,
   replyToPtr = 102,
 }
@@ -35017,10 +34946,9 @@ export const ChoiceDataInfo: Record<ChoiceProperty, PropertyInfo> = {
   [ChoiceProperty.computedValues]: { id: 28, name: 'computed_values', component: ObjectType.CHOICE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COMPUTED_VALUE },
   [ChoiceProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ChoiceProperty.name]: { id: 32, name: 'name', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ChoiceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChoiceProperty.icon]: { id: 34, name: 'icon', component: ObjectType.CHOICE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ChoiceProperty.text]: { id: 35, name: 'text', component: ObjectType.CHOICE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ChoiceProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.CHOICE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ChoiceProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.CHOICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ClassDataInfo: Record<ClassProperty, PropertyInfo> = {
   [ClassProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CLASS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35040,10 +34968,9 @@ export const ClassDataInfo: Record<ClassProperty, PropertyInfo> = {
   [ClassProperty.computedValues]: { id: 28, name: 'computed_values', component: ObjectType.CLASS, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COMPUTED_VALUE },
   [ClassProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.CLASS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ClassProperty.name]: { id: 32, name: 'name', component: ObjectType.CLASS, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ClassProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CLASS, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ClassProperty.icon]: { id: 34, name: 'icon', component: ObjectType.CLASS, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ClassProperty.text]: { id: 35, name: 'text', component: ObjectType.CLASS, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ClassProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.CLASS, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ClassProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.CLASS, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FIELD, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35100,10 +35027,9 @@ export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.computedValues]: { id: 28, name: 'computed_values', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COMPUTED_VALUE },
   [FlowProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [FlowProperty.name]: { id: 32, name: 'name', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FlowProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FlowProperty.text]: { id: 35, name: 'text', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [FlowProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.FLOW, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [FlowProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35213,12 +35139,13 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.computedValues]: { id: 28, name: 'computed_values', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COMPUTED_VALUE },
   [ViewProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ViewProperty.type]: { id: 30, name: 'type', component: ObjectType.VIEW, enumType: EnumType.VIEW_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.name]: { id: 31, name: 'name', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.title]: { id: 32, name: 'title', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.orderKey]: { id: 34, name: 'order_key', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.icon]: { id: 35, name: 'icon', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [ViewProperty.name]: { id: 32, name: 'name', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [ViewProperty.text]: { id: 35, name: 'text', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [ViewProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ViewProperty.subviewsPacked]: { id: 39, name: 'subviews_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [ViewProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE },
+  [ViewProperty.title]: { id: 40, name: 'title', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.valueType]: { id: 41, name: 'value_type', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE },
   [ViewProperty.nodePtr]: { id: 42, name: 'node_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [ViewProperty.position]: { id: 60, name: 'position', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
   [ViewProperty.size]: { id: 61, name: 'size', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RECTANGLE },
@@ -35255,10 +35182,9 @@ export const DatabaseDataInfo: Record<DatabaseProperty, PropertyInfo> = {
   [DatabaseProperty.computedValues]: { id: 28, name: 'computed_values', component: ObjectType.DATABASE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COMPUTED_VALUE },
   [DatabaseProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [DatabaseProperty.name]: { id: 32, name: 'name', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [DatabaseProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.icon]: { id: 34, name: 'icon', component: ObjectType.DATABASE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [DatabaseProperty.text]: { id: 35, name: 'text', component: ObjectType.DATABASE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [DatabaseProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.DATABASE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [DatabaseProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.DATABASE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ChannelDataInfo: Record<ChannelProperty, PropertyInfo> = {
   [ChannelProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CHANNEL, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35301,10 +35227,9 @@ export const RoleDataInfo: Record<RoleProperty, PropertyInfo> = {
   [RoleProperty.computedValues]: { id: 28, name: 'computed_values', component: ObjectType.ROLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COMPUTED_VALUE },
   [RoleProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RoleProperty.name]: { id: 32, name: 'name', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RoleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RoleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.ROLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [RoleProperty.text]: { id: 35, name: 'text', component: ObjectType.ROLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [RoleProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.ROLE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [RoleProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.ROLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const IdentityDataInfo: Record<IdentityProperty, PropertyInfo> = {
   [IdentityProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.IDENTITY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35324,10 +35249,9 @@ export const IdentityDataInfo: Record<IdentityProperty, PropertyInfo> = {
   [IdentityProperty.computedValues]: { id: 28, name: 'computed_values', component: ObjectType.IDENTITY, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COMPUTED_VALUE },
   [IdentityProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [IdentityProperty.name]: { id: 32, name: 'name', component: ObjectType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [IdentityProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [IdentityProperty.icon]: { id: 34, name: 'icon', component: ObjectType.IDENTITY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [IdentityProperty.text]: { id: 35, name: 'text', component: ObjectType.IDENTITY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [IdentityProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.IDENTITY, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [IdentityProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.IDENTITY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SPACE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35419,7 +35343,7 @@ export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.icon]: { id: 34, name: 'icon', component: ObjectType.RECORD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [RecordProperty.text]: { id: 35, name: 'text', component: ObjectType.RECORD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [RecordProperty.databasePtr]: { id: 36, name: 'database_ptr', component: ObjectType.RECORD, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [203] }, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [RecordProperty.databasePtr]: { id: 36, name: 'database_ptr', component: ObjectType.RECORD, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [5090] }, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [RecordProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const SessionDataInfo: Record<SessionProperty, PropertyInfo> = {
@@ -35819,7 +35743,6 @@ export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo
   [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, componentSubtype: 30001, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const ChatViewDataInfo: Record<ChatViewProperty, PropertyInfo> = {
-  [ChatViewProperty.text]: { id: 100, name: 'text', component: ObjectType.VIEW, componentSubtype: 30202, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ChatViewProperty.nodesPtr]: { id: 101, name: 'nodes_ptr', component: ObjectType.VIEW, componentSubtype: 30202, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [ChatViewProperty.replyToPtr]: { id: 102, name: 'reply_to_ptr', component: ObjectType.VIEW, componentSubtype: 30202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
@@ -35978,7 +35901,7 @@ export const SubjectDataInfo: Record<SubjectProperty, PropertyInfo> = {
   [SubjectProperty.clientPtr]: { id: 40, name: 'client_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.userPtr]: { id: 41, name: 'user_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.machinePtr]: { id: 43, name: 'machine_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.identityPtr]: { id: 50, name: 'identity_ptr', component: ObjectType.SUBJECT, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [231] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.identityPtr]: { id: 50, name: 'identity_ptr', component: ObjectType.SUBJECT, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [5111] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.ownedPtr]: { id: 52, name: 'owned_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.membershipsPtr]: { id: 53, name: 'memberships_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },
 }
@@ -36572,16 +36495,18 @@ export type EnumOptionInfo = {
 }
 
 export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
-  [BlockType.PARAGRAPH]: { id: 2, name: 'PARAGRAPH', text: 'Line of rich Text' },
-  [BlockType.CHOICE]: { id: 100, name: 'CHOICE', text: 'Choice of Field options' },
-  [BlockType.CLASS]: { id: 101, name: 'CLASS', text: 'Class of Fields' },
-  [BlockType.PAGE]: { id: 201, name: 'PAGE', text: 'Page of Blocks' },
-  [BlockType.FLOW]: { id: 202, name: 'FLOW', text: 'Flow of connected Actions' },
-  [BlockType.DATABASE]: { id: 203, name: 'DATABASE', text: 'Database of Records' },
-  [BlockType.VIEW]: { id: 204, name: 'VIEW', text: 'Graphical Interface' },
-  [BlockType.FILE]: { id: 222, name: 'FILE', text: 'File' },
-  [BlockType.ROLE]: { id: 230, name: 'ROLE', text: 'Role to assign' },
-  [BlockType.IDENTITY]: { id: 231, name: 'IDENTITY', text: 'Unique Identity' },
+  [BlockType.PAGE]: { id: 5020, name: 'PAGE', text: 'Page of Blocks' },
+  [BlockType.CHOICE]: { id: 5030, name: 'CHOICE', text: 'Choice of Field options' },
+  [BlockType.CLASS]: { id: 5031, name: 'CLASS', text: 'Class of Fields' },
+  [BlockType.FLOW]: { id: 5050, name: 'FLOW', text: 'Flow of connected Actions' },
+  [BlockType.ACTION]: { id: 5051, name: 'ACTION', text: 'Action in a Flow' },
+  [BlockType.PIPE]: { id: 5052, name: 'PIPE', text: 'Pipe between Actions' },
+  [BlockType.TRIGGER]: { id: 5053, name: 'TRIGGER', text: 'Trigger for a Flow' },
+  [BlockType.VIEW]: { id: 5080, name: 'VIEW', text: 'Graphical Interface' },
+  [BlockType.DATABASE]: { id: 5090, name: 'DATABASE', text: 'Database of Records' },
+  [BlockType.ROLE]: { id: 5110, name: 'ROLE', text: 'Role to assign' },
+  [BlockType.IDENTITY]: { id: 5111, name: 'IDENTITY', text: 'Unique Identity' },
+  [BlockType.PARAGRAPH]: { id: 10000, name: 'PARAGRAPH', text: 'Line of rich Text' },
 }
 
 export const TriggerEffectOptionInfo: Partial<Record<TriggerEffect, EnumOptionInfo>> = {

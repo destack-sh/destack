@@ -37,7 +37,6 @@ from bench.language.registry import (
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.env import IS_DEV
-from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import dualmethod, stable_hash
 from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
@@ -1154,7 +1153,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         """Move this Node to a new parent."""
         to.append(self, move=True)
 
-    def append(self, child: "Node", move: bool = False):
+    def append[T: Node](self, child: T, move: bool = False) -> T:
         """Append a Node as a child of this Node."""
         child_prop = self.get_child_property(child.metatype)
         if child_prop is not None:
@@ -1183,21 +1182,26 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             attach_node(child, self, move=move, graph=graph)
         else:
             raise ValueError(f"cannot append {child!r} to {self!r}")
+        return child
 
     def extend(self, *children: "Node", move: bool = False):
         """Append multiple Nodes as children of this Node."""
         for child in children:
             self.append(child, move=move)
 
-    def _move_to_graph(self, graph: NodeGraph, force: bool = False):
+    def _move_to_graph(self, graph: NodeGraph):
         """Moves this Node and its descendants to a new graph."""
         moved = self._graph.get_descendants(self, recursive=True)  # type: ignore
         moved = (self, *moved)
         for n in moved:
-            if force and graph.get(n.id) is not None:
+            # add/update in new graph
+            if n.id in graph._nodes_by_id:
                 graph.update(n)
             else:
                 graph.add(n)
+            # remove from old graph
+            if n._graph is not graph and n.id in n._graph._nodes_by_id:
+                n._graph.remove(n)
             n._graph = graph
         return moved
 
@@ -1554,7 +1558,6 @@ class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
 
     # content
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.ICON
     )
@@ -1563,11 +1566,23 @@ class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
     )
     block: "Block | None" = p_regular(
         36,
-        require=True,
+        require=False,
         array=False,
         references=NodeType.BLOCK,
-        description="The Block where this SourceNode is defined.",
+        description="The Block where this Node is 'defined'.",
     )
+    if TYPE_CHECKING:
+        block_id: Optional[UUID] = None
+        block_ck: Optional[UUID] = None
+        block_ptr: Optional[NodeReference] = None
+
+    def to_block(self) -> "Block":
+        """Wrap this Node in a *new* Block."""
+        from bench.language import Block, BlockType
+
+        block_type = BlockType(self.metatype)
+        block = Block.new(block_type, node=self)
+        return block
 
 
 @node_component_()

@@ -8,6 +8,7 @@ from bench.language import (
     ActionType,
     Bench,
     BlockType,
+    Choice,
     Context,
     Field,
     Flow,
@@ -288,9 +289,9 @@ def test_path_shadowed_node(session: Session, mock_package: Package):
     page3 = package.pages.create(name="Page3")
     choice31 = page3.blocks.create(name="Choice31", type=BlockType.CHOICE)
     flow33 = page3.append(Flow.new("Flow33"))
-    choice331 = flow33.blocks.create(name="Choice331", type=BlockType.CHOICE)
-    code332 = flow33.actions.create(name="Code332", type=ActionType.CODE)
-    code332_output3 = code332.fields.append(Field.output("Choice31", choice31.choice))
+    choice331 = flow33.append(Choice.new("Choice331"))
+    code332 = flow33.append(Action.new(ActionType.CODE, "Code332"))
+    code332_output3 = code332.fields.append(Field.output("Choice31", choice31.node_as(Choice)))
 
     assert get_node(code332, context, "^Choice331") is choice331  # sibling before descendants
     assert (
@@ -304,7 +305,8 @@ def test_path_evaluate_attribute(session: Session, mock_package: Package):
         name="Page1",
         run_options=RunOptions(max_attempts=2, text_options=TextOptions(temperature=0.5)),
     )
-    flow1 = page1.append(Flow.new("Flow1"))
+    flow1 = Flow.new("Flow1")
+    page1.append(flow1)
     action1 = flow1.actions.create(  # noqa: F841
         name="Action1",
         type=ActionType.CODE,

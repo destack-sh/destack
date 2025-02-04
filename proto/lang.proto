@@ -1048,16 +1048,18 @@ enum TypeFormat {
 
 enum BlockType {
   BLOCK_TYPE_UNSPECIFIED = 0;
-  BLOCK_TYPE_PARAGRAPH = 2;
-  BLOCK_TYPE_CHOICE = 100;
-  BLOCK_TYPE_CLASS = 101;
-  BLOCK_TYPE_PAGE = 201;
-  BLOCK_TYPE_FLOW = 202;
-  BLOCK_TYPE_DATABASE = 203;
-  BLOCK_TYPE_VIEW = 204;
-  BLOCK_TYPE_FILE = 222;
-  BLOCK_TYPE_ROLE = 230;
-  BLOCK_TYPE_IDENTITY = 231;
+  BLOCK_TYPE_PAGE = 5020;
+  BLOCK_TYPE_CHOICE = 5030;
+  BLOCK_TYPE_CLASS = 5031;
+  BLOCK_TYPE_FLOW = 5050;
+  BLOCK_TYPE_ACTION = 5051;
+  BLOCK_TYPE_PIPE = 5052;
+  BLOCK_TYPE_TRIGGER = 5053;
+  BLOCK_TYPE_VIEW = 5080;
+  BLOCK_TYPE_DATABASE = 5090;
+  BLOCK_TYPE_ROLE = 5110;
+  BLOCK_TYPE_IDENTITY = 5111;
+  BLOCK_TYPE_PARAGRAPH = 10000;
 }
 
 enum TextLineType {
@@ -3360,10 +3362,9 @@ message ChoiceData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
-  string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
-  NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData block_ptr = 36;
 }
 
 message ClassData {
@@ -3384,10 +3385,9 @@ message ClassData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
-  string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
-  NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData block_ptr = 36;
 }
 
 message DatabaseData {
@@ -3408,10 +3408,9 @@ message DatabaseData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
-  string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
-  NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData block_ptr = 36;
 }
 
 message DependencyData {
@@ -3511,10 +3510,9 @@ message FlowData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
-  string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
-  NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData block_ptr = 36;
 }
 
 message IdentityData {
@@ -3535,10 +3533,9 @@ message IdentityData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
-  string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
-  NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData block_ptr = 36;
 }
 
 message PackageData {
@@ -3642,12 +3639,13 @@ message ViewData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   ViewType type = 30;
-  string name = 31;
-  optional string title = 32;
-  string order_key = 34;
-  optional IconData icon = 35;
+  string name = 32;
+  optional IconData icon = 34;
+  optional TextData text = 35;
+  optional NodeReferenceData block_ptr = 36;
   optional google.protobuf.Value subviews_packed = 39;
-  optional TypeData value_type = 40;
+  optional string title = 40;
+  optional TypeData value_type = 41;
   optional NodeReferenceData node_ptr = 42;
   optional OffsetData position = 60;
   optional RectangleData size = 61;
@@ -3686,7 +3684,6 @@ message UserWizardViewData {
 
 // A View is a graphical interface in a Bench.
 message ChatViewData {
-  optional TextData text = 100;
   repeated NodeReferenceData nodes_ptr = 101;
   optional NodeReferenceData reply_to_ptr = 102;
 }
@@ -3762,10 +3759,9 @@ message RoleData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
-  string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
-  NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData block_ptr = 36;
 }
 
 message SpaceData {
