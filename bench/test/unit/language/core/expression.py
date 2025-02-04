@@ -1,8 +1,7 @@
 from bench.language import (
     Action,
     ActionType,
-    Block,
-    BlockType,
+    Choice,
     Expression,
     Field,
     Package,
@@ -14,6 +13,7 @@ from bench.language import (
     code,
     evaluate_conditional,
 )
+from bench.language.source.database import Database
 from bench.runtime.core import create_run_from_node
 
 # NOTE :Test: generate expressions to test with hypothesis
@@ -44,11 +44,11 @@ def test_evaluate_conditional_property_stringy(session: Session):
 
 def test_evaluate_conditional_property_node(session: Session, package: Package):
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
-    page = package.blocks.append(Block.new(BlockType.PAGE, "Page"))
-    page.actions.append(Code1)
+    Page1 = package.pages.create(name="Page1")
+    Page1.append(Code1)
     Run1 = create_run_from_node(Code1, isolate=True)
 
-    cond = Run.get_property("block").is_equal(page)
+    cond = Run.get_property("action").is_equal(Code1)
     assert evaluate_conditional(cond, Run1) is True
 
 
@@ -89,24 +89,18 @@ def test_evaluate_sort_property_stringy(session: Session):
 
 
 def test_evaluate_conditional_field(session: Session, package: Package):
-    Choice1 = Block.new(
-        BlockType.CHOICE,
+    Choice1 = Choice.new(
         "Choice1",
-        fields=(
-            Field.option("Option1"),
-            Field.option("Option2"),
-            Field.option("Option3"),
-            Field.option("Option4"),
-        ),
+        Field.option("Option1"),
+        Field.option("Option2"),
+        Field.option("Option3"),
+        Field.option("Option4"),
     )
-    Database1 = Block.new(
-        BlockType.DATABASE,
+    Database1 = Database.new(
         "Database1",
-        fields=(
-            Field.member("Rating", int),
-            Field.member("Name", str),
-            Field.member("Choice", Choice1),
-        ),
+        Field.member("Rating", int),
+        Field.member("Name", str),
+        Field.member("Choice", Choice1),
     )
     Record1 = Database1.records.create(Rating=1, Name="Alice", Choice=Choice1.fields.Option1)
     Record2 = Database1.records.create(Rating=2, Name="Bob", Choice=Choice1.fields.Option2)

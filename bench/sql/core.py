@@ -13,7 +13,7 @@ from bench.language import ConditionalType, IndexIn, PrimitiveType, SortType
 from bench.utils.func import stable_hash
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field
+    from bench.language import Database, Field
 
 
 @dataclass(slots=True)
@@ -506,7 +506,7 @@ class Table(TableObject):
     indexes: tuple[Index, ...] = ()
     constraints: tuple[Constraint, ...] = ()
     _source: str | int | None = None
-    _block: Union["Block", None] = None  # type: ignore
+    _database: Union["Database", None] = None  # type: ignore
     _columns_by_name: dict[str, Column] = dataclasses.field(init=False)
     _columns_by_field: dict["Field", Column] = dataclasses.field(init=False)
     _primary_key: Column | None = dataclasses.field(init=False)

@@ -1,20 +1,23 @@
 from more_itertools import first
 
 from bench.language import (
+    ENUM_CLASS_BY_TYPE,
     NODE_TYPES,
     PY_TYPE_BY_PRIMITIVE_TYPE,
+    STRUCT_CLASS_BY_TYPE,
     UNSET,
     Action,
     ActionType,
     Aliasing,
-    Block,
     BlockType,
+    BuiltinEnum,
     BuiltinObject,
     CustomObject,
     FieldType,
     File,
     HasContext,
     Node,
+    Page,
     PipeType,
     Projection,
     ProjectOptions,
@@ -30,9 +33,6 @@ from bench.language import (
     TypeBase,
     _is_setup_complete,
 )
-from bench.language.core import BuiltinEnum
-from bench.language.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
-from bench.language.source.project import get_containing_pages
 from bench.runtime.core import Runner
 
 from .prompt import (
@@ -114,11 +114,11 @@ User.name == "John" -> conditional Expression, Record.name.asc() -> sort Express
 Expressions can be combined with the usual operators (&, |, ~, ...).
 
 4. Databases
-DatabaseBlocks are Blocks representing real Postgres tables in the per-Bench Database,
+Databases are Blocks representing real Postgres tables in the per-Bench Database,
  with Record properties and Block Fields mapping to Postgres columns.
 
 5. Flows 
-FlowBlocks comprise Actions connected by Pipes. Flows are how things actually *happen* in a Bench. 
+Flows comprise Actions connected by Pipes. Flows are how things actually *happen* in a Bench. 
 When an Action in a Flow completes, it runs all CALL Pipes at least once, and then their connected Actions.
 Other behavior is determined by the CallPlans returned by the outgoing Action.
  - CALL is automatically called at least once, but you MAY specify arguments.
@@ -436,7 +436,7 @@ def make_chat_prompt(
         )
 
     # flow
-    if (flow := action.page) is not None and flow.type == BlockType.FLOW:
+    if (flow := action.flow) is not None:
         from bench.runtime.flow import FlowRunner
 
         connected_actions = [
@@ -583,18 +583,12 @@ outputs: CustomObject
     # NOTE: organize context (source & other nodes)
     context_parts: list[PromptPart] = []
     # source
-    source_blocks: set[Block] = set()
+    source_pages: set[Page] = set()
     for run in seen_runs:
-        if (block := run.block) is not None:
-            source_blocks.add(block)
-            context_parts.append(PromptNodes(title=None, weight=1, nodes=[block]))
-            if block.type == BlockType.FLOW:
-                context_parts.append(
-                    PromptNodes(title=None, weight=1, nodes=[*block.actions, *block.pipes])
-                )
+        if (page := run.page) is not None:
+            source_pages.add(page)
     # containing pages
-    source_pages = get_containing_pages(*source_blocks, include_self=True)
-    source_blocks.difference_update(source_pages)  # remove pages
+    source_pages.difference_update(source_pages)  # remove pages
     for page in source_pages:
         projection.collect_node(page, depth=10)
         context_parts.append(PromptNodes(title=None, weight=1, nodes=[page, *page.blocks]))

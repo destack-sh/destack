@@ -85,4 +85,4 @@ class Record(StateNode[RecordData], HasNodeBase):
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return cast(RecordData, data).block_ptr
+        return cast(RecordData, data).database_ptr

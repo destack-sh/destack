@@ -1,44 +1,29 @@
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
-    NAME_CONSTRAINT,
+    InlineSourceNode,
     LocalNodeList,
     NodeType,
-    SourceNode,
-    StructType,
     TypeBase,
     TypeKind,
     node_,
-    p_internal,
     p_node_children,
     p_node_parent,
-    p_regular,
 )
-from bench.pb2 import BlockData
-from bench.utils.fractional import INTEGER_ZERO
+from bench.pb2.lang_pb2 import ChoiceData
 
 if TYPE_CHECKING:
-    from bench.language import Field, Icon, Page, Text
+    from bench.language import Field, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @node_(NodeType.CHOICE, passthrough_get=("fields",))
-class Choice(SourceNode[BlockData]):
+class Choice(InlineSourceNode[ChoiceData]):
     """A Choice of Fields."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
-
-    # content
-    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
-    icon: Optional["Icon"] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.ICON
-    )
-    text: Optional["Text"] = p_regular(
-        35, default=None, require=False, array=False, struct=StructType.TEXT
-    )
 
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
 
@@ -59,5 +44,8 @@ class Choice(SourceNode[BlockData]):
         return self.to_type()
 
     @staticmethod
-    def new(name: str, **kwargs) -> "Choice":
-        return Choice(name=name, **kwargs)
+    def new(name: str, *fields: "Field", **kwargs) -> "Choice":
+        choice = Choice(name=name, **kwargs)
+        for field in fields:
+            choice.fields.append(field)
+        return choice

@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.04.2"
+VERSION = "2025.02.04.4"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -525,13 +525,16 @@ class NodeType(BuiltinEnum):
     # messaging
     CHANNEL = 5100
     # auth
-    # ROLE/IDENTITY? BADGE? POLICY? (POLICY_)RULE?
+    ROLE = 5110
+    IDENTITY = 5111
+    # BADGE? POLICY? (POLICY_)RULE?
     SPACE = 5200
 
     # state
     THREAD = 5501  # (timed)
     MESSAGE = 5502  # (based, timed)
     RECORD = 5510  # (based)
+    # POLL?
     # REACTION?
 
     # runtime

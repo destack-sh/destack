@@ -24,7 +24,7 @@ from bench.pb2 import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Dependency, Icon, Space, Text
+    from bench.language import Bench, Channel, Dependency, Icon, Page, Space, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -52,7 +52,8 @@ class Package(SourceNode[PackageData]):
         40, require=False, array=False, references=NodeType.PACKAGE, fk=True, same_bench=True
     )
 
-    blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
+    pages: LocalNodeList["Page"] = p_node_children(NodeType.PAGE)
+    channels: LocalNodeList["Channel"] = p_node_children(NodeType.CHANNEL)
     spaces: LocalNodeList["Space"] = p_node_children(NodeType.SPACE)
     dependencies: LocalNodeList["Dependency"] = p_node_children(NodeType.DEPENDENCY)
 
@@ -85,7 +86,8 @@ class Package(SourceNode[PackageData]):
 
     def __content_str__(self):
         parts = [
-            f"blocks={len(self.blocks)}",
+            f"pages={len(self.pages)}",
+            f"channels={len(self.channels)}",
             f"spaces={len(self.spaces)}",
             f"dependencies={len(self.dependencies)}",
         ]

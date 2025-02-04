@@ -10,7 +10,7 @@ from bench.language import (
     BlockType,
     Context,
     Field,
-    FlowBlock,
+    Flow,
     ModelFamily,
     Package,
     PackageType,
@@ -157,16 +157,16 @@ def mock_package_populated(session: Session):
     side_package = bench.packages.create(type=PackageType.SIDE, name="Side", slug="side")  # noqa: F841
 
     # page nodes
-    page1 = package.blocks.create(name="Page1", type=BlockType.PAGE)
-    page2 = package.blocks.create(name="Page2", type=BlockType.PAGE)
-    page11 = page1.blocks.create(name="Page11", type=BlockType.PAGE)
-    page21 = page2.blocks.create(name="Page21", type=BlockType.PAGE)
-    flow111 = cast(FlowBlock, page11.blocks.create(name="Flow111", type=BlockType.FLOW))
+    page1 = package.pages.create(name="Page1")
+    page2 = package.pages.create(name="Page2")
+    page11 = page1.pages.create(name="Page11")
+    page21 = page2.pages.create(name="Page21")
+    flow111 = cast(Flow, page11.blocks.create(name="Flow111", type=BlockType.FLOW))
     action1111 = flow111.actions.append(Action.new(ActionType.START, "Action1111"))  # noqa: F841
     field1111 = flow111.fields.append(Field.input("Field1111", bool))  # noqa: F841
     action1112 = flow111.actions.append(Action.new(ActionType.START, "Action1112"))
     action11121 = action1112.actions.append(Action.new(ActionType.START, "Action11121"))  # noqa: F841
-    flow211 = cast(FlowBlock, page21.blocks.create(name="Flow211", type=BlockType.FLOW))
+    flow211 = cast(Flow, page21.blocks.create(name="Flow211", type=BlockType.FLOW))
     action2111 = flow211.actions.append(Action.new(ActionType.START, "Action2111"))  # noqa: F841
     action2112 = flow211.actions.append(Action.new(ActionType.START, "Action2112"))  # noqa: F841
     action2112_t_st = flow211.actions.append(Action.new(ActionType.START, "Action2112 TÖST"))  # noqa: F841
@@ -285,13 +285,12 @@ def test_path_shadowed_node(session: Session, mock_package: Package):
     package = mock_package
     context = Context()
     # shadowing nodes
-    page3 = package.blocks.create(name="Page3", type=BlockType.PAGE)
+    page3 = package.pages.create(name="Page3")
     choice31 = page3.blocks.create(name="Choice31", type=BlockType.CHOICE)
-    page33 = package.blocks.create(name="Page33", type=BlockType.PAGE)
-    choice331 = page33.blocks.create(name="Choice331", type=BlockType.CHOICE)
-    code332 = page33.actions.create(name="Code332", type=ActionType.CODE)
-    code332_output1 = code332.fields.append(Field.output("Choice331", choice331))  # noqa: F841
-    code332_output3 = code332.fields.append(Field.output("Choice31", choice31))
+    flow33 = page3.append(Flow.new("Flow33"))
+    choice331 = flow33.blocks.create(name="Choice331", type=BlockType.CHOICE)
+    code332 = flow33.actions.create(name="Code332", type=ActionType.CODE)
+    code332_output3 = code332.fields.append(Field.output("Choice31", choice31.choice))
 
     assert get_node(code332, context, "^Choice331") is choice331  # sibling before descendants
     assert (
@@ -301,12 +300,12 @@ def test_path_shadowed_node(session: Session, mock_package: Package):
 
 def test_path_evaluate_attribute(session: Session, mock_package: Package):
     """Evaluate nested path Attributes on a Node."""
-    page1 = mock_package.blocks.create(
+    page1 = mock_package.pages.create(
         name="Page1",
-        type=BlockType.FLOW,
         run_options=RunOptions(max_attempts=2, text_options=TextOptions(temperature=0.5)),
     )
-    action1 = page1.actions.create(  # noqa: F841
+    flow1 = page1.append(Flow.new("Flow1"))
+    action1 = flow1.actions.create(  # noqa: F841
         name="Action1",
         type=ActionType.CODE,
         run_options=RunOptions(
@@ -316,7 +315,7 @@ def test_path_evaluate_attribute(session: Session, mock_package: Package):
 
     # relative to scope
     p = path(
-        FlowBlock.get_property("run_options"),
+        Flow.get_property("run_options"),
         RunOptions.get_property("text_options"),
         TextOptions.get_property("temperature"),
     )
@@ -325,7 +324,7 @@ def test_path_evaluate_attribute(session: Session, mock_package: Package):
     # absolute node path
     p = path(
         page1,
-        FlowBlock.get_property("run_options"),
+        Flow.get_property("run_options"),
         RunOptions.get_property("text_options"),
         TextOptions.get_property("temperature"),
     )

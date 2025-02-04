@@ -4,10 +4,11 @@ from bench.language import (
     Action,
     ActionType,
     Block,
-    BlockType,
+    Choice,
     Code,
     ErrorType,
     Field,
+    Flow,
     Node,
     RunOptions,
     RunStatus,
@@ -24,12 +25,14 @@ from bench.test.unit.conftest import simulated_runtime
 @simulated_runtime()
 async def test_run_code_empty(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Empty Code with optional input/output Fields should work."""
+    Flow1 = Flow.new("Flow1")
     Code1 = Action.new(
         ActionType.CODE,
         "Code1",
         fields=(Field.input("Input1", int), Field.output("Output1", int)),
     )
-    runtime.page().actions.append(Code1)
+    Flow1.actions.append(Code1)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Code1, return_error=True)
@@ -39,8 +42,10 @@ async def test_run_code_empty(simulation: Simulation, runtime: RuntimeLambdaWork
 @simulated_runtime()
 async def test_run_code_with_syntax_error(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Code Action with a syntax error should re-raise that error (at runtime)."""
+    Flow1 = Flow.new("Flow1")
     InvalidCode = Action.new(ActionType.CODE, "InvalidCode", code=code("!!invalid!!"))
-    runtime.page().actions.append(InvalidCode)
+    Flow1.actions.append(InvalidCode)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(InvalidCode, return_error=True)
@@ -52,6 +57,7 @@ async def test_run_code_with_syntax_error(simulation: Simulation, runtime: Runti
 @simulated_runtime()
 async def test_run_code_capture_logs(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """All logging functions should be captured."""
+    Flow1 = Flow.new("Flow1")
     Logs101 = Action.new(
         ActionType.CODE,
         "Logs101",
@@ -70,7 +76,8 @@ error('error1')
 panic('panic1')        
 """),
     )
-    runtime.page().actions.append(Logs101)
+    Flow1.actions.append(Logs101)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Logs101)
@@ -100,6 +107,7 @@ async def test_run_code_capture_logs_on_error(
     simulation: Simulation, runtime: RuntimeLambdaWorkload
 ):
     """Logs should also be captured if the code raises an error."""
+    Flow1 = Flow.new("Flow1")
     Logs102 = Action.new(
         ActionType.CODE,
         "Logs102",
@@ -110,7 +118,8 @@ raise ValueError('error1')
 print('print3')
 """),
     )
-    runtime.page().actions.append(Logs102)
+    Flow1.actions.append(Logs102)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Logs102, return_error=True)
@@ -125,6 +134,7 @@ async def test_run_code_capture_log_size_overflow(
     simulation: Simulation, runtime: RuntimeLambdaWorkload
 ):
     """Logs should only be captured up to a certain size."""
+    Flow1 = Flow.new("Flow1")
     Logs103 = Action.new(
         ActionType.CODE,
         "Logs103",
@@ -133,7 +143,8 @@ for i in range(0, {MAX_LOGS_PER_RUN + 5}):
     print('print', i)
 """),
     )
-    runtime.page().actions.append(Logs103)
+    Flow1.actions.append(Logs103)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Logs103)
@@ -145,12 +156,14 @@ async def test_run_code_capture_log_line_overflow(
     simulation: Simulation, runtime: RuntimeLambdaWorkload
 ):
     """Logs should only be captured up to a certain size."""
+    Flow1 = Flow.new("Flow1")
     Logs103 = Action.new(
         ActionType.CODE,
         "Logs103",
         code=code(f"""print('x' * {MAX_LOG_LINE_LENGTH + 5})"""),
     )
-    runtime.page().actions.append(Logs103)
+    Flow1.actions.append(Logs103)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Logs103)
@@ -161,13 +174,15 @@ async def test_run_code_capture_log_line_overflow(
 @simulated_runtime()
 async def test_run_code_invalid_inputs(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Code block with invalid inputs should fail immediately (no attempts)."""
+    Flow1 = Flow.new("Flow1")
     Code1 = Action.new(
         ActionType.CODE,
         "InvalidCode",
         code=code("pass"),
         fields=(Field.input("Input1", int, is_required=True),),
     )
-    runtime.page().actions.append(Code1)
+    Flow1.actions.append(Code1)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     run = create_run_from_node(Code1, isolate=True)
@@ -181,13 +196,15 @@ async def test_run_code_invalid_inputs(simulation: Simulation, runtime: RuntimeL
 @simulated_runtime()
 async def test_run_code_invalid_outputs(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Code block with invalid outputs should fail."""
+    Flow1 = Flow.new("Flow1")
     Code1 = Action.new(
         ActionType.CODE,
         "InvalidCode",
         code=code("return 'invalid'"),
         fields=(Field.output("Output1", int),),
     )
-    runtime.page().actions.append(Code1)
+    Flow1.actions.append(Code1)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     run = create_run_from_node(Code1, isolate=True)
@@ -199,6 +216,7 @@ async def test_run_code_invalid_outputs(simulation: Simulation, runtime: Runtime
 @simulated_runtime()
 async def test_run_code_coerce(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Inputs and outputs should be coerced to the correct type (if possible)."""
+    Flow1 = Flow.new("Flow1")
     Code1 = Action.new(
         ActionType.CODE,
         "Function",
@@ -224,7 +242,8 @@ return {
             Field.output("Output5", str),
         ),
     )
-    runtime.page().actions.append(Code1)
+    Flow1.actions.append(Code1)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(
@@ -242,6 +261,7 @@ return {
 @simulated_runtime()
 async def test_run_code_inputs_in_context(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """All the input fields values should be in context (even if not used and unset)."""
+    Flow1 = Flow.new("Flow1")
     Function = Action.new(
         ActionType.CODE,
         "Function",
@@ -258,7 +278,8 @@ assert Very_WEIRD__THER_Input == 7
             Field.input("Very WEIRD ÖTHER Input", int),
         ),
     )
-    runtime.page().actions.append(Function)
+    Flow1.actions.append(Function)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     _ = await runtime.run_in_runtime(
@@ -269,13 +290,15 @@ assert Very_WEIRD__THER_Input == 7
 @simulated_runtime()
 async def test_run_code_output_none(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """A noop code function should work and return None."""
+    Flow1 = Flow.new("Flow1")
     Function = Action.new(
         ActionType.CODE,
         "Function",
         code=code("""pass"""),
         fields=(Field.input("Input1", int),),
     )
-    runtime.page().actions.append(Function)
+    Flow1.actions.append(Function)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     _ = await runtime.run_in_runtime(Function)
@@ -288,13 +311,14 @@ async def test_run_code_output_scalar(simulation: Simulation, runtime: RuntimeLa
     NOTE: we use hosted_runtime here as we edit the node subtype property ActionBlock.code
      (and the local runtime works directly in the SQL engine, which can't do hierarchical edits)
     """
+    Flow1 = Flow.new("Flow1")
     Function = Action.new(
         ActionType.CODE,
         "Function",
         code=code("""return {"Result1": Input1 * 4}"""),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
     )
-    runtime.page().actions.append(Function)
+    Flow1.actions.append(Function)
     await runtime.commit()
 
     # run with good return value
@@ -308,7 +332,7 @@ async def test_run_code_output_scalar(simulation: Simulation, runtime: RuntimeLa
         code=code("return {'Result1': Input1 * 1.7}"),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
     )
-    runtime.page().actions.append(Function)
+    Flow1.actions.append(Function)
     await runtime.commit()
     runner = await runtime.run_in_runtime(Function, inputs={"Input1": 3})
     assert runner.outputs and runner.outputs.Result1 == 5
@@ -320,7 +344,7 @@ async def test_run_code_output_scalar(simulation: Simulation, runtime: RuntimeLa
         code=code("return {'Result1': 'stringy'}"),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
     )
-    runtime.page().actions.append(Function)
+    Flow1.actions.append(Function)
     await runtime.commit()
     runner = await runtime.run_in_runtime(Function, inputs={"Input1": 3}, return_error=True)
     assert runner.status == RunStatus.FAILED
@@ -329,10 +353,12 @@ async def test_run_code_output_scalar(simulation: Simulation, runtime: RuntimeLa
 @simulated_runtime()
 async def test_run_code_output_choice(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a code function with a dict and a Choice type, should coerce into object."""
-    Color = Block.new(
-        BlockType.CHOICE,
+    Flow1 = Flow.new("Flow1")
+    Color = Choice.new(
         "Color",
-        fields=[Field.option("Red"), Field.option("Green"), Field.option("Blue")],
+        Field.option("Red"),
+        Field.option("Green"),
+        Field.option("Blue"),
     )
     Function = Action.new(
         ActionType.CODE,
@@ -343,8 +369,8 @@ return {"Color": Color.Red}
 """),
         fields=[Field.output("Color", Color)],
     )
-    runtime.page().blocks.extend(Color)
-    runtime.page().actions.extend(Function)
+    Flow1.actions.extend(Function)
+    runtime.page().extend(Color, Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Function)
@@ -354,6 +380,7 @@ return {"Color": Color.Red}
 @simulated_runtime()
 async def test_run_code_output_generic_node(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a code function that outputs a generic node field."""
+    Flow1 = Flow.new("Flow1")
     Function = Action.new(
         ActionType.CODE,
         "Function",
@@ -362,7 +389,8 @@ return {"Output": [self]}
 """),
         fields=[Field.output("Output", Node, is_list=True)],
     )
-    runtime.page().actions.append(Function)
+    Flow1.actions.append(Function)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Function)
@@ -374,12 +402,14 @@ async def test_run_code_return_detached_node(
     simulation: Simulation, runtime: RuntimeLambdaWorkload
 ):
     """Run a code function that returns a detached Node. Should error."""
+    Flow1 = Flow.new("Flow1")
     Function = Action.new(
         ActionType.CODE,
         "Function",
         fields=[Field.output("Output", Block), Field.output("Text", Text)],
     )
-    runtime.page().actions.append(Function)
+    Flow1.actions.append(Function)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     # detached top-level node
@@ -406,16 +436,18 @@ async def test_run_code_raise_retryable_error(
     simulation: Simulation, runtime: RuntimeLambdaWorkload
 ):
     """Raise a retryable error. Should be detected and retried."""
-    CodeBlock = Action.new(
+    Flow1 = Flow.new("Flow1")
+    Action1 = Action.new(
         ActionType.CODE,
         "Code1",
         code=code("""raise RetryableError('error1')"""),
         run_options=RunOptions(max_attempts=3),
     )
-    runtime.page().actions.append(CodeBlock)
+    Flow1.actions.append(Action1)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
-    runner = await runtime.run_in_runtime(CodeBlock, return_error=True)
+    runner = await runtime.run_in_runtime(Action1, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.RETRYABLE
     assert len(runner.attempts) == 3
@@ -426,16 +458,18 @@ async def test_run_code_raise_unretryable_error(
     simulation: Simulation, runtime: RuntimeLambdaWorkload
 ):
     """Raise an unretryable error. Should be detected and not retried."""
-    CodeBlock = Action.new(
+    Flow1 = Flow.new("Flow1")
+    Action1 = Action.new(
         ActionType.CODE,
         "Code1",
         code=code("""raise NonRetryableError('error1')"""),
         run_options=RunOptions(max_attempts=3),
     )
-    runtime.page().actions.append(CodeBlock)
+    Flow1.actions.append(Action1)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
-    runner = await runtime.run_in_runtime(CodeBlock, return_error=True)
+    runner = await runtime.run_in_runtime(Action1, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.NON_RETRYABLE
     assert len(runner.attempts) == 1
@@ -444,15 +478,17 @@ async def test_run_code_raise_unretryable_error(
 @simulated_runtime()
 async def test_run_code_abort(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a long async code script and abort it."""
-    CodeBlock = Action.new(
+    Flow1 = Flow.new("Flow1")
+    Action1 = Action.new(
         ActionType.CODE,
         "Code1",
         code=code("""await asyncio.sleep(5)"""),
     )
-    runtime.page().actions.append(CodeBlock)
+    Flow1.actions.append(Action1)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
-    run = create_run_from_node(CodeBlock, isolate=True)
+    run = create_run_from_node(Action1, isolate=True)
     run_task = asyncio.create_task(runtime.run_in_runtime(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)
