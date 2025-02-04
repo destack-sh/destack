@@ -764,11 +764,7 @@ BASE_EXTENSIONS = (
     Extension("pgcrypto"),
     Extension("bloom"),
 )
-LOCAL_EXTENSIONS = (
-    *BASE_EXTENSIONS,
-    # Extension("vector"), # until timescaledb image is updated (see docker-compose.dev.yml)
-    Extension("pg_trgm"),
-)
+LOCAL_EXTENSIONS = (*BASE_EXTENSIONS,)
 REGIONAL_EXTENSIONS = (*BASE_EXTENSIONS,)
 GLOBAL_EXTENSIONS = (*BASE_EXTENSIONS,)
 ALL_EXTENSIONS = (
