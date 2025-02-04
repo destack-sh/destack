@@ -61,7 +61,10 @@ class TriggerEffect(BuiltinEnum):
 
 @node_(NodeType.TRIGGER, has_subtypes=True)
 class Trigger(SourceNode[TriggerData]):
-    """A Trigger is a condition that, when met, affects the runtime somehow."""
+    """
+    A Trigger is an event-driven condition that affects the runtime.
+    Depending on its type and scope, it causes some effect (like starting a Run or interrupting a Task).
+    """
 
     parent: Union["Action", "Run", None] = p_node_parent(4, NodeType.ACTION, NodeType.RUN)
 
@@ -72,7 +75,7 @@ class Trigger(SourceNode[TriggerData]):
     effect: TriggerEffect = p_regular(34, require=True)
     scope: Union["Block", "Package"] = p_regular(
         35,
-        require=False,
+        require=True,
         array=False,
         references=(NodeType.BLOCK, NodeType.PACKAGE),
         description="The source Node this Trigger is scoped to.",
@@ -124,7 +127,7 @@ class MessageTrigger(Trigger):
         constraint=constraint(node_subtypes=[BlockType.MESSAGE]),
         description="The Message type.",
     )
-    message_reply_to: Optional["Message"] = p_regular(
+    reply_to: Optional["Message"] = p_regular(
         103,
         require=False,
         array=False,

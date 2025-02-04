@@ -664,7 +664,9 @@ class Session(RuntimeNode[SessionData]):
         else:
             return False
 
-    def _preflush(self, *, include_runtime: bool, include_state: bool) -> list[EditData]:
+    def _preflush(
+        self, *, runtime: bool = True, exclude: Sequence[NodeType] = ()
+    ) -> list[EditData]:
         """
         Creates an "edit boundary" by accumulating edit events & marking all nodes as 'flushed'.
         This means any new edits won't be debounced after this point (e.g. to create before update).
@@ -672,11 +674,9 @@ class Session(RuntimeNode[SessionData]):
         assert self._tx is not None, f"no active transaction in {self!r}"
 
         def _filter(node: Node) -> bool:
-            if not include_runtime and self._is_current_runtime_node(node):
-                return False
-            if not include_state and node.metatype.is_state:  # noqa: SIM103
-                return False
-            return True
+            return (
+                runtime or not self._is_current_runtime_node(node)
+            ) and node.metatype not in exclude
 
         # return new_edits
         for node in self._pending_nodes_by_id.values():
@@ -691,7 +691,7 @@ class Session(RuntimeNode[SessionData]):
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
         try:
-            self._preflush(include_runtime=True, include_state=True)
+            self._preflush()
             async with self._tx_lock:
                 edits, cascaded_edits = await self._tx.flush()
                 logger.trace(
@@ -750,8 +750,7 @@ class Session(RuntimeNode[SessionData]):
                 if self._on_commit_prepare is not None:
                     # NOTE :Architecture: we exclude state nodes from preflush before commit prepare
                     #  because our DatabasePlugin needs to update schemas before touching any Records.
-                    # nocheckin MessageTriggerPlugin needs Messages preflushed no?
-                    self._preflush(include_runtime=True, include_state=False)
+                    self._preflush(exclude=(NodeType.RECORD,))
                     edits, cascaded_edits = await self._tx.flush(
                         filter=lambda e: not NodeType(e.node_ptr.node_type).is_state
                     )
@@ -769,7 +768,7 @@ class Session(RuntimeNode[SessionData]):
                     new_edits = []
 
                 # do commit
-                self._preflush(include_runtime=True, include_state=True)
+                self._preflush()
                 edits, cascaded_edits = await self._tx.commit()
                 log = log.bind(edits=len(edits), cascaded_edits=len(cascaded_edits))
 
@@ -808,7 +807,7 @@ class Session(RuntimeNode[SessionData]):
         assert self._tx is not None, f"no active transaction in {self!r}"
 
         if optimistic:
-            new_edits = self._preflush(include_runtime=False, include_state=True)
+            new_edits = self._preflush(runtime=False)
             logger.trace("session.flush.mark", session=self, edits=len(new_edits), span="current")
             return new_edits, []
         else:
@@ -823,7 +822,7 @@ class Session(RuntimeNode[SessionData]):
         # schedule a new commit
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
-        new_edits = self._preflush(include_runtime=False, include_state=True)
+        new_edits = self._preflush(runtime=False)
         event = _CommitEvent(id=self._flush_counter, new_edits=new_edits)
         if not self._tx.has_edits:
             return [], []  # nothing to do

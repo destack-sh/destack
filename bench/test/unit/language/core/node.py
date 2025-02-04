@@ -173,7 +173,7 @@ def test_node_pointers_consistency(session: "Session"):
     )
 
     # based pointers
-    message_a = Message(parent=bench_a, origin=block_a_1, block=block_a_1)
+    message_a = Message(parent=bench_a, scope=block_a_1, block=block_a_1)
     assert message_a.bench_id == bench_a.id
     assert message_a.to_ref().equals(
         NodeReference(
@@ -192,7 +192,7 @@ def test_node_pointers_consistency(session: "Session"):
     package_b = bench_b.packages.create(type=PackageType.ROOT, name="Main B", slug="main-b")
     block_b = package_b.blocks.create(type=BlockType.MESSAGE)
     assert block_b.bench_id == bench_b.id
-    message_b = Message(parent=bench_b, origin=block_a_1, block=block_a_1)
+    message_b = Message(parent=bench_b, scope=block_a_1, block=block_a_1)
     assert message_b.bench_id == bench_b.id
     assert message_b.to_ref().equals(
         NodeReference(

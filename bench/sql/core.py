@@ -9,7 +9,7 @@ from uuid import UUID
 from more_itertools import first
 from psycopg.types.json import Jsonb
 
-from bench.language import ConditionalType, PrimitiveType, SortType
+from bench.language import ConditionalType, IndexIn, PrimitiveType, SortType
 from bench.utils.func import stable_hash
 
 if TYPE_CHECKING:
@@ -441,6 +441,7 @@ class Index(TableObject):
     inner_name: str
     type: IndexType
     columns: tuple[str, ...]
+    cover: tuple[str, ...] = ()
     is_unique: bool = False
     condition: str | None = None
     _full_name: str | None = None  # as introspected from pg (naming may change)
@@ -473,9 +474,22 @@ class Index(TableObject):
             f"USING {self.type}",
             f"({', '.join(self.columns)})",
         ]
+        if self.cover:
+            parts.append(f"INCLUDE ({', '.join(self.cover)})")
         if self.condition is not None:
             parts.append(f"WHERE {self.condition}")
         return " ".join(parts)
+
+    @staticmethod
+    def from_index_in(name: str, index_in: IndexIn) -> "Index":
+        return Index(
+            inner_name=name,
+            type=IndexType.BTREE,
+            columns=index_in.columns,
+            cover=index_in.cover,
+            is_unique=index_in.is_unique,
+            condition=index_in.condition,
+        )
 
 
 @dataclass(slots=True)

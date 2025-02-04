@@ -1253,7 +1253,6 @@ enum TriggerEffect {
   TRIGGER_EFFECT_UNSPECIFIED = 0;
   TRIGGER_EFFECT_START_RUN = 1;
   TRIGGER_EFFECT_CONTINUE_RUN = 2;
-  TRIGGER_EFFECT_ENSURE_RUN = 3;
   TRIGGER_EFFECT_CANCEL_INTERRUPTION = 20;
   TRIGGER_EFFECT_COMPLETE_INTERRUPTION = 21;
 }
@@ -1827,7 +1826,7 @@ enum OrganizationStatus {
 
 enum MessageType {
   MESSAGE_TYPE_UNSPECIFIED = 0;
-  MESSAGE_TYPE_LOCAL = 1;
+  MESSAGE_TYPE_BENCH = 1;
   MESSAGE_TYPE_FEDERATED = 2;
   MESSAGE_TYPE_WEBHOOK = 10;
   MESSAGE_TYPE_EMAIL = 20;
@@ -3594,7 +3593,7 @@ message TriggerData {
   string name = 32;
   optional TextData text = 33;
   TriggerEffect effect = 34;
-  optional NodeReferenceData scope_ptr = 35;
+  NodeReferenceData scope_ptr = 35;
   optional NodeReferenceData run_ptr = 36;
   optional NodeReferenceData interruption_ptr = 37;
   TriggerStatus status = 40;
@@ -3604,16 +3603,18 @@ message TriggerData {
   optional google.protobuf.Timestamp closed_at = 45;
 }
 
-// A Trigger is a condition that, when met, affects the runtime somehow.
+// A Trigger is an event-driven condition that affects the runtime.
+// Depending on its type and scope, it causes some effect (like starting a Run or interrupting a Task).
 message ScheduleTriggerData {
   optional ScheduleData schedule = 100;
 }
 
-// A Trigger is a condition that, when met, affects the runtime somehow.
+// A Trigger is an event-driven condition that affects the runtime.
+// Depending on its type and scope, it causes some effect (like starting a Run or interrupting a Task).
 message MessageTriggerData {
   optional NodeReferenceData message_ptr = 101;
   optional NodeReferenceData message_type_ptr = 102;
-  optional NodeReferenceData message_reply_to_ptr = 103;
+  optional NodeReferenceData reply_to_ptr = 103;
 }
 
 message MessageData {
@@ -3629,7 +3630,7 @@ message MessageData {
   optional google.protobuf.Value subnode_packed = 29;
   MessageType type = 30;
   optional NodeReferenceData root_ptr = 31;
-  optional NodeReferenceData origin_ptr = 33;
+  optional NodeReferenceData scope_ptr = 33;
   optional NodeReferenceData run_ptr = 34;
   optional NodeReferenceData block_ptr = 36;
   MessageStatus status = 40;

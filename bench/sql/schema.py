@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.02.0"
+VERSION = "2025.02.04.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -76,7 +76,10 @@ HANDLE_TABLE = Table(
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("slug", PrimitiveType.STRING, is_unique=True),
     ),
-    indexes=(Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),),
+    indexes=(
+        Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),
+        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
+    ),
     constraints=(
         Constraint(
             "bench_idx_slug", ConstraintType.UNIQUE, columns=("slug",), index="bench_idx_slug"
@@ -211,7 +214,10 @@ TEAM_TABLE = Table(
             is_nullable=True,
         ),
     ),
-    indexes=(Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),),
+    indexes=(
+        Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),
+        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
+    ),
     constraints=(
         Constraint(
             "bench_idx_slug", ConstraintType.UNIQUE, columns=("slug",), index="bench_idx_slug"
@@ -240,6 +246,7 @@ MEMBERSHIP_TABLE = Table(
         Column("user_id", PrimitiveType.UUID),
         Column("is_owner", PrimitiveType.BOOLEAN, default="false"),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 INVITE_TABLE = Table(
@@ -263,6 +270,7 @@ INVITE_TABLE = Table(
         Column("user_email", PrimitiveType.STRING, is_nullable=True),
         Column("is_owner", PrimitiveType.BOOLEAN, default="false"),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 CLIENT_TABLE = Table(
@@ -300,7 +308,10 @@ CLIENT_TABLE = Table(
         Column("machine_id", PrimitiveType.UUID, is_nullable=True),
         Column("machine_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
-    indexes=(Index("bench_idx_access_token", IndexType.BTREE, ("access_token",), is_unique=True),),
+    indexes=(
+        Index("bench_idx_access_token", IndexType.BTREE, ("access_token",), is_unique=True),
+        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
+    ),
     constraints=(
         Constraint(
             "bench_idx_access_token",
@@ -347,6 +358,7 @@ SCALER_TABLE = Table(
         Column("is_active", PrimitiveType.BOOLEAN, default="true"),
         Column("is_main", PrimitiveType.BOOLEAN, default="false"),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 STORE_TABLE = Table(
@@ -383,6 +395,7 @@ STORE_TABLE = Table(
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
         Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 MACHINE_TABLE = Table(
@@ -431,6 +444,7 @@ MACHINE_TABLE = Table(
         Column("cpu", PrimitiveType.FLOAT32),
         Column("ram", PrimitiveType.FLOAT32),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 BROWSER_TABLE = Table(
@@ -482,6 +496,7 @@ BROWSER_TABLE = Table(
         Column("is_headless", PrimitiveType.BOOLEAN, default="false"),
         Column("is_insecure", PrimitiveType.BOOLEAN, default="false"),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 FILE_TABLE = Table(
@@ -539,6 +554,7 @@ FILE_TABLE = Table(
         Column("retention", PrimitiveType.INT16),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 STREAM_TABLE = Table(
@@ -579,6 +595,7 @@ STREAM_TABLE = Table(
         Column("decommissioned_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 SECRET_TABLE = Table(
@@ -620,6 +637,7 @@ SECRET_TABLE = Table(
         Column("value_type", PrimitiveType.JSON),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 PACKAGE_TABLE = Table(
@@ -663,14 +681,7 @@ PACKAGE_TABLE = Table(
     ),
     indexes=(
         Index("bench_idx_bench_id_slug", IndexType.BTREE, ("bench_id", "slug"), is_unique=True),
-    ),
-    constraints=(
-        Constraint(
-            "bench_idx_bench_id_slug",
-            ConstraintType.UNIQUE,
-            columns=("bench_id", "slug"),
-            index="bench_idx_bench_id_slug",
-        ),
+        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
     ),
 )
 
@@ -705,6 +716,7 @@ DEPENDENCY_TABLE = Table(
         Column("depends_on_packages_ck", PrimitiveType.UUID, is_array=True),
         Column("depends_on_packages_bench_id", PrimitiveType.UUID, is_array=True),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 BLOCK_TABLE = Table(
@@ -741,6 +753,7 @@ BLOCK_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("variables_packed", PrimitiveType.JSON, is_nullable=True),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 FIELD_TABLE = Table(
@@ -796,6 +809,7 @@ FIELD_TABLE = Table(
         Column("is_list", PrimitiveType.BOOLEAN, default="false"),
         Column("is_secret", PrimitiveType.BOOLEAN, default="false"),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 VIEW_TABLE = Table(
@@ -855,6 +869,7 @@ VIEW_TABLE = Table(
         Column("is_minimal", PrimitiveType.BOOLEAN, default="false"),
         Column("is_loading", PrimitiveType.BOOLEAN, default="false"),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 ACTION_TABLE = Table(
@@ -902,6 +917,7 @@ ACTION_TABLE = Table(
         Column("plans", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("position", PrimitiveType.JSON, is_nullable=True),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 PIPE_TABLE = Table(
@@ -946,6 +962,7 @@ PIPE_TABLE = Table(
         Column("delay", PrimitiveType.DURATION, is_nullable=True),
         Column("color", PrimitiveType.JSON, is_nullable=True),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 TRIGGER_TABLE = Table(
@@ -980,10 +997,10 @@ TRIGGER_TABLE = Table(
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("effect", PrimitiveType.INT16),
-        Column("scope_id", PrimitiveType.UUID, is_nullable=True),
-        Column("scope_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("scope_type", PrimitiveType.INT16, is_nullable=True),
-        Column("scope_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scope_id", PrimitiveType.UUID),
+        Column("scope_ck", PrimitiveType.UUID),
+        Column("scope_type", PrimitiveType.INT16),
+        Column("scope_bench_id", PrimitiveType.UUID),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
@@ -998,6 +1015,7 @@ TRIGGER_TABLE = Table(
         Column("processed_key", PrimitiveType.STRING, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 SPACE_TABLE = Table(
@@ -1055,6 +1073,7 @@ SPACE_TABLE = Table(
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 MESSAGE_TABLE = Table(
@@ -1078,9 +1097,9 @@ MESSAGE_TABLE = Table(
         Column("type", PrimitiveType.INT16, default="1"),
         Column("root_id", PrimitiveType.UUID, is_nullable=True),
         Column("root_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("origin_id", PrimitiveType.UUID, is_nullable=True),
-        Column("origin_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("origin_type", PrimitiveType.INT16, is_nullable=True),
+        Column("scope_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scope_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("scope_type", PrimitiveType.INT16, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1111,7 +1130,10 @@ MESSAGE_TABLE = Table(
         Column("reply_to_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reply_to_base_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
-    indexes=(Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),),
+    indexes=(
+        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
+        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
+    ),
 )
 
 SESSION_TABLE = Table(
@@ -1148,6 +1170,7 @@ SESSION_TABLE = Table(
     indexes=(
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
+        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
     ),
 )
 
@@ -1222,6 +1245,7 @@ RUN_TABLE = Table(
     indexes=(
         Index("bench_idx_trigger_id_trigger_key", IndexType.BTREE, ("trigger_id", "trigger_key")),
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
+        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
     ),
 )
 
@@ -1274,7 +1298,10 @@ RUN_SPAN_TABLE = Table(
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
-    indexes=(Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),),
+    indexes=(
+        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
+        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
+    ),
 )
 
 RUN_PLAN_TABLE = Table(
@@ -1322,7 +1349,10 @@ RUN_PLAN_TABLE = Table(
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
-    indexes=(Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),),
+    indexes=(
+        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
+        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
+    ),
 )
 
 INTERRUPTION_TABLE = Table(
@@ -1385,7 +1415,10 @@ INTERRUPTION_TABLE = Table(
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
-    indexes=(Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),),
+    indexes=(
+        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
+        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
+    ),
 )
 
 LOG_TABLE = Table(
@@ -1421,5 +1454,8 @@ LOG_TABLE = Table(
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
-    indexes=(Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),),
+    indexes=(
+        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
+        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
+    ),
 )

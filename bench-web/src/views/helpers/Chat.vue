@@ -76,7 +76,7 @@ const files = computed(() => nodes.value.filter((n) => isNode(n, NodeType.FILE))
 const nodePtr = computedValue(() => props.nodePtr);
 const node = pkgGraph.getRef(nodePtr);
 const nodeAncestors = pkgGraph.getAncestorsRef(nodePtr);
-const origin: Ref<BlockData | PackageData | null> = computed(() => {
+const scope: Ref<BlockData | PackageData | null> = computed(() => {
   if (isNode(node.value, NodeType.BLOCK)) {
     return node.value;
   } else {
@@ -87,7 +87,7 @@ const origin: Ref<BlockData | PackageData | null> = computed(() => {
   }
   return pkg.value;
 });
-const originPtr = computed(() => (origin.value != null ? toNodeRef(origin.value) : null));
+const scopePtr = computed(() => (scope.value != null ? toNodeRef(scope.value) : null));
 
 const inputContainerRef = ref<HTMLInputElement | null>(null);
 const inputRef = ref<InstanceType<typeof Text> | null>(null);
@@ -118,12 +118,12 @@ const {
       scope: BENCH_SCOPE.value,
       nodeType: NodeType.MESSAGE,
       count: true,
-      isEnabled: originPtr.value != null,
+      isEnabled: scopePtr.value != null,
       sort: [DEFAULT_SORT],
       filter: makeExpression({
         type: ExpressionType.EQUALS,
-        propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.originPtr),
-        value: originPtr.value,
+        propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.scopePtr),
+        value: scopePtr.value,
       }),
     }),
   ),
@@ -255,12 +255,12 @@ function submitEdit() {
 function submit() {
   // create message
   if (benchPtr.value == null) throw new Error("no bench");
-  if (origin.value == null) throw new Error("no origin");
+  if (scope.value == null) throw new Error("no origin");
   createMessage(connection.tx, graph, {
     message: {
-      type: MessageType.LOCAL,
+      type: MessageType.BENCH,
       parentPtr: benchPtr.value,
-      originPtr: toNodeRef(origin.value),
+      scopePtr: toNodeRef(scope.value),
       text: text.value,
       replyToPtr: replyTo.value != null ? replyToPtr.value : undefined,
       nodesPtr: nodesPtr.value,

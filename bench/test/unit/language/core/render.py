@@ -179,7 +179,7 @@ def test_render_partial_object(session: Session, package: Package):
             Field.member("Field3", bool),
         ],
     )
-    PatialMessage1 = Message.partial(MessageType.LOCAL, block=Message1, Field1=17, Field2="hello!")
+    PatialMessage1 = Message.partial(MessageType.BENCH, block=Message1, Field1=17, Field2="hello!")
     return {"PartialBlock1": PartialBlock1, "Message1": Message1, "PatialMessage1": PatialMessage1}
 
 

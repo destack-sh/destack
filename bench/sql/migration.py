@@ -1081,7 +1081,7 @@ WHERE
             definition = row["index_definition"]
             columns_str = definition.split("(")[1].split(")")[0]
             columns = [col.strip() for col in columns_str.split(",")]
-            # definition like 'CREATE INDEX index_name ON table_name USING index_type (columns) [WHERE condition]'
+            # definition like 'CREATE INDEX index_name ON table_name USING index_type (columns) [INCLUDE (cover)] [WHERE condition]'
             index_type = re_search_or_error(r"USING (\w+)", definition).group(1)
             condition = (
                 re_search_or_error(r"WHERE (.+)", definition).group(1)
@@ -1090,6 +1090,16 @@ WHERE
             )
             if condition:
                 condition = _strip_condition(condition)
+            cover = (
+                tuple(
+                    col.strip()
+                    for col in re_search_or_error(r"INCLUDE \((.*?)\)", definition)
+                    .group(1)
+                    .split(",")
+                )
+                if "INCLUDE" in definition
+                else ()
+            )
             table_name = row["table_name"]
             index_name = row["index_name"][len(table_name) + 1 :]
             index = Index(
@@ -1097,6 +1107,7 @@ WHERE
                 _full_name=row["index_name"],
                 type=IndexType(index_type.upper()),
                 columns=tuple(columns),
+                cover=cover,
                 is_unique="UNIQUE" in definition,
                 condition=condition,
             )
