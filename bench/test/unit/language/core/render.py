@@ -13,18 +13,18 @@ from bench.language import (
     BuiltinObject,
     CallFailureMode,
     CallTerminationMode,
+    Choice,
+    Class,
     ComputedValue,
     ComputedValueMode,
     CustomObject,
     Field,
-    File,
-    FileKind,
-    FileType,
     Message,
     MessageType,
     Node,
     NodeReference,
     Package,
+    Page,
     PathElementType,
     PipeType,
     Property,
@@ -32,8 +32,6 @@ from bench.language import (
     RenderOptions,
     Run,
     Session,
-    View,
-    ViewType,
     call,
     call_none,
     call_parallel,
@@ -46,6 +44,7 @@ from bench.language import (
 from bench.language.core import code
 from bench.language.core.code import format_code
 from bench.language.source.action import ActionCategory, ToolSelection
+from bench.language.source.flow import Flow
 from bench.runtime.code import BUILTIN_GLOBALS, STATIC_CODE_GLOBALS
 
 
@@ -170,24 +169,23 @@ def test_render_path(session: Session, package: Package):
 @_render_test
 def test_render_partial_object(session: Session, package: Package):
     PartialBlock1 = Block.partial(BlockType.PAGE, name="PartialBlock1")
-    Message1 = Block.new(
-        BlockType.MESSAGE,
+    Message1 = Class.new(
         "Message1",
-        fields=[
-            Field.member("Field1", int),
-            Field.member("Field2", str),
-            Field.member("Field3", bool),
-        ],
+        Field.member("Field1", int),
+        Field.member("Field2", str),
+        Field.member("Field3", bool),
     )
-    PatialMessage1 = Message.partial(MessageType.BENCH, block=Message1, Field1=17, Field2="hello!")
+    PatialMessage1 = Message.partial(
+        MessageType.TEXT, base_type=Message1, Field1=17, Field2="hello!"
+    )
     return {"PartialBlock1": PartialBlock1, "Message1": Message1, "PatialMessage1": PatialMessage1}
 
 
 @_render_test
 def test_render_bad_names(session: Session, package: Package):
     _F_1 = Field.variable("-F_1", str)
-    Block_with_Spa_se = Block.new(BlockType.MESSAGE, "Block with Spa'se")
-    return {"_F_1": _F_1, "Block_with_Spa_se": Block_with_Spa_se}
+    Page_with_Spa_se = Page.new("Page with Spa se")
+    return {"_F_1": _F_1, "Page_with_Spa_se": Page_with_Spa_se}
 
 
 @_render_test
@@ -202,31 +200,11 @@ def test_render_choice_block(session: Session, package: Package):
 
 @_render_test
 def test_render_message_block(session: Session, package: Package):
-    ShapeType = Block.new(
-        BlockType.CHOICE,
-        "ShapeType",
-        fields=[Field.option("Circle"), Field.option("Square"), Field.option("Triangle")],
+    ShapeType = Choice.new(
+        "ShapeType", Field.option("Circle"), Field.option("Square"), Field.option("Triangle")
     )
-    Shape = Block.new(
-        BlockType.MESSAGE,
-        "Shape",
-        fields=[Field.member("kind", ShapeType), Field.member("is_cool", bool)],
-    )
+    Shape = Class.new("Shape", Field.member("kind", ShapeType), Field.member("is_cool", bool))
     return {"ShapeType": ShapeType, "Shape": Shape}
-
-
-@_render_test
-def test_render_variable_block(session: Session, package: Package):
-    Variable1 = Block.new(BlockType.VARIABLE, "Variable1", value_type=to_type(int), value=1)
-    return {"Variable1": Variable1}
-
-
-@_render_test
-def test_render_view_block(session: Session, package: Package):
-    View_1 = Block.new(BlockType.VIEW, "View 1")
-    Button1 = View.new(ViewType.BUTTON, "Button1", node=View_1)
-    View_1.views.append(Button1)
-    return {"View_1": View_1, "Button1": Button1}
 
 
 @_render_test
@@ -238,27 +216,6 @@ def test_render_field_with_constraint(session: Session, package: Package):
 
 
 @_render_test
-def test_render_variable(session: Session, package: Package):
-    Variable1 = Block.new(BlockType.VARIABLE, "Variable1", value_type=to_type(int), value=5)
-    return {"Variable1": Variable1}
-
-
-@_render_test
-def test_render_variable_with_file(session: Session, package: Package):
-    myfile_txt = File(
-        type=FileType.TEXT,
-        kind=FileKind.DRIVE,
-        name="myfile.txt",
-        mime_type="text/plain",
-        size=1024,
-    )
-    Variable1 = Block.new(
-        BlockType.VARIABLE, "Variable1", value_type=to_type(File), value=myfile_txt
-    )
-    return {"myfile_txt": myfile_txt, "Variable1": Variable1}
-
-
-@_render_test
 def test_render_create_action(session: Session, package: Package):
     Action1 = Action.new(ActionType.CREATE, "Action1", node_partial=Block.partial(BlockType.PAGE))
     return {"Action1": Action1}
@@ -266,7 +223,7 @@ def test_render_create_action(session: Session, package: Package):
 
 @_render_test
 def test_render_flow_simple(session: Session, package: Package):
-    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
@@ -276,17 +233,14 @@ def test_render_flow_simple(session: Session, package: Package):
 
 @_render_test
 def test_render_flow_computed_value(session: Session, package: Package):
-    Flow1 = Block.new(
-        BlockType.FLOW,
+    Flow1 = Flow.new(
         "Flow1",
-        fields=[
-            Field.input("Input1", int),
-            Field.input("Input2", int),
-            Field.input("Input3", int),
-            Field.output("Output1", int),
-            Field.output("Output2", int),
-            Field.output("Output3", int),
-        ],
+        Field.input("Input1", int),
+        Field.input("Input2", int),
+        Field.input("Input3", int),
+        Field.output("Output1", int),
+        Field.output("Output2", int),
+        Field.output("Output3", int),
     )
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(
@@ -374,15 +328,15 @@ def test_render_tool_selection(session: Session, package: Package):
 
 def test_render_simple_choice_option_ref(session: Session, package: Package):
     """Rendered node ref in sibling scope should be simplified"""
-    Page: Block = package.blocks.create(name="Page", type=BlockType.PAGE)
-    Choice = Block.new(
-        BlockType.CHOICE,
+    Page1 = package.pages.create(name="Page")
+    Choice1 = Choice.new(
         "Choice",
-        fields=[Field.option("Option1"), Field.option("Option2"), Field.option("Option3")],
+        Field.option("Option1"),
+        Field.option("Option2"),
+        Field.option("Option3"),
     )
-    Page = Block.new(BlockType.PAGE, "Page")
-    Page.blocks.extend(Choice)
+    Page1.append(Choice1)
     rendered_option = render_expression(
-        Choice.fields.Option2, options=RenderOptions(scope=Page, aliasing=Aliasing()), as_ref=True
+        Choice.fields.Option2, options=RenderOptions(scope=Page1, aliasing=Aliasing()), as_ref=True
     )
     assert rendered_option == "Choice.fields.Option2"

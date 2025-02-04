@@ -25,7 +25,7 @@ from bench.test.simulation.core import (
     UserSpec,
     get_simulation_id,
 )
-from bench.test.simulation.workload import ReadPackageSpec, WatchLogsSpec, WriteBlockTreeSpec
+from bench.test.simulation.workload import ReadPackageSpec, WatchLogsSpec, WritePageTreeSpec
 from bench.utils.func import group_by
 
 logger = structlog.get_logger(__name__)
@@ -102,7 +102,7 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
         benches=(BenchSpec(name="alice", owner="alice"),),
         hosts=(HostSpec(bench="alice"),),
         workloads=(
-            WriteBlockTreeSpec(bench="alice", client="alice-1", transactions=10),
+            WritePageTreeSpec(bench="alice", client="alice-1", transactions=10),
             ReadPackageSpec(bench="alice", client="alice-1"),
         ),
     ),
@@ -118,7 +118,7 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
         benches=(BenchSpec(name="alice", owner="alice"),),
         hosts=(HostSpec(bench="alice"),),
         workloads=(
-            WriteBlockTreeSpec(
+            WritePageTreeSpec(
                 bench="alice", client="alice-1", transactions=10, group="alice-0-main"
             ),
             ReadPackageSpec(bench="alice", client="alice-1", group="alice-0-main"),
@@ -137,7 +137,7 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
         benches=(BenchSpec(name="alice", owner="alice"),),
         hosts=(HostSpec(bench="alice"),),
         workloads=(
-            WriteBlockTreeSpec(bench="alice", client="alice-1", transactions=10),
+            WritePageTreeSpec(bench="alice", client="alice-1", transactions=10),
             WatchLogsSpec(bench="alice", client="alice-1", tail_user="alice", group="alice-0-main"),
             WatchLogsSpec(bench="alice", client="alice-2", tail_user="alice", group="alice-0-main"),
         ),

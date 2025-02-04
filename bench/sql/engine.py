@@ -19,14 +19,7 @@ from opentelemetry import trace
 from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
 
-from bench.language import (
-    EMPTY_DICT,
-    TRACING,
-    BenchError,
-    Block,
-    NodeType,
-    PrimitiveType,
-)
+from bench.language import EMPTY_DICT, TRACING, BenchError, Database, NodeType, PrimitiveType
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.tenacity import RetryOptions, retry
 
@@ -51,7 +44,7 @@ class SqlContext:
     def get_crypto_key(self, obj: "Table | Column") -> str | None:
         return GLOBAL_PG_CRYPTO_KEY
 
-    def get_custom_table(self, block: "UUID | Block") -> tuple[Table, Block]:
+    def get_custom_table(self, database: "UUID | Database") -> tuple[Table, Database]:
         raise NotImplementedError("context does not support custom tables")
 
 

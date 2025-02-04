@@ -24,6 +24,7 @@ from bench.language import (
     Choice,
     CustomObject,
     Field,
+    Flow,
     Node,
     NodeGraph,
     NodeReference,
@@ -301,14 +302,14 @@ raise ModelRefusedError("I'm afraid I cannot do that.")
 @example_("Basic Planning")
 def flow_basic_planning(package: Package):
     """How to plan next Actions in a simple Flow with fixed Actions."""
-    Flow = Block.new(BlockType.FLOW, name="Flow1")
+    Flow1 = Flow.new(name="Flow1")
     Start = Action.new(ActionType.START, name="Start")
     Look1 = Action.new(ActionType.LOOK, name="Look1")
     Click1 = Action.new(ActionType.CLICK, name="Click1")
     Type1 = Action.new(ActionType.TYPE, name="Type1")
     Press1 = Action.new(ActionType.PRESS, name="Press1")
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
-    Flow.actions.extend(Start, Look1, Click1, Type1, Press1, Complete)
+    Flow1.actions.extend(Start, Look1, Click1, Type1, Press1, Complete)
     Start.connect(PipeType.CALL, Look1)
     Look1.connect(PipeType.CALL, Click1)
     Look1.connect(PipeType.SELECT, Type1)
@@ -326,7 +327,7 @@ def flow_basic_planning(package: Package):
             on_terminate=CallTerminationMode.RETURN,  # back to Look when done
         )
     ]
-    return [Flow, *Flow.actions, *Flow.pipes], (
+    return [Flow1, *Flow1.actions, *Flow1.pipes], (
         "Okay, we know the next few steps here before we need to look again.",
         Look1,
         {"plans": plans},
@@ -336,19 +337,19 @@ def flow_basic_planning(package: Package):
 @example_("Basic Planning with Tool Actions")
 def basic_planning_with_tools(package: Package):
     """How to plan next Actions in a simple Flow with Tool Actions."""
-    Flow = Block.new(BlockType.FLOW, name="Flow1")
+    Flow1 = Flow.new(name="Flow1")
     Start = Action.new(ActionType.START, name="Start")
     Think1 = Action.new(ActionType.THINK, name="Think1")
     Tool1 = Action.new(ActionType.TOOL, name="Tool1", tool_selection=ToolSelection.any())
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
-    Flow.actions.extend(Start, Think1, Tool1, Complete)
+    Flow1.actions.extend(Start, Think1, Tool1, Complete)
     Start.connect(PipeType.CALL, Think1)
     Think1.connect(PipeType.CALL, Tool1)
     Tool1.connect(PipeType.CALL, Complete)
     # Inputs
     ...  # some application with obvious element ids provided
     # ---
-    return [Flow, *Flow.actions, *Flow.pipes], (
+    return [Flow1, *Flow1.actions, *Flow1.pipes], (
         "Route to the tool action.",
         Think1,
         {
@@ -366,8 +367,7 @@ def basic_planning_with_tools(package: Package):
 @example_("Optional Plan")
 def flow_simple_extract_without_plan(package: Package):
     """No plans needed when the Flow is done and the outputs are set."""
-    Flow = Block.new(
-        BlockType.FLOW,
+    Flow1 = Flow.new(
         name="Flow1",
         fields=[Field.input("Text", str), Field.output("Names", str, is_list=True)],
     )
@@ -377,16 +377,16 @@ def flow_simple_extract_without_plan(package: Package):
     )
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
     Complete.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow.fields.Names),
+        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Names),
         source=(Extract, PathElementType.RUN, Run.get_property("outputs"), Extract.fields.Names),
     )
-    Flow.actions.extend(Start, Extract, Complete)
+    Flow1.actions.extend(Start, Extract, Complete)
     Start.connect(PipeType.CALL, Extract)
     Extract.connect(PipeType.CALL, Complete)
     # Inputs
     {"Text": "And then Alice met Bob at the park."}
     # ---
-    return [Flow, *Flow.actions, *Flow.pipes], (
+    return [Flow1, *Flow1.actions, *Flow1.pipes], (
         "No plan because the next Action is Call->Complete and its fields are computed.",
         Extract,
         {"Names": ["Alice", "Bob"], "plans": []},
@@ -396,19 +396,18 @@ def flow_simple_extract_without_plan(package: Package):
 @example_("Plan arguments for Actions")
 def flow_implicit_transformation_in_call(package: Package):
     """Every plan should consider what the Flow and the other Actions need."""
-    Flow = Block.new(
-        BlockType.FLOW,
+    Flow1 = Flow.new(
         name="Flow1",
         fields=[Field.input("Name", str), Field.output("Greeting", str)],
     )
     Start = Action.new(ActionType.START, name="Start")
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
-    Flow.actions.extend(Start, Complete)
+    Flow1.actions.extend(Start, Complete)
     Start.connect(PipeType.CALL, Complete)
     # Inputs
     {"Name": "Alice"}
     # ---
-    return [Flow, *Flow.actions, *Flow.pipes], (
+    return [Flow1, *Flow1.actions, *Flow1.pipes], (
         "Feed argument to Flow/Complete via plan",
         Start,
         {"plans": [call_serial(call(Complete, Greeting="Hello Alice!"))]},

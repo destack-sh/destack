@@ -599,7 +599,7 @@ def _get_unique(scope: Node, name: str) -> Node | None:
      2. Descendants - descendants of scope.
      3. Ancestors - descendants of ancestor containers (above parent).
     The rationale is that we generally want to refer to nodes in the same container
-     more than we want our child nodes (like an output Field with the name of a ChoiceBlock,
+     more than we want our child nodes (like an output Field with the name of a Choice,
      or other Actions in the same Flows more than our input Fields).
     """
     # 'siblings'

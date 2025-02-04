@@ -11,9 +11,9 @@ from bench.language import (
     EMPTY_SCOPE_DATA,
     USER_NODE_TYPES,
     Bench,
-    Block,
     Client,
     ClientType,
+    Database,
     Handle,
     NodeArea,
     NodeReference,
@@ -151,8 +151,8 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                 raise RuntimeError(f"unexpected client: {client!r}")
 
     @override
-    def resolve_request_block(self, block_ptr: UUID | NodeReference) -> Block | None:
-        raise RuntimeError("supervisor does not support block-level requests")
+    def resolve_request_database(self, database_ptr: UUID | NodeReference) -> Database | None:
+        raise RuntimeError("supervisor does not support database-level requests")
 
     #
     # User management

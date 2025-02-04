@@ -40,7 +40,6 @@ from .struct import Struct, struct_
 if TYPE_CHECKING:
     from bench.language import (
         AggregateOptions,
-        Block,
         ConnectMode,
         Connector,
         Database,
@@ -171,11 +170,11 @@ class SelectOptions(Struct):
                 )
             return properties
 
-    def get_selected_fields(self, block: "Block") -> Sequence["Field"]:
-        """Get the selected (member) fields for a block."""
+    def get_selected_fields(self, database: "Database") -> Sequence["Field"]:
+        """Get the selected (member) fields for a database."""
         fields: list[Field] = []
         for field in self.select_fields:
-            if field.base_ck == block.ck and field.type == FieldType.MEMBER:
+            if field.base_ck == database.ck and field.type == FieldType.MEMBER:
                 fields.append(field)
         return fields
 

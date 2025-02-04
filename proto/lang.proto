@@ -162,6 +162,8 @@ enum NodeType {
   NODE_TYPE_VIEW = 5080;
   NODE_TYPE_DATABASE = 5090;
   NODE_TYPE_CHANNEL = 5100;
+  NODE_TYPE_ROLE = 5110;
+  NODE_TYPE_IDENTITY = 5111;
   NODE_TYPE_SPACE = 5200;
   NODE_TYPE_THREAD = 5501;
   NODE_TYPE_MESSAGE = 5502;
@@ -269,6 +271,8 @@ enum ObjectType {
   OBJECT_TYPE_VIEW = 5080;
   OBJECT_TYPE_DATABASE = 5090;
   OBJECT_TYPE_CHANNEL = 5100;
+  OBJECT_TYPE_ROLE = 5110;
+  OBJECT_TYPE_IDENTITY = 5111;
   OBJECT_TYPE_SPACE = 5200;
   OBJECT_TYPE_THREAD = 5501;
   OBJECT_TYPE_MESSAGE = 5502;
@@ -372,6 +376,8 @@ enum BenchType {
   BENCH_TYPE_VIEW = 5080;
   BENCH_TYPE_DATABASE = 5090;
   BENCH_TYPE_CHANNEL = 5100;
+  BENCH_TYPE_ROLE = 5110;
+  BENCH_TYPE_IDENTITY = 5111;
   BENCH_TYPE_SPACE = 5200;
   BENCH_TYPE_THREAD = 5501;
   BENCH_TYPE_MESSAGE = 5502;
@@ -1856,7 +1862,6 @@ enum OrganizationStatus {
 enum ChannelType {
   CHANNEL_TYPE_UNSPECIFIED = 0;
   CHANNEL_TYPE_TEXT = 1;
-  CHANNEL_TYPE_VOICE = 2;
 }
 
 enum ThreadType {
@@ -1873,8 +1878,8 @@ enum ThreadStatus {
 
 enum MessageType {
   MESSAGE_TYPE_UNSPECIFIED = 0;
-  MESSAGE_TYPE_DEFAULT = 1;
-  MESSAGE_TYPE_BLOCK = 2;
+  MESSAGE_TYPE_TEXT = 1;
+  MESSAGE_TYPE_TYPED = 2;
 }
 
 enum MessageStatus {
@@ -3358,6 +3363,7 @@ message ChoiceData {
   string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
+  NodeReferenceData block_ptr = 36;
 }
 
 message ClassData {
@@ -3381,6 +3387,7 @@ message ClassData {
   string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
+  NodeReferenceData block_ptr = 36;
 }
 
 message DatabaseData {
@@ -3404,6 +3411,7 @@ message DatabaseData {
   string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
+  NodeReferenceData block_ptr = 36;
 }
 
 message DependencyData {
@@ -3506,6 +3514,31 @@ message FlowData {
   string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
+  NodeReferenceData block_ptr = 36;
+}
+
+message IdentityData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  optional NodeReferenceData template_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
+  optional google.protobuf.Value subnode_packed = 29;
+  string name = 32;
+  string order_key = 33;
+  optional IconData icon = 34;
+  optional TextData text = 35;
+  NodeReferenceData block_ptr = 36;
 }
 
 message PackageData {
@@ -3711,6 +3744,30 @@ message IconViewData {
   optional bool include_color = 100;
 }
 
+message RoleData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  optional NodeReferenceData template_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
+  optional google.protobuf.Value subnode_packed = 29;
+  string name = 32;
+  string order_key = 33;
+  optional IconData icon = 34;
+  optional TextData text = 35;
+  NodeReferenceData block_ptr = 36;
+}
+
 message SpaceData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3903,18 +3960,20 @@ message SomeNodeData {
     ViewData view = 27;
     DatabaseData database = 28;
     ChannelData channel = 29;
-    SpaceData space = 30;
-    ThreadData thread = 31;
-    MessageData message = 32;
-    RecordData record = 33;
-    SessionData session = 34;
-    RunData run = 35;
-    RunSpanData run_span = 36;
-    RunPlanData run_plan = 37;
-    InterruptionData interruption = 38;
-    LogData log = 39;
-    SkipData skip = 40;
-    EmptyData empty = 41;
+    RoleData role = 30;
+    IdentityData identity = 31;
+    SpaceData space = 32;
+    ThreadData thread = 33;
+    MessageData message = 34;
+    RecordData record = 35;
+    SessionData session = 36;
+    RunData run = 37;
+    RunSpanData run_span = 38;
+    RunPlanData run_plan = 39;
+    InterruptionData interruption = 40;
+    LogData log = 41;
+    SkipData skip = 42;
+    EmptyData empty = 43;
   };
 }
 

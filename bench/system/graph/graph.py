@@ -31,8 +31,8 @@ from bench.language import (
     NODE_TYPES,
     AccessError,
     Bench,
-    Block,
     Context,
+    Database,
     EditType,
     Engine,
     EngineUnavailableError,
@@ -53,6 +53,7 @@ from bench.language import (
     Session,
     Subject,
     ValidationError,
+    bittuple,
     edit_data_graph,
     evaluate_and_adapt_read,
     evaluate_edit,
@@ -61,7 +62,6 @@ from bench.language import (
     unpack_proto_json,
     unpack_value_scalar_data,
 )
-from bench.language.core import bittuple
 from bench.proto import (
     AggregateNodesRequest,
     AggregateNodesResponse,
@@ -241,8 +241,8 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
 
     @abc.abstractmethod
-    def resolve_request_block(self, block_ptr: UUID | NodeReference) -> Block | None:
-        """Resolve a block pointer from a request message."""
+    def resolve_request_database(self, database_ptr: UUID | NodeReference) -> Database | None:
+        """Resolve a database pointer from a request message."""
         ...
 
     @property
@@ -386,22 +386,22 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             with self.tracer.start_as_current_span("graph.commit.read"):
                 for (base_ck, node_type), node_references in area.scopes_by_base_and_type.items():
                     node_type = wiring.unpack_enum(NodeType, node_type)
-                    block = self.resolve_request_block(base_ck) if base_ck else None
+                    database = self.resolve_request_database(base_ck) if base_ck else None
                     select = (
-                        SelectOptions(select_fields=list(block.fields))
-                        if block is not None
+                        SelectOptions(select_fields=list(database.fields))
+                        if database is not None
                         else None
                     )
                     query = Query(
                         type=QueryType.GET,
                         node_type=node_type,
-                        base_block=block,
+                        base_type=database,
                         roots=node_references,
                         include_deleted=include_deleted,
                         select=select,
                     )
                     adapted_query = self._adapt_read_query(subject, query)
-                    channel = await session._get_channel_for(
+                    channel = await session._get_connector_for(
                         scope, adapted_query.all_node_types, include_deleted=False, is_readonly=True
                     )
                     connection = await channel.get(
@@ -520,15 +520,15 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
                 if any(not r.id for r in roots):
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "root nodes must have an id")
-                if request.block_ptr.metatype:
-                    block_ptr = wiring.unpack_builtin_object(
-                        request.block_ptr, supergraph=None, expect=NodeReference
+                if request.base_type_ptr.metatype:
+                    base_type_ptr = wiring.unpack_builtin_object(
+                        request.base_type_ptr, supergraph=None, expect=NodeReference
                     )
-                    block = self.resolve_request_block(block_ptr)
-                    if block is None:
-                        raise NodeNotFoundError(block_ptr)
+                    database = self.resolve_request_database(base_type_ptr)
+                    if database is None:
+                        raise NodeNotFoundError(base_type_ptr)
                 else:
-                    block = None
+                    database = None
                 ancestor_types = [wiring.unpack_enum(NodeType, t) for t in request.ancestor_types]
                 descendant_types = [
                     wiring.unpack_enum(NodeType, t) for t in request.descendant_types
@@ -549,7 +549,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     type=QueryType.GET,
                     node_type=wiring.unpack_enum(NodeType, node_type),
                     roots=roots,
-                    base_block=block,
+                    base_type=database,
                     ancestor_types=ancestor_types,
                     descendant_types=descendant_types,
                     include_deleted=request.include_deleted,
@@ -653,15 +653,15 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         async with self.new_request_session(supergraph=subject._supergraph) as session:
             # build the query
             with self.tracer.start_as_current_span("graph.search.parse"):
-                if request.block_ptr.metatype:
-                    block_ptr = wiring.unpack_builtin_object(
-                        request.block_ptr, supergraph=None, expect=NodeReference
+                if request.base_type_ptr.metatype:
+                    base_type_ptr = wiring.unpack_builtin_object(
+                        request.base_type_ptr, supergraph=None, expect=NodeReference
                     )
-                    block = self.resolve_request_block(block_ptr)
-                    if block is None:  # raising here is not great.. :SearchWithMissingBlock
-                        raise NodeNotFoundError(block_ptr)
+                    database = self.resolve_request_database(base_type_ptr)
+                    if database is None:  # raising here is not great.. :SearchWithMissingBlock
+                        raise NodeNotFoundError(base_type_ptr)
                 else:
-                    block = None
+                    database = None
                 filter = wiring.unpack_builtin_object_validate_maybe(
                     request.filter, supergraph=session._supergraph, expect=Expression
                 )
@@ -684,7 +684,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 query = Query(
                     type=QueryType.SEARCH,
                     node_type=node_type,
-                    base_block=block,
+                    base_type=database,
                     filter=filter,
                     sort=sort,
                     ancestor_types=ancestor_types,
@@ -717,7 +717,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 result.graph,
                 root_node_type=node_type,
                 query=adapted_query,
-                required_nodes=[request.block_ptr] if request.block_ptr.metatype else [],
+                required_nodes=[request.base_type_ptr] if request.base_type_ptr.metatype else [],
             )
             if decision != PolicyEffect.ALLOW:
                 raise AccessError(accesses)

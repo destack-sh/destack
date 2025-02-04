@@ -37,6 +37,7 @@ from bench.language.registry import (
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.env import IS_DEV
+from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import dualmethod, stable_hash
 from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
@@ -51,7 +52,6 @@ from .const import (
     NODE_TYPES,
     PACKAGE_NODE_TYPES,
     UNSET,
-    BlockType,
     BuiltinEnum,
     FieldType,
     NodeArea,
@@ -92,7 +92,7 @@ from .property import (
     p_system,
 )
 from .struct import Struct, struct_
-from .validation import constraint, on_invalid_raise
+from .validation import NAME_CONSTRAINT, on_invalid_raise
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -111,16 +111,20 @@ if TYPE_CHECKING:
         Field,
         Flow,
         GetConnection,
+        Icon,
+        Identity,
         Machine,
         NodeLink,
         NodeReference,
         Package,
+        Page,
         PathIn,
         Pipe,
         Query,
         Run,
         SearchConnection,
         Session,
+        Text,
         Type,
         User,
     )
@@ -1180,6 +1184,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         else:
             raise ValueError(f"cannot append {child!r} to {self!r}")
 
+    def extend(self, *children: "Node", move: bool = False):
+        """Append multiple Nodes as children of this Node."""
+        for child in children:
+            self.append(child, move=move)
+
     def _move_to_graph(self, graph: NodeGraph, force: bool = False):
         """Moves this Node and its descendants to a new graph."""
         moved = self._graph.get_descendants(self, recursive=True)  # type: ignore
@@ -1377,7 +1386,7 @@ class NodeSubtypeStub[NodeT: Node]:
     """
     The stub for the virtual subclass of a Node for a specific subtype.
     Basically, we use this so we can have instantiate & instance check with subnodes,
-     like with DatabaseBlock or TreeView (even when the actual subtype-class doesn't exist).
+     like with Database or TreeView (even when the actual subtype-class doesn't exist).
     """
 
     __slots__ = ("_name", "_node_cls", "_node_subtype", "_node_type")
@@ -1411,12 +1420,11 @@ class HasContext(BuiltinObject):
         94, require=False, array=False, references=NodeType.MACHINE, same_bench=True
     )
     user: Optional["User"] = p_internal(95, require=False, array=False, references=NodeType.USER)
-    identity: Optional["Block"] = p_internal(
+    identity: Optional["Identity"] = p_internal(
         96,
         require=False,
         array=False,
-        references=NodeType.BLOCK,
-        constraint=constraint(node_subtypes=[BlockType.IDENTITY]),
+        references=NodeType.IDENTITY,
     )
     if TYPE_CHECKING:
         session_ptr: Optional[NodeReference] = None
@@ -1536,6 +1544,30 @@ class SourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC
         self.computed_values = [
             *(cv for cv in self.computed_values if cv.target_path != target),
         ]
+
+
+@node_component_()
+class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
+    """A named SourceNode that is defined inline in a Page."""
+
+    parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
+
+    # content
+    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+    order_key: str = p_internal(33, default=INTEGER_ZERO)
+    icon: Optional["Icon"] = p_regular(
+        34, default=None, require=False, array=False, struct=StructType.ICON
+    )
+    text: Optional["Text"] = p_regular(
+        35, default=None, require=False, array=False, struct=StructType.TEXT
+    )
+    block: "Block | None" = p_regular(
+        36,
+        require=True,
+        array=False,
+        references=NodeType.BLOCK,
+        description="The Block where this SourceNode is defined.",
+    )
 
 
 @node_component_()

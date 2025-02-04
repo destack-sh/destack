@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.04.2"
+VERSION = "2025.02.04.4"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -784,8 +784,6 @@ BLOCK_TABLE = Table(
         Column("node_ck", PrimitiveType.UUID, is_nullable=True),
         Column("node_type", PrimitiveType.INT16, is_nullable=True),
         Column("node_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("node_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("node_base_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -820,6 +818,9 @@ CHOICE_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("block_id", PrimitiveType.UUID),
+        Column("block_ck", PrimitiveType.UUID),
+        Column("block_bench_id", PrimitiveType.UUID),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -854,6 +855,9 @@ CLASS_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("block_id", PrimitiveType.UUID),
+        Column("block_ck", PrimitiveType.UUID),
+        Column("block_bench_id", PrimitiveType.UUID),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -944,6 +948,9 @@ FLOW_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("block_id", PrimitiveType.UUID),
+        Column("block_ck", PrimitiveType.UUID),
+        Column("block_bench_id", PrimitiveType.UUID),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1161,7 +1168,6 @@ DATABASE_TABLE = Table(
         Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID, is_nullable=True),
         Column("package_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1185,6 +1191,9 @@ DATABASE_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("block_id", PrimitiveType.UUID),
+        Column("block_ck", PrimitiveType.UUID),
+        Column("block_bench_id", PrimitiveType.UUID),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1226,6 +1235,80 @@ CHANNEL_TABLE = Table(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
         Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
     ),
+)
+
+ROLE_TABLE = Table(
+    "bench_role",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("package_id", PrimitiveType.UUID, is_nullable=True),
+        Column("package_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("template_id", PrimitiveType.UUID, is_nullable=True),
+        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
+        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("name", PrimitiveType.STRING),
+        Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
+        Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("block_id", PrimitiveType.UUID),
+        Column("block_ck", PrimitiveType.UUID),
+        Column("block_bench_id", PrimitiveType.UUID),
+    ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
+)
+
+IDENTITY_TABLE = Table(
+    "bench_identity",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("package_id", PrimitiveType.UUID, is_nullable=True),
+        Column("package_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("template_id", PrimitiveType.UUID, is_nullable=True),
+        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
+        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("name", PrimitiveType.STRING),
+        Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
+        Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("block_id", PrimitiveType.UUID),
+        Column("block_ck", PrimitiveType.UUID),
+        Column("block_bench_id", PrimitiveType.UUID),
+    ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
 SPACE_TABLE = Table(

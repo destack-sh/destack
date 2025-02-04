@@ -13,23 +13,25 @@ from bench.language import (
     Block,
     BlockType,
     BuiltinObject,
+    Choice,
+    Class,
     Client,
     ClientType,
     Code,
     DuplicateAction,
     Field,
+    Flow,
     Machine,
     Message,
     NodeReference,
     NodeType,
     Package,
     PackageType,
+    Page,
     Property,
     Session,
     Text,
-    VariableBlock,
     md,
-    to_type,
 )
 from bench.proto import unpack_builtin_object
 from bench.test.simulation.core import Simulation
@@ -65,24 +67,6 @@ def test_get_set_non_existing_property(session: "Session"):
         _ = node.wadabadaboo  # type: ignore
 
 
-def test_node_passthrough(session: "Session"):
-    bench = Bench(slug="test", name="Test")
-    package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
-
-    WeatherCondition = package.blocks.create(
-        type=BlockType.CHOICE,
-        name="WeatherCondition",
-        fields=[
-            Field.option("Sunny"),
-            Field.option("Rainy"),
-            Field.option("Cloudy"),
-            Field.option("Snowy"),
-        ],
-    )
-    assert WeatherCondition.fields.Sunny is WeatherCondition.fields.get("Sunny")
-    assert WeatherCondition.Sunny is WeatherCondition.fields.get("Sunny")  # type: ignore
-
-
 def test_node_subtype_property_access(session: "Session"):
     # subtype -> regular property
     Text1 = Block.new(BlockType.PARAGRAPH, "Text1", text=md("Hello!"))
@@ -94,16 +78,8 @@ def test_node_subtype_property_access(session: "Session"):
     Duplicate1 = Action.new(DuplicateAction, "BlockAction1", node=Text1)
     assert Duplicate1.node == Text1
     assert Duplicate1.node_ptr == Text1.to_ref()
-
-    # subtype -> value packed property
-    Value1 = Block.new(VariableBlock, "Value1", value_type=to_type(int), value=42)
-    assert Value1.value_type == to_type(int)
-    assert Value1.value == 42
-    Value1.value = 43
-    assert Value1.value == 43
-    assert Value1.value_type
-    assert Value1.value_packed
-    assert Value1.value_packed[Value1.value_type.identity_key] == 43
+    Duplicate1.is_shallow = True
+    assert Duplicate1.is_shallow
 
 
 def test_node_subtype_property_reference(session: "Session"):
@@ -164,16 +140,15 @@ def test_node_pointers_consistency(session: "Session"):
     # sub package nested pointers
     package_a = bench_a.packages.create(type=PackageType.ROOT, name="Main B", slug="main-b")
     assert package_a.bench_id == bench_a.id
-    block_a_1 = package_a.blocks.create(type=BlockType.VIEW)
-    assert block_a_1.bench_id == bench_a.id
-    assert block_a_1.to_ref().equals(
-        NodeReference(
-            node_type=NodeType.BLOCK, id=block_a_1.id, ck=block_a_1.ck, bench_id=bench_a.id
-        )
+    page_a_1 = package_a.pages.create()
+    assert page_a_1.bench_id == bench_a.id
+    assert page_a_1.to_ref().equals(
+        NodeReference(node_type=NodeType.BLOCK, id=page_a_1.id, ck=page_a_1.ck, bench_id=bench_a.id)
     )
 
     # based pointers
-    message_a = Message(parent=bench_a, scope=block_a_1, class_=block_a_1)
+    class_a_1 = page_a_1.append(Class.new("Class1"))
+    message_a = Message(parent=bench_a, class_=class_a_1)
     assert message_a.bench_id == bench_a.id
     assert message_a.to_ref().equals(
         NodeReference(
@@ -181,7 +156,7 @@ def test_node_pointers_consistency(session: "Session"):
             id=message_a.id,
             ck=message_a.ck,
             bench_id=bench_a.id,
-            base_ck=block_a_1.ck,
+            base_ck=page_a_1.ck,
             base_bench_id=bench_a.id,
         )
     )
@@ -190,9 +165,10 @@ def test_node_pointers_consistency(session: "Session"):
     bench_b = Bench(slug="testb", name="testb")
     bench_b.main_store = bench_b.stores.create(name="Store")
     package_b = bench_b.packages.create(type=PackageType.ROOT, name="Main B", slug="main-b")
-    block_b = package_b.blocks.create(type=BlockType.MESSAGE)
-    assert block_b.bench_id == bench_b.id
-    message_b = Message(parent=bench_b, scope=block_a_1, class_=block_a_1)
+    page_b = package_b.pages.create()
+    assert page_b.bench_id == bench_b.id
+    class_b_1 = page_b.append(Class.new("Class1"))
+    message_b = Message(parent=bench_b, class_=class_b_1)
     assert message_b.bench_id == bench_b.id
     assert message_b.to_ref().equals(
         NodeReference(
@@ -200,7 +176,7 @@ def test_node_pointers_consistency(session: "Session"):
             id=message_b.id,
             ck=message_b.ck,
             bench_id=bench_b.id,
-            base_ck=block_a_1.ck,
+            base_ck=page_a_1.ck,
             base_bench_id=bench_a.id,
         )
     )
@@ -222,22 +198,22 @@ def test_builtin_object_clone(obj: BuiltinObject, session: Session):
 
 @simulated_runtime()
 async def test_add_detached_subtree(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    choice = Block.new(BlockType.CHOICE, "Letter")
+    choice = Choice.new("Letter")
     for i in range(0, 26):
         letter = chr(65 + i)
         choice.fields.append(Field.option(letter))
-    runtime.page().blocks.append(choice)
+    runtime.page().append(choice)
     await runtime.commit()
 
 
 @simulated_runtime()
 async def test_clone_subtree(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Clone a Node subtree."""
-    choice = Block.new(BlockType.CHOICE, "Letter")
+    choice = Choice.new("Letter")
     for i in range(0, 26):
         letter = chr(65 + i)
         choice.fields.append(Field.option(letter))
-    runtime.page().blocks.append(choice)
+    runtime.page().append(choice)
     await runtime.commit()
 
     choice_clone = choice.clone()
@@ -250,21 +226,25 @@ async def test_clone_subtree(simulation: Simulation, runtime: RuntimeLambdaWorkl
 @simulated_runtime()
 async def test_clone_consistency(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Clone consistency test with references."""
-    choice = Block.new(BlockType.CHOICE, "Letter", fields=[Field.option("A"), Field.option("B")])
+    choice = Choice.new("Letter", fields=[Field.option("A"), Field.option("B")])
+    flow = Flow.new("Flow")
     action = Action.new(
         ActionType.CODE,
         "Action",
         fields=[Field.input("Text", Text), Field.output("Choice", choice)],
     )
+    flow.append(action)
     runtime.page().append(choice)
-    runtime.page().append(action)
+    runtime.page().append(flow)
     await runtime.commit()
 
     # references should be consistent within new subtree
     page_clone = runtime.page().clone()
-    choice_clone = page_clone.blocks.get("Letter")
+    flow_clone = page_clone.blocks.Flow.flow
+    assert flow_clone is not None
+    choice_clone = page_clone.blocks.Letter.choice
     assert choice_clone is not None
-    action_clone = page_clone.actions.get("Action")
+    action_clone = flow_clone.actions.Action
     assert action_clone is not None
     assert action_clone.fields.Choice.base_type == choice_clone
     await runtime.commit()
@@ -282,7 +262,7 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
         Block.new(
             BlockType.FLOW,
             "Block2",
-            fields=[Field.input("Text", Text), Field.output("Choice", Block1)],
+            fields=[Field.input("Text", Text), Field.output("Choice", Block1.choice)],
         )
     )
     Block3 = Page1.blocks.append(
@@ -317,7 +297,7 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
 
 def test_create_circular_node_ancestry(session: Session, package: Package):
     """Create a circular node ancestry. Should fail."""
-    Page: Block = Block.new(BlockType.PAGE, "Page")
+    Page1 = Page.new("Page1")
     with pytest.raises(ValueError):
-        Page.blocks.append(Page)
-    package.blocks.append(Page)
+        Page1.append(Page1)
+    package.append(Page1)

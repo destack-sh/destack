@@ -6,13 +6,7 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language import (
-    SOURCE_NODE_TYPES,
-    Bench,
-    Block,
-    BlockType,
-    Package,
-)
+from bench.language import SOURCE_NODE_TYPES, Bench, Package, Page
 from bench.test.simulation.core import Simulation, make_remote_session
 
 from .spec import WorkloadSpec, WorkloadType
@@ -31,12 +25,12 @@ class ClientWorkloadSpec(WorkloadSpec):
 class ClientWorkload[SpecT: ClientWorkloadSpec](Workload[SpecT], abc.ABC):
     """Workloads that run on a single Client."""
 
-    def page(self, name: str = "Page1") -> Block:
+    def page(self, name: str = "Page1") -> Page:
         """Gets or creates a page in the current package."""
-        page = self.main_package.blocks.get(name)
+        page = self.main_package.pages.get(name)
         if page is None:
-            page = Block.new(BlockType.PAGE, name=name)
-            self.main_package.blocks.append(page)
+            page = Page.new(name=name)
+            self.main_package.pages.append(page)
         return page
 
     async def commit(self):

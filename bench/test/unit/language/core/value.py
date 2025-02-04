@@ -12,12 +12,14 @@ from bench.language import (
     Block,
     BlockType,
     BuiltinObject,
+    Class,
     Code,
     CreateAction,
     CustomObject,
     DuplicateAction,
     Field,
     FieldType,
+    Flow,
     Message,
     MessageType,
     Node,
@@ -29,16 +31,13 @@ from bench.language import (
     Text,
     Type,
     TypeKind,
-    VariableBlock,
     coerce_custom_object_scalar,
     pack_builtin_object,
     pack_builtin_object_data,
     pack_custom_object,
-    to_type_scalar,
     unpack_builtin_object,
     unpack_builtin_object_data,
     unpack_custom_object,
-    unpack_value,
 )
 from bench.proto import wiring
 from bench.test.strategies import builtin_objects, examples, structs
@@ -47,17 +46,14 @@ from bench.test.unit.conftest import BUILTIN_OBJECTS, STRUCTS
 
 def test_custom_object_with_builtin_properties(session: Session, package: Package) -> None:
     """Coerce, pack & unpack custom object with builtin properties."""
-    Flow1 = Block.new(
-        BlockType.FLOW,
+    Flow1 = Flow.new(
         "Flow1",
-        fields=[
-            Field.output("Output1", PrimitiveType.INT32),
-            Field.output("Output 2 with a Space", Text),
-        ],
+        Field.output("Output1", PrimitiveType.INT32),
+        Field.output("Output 2 with a Space", Text),
     )
 
     # coerce
-    Flow1Output = Flow1.to_type_maybe(of="value", field_types=[FieldType.OUTPUT])
+    Flow1Output = Flow1.to_type_maybe(field_types=[FieldType.OUTPUT])
     assert Flow1Output is not None
     obj = coerce_custom_object_scalar(
         {
@@ -75,15 +71,12 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
 
 def test_partial_node_message(session: Session, package: Package) -> None:
     """Create, update, pack/unpack a partial Message node."""
-    message_type = Block.new(
-        BlockType.MESSAGE,
+    message_type = Class.new(
         "MyMessage",
-        fields=(
-            Field.member("Field1", int),
-            Field.member("Field2", Block),
-            Field.member("Field3", bool),
-            Field.member("Field4", datetime),
-        ),
+        Field.member("Field1", int),
+        Field.member("Field2", Block),
+        Field.member("Field3", bool),
+        Field.member("Field4", datetime),
     )
     typ = Type(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.MESSAGE, base_type=message_type)
     obj = CustomObject.new({}, typ)
@@ -97,12 +90,10 @@ def test_partial_node_message(session: Session, package: Package) -> None:
 
     # set/get values on value and properties
     obj.Field1 = 42
-    obj.type = MessageType.BENCH
     obj.title = "My New Message"
     obj.block = message_type
     obj.Field4 = datetime(2024, 1, 1, tzinfo=pytz.utc)
     assert obj.Field1 == 42
-    assert obj.type == MessageType.BENCH
     assert obj.block == message_type
     assert obj.title == "My New Message"
     assert obj.Field4 == datetime(2024, 1, 1, tzinfo=pytz.utc)
@@ -115,7 +106,6 @@ def test_partial_node_message(session: Session, package: Package) -> None:
     # turn into full node
     full_obj = Message.from_partial(obj)
     assert full_obj.id is not None
-    assert full_obj.type == MessageType.BENCH
     assert full_obj.title == "My New Message"
     assert full_obj.value
     assert full_obj.value.Field1 == 42
@@ -124,15 +114,11 @@ def test_partial_node_message(session: Session, package: Package) -> None:
 
 def test_partial_node_message_extraneous_property(session: Session, package: Package) -> None:
     """Create, update, pack/unpack a partial Message node with extraneous kwargs (should error)."""
-    message_type = Block.new(
-        BlockType.MESSAGE,
-        "MyMessage",
-        fields=(Field.member("Field1", int),),
-    )
-    _ = Message.partial(type=MessageType.BENCH, block=message_type, Field1=42)
+    message_type = Class.new("MyMessage", Field.member("Field1", int))
+    _ = Message.partial(type=MessageType.TEXT, block=message_type, Field1=42)
     with pytest.raises(ValueError):
         _ = Message.partial(
-            type=MessageType.BENCH, block=message_type, Field1=42, my_extraneous_something="value"
+            type=MessageType.TEXT, block=message_type, Field1=42, my_extraneous_something="value"
         )
 
 
@@ -236,21 +222,6 @@ def test_partial_node_coerce(session: Session, package: Package) -> None:
     obj.string = "Hello World!"
     obj_coerced = coerce_custom_object_scalar({**obj}, obj._type)
     assert obj_coerced == obj
-
-
-def test_roundtrip_scalar_value(session: Session, package: Package) -> None:
-    """Pack/unpack a scalar value inside a (Variable) Block (which HasValues)."""
-
-    # first set in constructor
-    type_info = to_type_scalar(PrimitiveType.INT32)
-    block = Block.new(VariableBlock, name="Variable1", value_type=type_info, value=7)
-    assert block.value == 7
-    assert unpack_value(block.value_packed, type_info, wrap_scalar=True) == 7
-
-    # set at runtime
-    block.value = 42
-    assert block.value == 42
-    assert unpack_value(block.value_packed, type_info, wrap_scalar=True) == 42
 
 
 def test_unpack_custom_object(session: Session, package: Package) -> None:

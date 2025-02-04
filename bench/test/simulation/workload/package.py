@@ -5,11 +5,10 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
-    Block,
-    BlockType,
     EditType,
     Log,
     NodeType,
+    Page,
     repr_enums,
 )
 from bench.test.simulation.core import (
@@ -30,9 +29,8 @@ tracer = trace.get_tracer(__name__)
 
 
 @dataclass
-class WriteBlockTreeSpec(ClientWorkloadSpec):
-    type: WorkloadType = WorkloadType.WRITE_BLOCK_TREE
-    block_types: tuple[BlockType, ...] = (BlockType.PAGE, BlockType.PARAGRAPH)
+class WritePageTreeSpec(ClientWorkloadSpec):
+    type: WorkloadType = WorkloadType.WRITE_PAGE_TREE
     edit_types: tuple[EditType, ...] = (EditType.CREATE, EditType.DELETE)
     transactions: int | SampledInt = 1
     transactions_interval: float | SampledFloat = 0.0
@@ -40,17 +38,17 @@ class WriteBlockTreeSpec(ClientWorkloadSpec):
     live: bool = True
 
 
-@workload_(WorkloadType.WRITE_BLOCK_TREE, WriteBlockTreeSpec)
-class WriteBlockTreeWorkload(ClientWorkload[WriteBlockTreeSpec]):
-    """Write a random tree of blocks."""
+@workload_(WorkloadType.WRITE_PAGE_TREE, WritePageTreeSpec)
+class WritePageTreeWorkload(ClientWorkload[WritePageTreeSpec]):
+    """Write a random tree of pages."""
 
-    def __init__(self, id: str, spec: WriteBlockTreeSpec, oracle: Oracle, simulation: Simulation):
+    def __init__(self, id: str, spec: WritePageTreeSpec, oracle: Oracle, simulation: Simulation):
         super().__init__(id, spec, oracle, simulation)
-        self.block_num = 0
-        self.all_edits: list[tuple[EditType, Block]] = []
+        self.page_num = 0
+        self.all_edits: list[tuple[EditType, Page]] = []
 
     def __str__(self):
-        return f"node_subtypes={repr_enums(self.spec.block_types)}, edit_types={repr_enums(self.spec.edit_types)}"
+        return f"edit_types={repr_enums(self.spec.edit_types)}"
 
     @override
     async def run_once_in_session(self):
@@ -61,21 +59,20 @@ class WriteBlockTreeWorkload(ClientWorkload[WriteBlockTreeSpec]):
             max_edits = to_value(self.random, self.spec.edits_per_transaction)
             for _ in range(max_edits):
                 edit_type = self.random.choice(self.spec.edit_types)
-                blocks = self.main_package._graph.nodes_of_type(Block)
+                pages = self.main_package._graph.nodes_of_type(Page)
                 if edit_type == EditType.CREATE:
-                    block_type = self.random.choice(self.spec.block_types)
-                    parent = self.random.choice((self.main_package, *blocks))
-                    block = Block.new(block_type, name=f"{block_type.bench_name}{self.block_num}")
-                    self.block_num += 1
-                    parent.blocks.append(block)
+                    parent = self.random.choice((self.main_package, *pages))
+                    page = Page.new(name=f"Page {self.page_num}")
+                    self.page_num += 1
+                    parent.pages.append(page)
                 elif edit_type == EditType.DELETE:
-                    if not blocks:
-                        continue  # no blocks to delete yet
-                    block = self.random.choice(blocks)
-                    block.delete()
+                    if not pages:
+                        continue  # no pages to delete yet
+                    page = self.random.choice(pages)
+                    page.delete()
                 else:
                     raise NotImplementedError(f"unexpected edit type {edit_type}")
-                self.all_edits.append((edit_type, block))
+                self.all_edits.append((edit_type, page))
             await self.session.commit()
             n_transactions += 1
 

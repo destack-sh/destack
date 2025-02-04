@@ -42,6 +42,7 @@ from .database import Database
 from .dependency import Dependency
 from .field import Field, InputField, MemberField, OptionField, OutputField, VariableField
 from .flow import Flow
+from .identity import Identity
 from .package import Package, PackageType
 from .page import Page
 from .pipe import Pipe, PipeType, PortSide
@@ -56,6 +57,7 @@ from .render import (
     render_statement,
     render_value,
 )
+from .role import Role
 from .schedule import Schedule, ScheduleFrequency
 from .space import Space, SpaceType
 from .trigger import Trigger, TriggerEffect, TriggerStatus, TriggerType
@@ -114,6 +116,7 @@ __all__ = [
     "GoToTabAction",
     "GoToUrlAction",
     "HasApplicationContext",
+    "Identity",
     "InputField",
     "Line",
     "LookAction",
@@ -135,6 +138,7 @@ __all__ = [
     "Rectangle",
     "RenderOptions",
     "Renderer",
+    "Role",
     "RouteAction",
     "Schedule",
     "ScheduleFrequency",

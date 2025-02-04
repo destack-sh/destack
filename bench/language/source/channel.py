@@ -26,7 +26,8 @@ if TYPE_CHECKING:
 @enum_(EnumType.CHANNEL_TYPE)
 class ChannelType(BuiltinEnum):
     TEXT = 1
-    VOICE = 2
+    # TYPED?
+    # VOICE?
 
 
 @timed_node_(NodeType.CHANNEL, has_subtypes=True)

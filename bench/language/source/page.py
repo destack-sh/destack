@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, override
 
 from bench.language.core import (
     NAME_CONSTRAINT,
@@ -12,22 +12,12 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
+from bench.language.core.node import Node
 from bench.pb2 import BlockData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Block,
-        Channel,
-        Choice,
-        Class,
-        Database,
-        Field,
-        Flow,
-        Icon,
-        Package,
-        Text,
-    )
+    from bench.language import Block, Channel, Field, Icon, Package, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -48,13 +38,19 @@ class Page(SourceNode[BlockData]):
         35, default=None, require=False, array=False, struct=StructType.TEXT
     )
 
+    pages: LocalNodeList["Page"] = p_node_children(NodeType.PAGE)
     blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
-    choices: LocalNodeList["Choice"] = p_node_children(NodeType.CHOICE)
-    flows: LocalNodeList["Flow"] = p_node_children(NodeType.FLOW)
-    databases: LocalNodeList["Database"] = p_node_children(NodeType.DATABASE)
-    classes: LocalNodeList["Class"] = p_node_children(NodeType.CLASS)
     channels: LocalNodeList["Channel"] = p_node_children(NodeType.CHANNEL)
 
     def __content_str__(self):
         return ""
+
+    @override
+    def append(self, child: Node, move: bool = False):
+        # add InlineSourceNodes as Blocks if if not already defined
+        raise NotImplementedError(f"nocheckin: add {child!r} to {self!r}")
+
+    @staticmethod
+    def new(name: str, **kwargs) -> "Page":
+        return Page(name=name, **kwargs)

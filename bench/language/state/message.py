@@ -38,9 +38,9 @@ logger = structlog.get_logger(__name__)
 
 @enum_(EnumType.MESSAGE_TYPE)
 class MessageType(BuiltinEnum):
-    DEFAULT = 1
-    BLOCK = 2
-    # ...
+    TEXT = 1
+    TYPED = 2
+    # RUN, INTERRUPTION, ...
 
 
 @enum_(EnumType.MESSAGE_PLATFORM)
@@ -72,7 +72,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
 
     # meta
     parent: Union["Bench", "Thread", None] = p_node_parent(4, NodeType.BENCH, NodeType.THREAD)
-    type: MessageType = p_regular(30, require=True, default=MessageType.DEFAULT)
+    type: MessageType = p_regular(30, require=True, default=MessageType.TEXT)
     platform: MessagePlatform = p_regular(31, require=True, default=MessagePlatform.BENCH)
     channel: "Channel | None" = p_system(
         32,
@@ -136,7 +136,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return cast("MessageData", data).block_ptr
+        return cast("MessageData", data).class__ptr
 
     @property
     def value_type(self) -> "TypeBase | None":

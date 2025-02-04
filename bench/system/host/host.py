@@ -21,10 +21,10 @@ from bench.language import (
     STATIC_RESOURCE_NODE_TYPES,
     Bench,
     BenchStatus,
-    Block,
     C,
     ClientType,
     ConditionalType,
+    Database,
     EditType,
     Engine,
     File,
@@ -295,11 +295,11 @@ class HostService(GraphIoServiceBase, HostBase):
         return subject
 
     @override
-    def resolve_request_block(self, block_ptr: NodeReference | UUID) -> Block | None:
-        block_ck = block_ptr.ck if isinstance(block_ptr, NodeReference) else block_ptr
-        assert block_ck, f"no block ck in {block_ptr!r}"
-        node = self.main_package._graph.get(block_ck)
-        if not isinstance(node, Block):
+    def resolve_request_database(self, database_ptr: NodeReference | UUID) -> Database | None:
+        database_ck = database_ptr.ck if isinstance(database_ptr, NodeReference) else database_ptr
+        assert database_ck, f"no database ck in {database_ptr!r}"
+        node = self.main_package._graph.get(database_ck)
+        if not isinstance(node, Database):
             return None
         return node
 

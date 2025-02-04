@@ -1,26 +1,20 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 from bench.language.core import (
-    NAME_CONSTRAINT,
     FieldType,
+    InlineSourceNode,
     LocalNodeList,
     NodeType,
     RemoteNodeList,
-    SourceNode,
-    StructType,
     TypeBase,
     TypeKind,
     node_,
-    p_internal,
     p_node_children,
-    p_node_parent,
-    p_regular,
 )
-from bench.pb2 import BlockData, RecordData
-from bench.utils.fractional import INTEGER_ZERO
+from bench.pb2 import DatabaseData, RecordData
 
 if TYPE_CHECKING:
-    from bench.language import Field, Icon, Package, Page, Record, Text
+    from bench.language import Field, Record
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -28,20 +22,8 @@ _type = type
 
 
 @node_(NodeType.DATABASE, passthrough_get=("fields",))
-class Database(SourceNode[BlockData]):
+class Database(InlineSourceNode[DatabaseData]):
     """A Database of Records."""
-
-    parent: Union["Page", "Package", None] = p_node_parent(4, NodeType.PAGE, NodeType.PACKAGE)
-
-    # content
-    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
-    icon: Optional["Icon"] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.ICON
-    )
-    text: Optional["Text"] = p_regular(
-        35, default=None, require=False, array=False, struct=StructType.TEXT
-    )
 
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
     records: RemoteNodeList["Record", RecordData] = p_node_children(
@@ -78,5 +60,8 @@ class Database(SourceNode[BlockData]):
         return typ
 
     @staticmethod
-    def new(name: str, **kwargs) -> "Database":
-        return Database(name=name, **kwargs)
+    def new(name: str, *fields: "Field", **kwargs) -> "Database":
+        db = Database(name=name, **kwargs)
+        for field in fields:
+            db.fields.append(field)
+        return db

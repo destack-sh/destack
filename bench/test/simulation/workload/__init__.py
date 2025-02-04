@@ -9,8 +9,8 @@ from .package import (
     ReadPackageWorkload,
     WatchLogsSpec,
     WatchLogsWorkload,
-    WriteBlockTreeSpec,
-    WriteBlockTreeWorkload,
+    WritePageTreeSpec,
+    WritePageTreeWorkload,
 )
 from .runtime import (
     RuntimeLambdaWorkload,
@@ -37,7 +37,7 @@ __all__ = [
     "Workload",
     "WorkloadSpec",
     "WorkloadType",
-    "WriteBlockTreeSpec",
-    "WriteBlockTreeWorkload",
+    "WritePageTreeSpec",
+    "WritePageTreeWorkload",
     "get_workload_cls",
 ]

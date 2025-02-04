@@ -373,6 +373,28 @@ class TypeBase(BuiltinObject):
 
         raise ValueError(f"cannot create {self!r} (resolved={self!r}) directly")
 
+    def morph_to(
+        self,
+        typ: "TypeIn",
+        of: Literal["instance", "value"] = "instance",
+        constraint: TypeConstraintIn | TypeConstraint | None = None,
+        is_required: bool = False,
+        is_list: bool = False,
+    ):
+        """Change this type to another type."""
+        typ = to_type(
+            typ,
+            of=of,
+            constraint=constraint,
+            is_required=is_required,
+            is_list=is_list,
+        )
+        for prop in TypeBase.__declared_properties__.values():
+            new_typ_value = getattr(typ, prop.name)
+            old_typ_value = getattr(self, prop.name)
+            if new_typ_value != old_typ_value:
+                setattr(self, prop.name, new_typ_value)
+
     @property
     def supports_list(self) -> bool:  # :ListableTypes
         """Whether this type supports lists."""
@@ -473,6 +495,7 @@ TypeIn = Union[
     "Class",
     "Choice",
     "Flow",
+    "BuiltinEnum",
     "Pipe",
     "Action",
     "PrimitiveType",
