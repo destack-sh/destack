@@ -1075,11 +1075,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def code_name(self) -> Optional[str]:
         """The python identifier-compatible name of this node."""
         if "slug" in self.__properties__:
-            slug = getattr(self, "slug")
+            slug = getattr(self, "slug", None)
             if slug:  # prefer slug as ident
                 return slug
         if "name" in self.__properties__:
-            name = getattr(self, "name")
+            name = getattr(self, "name", None)
             if name:
                 return to_code_name(name)
         return None
@@ -1135,15 +1135,15 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         parent = self.parent
         return self.deleted_at is not None or (parent is not None and parent.is_deleted)
 
-    def delete(self):
+    def delete(self, _now: datetime | None = None):
         """Delete this Node."""
         assert not self.is_deleted, f"{self!r} is already deleted"
-        self.active_session._delete(self)
+        self.active_session._delete(self, _now=_now)
 
-    def restore(self):
+    def restore(self, _now: datetime | None = None):
         """Restore this deleted Node from the trash."""
         assert self.is_deleted, f"{self!r} is not deleted"
-        self.active_session._restore(self)
+        self.active_session._restore(self, _now=_now)
 
     def erase(self):
         """Wipe this Node from this cosmos forever."""
@@ -1576,6 +1576,20 @@ class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
         block_id: Optional[UUID] = None
         block_ck: Optional[UUID] = None
         block_ptr: Optional[NodeReference] = None
+
+    @override
+    def delete(self, _now: datetime | None = None):
+        super().delete(_now=_now)
+        # also delete linked Block (if any)
+        if (block := self.block) is not None and block.node_id == self.id and not block.is_deleted:
+            block.delete(_now=_now)
+
+    @override
+    def restore(self, _now: datetime | None = None):
+        super().restore(_now=_now)
+        # also restore linked Block (if any)
+        if (block := self.block) is not None and block.node_id == self.id and block.is_deleted:
+            block.restore(_now=_now)
 
     def to_block(self) -> "Block":
         """Wrap this Node in a *new* Block."""

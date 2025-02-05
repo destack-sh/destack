@@ -513,7 +513,7 @@ def render_path(path: Path) -> str:
 
 def _get_child(scope: Node, name: str, node_type: NodeType | None = None) -> Node | None:
     """Finds a named child from a scope (if any)."""
-    for child in scope._graph.iter_descendants(scope, node_type=node_type):
+    for child in scope._graph.iter_descendants(scope, recursive=False, node_type=node_type):
         if getattr(child, "name", None) == name or child.code_name == name:
             return child
     return None
@@ -528,7 +528,7 @@ def _get_descendant(scope: Node, name: str, node_type: NodeType | None = None) -
 
 
 def _get_contained_descendant(scope: Node, name: str) -> Node | None:
-    """Finds a descendant that is directly contained by a scope (in block/page/action/pkg, if any)."""
+    """Finds a descendant that is directly contained by a scope."""
     from bench.language import Action, Block, View
 
     if isinstance(scope, Block):

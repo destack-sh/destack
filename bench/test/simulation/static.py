@@ -1,29 +1,19 @@
 import dataclasses
-import gc
 
 import pytest
 import structlog
 from opentelemetry import trace
 
-from bench.sql import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
-from bench.system import StoreMap
 from bench.test.conftest import TestProfile
-from bench.test.fixtures import (
-    create_test_db,
-    delete_test_db,
-    make_global_store,
-    make_regional_store,
-)
 from bench.test.simulation.core import (
     BenchSpec,
     ClientSpec,
     HostSpec,
     MachineSpec,
     RuntimeSpec,
-    Simulation,
     SimulationSpec,
     UserSpec,
-    get_simulation_id,
+    run_simulation,
 )
 from bench.test.simulation.workload import ReadPackageSpec, WatchLogsSpec, WritePageTreeSpec
 from bench.utils.func import group_by
@@ -147,38 +137,6 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
 SIMULATIONS_BY_PROFILE = group_by(BUILTIN_SIMULATIONS, lambda s: s.profile)
 
 
-async def run_static_simulation(spec: SimulationSpec):
-    """Run a 'static' Simulation (from a predefined spec)."""
-    simulation_id = get_simulation_id(spec)
-    global_store = make_global_store(f"test-{simulation_id}-global")
-    regional_store = make_regional_store(f"test-{simulation_id}-regional")
-    store_map = StoreMap({"*": regional_store})
-    await create_test_db(global_store, BUILTIN_GLOBAL_SCHEMA)
-    await create_test_db(regional_store, BUILTIN_REGIONAL_SCHEMA)
-    simulation = Simulation(
-        id=simulation_id,
-        spec=spec,
-        global_store=global_store,
-        regional_store=regional_store,
-        store_map=store_map,
-    )
-    try:
-        await simulation.run()
-        await delete_test_db(global_store)
-        await delete_test_db(regional_store)
-    except Exception as e:
-        logger.exception("simulation.error", simulation=simulation, error=e)
-        raise
-    finally:
-        # force gc for simulation isolation
-        del spec
-        del global_store
-        del regional_store
-        del store_map
-        del simulation
-        gc.collect()
-
-
 # NOTE: we lay out the simulation tests like below so so pytest collects them nicely
 #  (organized by category and parameterized by simulation)
 
@@ -188,14 +146,14 @@ async def run_static_simulation(spec: SimulationSpec):
     "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.QUICK, ()), ids=lambda s: s.name
 )
 async def test_simulation_quick(spec: SimulationSpec):
-    await run_static_simulation(spec)
+    await run_simulation(spec)
 
 
 @pytest.mark.parametrize(
     "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.DEFAULT, ()), ids=lambda s: s.name
 )
 async def test_simulation_default(spec: SimulationSpec):
-    await run_static_simulation(spec)
+    await run_simulation(spec)
 
 
 @pytest.mark.careful
@@ -203,7 +161,7 @@ async def test_simulation_default(spec: SimulationSpec):
     "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.CAREFUL, ()), ids=lambda s: s.name
 )
 async def test_simulation_careful(spec: SimulationSpec):
-    await run_static_simulation(spec)
+    await run_simulation(spec)
 
 
 @pytest.mark.paranoid
@@ -213,4 +171,4 @@ async def test_simulation_careful(spec: SimulationSpec):
 async def test_simulation_paranoid(spec: SimulationSpec, num_seeds: int = 1):
     for i in range(0, num_seeds):
         subspec = dataclasses.replace(spec, seed=spec.seed + i)
-        await run_static_simulation(subspec)
+        await run_simulation(subspec)
