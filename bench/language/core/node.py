@@ -1212,7 +1212,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     def _detach_rec(self):
         """Removes this node from the graph / supergraph."""
-        self._graph.remove(self)
+        self._graph.remove(self)  # type: ignore ("depends on itself")
         if len(self._graph) == 0:
             from bench.language.connection import uncapture
 

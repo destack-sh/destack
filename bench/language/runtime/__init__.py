@@ -33,8 +33,10 @@ from .model import (
     TextOptions,
     VideoOptions,
 )
-from .run import Run, RunOptions, RunPlan, RunSpan, RunSpanType
+from .plan import RunPlan
+from .run import Run, RunOptions
 from .session import Context, EditContext, Session
+from .span import RunSpan
 from .transaction import (
     Change,
     ChangeVignette,
@@ -81,7 +83,6 @@ __all__ = [
     "RunOptions",
     "RunPlan",
     "RunSpan",
-    "RunSpanType",
     "Session",
     "Severity",
     "TextOptions",
