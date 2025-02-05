@@ -1,12 +1,6 @@
 import { actionToType } from "@/language/action";
 import { blockToType } from "@/language/block";
-import {
-  ACTIVE_RUN_STATUSES,
-  getBaseFromNode,
-  isResourceNode,
-  isResourceNodeType,
-  TK_LENGTH_B64,
-} from "@/language/const";
+import { ACTIVE_RUN_STATUSES, getBaseFromNode, isResourceNodeType, TK_LENGTH_B64 } from "@/language/const";
 import { makeExpression } from "@/language/expression";
 import { decodeTypeIdentity } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
@@ -20,16 +14,15 @@ import {
   isRunTerminal,
   RunnableNode,
   RunnableNodeType,
-  type RunnableObject,
 } from "@/language/run";
 import { newChangeId, type Transaction } from "@/language/transaction";
 import { unpackValue } from "@/language/value";
 import {
   ActionData,
-  BlockData,
   ChangeCategory,
   ExpressionType,
   FieldType,
+  FlowData,
   IconData,
   InterruptionData,
   InterruptionStatus,
@@ -101,7 +94,10 @@ export class RunTree {
       includeSelf: true,
     });
     this.runBasePtr = computedValue(
-      () => (this.runRef.value?.actionPtr ?? this.runRef.value?.blockPtr) as TypedNodeReferenceData<RunnableNodeType>,
+      () =>
+        (this.runRef.value?.pipePtr ??
+          this.runRef.value?.actionPtr ??
+          this.runRef.value?.flowPtr) as TypedNodeReferenceData<RunnableNodeType>,
     );
     this.runBaseRef = graph.getRef(this.runBasePtr);
     this.runConnection = runConnection;
@@ -247,7 +243,7 @@ export class Runtime {
 
   /** Creates a new Run. */
   start(
-    runnable: RunnableObject,
+    runnable: RunnableNode,
     options?: {
       focus?: boolean;
       options?: RunOptionsData;
@@ -344,7 +340,7 @@ export function makeRunOptions(options?: Partial<RunOptionsData>): RunOptionsDat
 /** Make a new Run for some runnable node */
 export function makeRun(
   graph: ReadNodeGraph,
-  runnable: RunnableObject,
+  runnable: RunnableNode,
   options?: {
     variablesPacked?: Record<string, any>;
     inputsPacked?: Record<string, any>;
@@ -354,23 +350,20 @@ export function makeRun(
   },
 ): RunData {
   let benchPtr: NodeReferenceData | undefined = undefined;
-  let block: BlockData | undefined = undefined;
+  let flow: FlowData | undefined = undefined;
   let action: ActionData | undefined = undefined;
   let pipe: PipeData | undefined = undefined;
-  if (isNode(runnable, NodeType.BLOCK)) {
-    block = runnable;
+  if (isNode(runnable, NodeType.FLOW)) {
+    flow = runnable;
     benchPtr = options?.benchPtr ?? runnable.benchPtr;
   } else if (isNode(runnable, NodeType.ACTION)) {
     action = runnable;
-    block = graph.getAncestors(runnable, { includeSelf: true }).find((node) => isNode(node, NodeType.BLOCK));
+    flow = graph.getAncestors(action, { includeSelf: true }).find((node) => isNode(node, NodeType.FLOW));
     benchPtr = options?.benchPtr ?? action.benchPtr;
   } else if (isNode(runnable, NodeType.PIPE)) {
     pipe = runnable;
-    block = graph.getAncestors(pipe, { includeSelf: true }).find((node) => isNode(node, NodeType.BLOCK));
+    flow = graph.getAncestors(pipe, { includeSelf: true }).find((node) => isNode(node, NodeType.FLOW));
     benchPtr = options?.benchPtr ?? pipe.benchPtr;
-  } else if (isStruct(runnable, StructType.TEXT) || isStruct(runnable, StructType.CODE)) {
-    if (options?.benchPtr == null) throw new Error(`missing bench ptr for runnable lambda: ${runnable}`);
-    benchPtr = options.benchPtr;
   } else {
     assertNever(runnable);
   }
@@ -380,7 +373,7 @@ export function makeRun(
     type: getRunType(runnable),
     status: RunStatus.SCHEDULED,
     mode: options?.mode ?? space.value?.mode ?? NodeMode.PRODUCTION,
-    blockPtr: block != null ? toNodeRef(block) : undefined,
+    flowPtr: flow != null ? toNodeRef(flow) : undefined,
     actionPtr: isNode(runnable, NodeType.ACTION) ? toNodeRef(runnable) : undefined,
     pipePtr: isNode(runnable, NodeType.PIPE) ? toNodeRef(runnable) : undefined,
     variablesPacked: options?.variablesPacked ?? undefined,

@@ -1,13 +1,11 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
-import { getPropertyName, getPropertyTitle, TYPE_BLOCK_TYPES } from "@/language/const";
+import { getPropertyName, getPropertyTitle } from "@/language/const";
 import { makeAndConditional, makeExpression } from "@/language/expression";
 import { createField, getPropertyType, getStorageKey, makeType, NAME_TYPE, TypeIdentity } from "@/language/field";
-import { useNodeListActions } from "@/ui/list";
 import { moveNode, packSubnode } from "@/language/node";
 import {
   DebounceLevel,
-  getTransactionBuffer,
   getTransactionOptionsForType,
   newChangeId,
   Transaction,
@@ -58,6 +56,7 @@ import {
 import { getNodeIcon, getTypeIcon, ICON_BY_EXPRESSION_OP as ICON_BY_EXPRESSION_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { PopoverInfoIn, pushDefaultMenu, pushPopover } from "@/ui/popover";
+import { useNodeTableActions } from "@/ui/table";
 import { TooltipInfo } from "@/ui/tooltip";
 import {
   collapseSelection,
@@ -80,7 +79,6 @@ import NativeInput from "@/views/content/NativeInput.vue";
 import { getViewComponent } from "@/views/registry";
 import { MaybeElement, useElementSize, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
-import { useNodeTableActions } from "@/ui/table";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -177,7 +175,7 @@ const {
       nodeType: NodeType.RECORD,
       first: limit.value,
       count: true,
-      blockPtr: nodePtr.value,
+      baseTypePtr: nodePtr.value,
       isEnabled: nodePtr.value != null && blockRaw.value != null,
       sort: sorts.value.length > 0 ? sorts.value : [DEFAULT_SORT],
       filter: makeAndConditional(filters.value),
@@ -235,7 +233,7 @@ function createRecord() {
   if (block.value == null) throw new Error("no block to add record to");
   const record = recordConnection.tx.create({
     metatype: NodeType.RECORD,
-    blockPtr: toNodeRef(block.value),
+    databasePtr: toNodeRef(block.value),
     parentPtr: block.value.benchPtr,
     valuePacked: {},
   });
@@ -486,7 +484,7 @@ function allowDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string |
   if (dragged.kind != "node" && dragged.kind != "selection") return false;
   return dragged.nodes.every((node) => {
     node = graph.getOrError(node);
-    return isNode(node, NodeType.FIELD) || (isNode(node, NodeType.BLOCK) && TYPE_BLOCK_TYPES.includes(node.type));
+    return isNode(node, NodeType.FIELD);
   });
 }
 function onDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {

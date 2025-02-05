@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 @enum_(EnumType.CHANNEL_TYPE)
 class ChannelType(BuiltinEnum):
     TEXT = 1
-    # TYPED?
+    # CLASS?
     # VOICE?
 
 

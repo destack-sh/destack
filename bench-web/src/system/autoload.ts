@@ -176,7 +176,7 @@ export class NodeAutoloader {
     const params: GetConnectionParams<any> = {
       roots: nodeRefs as NodeReferenceData[],
       scope,
-      blockPtr: blockPtr as NodeReferenceData | undefined,
+      baseTypePtr: blockPtr as NodeReferenceData | undefined,
       isOptional: true,
     };
     try {

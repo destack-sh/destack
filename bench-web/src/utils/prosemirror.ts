@@ -37,7 +37,7 @@ export const PM_SCHEMA = new PmSchema({
     linePlain: {
       group: "line",
       content: "span*",
-      attrs: { id: { default: null }, type: { default: TextLineType.PLAIN } },
+      attrs: { id: { default: null }, type: { default: TextLineType.PARAGRAPH } },
       toDOM(node) {
         return P_DOM;
       },
@@ -207,7 +207,7 @@ function convertToPlainBeforeDelete(state: EditorState, dispatch?: (tr: PmTransa
     $to.pos === $from.end()
   ) {
     // convert to plain
-    dispatch(state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.linePlain, { type: TextLineType.PLAIN }));
+    dispatch(state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.linePlain, { type: TextLineType.PARAGRAPH }));
     return true;
   } else {
     // imitate default behavior

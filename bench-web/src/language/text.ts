@@ -44,7 +44,7 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
     // map line
     let lineNode: PmNode;
     const attrs = { type: line.type };
-    if (line.type == TextLineType.PLAIN) {
+    if (line.type == TextLineType.PARAGRAPH) {
       lineNode = schema.node("linePlain", attrs, spanNodes);
     } else if (
       line.type == TextLineType.HEADING_1 ||
@@ -146,7 +146,7 @@ export function isTextEmpty(text: TextData | null | undefined): boolean {
   return (
     text == null ||
     text.lines.length == 0 ||
-    text.lines.every((line) => line.type == TextLineType.PLAIN && line.spans.length == 0)
+    text.lines.every((line) => line.type == TextLineType.PARAGRAPH && line.spans.length == 0)
   );
 }
 

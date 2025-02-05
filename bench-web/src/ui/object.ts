@@ -6,7 +6,6 @@ import {
   getPropertyTitle,
   isNodeType,
   isSourceNode,
-  RUNNABLE_BLOCK_TYPES,
   SOURCE_NODE_TYPES,
   toCamelName,
 } from "@/language/const";
@@ -51,7 +50,6 @@ import {
   FieldData,
   FieldProperty,
   FieldType,
-  FlowBlockProperty,
   GoToUrlActionProperty,
   IconData,
   NodeReferenceData,
@@ -754,43 +752,44 @@ export class BlockLayout extends NodeLayout<NodeType.BLOCK> {
   make() {
     const commonRows: Row[] = [];
     this.section(undefined, commonRows);
-    if (this.subtype != BlockType.TEXT) {
-      commonRows.push(this.rowProperty(BlockProperty.text, { title: false, props: { placeholder: "Text..." } }));
-    }
+    // nocheckin: BlockLayout
+    // if (this.subtype != BlockType.TEXT) {
+    //   commonRows.push(this.rowProperty(BlockProperty.text, { title: false, props: { placeholder: "Text..." } }));
+    // }
 
-    // schema
-    if (!this.isPartial) {
-      if (this.subtype == BlockType.CHOICE) {
-        this.section("Options", [{ type: "fields-list", fieldType: FieldType.OPTION }], {
-          actions: [this.actionAddField(FieldType.OPTION)],
-        });
-      } else if (this.subtype == BlockType.DATABASE || this.subtype == BlockType.MESSAGE) {
-        this.section("Members", [{ type: "fields-list", fieldType: FieldType.MEMBER }], {
-          actions: [this.actionAddField(FieldType.MEMBER)],
-        });
-      } else if (RUNNABLE_BLOCK_TYPES.includes(this.subtype as any)) {
-        this.section("Variables", [{ type: "fields-list", fieldType: FieldType.VARIABLE }], {
-          actions: [this.actionAddField(FieldType.VARIABLE)],
-        });
-        this.section(
-          "Schema",
-          [
-            { type: "fields-list", fieldType: FieldType.INPUT },
-            { type: "icon", icon: makeIcon("fas fa-arrow-down") },
-            { type: "fields-list", fieldType: FieldType.OUTPUT },
-          ],
-          {
-            actions: [
-              this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
-              this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
-            ],
-          },
-        );
-      }
-    }
-    if (this.subtype == BlockType.FLOW) {
-      this.sectionRunOptions(FlowBlockProperty.runOptions);
-    }
+    // // schema
+    // if (!this.isPartial) {
+    //   if (this.subtype == BlockType.CHOICE) {
+    //     this.section("Options", [{ type: "fields-list", fieldType: FieldType.OPTION }], {
+    //       actions: [this.actionAddField(FieldType.OPTION)],
+    //     });
+    //   } else if (this.subtype == BlockType.DATABASE || this.subtype == BlockType.MESSAGE) {
+    //     this.section("Members", [{ type: "fields-list", fieldType: FieldType.MEMBER }], {
+    //       actions: [this.actionAddField(FieldType.MEMBER)],
+    //     });
+    //   } else if (RUNNABLE_BLOCK_TYPES.includes(this.subtype as any)) {
+    //     this.section("Variables", [{ type: "fields-list", fieldType: FieldType.VARIABLE }], {
+    //       actions: [this.actionAddField(FieldType.VARIABLE)],
+    //     });
+    //     this.section(
+    //       "Schema",
+    //       [
+    //         { type: "fields-list", fieldType: FieldType.INPUT },
+    //         { type: "icon", icon: makeIcon("fas fa-arrow-down") },
+    //         { type: "fields-list", fieldType: FieldType.OUTPUT },
+    //       ],
+    //       {
+    //         actions: [
+    //           this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
+    //           this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
+    //         ],
+    //       },
+    //     );
+    //   }
+    // }
+    // if (this.subtype == BlockType.FLOW) {
+    //   this.sectionRunOptions(FlowBlockProperty.runOptions);
+    // }
   }
 }
 
@@ -1215,13 +1214,13 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
     const commonRows: Row[] = [];
     if (this.isPartial) {
       // select block
-      commonRows.push(this.rowProperty(RecordProperty.blockPtr, { title: "Database", isComputable: true }));
+      commonRows.push(this.rowProperty(RecordProperty.databasePtr, { title: "Database", isComputable: true }));
       // NOTE :Incomplete: generalize SourceNode partial NodeLayout properties?
       commonRows.push(this.rowProperty(RecordProperty.name, { isComputable: true }));
     } else {
       commonRows.push(this.rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }));
     }
-    if (this.node.blockPtr != null) {
+    if (this.node.databasePtr != null) {
       // value
       commonRows.push(
         ...this.rowObjectInline(
@@ -1229,7 +1228,7 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
           makeType({
             kind: TypeKind.CUSTOM_OBJECT,
             baseFieldTypes: [FieldType.MEMBER],
-            baseTypePtr: this.node.blockPtr,
+            baseTypePtr: this.node.databasePtr,
           }),
           { isComputable: this.isPartial },
         ),

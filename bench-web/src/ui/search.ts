@@ -6,15 +6,8 @@ import {
   isResourceNodeType,
   isStructType,
   isUnloadedNodeType,
-  TYPE_BLOCK_TYPES,
 } from "@/language/const";
-import {
-  ENUM_OPTIONS_BY_TYPE,
-  ENUM_OPTIONS_BY_VALUE,
-  EnumOption,
-  getEnumOption,
-  getEnumOptions,
-} from "@/language/enum";
+import { ENUM_OPTIONS_BY_VALUE, EnumOption, getEnumOption, getEnumOptions } from "@/language/enum";
 import { makeExpression } from "@/language/expression";
 import { getSubtypeEnum, makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/field";
 import type { NodeSuperGraph, ReadNodeGraph, TypedNodeKey } from "@/language/graph";
@@ -30,11 +23,9 @@ import {
   FileType,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeType,
-  PathData,
   PrimitiveType,
   ResourceStatus,
   StructType,
-  TextData,
   TypeFormat,
   TypeKind,
   ViewType,
@@ -416,7 +407,7 @@ export function makeRemoteSearchParams(options: {
   const params: SearchConnectionParams<any> = {
     nodeType,
     scope,
-    blockPtr: valueType.baseTypePtr,
+    baseTypePtr: valueType.baseTypePtr,
     filter,
     sort,
     first: options.first,
@@ -949,11 +940,7 @@ export function typeIndex(idx: {
       const graphItems: TypeItem[] = walkGraph({
         id: idx.id,
         graph: idx.graph,
-        metatypes: [NodeType.BLOCK],
-        filter: (node) => {
-          const block = node as BlockData;
-          return TYPE_BLOCK_TYPES.includes(block.type);
-        },
+        metatypes: [NodeType.CHOICE, NodeType.DATABASE],
         skipDepth: idx.skipDepth,
         maxDepth: idx.maxDepth,
       }).map(typeItemFromNode);

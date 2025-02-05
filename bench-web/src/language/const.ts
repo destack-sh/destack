@@ -16,6 +16,8 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
+  PageDataInfo,
+  PageProperty,
   PrimitiveType,
   PROPERTY_ENUM_BY_TYPE,
   PropertyInfo,
@@ -171,12 +173,13 @@ export const STATIC_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isStaticRes
 export const DYNAMIC_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isDynamicResourceNodeType);
 export const LOCAL_NODE_TYPES = NODE_TYPES.filter(isLocalNodeType);
 
+export const RUNNABLE_NODE_TYPES = [NodeType.FLOW, NodeType.ACTION, NodeType.PIPE];
+export const TYPE_NODE_TYPES = [NodeType.CLASS, NodeType.CHOICE, NodeType.DATABASE];
+export const TYPE_BASE_NODE_TYPES = [...RUNNABLE_NODE_TYPES, ...TYPE_NODE_TYPES];
+
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
 export const CANVAS_BLOCK_TYPES = [BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW];
-export const TYPE_BLOCK_TYPES = [BlockType.CHOICE, BlockType.MESSAGE, BlockType.DATABASE];
-export const RUNNABLE_BLOCK_TYPES = [BlockType.FLOW];
-export const CLASSY_BLOCK_TYPES = [BlockType.MESSAGE, ...RUNNABLE_BLOCK_TYPES, BlockType.VARIABLE, BlockType.DATABASE];
 
 // action
 export const ACTION_TYPES = Object.values(ActionType).filter((v) => typeof v == "number" && v > 0) as ActionType[];
@@ -202,7 +205,7 @@ export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "num
 export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.HISTORY, ViewType.SPLIT]);
 export const HELPER_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 30000 && vt < 40000));
 
-export const NAME_CONSTRAINT = BlockDataInfo[BlockProperty.name].constraint!;
+export const NAME_CONSTRAINT = PageDataInfo[PageProperty.name].constraint!;
 export const TITLE_CONSTRAINT = ViewDataInfo[ViewProperty.title].constraint!;
 
 /** Default base type for based Nodes */
@@ -218,13 +221,13 @@ export const BASE_TYPE_BY_NODE_TYPE: Partial<Record<NodeType, NodeType>> = {
  */
 export function getBaseFromNode(node: Partial<AnyNodeData>): NodeReferenceData | null {
   if (isNode(node, NodeType.RECORD)) {
-    return node.blockPtr ?? null;
+    return node.databasePtr ?? null;
   } else if (isNode(node, NodeType.FIELD)) {
     return node.parentPtr ?? null;
   } else if (isNode(node, NodeType.RUN) || isNode(node, NodeType.INTERRUPTION)) {
-    return node.pipePtr ?? node.actionPtr ?? node.blockPtr ?? null;
+    return node.pipePtr ?? node.actionPtr ?? node.flowPtr ?? null;
   } else if (isNode(node, NodeType.MESSAGE)) {
-    return node.blockPtr ?? null;
+    return node.clazzPtr ?? null;
   } else {
     return null;
   }
