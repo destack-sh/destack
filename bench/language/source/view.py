@@ -41,17 +41,18 @@ class ViewType(BuiltinEnum):
     # nodes (0-10000)
     MACHINE = 2100
     BROWSER = 2150
-    BLOCK = 3010
-    FIELD = 3012
-    VIEW = 3020
-    PIPE = 3031
-    ACTION = 3030
-    RUN = 3601
-
-    # subnodes (10000-20000)
-    PAGE = 10010
-    DATABASE = 10011
-    FLOW = 10012
+    PAGE = 5020
+    BLOCK = 5021
+    CHOICE = 5030
+    CLASS = 5031
+    FIELD = 5035
+    FLOW = 5050
+    ACTION = 5051
+    PIPE = 5052
+    TRIGGER = 5053
+    VIEW = 5080
+    DATABASE = 5090
+    RUN = 6010
 
     # objects (20000-30000)
     OBJECT = 20000

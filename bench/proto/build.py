@@ -33,6 +33,7 @@ from bench.language import (
     BenchNode,
     DynamicResource,
     EnumType,
+    InlineSourceNode,
     Node,
     Property,
     Resource,
@@ -231,6 +232,7 @@ ResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASS
 DynamicResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, DynamicResource)])}]
 StaticResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, StaticResource)])}]
 SourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, SourceNode)])}]
+InlineSourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineSourceNode)])}]
 StateNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, StateNode)])}]
 RuntimeNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, RuntimeNode)])}]
 """)
@@ -748,6 +750,7 @@ export type AnyStructDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' fo
 export type BenchNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, BenchNode))}
 export type ResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, Resource))}
 export type SourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, SourceNode))}
+export type InlineSourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineSourceNode))}
 export type StateNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, StateNode))}
 export type RuntimeNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, RuntimeNode))}
 export type StaticResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, StaticResource))}

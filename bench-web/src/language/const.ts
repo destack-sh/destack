@@ -9,6 +9,7 @@ import {
   EmptyProperty,
   EnumType,
   FieldData,
+  InlineSourceNodeData,
   MessageData,
   ModelFamily,
   ModelProvider,
@@ -72,9 +73,18 @@ export function isSourceNodeType(nodeType: NodeType): boolean {
   return nodeType >= 5000 && nodeType < 5500;
 }
 
+export function isInlineSourceNodeType(nodeType: NodeType): boolean {
+  return INLINE_SOURCE_NODE_TYPES.includes(nodeType);
+}
+
 export function isSourceNode(node: any): node is SourceNodeData {
   if (node == null || typeof node != "object") return false;
   else return isSourceNodeType(node.metatype as unknown as NodeType);
+}
+
+export function isInlineSourceNode(node: any): node is InlineSourceNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isInlineSourceNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isStateNodeType(nodeType: any): boolean {
@@ -165,6 +175,15 @@ export const COSMOS_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType < 100)
 export const AUTH_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType >= 100 && nodeType < 200);
 export const FINANCE_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType >= 200 && nodeType < 300);
 export const SOURCE_NODE_TYPES = NODE_TYPES.filter(isSourceNodeType);
+export const INLINE_SOURCE_NODE_TYPES = [
+  NodeType.CLASS,
+  NodeType.CHOICE,
+  NodeType.DATABASE,
+  NodeType.FLOW,
+  NodeType.VIEW,
+  NodeType.ROLE,
+  NodeType.IDENTITY,
+];
 export const STATE_NODE_TYPES = NODE_TYPES.filter(isStateNodeType);
 export const RUNTIME_NODE_TYPES = NODE_TYPES.filter(isRuntimeNodeType);
 export const TIMED_NODE_TYPES = [NodeType.MESSAGE, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG];

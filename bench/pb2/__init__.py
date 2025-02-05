@@ -187,5 +187,8 @@ SourceNodeData = Union[
     IdentityData,
     SpaceData,
 ]
+InlineSourceNodeData = Union[
+    ChoiceData, ClassData, FlowData, ViewData, DatabaseData, RoleData, IdentityData
+]
 StateNodeData = Union[ThreadData, MessageData, RecordData]
 RuntimeNodeData = Union[SessionData, RunData, RunSpanData, RunPlanData, InterruptionData, LogData]

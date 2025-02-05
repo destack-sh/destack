@@ -218,11 +218,12 @@ defineExpose<ViewExposed>({ self });
               @click.stop="
                 () => {
                   if (pkg == null) return;
-                  const block = createBlock(pkgConnection.tx, pkgGraph, {
-                    anchor: 'inside',
-                    target: pkg,
-                    block: { type: BlockType.PAGE },
-                  });
+                  // nocheckin: Page
+                  // const block = createBlock(pkgConnection.tx, pkgGraph, {
+                  //   anchor: 'inside',
+                  //   target: pkg,
+                  //   block: { type: BlockType.PAGE },
+                  // });
                   canvas.goToNode(block);
                 }
               "
