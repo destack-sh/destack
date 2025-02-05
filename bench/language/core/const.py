@@ -961,6 +961,9 @@ REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
 
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(BuiltinEnum):  # NOTE: see NodeType
+    # resources
+    FILE = 2200, "A media File"
+    # source
     PAGE = 5020, "Page of Blocks"
     # types
     CHOICE = 5030, "Choice of Field options"

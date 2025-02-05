@@ -62,21 +62,21 @@ class PathLookupError(PathError, LookupError):
 @enum_(EnumType.PATH_ELEMENT_TYPE)
 class PathElementType(BuiltinEnum):
     # absolute
-    ROOT = 1
-    BENCH = 2
-    PACKAGE = 3
-    NODE = 4
+    ROOT = 1, "The current root Node"
+    BENCH = 2, "The current Bench"
+    PACKAGE = 3, "The current Package"
+    NODE = 4, "A specific Node"
     # relative
-    CURRENT = 10
-    CONTAINER = 11
-    UNIQUE = 12
-    PARENT = 13
-    CHILD = 14
+    CURRENT = 10, "The current Node"
+    CONTAINER = 11, "The closest container Node"
+    CLOSEST = 12, "The closest named Node"
+    PARENT = 13, "The parent Node"
+    CHILD = 14, "A named child Node"
     # sub
-    ATTRIBUTE = 20
+    ATTRIBUTE = 20, "A Field or Property"
     # runtime
-    CONTEXT = 30
-    RUN = 31
+    CONTEXT = 30, "The current Context"
+    RUN = 31, "A Run of the Node"
 
 
 @enum_(EnumType.PATH_RUN_SELECTOR)
@@ -168,7 +168,7 @@ class PathElement(Struct):
 
     @staticmethod
     def unique(name: str | None = None) -> "PathElement":
-        return PathElement(type=PathElementType.UNIQUE, name=name)
+        return PathElement(type=PathElementType.CLOSEST, name=name)
 
     @staticmethod
     def parent_() -> "PathElement":
@@ -414,7 +414,7 @@ def parse_path(path: str) -> Path:
                 if match.group(1) == "~":
                     node_type = PathElementType.CONTAINER
                 elif match.group(1) == "^":
-                    node_type = PathElementType.UNIQUE
+                    node_type = PathElementType.CLOSEST
                 name = match.group(2)
                 if not name and node_type != PathElementType.CONTAINER:
                     raise PathSyntaxError(f"empty name in '{segment}' in '{path}'")
@@ -472,7 +472,7 @@ def render_path(path: Path) -> str:
             path_parts.append(".")
         elif element.type == PathElementType.CONTAINER:
             path_parts.append(f"~{element.code_name or ''}")
-        elif element.type == PathElementType.UNIQUE:
+        elif element.type == PathElementType.CLOSEST:
             path_parts.append(f"^{element.code_name or ''}")
         elif element.type == PathElementType.PARENT:
             path_parts.append("..")
@@ -591,7 +591,7 @@ def _get_container(scope: Node, name: str | None = None) -> Node | None:
     return None
 
 
-def _get_unique(scope: Node, name: str) -> Node | None:
+def _get_closest(scope: Node, name: str) -> Node | None:
     """
     Finds a named node in any containing ancestor scope.
     The order of search is:
@@ -711,12 +711,12 @@ def evaluate_path(
                 raise PathLogicError(f"cannot get container of {current!r} in {path!r}")
             current = _lower_scope(current)
             current = _get_container(current, element.name)
-        elif element.type == PathElementType.UNIQUE:
+        elif element.type == PathElementType.CLOSEST:
             assert element.name, f"missing name for {element!r} in {path!r}"
             if not isinstance(current, Node):
-                raise PathLogicError(f"cannot get unique of {current!r} in {path!r}")
+                raise PathLogicError(f"cannot get closest of {current!r} in {path!r}")
             current = _lower_scope(current)
-            current = _get_unique(current, element.name)
+            current = _get_closest(current, element.name)
         elif element.type == PathElementType.PARENT:
             if current.metatype == NodeType.PACKAGE:
                 return None  # has no parent in path
@@ -917,7 +917,7 @@ def get_path(scope: Node, node: Node) -> Path:
                     raise PathUnnamedNodeError(node_path[i])
                 if not elements and not _get_child(scope, name):
                     # refer to sibling as unique node
-                    elements.append(PathElement(type=PathElementType.UNIQUE, name=name))
+                    elements.append(PathElement(type=PathElementType.CLOSEST, name=name))
                 else:
                     # must be a child if we already have other elements
                     elements.append(PathElement(type=PathElementType.CHILD, name=name))

@@ -272,6 +272,17 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
         else:
             return cast(InterruptionData, data).flow_ptr
 
+    @staticmethod
+    def get_base_from_partial(data: dict[str, Any]) -> Optional["RunnableNode"]:
+        if "pipe" in data:
+            return data["pipe"]
+        elif "action" in data:
+            return data["action"]
+        elif "flow" in data:
+            return data["flow"]
+        else:
+            return None
+
     @property
     def is_open(self) -> bool:
         return self.status == InterruptionStatus.OPEN

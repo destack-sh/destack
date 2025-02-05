@@ -41,6 +41,7 @@ class MessageType(BuiltinEnum):
     TEXT = 1
     TYPED = 2
     # RUN, INTERRUPTION, ...
+    # for inspiration also see https://discord.com/developers/docs/resources/message
 
 
 @enum_(EnumType.MESSAGE_PLATFORM)
@@ -82,12 +83,12 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         same_bench=True,
         references=NodeType.MESSAGE,
     )
-    class_: "Class | None" = p_internal(
+    clazz: "Class | None" = p_internal(
         35,
         require=False,
         array=False,
         references=NodeType.CLASS,
-        description="The Message type.",
+        description="The Message class.",
     )
     if TYPE_CHECKING:
         scope_id: Optional[UUID] = None
@@ -132,13 +133,20 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
 
     @property
     def base(self):
-        return self.class_
+        return self.clazz
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return cast("MessageData", data).class__ptr
+        return cast("MessageData", data).cls_ptr
+
+    @staticmethod
+    def get_base_from_partial(data: dict[str, Any]) -> Optional["Class"]:
+        if "clazz" in data:
+            return data["clazz"]
+        else:
+            return None
 
     @property
     def value_type(self) -> "TypeBase | None":
-        class_ = self.class_
+        class_ = self.clazz
         return class_.to_type() if class_ is not None else None

@@ -1,5 +1,5 @@
 import typing
-from typing import Optional, Union, cast
+from typing import Any, Optional, Union, cast
 from uuid import UUID
 
 from bench.language.core import (
@@ -83,6 +83,13 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _IntoQuery):
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         return (cast(FieldData, data)).parent_ptr
+
+    @staticmethod
+    def get_base_from_partial(data: dict[str, Any]) -> Optional[Node]:
+        if "parent" in data:
+            return data["parent"]
+        else:
+            return None
 
     @property
     def type_info(self) -> TypeBase:

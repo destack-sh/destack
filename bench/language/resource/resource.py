@@ -109,7 +109,7 @@ class Resource[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC):
         target_diff: dict[str, Any] = {}
         for key in keys:
             prop = self.__properties__.get(key)
-            assert prop is not None, f"no property {key} in {self.__class__.__name__}"
+            assert prop is not None, f"no property '{key}' in {self.__class__.__name__}"
             current_value = getattr(self, key)
             target_value = getattr(self, f"target_{key}")
             if current_value != target_value:

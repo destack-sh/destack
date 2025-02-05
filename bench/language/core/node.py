@@ -616,7 +616,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         """Get a property by key from this instance."""
         prop = self._get_effective_cls().__properties__.get(key)
         if prop is None:
-            raise ValueError(f"no property {key} in {self.__class__}")
+            raise ValueError(f"no property '{key}' in {self.__class__.__name__}")
         return prop
 
     @get_property.cls
@@ -624,7 +624,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         """Get a property by key from the class."""
         prop = cls.__properties__.get(key)
         if prop is None:
-            raise ValueError(f"no property {key} in {cls}")
+            raise ValueError(f"no property '{key}' in {cls.__name__}")
         return prop
 
     @override
@@ -1285,13 +1285,14 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         """Creates a new partial Node of this type."""
         from .value import coerce_custom_object_scalar
 
+        if base_type is None and issubclass(cls, HasNodeBase):
+            base_type = cast(TypeBaseNode, cls.get_base_from_partial(kwargs))
+
         typ = cls.partial_type(type, base_type=base_type, field_types=field_types)
         if cls is not Node:
             kwargs["metatype"] = cls.metatype
         if type is not None:
             kwargs["type"] = type
-        if base_type is not None:
-            kwargs["block"] = base_type
         return coerce_custom_object_scalar(kwargs, typ)
 
     @classmethod
@@ -1578,11 +1579,9 @@ class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
 
     def to_block(self) -> "Block":
         """Wrap this Node in a *new* Block."""
-        from bench.language import Block, BlockType
+        from bench.language import Block
 
-        block_type = BlockType(self.metatype)
-        block = Block.new(block_type, node=self)
-        return block
+        return Block.wrap(self)
 
 
 @node_component_()
@@ -1634,6 +1633,10 @@ class HasNodeBase(BuiltinObject, abc.ABC):
     @staticmethod
     @abc.abstractmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]: ...
+
+    @staticmethod
+    @abc.abstractmethod
+    def get_base_from_partial(data: dict[str, Any]) -> Optional[BenchNode]: ...
 
 
 #

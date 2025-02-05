@@ -1,21 +1,23 @@
 from functools import cached_property
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
     FieldType,
     InlineSourceNode,
     LocalNodeList,
     NodeType,
+    StructType,
     TypeBase,
     TypeKind,
     node_,
     p_node_children,
     p_node_parent,
+    p_regular,
 )
 from bench.pb2 import FlowData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Field, Page, Pipe
+    from bench.language import Action, Field, Page, Pipe, RunOptions
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -25,6 +27,10 @@ class Flow(InlineSourceNode[FlowData]):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
+
+    run_options: Optional["RunOptions"] = p_regular(
+        40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
     pipes: LocalNodeList["Pipe"] = p_node_children(NodeType.PIPE)

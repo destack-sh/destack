@@ -25,14 +25,14 @@ if TYPE_CHECKING:
 _type = type
 
 
-@node_(NodeType.BLOCK, passthrough_get=("fields",), has_subtypes=True)
+@node_(NodeType.BLOCK, has_subtypes=True)
 class Block(SourceNode[BlockData]):
     """A Block on a Page."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
 
     # content
-    type: BlockType = p_system(30, description="The type of block. Cannot be changed.")
+    type: BlockType = p_system(30, description="The type of block.")
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.TEXT
@@ -42,12 +42,43 @@ class Block(SourceNode[BlockData]):
     )
 
     def __content_str__(self):
-        return ""
+        if (node := self.node) is not None:
+            return node.__content_str__()
+        elif (text := self.text) is not None:
+            return text.__content_str__()
+        else:
+            return ""
+
+    @property
+    def name(self) -> str | None:
+        """The name of the delegate (if any)."""
+        if (node := self.node) is not None and "name" in node.__properties__:
+            return node.name
+        return None
+
+    @property
+    def code_name(self) -> str | None:
+        """The code name of the delegate (if any)."""
+        if (node := self.node) is not None and "name" in node.__properties__:
+            return node.code_name
+        return None
 
     def node_as[T: InlineSourceNode](self, node_cls: _type[T]) -> T:
         if not isinstance((node := self.node), node_cls):
             raise TypeError(f"{self!r} has no {node_cls!r}")
         return node  # type: ignore
+
+    @staticmethod
+    def wrap(node: InlineSourceNode) -> "Block":
+        """Wrap a Node as a Block."""
+        try:
+            block_type = BlockType(node.metatype)
+        except ValueError as exc:
+            raise TypeError(f"cannot wrap {node!r} as a Block") from exc
+        block = Block.new(block_type, node=node)
+        if node.block_id is None:
+            node.block = block
+        return block
 
     @staticmethod
     def new[BlockT: "Block" = "Block"](

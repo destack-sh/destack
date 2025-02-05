@@ -439,6 +439,17 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         else:
             return cast(RunData, data).flow_ptr
 
+    @staticmethod
+    def get_base_from_partial(data: dict[str, Any]) -> Optional["RunnableNode"]:
+        if "pipe" in data:
+            return data["pipe"]
+        elif "action" in data:
+            return data["action"]
+        elif "flow" in data:
+            return data["flow"]
+        else:
+            return None
+
     @property
     def attempts(self) -> Sequence[RunSpan]:
         return tuple(span for span in self.spans if span.type == RunSpanType.ATTEMPT)

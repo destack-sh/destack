@@ -6646,9 +6646,9 @@ export interface MessageData {
      */
     channelPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData class__ptr = 35;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData cls_ptr = 35;
      */
-    classPtr?: NodeReferenceData;
+    clsPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.MessageStatus status = 40;
      */
@@ -10908,6 +10908,10 @@ export enum BlockType {
      */
     UNSPECIFIED = 0,
     /**
+     * @generated from protobuf enum value: BLOCK_TYPE_FILE = 2200;
+     */
+    FILE = 2200,
+    /**
      * @generated from protobuf enum value: BLOCK_TYPE_PAGE = 5020;
      */
     PAGE = 5020,
@@ -13700,13 +13704,13 @@ export enum ThreadStatus {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: THREAD_STATUS_OPEN = 1;
+     * @generated from protobuf enum value: THREAD_STATUS_OPEN = 10;
      */
-    OPEN = 1,
+    OPEN = 10,
     /**
-     * @generated from protobuf enum value: THREAD_STATUS_CLOSED = 2;
+     * @generated from protobuf enum value: THREAD_STATUS_CLOSED = 30;
      */
-    CLOSED = 2
+    CLOSED = 30
 }
 /**
  * @generated from protobuf enum symbolx.bench.MessageType
@@ -30160,7 +30164,7 @@ class MessageData$Type extends MessageType$<MessageData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.MessageType", MessageType, "MESSAGE_TYPE_"] },
             { no: 31, name: "platform", kind: "enum", T: () => ["symbolx.bench.MessagePlatform", MessagePlatform, "MESSAGE_PLATFORM_"] },
             { no: 32, name: "channel_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 35, name: "class__ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "cls_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.MessageStatus", MessageStatus, "MESSAGE_STATUS_"] },
             { no: 42, name: "failed_at", kind: "message", T: () => Timestamp },
             { no: 43, name: "sent_at", kind: "message", T: () => Timestamp },
@@ -30230,8 +30234,8 @@ class MessageData$Type extends MessageType$<MessageData> {
                 case /* optional symbolx.bench.NodeReferenceData channel_ptr */ 32:
                     message.channelPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.channelPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData class__ptr */ 35:
-                    message.classPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.classPtr);
+                case /* optional symbolx.bench.NodeReferenceData cls_ptr */ 35:
+                    message.clsPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clsPtr);
                     break;
                 case /* symbolx.bench.MessageStatus status */ 40:
                     message.status = reader.int32();
@@ -30317,9 +30321,9 @@ class MessageData$Type extends MessageType$<MessageData> {
         /* optional symbolx.bench.NodeReferenceData channel_ptr = 32; */
         if (message.channelPtr)
             NodeReferenceData.internalBinaryWrite(message.channelPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData class__ptr = 35; */
-        if (message.classPtr)
-            NodeReferenceData.internalBinaryWrite(message.classPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData cls_ptr = 35; */
+        if (message.clsPtr)
+            NodeReferenceData.internalBinaryWrite(message.clsPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.MessageStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
@@ -33012,7 +33016,7 @@ export enum MessageProperty {
   type = 30,
   platform = 31,
   channelPtr = 32,
-  classPtr = 35,
+  clsPtr = 35,
   status = 40,
   failedAt = 42,
   sentAt = 43,
@@ -34664,8 +34668,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.04.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.04.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.04.5", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.04.5", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -34696,8 +34700,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.04.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.04.4", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.04.5", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.04.5", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35296,7 +35300,7 @@ export const ThreadDataInfo: Record<ThreadProperty, PropertyInfo> = {
   [ThreadProperty.channelPtr]: { id: 32, name: 'channel_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.scopePtr]: { id: 33, name: 'scope_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.runPtr]: { id: 34, name: 'run_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [ThreadProperty.status]: { id: 50, name: 'status', component: ObjectType.THREAD, enumType: EnumType.THREAD_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadProperty.status]: { id: 50, name: 'status', component: ObjectType.THREAD, enumType: EnumType.THREAD_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.closedAt]: { id: 55, name: 'closed_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.title]: { id: 60, name: 'title', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 256, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.text]: { id: 61, name: 'text', component: ObjectType.THREAD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -35315,7 +35319,7 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.type]: { id: 30, name: 'type', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.platform]: { id: 31, name: 'platform', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_PLATFORM, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.channelPtr]: { id: 32, name: 'channel_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.classPtr]: { id: 35, name: 'class__ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.clsPtr]: { id: 35, name: 'cls_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.status]: { id: 40, name: 'status', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.failedAt]: { id: 42, name: 'failed_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.sentAt]: { id: 43, name: 'sent_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -36495,6 +36499,7 @@ export type EnumOptionInfo = {
 }
 
 export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
+  [BlockType.FILE]: { id: 2200, name: 'FILE', text: 'A media File' },
   [BlockType.PAGE]: { id: 5020, name: 'PAGE', text: 'Page of Blocks' },
   [BlockType.CHOICE]: { id: 5030, name: 'CHOICE', text: 'Choice of Field options' },
   [BlockType.CLASS]: { id: 5031, name: 'CLASS', text: 'Class of Fields' },

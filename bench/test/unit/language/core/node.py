@@ -144,13 +144,13 @@ def test_node_pointers_consistency(session: "Session"):
     page_a_1 = package_a.pages.create()
     assert page_a_1.bench_id == bench_a.id
     assert page_a_1.to_ref().equals(
-        NodeReference(node_type=NodeType.BLOCK, id=page_a_1.id, ck=page_a_1.ck, bench_id=bench_a.id)
+        NodeReference(node_type=NodeType.PAGE, id=page_a_1.id, ck=page_a_1.ck, bench_id=bench_a.id)
     )
 
     # based pointers
     class_a_1 = Class.new("Class1")
     page_a_1.append(class_a_1)
-    message_a = Message(parent=bench_a, class_=class_a_1)
+    message_a = Message(parent=bench_a, clazz=class_a_1)
     assert message_a.bench_id == bench_a.id
     assert message_a.to_ref().equals(
         NodeReference(
@@ -158,7 +158,7 @@ def test_node_pointers_consistency(session: "Session"):
             id=message_a.id,
             ck=message_a.ck,
             bench_id=bench_a.id,
-            base_ck=page_a_1.ck,
+            base_ck=class_a_1.ck,
             base_bench_id=bench_a.id,
         )
     )
@@ -171,7 +171,7 @@ def test_node_pointers_consistency(session: "Session"):
     assert page_b.bench_id == bench_b.id
     class_b_1 = Class.new("Class1")
     page_b.append(class_b_1)
-    message_b = Message(parent=bench_b, class_=class_b_1)
+    message_b = Message(parent=bench_b, clazz=class_b_1)
     assert message_b.bench_id == bench_b.id
     assert message_b.to_ref().equals(
         NodeReference(
@@ -179,8 +179,8 @@ def test_node_pointers_consistency(session: "Session"):
             id=message_b.id,
             ck=message_b.ck,
             bench_id=bench_b.id,
-            base_ck=page_a_1.ck,
-            base_bench_id=bench_a.id,
+            base_ck=class_b_1.ck,
+            base_bench_id=bench_b.id,
         )
     )
     assert message_b.parent_ptr
@@ -237,12 +237,13 @@ async def test_clone_consistency(simulation: Simulation, runtime: RuntimeLambdaW
         fields=[Field.input("Text", Text), Field.output("Choice", choice)],
     )
     flow.append(action)
-    runtime.page().append(choice)
-    runtime.page().append(flow)
+    page1 = runtime.page()
+    page1.append(choice)
+    page1.append(flow)
     await runtime.commit()
 
     # references should be consistent within new subtree
-    page_clone = runtime.page().clone()
+    page_clone = page1.clone()
     flow_clone = page_clone.blocks.Flow.node_as(Flow)
     assert flow_clone is not None
     choice_clone = page_clone.blocks.Letter.node_as(Choice)
