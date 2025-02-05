@@ -1201,7 +1201,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def get_property(cls, key: str) -> Property:
         prop = cls.__properties__.get(key)
         if prop is None:
-            raise ValueError(f"no property {key} in {cls}")
+            raise ValueError(f"no property '{key}' in {cls.__name__}")
         return prop
 
     @classmethod

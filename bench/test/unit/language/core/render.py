@@ -146,7 +146,7 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
 @_render_test
 def test_render_property(session: Session, package: Package):
     prop_1 = Node.get_property("id")
-    prop_2 = Block.get_property("name")
+    prop_2 = Page.get_property("name")
     prop_3 = Run.get_property("outputs")
     return {"prop_1": prop_1, "prop_2": prop_2, "prop_3": prop_3}
 
@@ -168,17 +168,21 @@ def test_render_path(session: Session, package: Package):
 
 @_render_test
 def test_render_partial_object(session: Session, package: Package):
-    PartialBlock1 = Block.partial(BlockType.PAGE, name="PartialBlock1")
-    Message1 = Class.new(
-        "Message1",
+    PartialPage1 = Page.partial(name="PartialPage1")
+    MessageType1 = Class.new(
+        "MessageType1",
         Field.member("Field1", int),
         Field.member("Field2", str),
         Field.member("Field3", bool),
     )
     PatialMessage1 = Message.partial(
-        MessageType.TEXT, base_type=Message1, Field1=17, Field2="hello!"
+        MessageType.TEXT, clazz=MessageType1, Field1=17, Field2="hello!"
     )
-    return {"PartialBlock1": PartialBlock1, "Message1": Message1, "PatialMessage1": PatialMessage1}
+    return {
+        "PartialBlock1": PartialPage1,
+        "Message1": MessageType1,
+        "PatialMessage1": PatialMessage1,
+    }
 
 
 @_render_test

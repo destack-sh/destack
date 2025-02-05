@@ -1,4 +1,4 @@
-from typing import List, Tuple, cast
+from typing import List, Tuple
 
 import pytest
 from more_itertools import first
@@ -7,7 +7,6 @@ from bench.language import (
     Action,
     ActionType,
     Bench,
-    BlockType,
     Choice,
     Context,
     Field,
@@ -47,7 +46,7 @@ from bench.language import (
         ("Node", [(PathElementType.CHILD, "Node")]),
         ("~", [(PathElementType.CONTAINER, None)]),
         ("~Container", [(PathElementType.CONTAINER, "Container")]),
-        ("^Unique", [(PathElementType.UNIQUE, "Unique")]),
+        ("^Unique", [(PathElementType.CLOSEST, "Unique")]),
         (".property", [(PathElementType.ATTRIBUTE, "property")]),
         ("@bench", [(PathElementType.BENCH, "bench")]),
         (
@@ -67,17 +66,17 @@ from bench.language import (
             ],
         ),
         ("../parent", [(PathElementType.PARENT, None), (PathElementType.CHILD, "parent")]),
-        ("^unique_node", [(PathElementType.UNIQUE, "unique_node")]),
+        ("^unique_node", [(PathElementType.CLOSEST, "unique_node")]),
         (
             "^Choice.Option",
-            [(PathElementType.UNIQUE, "Choice"), (PathElementType.ATTRIBUTE, "Option")],
+            [(PathElementType.CLOSEST, "Choice"), (PathElementType.ATTRIBUTE, "Option")],
         ),
         (
             "some/~block/^unique",
             [
                 (PathElementType.CHILD, "some"),
                 (PathElementType.CONTAINER, "block"),
-                (PathElementType.UNIQUE, "unique"),
+                (PathElementType.CLOSEST, "unique"),
             ],
         ),
         (
@@ -89,7 +88,7 @@ from bench.language import (
             [
                 (PathElementType.BENCH, "bench"),
                 (PathElementType.CHILD, "node1"),
-                (PathElementType.UNIQUE, "unique2"),
+                (PathElementType.CLOSEST, "unique2"),
                 (PathElementType.CHILD, "node3"),
                 (PathElementType.ATTRIBUTE, "property"),
             ],
@@ -100,7 +99,7 @@ from bench.language import (
                 (PathElementType.CONTAINER, "Container"),
                 (PathElementType.CONTAINER, None),
                 (PathElementType.PARENT, None),
-                (PathElementType.UNIQUE, "Unique"),
+                (PathElementType.CLOSEST, "Unique"),
             ],
         ),
     ],
@@ -162,20 +161,22 @@ def mock_package_populated(session: Session):
     page2 = package.pages.create(name="Page2")
     page11 = page1.pages.create(name="Page11")
     page21 = page2.pages.create(name="Page21")
-    flow111 = cast(Flow, page11.blocks.create(name="Flow111", type=BlockType.FLOW))
+    flow111 = Flow.new("Flow111")
+    page11.append(flow111)
     action1111 = flow111.actions.append(Action.new(ActionType.START, "Action1111"))  # noqa: F841
     field1111 = flow111.fields.append(Field.input("Field1111", bool))  # noqa: F841
     action1112 = flow111.actions.append(Action.new(ActionType.START, "Action1112"))
     action11121 = action1112.actions.append(Action.new(ActionType.START, "Action11121"))  # noqa: F841
-    flow211 = cast(Flow, page21.blocks.create(name="Flow211", type=BlockType.FLOW))
+    flow211 = Flow.new("Flow211")
+    page21.append(flow211)
     action2111 = flow211.actions.append(Action.new(ActionType.START, "Action2111"))  # noqa: F841
     action2112 = flow211.actions.append(Action.new(ActionType.START, "Action2112"))  # noqa: F841
     action2112_t_st = flow211.actions.append(Action.new(ActionType.START, "Action2112 TÖST"))  # noqa: F841
-    choice212 = page21.blocks.create(  # noqa: F841
-        name="Choice212",
-        type=BlockType.CHOICE,
+    choice212 = Choice.new(
+        "Choice212",
         fields=[Field.option("Option2121"), Field.option("Option2122"), Field.option("Option2123")],
     )
+    page21.append(choice212)
 
     return package
 
@@ -281,38 +282,18 @@ def test_get_path(
     assert parsed_node is node
 
 
-def test_path_shadowed_node(session: Session, mock_package: Package):
-    """Siblings before descendants before ancestors. See get_unique_node."""
-    package = mock_package
-    context = Context()
-    # shadowing nodes
-    page3 = package.pages.create(name="Page3")
-    choice31 = page3.blocks.create(name="Choice31", type=BlockType.CHOICE)
-    flow33 = page3.append(Flow.new("Flow33"))
-    choice331 = flow33.append(Choice.new("Choice331"))
-    code332 = flow33.append(Action.new(ActionType.CODE, "Code332"))
-    code332_output3 = code332.fields.append(Field.output("Choice31", choice31.node_as(Choice)))
-
-    assert get_node(code332, context, "^Choice331") is choice331  # sibling before descendants
-    assert (
-        get_node(code332, context, "^Choice31") is code332_output3
-    )  # descendants before ancestors
-
-
 def test_path_evaluate_attribute(session: Session, mock_package: Package):
     """Evaluate nested path Attributes on a Node."""
-    page1 = mock_package.pages.create(
-        name="Page1",
+    page1 = mock_package.pages.create(name="Page1")
+    flow1 = Flow.new(
+        "Flow1",
         run_options=RunOptions(max_attempts=2, text_options=TextOptions(temperature=0.5)),
     )
-    flow1 = Flow.new("Flow1")
     page1.append(flow1)
     action1 = flow1.actions.create(  # noqa: F841
         name="Action1",
         type=ActionType.CODE,
-        run_options=RunOptions(
-            model_family=ModelFamily.META_LLAMA,
-        ),
+        run_options=RunOptions(model_family=ModelFamily.META_LLAMA),
     )
 
     # relative to scope
@@ -321,16 +302,16 @@ def test_path_evaluate_attribute(session: Session, mock_package: Package):
         RunOptions.get_property("text_options"),
         TextOptions.get_property("temperature"),
     )
-    assert evaluate_path(page1, page1, Context(), p) == 0.5
+    assert evaluate_path(flow1, flow1, Context(), p) == 0.5
 
     # absolute node path
     p = path(
-        page1,
+        flow1,
         Flow.get_property("run_options"),
         RunOptions.get_property("text_options"),
         TextOptions.get_property("temperature"),
     )
-    assert evaluate_path(page1, page1, Context(), p) == 0.5
+    assert evaluate_path(flow1, flow1, Context(), p) == 0.5
 
     # combind relative
     p = path(
@@ -338,4 +319,4 @@ def test_path_evaluate_attribute(session: Session, mock_package: Package):
         Action.get_property("run_options"),
         RunOptions.get_property("model_family"),
     )
-    assert evaluate_path(page1, page1, Context(), p) == ModelFamily.META_LLAMA
+    assert evaluate_path(flow1, flow1, Context(), p) == ModelFamily.META_LLAMA

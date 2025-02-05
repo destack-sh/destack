@@ -32,8 +32,8 @@ class ThreadType(BuiltinEnum):
 
 @enum_(EnumType.THREAD_STATUS)
 class ThreadStatus(BuiltinEnum):
-    OPEN = 1
-    CLOSED = 2
+    OPEN = 10
+    CLOSED = 30
 
 
 @timed_node_(NodeType.THREAD, has_subtypes=True)

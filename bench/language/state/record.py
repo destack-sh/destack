@@ -86,3 +86,10 @@ class Record(StateNode[RecordData], HasNodeBase):
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         return cast(RecordData, data).database_ptr
+
+    @staticmethod
+    def get_base_from_partial(data: dict[str, Any]) -> Optional["Database"]:
+        if "database" in data:
+            return data["database"]
+        else:
+            return None

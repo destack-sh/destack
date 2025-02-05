@@ -341,7 +341,10 @@ class LocalNodeList[V: Node](NodeList[V], Sequence[V]):
 
 
 class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
-    """A NodeList backed by a Connection to a (remote) graph."""
+    """
+    A NodeList backed by a Connection to a (remote) graph.
+    NOTE: RemoteNodeList only works for Records in a Database right now
+    """
 
     def __str__(self):
         return "<remote>"

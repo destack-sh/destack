@@ -1048,6 +1048,7 @@ enum TypeFormat {
 
 enum BlockType {
   BLOCK_TYPE_UNSPECIFIED = 0;
+  BLOCK_TYPE_FILE = 2200;
   BLOCK_TYPE_PAGE = 5020;
   BLOCK_TYPE_CHOICE = 5030;
   BLOCK_TYPE_CLASS = 5031;
@@ -1874,8 +1875,8 @@ enum ThreadType {
 
 enum ThreadStatus {
   THREAD_STATUS_UNSPECIFIED = 0;
-  THREAD_STATUS_OPEN = 1;
-  THREAD_STATUS_CLOSED = 2;
+  THREAD_STATUS_OPEN = 10;
+  THREAD_STATUS_CLOSED = 30;
 }
 
 enum MessageType {
@@ -3853,7 +3854,7 @@ message MessageData {
   MessageType type = 30;
   MessagePlatform platform = 31;
   optional NodeReferenceData channel_ptr = 32;
-  optional NodeReferenceData class__ptr = 35;
+  optional NodeReferenceData cls_ptr = 35;
   MessageStatus status = 40;
   optional google.protobuf.Timestamp failed_at = 42;
   optional google.protobuf.Timestamp sent_at = 43;

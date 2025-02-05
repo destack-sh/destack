@@ -213,14 +213,14 @@ class Renderer:
             if self.options.use_code_paths:
                 # simplify path for use in Code (which treats references as unique get_node)
                 if len(path) == 1 and path[0].type in (
-                    PathElementType.UNIQUE,
+                    PathElementType.CLOSEST,
                     PathElementType.CHILD,
                 ):
                     assert path[0].code_name is not None, f"no name for {path[0]!r}"
                     return path[0].code_name
                 elif (
                     len(path) == 2
-                    and path[0].type in (PathElementType.UNIQUE, PathElementType.CHILD)
+                    and path[0].type in (PathElementType.CLOSEST, PathElementType.CHILD)
                     and path[1].type == PathElementType.ATTRIBUTE
                 ):
                     return f"{path[0].name}.{path[1].code_name}"

@@ -119,7 +119,7 @@ class MessageTrigger(Trigger):
     thread: Optional["Thread"] = p_regular(
         101, require=False, array=False, references=NodeType.THREAD
     )
-    class_: Optional["Class"] = p_regular(
+    clazz: Optional["Class"] = p_regular(
         102,
         require=False,
         array=False,
