@@ -86,17 +86,17 @@ def test_partial_node_message(session: Session, package: Package) -> None:
     # should be init to empty/default values for Message
     assert obj.id is None
     assert obj.type is Message.get_property("type").default
-    assert obj.block is None
+    assert obj.clazz is None
     assert obj.Field1 is None
     assert obj.Field4 is None
 
     # set/get values on value and properties
     obj.Field1 = 42
     obj.title = "My New Message"
-    obj.block = message_type
+    obj.clazz = message_type
     obj.Field4 = datetime(2024, 1, 1, tzinfo=pytz.utc)
     assert obj.Field1 == 42
-    assert obj.block == message_type
+    assert obj.clazz == message_type
     assert obj.title == "My New Message"
     assert obj.Field4 == datetime(2024, 1, 1, tzinfo=pytz.utc)
 
@@ -117,7 +117,7 @@ def test_partial_node_message(session: Session, package: Package) -> None:
 def test_partial_node_message_extraneous_property(session: Session, package: Package) -> None:
     """Create, update, pack/unpack a partial Message node with extraneous kwargs (should error)."""
     message_type = Class.new("MyMessage", Field.member("Field1", int))
-    _ = Message.partial(type=MessageType.TEXT, block=message_type, Field1=42)
+    _ = Message.partial(type=MessageType.TEXT, clazz=message_type, Field1=42)
     with pytest.raises(ValueError):
         _ = Message.partial(
             type=MessageType.TEXT, block=message_type, Field1=42, my_extraneous_something="value"

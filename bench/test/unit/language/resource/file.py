@@ -34,9 +34,7 @@ async def _test_upload_and_download_file(
 
 
 @simulated_runtime()
-async def test_upload_and_download_markdown_file(
-    simulation: Simulation, runtime: RuntimeLambdaWorkload
-):
+async def test_markdown_file(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     await _test_upload_and_download_file(
         runtime,
         b"# it's a me\nmarkdown!",
@@ -47,9 +45,7 @@ async def test_upload_and_download_markdown_file(
 
 
 @simulated_runtime()
-async def test_upload_and_download_text_file(
-    simulation: Simulation, runtime: RuntimeLambdaWorkload
-):
+async def test_text_file(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     await _test_upload_and_download_file(
         runtime,
         "hello world",
@@ -60,9 +56,7 @@ async def test_upload_and_download_text_file(
 
 
 @simulated_runtime()
-async def test_upload_and_download_image_file(
-    simulation: Simulation, runtime: RuntimeLambdaWorkload
-):
+async def test_image_file(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     await _test_upload_and_download_file(
         runtime,
         IMAGE_BYTES,
