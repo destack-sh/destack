@@ -10,6 +10,7 @@ from bench.language import (
     ROOT_NODE_TYPES,
     AggregateOptions,
     AggregateResultData,
+    Database,
     EditType,
     GetOptions,
     GetResultData,
@@ -26,9 +27,9 @@ from bench.language import (
     WatchGetUpdateData,
     WatchSearchUpdateData,
     apply_sort,
+    bittuple,
     evaluate_conditional,
 )
-from bench.language.core import bittuple
 from bench.proto import (
     AnyNodeData,
     EditData,
@@ -369,7 +370,9 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
     def __init__(self, scope: GraphScopeData, query: Query, oracle: Oracle):
         super().__init__(scope, query, oracle)
         self._filter = query._filter
-        self._block_ck = str(query._base_type.ck) if query._base_type else None
+        self._database_ck = (
+            str(query._base_type.ck) if isinstance(query._base_type, Database) else None
+        )
         self._result_roots_ids: set[str] | None = None
 
     read_type: ClassVar[QueryType] = QueryType.SEARCH
@@ -428,7 +431,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
                     continue  # ignore irrelevant remove
                 node = self._result_data.graph[node_id]
             is_relevant = (
-                self._block_ck is None or self._block_ck == getattr(node, "block_ptr").ck
+                self._database_ck is None or self._database_ck == getattr(node, "database_ptr").ck
             ) and (self.query._filter is None or evaluate_conditional(self.query._filter, node))
             if not (is_relevant or is_extant):
                 continue  # ignore irrelevant edit

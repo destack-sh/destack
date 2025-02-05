@@ -1,7 +1,6 @@
 from bench.language import (
     Action,
     ActionType,
-    Block,
     Class,
     DuplicateAction,
     EditOperationType,
@@ -36,12 +35,12 @@ async def test_trace_edits(simulation: Simulation, runtime: RuntimeLambdaWorkloa
     # root scalar parent_key set
     Value1.name = "Value2"
     assert get_last_operation().type == EditOperationType.SET
-    assert get_last_operation().path == [Block.get_property("name").key]
+    assert get_last_operation().path == [Class.get_property("name").key]
 
     # root scalar parent_key clear
     Value1.icon = None
     assert get_last_operation().type == EditOperationType.CLEAR
-    assert get_last_operation().path == [Block.get_property("icon").key]
+    assert get_last_operation().path == [Class.get_property("icon").key]
 
     # nested scalar struct set
     Action1.position = Vector2(x=3.0, y=4.0)

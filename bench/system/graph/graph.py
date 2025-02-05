@@ -32,7 +32,6 @@ from bench.language import (
     AccessError,
     Bench,
     Context,
-    Database,
     EditType,
     Engine,
     EngineUnavailableError,
@@ -52,6 +51,7 @@ from bench.language import (
     SelectOptions,
     Session,
     Subject,
+    TypeBaseNode,
     ValidationError,
     bittuple,
     edit_data_graph,
@@ -241,7 +241,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
 
     @abc.abstractmethod
-    def resolve_request_database(self, database_ptr: UUID | NodeReference) -> Database | None:
+    def resolve_request_base(self, node_ptr: UUID | NodeReference) -> TypeBaseNode | None:
         """Resolve a database pointer from a request message."""
         ...
 
@@ -386,7 +386,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             with self.tracer.start_as_current_span("graph.commit.read"):
                 for (base_ck, node_type), node_references in area.scopes_by_base_and_type.items():
                     node_type = wiring.unpack_enum(NodeType, node_type)
-                    database = self.resolve_request_database(base_ck) if base_ck else None
+                    database = self.resolve_request_base(base_ck) if base_ck else None
                     select = (
                         SelectOptions(select_fields=list(database.fields))
                         if database is not None
@@ -524,7 +524,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     base_type_ptr = wiring.unpack_builtin_object(
                         request.base_type_ptr, supergraph=None, expect=NodeReference
                     )
-                    database = self.resolve_request_database(base_type_ptr)
+                    database = self.resolve_request_base(base_type_ptr)
                     if database is None:
                         raise NodeNotFoundError(base_type_ptr)
                 else:
@@ -657,7 +657,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     base_type_ptr = wiring.unpack_builtin_object(
                         request.base_type_ptr, supergraph=None, expect=NodeReference
                     )
-                    database = self.resolve_request_database(base_type_ptr)
+                    database = self.resolve_request_base(base_type_ptr)
                     if database is None:  # raising here is not great.. :SearchWithMissingBlock
                         raise NodeNotFoundError(base_type_ptr)
                 else:

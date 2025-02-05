@@ -5,7 +5,8 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language.core import Node, NodeNotFoundError, NodeReference, NodeType
+from bench.language.core import Node, NodeReference
+from bench.language.core.node import TYPE_BASE_NODE_TYPES
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.utils.func import group_by
 
@@ -17,7 +18,7 @@ tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
 
 if TYPE_CHECKING:
-    from bench.language import Database
+    from bench.language import TypeBaseNode
 
 
 class NodeLink:
@@ -27,10 +28,10 @@ class NodeLink:
     Useful when we get a Node from one source and the need to make it live after the fact.
     """
 
-    def __init__(self, nodes: Sequence[Node | NodeReference], database: "Database | None") -> None:
+    def __init__(self, nodes: Sequence[Node | NodeReference], base: "TypeBaseNode | None") -> None:
         assert len(nodes) > 0, f"no nodes to link for {self!r}"
         self.nodes = nodes
-        self.database = database
+        self.base = base
         self.nodes_ptr: tuple[NodeReference, ...] = tuple(n.to_ref() for n in nodes)
         self.node_cls = NODE_CLASS_BY_TYPE[self.nodes_ptr[0].node_type]
         self.nodes_by_id: dict[UUID, Node] = {
@@ -77,8 +78,7 @@ class NodeLink:
         assert self._connection is None, f"{self!r} is already linked"
         node_cls = NODE_CLASS_BY_TYPE[self.nodes_ptr[0].node_type]
         query = node_cls.select_all()
-        if self.database is not None:
-            query._base_type = self.database
+        query._base_type = self.base
         live_nodes, connection = await query.get_connection(self.nodes_ptr, live=True)
         for live_node in live_nodes:  # patch immediately
             our_node = self.nodes_by_id.get(live_node.id)
@@ -102,8 +102,6 @@ class NodeLink:
 
 async def link_nodes(nodes: Sequence[Node | NodeReference]) -> Sequence[NodeLink]:
     """Link given Nodes to live Connections."""
-    from bench.language import Database
-
     if not nodes:
         return []
     supergraph = nodes[0]._supergraph
@@ -118,18 +116,17 @@ async def link_nodes(nodes: Sequence[Node | NodeReference]) -> Sequence[NodeLink
     for (_, link_base_ck), link_nodes_ptr in nodes_by_type_and_base.items():
         # base
         if link_base_ck is not None:
-            base_ptr = NodeReference(node_type=NodeType.DATABASE, ck=link_base_ck)
-            database = supergraph.get(base_ptr)
-            if not isinstance(database, Database):
-                raise NodeNotFoundError(base_ptr)
+            base = cast("TypeBaseNode | None", supergraph.get(link_base_ck))
+            if base is None or base.metatype not in TYPE_BASE_NODE_TYPES:
+                raise ValueError(f"missing base {link_base_ck!r} for {link_nodes_ptr!r}")
         else:
-            database = None
+            base = None
 
         # nodes
         link_nodes = [
             nodes_by_id.get(cast(UUID, node_ptr.id), node_ptr) for node_ptr in link_nodes_ptr
         ]
-        link = NodeLink(link_nodes, database=database)
+        link = NodeLink(link_nodes, base=base)
         links.append(link)
     await asyncio.gather(*(link.link() for link in links))
 

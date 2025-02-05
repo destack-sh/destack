@@ -297,9 +297,10 @@ async def test_crud_node_pointers(omni_session: Session):
 
         session._track(bench)
         page1 = package.pages.create()
+        view1 = View.new(ViewType.COLOR, "View1")
+        page1.append(view1)
         block1 = page1.blocks.create(type=BlockType.VIEW)
-        view11 = block1.node_as(View).views.create(type=ViewType.COLOR, name="View1")
-        view11.node = block1
+        view11 = view1.views.create(type=ViewType.COLOR, name="View1")  # noqa: F841
         await session.commit()
 
         # read back

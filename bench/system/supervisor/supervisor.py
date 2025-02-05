@@ -13,7 +13,6 @@ from bench.language import (
     Bench,
     Client,
     ClientType,
-    Database,
     Handle,
     NodeArea,
     NodeReference,
@@ -23,10 +22,11 @@ from bench.language import (
     Region,
     Store,
     Subject,
+    TypeBaseNode,
     User,
     UserStatus,
+    bittuple,
 )
-from bench.language.core import bittuple
 from bench.proto import (
     ChangeUserPasswordRequest,
     ChangeUserPasswordResponse,
@@ -151,7 +151,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                 raise RuntimeError(f"unexpected client: {client!r}")
 
     @override
-    def resolve_request_database(self, database_ptr: UUID | NodeReference) -> Database | None:
+    def resolve_request_base(self, node_ptr: UUID | NodeReference) -> TypeBaseNode | None:
         raise RuntimeError("supervisor does not support database-level requests")
 
     #

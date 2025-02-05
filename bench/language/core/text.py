@@ -141,11 +141,13 @@ class TextLine(TextOptionsBase, Struct):
         return any(other in span for span in self.spans)
 
     @staticmethod
-    def plain(text: str) -> "TextLine":
+    def paragraph(text: str) -> "TextLine":
         if text:
             return TextLine(type=TextLineType.PARAGRAPH, spans=[TextSpan(content=text)])
         else:
             return TextLine(type=TextLineType.PARAGRAPH, spans=[])
+
+    plain = paragraph
 
     @staticmethod
     def code(text: str) -> "TextLine":

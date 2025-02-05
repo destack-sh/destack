@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Literal, Union
 
 from bench.language.core import (
     FieldType,
@@ -34,18 +34,22 @@ class Class(InlineSourceNode[BlockData]):
     def to_type_maybe(
         self,
         *,
+        of: Literal["instance", "value"] = "value",
         field_types: list[FieldType] | None = None,
     ) -> "TypeBase":
         """Get a type represented by this Block (if any)"""
         from bench.language.core import Type
 
-        field_types = field_types or [FieldType.MEMBER]
-        return Type(
-            kind=TypeKind.CUSTOM_OBJECT,
-            base_type=self,
-            base_field_types=field_types,
-            property_field_types=field_types,
-        )
+        if of == "instance":
+            return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.FIELD)
+        else:
+            field_types = field_types or [FieldType.MEMBER]
+            return Type(
+                kind=TypeKind.CUSTOM_OBJECT,
+                base_type=self,
+                base_field_types=field_types,
+                property_field_types=field_types,
+            )
 
     def to_type(
         self,

@@ -2,7 +2,6 @@ import typing
 from typing import (
     TYPE_CHECKING,
     Any,
-    Literal,
     NamedTuple,
     Optional,
     Sequence,
@@ -376,19 +375,12 @@ class TypeBase(BuiltinObject):
     def morph_to(
         self,
         typ: "TypeIn",
-        of: Literal["instance", "value"] = "instance",
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         is_required: bool = False,
         is_list: bool = False,
     ):
         """Change this type to another type."""
-        typ = to_type(
-            typ,
-            of=of,
-            constraint=constraint,
-            is_required=is_required,
-            is_list=is_list,
-        )
+        typ = to_type(typ, constraint=constraint, is_required=is_required, is_list=is_list)
         for prop in TypeBase.__declared_properties__.values():
             new_typ_value = getattr(typ, prop.name)
             old_typ_value = getattr(self, prop.name)
@@ -510,20 +502,16 @@ TypeIn = Union[
 ]
 
 
-def to_type_scalar(
-    type_in: TypeIn,
-    *,
-    of: Literal["instance", "value"] = "instance",
-) -> "Type":
+def to_type_scalar(type_in: TypeIn) -> "Type":
     """Converts a type-like object to a Type."""
-    from bench.language import Block, Choice, Class, FileType, Flow, Pipe
+    from bench.language import Action, Block, Choice, Class, Database, FileType, Flow, Pipe
 
     if isinstance(type_in, Block) and (node := type_in.node) is not None:
         type_in = cast(TypeIn, node)  # unpack inner node automatically
 
     if isinstance(type_in, TypeBase):
         return cast("Type", type_in)
-    elif isinstance(type_in, (Class, Choice, Flow, Pipe)):
+    elif isinstance(type_in, (Class, Choice, Flow, Action, Pipe, Database)):
         type_scalar = type_in.to_type_maybe()
         if type_scalar is not None:
             assert isinstance(type_scalar, Type), f"expected Type, got {type_scalar!r}"
@@ -566,13 +554,12 @@ def to_type_scalar(
 def to_type(
     type_in: TypeIn,
     *,
-    of: Literal["instance", "value"] = "instance",
     constraint: TypeConstraintIn | TypeConstraint | None = None,
     is_required: bool = False,
     is_list: bool = False,
 ) -> Type:
     """Converts a TypeIn into a Type."""
-    type_scalar = to_type_scalar(type_in, of=of)
+    type_scalar = to_type_scalar(type_in)
     if isinstance(constraint, TypeConstraintIn):
         constraint = constraint.into()
     type_scalar.constraint = constraint

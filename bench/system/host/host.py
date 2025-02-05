@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from itertools import chain
-from typing import Any, Callable, Literal, Mapping, Sequence, override
+from typing import Any, Callable, Literal, Mapping, Sequence, cast, override
 from uuid import UUID
 
 import structlog
@@ -24,7 +24,6 @@ from bench.language import (
     C,
     ClientType,
     ConditionalType,
-    Database,
     EditType,
     Engine,
     File,
@@ -32,6 +31,7 @@ from bench.language import (
     FileKind,
     GraphScope,
     HasContext,
+    InlineSourceNode,
     Machine,
     MemoryEngine,
     NodeArea,
@@ -47,6 +47,7 @@ from bench.language import (
     Session,
     Store,
     Subject,
+    TypeBaseNode,
     User,
     bittuple,
     edit_data_graph,
@@ -295,13 +296,13 @@ class HostService(GraphIoServiceBase, HostBase):
         return subject
 
     @override
-    def resolve_request_database(self, database_ptr: NodeReference | UUID) -> Database | None:
-        database_ck = database_ptr.ck if isinstance(database_ptr, NodeReference) else database_ptr
-        assert database_ck, f"no database ck in {database_ptr!r}"
-        node = self.main_package._graph.get(database_ck)
-        if not isinstance(node, Database):
+    def resolve_request_base(self, node_ptr: NodeReference | UUID) -> TypeBaseNode | None:
+        base_ck = node_ptr.ck if isinstance(node_ptr, NodeReference) else node_ptr
+        assert base_ck, f"no base ck in {node_ptr!r}"
+        node = self.main_package._graph.get(base_ck)
+        if not isinstance(node, InlineSourceNode):
             return None
-        return node
+        return cast(TypeBaseNode, node)
 
     async def _activate(self, session: Session, bench: Bench) -> None:
         """Initializes the given Bench for the first time."""

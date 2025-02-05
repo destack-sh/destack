@@ -65,7 +65,7 @@ class Block(SourceNode[BlockData]):
 
     def node_as[T: InlineSourceNode](self, node_cls: _type[T]) -> T:
         if not isinstance((node := self.node), node_cls):
-            raise TypeError(f"{self!r} has no {node_cls!r}")
+            raise TypeError(f"{self!r} has no {node_cls.__name__} (node={node!r})")
         return node  # type: ignore
 
     @staticmethod

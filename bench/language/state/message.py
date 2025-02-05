@@ -137,7 +137,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return cast("MessageData", data).cls_ptr
+        return cast("MessageData", data).clazz_ptr
 
     @staticmethod
     def get_base_from_partial(data: dict[str, Any]) -> Optional["Class"]:

@@ -25,14 +25,7 @@ from bench.language.core import (
 from bench.pb2 import ViewData
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Block,
-        Expression,
-        Message,
-        Space,
-        Text,
-        Type,
-    )
+    from bench.language import Expression, Message, Page, Space, Text, Type
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -385,8 +378,8 @@ class RectangleConstraint(Struct):
 class View(InlineSourceNode[ViewData]):
     """A View is a graphical interface in a Bench."""
 
-    parent: Union["Space", "View", "Block", None] = p_node_parent(
-        4, NodeType.SPACE, NodeType.VIEW, NodeType.BLOCK
+    parent: Union["Space", "View", "Page", None] = p_node_parent(
+        4, NodeType.SPACE, NodeType.VIEW, NodeType.PAGE
     )
 
     # meta
