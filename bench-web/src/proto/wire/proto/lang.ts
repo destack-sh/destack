@@ -12714,41 +12714,53 @@ export enum ViewType {
      */
     BROWSER = 2150,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BLOCK = 3010;
+     * @generated from protobuf enum value: VIEW_TYPE_PAGE = 5020;
      */
-    BLOCK = 3010,
+    PAGE = 5020,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_FIELD = 3012;
+     * @generated from protobuf enum value: VIEW_TYPE_BLOCK = 5021;
      */
-    FIELD = 3012,
+    BLOCK = 5021,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_VIEW = 3020;
+     * @generated from protobuf enum value: VIEW_TYPE_CHOICE = 5030;
      */
-    VIEW = 3020,
+    CHOICE = 5030,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PIPE = 3031;
+     * @generated from protobuf enum value: VIEW_TYPE_CLASS = 5031;
      */
-    PIPE = 3031,
+    CLASS = 5031,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_ACTION = 3030;
+     * @generated from protobuf enum value: VIEW_TYPE_FIELD = 5035;
      */
-    ACTION = 3030,
+    FIELD = 5035,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_RUN = 3601;
+     * @generated from protobuf enum value: VIEW_TYPE_FLOW = 5050;
      */
-    RUN = 3601,
+    FLOW = 5050,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PAGE = 10010;
+     * @generated from protobuf enum value: VIEW_TYPE_ACTION = 5051;
      */
-    PAGE = 10010,
+    ACTION = 5051,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DATABASE = 10011;
+     * @generated from protobuf enum value: VIEW_TYPE_PIPE = 5052;
      */
-    DATABASE = 10011,
+    PIPE = 5052,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_FLOW = 10012;
+     * @generated from protobuf enum value: VIEW_TYPE_TRIGGER = 5053;
      */
-    FLOW = 10012,
+    TRIGGER = 5053,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_VIEW = 5080;
+     */
+    VIEW = 5080,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_DATABASE = 5090;
+     */
+    DATABASE = 5090,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_RUN = 6010;
+     */
+    RUN = 6010,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_OBJECT = 20000;
      */
@@ -31263,6 +31275,7 @@ export type AnyStructDataType = typeof ContextData | typeof EditContextData | ty
 export type BenchNodeData = BenchData | HandleData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | FlowData | ActionData | PipeData | TriggerData | ViewData | DatabaseData | ChannelData | RoleData | IdentityData | SpaceData | ThreadData | MessageData | RecordData | SessionData | RunData | RunSpanData | RunPlanData | InterruptionData | LogData
 export type ResourceNodeData = ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData
 export type SourceNodeData = PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | FlowData | ActionData | PipeData | TriggerData | ViewData | DatabaseData | ChannelData | RoleData | IdentityData | SpaceData
+export type InlineSourceNodeData = ChoiceData | ClassData | FlowData | ViewData | DatabaseData | RoleData | IdentityData
 export type StateNodeData = ThreadData | MessageData | RecordData
 export type RuntimeNodeData = SessionData | RunData | RunSpanData | RunPlanData | InterruptionData | LogData
 export type StaticResourceNodeData = ScalerData | StoreData
@@ -35836,8 +35849,8 @@ export const MessageTriggerDataInfo: Record<MessageTriggerProperty, PropertyInfo
   [MessageTriggerProperty.replyToPtr]: { id: 103, name: 'reply_to_ptr', component: ObjectType.TRIGGER, componentSubtype: 20, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RunViewDataInfo: Record<RunViewProperty, PropertyInfo> = {
-  [RunViewProperty.variablesPacked]: { id: 100, name: 'variables_packed', component: ObjectType.VIEW, componentSubtype: 3601, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunViewProperty.inputsPacked]: { id: 101, name: 'inputs_packed', component: ObjectType.VIEW, componentSubtype: 3601, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunViewProperty.variablesPacked]: { id: 100, name: 'variables_packed', component: ObjectType.VIEW, componentSubtype: 6010, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunViewProperty.inputsPacked]: { id: 101, name: 'inputs_packed', component: ObjectType.VIEW, componentSubtype: 6010, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const ObjectViewDataInfo: Record<ObjectViewProperty, PropertyInfo> = {
   [ObjectViewProperty.expandedSections]: { id: 100, name: 'expanded_sections', component: ObjectType.VIEW, componentSubtype: 20000, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },

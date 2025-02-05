@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { createBlock } from "@/language/block";
-import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/const";
-import { makeType, NAME_TYPE } from "@/language/field";
+import { CANVAS_BLOCK_TYPES, INLINE_SOURCE_NODE_TYPES, toCamelName } from "@/language/const";
+import { makeType } from "@/language/field";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
-import { cloneNode, moveNode, packSubnode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
+import { cloneNode, moveNode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
 import {
   BenchType,
@@ -14,11 +14,10 @@ import {
   NodeType,
   ObjectType,
   Orientation,
-  PickerVariant,
   TreeViewPreset,
   ViewData,
   ViewType,
-  type AnyNodeData,
+  type AnyNodeData
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
@@ -42,10 +41,9 @@ import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import NativeInput from "@/views/content/NativeInput.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { useElementSize } from "@vueuse/core";
-import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
+import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const DEPTH_OFFSET = 16;
 const ITEM_HEIGHT = 28;
@@ -80,9 +78,9 @@ const filterIsPage = computed(() => {
 });
 const inspectedNodeTypes = computed(() => {
   if (preset.value == TreeViewPreset.EXPLORE) {
-    return [NodeType.BLOCK];
+    return [NodeType.PAGE];
   } else if (preset.value == TreeViewPreset.OUTLINE) {
-    return [NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.ACTION];
+    return [...INLINE_SOURCE_NODE_TYPES];
   } else {
     return unpackSubnodeProperty(NodeType.VIEW, ViewType.TREE, props.subnodePacked, "nodeTypes");
   }

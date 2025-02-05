@@ -1565,15 +1565,18 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_UNSPECIFIED: _ClassVar[ViewType]
     VIEW_TYPE_MACHINE: _ClassVar[ViewType]
     VIEW_TYPE_BROWSER: _ClassVar[ViewType]
-    VIEW_TYPE_BLOCK: _ClassVar[ViewType]
-    VIEW_TYPE_FIELD: _ClassVar[ViewType]
-    VIEW_TYPE_VIEW: _ClassVar[ViewType]
-    VIEW_TYPE_PIPE: _ClassVar[ViewType]
-    VIEW_TYPE_ACTION: _ClassVar[ViewType]
-    VIEW_TYPE_RUN: _ClassVar[ViewType]
     VIEW_TYPE_PAGE: _ClassVar[ViewType]
-    VIEW_TYPE_DATABASE: _ClassVar[ViewType]
+    VIEW_TYPE_BLOCK: _ClassVar[ViewType]
+    VIEW_TYPE_CHOICE: _ClassVar[ViewType]
+    VIEW_TYPE_CLASS: _ClassVar[ViewType]
+    VIEW_TYPE_FIELD: _ClassVar[ViewType]
     VIEW_TYPE_FLOW: _ClassVar[ViewType]
+    VIEW_TYPE_ACTION: _ClassVar[ViewType]
+    VIEW_TYPE_PIPE: _ClassVar[ViewType]
+    VIEW_TYPE_TRIGGER: _ClassVar[ViewType]
+    VIEW_TYPE_VIEW: _ClassVar[ViewType]
+    VIEW_TYPE_DATABASE: _ClassVar[ViewType]
+    VIEW_TYPE_RUN: _ClassVar[ViewType]
     VIEW_TYPE_OBJECT: _ClassVar[ViewType]
     VIEW_TYPE_TYPE: _ClassVar[ViewType]
     VIEW_TYPE_FIELD_LIST: _ClassVar[ViewType]
@@ -3156,15 +3159,18 @@ SPACE_TYPE_MOBILE: SpaceType
 VIEW_TYPE_UNSPECIFIED: ViewType
 VIEW_TYPE_MACHINE: ViewType
 VIEW_TYPE_BROWSER: ViewType
-VIEW_TYPE_BLOCK: ViewType
-VIEW_TYPE_FIELD: ViewType
-VIEW_TYPE_VIEW: ViewType
-VIEW_TYPE_PIPE: ViewType
-VIEW_TYPE_ACTION: ViewType
-VIEW_TYPE_RUN: ViewType
 VIEW_TYPE_PAGE: ViewType
-VIEW_TYPE_DATABASE: ViewType
+VIEW_TYPE_BLOCK: ViewType
+VIEW_TYPE_CHOICE: ViewType
+VIEW_TYPE_CLASS: ViewType
+VIEW_TYPE_FIELD: ViewType
 VIEW_TYPE_FLOW: ViewType
+VIEW_TYPE_ACTION: ViewType
+VIEW_TYPE_PIPE: ViewType
+VIEW_TYPE_TRIGGER: ViewType
+VIEW_TYPE_VIEW: ViewType
+VIEW_TYPE_DATABASE: ViewType
+VIEW_TYPE_RUN: ViewType
 VIEW_TYPE_OBJECT: ViewType
 VIEW_TYPE_TYPE: ViewType
 VIEW_TYPE_FIELD_LIST: ViewType

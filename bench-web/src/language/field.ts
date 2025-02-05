@@ -5,10 +5,10 @@ import {
   isNodeType,
   NAME_CONSTRAINT,
   padCkFromTkB64,
-  RUNNABLE_BLOCK_TYPES,
+  RUNNABLE_NODE_TYPES,
   TITLE_CONSTRAINT,
   toCamelName,
-  TYPE_BLOCK_TYPES,
+  TYPE_NODE_TYPES,
 } from "@/language/const";
 import { getEnumTitle } from "@/language/enum";
 import type { ReadNodeGraph } from "@/language/graph";
@@ -464,9 +464,9 @@ export function createField(
     if (target.type == BlockType.CHOICE) {
       type = FieldType.OPTION;
       kind = TypeKind.LITERAL;
-    } else if (TYPE_BLOCK_TYPES.includes(target.type)) {
+    } else if (TYPE_NODE_TYPES.includes(target.type as unknown as NodeType)) {
       type = FieldType.MEMBER;
-    } else if (RUNNABLE_BLOCK_TYPES.includes(target.type)) {
+    } else if (RUNNABLE_NODE_TYPES.includes(target.type as unknown as NodeType)) {
       type = FieldType.INPUT;
     } else {
       type = FieldType.VARIABLE;
@@ -620,7 +620,7 @@ export function useFieldList(options: {
       } else if (
         isNode(node, NodeType.BLOCK) &&
         block.value?.type != BlockType.CHOICE &&
-        TYPE_BLOCK_TYPES.includes(node.type)
+        TYPE_NODE_TYPES.includes(node.type as unknown as NodeType)
       ) {
         return true;
       } else {
