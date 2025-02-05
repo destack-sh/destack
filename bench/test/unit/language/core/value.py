@@ -48,8 +48,10 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
     """Coerce, pack & unpack custom object with builtin properties."""
     Flow1 = Flow.new(
         "Flow1",
-        Field.output("Output1", PrimitiveType.INT32),
-        Field.output("Output 2 with a Space", Text),
+        fields=[
+            Field.output("Output1", PrimitiveType.INT32),
+            Field.output("Output 2 with a Space", Text),
+        ],
     )
 
     # coerce

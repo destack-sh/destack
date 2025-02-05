@@ -37,7 +37,7 @@ from .action import (
 from .block import Block, BlockType
 from .channel import Channel, ChannelType
 from .choice import Choice
-from .class_ import Class
+from .clazz import Class
 from .database import Database
 from .dependency import Dependency
 from .field import Field, InputField, MemberField, OptionField, OutputField, VariableField

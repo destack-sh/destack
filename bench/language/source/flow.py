@@ -78,8 +78,6 @@ class Flow(InlineSourceNode[FlowData]):
         return self.to_type_maybe(field_types=[FieldType.OUTPUT])
 
     @staticmethod
-    def new(name: str, *fields: "Field", **kwargs) -> "Flow":
+    def new(name: str, **kwargs) -> "Flow":
         flow = Flow(name=name, **kwargs)
-        for field in fields:
-            flow.fields.append(field)
         return flow

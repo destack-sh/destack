@@ -25,7 +25,6 @@ from bench.utils.fractional import INTEGER_ZERO
 if TYPE_CHECKING:
     from bench.language import (
         Action,
-        Block,
         Color,
         Flow,
         NodeReference,
@@ -74,7 +73,7 @@ class Pipe(SourceNode[PipeData]):
     Pipes are stored in the containing Flow or containing Step.
     """
 
-    parent: Union["Block", "Action", None] = p_node_parent(4, NodeType.BLOCK, NodeType.ACTION)
+    parent: Union["Flow", "Action", None] = p_node_parent(4, NodeType.FLOW, NodeType.ACTION)
 
     # meta
     type: PipeType = p_internal(30)

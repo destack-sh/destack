@@ -10,14 +10,6 @@ import regex
 import structlog
 from opentelemetry import trace
 
-from bench.language import (
-    Call,
-    CallExecutionMode,
-    CallFailureMode,
-    CallPlan,
-    CallTerminationMode,
-    Resource,
-)
 from bench.language.core import (
     NODE_TYPES_SET,
     BuiltinObject,
@@ -58,11 +50,24 @@ from bench.language.core import (
     reverse_type_scalar,
 )
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
+from bench.language.resource import Resource
+from bench.language.runtime import (
+    Call,
+    CallExecutionMode,
+    CallFailureMode,
+    CallPlan,
+    CallTerminationMode,
+)
 from bench.utils.time import timedelta_to_isoformat
 
 from .action import Action, ToolFilter, ToolSelection
 from .block import Block
+from .choice import Choice
+from .clazz import Class
+from .database import Database
 from .field import Field
+from .flow import Flow
+from .page import Page
 from .pipe import Pipe
 from .view import View
 
@@ -691,6 +696,24 @@ class ViewRenderer(SourceNodeRenderer[View]):
         return f"View.new({view_args})"
 
 
+@_renderer(NodeType.FLOW)
+class FlowRenderer(SourceNodeRenderer[Flow]):
+    @override
+    def _render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: Flow,
+        kwargs: dict[Property, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        # inline name only for now
+        args = (
+            rendered_kwargs.pop("name"),
+            renderer._render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"Flow.new({renderer._render_args(*args)})"
+
+
 @_renderer(NodeType.ACTION)
 class ActionRenderer(SourceNodeRenderer[Action]):
     @override
@@ -744,6 +767,87 @@ class PipeRenderer(SourceNodeRenderer[Pipe]):
                 renderer._render_kwargs(**rendered_kwargs) or None,
             )
             return f"Pipe.new({renderer._render_args(*args)})"
+
+
+@_renderer(NodeType.CHOICE)
+class ChoiceRenderer(SourceNodeRenderer[Choice]):
+    @override
+    def _render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: Choice,
+        kwargs: dict[Property, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        # inline name and fields (like Choice.new(name, *fields))
+        fields_refs = [renderer.render_builtin_object(field) for field in obj.fields]
+        rendered_kwargs.pop("fields", None)
+        args = (
+            rendered_kwargs.pop("name"),
+            *fields_refs,
+            renderer._render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"Choice.new({renderer._render_args(*args)})"
+
+
+@_renderer(NodeType.CLASS)
+class ClassRenderer(SourceNodeRenderer[Class]):
+    @override
+    def _render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: Class,
+        kwargs: dict[Property, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        # inline name and fields (like Class.new(name, *fields))
+        fields_refs = [renderer.render_builtin_object(field) for field in obj.fields]
+        rendered_kwargs.pop("fields", None)
+        args = (
+            rendered_kwargs.pop("name"),
+            *fields_refs,
+            renderer._render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"Class.new({renderer._render_args(*args)})"
+
+
+@_renderer(NodeType.DATABASE)
+class DatabaseRenderer(SourceNodeRenderer[Database]):
+    @override
+    def _render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: Database,
+        kwargs: dict[Property, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        # inline name and fields (like Database.new(name, *fields))
+        fields_refs = [renderer.render_builtin_object(field) for field in obj.fields]
+        rendered_kwargs.pop("fields", None)
+        args = (
+            rendered_kwargs.pop("name"),
+            *fields_refs,
+            renderer._render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"Database.new({renderer._render_args(*args)})"
+
+
+@_renderer(NodeType.PAGE)
+class PageRenderer(SourceNodeRenderer[Page]):
+    @override
+    def _render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: Page,
+        kwargs: dict[Property, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        # inline name only for now
+        args = (
+            rendered_kwargs.pop("name"),
+            renderer._render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"Page.new({renderer._render_args(*args)})"
 
 
 @_renderer(NodeType.FIELD)
