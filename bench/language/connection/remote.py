@@ -56,7 +56,7 @@ tracer = trace.get_tracer(__name__)
 
 def _grpc_wrap_error(query: "Query", e: GRPCError):
     """Wraps a GRPCError in something more harmonized."""
-    return e  # NOTE :UX: wrap remote grpc errors :BadRemoteErrors
+    return e  # NOTE :UX: wrap remote grpc errors
 
 
 class RemoteEngine(Engine["RemoteConnector"]):

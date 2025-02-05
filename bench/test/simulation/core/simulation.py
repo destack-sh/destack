@@ -1,10 +1,12 @@
 import asyncio
 import gc
+from contextlib import contextmanager
 from datetime import datetime
 from random import Random
 from typing import TYPE_CHECKING, final
 from uuid import UUID
 
+import pytest
 import structlog
 from opentelemetry import trace
 
@@ -80,8 +82,6 @@ class Simulation:
         self.tasks = TaskManager(
             owner=self, logger=logger, oracle=self.oracle, on_error=self.on_error
         )
-        self.errors: list[BaseException] = []
-        self.has_error = asyncio.Event()
 
         # content
         self.supervisor = SupervisorHandle("supervisor", spec.supervisor, self.oracle, self)
@@ -100,6 +100,10 @@ class Simulation:
         # status
         self.started_at: datetime | None = None
         self.terminated_at: datetime | None = None
+        self.suppressed_error_types: list[type[BaseException]] = []
+        self.suppressed_errors: list[BaseException] = []
+        self.errors: list[BaseException] = []
+        self.has_error = asyncio.Event()
 
     def __str__(self):
         return f"'{self.id}'"
@@ -107,10 +111,23 @@ class Simulation:
     def __repr__(self):
         return f"<{self.__class__.__name__} {self!s}>"
 
+    @contextmanager
+    def raises[E: BaseException](self, *exc_types: type[E]):
+        """Wraps pytest.raises to also suppress expected errors in the simulation."""
+        prev_suppressed = list(self.suppressed_error_types)
+        self.suppressed_error_types.extend(exc_types)
+        with pytest.raises(exc_types) as exc_info:
+            yield exc_info
+        self.suppressed_error_types = prev_suppressed
+
     def on_error(self, error: BaseException):
-        logger.error("simulation.error", simulation=self, exc_info=error)
-        self.errors.append(error)
-        self.has_error.set()
+        if any(isinstance(error, ex) for ex in self.suppressed_error_types):
+            logger.debug("simulation.error.suppressed", simulation=self, exc_info=error)
+            self.suppressed_errors.append(error)
+        else:
+            logger.error("simulation.error", simulation=self, exc_info=error)
+            self.errors.append(error)
+            self.has_error.set()
 
     def get_user(self, name: str) -> "UserHandle":
         user = self.users_by_name.get(name)

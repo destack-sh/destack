@@ -39,15 +39,14 @@ logger = structlog.get_logger(__name__)
 @enum_(EnumType.MESSAGE_TYPE)
 class MessageType(BuiltinEnum):
     TEXT = 1
-    TYPED = 2
+    CLASS = 2
     # RUN, INTERRUPTION, ...
     # for inspiration also see https://discord.com/developers/docs/resources/message
 
 
 @enum_(EnumType.MESSAGE_PLATFORM)
 class MessagePlatform(BuiltinEnum):
-    BENCH = 1  # within one Bench
-    BENCH_FEDERATED = 2  # from/to another Bench
+    BENCH = 1
     WEBHOOK = 10
     EMAIL = 20
     SMS = 21
