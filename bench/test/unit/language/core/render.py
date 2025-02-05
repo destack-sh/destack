@@ -179,8 +179,8 @@ def test_render_partial_object(session: Session, package: Package):
         MessageType.TEXT, clazz=MessageType1, Field1=17, Field2="hello!"
     )
     return {
-        "PartialBlock1": PartialPage1,
-        "Message1": MessageType1,
+        "PartialPage1": PartialPage1,
+        "MessageType1": MessageType1,
         "PatialMessage1": PatialMessage1,
     }
 
@@ -237,12 +237,14 @@ def test_render_flow_simple(session: Session, package: Package):
 def test_render_flow_computed_value(session: Session, package: Package):
     Flow1 = Flow.new(
         "Flow1",
-        Field.input("Input1", int),
-        Field.input("Input2", int),
-        Field.input("Input3", int),
-        Field.output("Output1", int),
-        Field.output("Output2", int),
-        Field.output("Output3", int),
+        fields=[
+            Field.input("Input1", int),
+            Field.input("Input2", int),
+            Field.input("Input3", int),
+            Field.output("Output1", int),
+            Field.output("Output2", int),
+            Field.output("Output3", int),
+        ],
     )
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(
@@ -332,13 +334,13 @@ def test_render_simple_choice_option_ref(session: Session, package: Package):
     """Rendered node ref in sibling scope should be simplified"""
     Page1 = package.pages.create(name="Page")
     Choice1 = Choice.new(
-        "Choice",
+        "Choice1",
         Field.option("Option1"),
         Field.option("Option2"),
         Field.option("Option3"),
     )
     Page1.append(Choice1)
     rendered_option = render_expression(
-        Choice.fields.Option2, options=RenderOptions(scope=Page1, aliasing=Aliasing()), as_ref=True
+        Choice1.fields.Option2, options=RenderOptions(scope=Page1, aliasing=Aliasing()), as_ref=True
     )
-    assert rendered_option == "Choice.fields.Option2"
+    assert rendered_option == "Choice1.fields.Option2"

@@ -62,5 +62,8 @@ class Page(SourceNode[BlockData]):
             return super().append(child, move)
 
     @staticmethod
-    def new(name: str, **kwargs) -> "Page":
-        return Page(name=name, **kwargs)
+    def new(name: str, *nodes: "Block | InlineSourceNode", **kwargs) -> "Page":
+        page = Page(name=name, **kwargs)
+        for node in nodes:
+            page.append(node)
+        return page

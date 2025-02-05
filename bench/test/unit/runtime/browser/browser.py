@@ -34,7 +34,7 @@ async def test_acquire_browser_resource_directly(
 @simulated_runtime()
 async def test_run_flow_browser_go_to_url(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Use a Browser as a 'variable' in a Flow to open a URL and observe the state."""
-    Flow1 = Flow.new("Flow", Field.variable("Browser", Browser))
+    Flow1 = Flow.new("Flow", fields=[Field.variable("Browser", Browser)])
     Start = Action.new(ActionType.START, name="Start")
     GoToUrl = Action.new(ActionType.GO_TO_URL, name="GoToUrl", url="https://symbolx.com")
     Wait = Action.new(ActionType.WAIT, name="Wait", delay=timedelta(seconds=3))

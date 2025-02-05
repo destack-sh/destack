@@ -261,7 +261,7 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
     Page2 = runtime.page("Page2")
     Block1 = Page1.append(Choice.new("Block1", fields=[Field.option("A"), Field.option("B")]))
     Block2 = Page1.append(
-        Flow.new("Block2", Field.input("Text", Text), Field.output("Choice", Block1))
+        Flow.new("Block2", fields=[Field.input("Text", Text), Field.output("Choice", Block1)])
     )
     Block3 = Page1.append(Database.new("Block3", fields=[Field.member("Text", Text)]))
     await runtime.commit()

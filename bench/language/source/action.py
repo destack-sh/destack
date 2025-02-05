@@ -313,11 +313,11 @@ class Action(SourceNode[ActionData]):
         run_options: "RunOptions | None" = None,
     ) -> "Pipe":
         """Connects a target Action to this Action."""
-        from bench.language import Block, Pipe
+        from bench.language import Flow, Pipe
 
         parent = parent or self.parent
         assert parent is not None, f"{self!r} is not attached to a parent"
-        assert isinstance(parent, (Action, Block)), f"{parent!r} is not valid for {self!r}"
+        assert isinstance(parent, (Action, Flow)), f"{parent!r} is not valid for {self!r}"
 
         # assign next name like Pipe1, .. in parent :AutoNaming
         if name is None:

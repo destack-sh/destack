@@ -776,7 +776,7 @@ return {
 @simulated_runtime()
 async def test_run_flow_call_tool(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with a tool call."""
-    Flow1 = Flow.new("Flow1", Field.input("Input1", str), Field.output("Output1", str))
+    Flow1 = Flow.new("Flow1", fields=[Field.input("Input1", str), Field.output("Output1", str)])
     Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
     Tool1 = Action.new(ActionType.TOOL, "Tool1")
