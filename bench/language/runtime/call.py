@@ -84,7 +84,7 @@ class Call(Struct):
     def value_type(self) -> Optional["TypeBase"]:
         node = self.node
         return (
-            node.to_type_maybe(field_types=[FieldType.VARIABLE, FieldType.INPUT])
+            node.to_type_maybe(of="value", field_types=[FieldType.VARIABLE, FieldType.INPUT])
             if node is not None
             else None
         )
@@ -109,6 +109,15 @@ class Call(Struct):
         assert value_type is not None, f"no call value type for {node!r}"
         value = coerce_custom_object_scalar(value or kwargs, value_type)
         return Call(node=node, title=title, text=text, value=value, **kwargs)
+
+
+def call(
+    node: "Flow | Action",
+    title: str | None = None,
+    text: "Text | None" = None,
+    **kwargs,
+) -> "Call":
+    return Call.new(node, title=title, text=text, **kwargs)
 
 
 #
@@ -143,15 +152,6 @@ class CallPlan(Struct):
             on_error=on_error,
             on_terminate=on_terminate,
         )
-
-
-def call(
-    node: "Flow | Action",
-    title: str | None = None,
-    text: "Text | None" = None,
-    **kwargs,
-) -> "Call":
-    return Call.new(node, title=title, text=text, **kwargs)
 
 
 def call_serial(

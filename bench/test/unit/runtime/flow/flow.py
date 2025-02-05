@@ -374,7 +374,7 @@ async def test_run_flow_create_in_test_mode(simulation: Simulation, runtime: Run
         ActionType.CODE,
         "Create",
         code=code("""\
-block = Block.new(BlockType.TEXT, "Test")
+block = Block.new(BlockType.PARAGRAPH)
 Flow1.parent.append(block)
 return {'Block': block}
 """),
@@ -574,7 +574,7 @@ async def test_run_flow_create_action(simulation: Simulation, runtime: RuntimeLa
     Create = Action.new(
         ActionType.CREATE,
         "Create",
-        node_partial=Record.partial(block=Database1, Rating=2),
+        node_partial=Record.partial(database=Database1, Rating=2),
     )
     Flow1.actions.append(Create)
     runtime.page().append(Database1)
@@ -589,7 +589,7 @@ async def test_run_flow_create_action(simulation: Simulation, runtime: RuntimeLa
 
     # run from action inputs
     runner = await runtime.run_in_runtime(
-        Create, inputs={"node_partial": Record.partial(block=Database1, Rating=3)}
+        Create, inputs={"node_partial": Record.partial(database=Database1, Rating=3)}
     )
     assert runner.status == RunStatus.COMPLETED
     record = await Database1.records.get(Rating=3)
@@ -613,7 +613,7 @@ async def test_run_flow_create_action_dynamic(
     Create = Action.new(
         ActionType.CREATE,
         "Create",
-        node_partial=Record.partial(block=Database1, name="My Custom Record", Rating=1),
+        node_partial=Record.partial(database=Database1, name="My Custom Record", Rating=1),
     )
     Create.set_computed(
         target=(
@@ -670,7 +670,8 @@ async def test_run_flow_duplicate_action(simulation: Simulation, runtime: Runtim
 
     Record1._detach_rec()  # detach to also test remote loading
     runner = await runtime.run_in_runtime(
-        Clone, inputs={"node": Record1, "node_partial": Record.partial(block=Database1, Rating=3)}
+        Clone,
+        inputs={"node": Record1, "node_partial": Record.partial(database=Database1, Rating=3)},
     )
     assert runner.status == RunStatus.COMPLETED
     record = await Database1.records.get(Rating=3)
@@ -694,7 +695,7 @@ async def test_run_flow_update_action(simulation: Simulation, runtime: RuntimeLa
         Update,
         inputs={
             "node": Record1,
-            "node_partial": Record.partial(block=Database1, name="Record1.1", Rating=3),
+            "node_partial": Record.partial(database=Database1, name="Record1.1", Rating=3),
         },
     )
     assert runner.status == RunStatus.COMPLETED

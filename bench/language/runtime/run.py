@@ -155,6 +155,8 @@ class RunOptions(Struct):
 class RunPlan(RuntimeNode[RunPlanData]):
     """A RunPlan is a plan for a sequence of Runs."""
 
+    # NOTE :Architecture: maybe RunPlan should be just Plan?
+
     # meta
     parent: Union["Run", None] = p_node_parent(4, NodeType.RUN)
     execution: "CallExecutionMode" = p_internal(31)
