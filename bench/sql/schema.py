@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.04.5"
+VERSION = "2025.02.05.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -948,6 +948,7 @@ FLOW_TABLE = Table(
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("run_options", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1424,9 +1425,9 @@ MESSAGE_TABLE = Table(
         Column("platform", PrimitiveType.INT16, default="1"),
         Column("channel_id", PrimitiveType.UUID, is_nullable=True),
         Column("channel_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("cls_id", PrimitiveType.UUID, is_nullable=True),
-        Column("cls_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("cls_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("clazz_id", PrimitiveType.UUID, is_nullable=True),
+        Column("clazz_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("clazz_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="30"),
         Column("failed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("sent_at", PrimitiveType.DATETIME, is_nullable=True),

@@ -1223,7 +1223,7 @@ enum PathElementType {
   PATH_ELEMENT_TYPE_NODE = 4;
   PATH_ELEMENT_TYPE_CURRENT = 10;
   PATH_ELEMENT_TYPE_CONTAINER = 11;
-  PATH_ELEMENT_TYPE_UNIQUE = 12;
+  PATH_ELEMENT_TYPE_CLOSEST = 12;
   PATH_ELEMENT_TYPE_PARENT = 13;
   PATH_ELEMENT_TYPE_CHILD = 14;
   PATH_ELEMENT_TYPE_ATTRIBUTE = 20;
@@ -3514,6 +3514,7 @@ message FlowData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
+  optional RunOptionsData run_options = 40;
 }
 
 message IdentityData {
@@ -3836,7 +3837,7 @@ message ScheduleTriggerData {
 message MessageTriggerData {
   optional NodeReferenceData channel_ptr = 100;
   optional NodeReferenceData thread_ptr = 101;
-  optional NodeReferenceData class__ptr = 102;
+  optional NodeReferenceData clazz_ptr = 102;
   optional NodeReferenceData reply_to_ptr = 103;
 }
 
@@ -3854,7 +3855,7 @@ message MessageData {
   MessageType type = 30;
   MessagePlatform platform = 31;
   optional NodeReferenceData channel_ptr = 32;
-  optional NodeReferenceData cls_ptr = 35;
+  optional NodeReferenceData clazz_ptr = 35;
   MessageStatus status = 40;
   optional google.protobuf.Timestamp failed_at = 42;
   optional google.protobuf.Timestamp sent_at = 43;

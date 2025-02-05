@@ -5501,6 +5501,10 @@ export interface FlowData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 36;
      */
     blockPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 40;
+     */
+    runOptions?: RunOptionsData;
 }
 /**
  * @generated from protobuf message symbolx.bench.IdentityData
@@ -6581,9 +6585,9 @@ export interface MessageTriggerData {
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData class__ptr = 102;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData clazz_ptr = 102;
      */
-    classPtr?: NodeReferenceData;
+    clazzPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData reply_to_ptr = 103;
      */
@@ -6646,9 +6650,9 @@ export interface MessageData {
      */
     channelPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData cls_ptr = 35;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData clazz_ptr = 35;
      */
-    clsPtr?: NodeReferenceData;
+    clazzPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.MessageStatus status = 40;
      */
@@ -11524,9 +11528,9 @@ export enum PathElementType {
      */
     CONTAINER = 11,
     /**
-     * @generated from protobuf enum value: PATH_ELEMENT_TYPE_UNIQUE = 12;
+     * @generated from protobuf enum value: PATH_ELEMENT_TYPE_CLOSEST = 12;
      */
-    UNIQUE = 12,
+    CLOSEST = 12,
     /**
      * @generated from protobuf enum value: PATH_ELEMENT_TYPE_PARENT = 13;
      */
@@ -27350,7 +27354,8 @@ class FlowData$Type extends MessageType$<FlowData> {
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "run_options", kind: "message", T: () => RunOptionsData }
         ]);
     }
     create(value?: PartialMessage<FlowData>): FlowData {
@@ -27430,6 +27435,9 @@ class FlowData$Type extends MessageType$<FlowData> {
                 case /* optional symbolx.bench.NodeReferenceData block_ptr */ 36:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
+                case /* optional symbolx.bench.RunOptionsData run_options */ 40:
+                    message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -27502,6 +27510,9 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* optional symbolx.bench.NodeReferenceData block_ptr = 36; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.RunOptionsData run_options = 40; */
+        if (message.runOptions)
+            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30086,7 +30097,7 @@ class MessageTriggerData$Type extends MessageType$<MessageTriggerData> {
         super("symbolx.bench.MessageTriggerData", [
             { no: 100, name: "channel_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 101, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 102, name: "class__ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 102, name: "clazz_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 103, name: "reply_to_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
@@ -30107,8 +30118,8 @@ class MessageTriggerData$Type extends MessageType$<MessageTriggerData> {
                 case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 101:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData class__ptr */ 102:
-                    message.classPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.classPtr);
+                case /* optional symbolx.bench.NodeReferenceData clazz_ptr */ 102:
+                    message.clazzPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clazzPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData reply_to_ptr */ 103:
                     message.replyToPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.replyToPtr);
@@ -30131,9 +30142,9 @@ class MessageTriggerData$Type extends MessageType$<MessageTriggerData> {
         /* optional symbolx.bench.NodeReferenceData thread_ptr = 101; */
         if (message.threadPtr)
             NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData class__ptr = 102; */
-        if (message.classPtr)
-            NodeReferenceData.internalBinaryWrite(message.classPtr, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData clazz_ptr = 102; */
+        if (message.clazzPtr)
+            NodeReferenceData.internalBinaryWrite(message.clazzPtr, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData reply_to_ptr = 103; */
         if (message.replyToPtr)
             NodeReferenceData.internalBinaryWrite(message.replyToPtr, writer.tag(103, WireType.LengthDelimited).fork(), options).join();
@@ -30164,7 +30175,7 @@ class MessageData$Type extends MessageType$<MessageData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.MessageType", MessageType, "MESSAGE_TYPE_"] },
             { no: 31, name: "platform", kind: "enum", T: () => ["symbolx.bench.MessagePlatform", MessagePlatform, "MESSAGE_PLATFORM_"] },
             { no: 32, name: "channel_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 35, name: "cls_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "clazz_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.MessageStatus", MessageStatus, "MESSAGE_STATUS_"] },
             { no: 42, name: "failed_at", kind: "message", T: () => Timestamp },
             { no: 43, name: "sent_at", kind: "message", T: () => Timestamp },
@@ -30234,8 +30245,8 @@ class MessageData$Type extends MessageType$<MessageData> {
                 case /* optional symbolx.bench.NodeReferenceData channel_ptr */ 32:
                     message.channelPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.channelPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData cls_ptr */ 35:
-                    message.clsPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clsPtr);
+                case /* optional symbolx.bench.NodeReferenceData clazz_ptr */ 35:
+                    message.clazzPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clazzPtr);
                     break;
                 case /* symbolx.bench.MessageStatus status */ 40:
                     message.status = reader.int32();
@@ -30321,9 +30332,9 @@ class MessageData$Type extends MessageType$<MessageData> {
         /* optional symbolx.bench.NodeReferenceData channel_ptr = 32; */
         if (message.channelPtr)
             NodeReferenceData.internalBinaryWrite(message.channelPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData cls_ptr = 35; */
-        if (message.clsPtr)
-            NodeReferenceData.internalBinaryWrite(message.clsPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData clazz_ptr = 35; */
+        if (message.clazzPtr)
+            NodeReferenceData.internalBinaryWrite(message.clazzPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.MessageStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
@@ -31210,7 +31221,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FIELD]: [NodeType.DATABASE, NodeType.CHOICE, NodeType.CLASS, NodeType.FLOW, NodeType.ACTION],
   [NodeType.FLOW]: [NodeType.PAGE],
   [NodeType.ACTION]: [NodeType.FLOW, NodeType.ACTION],
-  [NodeType.PIPE]: [NodeType.ACTION, NodeType.BLOCK],
+  [NodeType.PIPE]: [NodeType.FLOW, NodeType.ACTION],
   [NodeType.TRIGGER]: [NodeType.RUN, NodeType.ACTION],
   [NodeType.VIEW]: [NodeType.SPACE, NodeType.BLOCK, NodeType.VIEW],
   [NodeType.DATABASE]: [NodeType.PAGE],
@@ -31251,11 +31262,11 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.PACKAGE]: [NodeType.SKIP, NodeType.DEPENDENCY, NodeType.CHANNEL, NodeType.EMPTY, NodeType.SPACE, NodeType.PAGE],
   [NodeType.DEPENDENCY]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.PAGE]: [NodeType.DATABASE, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.CHANNEL, NodeType.EMPTY, NodeType.ROLE, NodeType.IDENTITY, NodeType.FLOW, NodeType.PAGE, NodeType.BLOCK],
-  [NodeType.BLOCK]: [NodeType.SKIP, NodeType.VIEW, NodeType.PIPE, NodeType.EMPTY],
+  [NodeType.BLOCK]: [NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY],
   [NodeType.CHOICE]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY],
   [NodeType.CLASS]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY],
   [NodeType.FIELD]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.FLOW]: [NodeType.SKIP, NodeType.ACTION, NodeType.FIELD, NodeType.EMPTY],
+  [NodeType.FLOW]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE],
   [NodeType.ACTION]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE, NodeType.TRIGGER],
   [NodeType.PIPE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.TRIGGER]: [NodeType.SKIP, NodeType.EMPTY],
@@ -31304,7 +31315,7 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FIELD]: [NodeType.BENCH, NodeType.DATABASE, NodeType.CHOICE, NodeType.CLASS, NodeType.PACKAGE, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE],
   [NodeType.FLOW]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
   [NodeType.ACTION]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE],
-  [NodeType.PIPE]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE, NodeType.BLOCK],
+  [NodeType.PIPE]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE],
   [NodeType.TRIGGER]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE, NodeType.RUN],
   [NodeType.VIEW]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.VIEW, NodeType.PAGE, NodeType.BLOCK],
   [NodeType.DATABASE]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
@@ -31344,12 +31355,12 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.SECRET]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.PACKAGE]: [NodeType.DATABASE, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.PIPE, NodeType.FIELD, NodeType.CHANNEL, NodeType.DEPENDENCY, NodeType.EMPTY, NodeType.TRIGGER, NodeType.SPACE, NodeType.ROLE, NodeType.IDENTITY, NodeType.VIEW, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE, NodeType.BLOCK],
   [NodeType.DEPENDENCY]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PAGE]: [NodeType.DATABASE, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.PAGE, NodeType.FIELD, NodeType.CHANNEL, NodeType.EMPTY, NodeType.TRIGGER, NodeType.ROLE, NodeType.IDENTITY, NodeType.VIEW, NodeType.FLOW, NodeType.ACTION, NodeType.PIPE, NodeType.BLOCK],
-  [NodeType.BLOCK]: [NodeType.SKIP, NodeType.VIEW, NodeType.PIPE, NodeType.EMPTY],
+  [NodeType.PAGE]: [NodeType.DATABASE, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.PIPE, NodeType.FIELD, NodeType.CHANNEL, NodeType.EMPTY, NodeType.TRIGGER, NodeType.ROLE, NodeType.IDENTITY, NodeType.VIEW, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE, NodeType.BLOCK],
+  [NodeType.BLOCK]: [NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY],
   [NodeType.CHOICE]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY],
   [NodeType.CLASS]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY],
   [NodeType.FIELD]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.FLOW]: [NodeType.ACTION, NodeType.SKIP, NodeType.FIELD, NodeType.PIPE, NodeType.TRIGGER, NodeType.EMPTY],
+  [NodeType.FLOW]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE, NodeType.TRIGGER],
   [NodeType.ACTION]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE, NodeType.TRIGGER],
   [NodeType.PIPE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.TRIGGER]: [NodeType.SKIP, NodeType.EMPTY],
@@ -32720,6 +32731,7 @@ export enum FlowProperty {
   icon = 34,
   text = 35,
   blockPtr = 36,
+  runOptions = 40,
 }
 
 export enum ActionProperty {
@@ -33016,7 +33028,7 @@ export enum MessageProperty {
   type = 30,
   platform = 31,
   channelPtr = 32,
-  clsPtr = 35,
+  clazzPtr = 35,
   status = 40,
   failedAt = 42,
   sentAt = 43,
@@ -33477,7 +33489,7 @@ export enum ScheduleTriggerProperty {
 export enum MessageTriggerProperty {
   channelPtr = 100,
   threadPtr = 101,
-  classPtr = 102,
+  clazzPtr = 102,
   replyToPtr = 103,
 }
 
@@ -35034,6 +35046,7 @@ export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FlowProperty.text]: { id: 35, name: 'text', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [FlowProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [FlowProperty.runOptions]: { id: 40, name: 'run_options', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
 }
 export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35071,7 +35084,7 @@ export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
   [PipeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PIPE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [PipeProperty.id]: { id: 2, name: 'id', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.ck]: { id: 3, name: 'ck', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PIPE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
+  [PipeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PIPE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.PIPE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.PIPE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.templatePtr]: { id: 9, name: 'template_ptr', component: ObjectType.PIPE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.PIPE], referenceStruct: StructType.NODE_REFERENCE },
@@ -35319,7 +35332,7 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.type]: { id: 30, name: 'type', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.platform]: { id: 31, name: 'platform', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_PLATFORM, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.channelPtr]: { id: 32, name: 'channel_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.clsPtr]: { id: 35, name: 'cls_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.clazzPtr]: { id: 35, name: 'clazz_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.status]: { id: 40, name: 'status', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.failedAt]: { id: 42, name: 'failed_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.sentAt]: { id: 43, name: 'sent_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -35732,7 +35745,7 @@ export const ScheduleTriggerDataInfo: Record<ScheduleTriggerProperty, PropertyIn
 export const MessageTriggerDataInfo: Record<MessageTriggerProperty, PropertyInfo> = {
   [MessageTriggerProperty.channelPtr]: { id: 100, name: 'channel_ptr', component: ObjectType.TRIGGER, componentSubtype: 20, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
   [MessageTriggerProperty.threadPtr]: { id: 101, name: 'thread_ptr', component: ObjectType.TRIGGER, componentSubtype: 20, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageTriggerProperty.classPtr]: { id: 102, name: 'class__ptr', component: ObjectType.TRIGGER, componentSubtype: 20, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
+  [MessageTriggerProperty.clazzPtr]: { id: 102, name: 'clazz_ptr', component: ObjectType.TRIGGER, componentSubtype: 20, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
   [MessageTriggerProperty.replyToPtr]: { id: 103, name: 'reply_to_ptr', component: ObjectType.TRIGGER, componentSubtype: 20, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RunViewDataInfo: Record<RunViewProperty, PropertyInfo> = {
@@ -36514,6 +36527,21 @@ export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
   [BlockType.PARAGRAPH]: { id: 10000, name: 'PARAGRAPH', text: 'Line of rich Text' },
 }
 
+export const PathElementTypeOptionInfo: Partial<Record<PathElementType, EnumOptionInfo>> = {
+  [PathElementType.ROOT]: { id: 1, name: 'ROOT', text: 'The current root Node' },
+  [PathElementType.BENCH]: { id: 2, name: 'BENCH', text: 'The current Bench' },
+  [PathElementType.PACKAGE]: { id: 3, name: 'PACKAGE', text: 'The current Package' },
+  [PathElementType.NODE]: { id: 4, name: 'NODE', text: 'A specific Node' },
+  [PathElementType.CURRENT]: { id: 10, name: 'CURRENT', text: 'The current Node' },
+  [PathElementType.CONTAINER]: { id: 11, name: 'CONTAINER', text: 'The closest container Node' },
+  [PathElementType.CLOSEST]: { id: 12, name: 'CLOSEST', text: 'The closest named Node' },
+  [PathElementType.PARENT]: { id: 13, name: 'PARENT', text: 'The parent Node' },
+  [PathElementType.CHILD]: { id: 14, name: 'CHILD', text: 'A named child Node' },
+  [PathElementType.ATTRIBUTE]: { id: 20, name: 'ATTRIBUTE', text: 'A Field or Property' },
+  [PathElementType.CONTEXT]: { id: 30, name: 'CONTEXT', text: 'The current Context' },
+  [PathElementType.RUN]: { id: 31, name: 'RUN', text: 'A Run of the Node' },
+}
+
 export const TriggerEffectOptionInfo: Partial<Record<TriggerEffect, EnumOptionInfo>> = {
   [TriggerEffect.START_RUN]: { id: 1, name: 'START_RUN', text: 'Start a new Run' },
   [TriggerEffect.CONTINUE_RUN]: { id: 2, name: 'CONTINUE_RUN', text: 'Continue an existing or start a new Run' },
@@ -36601,6 +36629,7 @@ export const ToolFilterOptionInfo: Partial<Record<ToolFilter, EnumOptionInfo>> =
 
 export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, EnumOptionInfo>>> = {
   [EnumType.BLOCK_TYPE]: BlockTypeOptionInfo,
+  [EnumType.PATH_ELEMENT_TYPE]: PathElementTypeOptionInfo,
   [EnumType.TRIGGER_EFFECT]: TriggerEffectOptionInfo,
   [EnumType.CALL_EXECUTION_MODE]: CallExecutionModeOptionInfo,
   [EnumType.CALL_FAILURE_MODE]: CallFailureModeOptionInfo,

@@ -878,9 +878,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
 
         # init object values (from kwargs)
         for prop in self.__value_runtime_properties__.values():
-            prop_value = kwargs.get(
-                prop.name,
-            )
+            prop_value = kwargs.get(prop.name)
             if prop_value is not None:
                 object.__setattr__(self, prop.name, prop_value)
 
