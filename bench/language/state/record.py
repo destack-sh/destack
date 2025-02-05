@@ -6,6 +6,7 @@ from bench.language.core import (
     BlockType,
     FieldType,
     HasNodeBase,
+    Node,
     NodeType,
     StateNode,
     StructType,
@@ -73,6 +74,10 @@ class Record(StateNode[RecordData], HasNodeBase):
             return str(value)
         else:
             return ""
+
+    @property
+    def container(self) -> "Node | None":
+        return self.database
 
     @property
     def value_type(self) -> "TypeBase | None":

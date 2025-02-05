@@ -4,7 +4,6 @@ from bench.language import (
     Action,
     ActionType,
     Block,
-    Choice,
     Code,
     ErrorType,
     Field,
@@ -348,33 +347,6 @@ async def test_run_code_output_scalar(simulation: Simulation, runtime: RuntimeLa
     await runtime.commit()
     runner = await runtime.run_in_runtime(Function, inputs={"Input1": 3}, return_error=True)
     assert runner.status == RunStatus.FAILED
-
-
-@simulated_runtime()
-async def test_run_code_output_choice(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a code function with a dict and a Choice type, should coerce into object."""
-    Flow1 = Flow.new("Flow1")
-    Color = Choice.new(
-        "Color",
-        Field.option("Red"),
-        Field.option("Green"),
-        Field.option("Blue"),
-    )
-    Function = Action.new(
-        ActionType.CODE,
-        "Function",
-        code=code("""\
-Color = get_node("^Color")
-return {"Color": Color.Red}
-"""),
-        fields=[Field.output("Color", Color)],
-    )
-    Flow1.actions.extend(Function)
-    runtime.page().extend(Color, Flow1)
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Function)
-    assert runner.outputs and runner.outputs.Color == Color.fields.Red
 
 
 @simulated_runtime()

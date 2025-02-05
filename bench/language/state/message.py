@@ -132,6 +132,13 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
             return "<empty>"
 
     @property
+    def container(self) -> "Node | None":
+        if isinstance((parent := self.parent), Thread):
+            return parent
+        else:
+            return self.channel
+
+    @property
     def base(self):
         return self.clazz
 

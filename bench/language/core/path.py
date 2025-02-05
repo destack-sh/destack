@@ -20,14 +20,20 @@ from bench.utils.string import to_code_name
 from .const import (
     EMPTY_DICT,
     BenchError,
-    BlockType,
     BuiltinEnum,
     EnumType,
     NodeType,
     StructType,
     enum_,
 )
-from .node import BenchNode, HasContext, Node, NodeReference, RunnableNode, SourceNode
+from .node import (
+    BenchNode,
+    HasContext,
+    Node,
+    NodeReference,
+    RunnableNode,
+    SourceNode,
+)
 from .object import PropertyReference
 from .property import Property, p_regular
 from .struct import Struct, struct_
@@ -529,80 +535,33 @@ def _get_descendant(scope: Node, name: str, node_type: NodeType | None = None) -
 
 def _get_contained_descendant(scope: Node, name: str) -> Node | None:
     """Finds a descendant that is directly contained by a scope."""
-    from bench.language import Action, Block, View
 
-    if isinstance(scope, Block):
-        # recurse child triggers/fields/queries
-        for node_type in (NodeType.FIELD,):
-            if node := _get_child(scope, name, node_type):
-                return node
-        # recurse descendant views/actions
-        for node_type in (NodeType.VIEW, NodeType.ACTION, NodeType.PIPE):
-            if node := _get_descendant(scope, name, node_type):
-                return node
-        # recurse down into blocks until we hit pages
-        blocks = [scope]
-        while blocks:
-            block = blocks.pop()
-            for child in block.blocks:
-                if child.name == name or child.code_name == name:
-                    return child
-                if child.type != BlockType.PAGE:
-                    blocks.append(child)
-    elif isinstance(scope, Action):
-        # recurse own fields
-        for node_type in (NodeType.FIELD,):
-            if node := _get_child(scope, name, node_type):
-                return node
-        # recurse down into actions
-        actions = [scope]
-        while actions:
-            action = actions.pop()
-            for child in action.actions:
-                if child.name == name or child.code_name == name:
-                    return child
-                actions.append(child)
-    elif isinstance(scope, View):
-        # recurse descendant views
-        for node_type in (NodeType.VIEW,):
-            if node := _get_descendant(scope, name, node_type):
-                return node
-    else:
-        # just get children
-        for node_type in (NodeType.SPACE, NodeType.BLOCK):
-            if node := _get_child(scope, name, node_type):
-                return node
-
-    return None
+    return _get_child(scope, name)
 
 
 def _get_container(scope: Node, name: str | None = None) -> Node | None:
     """Finds the next containing ancestor up from a scope (block/page/pkg, if any)."""
 
-    # if we're not in a block, find containing block or space (or skip to bench/pkg)
-    parent = scope.parent
-    while parent is not None:
-        if parent.metatype in (NodeType.BLOCK, NodeType.SPACE, NodeType.PACKAGE) and (
-            name is None or getattr(parent, "name", None) == name or parent.code_name == name
-        ):
-            return parent
-        parent = parent.parent
+    container = scope.container
+    if name is None:
+        return container
+    while container is not None:
+        if (getattr(container, "name", None)) == name or container.code_name == name:
+            return container
+        container = container.container
 
     return None
 
 
 def _get_closest(scope: Node, name: str) -> Node | None:
     """
-    Finds a named node in any containing ancestor scope.
+    Finds the 'closest' named Node in any containing ancestor scope.
     The order of search is:
-     1. 'Siblings' - descendents of parent container.
-     2. Descendants - descendants of scope.
-     3. Ancestors - descendants of ancestor containers (above parent).
-    The rationale is that we generally want to refer to nodes in the same container
-     more than we want our child nodes (like an output Field with the name of a Choice,
-     or other Actions in the same Flows more than our input Fields).
+     1. Sideways - descendents of parent container.
+     2. Down - descendants of scope.
+     3. Up - descendants of ancestor containers (above parent).
     """
-    # 'siblings'
+    # siblings
     parent = _get_container(scope)
     if parent is not None and (node := _get_contained_descendant(parent, name)) is not None:
         return node
@@ -627,16 +586,6 @@ def _lower_scope(scope: Node) -> Node:
         package = cast("Bench", scope).main_package
         assert package is not None, f"bench {scope!r} has no main package"
         return package
-    else:
-        return scope
-
-
-def _raise_scope(scope: Node) -> Node:
-    """Raise a Package into its Bench."""
-    if scope.metatype == NodeType.PACKAGE:
-        bench = cast("Package", scope).bench
-        assert bench is not None, f"package {scope!r} has no bench"
-        return bench
     else:
         return scope
 
@@ -788,6 +737,8 @@ def get_node(scope: Node, context: "HasContext", path: str | Path) -> Node | Non
     Resolves a Node against the given scope.
     We try to be forgiving and just return None if we can't find the Node / the Path is weird.
     """
+    from bench.language import Package
+
     if isinstance(path, str):
         path = parse_path(path)
     target = evaluate_path(scope, scope, context, path)
@@ -795,8 +746,12 @@ def get_node(scope: Node, context: "HasContext", path: str | Path) -> Node | Non
         return None
 
     # raise into bench if last element wasn't specifically package
+
     if path.elements and path.elements[-1].type != PathElementType.PACKAGE:
-        target = _raise_scope(target)
+        if isinstance(target, Package):  # raise scope to Bench unless explicitly requested
+            bench = target.bench
+            assert bench is not None, f"package {target!r} has no bench"
+            return bench
     return target
 
 

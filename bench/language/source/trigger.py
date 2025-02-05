@@ -22,12 +22,13 @@ from .schedule import Schedule
 if TYPE_CHECKING:
     from bench.language import (
         Action,
-        Block,
         Channel,
         Class,
         Interruption,
         Message,
+        Node,
         Package,
+        Page,
         Run,
         Text,
         Thread,
@@ -74,11 +75,11 @@ class Trigger(SourceNode[TriggerData]):
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(33, require=False, struct=StructType.TEXT)
     effect: TriggerEffect = p_regular(34, require=True)
-    scope: Union["Block", "Package"] = p_regular(
+    scope: Union["Page", "Package"] = p_regular(
         35,
         require=True,
         array=False,
-        references=(NodeType.BLOCK, NodeType.PACKAGE),
+        references=(NodeType.PAGE, NodeType.PACKAGE),
         description="The source Node this Trigger is scoped to.",
     )
     run: Optional["Run"] = p_regular(
@@ -102,6 +103,10 @@ class Trigger(SourceNode[TriggerData]):
     processed_count: int = p_system(42, default=0)
     processed_key: Optional[str] = p_system(43, default=None)
     closed_at: Optional[datetime] = p_system(45, default=None)
+
+    @property
+    def container(self) -> "Node | None":
+        return self.scope
 
 
 @subnode_(TriggerType.SCHEDULE)
