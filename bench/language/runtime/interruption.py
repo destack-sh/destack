@@ -5,6 +5,7 @@ from git import TYPE_CHECKING
 
 from bench.language import TITLE_CONSTRAINT
 from bench.language.core import (
+    BenchNode,
     BuiltinEnum,
     CustomObject,
     EnumType,
@@ -254,7 +255,7 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
             return self.flow_ptr
 
     @property
-    def base(self) -> Optional["RunnableNode"]:
+    def base(self) -> Optional["BenchNode"]:
         if self.pipe_ptr is not None:
             return self.pipe
         elif self.action_ptr is not None:
