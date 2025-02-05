@@ -5,7 +5,7 @@ from uuid import UUID
 
 import pytest
 import pytz
-from grpclib import GRPCError, Status
+from grpclib import GRPCError
 
 from bench.language import (
     Block,
@@ -18,6 +18,7 @@ from bench.language import (
     TypeKind,
     md,
 )
+from bench.language.core.query import NodeNotFoundError
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
@@ -95,9 +96,8 @@ async def test_create_empty_database_block(simulation: Simulation, runtime: Runt
     runtime.page().append(Database1)
 
     # cannot access database before committing it
-    with pytest.raises(GRPCError) as e:  # :BadRemoteErrors
+    with simulation.raises(NodeNotFoundError, GRPCError):
         _ = await Database1.records.search()
-        assert e.value.status == Status.FAILED_PRECONDITION
 
     # commit to create database
     await runtime.commit()
@@ -252,9 +252,8 @@ async def test_delete_restore_database(simulation: Simulation, runtime: RuntimeL
     # delete
     Database1.delete()
     await runtime.commit()
-    with pytest.raises(GRPCError) as e:  # :BadRemoteErrors
+    with simulation.raises(NodeNotFoundError, GRPCError):
         _ = await Database1.records.search()
-        assert e.value.status == Status.NOT_FOUND
 
     # restore
     Database1.restore()
