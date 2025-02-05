@@ -1,8 +1,11 @@
-from typing import TYPE_CHECKING, Optional, Union, cast
+from datetime import datetime
+from typing import TYPE_CHECKING, Optional, Union, cast, override
+from uuid import UUID
 
 from bench.language.core import (
     BlockType,
     InlineSourceNode,
+    NodeReference,
     NodeSubtypeStub,
     NodeType,
     SourceNode,
@@ -40,6 +43,10 @@ class Block(SourceNode[BlockData]):
     node: Optional["InlineSourceNode"] = p_regular(
         36, references="any", default=None, require=False, array=False, baseless=True
     )
+    if TYPE_CHECKING:
+        node_id: Optional[UUID] = None
+        node_ck: Optional[UUID] = None
+        node_ptr: Optional[NodeReference] = None
 
     def __content_str__(self):
         if (node := self.node) is not None:
@@ -62,6 +69,20 @@ class Block(SourceNode[BlockData]):
         if (node := self.node) is not None and "name" in node.__properties__:
             return node.code_name
         return None
+
+    @override
+    def delete(self, _now: datetime | None = None):
+        super().delete(_now=_now)
+        # also delete linked Node (if any)
+        if (node := self.node) is not None and node.block_id == self.id and not node.is_deleted:
+            node.delete(_now=_now)
+
+    @override
+    def restore(self, _now: datetime | None = None):
+        super().restore(_now=_now)
+        # also restore linked Node (if any)
+        if (node := self.node) is not None and node.block_id == self.id and node.is_deleted:
+            node.restore(_now=_now)
 
     def node_as[T: InlineSourceNode](self, node_cls: _type[T]) -> T:
         if not isinstance((node := self.node), node_cls):

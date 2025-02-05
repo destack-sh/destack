@@ -6,7 +6,7 @@ from .runtime import RuntimeHandle
 from .sample import Samplable, SampledFloat, SampledInt, SampledValue, to_value
 from .service import ServiceHandle
 from .session import make_remote_session
-from .simulation import Simulation, get_simulation_id
+from .simulation import Simulation, get_simulation_id, run_simulation
 from .spec import (
     BenchSpec,
     ClientSpec,
@@ -54,5 +54,6 @@ __all__ = [
     "UserSpec",
     "get_simulation_id",
     "make_remote_session",
+    "run_simulation",
     "to_value",
 ]

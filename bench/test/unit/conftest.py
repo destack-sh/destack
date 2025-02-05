@@ -1,12 +1,13 @@
 # ruff: noqa: E402
 
 import functools
-import gc
 import inspect
 import warnings
 from typing import Awaitable, Callable, Literal, Mapping
 
 import pytest
+import structlog
+from opentelemetry import trace
 
 from bench.test.conftest import _setup_test_env
 
@@ -34,16 +35,8 @@ from bench.language import (
     User,
     UserStatus,
 )
-from bench.sql import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
 from bench.system import pg_engine_from_store
-from bench.system.core.sharding import StoreMap
 from bench.test.conftest import _setup_test_env
-from bench.test.fixtures import (
-    create_test_db,
-    delete_test_db,
-    make_global_store,
-    make_regional_store,
-)
 from bench.test.simulation.core import (
     BenchSpec,
     ClientSpec,
@@ -56,7 +49,7 @@ from bench.test.simulation.core import (
     SimulationSpec,
     SupervisorSpec,
     UserSpec,
-    get_simulation_id,
+    run_simulation,
 )
 from bench.test.simulation.workload import (
     RuntimeLambdaWorkload,
@@ -66,6 +59,9 @@ from bench.test.simulation.workload import (
 )
 from bench.test.strategies import draw_direct, from_object_type
 from bench.utils.oracle import REAL_ORACLE, Oracle
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 # NOTE: simulation tests must be run with one event loop per function to isolate
@@ -179,31 +175,6 @@ STRUCTS = [BUILTIN_OBJECTS_BY_TYPE[t] for t in STRUCT_TYPES if t in BUILTIN_OBJE
 NODES = [BUILTIN_OBJECTS_BY_TYPE[t] for t in NODE_TYPES if t in BUILTIN_OBJECTS_BY_TYPE]
 
 
-async def run_dynamic_simulation(spec: SimulationSpec):
-    """Run a 'dynamic' Simulation"""
-
-    simulation_id = get_simulation_id(spec)
-    global_store = make_global_store(f"test-{simulation_id}-global")
-    regional_store = make_regional_store(f"test-{simulation_id}-regional")
-    store_map = StoreMap({"*": regional_store})
-    await create_test_db(global_store, BUILTIN_GLOBAL_SCHEMA)
-    await create_test_db(regional_store, BUILTIN_REGIONAL_SCHEMA)
-    simulation = Simulation(
-        id=simulation_id,
-        spec=spec,
-        global_store=global_store,
-        regional_store=regional_store,
-        store_map=store_map,
-    )
-
-    try:
-        await simulation.run()
-        await delete_test_db(global_store)
-        await delete_test_db(regional_store)
-    finally:
-        gc.collect()
-
-
 # TODO :Test! :Performance: re-use Simulations somehow (databases?)
 
 
@@ -280,7 +251,7 @@ def simulated_runtime(
 
         @functools.wraps(test_func)
         async def test_func_in_simulation():
-            await run_dynamic_simulation(spec)
+            await run_simulation(spec)
 
         # zero out signature so pytest doesn't try to get any fixture arguments
         test_func_in_simulation.__signature__ = inspect.Signature()  # type: ignore

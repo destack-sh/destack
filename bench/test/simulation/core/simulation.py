@@ -1,4 +1,5 @@
 import asyncio
+import gc
 from datetime import datetime
 from random import Random
 from typing import TYPE_CHECKING, final
@@ -9,7 +10,9 @@ from opentelemetry import trace
 
 from bench.language import NodeArea, Store
 from bench.proto import SupervisorClient
+from bench.sql.graph import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
 from bench.system import StoreMap, pg_engine_from_store
+from bench.test.fixtures import delete_test_db
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.task import TaskManager
 
@@ -307,8 +310,6 @@ class Simulation:
 
     async def run(self):
         """Run the simulation."""
-        # prepare services and such
-        self.prepare()
         # supervisor first (always needed)
         await self.supervisor.start()
         async with SimulatedChannel(
@@ -370,3 +371,55 @@ class Simulation:
                     raise self.errors[0]
                 else:
                     raise RuntimeError(f"multiple errors in {self!r}: {self.errors}")
+
+
+@tracer.start_as_current_span("simulation")
+async def run_simulation(spec: SimulationSpec):
+    """Run a Simulation"""
+    from bench.test.fixtures import (
+        create_test_db,
+        make_global_store,
+        make_regional_store,
+    )
+
+    simulation_id = get_simulation_id(spec)
+    span = trace.get_current_span()
+    span.set_attribute("simulation.name", spec.name)
+    span.set_attribute("simulation.id", simulation_id)
+    log = logger.bind(simulation=spec.name)
+
+    # config
+    global_store = make_global_store(f"test-{simulation_id}-global")
+    regional_store = make_regional_store(f"test-{simulation_id}-regional")
+    store_map = StoreMap({"*": regional_store})
+    simulation = Simulation(
+        id=simulation_id,
+        spec=spec,
+        global_store=global_store,
+        regional_store=regional_store,
+        store_map=store_map,
+    )
+
+    try:
+        # setup
+        with tracer.start_as_current_span("simulation.prepare"):
+            simulation.prepare()
+            await create_test_db(global_store, BUILTIN_GLOBAL_SCHEMA)
+            await create_test_db(regional_store, BUILTIN_REGIONAL_SCHEMA)
+            log.info("simulation.prepare", span="current")
+        # run
+        with tracer.start_as_current_span("simulation.run"):
+            await simulation.run()
+            log.info("simulation.run", span="current")
+        # teardown
+        await delete_test_db(global_store)
+        await delete_test_db(regional_store)
+    finally:
+        # cleanup
+        del spec
+        del global_store
+        del regional_store
+        del store_map
+        del simulation
+        gc.collect()
+        log.info("simulation.terminate", span="current")

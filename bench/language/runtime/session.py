@@ -552,7 +552,7 @@ class Session(RuntimeNode[SessionData]):
             )
             self._tx.record_edit_event(EditType.MOVE, node, operation=operation)
 
-    def _delete(self, *nodes: Node):
+    def _delete(self, *nodes: Node, _now: datetime | None = None):
         """Deletes a Node. The operation *is* applied directly."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
         assert (
@@ -561,7 +561,7 @@ class Session(RuntimeNode[SessionData]):
 
         for node in nodes:
             assert node.is_attached, f"cannot delete detached node {node!r}"
-            now = self._oracle.utc()
+            now = _now if _now is not None else self._oracle.utc()
             self._pending_nodes_by_id[node.id] = node
             # descendants will be removed from graph, so remember them manually
             for descendant in node._graph.iter_descendants(node, recursive=True):
@@ -570,7 +570,7 @@ class Session(RuntimeNode[SessionData]):
             node.deleted_at = now
             node._graph.remove(node)
 
-    def _restore(self, *nodes: Node):
+    def _restore(self, *nodes: Node, _now: datetime | None = None):
         """Restores a deleted Node. The operation *is* applied directly."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
         assert (
@@ -579,7 +579,7 @@ class Session(RuntimeNode[SessionData]):
 
         for node in nodes:
             assert node.is_attached, f"cannot restore detached node {node!r}"
-            now = self._oracle.utc()
+            now = _now if _now is not None else self._oracle.utc()
             self._pending_nodes_by_id[node.id] = node
             self._tx.record_edit_event(EditType.RESTORE, node, now=now)
             node.deleted_at = None
