@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Literal, Union
 
 from bench.language.core import (
     InlineSourceNode,
@@ -31,7 +31,7 @@ class Choice(InlineSourceNode[ChoiceData]):
     def __content_str__(self):
         return ""
 
-    def to_type_maybe(self) -> "TypeBase | None":
+    def to_type_maybe(self, of: Literal["instance", "value"] = "instance") -> "TypeBase | None":
         return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.FIELD)
 
     def to_type(self) -> "TypeBase":

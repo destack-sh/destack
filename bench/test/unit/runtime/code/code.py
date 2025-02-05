@@ -413,7 +413,7 @@ async def test_run_code_return_detached_node(
     await runtime.commit()
 
     # detached top-level node
-    Function.code = code("return {'Output': Block.new(BlockType.TEXT, 'Detached')}")
+    Function.code = code("return {'Output': Block.new(BlockType.PARAGRAPH)}")
     await runtime.commit()
     runner = await runtime.run_in_runtime(Function, return_error=True)
     assert runner.status == RunStatus.FAILED
@@ -421,8 +421,8 @@ async def test_run_code_return_detached_node(
 
     # detached nested node
     Function.code = code("""\
-Detached = Block.new(BlockType.TEXT, 'Detached')
-text = Text(lines=[TextLine.plain('line1'), TextLine.new(TextLineType.PLAIN, TextSpan.new(node=Detached))])
+Detached = Block.new(BlockType.PARAGRAPH)
+text = Text(lines=[TextLine.plain('line1'), TextLine.new(TextLineType.PARAGRAPH, TextSpan.new(node=Detached))])
 return {'Text': text}
 """)
     await runtime.commit()

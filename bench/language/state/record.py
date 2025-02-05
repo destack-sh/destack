@@ -77,7 +77,7 @@ class Record(StateNode[RecordData], HasNodeBase):
     @property
     def value_type(self) -> "TypeBase | None":
         database = self.database
-        return database.to_type_maybe() if database is not None else None
+        return database.to_type_maybe(of="value") if database is not None else None
 
     @property
     def base(self) -> "Database | None":

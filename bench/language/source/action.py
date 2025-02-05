@@ -341,80 +341,83 @@ class Action(SourceNode[ActionData]):
 
     def to_type_maybe(
         self,
-        of: Literal["instance", "value"] = "value",
+        of: Literal["instance", "value"] = "instance",
         field_types: list[FieldType] | None = None,
         field_only: bool | None = None,
     ) -> "TypeBase | None":
         """Gets a type represented by this Action (if any)"""
         from bench.language import Type
 
-        property_field_types = field_types
-        if self.type == ActionType.START:
-            if field_types and FieldType.OUTPUT not in field_types:
-                return None
-            base = self.parent
-            property_field_types = field_types
-            field_types = [FieldType.INPUT]  # remap to only input fields from Flow
-        elif self.type == ActionType.COMPLETE:
-            if field_types and FieldType.INPUT not in field_types:
-                return None
-            base = self.parent
-            property_field_types = field_types
-            field_types = [FieldType.OUTPUT]  # remap to only output fields from Flow
-        elif self.type == ActionType.TOOL:
-            base = self.tool
+        if of == "instance":
+            return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
         else:
-            base = self
-        if (
-            field_types
-            and (FieldType.INPUT in field_types or FieldType.OUTPUT in field_types)
-            and not field_only
-        ):
-            # actions also have their subtype as input & output type
-            #  (to support dynamically setting some action properties as inputs)
-            typ = Type(
-                kind=TypeKind.PARTIAL_OBJECT,
-                base_type=base,
-                bench_type=NodeType.ACTION,
-                base_field_types=field_types,
-                property_field_types=property_field_types or [],
-                constraint=TypeConstraint(node_subtypes=[self.type]),
-            )
-        else:
-            typ = Type(
-                kind=TypeKind.CUSTOM_OBJECT, base_type=base, base_field_types=field_types or []
-            )
-        return typ
+            property_field_types = field_types
+            if self.type == ActionType.START:
+                if field_types and FieldType.OUTPUT not in field_types:
+                    return None
+                base = self.parent
+                property_field_types = field_types
+                field_types = [FieldType.INPUT]  # remap to only input fields from Flow
+            elif self.type == ActionType.COMPLETE:
+                if field_types and FieldType.INPUT not in field_types:
+                    return None
+                base = self.parent
+                property_field_types = field_types
+                field_types = [FieldType.OUTPUT]  # remap to only output fields from Flow
+            elif self.type == ActionType.TOOL:
+                base = self.tool
+            else:
+                base = self
+            if (
+                field_types
+                and (FieldType.INPUT in field_types or FieldType.OUTPUT in field_types)
+                and not field_only
+            ):
+                # actions also have their subtype as input & output type
+                #  (to support dynamically setting some action properties as inputs)
+                return Type(
+                    kind=TypeKind.PARTIAL_OBJECT,
+                    base_type=base,
+                    bench_type=NodeType.ACTION,
+                    base_field_types=field_types,
+                    property_field_types=property_field_types or [],
+                    constraint=TypeConstraint(node_subtypes=[self.type]),
+                )
+            else:
+                return Type(
+                    kind=TypeKind.CUSTOM_OBJECT, base_type=base, base_field_types=field_types or []
+                )
 
     def to_type(
         self,
         *,
+        of: Literal["instance", "value"] = "instance",
         field_types: list[FieldType] | None = None,
     ) -> "TypeBase":
-        typ = self.to_type_maybe(field_types=field_types)
+        typ = self.to_type_maybe(of=of, field_types=field_types)
         if typ is None:
             raise ValueError(f"{self!r} does not have a type")
         return typ
 
     @cached_property  # :CachedTypeInfo
     def variable_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(field_types=[FieldType.VARIABLE])
+        return self.to_type_maybe(of="value", field_types=[FieldType.VARIABLE])
 
     @cached_property
     def variable_type_field_only(self) -> "TypeBase | None":
-        return self.to_type_maybe(field_types=[FieldType.VARIABLE], field_only=True)
+        return self.to_type_maybe(of="value", field_types=[FieldType.VARIABLE], field_only=True)
 
     @cached_property  # :CachedTypeInfo
     def input_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(field_types=[FieldType.INPUT])
+        return self.to_type_maybe(of="value", field_types=[FieldType.INPUT])
 
     @cached_property  # :CachedTypeInfo
     def input_type_field_only(self) -> "TypeBase | None":
-        return self.to_type_maybe(field_types=[FieldType.INPUT], field_only=True)
+        return self.to_type_maybe(of="value", field_types=[FieldType.INPUT], field_only=True)
 
     @cached_property  # :CachedTypeInfo
     def output_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(field_types=[FieldType.OUTPUT])
+        return self.to_type_maybe(of="value", field_types=[FieldType.OUTPUT])
 
     @staticmethod
     def new[ActionT: "Action" = "Action"](
