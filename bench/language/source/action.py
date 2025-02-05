@@ -55,7 +55,6 @@ if TYPE_CHECKING:
         Machine,
         Message,
         NodeReference,
-        Page,
         Pipe,
         PipeType,
         RunOptions,
@@ -278,18 +277,6 @@ class Action(SourceNode[ActionData]):
     triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
 
     @property
-    def page(self) -> "Page | None":
-        """Gets the containing ancestor Page (if any)"""
-        from bench.language import Page
-
-        parent = self.parent
-        while parent is not None:
-            if isinstance(parent, Page):
-                return parent
-            parent = parent.parent
-        return None
-
-    @property
     def flow(self) -> "Flow | None":
         """Gets the containing ancestor Flow (if any)"""
         from bench.language import Flow
@@ -299,6 +286,10 @@ class Action(SourceNode[ActionData]):
             if isinstance(parent, Flow):
                 return parent
         return None
+
+    @property
+    def container(self) -> "Node | None":
+        return self.flow
 
     def run_type(self) -> RunType:
         return RunType.ACTION

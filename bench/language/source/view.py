@@ -443,6 +443,19 @@ class View(InlineSourceNode[ViewData]):
 
     views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
 
+    @property
+    def container(self) -> "Node | None":
+        # if parent is view: container is top-most view's container
+        if isinstance((parent := self.parent), View):
+            next_parent = parent.parent
+            while isinstance(next_parent, View):
+                parent = next_parent
+                next_parent = parent.parent
+            return parent
+        # otherwise: container is parent
+        else:
+            return self.parent
+
     @staticmethod
     def new(typ: ViewType, name: str, **kwargs) -> "View":
         return View(type=typ, name=name, **kwargs)

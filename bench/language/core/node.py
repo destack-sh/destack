@@ -750,6 +750,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             parent = parent.parent
         return False
 
+    @property
+    def container(self) -> "Node | None":
+        """The logical 'container' of this Node (may be the parent or something else)."""
+        return self.parent
+
     def iter_descendants(self, recursive: bool = False):
         """Iterate over all descendants of this node."""
         for child_prop in self.__node_child_properties__.values():
@@ -1522,6 +1527,18 @@ class SourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC
     def is_attached(self) -> bool:
         return self.parent_ptr is not None and self.package is not None
 
+    @property
+    def page(self) -> "Page | None":
+        """Gets the containing ancestor Page (if any)"""
+        from bench.language import Page, SourceNode
+
+        parent = self.parent
+        while isinstance(parent, SourceNode):
+            if isinstance(parent, Page):
+                return parent
+            parent = parent.parent
+        return None
+
     def set_computed(
         self,
         target: "PathIn",
@@ -1576,6 +1593,15 @@ class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
         block_id: Optional[UUID] = None
         block_ck: Optional[UUID] = None
         block_ptr: Optional[NodeReference] = None
+
+    @property
+    def container(self) -> "Node | None":
+        if (parent := self.parent) is not None:
+            return parent
+        elif (bench := self.bench) is not None:
+            return bench
+        else:
+            return None
 
     @override
     def delete(self, _now: datetime | None = None):

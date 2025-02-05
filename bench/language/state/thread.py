@@ -6,6 +6,7 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     HasTimeIdentity,
+    Node,
     NodeType,
     StateNode,
     StructType,
@@ -20,7 +21,8 @@ from bench.language.core import (
 from bench.pb2 import ThreadData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Channel, Package, Run
+    from bench.language import Bench, Channel, Package, Page, Run
+
 # pyright: reportIncompatibleVariableOverride=false
 
 
@@ -53,8 +55,8 @@ class Thread(HasTimeIdentity, StateNode[ThreadData]):
         same_bench=True,
         references=NodeType.CHANNEL,
     )
-    scope: Union["Block", "Package"] = p_regular(
-        33, require=False, references=(NodeType.BLOCK, NodeType.PACKAGE), same_bench=True
+    scope: Union["Page", "Package"] = p_regular(
+        33, require=False, references=(NodeType.PAGE, NodeType.PACKAGE), same_bench=True
     )
     run: Optional["Run"] = p_regular(
         34,
@@ -71,3 +73,10 @@ class Thread(HasTimeIdentity, StateNode[ThreadData]):
     # content
     title: Optional[str] = p_regular(60, require=False, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(61, require=False, default=None, struct=StructType.TEXT)
+
+    @property
+    def container(self) -> "Node | None":
+        if (channel := self.channel) is not None:
+            return channel
+        else:
+            return self.scope
