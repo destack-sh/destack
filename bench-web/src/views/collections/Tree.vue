@@ -148,7 +148,7 @@ function isIncludedSelf(node: AnyNodeData) {
       return true;
     }
   } else {
-    return !isNode(node, NodeType.BLOCK) || node.type != BlockType.TEXT;
+    return !isNode(node, NodeType.BLOCK) || node.type != BlockType.PARAGRAPH;
   }
 }
 function isIncludedChildren(node: AnyNodeData) {
@@ -447,7 +447,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           <div class="ml-auto flex flex-row gap-x-1 pl-3 pr-[3px]">
             <!-- Create inside -->
             <button
-              v-if="isNode(node, NodeType.BLOCK)"
+              v-if="isNode(node, NodeType.PAGE)"
               v-menu="
                 (): PopoverInfoIn => ({
                   kind: 'view',

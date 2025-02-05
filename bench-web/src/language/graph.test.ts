@@ -31,6 +31,8 @@ import {
   type AnyPropertyType,
   type AnyTypeMapping,
   type PropertyInfo,
+  PageProperty,
+  PageData,
 } from "@/proto/wire";
 import { Duration } from "@/proto/wire/google/protobuf/duration";
 import { EMPTY_SCOPE, toNodeRef } from "@/proto/wiring";
@@ -148,9 +150,8 @@ describe("merge nodes", () => {
   const bench = makeNode({ metatype: NodeType.BENCH, name: "test", slug: "test" });
   const pkg = makeNode({ metatype: NodeType.PACKAGE, benchPtr: toNodeRef(bench) });
   const base1 = makeNode({
-    metatype: NodeType.BLOCK,
+    metatype: NodeType.PAGE,
     packagePtr: toNodeRef(pkg),
-    type: BlockType.VARIABLE,
     name: "Block1",
     subnodePacked: { fruity: 3, fluffy: false },
   });
@@ -172,11 +173,11 @@ describe("merge nodes", () => {
     overlay3.name = "Overlay3";
     overlay3.subnodePacked = { fruity: 4, fluffy: true };
     (overlay3 as any).setPaths = [
-      [BlockProperty.name.toString()],
-      [BlockProperty.subnodePacked.toString(), "fluffy"],
-      [BlockProperty.subnodePacked.toString(), "bold", "italic"],
+      [PageProperty.name.toString()],
+      [PageProperty.subnodePacked.toString(), "fluffy"],
+      [PageProperty.subnodePacked.toString(), "bold", "italic"],
     ];
-    const merged3 = mergeNode(base1, overlay3) as BlockData;
+    const merged3 = mergeNode(base1, overlay3) as PageData;
     expect(merged3.name).toEqual("Overlay3");
     expect((merged3.subnodePacked as any).fruity).toEqual(3); // not in setPaths
     expect((merged3.subnodePacked as any).fluffy).toEqual(true); // in setPaths

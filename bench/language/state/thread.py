@@ -21,7 +21,7 @@ from bench.language.core import (
 from bench.pb2 import ThreadData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Channel, Package, Page, Run
+    from bench.language import Bench, Channel, Message, Package, Page, Run
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -56,23 +56,28 @@ class Thread(HasTimeIdentity, StateNode[ThreadData]):
         references=NodeType.CHANNEL,
     )
     scope: Union["Page", "Package"] = p_regular(
-        33, require=False, references=(NodeType.PAGE, NodeType.PACKAGE), same_bench=True
+        35, require=False, references=(NodeType.PAGE, NodeType.PACKAGE)
     )
     run: Optional["Run"] = p_regular(
-        34,
+        37,
         require=False,
         array=False,
         references=NodeType.RUN,
-        description="The Run this Message is scoped to. If no Run, this is a general in-source Message.",
+        description="The Run this Message is scoped to.",
     )
 
     # status
-    status: ThreadStatus = p_internal(50, default=ThreadStatus.OPEN)
-    closed_at: Optional[datetime] = p_internal(55, default=None)
+    status: ThreadStatus = p_internal(40, default=ThreadStatus.OPEN)
+    closed_at: Optional[datetime] = p_internal(45, default=None)
 
     # content
-    title: Optional[str] = p_regular(60, require=False, default=None, constraint=TITLE_CONSTRAINT)
-    text: Optional["Text"] = p_regular(61, require=False, default=None, struct=StructType.TEXT)
+    title: Optional[str] = p_regular(50, require=False, default=None, constraint=TITLE_CONSTRAINT)
+    text: Optional["Text"] = p_regular(51, require=False, default=None, struct=StructType.TEXT)
+
+    # routing
+    created_from: Optional["Message"] = p_regular(
+        60, require=False, array=False, references=NodeType.MESSAGE, same_bench=True
+    )
 
     @property
     def container(self) -> "Node | None":

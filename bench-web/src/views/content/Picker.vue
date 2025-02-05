@@ -77,9 +77,7 @@ const width = computed(() => Math.max(MIN_WIDTH, props.size?.width ?? DEFAULT_WI
 // Type/Value
 //
 
-const baseType = supergraph.getRef(
-  computed(() => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK> | undefined),
-);
+const baseType = supergraph.getRef(computed(() => props.valueType?.baseTypePtr));
 const facetIcon = computed(() => {
   if (props.icon != null) {
     return props.icon;
@@ -97,7 +95,7 @@ const facetName = computed(() => {
   if (props.title != null) {
     return props.title;
   } else if (props.valueType?.kind == TypeKind.BASED_NODE && baseType.value != null) {
-    return baseType.value.name;
+    return (baseType.value as any).name;
   } else if (props.valueType?.benchType != null) {
     return getConstrainedTypeName(props.valueType);
   } else if (props.valueType?.kind == TypeKind.NODE) {
@@ -167,11 +165,12 @@ const currentItems: Ref<ItemVignette[]> = computed(() => {
 // Search
 //
 
-const { index, candidates, results, resultsTotal, isLoading, update, getItemFromValue, getValueFromItem } = useValueSearch({
-  query,
-  valueType: toValueRef(toRef(props, "valueType")),
-  isEnabled: toRef(props, "isInline"),
-});
+const { index, candidates, results, resultsTotal, isLoading, update, getItemFromValue, getValueFromItem } =
+  useValueSearch({
+    query,
+    valueType: toValueRef(toRef(props, "valueType")),
+    isEnabled: toRef(props, "isInline"),
+  });
 const resultsRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 
 // auto-select best match when searching

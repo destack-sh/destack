@@ -8,6 +8,7 @@ import {
   BlockType,
   CodeData,
   FieldType,
+  FlowData,
   InterruptionData,
   NodeType,
   ObjectType,
@@ -34,9 +35,8 @@ import {
   TimeUpdateInterval,
 } from "@/utils/time";
 
-export type RunnableNode = BlockData | ActionData | PipeData;
-export type RunnableNodeType = NodeType.BLOCK | NodeType.ACTION | NodeType.PIPE;
-export type RunnableObject = RunnableNode | TextData | CodeData;
+export type RunnableNode = FlowData | ActionData | PipeData;
+export type RunnableNodeType = NodeType.FLOW | NodeType.ACTION | NodeType.PIPE;
 
 export const VERB_BY_RUN_STATUS: Partial<Record<RunStatus, string>> = {
   [RunStatus.UNSPECIFIED]: "???",
@@ -97,7 +97,7 @@ export function isRunTerminal(run: RunData | RunSpanData): boolean {
 }
 
 /** Determine the type of run for some runnable object */
-export function getRunType(runnable: RunnableObject): RunType {
+export function getRunType(runnable: RunnableNode): RunType {
   if (isNode(runnable, NodeType.BLOCK)) {
     if (runnable.type == BlockType.FLOW) {
       return RunType.FLOW;

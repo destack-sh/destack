@@ -52,56 +52,6 @@ const isSelected = computed(() => state.isSelected(nodePtr.value));
 // Interaction
 //
 
-const valueType = computed(() => {
-  if (block.value?.type != BlockType.VARIABLE) {
-    return undefined;
-  }
-  return unpackSubnodeProperty(NodeType.BLOCK, BlockType.VARIABLE, block.value.subnodePacked, "valueType");
-});
-const value = computed(() => {
-  if (block.value?.type != BlockType.VARIABLE || valueType.value == null) {
-    return undefined;
-  }
-  const valuePacked = unpackSubnodeProperty(
-    NodeType.BLOCK,
-    BlockType.VARIABLE,
-    block.value.subnodePacked,
-    "valuePacked",
-  );
-  if (valueType == null) {
-    return undefined;
-  } else if (valueType.value.kind == TypeKind.CUSTOM_OBJECT || valueType.value.kind == TypeKind.PARTIAL_OBJECT) {
-    return valuePacked;
-  } else {
-    return unpackValue(valuePacked!, valueType.value, { wrapScalar: true, recurseCustomObject: false });
-  }
-});
-function updateValue(value: any) {
-  if (block.value?.type != BlockType.VARIABLE) throw new Error(`no value block`);
-  const valueType = unpackSubnodeProperty(NodeType.BLOCK, BlockType.VARIABLE, block.value.subnodePacked, "valueType");
-  const valuePacked =
-    valueType?.kind == TypeKind.CUSTOM_OBJECT || valueType?.kind == TypeKind.PARTIAL_OBJECT
-      ? value
-      : packValue(value, valueType!, { wrapScalar: true, recurseCustomObject: false });
-  if (valuePacked != null) {
-    connection.tx.update(
-      block.value,
-      makeEdit(block.value, { metatype: NodeType.BLOCK, type: BlockType.VARIABLE, subnode: { valuePacked } }),
-      valueType != null ? getTransactionOptionsForType(valueType) : { debounce: "short" },
-    );
-  } else {
-    connection.tx.update(
-      block.value,
-      makeEdit(block.value, {
-        metatype: NodeType.BLOCK,
-        type: BlockType.VARIABLE,
-        subnode: { valuePacked: undefined },
-      }),
-      valueType != null ? getTransactionOptionsForType(valueType) : { debounce: "short" },
-    );
-  }
-}
-
 const actions: Partial<ActionMapImplementation<"space">> & ActionMapImplementation<"block"> = {
   // space
   "space.edit.rename": {
@@ -134,7 +84,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     @click="() => isPage && canvas.goToNode(block!)"
   >
     <!-- Header -->
-    <div v-if="block.type != BlockType.TEXT" class="flex flex-row items-center rounded-t px-1 py-1">
+    <div v-if="block.type != BlockType.PARAGRAPH" class="flex flex-row items-center rounded-t px-1 py-1">
       <NodeReference
         ref="NodeReferenceRef"
         :size="hasCanvas ? 'large' : 'regular'"
@@ -156,7 +106,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <!-- TODO :Incomplete: TextBlock.text is intended to be a single line only
        (but would need to make multi-block navigation/editing better before we enforce this) -->
     <Text
-      v-if="block.type == BlockType.TEXT"
+      v-if="block.type == BlockType.PARAGRAPH"
       id="text"
       ref="textRef"
       is-input
@@ -169,7 +119,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div v-else-if="block.type != BlockType.PAGE" class="rounded-b border-gray-200 pb-1">
       <!-- Types -->
       <FieldList
-        v-if="[BlockType.CHOICE, BlockType.MESSAGE].includes(block.type)"
+        v-if="[BlockType.CHOICE].includes(block.type)"
         id="type"
         :node="block"
         :prepared-connection="preparedConnection"
@@ -220,19 +170,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           :prepared-connection="preparedConnection"
         />
       </template>
-      <!-- State -->
-      <GenericValue
-        v-if="block.type == BlockType.VARIABLE"
-        id="value"
-        class="max-h-[320px]"
-        :value-type="valueType"
-        :model-value="value"
-        :size="{ height: 320 }"
-        v-bind="state.getChildState('value')"
-        @update:model-value="(newValue) => updateValue(newValue)"
-      />
       <Database
-        v-else-if="block.type == BlockType.DATABASE"
+        v-if="block.type == BlockType.DATABASE"
         id="database"
         v-bind="state.getChildState('database')"
         :node-ptr="props.nodePtr"

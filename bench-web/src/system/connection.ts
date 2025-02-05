@@ -114,7 +114,7 @@ export type GetConnectionParams<T extends NodeType> = {
   isEnabled?: boolean;
   scope: GraphScopeData;
   roots: (Omit<NodeReferenceData, "type"> & { nodeType: T })[];
-  blockPtr?: NodeReferenceData;
+  baseTypePtr?: NodeReferenceData;
   isOptional?: boolean;
   ancestorTypes?: NodeType[];
   descendantTypes?: NodeType[];
@@ -135,7 +135,7 @@ export type SearchConnectionParams<T extends NodeType> = {
   isEnabled?: boolean;
   scope: GraphScopeData;
   nodeType: T;
-  blockPtr?: NodeReferenceData;
+  baseTypePtr?: NodeReferenceData;
   filter?: ExpressionData;
   sort?: ExpressionData[];
   ancestorTypes?: NodeType[];
@@ -639,7 +639,7 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
       {
         scope: graph.scope,
         roots: params.roots,
-        blockPtr: params.blockPtr,
+        baseTypePtr: params.baseTypePtr,
         ancestorTypes: params.ancestorTypes ?? [],
         descendantTypes: params.descendantTypes ?? [],
         select: select,
@@ -711,7 +711,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
       {
         ...params,
         nodeType: params.nodeType,
-        blockPtr: params.blockPtr,
+        baseTypePtr: params.baseTypePtr,
         scope: graph.scope,
         sort: params.sort ?? [],
         ancestorTypes: params.ancestorTypes ?? [],

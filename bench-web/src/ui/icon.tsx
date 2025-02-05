@@ -248,14 +248,23 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   // source
   [NodeType.PACKAGE]: "fas fa-box-open",
   [NodeType.DEPENDENCY]: "fas fa-turn-down-right",
-  [NodeType.SPACE]: "fas fa-galaxy",
+  [NodeType.PAGE]: "fas fa-page",
   [NodeType.BLOCK]: "fas fa-cube",
+  [NodeType.CHOICE]: "fas fa-circle-chevron-down",
+  [NodeType.CLASS]: "fas fa-shapes",
   [NodeType.FIELD]: "fas fa-triangle",
-  [NodeType.VIEW]: "fas fa-window-frame",
+  [NodeType.FLOW]: "fas fa-diagram-project",
   [NodeType.ACTION]: "fas fa-step-forward",
   [NodeType.PIPE]: "fas fa-pipe-section",
+  [NodeType.TRIGGER]: "fas fa-bolt",
+  [NodeType.VIEW]: "fas fa-window-frame",
+  [NodeType.DATABASE]: "fas fa-database",
+  [NodeType.CHANNEL]: "fas fa-hashtag",
+  [NodeType.ROLE]: "fas fa-user-tag",
+  [NodeType.IDENTITY]: "fas fa-snowman-head",
 
   // state
+  [NodeType.THREAD]: "fas fa-reel",
   [NodeType.MESSAGE]: "fas fa-message",
   [NodeType.RECORD]: "fas fa-database",
 
@@ -317,21 +326,10 @@ export const ICON_BY_BENCH_TYPE: Partial<Record<BenchType, IconData>> = {
 };
 
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
-  [BlockType.PAGE]: "fas fa-memo",
-  [BlockType.TEXT]: "fas fa-align-left",
-  // class
-  [BlockType.CHOICE]: "fas fa-circle-chevron-down",
-  [BlockType.MESSAGE]: "fas fa-envelope",
-  // runnable
-  [BlockType.FLOW]: "fas fa-diagram-project",
-  // data
-  [BlockType.VARIABLE]: "fas fa-hexagon",
-  [BlockType.DATABASE]: "fas fa-database",
-  // view
-  [BlockType.VIEW]: "fas fa-window-frame",
-  // auth
-  [BlockType.ROLE]: "fas fa-user-tag",
-  [BlockType.IDENTITY]: "fas fa-image-user",
+  // text
+  [BlockType.PARAGRAPH]: "fas fa-align-left",
+  // nodes
+  ...ICON_BY_NODE_TYPE,
 });
 
 export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeIcons<ActionType>({

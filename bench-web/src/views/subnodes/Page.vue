@@ -15,6 +15,7 @@ import {
   NodeReferenceData,
   NodeType,
   Orientation,
+  PageData,
   PickerVariant,
   RectangleData,
   TypeKind,
@@ -70,7 +71,7 @@ const state = canvas.registerView(self, id);
 
 const preparedConnection = useExistingConnection(nodePtr);
 const { graph, connection } = preparedConnection;
-const page = graph.getRef(nodePtr) as Ref<BlockData | undefined>;
+const page = graph.getRef(nodePtr) as Ref<PageData | undefined>;
 const blocks = graph.getChildrenRef(nodePtr, NodeType.BLOCK);
 
 const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
@@ -144,7 +145,7 @@ const { activeDropZone } = useMultiDropZone({
         const variableType = makeType({ kind: TypeKind.NODE, benchType: BenchType.FILE });
         const block = createBlock(connection.tx, graph, {
           block: {
-            type: BlockType.VARIABLE,
+            type: BlockType.FILE,
             subnode: {
               valueType: variableType,
               valuePacked: packValue(toNodeRef(upload.file.value!), variableType),
@@ -197,7 +198,7 @@ const actions: Partial<ActionMapImplementation<"list" | "space">> = {
     list: blocks,
     txFactory: () => connection.tx,
     create: (anchor, node) =>
-      createAndFocusBlock({ type: BlockType.TEXT }, node != null ? anchor : "inside", node ?? page.value!),
+      createAndFocusBlock({ type: BlockType.PARAGRAPH }, node != null ? anchor : "inside", node ?? page.value!),
   }),
 };
 function createAndFocusBlock(
@@ -207,7 +208,7 @@ function createAndFocusBlock(
 ) {
   const block = createBlock(connection.tx, graph, { block: blockIn, anchor, target });
   canvas.inspect({ node: block });
-  if (block.type == BlockType.TEXT) {
+  if (block.type == BlockType.PARAGRAPH) {
     nextTick(() => focus(block));
   } else if (block.type != BlockType.PAGE) {
     canvas.select([block]);
@@ -387,7 +388,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
         >
           <!-- Add blocks -->
           <button
-            v-for="blockType in [BlockType.TEXT, BlockType.DATABASE, BlockType.FLOW, BlockType.PAGE, BlockType.CHOICE]"
+            v-for="blockType in [
+              BlockType.PARAGRAPH,
+              BlockType.DATABASE,
+              BlockType.FLOW,
+              BlockType.PAGE,
+              BlockType.CHOICE,
+            ]"
             data-suppress-drag="both"
             class="rounded-2xl border border-gray-200 px-2 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
             @click="() => createAndFocusBlock({ type: blockType }, 'inside', page!)"

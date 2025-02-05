@@ -1882,7 +1882,7 @@ enum ThreadStatus {
 enum MessageType {
   MESSAGE_TYPE_UNSPECIFIED = 0;
   MESSAGE_TYPE_TEXT = 1;
-  MESSAGE_TYPE_TYPED = 2;
+  MESSAGE_TYPE_CLASS = 2;
 }
 
 enum MessageStatus {
@@ -1898,7 +1898,6 @@ enum MessageStatus {
 enum MessagePlatform {
   MESSAGE_PLATFORM_UNSPECIFIED = 0;
   MESSAGE_PLATFORM_BENCH = 1;
-  MESSAGE_PLATFORM_BENCH_FEDERATED = 2;
   MESSAGE_PLATFORM_WEBHOOK = 10;
   MESSAGE_PLATFORM_EMAIL = 20;
   MESSAGE_PLATFORM_SMS = 21;
@@ -2975,40 +2974,6 @@ message RunPlanData {
   optional NodeReferenceData identity_ptr = 96;
 }
 
-message RunSpanData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  NodeMode mode = 20;
-  optional google.protobuf.Value subnode_packed = 29;
-  RunSpanType type = 30;
-  optional NodeReferenceData root_ptr = 31;
-  Severity severity = 33;
-  RunStatus status = 40;
-  optional google.protobuf.Duration duration = 41;
-  optional google.protobuf.Timestamp started_at = 42;
-  optional google.protobuf.Timestamp terminated_at = 43;
-  optional google.protobuf.Timestamp interrupted_at = 44;
-  optional NodeReferenceData interruption_ptr = 53;
-  optional ErrorData error = 54;
-  optional string title = 60;
-  optional TextData text = 61;
-  optional CodeData code = 62;
-  repeated NodeReferenceData nodes_ptr = 65;
-  optional NodeReferenceData session_ptr = 90;
-  optional NodeReferenceData run_ptr = 91;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData identity_ptr = 96;
-}
-
 message RunData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3075,6 +3040,40 @@ message SessionData {
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp opened_at = 42;
   optional google.protobuf.Timestamp closed_at = 43;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData run_ptr = 91;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData user_ptr = 95;
+  optional NodeReferenceData identity_ptr = 96;
+}
+
+message RunSpanData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  NodeMode mode = 20;
+  optional google.protobuf.Value subnode_packed = 29;
+  RunSpanType type = 30;
+  optional NodeReferenceData root_ptr = 31;
+  Severity severity = 33;
+  RunStatus status = 40;
+  optional google.protobuf.Duration duration = 41;
+  optional google.protobuf.Timestamp started_at = 42;
+  optional google.protobuf.Timestamp terminated_at = 43;
+  optional google.protobuf.Timestamp interrupted_at = 44;
+  optional NodeReferenceData interruption_ptr = 53;
+  optional ErrorData error = 54;
+  optional string title = 60;
+  optional TextData text = 61;
+  optional CodeData code = 62;
+  repeated NodeReferenceData nodes_ptr = 65;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
   optional NodeReferenceData client_ptr = 93;
@@ -3642,6 +3641,7 @@ message ViewData {
   optional google.protobuf.Value subnode_packed = 29;
   ViewType type = 30;
   string name = 32;
+  string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
@@ -3686,8 +3686,9 @@ message UserWizardViewData {
 
 // A View is a graphical interface in a Bench.
 message ChatViewData {
-  repeated NodeReferenceData nodes_ptr = 101;
-  optional NodeReferenceData reply_to_ptr = 102;
+  optional TextData message_text = 100;
+  repeated NodeReferenceData message_nodes_ptr = 101;
+  optional NodeReferenceData message_reply_to_ptr = 102;
 }
 
 // A View is a graphical interface in a Bench.
@@ -3855,7 +3856,9 @@ message MessageData {
   MessageType type = 30;
   MessagePlatform platform = 31;
   optional NodeReferenceData channel_ptr = 32;
-  optional NodeReferenceData clazz_ptr = 35;
+  optional NodeReferenceData thread_ptr = 33;
+  optional NodeReferenceData scope_ptr = 35;
+  optional NodeReferenceData clazz_ptr = 36;
   MessageStatus status = 40;
   optional google.protobuf.Timestamp failed_at = 42;
   optional google.protobuf.Timestamp sent_at = 43;
@@ -3867,6 +3870,8 @@ message MessageData {
   repeated NodeReferenceData nodes_ptr = 53;
   optional NodeReferenceData interruption_ptr = 55;
   optional NodeReferenceData reply_to_ptr = 60;
+  optional NodeReferenceData forwarded_from_ptr = 61;
+  optional NodeReferenceData spawned_thread_ptr = 62;
 }
 
 message RecordData {
@@ -3901,12 +3906,13 @@ message ThreadData {
   optional google.protobuf.Value subnode_packed = 29;
   ThreadType type = 30;
   optional NodeReferenceData channel_ptr = 32;
-  optional NodeReferenceData scope_ptr = 33;
-  optional NodeReferenceData run_ptr = 34;
-  ThreadStatus status = 50;
-  optional google.protobuf.Timestamp closed_at = 55;
-  optional string title = 60;
-  optional TextData text = 61;
+  optional NodeReferenceData scope_ptr = 35;
+  optional NodeReferenceData run_ptr = 37;
+  ThreadStatus status = 40;
+  optional google.protobuf.Timestamp closed_at = 45;
+  optional string title = 50;
+  optional TextData text = 51;
+  optional NodeReferenceData created_from_ptr = 60;
 }
 
 enum BuiltinEnum {

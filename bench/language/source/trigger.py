@@ -138,5 +138,5 @@ class MessageTrigger(Trigger):
         references=NodeType.MESSAGE,
         description="The Message this Trigger is replying to.",
     )
-    # to: roles, identities, users, teams, ... :MessageRouting
+    # to: roles, identities, users, teams, ...
     # condition, edit, ...?

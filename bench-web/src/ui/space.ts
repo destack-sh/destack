@@ -918,16 +918,20 @@ export class SpaceCanvas {
         { ifPresent: "upsertAndFocus", ...options },
       );
       this.inspect({ node: nodePtr, view });
-    } else if ((isNode(node, NodeType.BLOCK) && node.type == BlockType.DATABASE) || isNode(node, NodeType.RECORD)) {
+    } else if (
+      (isNode(node, NodeType.BLOCK) && node.type == BlockType.DATABASE) ||
+      isNode(node, NodeType.DATABASE) ||
+      isNode(node, NodeType.RECORD)
+    ) {
       // open as database
       let view: ViewData;
       if (isNode(node, NodeType.RECORD)) {
-        const block = graph.get(node.blockPtr!);
-        if (block == null) throw new Error(`no containing block for record: ${describeNode(node)}`);
+        const database = graph.get(node.databasePtr!);
+        if (database == null) throw new Error(`no containing database for record: ${describeNode(node)}`);
         view = this.addView(
           {
             type: ViewType.DATABASE,
-            nodePtr: toNodeRef(block),
+            nodePtr: toNodeRef(database),
             focus: makeSelection([node]),
             ...options?.props,
           },

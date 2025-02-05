@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.05.0"
+VERSION = "2025.02.05.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1128,6 +1128,7 @@ VIEW_TABLE = Table(
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT32),
         Column("name", PrimitiveType.STRING),
+        Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
@@ -1389,6 +1390,7 @@ THREAD_TABLE = Table(
         Column("scope_id", PrimitiveType.UUID, is_nullable=True),
         Column("scope_ck", PrimitiveType.UUID, is_nullable=True),
         Column("scope_type", PrimitiveType.INT16, is_nullable=True),
+        Column("scope_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1397,6 +1399,8 @@ THREAD_TABLE = Table(
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("title", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("created_from_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_from_base_ck", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1409,7 +1413,6 @@ MESSAGE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
@@ -1424,7 +1427,12 @@ MESSAGE_TABLE = Table(
         Column("type", PrimitiveType.INT16, default="1"),
         Column("platform", PrimitiveType.INT16, default="1"),
         Column("channel_id", PrimitiveType.UUID, is_nullable=True),
-        Column("channel_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("channel_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("thread_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scope_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scope_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("scope_type", PrimitiveType.INT16, is_nullable=True),
+        Column("scope_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("clazz_id", PrimitiveType.UUID, is_nullable=True),
         Column("clazz_ck", PrimitiveType.UUID, is_nullable=True),
         Column("clazz_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -1450,6 +1458,12 @@ MESSAGE_TABLE = Table(
         Column("reply_to_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("reply_to_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reply_to_base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("forwarded_from_id", PrimitiveType.UUID, is_nullable=True),
+        Column("forwarded_from_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("forwarded_from_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("forwarded_from_base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("spawned_thread_id", PrimitiveType.UUID, is_nullable=True),
+        Column("spawned_thread_base_ck", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),

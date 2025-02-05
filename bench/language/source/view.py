@@ -15,6 +15,7 @@ from bench.language.core import (
     StructType,
     enum_,
     node_,
+    p_internal,
     p_node_children,
     p_node_parent,
     p_regular,
@@ -23,6 +24,7 @@ from bench.language.core import (
     subnode_,
 )
 from bench.pb2 import ViewData
+from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import Expression, Message, Page, Space, Text, Type
@@ -384,6 +386,7 @@ class View(InlineSourceNode[ViewData]):
 
     # meta
     type: ViewType = p_regular(30, require=True, primitive_type=PrimitiveType.INT32)
+    order_key: str = p_internal(33, default=INTEGER_ZERO)
     subviews_packed: dict[str, Any] | None = p_value_packed(39)
 
     # content
@@ -503,9 +506,9 @@ class UserWizardView(View):
 
 @subnode_(ViewType.CHAT)
 class ChatView(View):
-    text: Optional["Text"] = p_regular(100, require=False, struct=StructType.TEXT)
-    nodes: list["Node"] = p_regular(101, require=False, array=True, references="any")
-    reply_to: Optional["Message"] = p_regular(
+    message_text: Optional["Text"] = p_regular(100, require=False, struct=StructType.TEXT)
+    message_nodes: list["Node"] = p_regular(101, require=False, array=True, references="any")
+    message_reply_to: Optional["Message"] = p_regular(
         102, require=False, array=False, references=NodeType.MESSAGE
     )
 

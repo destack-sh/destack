@@ -1626,7 +1626,7 @@ class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
 
 @node_component_()
 class StateNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
-    """A Node in a Bench with a persistent cross-Package identity."""
+    """A Node in a Bench with a persistent stable identity."""
 
     parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH)
 

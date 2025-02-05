@@ -24,7 +24,7 @@ const PREFIX_BY_PATH_ELEMENT_TYPE: Partial<Record<PathElementType, string>> = {
   [PathElementType.BENCH]: "@",
   [PathElementType.PACKAGE]: "#",
   [PathElementType.CONTAINER]: "~",
-  [PathElementType.UNIQUE]: "^",
+  [PathElementType.CLOSEST]: "^",
 };
 
 /** Renders a path as a human-readable string. */
@@ -38,7 +38,7 @@ export function renderPath(path: PathData): string {
       element.type == PathElementType.BENCH ||
       element.type == PathElementType.PACKAGE ||
       element.type == PathElementType.CONTAINER ||
-      element.type == PathElementType.UNIQUE ||
+      element.type == PathElementType.CLOSEST ||
       element.type == PathElementType.CHILD
     ) {
       const prefix = PREFIX_BY_PATH_ELEMENT_TYPE[element.type] ?? "";

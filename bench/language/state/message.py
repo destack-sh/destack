@@ -29,7 +29,7 @@ from bench.language.runtime.interruption import Interruption
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Channel, Class, NodeReference, Text, Thread
+    from bench.language import Bench, Channel, Class, NodeReference, Package, Page, Text, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -67,23 +67,32 @@ class MessageStatus(BuiltinEnum):
 class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     """
     A Message about something.
-    If the parent is also a Message, then this is a Message thread (may be nested).
     """
 
     # meta
-    parent: Union["Bench", "Thread", None] = p_node_parent(4, NodeType.BENCH, NodeType.THREAD)
+    parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH)
     type: MessageType = p_regular(30, require=True, default=MessageType.TEXT)
     platform: MessagePlatform = p_regular(31, require=True, default=MessagePlatform.BENCH)
     channel: "Channel | None" = p_system(
         32,
         require=False,
-        store=True,
-        wire=True,
+        array=False,
         same_bench=True,
-        references=NodeType.MESSAGE,
+        references=NodeType.CHANNEL,
+    )
+    thread: Optional["Thread"] = p_regular(
+        33,
+        require=False,
+        array=False,
+        same_bench=True,
+        references=NodeType.THREAD,
+        description="The Message thread.",
+    )
+    scope: Union["Page", "Package"] = p_regular(
+        35, require=False, references=(NodeType.PAGE, NodeType.PACKAGE)
     )
     clazz: "Class | None" = p_internal(
-        35,
+        36,
         require=False,
         array=False,
         references=NodeType.CLASS,
@@ -112,12 +121,22 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         55, require=False, array=False, references=NodeType.INTERRUPTION
     )
 
-    # routing :MessageRouting
+    # routing
     reply_to: Optional["Message"] = p_regular(
         60, require=False, array=False, references=NodeType.MESSAGE
     )
-
-    # to: roles, identities, users, teams, ...
+    forwarded_from: Optional["Message"] = p_regular(
+        61, require=False, array=False, references=NodeType.MESSAGE
+    )
+    spawned_thread: Optional["Message"] = p_regular(
+        62,
+        require=False,
+        array=False,
+        references=NodeType.MESSAGE,
+        same_bench=True,
+        description="The Thread that was created from this Message.",
+    )
+    # roles, identities, users, teams, ...
 
     # flags
     # is_pinned, is_highlighted, ...

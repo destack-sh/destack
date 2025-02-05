@@ -64,13 +64,13 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-// subnode
+// message
 const subnodePacked = toRef(props, "subnodePacked");
-const text = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "text");
-const nodesPtr = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "nodesPtr");
-const replyToPtr = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "replyToPtr");
-const nodes = supergraph.getManyRef(nodesPtr);
-const files = computed(() => nodes.value.filter((n) => isNode(n, NodeType.FILE)));
+const messageText = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "messageText");
+const messageNodesPtr = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "messageNodesPtr");
+const messageReplyTo = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "messageReplyToPtr");
+const messageNodes = supergraph.getManyRef(messageNodesPtr);
+const messageFiles = computed(() => messageNodes.value.filter((n) => isNode(n, NodeType.FILE)));
 
 // node
 const nodePtr = computedValue(() => props.nodePtr);
@@ -120,6 +120,7 @@ const {
       count: true,
       isEnabled: scopePtr.value != null,
       sort: [DEFAULT_SORT],
+      // nocheckin: Channels/Threads
       filter: makeExpression({
         type: ExpressionType.EQUALS,
         propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.scopePtr),
@@ -188,7 +189,7 @@ const messageViews = computed(() => {
     }
     const isEdited = message.updatedAt?.seconds != message.createdAt?.seconds;
     const isEditing = editingPtr.value?.id == message.id;
-    const isReplyingTo = replyToPtr.value?.id == message.id;
+    const isReplyingTo = messageReplyTo.value?.id == message.id;
     const isSelected = canvas.isSelected(message);
     const richMessage: MessageView = {
       idx: i,
@@ -221,8 +222,8 @@ const messageViews = computed(() => {
   return views;
 });
 const replyTo = computed(() => {
-  if (replyToPtr.value == null) return null;
-  return messageViews.value.find((m) => m.message.id == replyToPtr.value?.id);
+  if (messageReplyTo.value == null) return null;
+  return messageViews.value.find((m) => m.message.id == messageReplyTo.value?.id);
 });
 
 //
@@ -258,12 +259,12 @@ function submit() {
   if (scope.value == null) throw new Error("no origin");
   createMessage(connection.tx, graph, {
     message: {
-      type: MessageType.BENCH,
+      type: MessageType.TEXT,
       parentPtr: benchPtr.value,
       scopePtr: toNodeRef(scope.value),
-      text: text.value,
-      replyToPtr: replyTo.value != null ? replyToPtr.value : undefined,
-      nodesPtr: nodesPtr.value,
+      text: messageText.value,
+      replyToPtr: replyTo.value != null ? messageReplyTo.value : undefined,
+      nodesPtr: messageNodesPtr.value,
     },
   });
 }
@@ -292,7 +293,7 @@ async function addFiles(files: FileList | File[]) {
       {
         metatype: NodeType.VIEW,
         type: ViewType.CHAT,
-        subnode: { nodesPtr: [...(nodesPtr.value ?? []), toNodeRef(upload.file.value!)] },
+        subnode: { nodesPtr: [...(messageNodesPtr.value ?? []), toNodeRef(upload.file.value!)] },
       },
       { debounce: "tick" },
     );
@@ -622,7 +623,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 is-minimal
                 suppress-enter
                 suppress-drop
-                :model-value="text"
+                :model-value="messageText"
                 @update:model-value="
                   (value) =>
                     state.update(
@@ -641,9 +642,9 @@ defineExpose<ViewExposed>({ self, id, actions });
                 "
               />
               <!-- Extras -->
-              <div v-if="files.length > 0" class="mt-1 flex flex-row flex-wrap gap-x-2 gap-y-1">
+              <div v-if="messageFiles.length > 0" class="mt-1 flex flex-row flex-wrap gap-x-2 gap-y-1">
                 <File
-                  v-for="file in files"
+                  v-for="file in messageFiles"
                   :id="'file-' + file.id"
                   :key="file.id"
                   is-minimal
