@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import { EditSubject, makeExpression } from "@/language/expression";
-import { uploadFile } from "@/language/file";
-import { createMessage, getMessageAuthorPtr } from "@/language/message";
-import { useSubnodeProperty } from "@/language/node";
-import { getTextLine, trimText } from "@/language/text";
+import { EditSubject, makeExpression } from "@/language/core/expression";
+import { uploadFile } from "@/language/resource/file";
+import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
+import { useSubnodeProperty } from "@/language/core/node";
+import { getTextLine, trimText } from "@/language/core/text";
 import {
   BlockData,
   ExpressionType,
@@ -24,7 +24,7 @@ import {
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { BENCH_SCOPE, benchPtr } from "@/system/client";
 import { SearchConnectionParams, useSearchConnection } from "@/system/connection";
-import { supergraph } from "@/system/globals";
+import { supergraph } from "@/globals";
 import { bench, benchConnection, canvas, pkg, pkgGraph } from "@/system/space";
 import { user } from "@/system/user";
 import {

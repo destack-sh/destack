@@ -1,5 +1,5 @@
 import { ToastLevel } from "@/ui/toast";
-import { getAllTransactionBuffers } from "@/language/transaction";
+import { getAllTransactionBuffers } from "@/language/runtime/transaction";
 import { ViewType } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
 import { provideActions } from "@/ui/action";
@@ -8,7 +8,7 @@ import { makeIcon } from "@/ui/icon";
 import { toaster } from "@/ui/toast";
 import { generateRandomName } from "@/utils/naming";
 import { toCasing } from "@/utils/string";
-import { canvas } from "@/system/globals";
+import { canvas } from "@/globals";
 
 // debug actions
 export const DEBUG_ACTIONS = provideActions<"debug">({

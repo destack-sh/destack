@@ -1,6 +1,6 @@
 import { ObjectType, RectangleData, NodeType, Orientation, type ViewData } from "@/proto/wire";
 import type { Connection } from "@/system/connection";
-import type { Transaction } from "@/language/transaction";
+import type { Transaction } from "@/language/runtime/transaction";
 import { roundToDigits } from "@/utils/functools";
 import {
   useElementSize,

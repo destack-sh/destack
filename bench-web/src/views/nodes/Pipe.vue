@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import { NAME_TYPE } from "@/language/field";
-import { isRunActive } from "@/language/run";
+import { NAME_TYPE } from "@/language/core/type";
+import { isRunActive } from "@/language/runtime/run";
 import { ColorShade, ColorType, NodeType, PipeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/system/flow";
-import { runtime } from "@/system/runtime";
+import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/ui/flow";
+import { runtime } from "@/runtime/runtime";
 import { canvas, pkgConnection } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
 import { ICON_BY_PIPE_TYPE, IconInline } from "@/ui/icon";

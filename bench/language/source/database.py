@@ -18,8 +18,6 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
-_type = type
-
 
 @node_(NodeType.DATABASE, passthrough_get=("fields",))
 class Database(InlineSourceNode[DatabaseData]):

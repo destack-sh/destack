@@ -1,4 +1,4 @@
-import { makeNode } from "@/language/node";
+import { makeNode } from "@/language/core/node";
 import { supervisor, type OperationOptions } from "@/proto/services";
 import {
   BenchData,

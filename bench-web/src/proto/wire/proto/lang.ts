@@ -12762,245 +12762,245 @@ export enum ViewType {
      */
     RUN = 6010,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_OBJECT = 20000;
+     * @generated from protobuf enum value: VIEW_TYPE_OBJECT = 10000;
      */
-    OBJECT = 20000,
+    OBJECT = 10000,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TYPE = 20001;
+     * @generated from protobuf enum value: VIEW_TYPE_TYPE = 10001;
      */
-    TYPE = 20001,
+    TYPE = 10001,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_FIELD_LIST = 20003;
+     * @generated from protobuf enum value: VIEW_TYPE_FIELD_LIST = 10003;
      */
-    FIELD_LIST = 20003,
+    FIELD_LIST = 10003,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PATH = 20004;
+     * @generated from protobuf enum value: VIEW_TYPE_PATH = 10004;
      */
-    PATH = 20004,
+    PATH = 10004,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_COMPUTED_VALUE = 20005;
+     * @generated from protobuf enum value: VIEW_TYPE_COMPUTED_VALUE = 10005;
      */
-    COMPUTED_VALUE = 20005,
+    COMPUTED_VALUE = 10005,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_USER_WIZARD = 30001;
+     * @generated from protobuf enum value: VIEW_TYPE_USER_WIZARD = 20001;
      */
-    USER_WIZARD = 30001,
+    USER_WIZARD = 20001,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BENCH_WIZARD = 30002;
+     * @generated from protobuf enum value: VIEW_TYPE_BENCH_WIZARD = 20002;
      */
-    BENCH_WIZARD = 30002,
+    BENCH_WIZARD = 20002,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_EMPTY = 30100;
+     * @generated from protobuf enum value: VIEW_TYPE_EMPTY = 20100;
      */
-    EMPTY = 30100,
+    EMPTY = 20100,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CREATE = 30201;
+     * @generated from protobuf enum value: VIEW_TYPE_CREATE = 20201;
      */
-    CREATE = 30201,
+    CREATE = 20201,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CHAT = 30202;
+     * @generated from protobuf enum value: VIEW_TYPE_CHAT = 20202;
      */
-    CHAT = 30202,
+    CHAT = 20202,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_HUB = 30205;
+     * @generated from protobuf enum value: VIEW_TYPE_HUB = 20205;
      */
-    HUB = 30205,
+    HUB = 20205,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_HELP = 30206;
+     * @generated from protobuf enum value: VIEW_TYPE_HELP = 20206;
      */
-    HELP = 30206,
+    HELP = 20206,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_ACTIVITY = 30207;
+     * @generated from protobuf enum value: VIEW_TYPE_ACTIVITY = 20207;
      */
-    ACTIVITY = 30207,
+    ACTIVITY = 20207,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CATALOG = 30208;
+     * @generated from protobuf enum value: VIEW_TYPE_CATALOG = 20208;
      */
-    CATALOG = 30208,
+    CATALOG = 20208,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_WINDOW = 40001;
+     * @generated from protobuf enum value: VIEW_TYPE_WINDOW = 30001;
      */
-    WINDOW = 40001,
+    WINDOW = 30001,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TAB = 40002;
+     * @generated from protobuf enum value: VIEW_TYPE_TAB = 30002;
      */
-    TAB = 40002,
+    TAB = 30002,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_HISTORY = 40003;
+     * @generated from protobuf enum value: VIEW_TYPE_HISTORY = 30003;
      */
-    HISTORY = 40003,
+    HISTORY = 30003,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SPLIT = 40004;
+     * @generated from protobuf enum value: VIEW_TYPE_SPLIT = 30004;
      */
-    SPLIT = 40004,
+    SPLIT = 30004,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SPLIT_DRAWER = 40005;
+     * @generated from protobuf enum value: VIEW_TYPE_SPLIT_DRAWER = 30005;
      */
-    SPLIT_DRAWER = 40005,
+    SPLIT_DRAWER = 30005,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_STACK = 40006;
+     * @generated from protobuf enum value: VIEW_TYPE_STACK = 30006;
      */
-    STACK = 40006,
+    STACK = 30006,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DRAWER = 40007;
+     * @generated from protobuf enum value: VIEW_TYPE_DRAWER = 30007;
      */
-    DRAWER = 40007,
+    DRAWER = 30007,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SCROLL = 40008;
+     * @generated from protobuf enum value: VIEW_TYPE_SCROLL = 30008;
      */
-    SCROLL = 40008,
+    SCROLL = 30008,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_GRID = 40009;
+     * @generated from protobuf enum value: VIEW_TYPE_GRID = 30009;
      */
-    GRID = 40009,
+    GRID = 30009,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_GROUP = 40100;
+     * @generated from protobuf enum value: VIEW_TYPE_GROUP = 30100;
      */
-    GROUP = 40100,
+    GROUP = 30100,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SECTION = 40101;
+     * @generated from protobuf enum value: VIEW_TYPE_SECTION = 30101;
      */
-    SECTION = 40101,
+    SECTION = 30101,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_FORM = 40102;
+     * @generated from protobuf enum value: VIEW_TYPE_FORM = 30102;
      */
-    FORM = 40102,
+    FORM = 30102,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SPACER = 40200;
+     * @generated from protobuf enum value: VIEW_TYPE_SPACER = 30200;
      */
-    SPACER = 40200,
+    SPACER = 30200,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DIVIDER = 40201;
+     * @generated from protobuf enum value: VIEW_TYPE_DIVIDER = 30201;
      */
-    DIVIDER = 40201,
+    DIVIDER = 30201,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_LIST = 40300;
+     * @generated from protobuf enum value: VIEW_TYPE_LIST = 30300;
      */
-    LIST = 40300,
+    LIST = 30300,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TABLE = 40301;
+     * @generated from protobuf enum value: VIEW_TYPE_TABLE = 30301;
      */
-    TABLE = 40301,
+    TABLE = 30301,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TREE = 40302;
+     * @generated from protobuf enum value: VIEW_TYPE_TREE = 30302;
      */
-    TREE = 40302,
+    TREE = 30302,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_FEED = 40303;
+     * @generated from protobuf enum value: VIEW_TYPE_FEED = 30303;
      */
-    FEED = 40303,
+    FEED = 30303,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_GALLERY = 40304;
+     * @generated from protobuf enum value: VIEW_TYPE_GALLERY = 30304;
      */
-    GALLERY = 40304,
+    GALLERY = 30304,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BOARD = 40305;
+     * @generated from protobuf enum value: VIEW_TYPE_BOARD = 30305;
      */
-    BOARD = 40305,
+    BOARD = 30305,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BREADCRUMB = 41001;
+     * @generated from protobuf enum value: VIEW_TYPE_BREADCRUMB = 31001;
      */
-    BREADCRUMB = 41001,
+    BREADCRUMB = 31001,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PROGRESS = 41002;
+     * @generated from protobuf enum value: VIEW_TYPE_PROGRESS = 31002;
      */
-    PROGRESS = 41002,
+    PROGRESS = 31002,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_AVATAR = 41003;
+     * @generated from protobuf enum value: VIEW_TYPE_AVATAR = 31003;
      */
-    AVATAR = 41003,
+    AVATAR = 31003,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BADGE = 41004;
+     * @generated from protobuf enum value: VIEW_TYPE_BADGE = 31004;
      */
-    BADGE = 41004,
+    BADGE = 31004,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SHAPE = 41100;
+     * @generated from protobuf enum value: VIEW_TYPE_SHAPE = 31100;
      */
-    SHAPE = 41100,
+    SHAPE = 31100,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CHART = 41200;
+     * @generated from protobuf enum value: VIEW_TYPE_CHART = 31200;
      */
-    CHART = 41200,
+    CHART = 31200,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BUTTON = 42001;
+     * @generated from protobuf enum value: VIEW_TYPE_BUTTON = 32001;
      */
-    BUTTON = 42001,
+    BUTTON = 32001,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_MULTI_BUTTON = 42002;
+     * @generated from protobuf enum value: VIEW_TYPE_MULTI_BUTTON = 32002;
      */
-    MULTI_BUTTON = 42002,
+    MULTI_BUTTON = 32002,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_LINK = 42003;
+     * @generated from protobuf enum value: VIEW_TYPE_LINK = 32003;
      */
-    LINK = 42003,
+    LINK = 32003,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 45001;
+     * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 35001;
      */
-    NUMBER = 45001,
+    NUMBER = 35001,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SLIDER = 45002;
+     * @generated from protobuf enum value: VIEW_TYPE_SLIDER = 35002;
      */
-    SLIDER = 45002,
+    SLIDER = 35002,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_STRING = 45101;
+     * @generated from protobuf enum value: VIEW_TYPE_STRING = 35101;
      */
-    STRING = 45101,
+    STRING = 35101,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TEXT = 45102;
+     * @generated from protobuf enum value: VIEW_TYPE_TEXT = 35102;
      */
-    TEXT = 45102,
+    TEXT = 35102,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CODE = 45103;
+     * @generated from protobuf enum value: VIEW_TYPE_CODE = 35103;
      */
-    CODE = 45103,
+    CODE = 35103,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_JSON = 45104;
+     * @generated from protobuf enum value: VIEW_TYPE_JSON = 35104;
      */
-    JSON = 45104,
+    JSON = 35104,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TOGGLE = 45201;
+     * @generated from protobuf enum value: VIEW_TYPE_TOGGLE = 35201;
      */
-    TOGGLE = 45201,
+    TOGGLE = 35201,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PICKER = 45202;
+     * @generated from protobuf enum value: VIEW_TYPE_PICKER = 35202;
      */
-    PICKER = 45202,
+    PICKER = 35202,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 45203;
+     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 35203;
      */
-    COLOR = 45203,
+    COLOR = 35203,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_ICON = 45204;
+     * @generated from protobuf enum value: VIEW_TYPE_ICON = 35204;
      */
-    ICON = 45204,
+    ICON = 35204,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DATETIME = 45205;
+     * @generated from protobuf enum value: VIEW_TYPE_DATETIME = 35205;
      */
-    DATETIME = 45205,
+    DATETIME = 35205,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DURATION = 45206;
+     * @generated from protobuf enum value: VIEW_TYPE_DURATION = 35206;
      */
-    DURATION = 45206,
+    DURATION = 35206,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_FILE = 45301;
+     * @generated from protobuf enum value: VIEW_TYPE_FILE = 35301;
      */
-    FILE = 45301,
+    FILE = 35301,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_IMAGE = 45302;
+     * @generated from protobuf enum value: VIEW_TYPE_IMAGE = 35302;
      */
-    IMAGE = 45302,
+    IMAGE = 35302,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 45303;
+     * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 35303;
      */
-    AUDIO = 45303,
+    AUDIO = 35303,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_VIDEO = 45304;
+     * @generated from protobuf enum value: VIEW_TYPE_VIDEO = 35304;
      */
-    VIDEO = 45304,
+    VIDEO = 35304,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DOCUMENT = 45305;
+     * @generated from protobuf enum value: VIEW_TYPE_DOCUMENT = 35305;
      */
-    DOCUMENT = 45305
+    DOCUMENT = 35305
 }
 /**
  * Built-in color types a la SwiftUI or Tailwind.
@@ -35853,51 +35853,51 @@ export const RunViewDataInfo: Record<RunViewProperty, PropertyInfo> = {
   [RunViewProperty.inputsPacked]: { id: 101, name: 'inputs_packed', component: ObjectType.VIEW, componentSubtype: 6010, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const ObjectViewDataInfo: Record<ObjectViewProperty, PropertyInfo> = {
-  [ObjectViewProperty.expandedSections]: { id: 100, name: 'expanded_sections', component: ObjectType.VIEW, componentSubtype: 20000, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ObjectViewProperty.collapsedSections]: { id: 101, name: 'collapsed_sections', component: ObjectType.VIEW, componentSubtype: 20000, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ObjectViewProperty.expandedSections]: { id: 100, name: 'expanded_sections', component: ObjectType.VIEW, componentSubtype: 10000, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ObjectViewProperty.collapsedSections]: { id: 101, name: 'collapsed_sections', component: ObjectType.VIEW, componentSubtype: 10000, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo> = {
-  [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, componentSubtype: 30001, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, componentSubtype: 20001, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const ChatViewDataInfo: Record<ChatViewProperty, PropertyInfo> = {
-  [ChatViewProperty.messageText]: { id: 100, name: 'message_text', component: ObjectType.VIEW, componentSubtype: 30202, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ChatViewProperty.messageNodesPtr]: { id: 101, name: 'message_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 30202, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [ChatViewProperty.messageReplyToPtr]: { id: 102, name: 'message_reply_to_ptr', component: ObjectType.VIEW, componentSubtype: 30202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ChatViewProperty.messageText]: { id: 100, name: 'message_text', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [ChatViewProperty.messageNodesPtr]: { id: 101, name: 'message_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [ChatViewProperty.messageReplyToPtr]: { id: 102, name: 'message_reply_to_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
-  [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 30205, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 20205, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const HelpViewDataInfo: Record<HelpViewProperty, PropertyInfo> = {
-  [HelpViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 30206, enumType: EnumType.HELP_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [HelpViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 20206, enumType: EnumType.HELP_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const ListViewDataInfo: Record<ListViewProperty, PropertyInfo> = {
-  [ListViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, componentSubtype: 40300, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ListViewProperty.filter]: { id: 101, name: 'filter', component: ObjectType.VIEW, componentSubtype: 40300, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [ListViewProperty.sort]: { id: 102, name: 'sort', component: ObjectType.VIEW, componentSubtype: 40300, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [ListViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, componentSubtype: 30300, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ListViewProperty.filter]: { id: 101, name: 'filter', component: ObjectType.VIEW, componentSubtype: 30300, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [ListViewProperty.sort]: { id: 102, name: 'sort', component: ObjectType.VIEW, componentSubtype: 30300, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
 export const TreeViewDataInfo: Record<TreeViewProperty, PropertyInfo> = {
-  [TreeViewProperty.nodeTypes]: { id: 100, name: 'node_types', component: ObjectType.VIEW, componentSubtype: 40302, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewProperty.filterIsPage]: { id: 101, name: 'filter_is_page', component: ObjectType.VIEW, componentSubtype: 40302, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewProperty.isDefaultExpanded]: { id: 102, name: 'is_default_expanded', component: ObjectType.VIEW, componentSubtype: 40302, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewProperty.expandedNodesPtr]: { id: 103, name: 'expanded_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 40302, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [TreeViewProperty.collapsedNodesPtr]: { id: 104, name: 'collapsed_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 40302, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [TreeViewProperty.preset]: { id: 110, name: 'preset', component: ObjectType.VIEW, componentSubtype: 40302, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewProperty.nodeTypes]: { id: 100, name: 'node_types', component: ObjectType.VIEW, componentSubtype: 30302, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewProperty.filterIsPage]: { id: 101, name: 'filter_is_page', component: ObjectType.VIEW, componentSubtype: 30302, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewProperty.isDefaultExpanded]: { id: 102, name: 'is_default_expanded', component: ObjectType.VIEW, componentSubtype: 30302, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewProperty.expandedNodesPtr]: { id: 103, name: 'expanded_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 30302, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [TreeViewProperty.collapsedNodesPtr]: { id: 104, name: 'collapsed_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 30302, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [TreeViewProperty.preset]: { id: 110, name: 'preset', component: ObjectType.VIEW, componentSubtype: 30302, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const FeedViewDataInfo: Record<FeedViewProperty, PropertyInfo> = {
-  [FeedViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, componentSubtype: 40303, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FeedViewProperty.filter]: { id: 101, name: 'filter', component: ObjectType.VIEW, componentSubtype: 40303, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [FeedViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, componentSubtype: 30303, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FeedViewProperty.filter]: { id: 101, name: 'filter', component: ObjectType.VIEW, componentSubtype: 30303, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
 export const ButtonViewDataInfo: Record<ButtonViewProperty, PropertyInfo> = {
-  [ButtonViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 42001, enumType: EnumType.BUTTON_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ButtonViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 32001, enumType: EnumType.BUTTON_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const PickerViewDataInfo: Record<PickerViewProperty, PropertyInfo> = {
-  [PickerViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 45202, enumType: EnumType.PICKER_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [PickerViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 35202, enumType: EnumType.PICKER_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const DatetimeViewDataInfo: Record<DatetimeViewProperty, PropertyInfo> = {
-  [DatetimeViewProperty.isRelative]: { id: 100, name: 'is_relative', component: ObjectType.VIEW, componentSubtype: 45205, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
+  [DatetimeViewProperty.isRelative]: { id: 100, name: 'is_relative', component: ObjectType.VIEW, componentSubtype: 35205, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
 }
 export const IconViewDataInfo: Record<IconViewProperty, PropertyInfo> = {
-  [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, componentSubtype: 45204, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, componentSubtype: 35204, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
 }
 export const ContextDataInfo: Record<ContextProperty, PropertyInfo> = {
   [ContextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CONTEXT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

@@ -5,7 +5,7 @@ import { IconInline } from "@/ui/icon";
 import { canvas } from "@/system/space";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
-import { useSubnodeProperty } from "@/language/node";
+import { useSubnodeProperty } from "@/language/core/node";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<

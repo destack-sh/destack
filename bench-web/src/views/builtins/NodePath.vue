@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import type { ReadNodeGraph } from "@/language/graph";
+import { INLINE_SOURCE_NODE_TYPES } from "@/language/core/const";
+import type { ReadNodeGraph } from "@/language/core/graph";
 import type { NodeReferenceData } from "@/proto/wire";
 import { NodeType } from "@/proto/wire";
 import { canvas } from "@/system/space";
@@ -14,7 +15,7 @@ const props = defineProps<{
   graph: ReadNodeGraph;
 }>();
 
-const METATYPES = [NodeType.BLOCK, NodeType.VIEW, NodeType.ACTION, NodeType.PIPE, NodeType.FIELD];
+const METATYPES = [NodeType.PAGE, ...INLINE_SOURCE_NODE_TYPES];
 
 const ancestorsFocus = props.graph.getAncestorsRef(toRef(props, "focus"), { includeSelf: true, metatypes: METATYPES });
 const ancestorsSelf = props.graph.getAncestorsRef(toRef(props, "container"), {

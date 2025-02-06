@@ -1,5 +1,5 @@
-import { BASED_NODE_TYPES, isBenchNodeType, isUnloadedNodeType } from "@/language/const";
-import { NodeSuperGraph } from "@/language/graph";
+import { BASED_NODE_TYPES, isBenchNodeType, isUnloadedNodeType } from "@/language/core/const";
+import { NodeSuperGraph } from "@/language/core/graph";
 import { NodeReferenceData, NodeType } from "@/proto/wire";
 import { describeNode, makeScope, toNodeRef } from "@/proto/wiring";
 import { BENCH_SCOPE } from "@/system/client";

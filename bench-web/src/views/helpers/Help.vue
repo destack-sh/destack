@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import { getBaseFromNode, toCamelName } from "@/language/const";
-import { useSubnodeProperty } from "@/language/node";
-import { isRunnable } from "@/language/run";
+import { getBaseFromNode, toCamelName } from "@/language/core/const";
+import { useSubnodeProperty } from "@/language/core/node";
+import { isRunnable } from "@/language/runtime/run";
 import { HelpAspect, NodeType, Orientation, RunData, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
-import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/system/runtime";
+import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/runtime/runtime";
 import { canvas, inspectionPtr } from "@/system/space";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";

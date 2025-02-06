@@ -16,15 +16,14 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
 
   // system
   // nodes
+  [ViewType.PAGE]: () => import("@/views/nodes/Page.vue"),
   [ViewType.BLOCK]: () => import("@/views/nodes/Block.vue"),
   [ViewType.FIELD]: () => import("@/views/nodes/Field.vue"),
   [ViewType.ACTION]: () => import("@/views/nodes/Action.vue"),
   [ViewType.PIPE]: () => import("@/views/nodes/Pipe.vue"),
   [ViewType.RUN]: () => import("@/views/nodes/Run.vue"),
-  // subnodes
-  [ViewType.PAGE]: () => import("@/views/subnodes/Page.vue"),
-  [ViewType.DATABASE]: () => import("@/views/subnodes/Database.vue"),
-  [ViewType.FLOW]: () => import("@/views/subnodes/Flow.vue"),
+  [ViewType.DATABASE]: () => import("@/views/nodes/Database.vue"),
+  [ViewType.FLOW]: () => import("@/views/nodes/Flow.vue"),
   // structs
   [ViewType.TYPE]: () => import("@/views/objects/Type.vue"),
   [ViewType.OBJECT]: () => import("@/views/objects/Object.vue"),

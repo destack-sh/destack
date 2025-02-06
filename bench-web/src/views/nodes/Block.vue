@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { CANVAS_BLOCK_TYPES } from "@/language/const";
-import { unpackSubnodeProperty } from "@/language/node";
-import { getTransactionOptionsForType, makeEdit } from "@/language/transaction";
-import { packValue, unpackValue } from "@/language/value";
+import { CANVAS_BLOCK_TYPES } from "@/language/core/const";
+import { unpackSubnodeProperty } from "@/language/core/node";
+import { getTransactionOptionsForType, makeEdit } from "@/language/runtime/transaction";
+import { packValue, unpackValue } from "@/language/core/value";
 import { BlockType, FieldType, NodeReferenceData, NodeType, TypeKind, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
@@ -15,8 +15,8 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Text from "@/views/content/Text.vue";
 import FieldList from "@/views/objects/FieldList.vue";
-import Database from "@/views/subnodes/Database.vue";
-import Flow from "@/views/subnodes/Flow.vue";
+import Database from "@/views/nodes/Database.vue";
+import Flow from "@/views/nodes/Flow.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<

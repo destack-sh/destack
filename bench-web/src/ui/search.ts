@@ -1,4 +1,4 @@
-import { blockToType } from "@/language/block";
+import { blockToType } from "@/language/source/block";
 import {
   isBenchNodeType,
   isEnumType,
@@ -6,11 +6,11 @@ import {
   isResourceNodeType,
   isStructType,
   isUnloadedNodeType,
-} from "@/language/const";
-import { ENUM_OPTIONS_BY_VALUE, EnumOption, getEnumOption, getEnumOptions } from "@/language/enum";
-import { makeExpression } from "@/language/expression";
-import { getSubtypeEnum, makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/field";
-import type { NodeSuperGraph, ReadNodeGraph, TypedNodeKey } from "@/language/graph";
+} from "@/language/core/const";
+import { ENUM_OPTIONS_BY_VALUE, EnumOption, getEnumOption, getEnumOptions } from "@/language/core/enum";
+import { makeExpression } from "@/language/core/expression";
+import { getSubtypeEnum, makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/core/type";
+import type { NodeSuperGraph, ReadNodeGraph, TypedNodeKey } from "@/language/core/graph";
 import {
   ActionType,
   BenchType,
@@ -41,7 +41,7 @@ import {
   RemoteSearchConnection,
   SearchConnectionParams,
 } from "@/system/connection";
-import { supergraph } from "@/system/globals";
+import { supergraph } from "@/globals";
 import { benchGraph, pkgGraph } from "@/system/space";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, isActionEnabled, type Action } from "@/ui/action";
 import {

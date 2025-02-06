@@ -1,6 +1,6 @@
-import { ReadNodeGraph } from "@/language/graph";
-import { moveNodes } from "@/language/node";
-import { Transaction } from "@/language/transaction";
+import { ReadNodeGraph } from "@/language/core/graph";
+import { moveNodes } from "@/language/core/node";
+import { Transaction } from "@/language/runtime/transaction";
 import { NodeTypeMapping, ObjectType, PROPERTY_ENUM_BY_TYPE, ViewData } from "@/proto/wire";
 
 import { NodeType } from "@/proto/wire";

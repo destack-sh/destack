@@ -8,11 +8,9 @@ import {
   isSourceNode,
   SOURCE_NODE_TYPES,
   toCamelName,
-} from "@/language/const";
-import { useComputedValues } from "@/language/expression";
+} from "@/language/core/const";
+import { useComputedValues } from "@/language/core/expression";
 import {
-  createField,
-  getFieldTypeUpdate,
   getPropertyType,
   getStorageKey,
   getTypeName,
@@ -20,17 +18,17 @@ import {
   makeTypeConstraint,
   TypeIdentity,
   typeIsNumeric,
-} from "@/language/field";
-import { ReadNodeGraph } from "@/language/graph";
-import { generateNodeName, packSubnode, unpackSubnode } from "@/language/node";
-import { getPathKey, makePath } from "@/language/path";
+} from "@/language/core/type";
+import { ReadNodeGraph } from "@/language/core/graph";
+import { generateNodeName, packSubnode, unpackSubnode } from "@/language/core/node";
+import { getPathKey, makePath } from "@/language/core/path";
 import {
   getTransactionOptionsForType,
   makeEditFromSubnode,
   Transaction,
   TransactionOptions,
-} from "@/language/transaction";
-import { getPartialObjectType, packValue, unpackPartialNode, unpackValue } from "@/language/value";
+} from "@/language/runtime/transaction";
+import { getPartialObjectType, packValue, unpackPartialNode, unpackValue } from "@/language/core/value";
 import {
   ActionData,
   ActionProperty,
@@ -87,7 +85,7 @@ import {
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { canvas, supergraph } from "@/system/globals";
+import { canvas, supergraph } from "@/globals";
 import { getNodeName, ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
 import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
@@ -95,6 +93,7 @@ import { assertNever } from "@/utils/functools";
 import { computedValue } from "@/utils/ref";
 import { ModelValueOptions, ViewProps } from "@/views/common";
 import { computed, Ref } from "vue";
+import { createField, getFieldTypeUpdate } from "@/language/source/field";
 
 export type ObjectAction = {
   title: string;

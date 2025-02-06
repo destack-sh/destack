@@ -5,14 +5,14 @@ import {
   isRuntimeNodeType,
   RESOURCE_NODE_TYPES,
   RUNTIME_NODE_TYPES,
-} from "@/language/const";
-import { ReadNodeGraph } from "@/language/graph";
+} from "@/language/core/const";
+import { ReadNodeGraph } from "@/language/core/graph";
 import { NodeType, NodeTypeMapping, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { isDeveloperMode } from "@/system/client";
 import type { ConnectionBase } from "@/system/connection";
-import { canvas, space, supergraph } from "@/system/globals";
-import { makeIcon } from "@/ui/icon";
+import { canvas, space, supergraph } from "@/globals";
+import { ICON_BY_NODE_TYPE, makeIcon } from "@/ui/icon";
 import { keytrap, type KeySignature } from "@/ui/keymap";
 import { toaster } from "@/ui/toast";
 import { collectViewComponentsUp } from "@/ui/view";
@@ -583,10 +583,7 @@ export const RESOURCE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   // "resource.status.suspend", // (not supported yet)
   "resource.status.decommission",
 ];
-export const MESSAGE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
-  "chat.message.reply",
-  "chat.message.edit",
-];
+export const MESSAGE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["chat.message.reply", "chat.message.edit"];
 
 export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]>> = {
   [NodeType.BLOCK]: BLOCK_CONTEXT_ACTIONS,
@@ -621,3 +618,111 @@ export function getNodeActions(node: AnyNodeData): Action[] {
   }
   return actions.map(getAction);
 }
+
+//
+// Flow
+//
+
+// flow
+declareActions<"flow">({
+  "flow.edit.createAction": {
+    icon: ICON_BY_NODE_TYPE[NodeType.ACTION],
+    title: "Create Action",
+    text: "Create a new action",
+  },
+  "flow.edit.splitPipe": {
+    icon: "fas fa-scissors",
+    title: "Split Pipe",
+    text: "Split this pipe",
+  },
+});
+
+//
+// Code
+//
+
+declareActions<"code">({
+  // edit
+  "code.edit.format": {
+    icon: "fas fa-code",
+    title: "Format",
+    text: "Reformat the code",
+    shortcuts: ["mod+alt+l"],
+  },
+  "code.edit.comment": {
+    icon: "fas fa-code",
+    title: "Comment",
+    text: "Comment/uncomment these lines",
+    shortcuts: ["ctrl+t"],
+  },
+});
+
+//
+// Text
+//
+
+declareActions<"text">({
+  // format
+  "text.format.bold": {
+    type: "toggle",
+    icon: "fas fa-bold",
+    title: "Bold",
+    text: "Bold text",
+    shortcuts: ["mod+b"],
+  },
+  "text.format.italic": {
+    type: "toggle",
+    icon: "fas fa-italic",
+    title: "Italic",
+    text: "Italicize text",
+    shortcuts: ["mod+i"],
+  },
+  "text.format.strikethrough": {
+    type: "toggle",
+    icon: "fas fa-strikethrough",
+    title: "Strikethrough",
+    text: "Strikethrough text",
+  },
+  "text.format.underline": {
+    type: "toggle",
+    icon: "fas fa-underline",
+    title: "Underline",
+    text: "Underline text",
+    shortcuts: ["mod+u"],
+  },
+  "text.format.code": {
+    type: "toggle",
+    icon: "fas fa-code",
+    title: "Code",
+    text: "Code text",
+  },
+  // edit
+  "text.edit.hardBreak": {
+    icon: "fas fa-arrow-down",
+    title: "Hard Break",
+    text: "Insert a hard break",
+    shortcuts: ["shift+enter"],
+  },
+});
+
+//
+// Chat
+//
+
+declareActions<"chat">({
+  "chat.message.reply": {
+    title: "Reply",
+    text: "Reply to the Message",
+    icon: "fas fa-reply",
+  },
+  "chat.message.forward": {
+    title: "Forward",
+    text: "Forward the Message",
+    icon: "fas fa-share",
+  },
+  "chat.message.edit": {
+    title: "Edit",
+    text: "Edit the Message",
+    icon: "fas fa-pencil",
+  },
+});

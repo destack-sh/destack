@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { makeType } from "@/language/field";
+import { makeType } from "@/language/core/type";
 import { BenchType, NodeReferenceData, Region, UserStatus, ViewData } from "@/proto/wire/";
 import { toNodeRef } from "@/proto/wiring";
 import { canvas, goToBench } from "@/system/space";

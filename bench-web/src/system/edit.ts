@@ -1,5 +1,5 @@
-import { toCamelName } from "@/language/const";
-import type { ReadNodeGraph } from "@/language/graph";
+import { toCamelName } from "@/language/core/const";
+import type { ReadNodeGraph } from "@/language/core/graph";
 import {
   getTransactionBuffer,
   newChangeId,
@@ -7,7 +7,7 @@ import {
   txBuffers,
   type ChangeIn,
   type TransactionBuffer,
-} from "@/language/transaction";
+} from "@/language/runtime/transaction";
 import {
   ChangeCategory,
   EditData,
@@ -19,7 +19,7 @@ import {
   ViewData,
 } from "@/proto/wire";
 import { EMPTY_SCOPE, describeEdit } from "@/proto/wiring";
-import { canvas } from "@/system/globals";
+import { canvas } from "@/globals";
 import { provideActions } from "@/ui/action";
 import { assertNever } from "@/utils/functools";
 import { log } from "@/utils/log";

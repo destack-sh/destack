@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { DYNAMIC_ACTION_TYPES, getBaseFromNode, toCamelName } from "@/language/const";
-import { ReadNodeGraph } from "@/language/graph";
+import { getBaseFromNode, toCamelName } from "@/language/core/const";
+import { ReadNodeGraph } from "@/language/core/graph";
 import {
   getRunDurationMs,
   getRunDurationString,
@@ -10,16 +10,16 @@ import {
   isRunInterrupted,
   isRunTerminal,
   RunnableNode,
-} from "@/language/run";
-import { unpackBuiltinObjectProperty, unpackValue } from "@/language/value";
+} from "@/language/runtime/run";
 import {
+  ActionData,
+  ActionType,
   AnyNodeData,
   ColorShade,
   ColorType,
   IconData,
   InterruptionData,
   InterruptionStatus,
-  Severity,
   NodeReferenceData,
   NodeType,
   Orientation,
@@ -27,13 +27,11 @@ import {
   RunSpanData,
   RunSpanType,
   RunStatus,
-  ViewData,
-  ActionProperty,
-  ActionData,
-  ActionType,
+  Severity,
+  ViewData
 } from "@/proto/wire";
-import { describeNode, isNode, propertyInfo, TypedNodeReferenceData } from "@/proto/wiring";
-import { getInputType, getOutputType, getRunActions, runtime, RunTree } from "@/system/runtime";
+import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
+import { getInputType, getOutputType, getRunActions, runtime, RunTree } from "@/runtime/runtime";
 import { canvas } from "@/system/space";
 import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_SPAN_TYPE, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { COLOR_BY_RUN_STATUS, getColorHex, getRunColorHex } from "@/ui/style";

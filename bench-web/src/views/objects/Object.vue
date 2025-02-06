@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { isSourceNode, toCamelName } from "@/language/const";
-import { useSubnodeProperty } from "@/language/node";
+import { isSourceNode, toCamelName } from "@/language/core/const";
+import { useSubnodeProperty } from "@/language/core/node";
 import { ComputedValueData, NodeType, Orientation, PathData, TypeData, ViewData, ViewType } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";

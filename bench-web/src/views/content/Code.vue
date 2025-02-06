@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { mapCodeToCmDoc, mapPmDocToCode } from "@/language/code";
+import { mapCodeToCmDoc, mapPmDocToCode } from "@/language/core/code";
 import { CodeData, NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";

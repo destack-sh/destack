@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { STRING_TYPE, typeIsNumeric } from "@/language/field";
-import { checkValueScalar, checkValueScalarConstraint } from "@/language/value";
+import { STRING_TYPE, typeIsNumeric } from "@/language/core/type";
+import { checkValueScalar, checkValueScalarConstraint } from "@/language/core/value";
 import { Alignment, ColorShade, NodeType, PrimitiveType, ViewType, type ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
@@ -11,7 +11,7 @@ import { useElementSize } from "@vueuse/core";
 import { computed, Ref, ref, toRef, watch } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; placeholder?: string, ariaHidden?: boolean } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; placeholder?: string; ariaHidden?: boolean } & Partial<
     Partial<
       Pick<
         ViewData,

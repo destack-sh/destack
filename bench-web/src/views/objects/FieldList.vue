@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
-import { createField, useFieldList } from "@/language/field";
+import { toCamelName } from "@/language/core/const";
+import { createField, useFieldList } from "@/language/source/field";
 import { FieldType, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";

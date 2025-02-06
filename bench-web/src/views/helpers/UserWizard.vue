@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { makeType } from "@/language/field";
-import { packSubnode, useSubnode } from "@/language/node";
-import { makeEdit } from "@/language/transaction";
+import { makeType } from "@/language/core/type";
+import { packSubnode, useSubnode } from "@/language/core/node";
+import { makeEdit } from "@/language/runtime/transaction";
 import {
   BenchType,
   ButtonVariant,

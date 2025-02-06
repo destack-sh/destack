@@ -48,12 +48,12 @@ import type { FunctionalComponent } from "vue";
 //  | jq 'to_entries | map(select(.value.free | index("s@olid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, aliases: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
 //  > fa-icons.json
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
-import { BASED_NODE_TYPES, getBaseFromNode } from "@/language/const";
-import type { TypeIdentity } from "@/language/field";
-import { unpackSubnodeProperty } from "@/language/node";
-import { unpackPartialNode } from "@/language/value";
+import { BASED_NODE_TYPES, getBaseFromNode } from "@/language/core/const";
+import type { TypeIdentity } from "@/language/core/type";
+import { unpackSubnodeProperty } from "@/language/core/node";
+import { unpackPartialNode } from "@/language/core/value";
 import { isNode } from "@/proto/wiring";
-import { supergraph } from "@/system/globals";
+import { supergraph } from "@/globals";
 import { getColorHex, makeColor } from "@/ui/style";
 import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 
@@ -248,7 +248,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   // source
   [NodeType.PACKAGE]: "fas fa-box-open",
   [NodeType.DEPENDENCY]: "fas fa-turn-down-right",
-  [NodeType.PAGE]: "fas fa-page",
+  [NodeType.PAGE]: "fas fa-memo",
   [NodeType.BLOCK]: "fas fa-cube",
   [NodeType.CHOICE]: "fas fa-circle-chevron-down",
   [NodeType.CLASS]: "fas fa-shapes",

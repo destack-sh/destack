@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import { cloneNode } from "@/language/node";
-import { newChangeId } from "@/language/transaction";
+import { cloneNode } from "@/language/core/node";
+import { newChangeId } from "@/language/runtime/transaction";
 import { NodeType, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { supergraph } from "@/system/globals";
+import { supergraph } from "@/globals";
 import { canvas, spaceGraph } from "@/system/space";
 import { type Action, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";

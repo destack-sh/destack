@@ -1,14 +1,11 @@
-import { isEnumType, isNodeType } from "@/language/const";
-import { getEnumOptions } from "@/language/enum";
-import { getStorageKey, makeType, type TypeIdentity } from "@/language/field";
-import type { ReadNodeGraph } from "@/language/graph";
-import { packSubnode } from "@/language/node";
+import { isEnumType, isNodeType } from "@/language/core/const";
+import { getEnumOptions } from "@/language/core/enum";
+import { packSubnode } from "@/language/core/node";
+import { makeType, type TypeIdentity } from "@/language/core/type";
 import {
   Alignment,
   Anchor,
   BenchType,
-  FieldData,
-  FieldType,
   FileType,
   NodeReferenceData,
   NodeType,
@@ -26,10 +23,9 @@ import {
   Vector4Data,
   ViewData,
   ViewType,
-  type AnyNodeData,
+  type AnyNodeData
 } from "@/proto/wire";
 import { isNodeRef, makeStruct, toNodeRef, typeNodeReferenceMaybe, type TypedNodeReferenceData } from "@/proto/wiring";
-import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
 import { isFocusableElement } from "@/utils/element";
 import { getViewTypeByComponentName, type ViewComponent, type ViewProps } from "@/views/common";
 import type { MaybeElement } from "@vueuse/core";
