@@ -176,7 +176,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         v-bind="state.getChildState('database')"
         :node-ptr="props.nodePtr"
         is-minimal
-        :containerGutterWidth="containerGutterWidth"
+        :container-gutter-width="containerGutterWidth"
         is-input
       />
     </div>

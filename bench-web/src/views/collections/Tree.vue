@@ -1,23 +1,19 @@
 <script lang="ts" setup>
-import { createBlock } from "@/language/source/block";
-import { CANVAS_BLOCK_TYPES, INLINE_SOURCE_NODE_TYPES, toCamelName } from "@/language/core/const";
-import { makeType } from "@/language/core/type";
+import { INLINE_SOURCE_NODE_TYPES, toCamelName } from "@/language/core/const";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/core/graph";
-import { cloneNode, moveNode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/core/node";
+import { cloneNode, moveNode, useSubnodeProperty } from "@/language/core/node";
 import { newChangeId } from "@/language/runtime/transaction";
+import { createPage } from "@/language/source/page";
 import {
-  BenchType,
-  BlockData,
   BlockType,
   CHILD_NODE_TYPES,
   NodeReferenceData,
   NodeType,
-  ObjectType,
   Orientation,
   TreeViewPreset,
   ViewData,
   ViewType,
-  type AnyNodeData,
+  type AnyNodeData
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
@@ -33,7 +29,6 @@ import {
 } from "@/ui/drag";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
-import { PopoverInfoIn } from "@/ui/popover";
 import { highlightMatches } from "@/ui/search";
 import { VIEW_DEFAULT_HEADER_HEIGHT, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
@@ -44,7 +39,6 @@ import Scroll from "@/views/containers/Scroll.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { useElementSize } from "@vueuse/core";
 import { computed, ref, toRef, watch, type Ref } from "vue";
-import { createPage } from "@/language/source/page";
 
 const DEPTH_OFFSET = 16;
 const ITEM_HEIGHT = 28;
@@ -68,28 +62,21 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const preset = useSubnodeProperty(NodeType.VIEW, ViewType.TREE, toRef(props, "subnodePacked"), "preset");
-const filterIsPage = computed(() => {
-  if (preset.value == TreeViewPreset.EXPLORE) {
-    return true;
-  } else if (preset.value == TreeViewPreset.OUTLINE) {
-    return false;
-  } else {
-    return unpackSubnodeProperty(NodeType.VIEW, ViewType.TREE, props.subnodePacked, "filterIsPage");
-  }
-});
-const inspectedNodeTypes = computed(() => {
-  if (preset.value == TreeViewPreset.EXPLORE) {
+const nodeTypes = computed(() => {
+  if (preset.value == TreeViewPreset.PAGES) {
     return [NodeType.PAGE];
+  } else if (preset.value == TreeViewPreset.CHANNELS) {
+    return [NodeType.CHANNEL];
   } else if (preset.value == TreeViewPreset.OUTLINE) {
     return [...INLINE_SOURCE_NODE_TYPES];
   } else {
-    return unpackSubnodeProperty(NodeType.VIEW, ViewType.TREE, props.subnodePacked, "nodeTypes");
+    return [];
   }
 });
 const rootPtr = computedValue(() => {
   if (props.nodePtr != null) {
     return props.nodePtr;
-  } else if (preset.value == TreeViewPreset.EXPLORE) {
+  } else if (preset.value == TreeViewPreset.PAGES || preset.value == TreeViewPreset.CHANNELS) {
     return packagePtr.value;
   } else if (preset.value == TreeViewPreset.OUTLINE) {
     return inspectionBasePtr.value;
@@ -98,7 +85,7 @@ const rootPtr = computedValue(() => {
   }
 });
 const focusPtr = computedValue(() => {
-  if (preset.value == TreeViewPreset.EXPLORE) {
+  if (preset.value == TreeViewPreset.PAGES || preset.value == TreeViewPreset.CHANNELS) {
     return inspectionBasePtr.value;
   } else if (preset.value == TreeViewPreset.OUTLINE) {
     return inspectionPtr.value;
@@ -139,35 +126,19 @@ function toggleExpanded(node: AnyNodeData | NodeReferenceData) {
   );
 }
 
-function isIncludedSelf(node: AnyNodeData) {
-  if (filterIsPage.value) {
-    if (isNode(node, NodeType.BLOCK)) {
-      return node.type == BlockType.PAGE || CANVAS_BLOCK_TYPES.includes(node.type);
-    } else {
-      return true;
-    }
-  } else {
-    return !isNode(node, NodeType.BLOCK) || node.type != BlockType.PARAGRAPH;
-  }
+function includes(node: AnyNodeData) {
+  return true;
 }
-function isIncludedChildren(node: AnyNodeData) {
-  if (filterIsPage.value) {
-    return true;
-  } else if (filterIsPage.value === false) {
-    // don't descend into pages for outline
-    if (node.metatype == ObjectType.BLOCK) return (node as BlockData).type != BlockType.PAGE;
-    else return true;
-  } else {
-    return true; // include everything
-  }
+function includesChildren(node: AnyNodeData) {
+  return true; // include everything
 }
 const { items: expandedItems } = walkDescendantsRef({
   graph: graph,
   rootPtr,
-  nodeTypes: inspectedNodeTypes,
+  nodeTypes: nodeTypes,
   isExpanded,
-  isIncludedSelf,
-  isIncludedChildren,
+  includes,
+  includesChildren,
   watchSource: () => [props.focus, expandedNodesPtr.value],
 });
 const expandedNodesRefs: Ref<Record<string, HTMLElement>> = ref({});
@@ -270,7 +241,7 @@ const { activeDropZone } = useMultiDropZone({
   hasCenterAnchor: true,
   fallbackToClosest: true,
   kinds: ["node", "selection"],
-  metatypes: inspectedNodeTypes,
+  metatypes: nodeTypes,
   allowDrop: (dragged, anchor, targetId) => {
     if (dragged.kind != "node" && dragged.kind != "selection") return false;
     return dragged.nodes.every((node) => {
@@ -443,7 +414,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           <!-- Metadata -->
           <NodeMetadata class="ml-1.5" size="regular" :node="node" />
           <!-- Meta -->
-          <div class="ml-auto flex flex-row gap-x-1 pl-3 pr-[3px]">
+          <div class="ml-auto flex flex-row gap-x-1 pl-3 pr-[7px]">
             <!-- Create inside -->
             <button
               v-if="isNode(node, NodeType.PAGE)"

@@ -1280,14 +1280,14 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
   rootPtr: Ref<NodeKey<any> | null | undefined>;
   nodeTypes: Ref<T[]>;
   isExpanded: (node: NodeTypeMapping[T]) => boolean;
-  isIncludedSelf: (node: NodeTypeMapping[T]) => boolean;
-  isIncludedChildren: (node: NodeTypeMapping[T]) => boolean;
+  includes: (node: NodeTypeMapping[T]) => boolean;
+  includesChildren: (node: NodeTypeMapping[T]) => boolean;
   watchSource?: WatchSource<any>;
 }): { items: Ref<NodeTreeItem<T>[]>; trigger: () => void } {
   type NodeT = NodeTypeMapping[T];
   type ItemT = NodeTreeItem<T>;
 
-  const { graph, rootPtr, nodeTypes, isExpanded, isIncludedSelf, isIncludedChildren } = walk;
+  const { graph, rootPtr, nodeTypes, isExpanded, includes, includesChildren } = walk;
 
   const subs: Array<() => void> = [];
   const unsub = () => {
@@ -1302,7 +1302,7 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
     const items: ItemT[] = [];
     function walkDescendants(node: NodeT, depth: number) {
       // make item
-      const children = nodeTypes.value.flatMap((nodeType) => graph.getChildren(node, nodeType)).filter(isIncludedSelf);
+      const children = nodeTypes.value.flatMap((nodeType) => graph.getChildren(node, nodeType)).filter(includes);
       const item: ItemT = {
         id: node.id,
         node,
@@ -1319,7 +1319,7 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
       );
       if (depth < 0 || isExpanded(node)) {
         children.forEach((child) => {
-          if (isIncludedChildren(child)) walkDescendants(child, depth + 1);
+          if (includesChildren(child)) walkDescendants(child, depth + 1);
           else
             items.push({
               id: child.id,

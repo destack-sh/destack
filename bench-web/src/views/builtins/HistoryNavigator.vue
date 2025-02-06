@@ -8,7 +8,7 @@ import { computed, inject } from "vue";
 const props = defineProps<{
   self: TypedNodeReferenceData<NodeType.VIEW> | undefined;
 }>();
-const history = inject<HistoryState | null>(HISTORY_STATE_KEY);
+const history = inject<HistoryState | null>(HISTORY_STATE_KEY, null);
 const isActive = computed(() => history?.focusedView?.value?.id == props.self?.id);
 
 defineExpose({

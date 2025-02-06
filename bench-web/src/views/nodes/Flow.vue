@@ -1,7 +1,6 @@
 <script lang="ts" setup>
-import { SOURCE_ACTION_TYPES } from "@/language/core/const";
-import { makeType } from "@/language/core/type";
 import { packSubnode } from "@/language/core/node";
+import { makeType } from "@/language/core/type";
 import { newChangeId } from "@/language/runtime/transaction";
 import {
   ActionData,
@@ -20,6 +19,9 @@ import {
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
+import { canvas, spaceGraph } from "@/system/space";
+import { ACTION_CONTEXT_ACTIONS, PIPE_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
+import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import {
   ACTION_SIZE,
   ACTION_SIZE_HALF,
@@ -32,15 +34,11 @@ import {
   PipePath,
   SELF_PIPE_CONNECTION_DISTANCE,
 } from "@/ui/flow";
-import { canvas, spaceGraph } from "@/system/space";
-import { ACTION_CONTEXT_ACTIONS, PIPE_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
-import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { PopoverInfoIn } from "@/ui/popover";
-import { lengthVector2, subVector2, VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
-import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
+import { lengthVector2, subVector2, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import NodePath from "@/views/builtins/NodePath.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
+import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
@@ -54,9 +52,12 @@ const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const GUTTER_WIDTH = 60;
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
-    Pick<ViewData, "icon" | "nodePtr" | "focus" | "transform" | "isMinimal">
-  >
+  {
+    self?: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
+    preparedConnection?: PreparedGetConnection;
+    isRoot?: boolean;
+  } & Partial<Pick<ViewData, "icon" | "nodePtr" | "focus" | "transform" | "isMinimal">>
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -68,7 +69,6 @@ const preparedConnection = props.preparedConnection ?? useExistingConnection(nod
 const { graph, connection } = preparedConnection;
 
 const containerRef = ref<HTMLElement | null>(null);
-const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const headerRef: Ref<HTMLElement | null> = ref(null);
 const bodyRef: Ref<HTMLElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
@@ -285,22 +285,8 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
     data-contextmenu-items="flow.edit.create*"
     @mousedown="(e) => startSelectingIfAllowed(selectionZoneContainer, e)"
   >
-    <!-- Meta header -->
-    <div
-      v-if="!isMinimal"
-      data-keep-inspection-in-base-view="true"
-      class="group flex w-full max-w-full flex-row items-center px-2"
-      :style="{ height: (historyRef?.isActive ? VIEW_DEFAULT_BAR_HEADER_HEIGHT : HEADER_HEIGHT) + 'px' }"
-    >
-      <!-- History -->
-      <HistoryNavigator ref="historyRef" :self="self" />
-      <!-- Breadcrumb -->
-      <NodePath :container="nodePtr" :self="nodePtr" :focus="props.focus?.nodesPtr[0]" :graph="graph" />
-      <!-- Meta & Controls -->
-      <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
-        <!-- ... -->
-      </div>
-    </div>
+    <!-- Root header -->
+    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="props.focus" :graph="graph" />
     <!-- Header -->
     <div
       v-if="flow && !isMinimal"

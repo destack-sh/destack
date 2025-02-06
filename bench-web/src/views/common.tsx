@@ -1,12 +1,4 @@
-// TODO :Architecture: figure out proper all-encompassing event system/bus
-
-import {
-  FieldData,
-  ViewData,
-  ViewType,
-  type NodeReferenceData,
-  type NodeType
-} from "@/proto/wire";
+import { FieldData, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/ui/action";
 import { Casing, toCasing } from "@/utils/string";
@@ -17,6 +9,7 @@ export type ViewProps = {
   modelValue?: any;
   placeholder?: string;
   isPopover?: boolean;
+  isRoot?: boolean;
 } & Partial<Omit<ViewData, "metatype" | "ck">>;
 export type ViewComponent = {
   new (): ComponentInstance<any>;

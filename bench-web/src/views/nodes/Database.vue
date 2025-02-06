@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import { blockToType } from "@/language/source/block";
 import { getPropertyName, getPropertyTitle } from "@/language/core/const";
 import { makeAndConditional, makeExpression } from "@/language/core/expression";
-import { getPropertyType, getStorageKey, makeType, NAME_TYPE, TypeIdentity } from "@/language/core/type";
 import { moveNode, packSubnode } from "@/language/core/node";
+import { getPropertyType, getStorageKey, makeType, NAME_TYPE, TypeIdentity } from "@/language/core/type";
+import { packValue, unpackValue } from "@/language/core/value";
 import {
   DebounceLevel,
   getTransactionOptionsForType,
@@ -11,7 +11,8 @@ import {
   Transaction,
   TransactionOptions,
 } from "@/language/runtime/transaction";
-import { packValue, unpackValue } from "@/language/core/value";
+import { blockToType } from "@/language/source/block";
+import { createField } from "@/language/source/field";
 import {
   BenchType,
   EditOperationData,
@@ -63,14 +64,14 @@ import {
   expandSelection,
   focusInElement,
   getViewForType,
-  VIEW_DEFAULT_BAR_HEADER_HEIGHT,
   VIEW_DEFAULT_HEADER_HEIGHT,
+  VIEW_DEFAULT_ROOT_HEADER_HEIGHT,
 } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import NodePath from "@/views/builtins/NodePath.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
+import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -79,7 +80,6 @@ import NativeInput from "@/views/content/NativeInput.vue";
 import { getViewComponent } from "@/views/registry";
 import { MaybeElement, useElementSize, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
-import { createField } from "@/language/source/field";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -95,6 +95,7 @@ const props = defineProps<
     paddingX?: number;
     paddingY?: number;
     containerGutterWidth?: number;
+    isRoot?: boolean;
   } & Partial<Pick<ViewData, "focus" | "icon" | "nodePtr" | "isInput" | "isMinimal">>
 >();
 const emit = defineEmits(viewEmits());
@@ -200,7 +201,6 @@ const cellWrapperRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const cellComponentRefs: Ref<Record<string, ViewExposed>> = ref({});
 const shiftKey = useKeyModifier("Shift");
 
-const metaHeaderHeight = computed(() => (historyRef?.value?.isActive ? VIEW_DEFAULT_BAR_HEADER_HEIGHT : HEADER_HEIGHT));
 const headerSize = useElementSize(headerRef);
 const containerSize = useElementSize(containerRef);
 const rowWidth = computed(() => {
@@ -572,22 +572,8 @@ defineExpose<ViewExposed>({ self, id, actions });
     }"
     @mousedown="(e) => startSelectingIfAllowed(selectionZoneContainer, e)"
   >
-    <!-- Meta header -->
-    <div
-      v-if="!isMinimal"
-      data-keep-inspection-in-base-view="true"
-      class="group flex w-full max-w-full flex-row items-center px-2"
-      :style="{ height: metaHeaderHeight + 'px' }"
-    >
-      <!-- History -->
-      <HistoryNavigator ref="historyRef" :self="self" />
-      <!-- Breadcrumb -->
-      <NodePath :container="nodePtr" :self="nodePtr" :focus="props.focus?.nodesPtr[0]" :graph="graph" />
-      <!-- Meta & Controls -->
-      <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
-        <!-- ... -->
-      </div>
-    </div>
+    <!-- Root header -->
+    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="props.focus" :graph="graph" />
 
     <!-- Header -->
     <div
@@ -758,7 +744,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0)}px`
             : `${containerGutterWidth ?? 0}px`,
           minHeight: !isMinimal
-            ? `${bodySize.height - headerSize.height.value - metaHeaderHeight - ACTION_HEADER_HEIGHT - 30}px`
+            ? `${bodySize.height - headerSize.height.value - (isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0) - ACTION_HEADER_HEIGHT - 30}px`
             : undefined,
         }"
       >

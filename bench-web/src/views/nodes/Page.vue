@@ -36,20 +36,20 @@ import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { useNodeListActions } from "@/ui/list";
 import { pushDefaultMenu, type PopoverInfoIn } from "@/ui/popover";
-import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { blurDocument } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
+import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/nodes/Block.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
-const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 60;
@@ -60,6 +60,7 @@ const props = defineProps<
     self: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     size: Required<Pick<RectangleData, "width" | "height">>;
+    isRoot?: boolean;
   } & Pick<ViewData, "name" | "icon" | "nodePtr" | "focus" | "isMinimal" | "selection">
 >();
 const emit = defineEmits(viewEmits());
@@ -73,7 +74,6 @@ const { graph, connection } = preparedConnection;
 const page = graph.getRef(nodePtr) as Ref<PageData | undefined>;
 const blocks = graph.getChildrenRef(nodePtr, NodeType.BLOCK);
 
-const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const blockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
 const contentRef = ref<HTMLElement | null>(null);
@@ -240,33 +240,23 @@ defineExpose<ViewExposed>({ self, actions, focus });
 </script>
 <template>
   <div class="flex w-full select-none flex-col bg-white text-gray-900" :class="[page ? '' : 'h-full']">
-    <!-- Meta header -->
-    <div
-      data-keep-inspection-in-base-view="true"
-      class="group flex w-full max-w-full flex-row items-center px-2"
-      :style="{ height: (historyRef?.isActive ? VIEW_DEFAULT_BAR_HEADER_HEIGHT : HEADER_HEIGHT) + 'px' }"
-    >
-      <!-- History -->
-      <HistoryNavigator ref="historyRef" :self="self" />
-      <!-- Breadcrumb -->
-      <NodePath v-if="nodePtr" :container="nodePtr" :focus="$props.focus?.nodesPtr[0]" :self="nodePtr" :graph="graph" />
-      <!-- Meta & Controls -->
-      <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
+    <!-- Root header -->
+    <RootHeader v-if="!isMinimal && isRoot" :self="self" :node-ptr="nodePtr" :focus="props.focus" :graph="graph">
+      <template #meta>
         <button
           class="text-gray-400 hover:bg-gray-100 hover:text-gray-700"
           @click="(e) => pushDefaultMenu('main', page!, e)"
         >
           <i class="fas fa-ellipsis-vertical w-5 text-center" />
         </button>
-      </div>
-    </div>
-
+      </template>
+    </RootHeader>
     <!-- Page content -->
     <Scroll
       v-if="page"
       id="body"
       data-contextmenu-items="list.create.above,list.create.below,space.edit.paste"
-      :size="{ width: size.width, height: size.height - HEADER_HEIGHT }"
+      :size="{ width: size.width, height: size.height - (isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0) }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
       track-is-overlay
@@ -362,7 +352,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :class="isDragging(block) ? 'opacity-50' : ''"
               :node-ptr="toNodeRef(block)"
               :prepared-connection="preparedConnection"
-              :containerGutterWidth="widths.gutter"
+              :container-gutter-width="widths.gutter"
               v-bind="state.getChildState(block.id)"
               :data-contextmenu-items="BLOCK_CONTEXT_ACTIONS.join(',')"
               :draggable="block.type == BlockType.PAGE"

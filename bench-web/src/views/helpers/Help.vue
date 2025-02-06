@@ -8,7 +8,7 @@ import { supergraph } from "@/system/connection";
 import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/runtime/runtime";
 import { canvas, inspectionPtr } from "@/system/space";
 import { IconInline, makeIcon } from "@/ui/icon";
-import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
@@ -21,7 +21,7 @@ import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import Chat from "@/views/helpers/Chat.vue";
 
-const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
+const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const FOOTER_HEIGHT = 0;
 
@@ -56,7 +56,6 @@ const selfRun: Ref<RunData | null> = computed(() => {
     return null;
   }
 });
-const runBasePtr = computed(() => (containingRun.value != null ? getBaseFromNode(containingRun.value) : nodePtr.value));
 function start() {
   if (startRef.value != null) {
     startRef.value.start();
@@ -72,6 +71,12 @@ function setAspect(aspect: HelpAspect) {
   state.update({ metatype: NodeType.VIEW, type: ViewType.HELP, subnode: { aspect } });
 }
 const visibleAspects = [HelpAspect.DETAIL, HelpAspect.RUN, HelpAspect.CHAT];
+function selectAspect(aspect: HelpAspect) {
+  state.update({ metatype: NodeType.VIEW, type: ViewType.HELP, subnode: { aspect } });
+  if (aspect == HelpAspect.CHAT) {
+    nextTick(() => chatRef.value?.focus?.());
+  }
+}
 
 // interaction
 const bodyRef = ref<HTMLElement | null>(null);
@@ -80,6 +85,7 @@ const startRef: Ref<InstanceType<typeof Run> | null> = ref(null);
 const bodyHeight = computed(() => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: bodyRef, overlayEl: selectionOverlayRef });
+const chatRef: Ref<InstanceType<typeof Chat> | null> = ref(null);
 
 defineExpose<ViewExposed>({ self });
 </script>
@@ -145,9 +151,7 @@ defineExpose<ViewExposed>({ self });
         :class="[
           a == aspect ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700',
         ]"
-        @click="
-          state.update({ metatype: NodeType.VIEW, type: ViewType.HELP, subnode: { aspect: a } }, { debounce: 'short' })
-        "
+        @click="selectAspect(a)"
       >
         <span>{{ toCamelName(HelpAspect, a) }} </span>
       </button>

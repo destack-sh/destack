@@ -73,7 +73,7 @@ export const HUMANIZED_OPERATION_STATUS: { [key: string]: string } = {
   RESOURCE_EXHAUSTED: "Bench overloaded",
   UNAVAILABLE: "Bench unavailable",
   NOT_IMPLEMENTED: "Not yet supported",
-  INTERNAL: "Internal Bench error",
+  INTERNAL: "Internal error",
   CANCELLED: "Request cancelled",
   DEADLINE_EXCEEDED: "Request timed out",
 };

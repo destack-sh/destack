@@ -104,7 +104,16 @@ export function makeStruct<T extends StructType>(
 export function makeDefaultObject<T extends ObjectType>(
   data: Partial<Omit<AnyTypeMapping[T], "metatype" | "id">> & { metatype: T },
 ): AnyTypeMapping[T] {
-  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[data.metatype as unknown as ObjectType]!;
+  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[data.metatype]!;
+  // fill in defaults
+  const properties = PROPERTY_INFOS_BY_TYPE[data.metatype]!;
+  const propertiesEnum = PROPERTY_ENUM_BY_TYPE[data.metatype]!;
+  for (const prop of Object.values(properties)) {
+    const propName = propertiesEnum[prop.id];
+    if ((data as any)[propName] == null && prop.default != null) {
+      (data as any)[propName] = prop.default;
+    }
+  }
   const message = messageType.create(data);
   // preserve original value (packed) properties :MagicJsValuePacking
   for (const field of messageType.fields) {

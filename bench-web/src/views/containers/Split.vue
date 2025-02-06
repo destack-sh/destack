@@ -16,6 +16,7 @@ const props = defineProps<
     self: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     size: Required<Pick<RectangleData, "width" | "height">>;
+    isRoot?: boolean;
   } & Pick<ViewData, "type" | "name" | "title" | "icon" | "orientation" | "focus">
 >();
 const emit = defineEmits(viewEmits());
@@ -137,6 +138,7 @@ defineExpose<ViewExposed>({ self, actions });
         <component
           :is="getViewComponent(view.type)"
           v-if="getViewComponent(view.type) != null"
+          :is-root="isRoot"
           v-bind="
             getViewBinding(view, {
               width: isHorizontal && viewIdx > 0 ? width - BORDER_SIZE : width,

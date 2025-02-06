@@ -6111,17 +6111,17 @@ export interface UserWizardViewData {
  */
 export interface ChatViewData {
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData message_text = 100;
+     * @generated from protobuf field: optional symbolx.bench.TextData draft_text = 100;
      */
-    messageText?: TextData;
+    draftText?: TextData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData message_nodes_ptr = 101;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData draft_nodes_ptr = 101;
      */
-    messageNodesPtr: NodeReferenceData[];
+    draftNodesPtr: NodeReferenceData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData message_reply_to_ptr = 102;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData draft_reply_to_ptr = 102;
      */
-    messageReplyToPtr?: NodeReferenceData;
+    draftReplyToPtr?: NodeReferenceData;
 }
 /**
  * A View is a graphical interface in a Bench.
@@ -6171,29 +6171,17 @@ export interface ListViewData {
  */
 export interface TreeViewData {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeType node_types = 100;
+     * @generated from protobuf field: optional symbolx.bench.TreeViewPreset preset = 100;
      */
-    nodeTypes: NodeType[];
+    preset?: TreeViewPreset;
     /**
-     * @generated from protobuf field: optional bool filter_is_page = 101;
-     */
-    filterIsPage?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_default_expanded = 102;
-     */
-    isDefaultExpanded?: boolean;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr = 103;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr = 101;
      */
     expandedNodesPtr: NodeReferenceData[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr = 104;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr = 102;
      */
     collapsedNodesPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TreeViewPreset preset = 110;
-     */
-    preset?: TreeViewPreset;
 }
 /**
  * A View is a graphical interface in a Bench.
@@ -12685,13 +12673,13 @@ export enum SpaceType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: SPACE_TYPE_DESKTOP = 10;
+     * @generated from protobuf enum value: SPACE_TYPE_BROWSER = 10;
      */
-    DESKTOP = 10,
+    BROWSER = 10,
     /**
-     * @generated from protobuf enum value: SPACE_TYPE_BROWSER = 20;
+     * @generated from protobuf enum value: SPACE_TYPE_DESKTOP = 20;
      */
-    BROWSER = 20,
+    DESKTOP = 20,
     /**
      * @generated from protobuf enum value: SPACE_TYPE_MOBILE = 30;
      */
@@ -13563,13 +13551,17 @@ export enum TreeViewPreset {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: TREE_VIEW_PRESET_EXPLORE = 1;
+     * @generated from protobuf enum value: TREE_VIEW_PRESET_PAGES = 1;
      */
-    EXPLORE = 1,
+    PAGES = 1,
     /**
-     * @generated from protobuf enum value: TREE_VIEW_PRESET_OUTLINE = 2;
+     * @generated from protobuf enum value: TREE_VIEW_PRESET_CHANNELS = 2;
      */
-    OUTLINE = 2
+    CHANNELS = 2,
+    /**
+     * @generated from protobuf enum value: TREE_VIEW_PRESET_OUTLINE = 3;
+     */
+    OUTLINE = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.HubAspect
@@ -28898,14 +28890,14 @@ export const UserWizardViewData = new UserWizardViewData$Type();
 class ChatViewData$Type extends MessageType$<ChatViewData> {
     constructor() {
         super("symbolx.bench.ChatViewData", [
-            { no: 100, name: "message_text", kind: "message", T: () => TextData },
-            { no: 101, name: "message_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 102, name: "message_reply_to_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 100, name: "draft_text", kind: "message", T: () => TextData },
+            { no: 101, name: "draft_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 102, name: "draft_reply_to_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ChatViewData>): ChatViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.messageNodesPtr = [];
+        message.draftNodesPtr = [];
         if (value !== undefined)
             reflectionMergePartial<ChatViewData>(this, message, value);
         return message;
@@ -28915,14 +28907,14 @@ class ChatViewData$Type extends MessageType$<ChatViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional symbolx.bench.TextData message_text */ 100:
-                    message.messageText = TextData.internalBinaryRead(reader, reader.uint32(), options, message.messageText);
+                case /* optional symbolx.bench.TextData draft_text */ 100:
+                    message.draftText = TextData.internalBinaryRead(reader, reader.uint32(), options, message.draftText);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData message_nodes_ptr */ 101:
-                    message.messageNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.NodeReferenceData draft_nodes_ptr */ 101:
+                    message.draftNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.NodeReferenceData message_reply_to_ptr */ 102:
-                    message.messageReplyToPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.messageReplyToPtr);
+                case /* optional symbolx.bench.NodeReferenceData draft_reply_to_ptr */ 102:
+                    message.draftReplyToPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.draftReplyToPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -28936,15 +28928,15 @@ class ChatViewData$Type extends MessageType$<ChatViewData> {
         return message;
     }
     internalBinaryWrite(message: ChatViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.TextData message_text = 100; */
-        if (message.messageText)
-            TextData.internalBinaryWrite(message.messageText, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData message_nodes_ptr = 101; */
-        for (let i = 0; i < message.messageNodesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.messageNodesPtr[i], writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData message_reply_to_ptr = 102; */
-        if (message.messageReplyToPtr)
-            NodeReferenceData.internalBinaryWrite(message.messageReplyToPtr, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TextData draft_text = 100; */
+        if (message.draftText)
+            TextData.internalBinaryWrite(message.draftText, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData draft_nodes_ptr = 101; */
+        for (let i = 0; i < message.draftNodesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.draftNodesPtr[i], writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData draft_reply_to_ptr = 102; */
+        if (message.draftReplyToPtr)
+            NodeReferenceData.internalBinaryWrite(message.draftReplyToPtr, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29112,17 +29104,13 @@ export const ListViewData = new ListViewData$Type();
 class TreeViewData$Type extends MessageType$<TreeViewData> {
     constructor() {
         super("symbolx.bench.TreeViewData", [
-            { no: 100, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 101, name: "filter_is_page", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 102, name: "is_default_expanded", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 103, name: "expanded_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 104, name: "collapsed_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 110, name: "preset", kind: "enum", opt: true, T: () => ["symbolx.bench.TreeViewPreset", TreeViewPreset, "TREE_VIEW_PRESET_"] }
+            { no: 100, name: "preset", kind: "enum", opt: true, T: () => ["symbolx.bench.TreeViewPreset", TreeViewPreset, "TREE_VIEW_PRESET_"] },
+            { no: 101, name: "expanded_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 102, name: "collapsed_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<TreeViewData>): TreeViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.nodeTypes = [];
         message.expandedNodesPtr = [];
         message.collapsedNodesPtr = [];
         if (value !== undefined)
@@ -29134,27 +29122,14 @@ class TreeViewData$Type extends MessageType$<TreeViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.NodeType node_types */ 100:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.nodeTypes.push(reader.int32());
-                    else
-                        message.nodeTypes.push(reader.int32());
+                case /* optional symbolx.bench.TreeViewPreset preset */ 100:
+                    message.preset = reader.int32();
                     break;
-                case /* optional bool filter_is_page */ 101:
-                    message.filterIsPage = reader.bool();
-                    break;
-                case /* optional bool is_default_expanded */ 102:
-                    message.isDefaultExpanded = reader.bool();
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr */ 103:
+                case /* repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr */ 101:
                     message.expandedNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr */ 104:
+                case /* repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr */ 102:
                     message.collapsedNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.TreeViewPreset preset */ 110:
-                    message.preset = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -29168,28 +29143,15 @@ class TreeViewData$Type extends MessageType$<TreeViewData> {
         return message;
     }
     internalBinaryWrite(message: TreeViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.NodeType node_types = 100; */
-        if (message.nodeTypes.length) {
-            writer.tag(100, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.nodeTypes.length; i++)
-                writer.int32(message.nodeTypes[i]);
-            writer.join();
-        }
-        /* optional bool filter_is_page = 101; */
-        if (message.filterIsPage !== undefined)
-            writer.tag(101, WireType.Varint).bool(message.filterIsPage);
-        /* optional bool is_default_expanded = 102; */
-        if (message.isDefaultExpanded !== undefined)
-            writer.tag(102, WireType.Varint).bool(message.isDefaultExpanded);
-        /* repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr = 103; */
-        for (let i = 0; i < message.expandedNodesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.expandedNodesPtr[i], writer.tag(103, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr = 104; */
-        for (let i = 0; i < message.collapsedNodesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.collapsedNodesPtr[i], writer.tag(104, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TreeViewPreset preset = 110; */
+        /* optional symbolx.bench.TreeViewPreset preset = 100; */
         if (message.preset !== undefined)
-            writer.tag(110, WireType.Varint).int32(message.preset);
+            writer.tag(100, WireType.Varint).int32(message.preset);
+        /* repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr = 101; */
+        for (let i = 0; i < message.expandedNodesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.expandedNodesPtr[i], writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr = 102; */
+        for (let i = 0; i < message.collapsedNodesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.collapsedNodesPtr[i], writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -33601,9 +33563,9 @@ export enum UserWizardViewProperty {
 }
 
 export enum ChatViewProperty {
-  messageText = 100,
-  messageNodesPtr = 101,
-  messageReplyToPtr = 102,
+  draftText = 100,
+  draftNodesPtr = 101,
+  draftReplyToPtr = 102,
 }
 
 export enum HubViewProperty {
@@ -33621,12 +33583,9 @@ export enum ListViewProperty {
 }
 
 export enum TreeViewProperty {
-  nodeTypes = 100,
-  filterIsPage = 101,
-  isDefaultExpanded = 102,
-  expandedNodesPtr = 103,
-  collapsedNodesPtr = 104,
-  preset = 110,
+  preset = 100,
+  expandedNodesPtr = 101,
+  collapsedNodesPtr = 102,
 }
 
 export enum FeedViewProperty {
@@ -35860,9 +35819,9 @@ export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo
   [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, componentSubtype: 20001, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const ChatViewDataInfo: Record<ChatViewProperty, PropertyInfo> = {
-  [ChatViewProperty.messageText]: { id: 100, name: 'message_text', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ChatViewProperty.messageNodesPtr]: { id: 101, name: 'message_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [ChatViewProperty.messageReplyToPtr]: { id: 102, name: 'message_reply_to_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ChatViewProperty.draftText]: { id: 100, name: 'draft_text', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [ChatViewProperty.draftNodesPtr]: { id: 101, name: 'draft_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [ChatViewProperty.draftReplyToPtr]: { id: 102, name: 'draft_reply_to_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
   [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 20205, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -35876,12 +35835,9 @@ export const ListViewDataInfo: Record<ListViewProperty, PropertyInfo> = {
   [ListViewProperty.sort]: { id: 102, name: 'sort', component: ObjectType.VIEW, componentSubtype: 30300, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
 export const TreeViewDataInfo: Record<TreeViewProperty, PropertyInfo> = {
-  [TreeViewProperty.nodeTypes]: { id: 100, name: 'node_types', component: ObjectType.VIEW, componentSubtype: 30302, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewProperty.filterIsPage]: { id: 101, name: 'filter_is_page', component: ObjectType.VIEW, componentSubtype: 30302, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewProperty.isDefaultExpanded]: { id: 102, name: 'is_default_expanded', component: ObjectType.VIEW, componentSubtype: 30302, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewProperty.expandedNodesPtr]: { id: 103, name: 'expanded_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 30302, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [TreeViewProperty.collapsedNodesPtr]: { id: 104, name: 'collapsed_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 30302, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [TreeViewProperty.preset]: { id: 110, name: 'preset', component: ObjectType.VIEW, componentSubtype: 30302, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewProperty.preset]: { id: 100, name: 'preset', component: ObjectType.VIEW, componentSubtype: 30302, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewProperty.expandedNodesPtr]: { id: 101, name: 'expanded_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 30302, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [TreeViewProperty.collapsedNodesPtr]: { id: 102, name: 'collapsed_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 30302, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
 export const FeedViewDataInfo: Record<FeedViewProperty, PropertyInfo> = {
   [FeedViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, componentSubtype: 30303, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },

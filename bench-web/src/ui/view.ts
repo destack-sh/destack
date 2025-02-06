@@ -32,7 +32,7 @@ import type { MaybeElement } from "@vueuse/core";
 import { type ComponentInstance, type Ref } from "vue";
 
 export const SPACE_DEFAULT_BAR_POSITION = Anchor.TOP;
-export const VIEW_DEFAULT_BAR_HEADER_HEIGHT = 44;
+export const VIEW_DEFAULT_ROOT_HEADER_HEIGHT = 44;
 export const VIEW_DEFAULT_HEADER_HEIGHT = 36;
 export const VIEW_DEFAULT_MIN_WIDTH = 240;
 export const VIEW_DEFAULT_MAX_WIDTH = 800;

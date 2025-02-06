@@ -1556,8 +1556,8 @@ class ToolFilter(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class SpaceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SPACE_TYPE_UNSPECIFIED: _ClassVar[SpaceType]
-    SPACE_TYPE_DESKTOP: _ClassVar[SpaceType]
     SPACE_TYPE_BROWSER: _ClassVar[SpaceType]
+    SPACE_TYPE_DESKTOP: _ClassVar[SpaceType]
     SPACE_TYPE_MOBILE: _ClassVar[SpaceType]
 
 class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -1793,7 +1793,8 @@ class UserWizardViewStage(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class TreeViewPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TREE_VIEW_PRESET_UNSPECIFIED: _ClassVar[TreeViewPreset]
-    TREE_VIEW_PRESET_EXPLORE: _ClassVar[TreeViewPreset]
+    TREE_VIEW_PRESET_PAGES: _ClassVar[TreeViewPreset]
+    TREE_VIEW_PRESET_CHANNELS: _ClassVar[TreeViewPreset]
     TREE_VIEW_PRESET_OUTLINE: _ClassVar[TreeViewPreset]
 
 class HubAspect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -3153,8 +3154,8 @@ TOOL_FILTER_SELECT_BUILIN: ToolFilter
 TOOL_FILTER_SELECT_CUSTOM: ToolFilter
 TOOL_FILTER_SELECT: ToolFilter
 SPACE_TYPE_UNSPECIFIED: SpaceType
-SPACE_TYPE_DESKTOP: SpaceType
 SPACE_TYPE_BROWSER: SpaceType
+SPACE_TYPE_DESKTOP: SpaceType
 SPACE_TYPE_MOBILE: SpaceType
 VIEW_TYPE_UNSPECIFIED: ViewType
 VIEW_TYPE_MACHINE: ViewType
@@ -3354,7 +3355,8 @@ USER_WIZARD_VIEW_STAGE_UNSPECIFIED: UserWizardViewStage
 USER_WIZARD_VIEW_STAGE_SIGN_UP: UserWizardViewStage
 USER_WIZARD_VIEW_STAGE_LOG_IN: UserWizardViewStage
 TREE_VIEW_PRESET_UNSPECIFIED: TreeViewPreset
-TREE_VIEW_PRESET_EXPLORE: TreeViewPreset
+TREE_VIEW_PRESET_PAGES: TreeViewPreset
+TREE_VIEW_PRESET_CHANNELS: TreeViewPreset
 TREE_VIEW_PRESET_OUTLINE: TreeViewPreset
 HUB_ASPECT_UNSPECIFIED: HubAspect
 HUB_ASPECT_BENCH: HubAspect
@@ -6627,14 +6629,14 @@ class UserWizardViewData(_message.Message):
     def __init__(self, stage: _Optional[_Union[UserWizardViewStage, str]] = ...) -> None: ...
 
 class ChatViewData(_message.Message):
-    __slots__ = ("message_text", "message_nodes_ptr", "message_reply_to_ptr")
-    MESSAGE_TEXT_FIELD_NUMBER: _ClassVar[int]
-    MESSAGE_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
-    MESSAGE_REPLY_TO_PTR_FIELD_NUMBER: _ClassVar[int]
-    message_text: TextData
-    message_nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    message_reply_to_ptr: NodeReferenceData
-    def __init__(self, message_text: _Optional[_Union[TextData, _Mapping]] = ..., message_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., message_reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    __slots__ = ("draft_text", "draft_nodes_ptr", "draft_reply_to_ptr")
+    DRAFT_TEXT_FIELD_NUMBER: _ClassVar[int]
+    DRAFT_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
+    DRAFT_REPLY_TO_PTR_FIELD_NUMBER: _ClassVar[int]
+    draft_text: TextData
+    draft_nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
+    draft_reply_to_ptr: NodeReferenceData
+    def __init__(self, draft_text: _Optional[_Union[TextData, _Mapping]] = ..., draft_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., draft_reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class HubViewData(_message.Message):
     __slots__ = ("aspect",)
@@ -6659,20 +6661,14 @@ class ListViewData(_message.Message):
     def __init__(self, query_node_type: _Optional[_Union[NodeType, str]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ...) -> None: ...
 
 class TreeViewData(_message.Message):
-    __slots__ = ("node_types", "filter_is_page", "is_default_expanded", "expanded_nodes_ptr", "collapsed_nodes_ptr", "preset")
-    NODE_TYPES_FIELD_NUMBER: _ClassVar[int]
-    FILTER_IS_PAGE_FIELD_NUMBER: _ClassVar[int]
-    IS_DEFAULT_EXPANDED_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("preset", "expanded_nodes_ptr", "collapsed_nodes_ptr")
+    PRESET_FIELD_NUMBER: _ClassVar[int]
     EXPANDED_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
     COLLAPSED_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
-    PRESET_FIELD_NUMBER: _ClassVar[int]
-    node_types: _containers.RepeatedScalarFieldContainer[NodeType]
-    filter_is_page: bool
-    is_default_expanded: bool
+    preset: TreeViewPreset
     expanded_nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     collapsed_nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    preset: TreeViewPreset
-    def __init__(self, node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., filter_is_page: bool = ..., is_default_expanded: bool = ..., expanded_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., collapsed_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., preset: _Optional[_Union[TreeViewPreset, str]] = ...) -> None: ...
+    def __init__(self, preset: _Optional[_Union[TreeViewPreset, str]] = ..., expanded_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., collapsed_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
 class FeedViewData(_message.Message):
     __slots__ = ("query_node_type", "filter")
