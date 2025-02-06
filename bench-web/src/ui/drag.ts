@@ -9,7 +9,7 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import { contentEquals, isNode, isNodeRef, isStruct, toNodeRef } from "@/proto/wiring";
-import { canvas, supergraph } from "@/system/globals";
+import { canvas, supergraph } from "@/globals";
 import { makeSelection } from "@/ui/view";
 import { getElement, getElementRef } from "@/utils/element";
 import { groupByList } from "@/utils/functools";

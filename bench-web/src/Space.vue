@@ -2,7 +2,7 @@
 import { NodeType, Orientation, ViewType } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
-import { supergraph } from "@/system/globals";
+import { supergraph } from "@/globals";
 import { bench, inspectionPtr, spaceConnection, spaceGraph } from "@/system/space";
 import { IS_IN_ALT_MODE } from "@/ui/action";
 import { keytrap } from "@/ui/keymap";

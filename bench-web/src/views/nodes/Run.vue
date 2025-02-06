@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import { getBaseFromNode } from "@/language/const";
-import { makeType } from "@/language/field";
-import { useSubnodeProperty } from "@/language/node";
-import { isRunnable, RunnableNode, VERB_BY_RUN_STATUS } from "@/language/run";
-import { getTransactionOptionsForType } from "@/language/transaction";
+import { getBaseFromNode } from "@/language/core/const";
+import { makeType } from "@/language/core/type";
+import { useSubnodeProperty } from "@/language/core/node";
+import { isRunnable, RunnableNode, VERB_BY_RUN_STATUS } from "@/language/runtime/run";
+import { getTransactionOptionsForType } from "@/language/runtime/transaction";
 import { ColorShade, FieldType, NodeType, RunData, RunStatus, TypeKind, ViewData, ViewType } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { CLEAR_RUN_ACTION, getInputType, getOutputType, runtime } from "@/system/runtime";
+import { CLEAR_RUN_ACTION, getInputType, getOutputType, runtime } from "@/runtime/runtime";
 import { canvas, pkgGraph } from "@/system/space";
 import { ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { getRunColorHex } from "@/ui/style";

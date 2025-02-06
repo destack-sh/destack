@@ -1,15 +1,29 @@
-import { getBaseFromNode, HELPER_VIEW_TYPES, ROOT_VIEW_TYPES, toCamelName } from "@/language/const";
-import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
-import { cloneNode, cloneNodes, generateNodeName, makeNode, NodeIn, packSubnode, unpackSubnode } from "@/language/node";
-import { getOrderKey, updateOrder } from "@/language/order";
+import {
+  getBaseFromNode,
+  HELPER_VIEW_TYPES,
+  INLINE_SOURCE_NODE_TYPES,
+  ROOT_VIEW_TYPES,
+  toCamelName,
+} from "@/language/core/const";
+import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/core/graph";
+import {
+  cloneNode,
+  cloneNodes,
+  generateNodeName,
+  makeNode,
+  NodeIn,
+  packSubnode,
+  unpackSubnode,
+} from "@/language/core/node";
+import { getOrderKey, updateOrder } from "@/language/core/order";
 import {
   makeEdit,
   makeEditFromSubnode,
   newChangeId,
   TransactionOptions,
   type Transaction,
-} from "@/language/transaction";
-import { unpackBuiltinObject } from "@/language/value";
+} from "@/language/runtime/transaction";
+import { unpackBuiltinObject } from "@/language/core/value";
 import {
   BlockType,
   ChangeCategory,
@@ -41,8 +55,8 @@ import {
   toNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { getContainingFlow } from "@/system/flow";
-import { canvas, supergraph } from "@/system/globals";
+import { getContainingFlow } from "@/ui/flow";
+import { canvas, supergraph } from "@/globals";
 import { inspectionBasePtr, inspectionPtr, pkg, space } from "@/system/space";
 import { declareActions, getNodesForAction } from "@/ui/action";
 import type { SplitAnchor } from "@/ui/drag";
@@ -896,16 +910,25 @@ export class SpaceCanvas {
     if (node == null) {
       // not found
       throw new Error(`node not found in ${describeScope(graph.scope)}: ${describeNode(nodePtr)}`);
-    } else if (nodePtr.nodeType == NodeType.VIEW && this.isInSpace(node)) {
-      // just focus directly
+    }
+
+    // focus views directly
+    else if (nodePtr.nodeType == NodeType.VIEW && this.isInSpace(node)) {
       this.focus({ node: nodePtr as ViewData | TypedNodeReferenceData<NodeType.VIEW> });
-    } else if (
+    }
+
+    // open as flow
+    else if (
       (isNode(node, NodeType.BLOCK) && node.type == BlockType.FLOW) ||
+      isNode(node, NodeType.FLOW) ||
       isNode(node, NodeType.ACTION) ||
       isNode(node, NodeType.PIPE) ||
       (isNode(node, NodeType.FIELD) && getContainingFlow(graph, node) != null)
     ) {
-      // open as flow
+      if (isNode(node, NodeType.BLOCK)) {
+        // unwrap FlowBlock to Flow
+        node = supergraph.getOrError(node.nodePtr!);
+      }
       const containingFlow = getContainingFlow(graph, node);
       if (!containingFlow) throw new Error(`no containing flow for: ${describeNode(node)}`);
       const view = this.addView(
@@ -918,12 +941,14 @@ export class SpaceCanvas {
         { ifPresent: "upsertAndFocus", ...options },
       );
       this.inspect({ node: nodePtr, view });
-    } else if (
+    }
+
+    // open as database
+    else if (
       (isNode(node, NodeType.BLOCK) && node.type == BlockType.DATABASE) ||
       isNode(node, NodeType.DATABASE) ||
       isNode(node, NodeType.RECORD)
     ) {
-      // open as database
       let view: ViewData;
       if (isNode(node, NodeType.RECORD)) {
         const database = graph.get(node.databasePtr!);
@@ -938,31 +963,38 @@ export class SpaceCanvas {
           { ifPresent: "upsertAndFocus", ...options },
         );
       } else {
+        if (isNode(node, NodeType.BLOCK)) {
+          // unwrap DatabaseBlock to Database
+          node = supergraph.getOrError(node.nodePtr!);
+        }
         view = this.addView(
           { type: ViewType.DATABASE, nodePtr: toNodeRef(node), ...options?.props },
           { ifPresent: "upsertAndFocus", ...options },
         );
       }
       this.inspect({ node: nodePtr, view });
-    } else if (isNode(node, NodeType.BLOCK) && node.type == BlockType.VIEW) {
-      // open as view
-      this.addView(
-        { type: ViewType.VIEW, nodePtr: toNodeRef(nodePtr), ...options?.props },
-        { ifPresent: "upsertAndFocus", ...options },
-      );
-    } else if (isNode(node, NodeType.BLOCK) || DESCENDANT_NODE_TYPES[NodeType.BLOCK].includes(nodePtr.nodeType)) {
-      // open generic block in containing page
+    }
+
+    // open generic block or inline node type in containing page
+    else if (
+      isNode(node, NodeType.PAGE) ||
+      isNode(node, NodeType.PAGE) ||
+      INLINE_SOURCE_NODE_TYPES.includes(nodePtr.nodeType)
+    ) {
       const containingPage = graph
-        .getAncestors(nodePtr, { metatypes: [NodeType.BLOCK], includeSelf: !options?.skipSelf })
-        .find((n) => n.type == BlockType.PAGE);
+        .getAncestors(nodePtr, { metatypes: [NodeType.PAGE], includeSelf: !options?.skipSelf })
+        .find((p) => true);
       if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
       const view = this.addView(
         { type: ViewType.PAGE, nodePtr: toNodeRef(containingPage), focus: makeSelection(nodePtr), ...options?.props },
         { ifPresent: "upsertAndFocus", ...options },
       );
       this.inspect({ node: nodePtr, view });
-    } else if (isNode(node, NodeType.RUN) || isNode(node, NodeType.INTERRUPTION)) {
-      // focus on source node, set as Space.run_ptr and open containing Run view in Help
+    }
+
+    // focus on runnable source + run
+    // (set as Space.run_ptr and open containing Run view in Help)
+    else if (isNode(node, NodeType.RUN) || isNode(node, NodeType.INTERRUPTION)) {
       const basePtr = getBaseFromNode(node);
       const base = basePtr != null ? graph.get(basePtr) : null;
       if (base == null) {
@@ -986,8 +1018,10 @@ export class SpaceCanvas {
           }),
         );
       }
-    } else {
-      // can't go there
+    }
+
+    // can't go there
+    else {
       toaster.error({
         icon: getNodeIcon(node),
         title: `Can't Open ${getNodeName(node as AnyNodeData) ?? "This Node"}`,

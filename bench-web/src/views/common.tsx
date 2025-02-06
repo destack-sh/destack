@@ -2,19 +2,15 @@
 
 import {
   FieldData,
-  Orientation,
-  TypeData,
   ViewData,
   ViewType,
   type NodeReferenceData,
-  type NodeType,
+  type NodeType
 } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/ui/action";
-import { LISTABLE_VIEW_TYPES } from "@/ui/view";
-import { IS_DEV } from "@/utils/globals";
 import { Casing, toCasing } from "@/utils/string";
-import { type ComponentInstance, type FunctionalComponent, type Ref } from "vue";
+import { type ComponentInstance, type Ref } from "vue";
 
 export type ViewProps = {
   self?: NodeReferenceData;

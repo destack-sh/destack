@@ -1,11 +1,11 @@
 import { NodeTypeMapping } from "@/proto/wire";
 import { ViewData } from "@/proto/wire";
-import { ReadNodeGraph } from "@/language/graph";
+import { ReadNodeGraph } from "@/language/core/graph";
 import { NodeType } from "@/proto/wire";
 import { ActionMapImplementation, declareActions } from "@/ui/action";
 import { useNodeListActions } from "@/ui/list";
 import { Ref } from "vue";
-import { Transaction } from "@/language/transaction";
+import { Transaction } from "@/language/runtime/transaction";
 
 // table
 declareActions<"table">({

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
+import { toCamelName } from "@/language/core/const";
 import { Orientation, RegionContinent } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
 import { connections, hasPendingConnections } from "@/system/connection";

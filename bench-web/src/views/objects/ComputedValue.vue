@@ -5,7 +5,7 @@ import { canvas } from "@/system/space";
 import { toRef } from "vue";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import Path from "@/views/objects/Path.vue";
-import { makeType } from "@/language/field";
+import { makeType } from "@/language/core/type";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<

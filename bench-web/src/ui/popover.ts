@@ -1,7 +1,7 @@
-import { HELPER_VIEW_TYPES, ROOT_VIEW_TYPES } from "@/language/const";
+import { HELPER_VIEW_TYPES, ROOT_VIEW_TYPES } from "@/language/core/const";
 import { NodeReferenceData, NodeType, ObjectType, type AnyNodeData, type IconData, type ViewType } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
-import { supergraph } from "@/system/globals";
+import { supergraph } from "@/globals";
 import { canvas } from "@/system/space";
 import {
   ACTION_BUILTIN_IDS_INDEX,

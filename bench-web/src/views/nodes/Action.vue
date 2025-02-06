@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { SINK_ACTION_TYPES, toCamelName } from "@/language/const";
-import { NAME_TYPE } from "@/language/field";
-import { isRunActive } from "@/language/run";
+import { SINK_ACTION_TYPES, toCamelName } from "@/language/core/const";
+import { NAME_TYPE } from "@/language/core/type";
+import { isRunActive } from "@/language/runtime/run";
 import {
   ActionType,
   ActionTypeOptionInfo,
@@ -14,8 +14,8 @@ import {
   ViewData,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { ACTION_SIZE, FLOW_PORT_SIZE, getActionSides, useFlowContext } from "@/system/flow";
-import { runtime } from "@/system/runtime";
+import { ACTION_SIZE, FLOW_PORT_SIZE, getActionSides, useFlowContext } from "@/ui/flow";
+import { runtime } from "@/runtime/runtime";
 import { canvas } from "@/system/space";
 import { type ActionMapImplementation } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";

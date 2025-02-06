@@ -1,11 +1,9 @@
 <script lang="ts" setup>
-import { isNodeType, toCamelName } from "@/language/const";
-import { getConstrainedTypeName } from "@/language/field";
-import { useSubnodeProperty } from "@/language/node";
+import { isNodeType, toCamelName } from "@/language/core/const";
+import { useSubnodeProperty } from "@/language/core/node";
+import { getConstrainedTypeName } from "@/language/core/type";
 import {
-  AnyNodeData,
   ColorShade,
-  IconData,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -14,20 +12,19 @@ import {
   RectangleData,
   TypeKind,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
-import { isNode, isNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
-import { autoloader } from "@/system/globals";
+import { autoloader } from "@/globals";
 import { canvas } from "@/system/space";
 import {
   getNodeIcon,
   ICON_BY_BENCH_TYPE,
-  ICON_BY_BLOCK_TYPE,
   ICON_BY_NODE_TYPE,
   ICON_BY_TYPE_KIND,
   IconInline,
-  makeIcon,
+  makeIcon
 } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";

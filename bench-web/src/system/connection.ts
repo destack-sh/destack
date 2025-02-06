@@ -1,4 +1,4 @@
-import { SOURCE_NODE_TYPES } from "@/language/const";
+import { SOURCE_NODE_TYPES } from "@/language/core/const";
 import {
   DEFAULT_NODE_FILTER,
   LayerNodeGraph,
@@ -7,7 +7,7 @@ import {
   ProxyNodeGraph,
   type ReadNodeGraph,
   type WriteNodeGraph,
-} from "@/language/graph";
+} from "@/language/core/graph";
 import {
   ImmediateTransactionBuffer,
   editGraph,
@@ -15,7 +15,7 @@ import {
   newBufferId,
   type Transaction,
   type TransactionBuffer,
-} from "@/language/transaction";
+} from "@/language/runtime/transaction";
 import {
   HUMANIZED_OPERATION_STATUS,
   getGraphClient,
@@ -46,7 +46,7 @@ import {
 } from "@/proto/wiring";
 import { NodeAutoloader } from "@/system/autoload";
 import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
-import { setAutoloader, setSupergraph } from "@/system/globals";
+import { setAutoloader, setSupergraph } from "@/globals";
 import { toaster } from "@/ui/toast";
 import { AsyncEvent } from "@/utils/functools";
 import { IS_DEV } from "@/utils/globals";

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { ACTIVE_RUN_STATUSES } from "@/language/const";
-import { makeExpression } from "@/language/expression";
-import { packSubnode } from "@/language/node";
+import { ACTIVE_RUN_STATUSES } from "@/language/core/const";
+import { makeExpression } from "@/language/core/expression";
+import { packSubnode } from "@/language/core/node";
 import {
   ExpressionData,
   ExpressionType,

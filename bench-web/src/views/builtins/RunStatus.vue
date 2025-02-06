@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
-import { getRunDurationString, isRunActive, isRunInterrupted } from "@/language/run";
+import { toCamelName } from "@/language/core/const";
+import { getRunDurationString, isRunActive, isRunInterrupted } from "@/language/runtime/run";
 import { ColorShade, Orientation, RunData, RunStatus } from "@/proto/wire";
 import { ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { getRunColorHex } from "@/ui/style";

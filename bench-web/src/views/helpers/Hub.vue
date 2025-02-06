@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import { createBlock } from "@/language/block";
-import { toCamelName } from "@/language/const";
-import { packSubnode, useSubnodeProperty } from "@/language/node";
+import { createBlock } from "@/language/source/block";
+import { toCamelName } from "@/language/core/const";
+import { packSubnode, useSubnodeProperty } from "@/language/core/node";
 import { BlockType, HubAspect, NodeType, Orientation, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
-import { runtime } from "@/system/runtime";
+import { runtime } from "@/runtime/runtime";
 import {
   bench,
   benchConnection,
@@ -30,6 +30,7 @@ import Icon from "@/views/content/Icon.vue";
 import Activity from "@/views/helpers/Activity.vue";
 import Catalog from "@/views/helpers/Catalog.vue";
 import { computed, Ref, ref, toRef } from "vue";
+import { createPage } from "@/language/source/page";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -218,13 +219,8 @@ defineExpose<ViewExposed>({ self });
               @click.stop="
                 () => {
                   if (pkg == null) return;
-                  // nocheckin: Page
-                  // const block = createBlock(pkgConnection.tx, pkgGraph, {
-                  //   anchor: 'inside',
-                  //   target: pkg,
-                  //   block: { type: BlockType.PAGE },
-                  // });
-                  canvas.goToNode(block);
+                  const page = createPage(pkgConnection.tx, pkgGraph, { anchor: 'inside', target: pkg, page: {} });
+                  canvas.goToNode(page);
                 }
               "
             >

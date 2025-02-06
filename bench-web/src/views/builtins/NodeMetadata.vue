@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { isResourceNode } from "@/language/const";
+import { isResourceNode } from "@/language/core/const";
 import { AnyNodeData, NodeType } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { COLOR_BY_RESOURCE_STATUS, COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";

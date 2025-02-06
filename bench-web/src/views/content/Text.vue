@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { getBaseFromNodeReference } from "@/language/const";
-import { makeType } from "@/language/field";
-import { downloadFile, prefetchFile, uploadFile } from "@/language/file";
-import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/language/text";
+import { getBaseFromNodeReference } from "@/language/core/const";
+import { makeType } from "@/language/core/type";
+import { downloadFile, prefetchFile, uploadFile } from "@/language/resource/file";
+import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/language/core/text";
 import {
   BenchType,
   ColorShade,
@@ -14,7 +14,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { supergraph } from "@/system/globals";
+import { supergraph } from "@/globals";
 import { bench, canvas, pkgConnection } from "@/system/space";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";

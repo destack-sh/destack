@@ -54,110 +54,110 @@ class ViewType(BuiltinEnum):
     DATABASE = 5090
     RUN = 6010
 
-    # objects (20000-30000)
-    OBJECT = 20000
-    TYPE = 20001
-    FIELD_LIST = 20003
-    PATH = 20004
-    COMPUTED_VALUE = 20005
+    # objects (10000-20000)
+    OBJECT = 10000
+    TYPE = 10001
+    FIELD_LIST = 10003
+    PATH = 10004
+    COMPUTED_VALUE = 10005
 
-    # helpers (30000-40000)
-    USER_WIZARD = 30001
-    BENCH_WIZARD = 30002
-    EMPTY = 30100
-    CREATE = 30201
-    CHAT = 30202
-    HUB = 30205
-    HELP = 30206
-    ACTIVITY = 30207
-    CATALOG = 30208
+    # helpers (20000-30000)
+    USER_WIZARD = 20001
+    BENCH_WIZARD = 20002
+    EMPTY = 20100
+    CREATE = 20201
+    CHAT = 20202
+    HUB = 20205
+    HELP = 20206
+    ACTIVITY = 20207
+    CATALOG = 20208
 
     #
-    # Organization (40000-41000)
+    # Organization (30000-31000)
     #
 
-    # layout (40000-40100)
-    WINDOW = 40001
-    TAB = 40002
-    HISTORY = 40003
-    SPLIT = 40004
-    SPLIT_DRAWER = 40005
-    STACK = 40006
-    DRAWER = 40007
-    SCROLL = 40008
-    GRID = 40009
+    # layout (30000-30100)
+    WINDOW = 30001
+    TAB = 30002
+    HISTORY = 30003
+    SPLIT = 30004
+    SPLIT_DRAWER = 30005
+    STACK = 30006
+    DRAWER = 30007
+    SCROLL = 30008
+    GRID = 30009
 
-    # groups (40100-40200)
-    GROUP = 40100
-    SECTION = 40101
-    FORM = 40102
+    # groups (30100-30200)
+    GROUP = 30100
+    SECTION = 30101
+    FORM = 30102
 
-    # presentation (40200-40300)
-    SPACER = 40200
-    DIVIDER = 40201
+    # presentation (30200-30300)
+    SPACER = 30200
+    DIVIDER = 30201
 
-    # collections (40300-40400)
-    LIST = 40300
-    TABLE = 40301
-    TREE = 40302
-    FEED = 40303
-    GALLERY = 40304
-    BOARD = 40305
+    # collections (30300-30400)
+    LIST = 30300
+    TABLE = 30301
+    TREE = 30302
+    FEED = 30303
+    GALLERY = 30304
+    BOARD = 30305
     # ROW, COLUMN, ...?
     # CALENDAR, MAP, ...?
 
     #
-    # Style (41000-42000)
+    # Style (31000-32000)
     #
 
-    # navigation (41000-41100)
-    BREADCRUMB = 41001
-    PROGRESS = 41002
-    AVATAR = 41003
-    BADGE = 41004
-    # illustration (41100-41200)
-    SHAPE = 41100
+    # navigation (31000-31100)
+    BREADCRUMB = 31001
+    PROGRESS = 31002
+    AVATAR = 31003
+    BADGE = 31004
+    # illustration (31100-31200)
+    SHAPE = 31100
 
-    # graphing (41200-41300)
-    CHART = 41200
-
-    #
-    # Action (42000-43000)
-    #
-
-    # controls (42000-42100)
-    BUTTON = 42001
-    MULTI_BUTTON = 42002
-    LINK = 42003
+    # graphing (31200-31300)
+    CHART = 31200
 
     #
-    # Content (45000-)
+    # Action (32000-33000)
     #
 
-    # numeric (45000-45100)
-    NUMBER = 45001
-    SLIDER = 45002
+    # controls (32000-32100)
+    BUTTON = 32001
+    MULTI_BUTTON = 32002
+    LINK = 32003
 
-    # stringy (45100-45200)
-    STRING = 45101
-    TEXT = 45102
-    CODE = 45103
-    JSON = 45104
+    #
+    # Content (35000-)
+    #
 
-    # selection (45200-45300)
-    TOGGLE = 45201
-    PICKER = 45202
-    COLOR = 45203
-    ICON = 45204
-    DATETIME = 45205
-    DURATION = 45206
+    # numeric (35000-35100)
+    NUMBER = 35001
+    SLIDER = 35002
 
-    # file (45300-45400)
-    FILE = 45301  # (generic file content according to file type)
-    IMAGE = 45302
-    AUDIO = 45303
-    VIDEO = 45304
-    DOCUMENT = 45305
+    # stringy (35100-35200)
+    STRING = 35101
+    TEXT = 35102
+    CODE = 35103
+    JSON = 35104
+
+    # selection (35200-35300)
+    TOGGLE = 35201
+    PICKER = 35202
+    COLOR = 35203
+    ICON = 35204
+    DATETIME = 35205
+    DURATION = 35206
+
+    # file (35300-35400)
+    FILE = 35301  # (generic file content according to file type)
+    IMAGE = 35302
+    AUDIO = 35303
+    VIDEO = 35304
+    DOCUMENT = 35305
 
     # expression
     # ...
@@ -560,8 +560,9 @@ class ListView(View):
 
 @enum_(EnumType.TREE_VIEW_PRESET)
 class TreeViewPreset(BuiltinEnum):
-    EXPLORE = 1
-    OUTLINE = 2
+    PAGES = 1
+    CHANNELS = 2
+    OUTLINE = 3
 
 
 @subnode_(ViewType.TREE)

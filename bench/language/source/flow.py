@@ -51,7 +51,7 @@ class Flow(InlineSourceNode[FlowData]):
         if of == "instance":
             return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
         else:
-            field_types = field_types or [FieldType.MEMBER]
+            field_types = field_types or []
             return Type(
                 kind=TypeKind.CUSTOM_OBJECT,
                 base_type=self,

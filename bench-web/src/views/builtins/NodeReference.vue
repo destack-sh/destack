@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
-import { NAME_TYPE, TITLE_TYPE } from "@/language/field";
-import { Transaction } from "@/language/transaction";
+import { toCamelName } from "@/language/core/const";
+import { NAME_TYPE, TITLE_TYPE } from "@/language/core/type";
+import { Transaction } from "@/language/runtime/transaction";
 import { AnyNodeData, NodeType, PROPERTY_ENUM_BY_TYPE } from "@/proto/wire";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn } from "@/ui/popover";

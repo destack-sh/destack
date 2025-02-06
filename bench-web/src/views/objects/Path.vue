@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { isSourceNode } from "@/language/const";
-import { makeTypeConstraint, makeType } from "@/language/field";
-import { makePath } from "@/language/path";
-import { RUN_PROPERTY_BY_FIELD_TYPE } from "@/language/run";
+import { isSourceNode } from "@/language/core/const";
+import { makeTypeConstraint, makeType } from "@/language/core/type";
+import { makePath } from "@/language/core/path";
+import { RUN_PROPERTY_BY_FIELD_TYPE } from "@/language/runtime/run";
 import {
   BenchType,
   FieldType,
@@ -15,7 +15,7 @@ import {
   ViewData
 } from "@/proto/wire";
 import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
-import { supergraph } from "@/system/globals";
+import { supergraph } from "@/globals";
 import { canvas } from "@/system/space";
 import { ICON_BY_STRUCT_TYPE } from "@/ui/icon";
 import { viewEmits, type ViewExposed } from "@/views/common";

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
+import { toCamelName } from "@/language/core/const";
 import { ErrorKind, ErrorType, type RunData, type ErrorData } from "@/proto/wire";
 import { Casing, toCasing } from "@/utils/string";
 import Text from "@/views/content/Text.vue";

@@ -1,7 +1,7 @@
 import { ClientOriginData, ClientType, LocalStorage, NodeType, ObjectType, SpaceData } from "@/proto/wire";
 import { describeNode, makeScope, nodeReference, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { NodeGraph, type ReadNodeGraph } from "@/language/graph";
-import { SOURCE_NODE_TYPES } from "@/language/const";
+import { NodeGraph, type ReadNodeGraph } from "@/language/core/graph";
+import { SOURCE_NODE_TYPES } from "@/language/core/const";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
 import { IS_DEVELOPER_MODE as globalIsDeveloperMode } from "@/utils/globals";
 import { log } from "@/utils/log";

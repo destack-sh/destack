@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import "./assets/index.css";
 
-import { startTransactionRotation as startTransactionBuffers } from "@/language/transaction";
+import { startTransactionRotation as startTransactionBuffers } from "@/language/runtime/transaction";
 import { sendRemoteKeepAlives } from "@/system/connection";
 import { keytrap } from "@/ui/keymap";
 import { HOVER_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/popover";
@@ -16,7 +16,7 @@ import Space from "./Space.vue";
 import { watchActions } from "@/ui/action";
 import { HISTORY_ACTIONS } from "@/system/edit";
 import { DEBUG_ACTIONS } from "@/system/debug";
-import { RESOURCE_ACTIONS } from "@/system/resource";
+import { RESOURCE_ACTIONS } from "@/language/resource/resource";
 
 async function init() {
   const app = createApp(Space);

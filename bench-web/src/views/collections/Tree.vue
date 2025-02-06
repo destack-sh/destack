@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import { createBlock } from "@/language/block";
-import { CANVAS_BLOCK_TYPES, INLINE_SOURCE_NODE_TYPES, toCamelName } from "@/language/const";
-import { makeType } from "@/language/field";
-import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
-import { cloneNode, moveNode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
-import { newChangeId } from "@/language/transaction";
+import { createBlock } from "@/language/source/block";
+import { CANVAS_BLOCK_TYPES, INLINE_SOURCE_NODE_TYPES, toCamelName } from "@/language/core/const";
+import { makeType } from "@/language/core/type";
+import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/core/graph";
+import { cloneNode, moveNode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/core/node";
+import { newChangeId } from "@/language/runtime/transaction";
 import {
   BenchType,
   BlockData,
@@ -17,7 +17,7 @@ import {
   TreeViewPreset,
   ViewData,
   ViewType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
@@ -44,6 +44,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { useElementSize } from "@vueuse/core";
 import { computed, ref, toRef, watch, type Ref } from "vue";
+import { createPage } from "@/language/source/page";
 
 const DEPTH_OFFSET = 16;
 const ITEM_HEIGHT = 28;
@@ -446,26 +447,14 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             <!-- Create inside -->
             <button
               v-if="isNode(node, NodeType.PAGE)"
-              v-menu="
-                (): PopoverInfoIn => ({
-                  kind: 'view',
-                  component: ViewType.PICKER,
-                  title: `Add to ${node.name}`,
-                  placement: 'bottom',
-                  props: { valueType: makeType({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },
-                  onApply: (blockType: BlockType) => {
-                    const block = createBlock(connection.tx, graph, {
-                      anchor: 'inside',
-                      target: node,
-                      block: { type: blockType },
-                    });
-                    canvas.goToNode(block);
-                    if (!isExpanded(node)) toggleExpanded(node);
-                  },
-                })
-              "
               aria-hidden
               class="text-gray-400 opacity-0 hover:text-gray-400 group-hover/node:opacity-100"
+              @click.stop="
+                () => {
+                  const page = createPage(connection.tx, graph, { anchor: 'inside', target: node, page: {} });
+                  canvas.goToNode(page);
+                }
+              "
             >
               <i class="fas fa-plus" />
             </button>
@@ -477,8 +466,16 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
       </ul>
     </component>
-    <div v-else class="flex h-full w-full flex-col justify-center text-center">
-      <!-- Missing state -->
+    <!-- Empty -->
+    <div
+      v-else
+      class="flex h-full w-full flex-col justify-center px-4"
+      :style="{
+        height: `${ITEM_HEIGHT}px`,
+      }"
+    >
+      <!-- Empty -->
+      <span class="text-gray-400">Nothing</span>
     </div>
   </div>
 </template>

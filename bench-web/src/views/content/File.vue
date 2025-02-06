@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
+import { toCamelName } from "@/language/core/const";
 import {
   FileStatus,
   getFileAcceptFromConstraint,
@@ -7,7 +7,7 @@ import {
   uploadFile,
   useFileDownload,
   type FileUpload,
-} from "@/language/file";
+} from "@/language/resource/file";
 import {
   FileFormat,
   FileType,

@@ -1,5 +1,5 @@
-import { SOURCE_NODE_TYPES, STATIC_RESOURCE_NODE_TYPES } from "@/language/const";
-import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/language/graph";
+import { SOURCE_NODE_TYPES, STATIC_RESOURCE_NODE_TYPES } from "@/language/core/const";
+import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/language/core/graph";
 import { getHostClient } from "@/proto/services";
 import { BenchData, ChangeCategory, NodeType, SpaceType } from "@/proto/wire";
 import {
@@ -13,7 +13,7 @@ import {
 } from "@/proto/wiring";
 import local, { BENCH_SCOPE, LOCAL_SPACE_ID, PACKAGE_SCOPE, spaceGraphLocal, spacePtr } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
-import { setCanvas, setSpace } from "@/system/globals";
+import { setCanvas, setSpace } from "@/globals";
 import { createDesktopDefaultSpace, SpaceCanvas } from "@/ui/space";
 import { toaster } from "@/ui/toast";
 import { log } from "@/utils/log";
