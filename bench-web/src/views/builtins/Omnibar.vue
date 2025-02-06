@@ -1,7 +1,8 @@
 <script lang="tsx" setup>
-import { NodeType, ObjectType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { INLINE_SOURCE_NODE_TYPES } from "@/language/core/const";
+import { NodeType, ObjectType, Orientation } from "@/proto/wire";
 import { packagePtr } from "@/system/client";
-import { bench, canvas, hasLocalPkg, pkgGraph, space, spaceGraph } from "@/system/space";
+import { canvas, hasLocalPkg, pkgGraph } from "@/system/space";
 import { OMNIBAR_MODES, addAction, fireAction, type ActionBuiltinId, type OmnibarMode } from "@/ui/action";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
@@ -49,7 +50,7 @@ const indices = computed(() => {
     indices["Bench"] = graphIndex({
       id: "bench",
       graph: pkgGraph,
-      metatypes: [NodeType.BLOCK, NodeType.VIEW, NodeType.BLOCK, NodeType.ACTION],
+      metatypes: [NodeType.CHANNEL, ...INLINE_SOURCE_NODE_TYPES, NodeType.ACTION],
       roots: [pkgGraph.getOrError(packagePtr.value)],
       skipDepth: 1,
       // only search deeply if in bench search specifically

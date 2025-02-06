@@ -495,7 +495,9 @@ export function useFileDownload(
   return download;
 }
 
-const PREFETCH_FILE_TYPES = [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO, FileType.DOCUMENT];
+export const PREFETCH_FILE_TYPES = [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO, FileType.DOCUMENT];
+export const INLINE_FILE_TYPES = [FileType.IMAGE, FileType.VIDEO, FileType.AUDIO];
+
 
 /** Prefetch the given files (incl. content where it makes sense). */
 export async function prefetchFiles(files: FileData[]): Promise<void> {

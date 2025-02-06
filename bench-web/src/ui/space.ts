@@ -102,8 +102,7 @@ import {
 } from "vue";
 
 export type SomeView = NodeReferenceData | ViewData;
-export type ViewIn = Partial<NodeIn<NodeType.VIEW>> &
-  Required<Pick<NodeIn<NodeType.VIEW>, "type">> & { icon?: string | IconData };
+export type ViewIn = Partial<NodeIn<NodeType.VIEW>> & { type: ViewType };
 
 type OpenViewOptions = {
   predicate?: (view: ViewData) => boolean;
@@ -994,20 +993,41 @@ export class SpaceCanvas {
 
     // open chat
     else if (isNode(node, NodeType.MESSAGE) || isNode(node, NodeType.THREAD) || isNode(node, NodeType.CHANNEL)) {
+      let scopePtr: NodeReferenceData | undefined;
+      let inspectPtr: NodeReferenceData | undefined;
+      let threadPtr: NodeReferenceData | undefined;
+      let channelPtr: NodeReferenceData | undefined;
       if (isNode(node, NodeType.MESSAGE)) {
-        if (node.threadPtr != null) {
-          node = supergraph.getOrError(node.threadPtr);
-        } else if (node.channelPtr != null) {
-          node = supergraph.getOrError(node.channelPtr);
-        } else {
-          node = supergraph.getOrError(node.scopePtr!);
-        }
+        scopePtr = node.scopePtr;
+        inspectPtr = nodePtr;
+        threadPtr = node.threadPtr;
+        channelPtr = node.channelPtr;
+      } else if (isNode(node, NodeType.THREAD)) {
+        scopePtr = node.scopePtr;
+        inspectPtr = nodePtr;
+        threadPtr = nodePtr;
+        channelPtr = node.channelPtr;
+      } else if (isNode(node, NodeType.CHANNEL)) {
+        scopePtr = undefined;
+        inspectPtr = nodePtr;
+        inspectPtr = nodePtr;
+        threadPtr = undefined;
+      } else {
+        assertNever(node);
       }
       const view = this.addView(
-        { type: ViewType.CHAT, nodePtr: toNodeRef(node), ...options?.props },
-        { ifPresent: "upsertAndFocus", ...options },
+        { type: ViewType.CHAT, nodePtr: scopePtr, subnode: { threadPtr, channelPtr } },
+        {
+          ifPresent: "upsertAndFocus",
+          predicate: (v) => {
+            if (v.type != ViewType.CHAT) return false;
+            const subnode = unpackSubnode(NodeType.VIEW, ViewType.CHAT, v.subnodePacked);
+            return subnode.threadPtr?.id == threadPtr?.id && subnode.channelPtr?.id == channelPtr?.id;
+          },
+          ...options,
+        },
       );
-      this.inspect({ node: nodePtr, view });
+      this.inspect({ node: inspectPtr, view });
     }
 
     // focus on runnable source + run

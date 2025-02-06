@@ -82,6 +82,8 @@ import {
   WaitActionProperty,
   ToolSelectionProperty,
   ToolFilter,
+  ChannelProperty,
+  ThreadProperty,
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
@@ -1237,6 +1239,18 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
   }
 }
 
+export class ChannelLayout extends NodeLayout<NodeType.CHANNEL> {
+  make() {
+    this.section(undefined, [this.rowProperty(ChannelProperty.type)]);
+  }
+}
+
+export class ThreadLayout extends NodeLayout<NodeType.THREAD> {
+  make() {
+    this.section(undefined, []);
+  }
+}
+
 /** CustomObject layout with only Fields */
 export class CustomLayout extends BaseObjectLayout {
   valuePacked: Record<string, any>;
@@ -1311,6 +1325,8 @@ const NODE_LAYOUT_BY_TYPE = {
   [NodeType.PIPE]: PipeLayout,
   [NodeType.RECORD]: RecordLayout,
   [NodeType.FIELD]: FieldLayout,
+  [NodeType.CHANNEL]: ChannelLayout,
+  [NodeType.THREAD]: ThreadLayout,
 };
 
 /** Use the object layout for a node, partial or custom object */

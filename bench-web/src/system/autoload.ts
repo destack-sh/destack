@@ -83,7 +83,7 @@ export class NodeAutoloader {
   /** Add pending nodes to the list of nodes to load */
   addPending(...keys: NodeReferenceData[]) {
     for (const key of keys) {
-      if (BASED_NODE_TYPES.includes(key.nodeType) && key.baseCk == null) {
+      if ([NodeType.RECORD].includes(key.nodeType) && key.baseCk == null) {
         throw new Error(`missing base in ${describeNode(key)}`);
       }
       this.pendingNodesById.value[key.id!] = key;
