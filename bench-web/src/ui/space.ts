@@ -713,7 +713,7 @@ export class SpaceCanvas {
       return getState(componentId + "." + viewId, override);
     }
 
-    function update(update: Partial<NodeIn<any>>, options?: TransactionOptions) {
+    function update(update: Partial<NodeIn<NodeType.VIEW>>, options?: TransactionOptions) {
       const baseView = baseViewRef?.value;
       if (baseView == null) return; // no base view, cannot update (should error?)
       if (self.value != null) {
@@ -726,9 +726,9 @@ export class SpaceCanvas {
         if ("subnode" in update && "type" in update) {
           // merge current subnode into new subnode
           // (we override subview values at the property level, so this would get lost otherwise)
-          const key = update.type.toString();
+          const key = update.type!.toString();
           if ((instance?.props?.subnodePacked as any)?.[key] != null) {
-            const subnode = unpackSubnode(NodeType.VIEW, update.type, instance!.props.subnodePacked as any);
+            const subnode = unpackSubnode(NodeType.VIEW, update.type!, instance!.props.subnodePacked as any);
             update.subnode = { ...subnode, ...update.subnode };
           }
         }
@@ -894,7 +894,7 @@ export class SpaceCanvas {
   /**
    * Goes to the given node, whatever that means. Unlike addView, this upserts the view by default.
    * If it's a view node, we focus it in the space graph (it must exist).
-   * If it's a regular node, we find or open an appropriate view for it and focus that somehow.
+   * For any other node, we find or open an appropriate view for it and focus that somehow.
    */
   goToNode(
     node: AnyNodeData | NodeReferenceData | null,
@@ -917,7 +917,7 @@ export class SpaceCanvas {
       this.focus({ node: nodePtr as ViewData | TypedNodeReferenceData<NodeType.VIEW> });
     }
 
-    // open as flow
+    // open flow
     else if (
       (isNode(node, NodeType.BLOCK) && node.type == BlockType.FLOW) ||
       isNode(node, NodeType.FLOW) ||
@@ -943,7 +943,7 @@ export class SpaceCanvas {
       this.inspect({ node: nodePtr, view });
     }
 
-    // open as database
+    // open database
     else if (
       (isNode(node, NodeType.BLOCK) && node.type == BlockType.DATABASE) ||
       isNode(node, NodeType.DATABASE) ||
@@ -975,10 +975,10 @@ export class SpaceCanvas {
       this.inspect({ node: nodePtr, view });
     }
 
-    // open generic block or inline node type in containing page
+    // open page
     else if (
       isNode(node, NodeType.PAGE) ||
-      isNode(node, NodeType.PAGE) ||
+      isNode(node, NodeType.BLOCK) ||
       INLINE_SOURCE_NODE_TYPES.includes(nodePtr.nodeType)
     ) {
       const containingPage = graph
@@ -987,6 +987,24 @@ export class SpaceCanvas {
       if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
       const view = this.addView(
         { type: ViewType.PAGE, nodePtr: toNodeRef(containingPage), focus: makeSelection(nodePtr), ...options?.props },
+        { ifPresent: "upsertAndFocus", ...options },
+      );
+      this.inspect({ node: nodePtr, view });
+    }
+
+    // open chat
+    else if (isNode(node, NodeType.MESSAGE) || isNode(node, NodeType.THREAD) || isNode(node, NodeType.CHANNEL)) {
+      if (isNode(node, NodeType.MESSAGE)) {
+        if (node.threadPtr != null) {
+          node = supergraph.getOrError(node.threadPtr);
+        } else if (node.channelPtr != null) {
+          node = supergraph.getOrError(node.channelPtr);
+        } else {
+          node = supergraph.getOrError(node.scopePtr!);
+        }
+      }
+      const view = this.addView(
+        { type: ViewType.CHAT, nodePtr: toNodeRef(node), ...options?.props },
         { ifPresent: "upsertAndFocus", ...options },
       );
       this.inspect({ node: nodePtr, view });

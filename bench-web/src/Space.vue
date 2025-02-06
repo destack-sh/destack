@@ -67,6 +67,7 @@ watch(
       :name="window.name"
       :size="mainBox"
       :orientation="Orientation.HORIZONTAL"
+      is-root
     />
     <!-- Loading... -->
     <div v-else-if="!spaceConnection.isConnected.value" class="absolute h-full w-full bg-white">

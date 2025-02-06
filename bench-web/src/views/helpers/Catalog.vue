@@ -8,11 +8,11 @@ import List from "@/views/collections/List.vue";
 import { packSubnode } from "@/language/core/node";
 import { toCamelName } from "@/language/core/const";
 import { makeExpression } from "@/language/core/expression";
-import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 
-const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
+const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const RESOURCE_TYPES = [NodeType.MACHINE, NodeType.BROWSER];
 

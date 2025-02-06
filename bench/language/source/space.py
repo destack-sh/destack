@@ -31,8 +31,8 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.SPACE_TYPE)
 class SpaceType(BuiltinEnum):
-    DESKTOP = 10
-    BROWSER = 20
+    BROWSER = 10
+    DESKTOP = 20
     MOBILE = 30
 
 

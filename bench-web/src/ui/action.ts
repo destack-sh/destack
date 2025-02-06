@@ -155,13 +155,13 @@ export const ACTION_BUILTIN_IDS = [
   "user.navigate.activate",
   "user.navigate.goToHome",
   // developer
-  "debug.test.developerMode",
-  "debug.test.retryAllFailed",
-  "debug.test.addEmptyView",
-  "debug.toast.success",
-  "debug.toast.info",
-  "debug.toast.debug",
-  "debug.toast.error",
+  "developer.test.developerMode",
+  "developer.test.retryAllFailed",
+  "developer.test.addEmptyView",
+  "developer.toast.success",
+  "developer.toast.info",
+  "developer.toast.debug",
+  "developer.toast.error",
 ] as const;
 export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_BUILTIN_IDS.reduce(
   (acc, id, idx) => ({ ...acc, [id]: idx }),

@@ -1,13 +1,14 @@
 <script lang="ts" setup>
+import { supergraph } from "@/globals";
 import { EditSubject, makeExpression } from "@/language/core/expression";
+import { useSubnodeProperty } from "@/language/core/node";
+import { getTextLine } from "@/language/core/text";
 import { uploadFile } from "@/language/resource/file";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
-import { useSubnodeProperty } from "@/language/core/node";
-import { getTextLine, trimText } from "@/language/core/text";
 import {
   BlockData,
+  ChannelData,
   ExpressionType,
-  FileType,
   IconData,
   MessageData,
   MessageProperty,
@@ -16,15 +17,16 @@ import {
   NodeType,
   Orientation,
   PackageData,
+  PageData,
   RectangleData,
   TextData,
+  ThreadData,
   ViewData,
   ViewType,
 } from "@/proto/wire";
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { BENCH_SCOPE, benchPtr } from "@/system/client";
 import { SearchConnectionParams, useSearchConnection } from "@/system/connection";
-import { supergraph } from "@/globals";
 import { bench, benchConnection, canvas, pkg, pkgGraph } from "@/system/space";
 import { user } from "@/system/user";
 import {
@@ -37,10 +39,13 @@ import {
 } from "@/ui/action";
 import { useSingleDropZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
-import { FULL_WIDTH_VIEW_TYPES } from "@/ui/view";
+import { pushDefaultMenu } from "@/ui/popover";
+import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, tsToDt } from "@/utils/time";
-import NodeReference from "@/views/builtins/NodeReference.vue";
+import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
+import NodePath from "@/views/builtins/NodePath.vue";
+import RootHeader from "@/views/builtins/RootHeader.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
@@ -49,6 +54,7 @@ import { useElementSize, useEventListener } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, nextTick, Ref, ref, toRef } from "vue";
 
+const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MESSAGE_HEIGHT_MIN = 28;
 const MESSAGE_MAX_TIME_DELTA_SECONDS = 5 * 60; // 5 minutes
 const MESSAGE_SIDE_WIDTH = 52;
@@ -57,35 +63,30 @@ const props = defineProps<
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     size?: Partial<Pick<RectangleData, "width" | "height">>;
-  } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "subnodePacked">>
+    isRoot?: boolean;
+  } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focus" | "selection" | "subnodePacked">>
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
-
-// message
 const subnodePacked = toRef(props, "subnodePacked");
-const messageText = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "messageText");
-const messageNodesPtr = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "messageNodesPtr");
-const messageReplyTo = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "messageReplyToPtr");
-const messageNodes = supergraph.getManyRef(messageNodesPtr);
-const messageFiles = computed(() => messageNodes.value.filter((n) => isNode(n, NodeType.FILE)));
 
 // node
 const nodePtr = computedValue(() => props.nodePtr);
-const node = pkgGraph.getRef(nodePtr);
+const node = pkgGraph.getRef(nodePtr) as Ref<PageData | PackageData | ChannelData | ThreadData>;
 const nodeAncestors = pkgGraph.getAncestorsRef(nodePtr);
-const scope: Ref<BlockData | PackageData | null> = computed(() => {
-  if (isNode(node.value, NodeType.BLOCK)) {
+
+const scope: Ref<PageData | PackageData | null> = computed(() => {
+  if (isNode(node.value, NodeType.PAGE) || isNode(node.value, NodeType.PACKAGE)) {
     return node.value;
   } else {
-    const block = nodeAncestors.value.find((a) => isNode(a, NodeType.BLOCK));
-    if (block != null) {
-      return block;
+    const scope = nodeAncestors.value.find((a) => isNode(a, NodeType.PAGE) || isNode(a, NodeType.PACKAGE));
+    if (scope != null) {
+      return scope;
     }
   }
-  return pkg.value;
+  return null;
 });
 const scopePtr = computed(() => (scope.value != null ? toNodeRef(scope.value) : null));
 
@@ -104,6 +105,15 @@ const DEFAULT_SORT = makeExpression({
   type: ExpressionType.ASCENDING,
   propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.createdAt),
 });
+const filter = computed(() => {
+  const scopeFilter = makeExpression({
+    type: ExpressionType.EQUALS,
+    propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.scopePtr),
+    value: scopePtr.value,
+  });
+
+  return scopeFilter;
+});
 const {
   roots: messages,
   connection,
@@ -120,12 +130,7 @@ const {
       count: true,
       isEnabled: scopePtr.value != null,
       sort: [DEFAULT_SORT],
-      // nocheckin: Channels/Threads
-      filter: makeExpression({
-        type: ExpressionType.EQUALS,
-        propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.scopePtr),
-        value: scopePtr.value,
-      }),
+      filter: filter.value,
     }),
   ),
 );
@@ -189,7 +194,7 @@ const messageViews = computed(() => {
     }
     const isEdited = message.updatedAt?.seconds != message.createdAt?.seconds;
     const isEditing = editingPtr.value?.id == message.id;
-    const isReplyingTo = messageReplyTo.value?.id == message.id;
+    const isReplyingTo = draftReplyTo.value?.id == message.id;
     const isSelected = canvas.isSelected(message);
     const richMessage: MessageView = {
       idx: i,
@@ -222,9 +227,16 @@ const messageViews = computed(() => {
   return views;
 });
 const replyTo = computed(() => {
-  if (messageReplyTo.value == null) return null;
-  return messageViews.value.find((m) => m.message.id == messageReplyTo.value?.id);
+  if (draftReplyTo.value == null) return null;
+  return messageViews.value.find((m) => m.message.id == draftReplyTo.value?.id);
 });
+
+// draft
+const draftText = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "draftText");
+const draftNodesPtr = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "draftNodesPtr");
+const draftReplyTo = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "draftReplyToPtr");
+const draftNodes = supergraph.getManyRef(draftNodesPtr);
+const draftFiles = computed(() => draftNodes.value.filter((n) => isNode(n, NodeType.FILE)));
 
 //
 // Interaction
@@ -233,6 +245,10 @@ const replyTo = computed(() => {
 const currentAuthor = user;
 const editingText = ref<TextData | null>(null);
 const editingPtr = ref<NodeReferenceData | null>(null);
+
+function focus() {
+  inputRef.value?.focus?.();
+}
 
 function startEdit(message: MessageData) {
   editingPtr.value = toNodeRef(message);
@@ -256,29 +272,33 @@ function submitEdit() {
 function submit() {
   // create message
   if (benchPtr.value == null) throw new Error("no bench");
-  if (scope.value == null) throw new Error("no origin");
+  if (scope.value == null) throw new Error("no scope");
   createMessage(connection.tx, graph, {
     message: {
       type: MessageType.TEXT,
       parentPtr: benchPtr.value,
       scopePtr: toNodeRef(scope.value),
-      text: messageText.value,
-      replyToPtr: replyTo.value != null ? messageReplyTo.value : undefined,
-      nodesPtr: messageNodesPtr.value,
+      text: draftText.value,
+      replyToPtr: replyTo.value != null ? draftReplyTo.value : undefined,
+      nodesPtr: draftNodesPtr.value,
     },
   });
 }
 
 function clear() {
   state.update(
-    { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { text: undefined, nodesPtr: [], replyToPtr: undefined } },
+    {
+      metatype: NodeType.VIEW,
+      type: ViewType.CHAT,
+      subnode: { draftText: undefined, draftNodesPtr: [], draftReplyToPtr: undefined },
+    },
     { debounce: "tick" },
   );
 }
 
 function stopReplying() {
   state.update(
-    { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { replyToPtr: undefined } },
+    { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { draftReplyToPtr: undefined } },
     { debounce: "tick" },
   );
 }
@@ -293,7 +313,7 @@ async function addFiles(files: FileList | File[]) {
       {
         metatype: NodeType.VIEW,
         type: ViewType.CHAT,
-        subnode: { nodesPtr: [...(messageNodesPtr.value ?? []), toNodeRef(upload.file.value!)] },
+        subnode: { draftNodesPtr: [...(draftNodesPtr.value ?? []), toNodeRef(upload.file.value!)] },
       },
       { debounce: "tick" },
     );
@@ -332,7 +352,7 @@ const actions: Partial<ActionMapImplementation<"chat">> = {
     action: (action, ctx) => {
       const { nodes: messages } = getNodesForAction(action, ctx, [NodeType.MESSAGE]);
       state.update(
-        { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { replyToPtr: toNodeRef(messages[0]) } },
+        { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { draftReplyToPtr: toNodeRef(messages[0]) } },
         { debounce: "tick" },
       );
       nextTick(() => {
@@ -352,10 +372,13 @@ const actions: Partial<ActionMapImplementation<"chat">> = {
   },
 };
 
-defineExpose<ViewExposed>({ self, id, actions });
+defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
   <div ref="containerRef" class="relative">
+    <!-- Root header -->
+    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="$props.focus" :graph="pkgGraph" />
+
     <!-- Drop zone -->
     <div
       v-if="dropZone.activeDropZone.value"
@@ -368,13 +391,19 @@ defineExpose<ViewExposed>({ self, id, actions });
         </div>
       </div>
     </div>
+
     <!-- Body -->
     <Scroll
       id="scroll"
       ref="bodyScrollRef"
       :orientation="Orientation.VERTICAL"
       stick-to-end
-      :size="{ height: size?.height != null ? size.height - inputSize.height.value : undefined }"
+      :size="{
+        height:
+          size?.height != null
+            ? size.height - inputSize.height.value - (isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0)
+            : undefined,
+      }"
     >
       <!-- Messages -->
       <ul class="relative mb-3 mt-2 flex flex-col">
@@ -623,11 +652,11 @@ defineExpose<ViewExposed>({ self, id, actions });
                 is-minimal
                 suppress-enter
                 suppress-drop
-                :model-value="messageText"
+                :model-value="draftText"
                 @update:model-value="
                   (value) =>
                     state.update(
-                      { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { text: value } },
+                      { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { draftText: value } },
                       { debounce: 'long' },
                     )
                 "
@@ -642,9 +671,9 @@ defineExpose<ViewExposed>({ self, id, actions });
                 "
               />
               <!-- Extras -->
-              <div v-if="messageFiles.length > 0" class="mt-1 flex flex-row flex-wrap gap-x-2 gap-y-1">
+              <div v-if="draftFiles.length > 0" class="mt-1 flex flex-row flex-wrap gap-x-2 gap-y-1">
                 <File
-                  v-for="file in messageFiles"
+                  v-for="file in draftFiles"
                   :id="'file-' + file.id"
                   :key="file.id"
                   is-minimal

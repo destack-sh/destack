@@ -507,9 +507,9 @@ class UserWizardView(View):
 
 @subnode_(ViewType.CHAT)
 class ChatView(View):
-    message_text: Optional["Text"] = p_regular(100, require=False, struct=StructType.TEXT)
-    message_nodes: list["Node"] = p_regular(101, require=False, array=True, references="any")
-    message_reply_to: Optional["Message"] = p_regular(
+    draft_text: Optional["Text"] = p_regular(100, require=False, struct=StructType.TEXT)
+    draft_nodes: list["Node"] = p_regular(101, require=False, array=True, references="any")
+    draft_reply_to: Optional["Message"] = p_regular(
         102, require=False, array=False, references=NodeType.MESSAGE
     )
 
@@ -567,13 +567,9 @@ class TreeViewPreset(BuiltinEnum):
 
 @subnode_(ViewType.TREE)
 class TreeView(View):
-    node_types: list[NodeType] = p_regular(100, array=True)
-    filter_is_page: Optional[bool] = p_regular(101, default=None, require=False)
-    is_default_expanded: Optional[bool] = p_regular(102, default=None, require=False)
-    expanded_nodes: list[Node] = p_regular(103, require=False, array=True, references="any")
-    collapsed_nodes: list[Node] = p_regular(104, require=False, array=True, references="any")
-
-    preset: Optional[TreeViewPreset] = p_regular(110, default=None, require=False)
+    preset: Optional[TreeViewPreset] = p_regular(100, default=None, require=False)
+    expanded_nodes: list[Node] = p_regular(101, require=False, array=True, references="any")
+    collapsed_nodes: list[Node] = p_regular(102, require=False, array=True, references="any")
 
 
 @subnode_(ViewType.FEED)

@@ -13,7 +13,7 @@ import { canvas } from "@/globals";
 // debug actions
 export const DEBUG_ACTIONS = provideActions<"debug">({
   // test
-  "debug.test.developerMode": {
+  "developer.test.developerMode": {
     type: "toggle",
     icon: "fas fa-binary",
     title: "Developer Mode",
@@ -22,7 +22,7 @@ export const DEBUG_ACTIONS = provideActions<"debug">({
     action: () => {
       isDeveloperMode.value = !isDeveloperMode.value;
       toaster.success({
-        override: "debug.toggleDeveloperMode",
+        override: "developer.toggleDeveloperMode",
         title: isDeveloperMode.value ? "Developer Mode Enabled" : "Developer Mode Disabled",
         text: isDeveloperMode.value ? "Welcome to the dark side." : "Back to the normal side.",
         icon: "fas fa-binary",
@@ -39,10 +39,10 @@ export const DEBUG_ACTIONS = provideActions<"debug">({
     },
     shortcuts: ["alt+f12", "f12"],
   },
-  "debug.test.retryAllFailed": {
+  "developer.test.retryAllFailed": {
     isEnabled: isDeveloperMode,
     icon: "fas fa-redo",
-    title: "Retry All Failed Commits",
+    title: "Retry Commits",
     text: "Retry all current failed transactions",
     action: () => {
       getAllTransactionBuffers().forEach((txBuffer) => {
@@ -50,7 +50,7 @@ export const DEBUG_ACTIONS = provideActions<"debug">({
       });
     },
   },
-  "debug.test.addEmptyView": {
+  "developer.test.addEmptyView": {
     isEnabled: isDeveloperMode,
     icon: "fas fa-window-frame",
     title: "Add Empty View",
@@ -61,31 +61,31 @@ export const DEBUG_ACTIONS = provideActions<"debug">({
     },
   },
   // toast
-  "debug.toast.info": {
+  "developer.toast.info": {
     isEnabled: isDeveloperMode,
     icon: "fas fa-info-circle",
-    title: "Info",
+    title: "Info Toast",
     text: "Show an info toast",
     action: () => testToast(ToastLevel.INFO),
   },
-  "debug.toast.debug": {
+  "developer.toast.debug": {
     isEnabled: isDeveloperMode,
     icon: "fas fa-bug",
-    title: "Debug",
+    title: "Debug Toast",
     text: "Show a debug toast",
     action: () => testToast(ToastLevel.DEBUG),
   },
-  "debug.toast.error": {
+  "developer.toast.error": {
     isEnabled: isDeveloperMode,
     icon: "fas fa-exclamation-triangle",
-    title: "Error",
+    title: "Error Toast",
     text: "Show an error toast",
     action: () => testToast(ToastLevel.ERROR),
   },
-  "debug.toast.success": {
+  "developer.toast.success": {
     isEnabled: isDeveloperMode,
     icon: "fas fa-check-circle",
-    title: "Success",
+    title: "Success Toast",
     text: "Show a success toast",
     action: () => testToast(ToastLevel.SUCCESS),
   },
@@ -94,7 +94,7 @@ export const DEBUG_ACTIONS = provideActions<"debug">({
 function testToast(level: ToastLevel) {
   toaster.add({
     level,
-    title: ToastLevel[level],
+    title: toCasing(ToastLevel[level], Casing.CAMEL),
     text: "This is a test toast. Lorem ipsum dolor sit amet. Much more text.",
     durationMs: 60000,
   });

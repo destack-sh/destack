@@ -13,6 +13,7 @@ const props = defineProps<
     self: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     size: Required<Pick<RectangleData, "width" | "height">>;
+    isRoot?: boolean;
   } & Pick<ViewData, "icon" | "nodePtr" | "focus" | "subnodePacked">
 >();
 const emit = defineEmits(viewEmits());
@@ -73,6 +74,7 @@ defineExpose<ViewExposed>({ self, actions });
       :is="getViewComponent(focusedView.type)"
       v-if="focusedView != null && getViewComponent(focusedView.type) != null"
       :self="toNodeRef(focusedView)"
+      :is-root="isRoot"
       v-bind="getViewBinding(focusedView, size)"
     />
   </div>

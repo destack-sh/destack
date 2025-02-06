@@ -73,7 +73,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH)
     type: MessageType = p_regular(30, require=True, default=MessageType.TEXT)
     platform: MessagePlatform = p_regular(31, require=True, default=MessagePlatform.BENCH)
-    channel: "Channel | None" = p_system(
+    channel: Optional["Channel"] = p_system(
         32,
         require=False,
         array=False,
@@ -91,7 +91,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     scope: Union["Page", "Package"] = p_regular(
         35, require=False, references=(NodeType.PAGE, NodeType.PACKAGE)
     )
-    clazz: "Class | None" = p_internal(
+    clazz: Optional["Class"] = p_internal(
         36,
         require=False,
         array=False,
@@ -151,10 +151,12 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
 
     @property
     def container(self) -> "Node | None":
-        if isinstance((parent := self.parent), Thread):
-            return parent
+        if (thread := self.thread) is not None:
+            return thread
+        elif (channel := self.channel) is not None:
+            return channel
         else:
-            return self.channel
+            return self.parent
 
     @property
     def base(self):

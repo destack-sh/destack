@@ -1572,8 +1572,8 @@ enum ToolFilter {
 
 enum SpaceType {
   SPACE_TYPE_UNSPECIFIED = 0;
-  SPACE_TYPE_DESKTOP = 10;
-  SPACE_TYPE_BROWSER = 20;
+  SPACE_TYPE_BROWSER = 10;
+  SPACE_TYPE_DESKTOP = 20;
   SPACE_TYPE_MOBILE = 30;
 }
 
@@ -1816,8 +1816,9 @@ enum UserWizardViewStage {
 
 enum TreeViewPreset {
   TREE_VIEW_PRESET_UNSPECIFIED = 0;
-  TREE_VIEW_PRESET_EXPLORE = 1;
-  TREE_VIEW_PRESET_OUTLINE = 2;
+  TREE_VIEW_PRESET_PAGES = 1;
+  TREE_VIEW_PRESET_CHANNELS = 2;
+  TREE_VIEW_PRESET_OUTLINE = 3;
 }
 
 enum HubAspect {
@@ -3689,9 +3690,9 @@ message UserWizardViewData {
 
 // A View is a graphical interface in a Bench.
 message ChatViewData {
-  optional TextData message_text = 100;
-  repeated NodeReferenceData message_nodes_ptr = 101;
-  optional NodeReferenceData message_reply_to_ptr = 102;
+  optional TextData draft_text = 100;
+  repeated NodeReferenceData draft_nodes_ptr = 101;
+  optional NodeReferenceData draft_reply_to_ptr = 102;
 }
 
 // A View is a graphical interface in a Bench.
@@ -3713,12 +3714,9 @@ message ListViewData {
 
 // A View is a graphical interface in a Bench.
 message TreeViewData {
-  repeated NodeType node_types = 100;
-  optional bool filter_is_page = 101;
-  optional bool is_default_expanded = 102;
-  repeated NodeReferenceData expanded_nodes_ptr = 103;
-  repeated NodeReferenceData collapsed_nodes_ptr = 104;
-  optional TreeViewPreset preset = 110;
+  optional TreeViewPreset preset = 100;
+  repeated NodeReferenceData expanded_nodes_ptr = 101;
+  repeated NodeReferenceData collapsed_nodes_ptr = 102;
 }
 
 // A View is a graphical interface in a Bench.

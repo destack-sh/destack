@@ -15,7 +15,7 @@ const props = defineProps<{
   graph: ReadNodeGraph;
 }>();
 
-const METATYPES = [NodeType.PAGE, ...INLINE_SOURCE_NODE_TYPES];
+const METATYPES = [NodeType.PAGE, ...INLINE_SOURCE_NODE_TYPES, NodeType.CHANNEL, NodeType.THREAD];
 
 const ancestorsFocus = props.graph.getAncestorsRef(toRef(props, "focus"), { includeSelf: true, metatypes: METATYPES });
 const ancestorsSelf = props.graph.getAncestorsRef(toRef(props, "container"), {

@@ -84,4 +84,4 @@ class Thread(HasTimeIdentity, StateNode[ThreadData]):
         if (channel := self.channel) is not None:
             return channel
         else:
-            return self.scope
+            return self.parent

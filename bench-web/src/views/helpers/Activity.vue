@@ -15,13 +15,13 @@ import {
 import { propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
-import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import List from "@/views/collections/List.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { computed, Ref, ref, toRef } from "vue";
 
-const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
+const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 
 const props = defineProps<

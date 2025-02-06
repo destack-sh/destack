@@ -461,7 +461,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
       if (errorCode != lastErrorCode) {
         const op = `${this.kind}:${this.meta.name}`;
         toaster.error({
-          title: `Connection ${retry ? "lost" : "failed"}`,
+          title: `Disconnected`,
           text: `Connection failed: ${IS_DEV ? error.message : HUMANIZED_OPERATION_STATUS[(error as RpcError).code]}`,
           override: `connection:${this.meta.id}`,
           summarize: {
@@ -548,7 +548,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
           // retry if needed
           if (retryCount > 0) {
             toaster.success({
-              title: "Connection restored",
+              title: "Reconnected",
               text: `Connection restored.`,
               override: `connection:${this.meta.id}`,
             });
