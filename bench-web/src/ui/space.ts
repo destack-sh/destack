@@ -105,7 +105,7 @@ export type SomeView = NodeReferenceData | ViewData;
 export type ViewIn = Partial<NodeIn<NodeType.VIEW>> & { type: ViewType };
 
 type OpenViewOptions = {
-  predicate?: (view: ViewData) => boolean;
+  filter?: (view: ViewData) => boolean;
   ifPresent?: "duplicate" | "focus" | "upsertAndFocus";
   props?: ViewIn;
 };
@@ -797,19 +797,65 @@ export class SpaceCanvas {
     return this.graph.getDescendants(this.spacePtr.value, { metatypes: [NodeType.VIEW] });
   }
 
+  get activeViews(): ViewData[] {
+    if (this.spacePtr.value == null) return [];
+    return this.getActiveViewsIn(this.spacePtr.value);
+  }
+
+  /** Gets all the *active* Views descendant from the given Node (ignoring inactive History views) */
+  getActiveViewsIn(nodePtr: NodeReferenceData): ViewData[] {
+    // this.graph.getDescendants(this.spacePtr.value, { metatypes: [NodeType.VIEW] })
+    const graph = this.graph;
+    const descendants: ViewData[] = [];
+
+    // walk children but ignore inactive views
+    function walkChildren(node: AnyNodeData) {
+      if (!isNode(node, NodeType.VIEW)) {
+        // skip non-Views
+        for (const child of graph.getChildren(node, NodeType.VIEW)) {
+          walkChildren(child);
+        }
+        return;
+      }
+
+      descendants.push(node);
+      const children = graph.getChildren(node, NodeType.VIEW);
+      if (node.type == ViewType.HISTORY) {
+        const focusedId = node.focus?.nodesPtr[0].id;
+        if (focusedId != null) {
+          const focusedView = children.find((v) => v.id == focusedId);
+          if (focusedView != null) {
+            walkChildren(focusedView);
+          }
+        }
+      } else {
+        for (const child of children) {
+          walkChildren(child);
+        }
+      }
+    }
+
+    // start at root
+    const root = graph.get(nodePtr);
+    if (root == null) throw new Error(`no root for: ${describeNode(nodePtr)}`);
+    walkChildren(root);
+    return descendants;
+  }
+
   /** Finds a view with properties exactly like the criteria */
   findView(like: {
     type: ViewType;
     nodePtr?: NodeReferenceData | undefined;
-    predicate?: (view: ViewData) => boolean;
+    filter?: (view: ViewData) => boolean;
+    isActive?: boolean;
   }): ViewData | null {
     if (Object.keys(like).length == 0) return null;
     if (this.spacePtr.value == null) return null;
-    const views = this.graph.getDescendants(this.spacePtr.value, { metatypes: [NodeType.VIEW] });
+    const views = like.isActive ? this.getActiveViewsIn(this.spacePtr.value) : this.views;
     const match = views.find((v) => {
-      if (like.type != null && v.type != like.type) return false;
+      if (v.type != like.type) return false;
       if (like.nodePtr != null && v.nodePtr?.id != like.nodePtr?.id) return false;
-      if (like.predicate != null && !like.predicate(v)) return false;
+      if (like.filter != null && !like.filter(v)) return false;
       return true;
     });
     return match ?? null;
@@ -818,11 +864,7 @@ export class SpaceCanvas {
   /** Add a new view to the canvas at the current root.  */
   addView(view: ViewIn, options?: OpenViewOptions) {
     const tx = this.tx();
-    const existing = this.findView({
-      type: view.type,
-      nodePtr: view.nodePtr,
-      predicate: options?.predicate,
-    });
+    const existing = this.findView({ type: view.type, nodePtr: view.nodePtr, filter: options?.filter });
 
     if (existing == null || options?.ifPresent == null || options?.ifPresent == "duplicate") {
       // find root
@@ -1010,8 +1052,8 @@ export class SpaceCanvas {
       } else if (isNode(node, NodeType.CHANNEL)) {
         scopePtr = undefined;
         inspectPtr = nodePtr;
-        inspectPtr = nodePtr;
         threadPtr = undefined;
+        channelPtr = nodePtr;
       } else {
         assertNever(node);
       }
@@ -1019,7 +1061,7 @@ export class SpaceCanvas {
         { type: ViewType.CHAT, nodePtr: scopePtr, subnode: { threadPtr, channelPtr } },
         {
           ifPresent: "upsertAndFocus",
-          predicate: (v) => {
+          filter: (v) => {
             if (v.type != ViewType.CHAT) return false;
             const subnode = unpackSubnode(NodeType.VIEW, ViewType.CHAT, v.subnodePacked);
             return subnode.threadPtr?.id == threadPtr?.id && subnode.channelPtr?.id == channelPtr?.id;
