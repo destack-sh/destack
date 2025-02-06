@@ -123,7 +123,7 @@ const operationsTracker = {
     if (this.recentOps.length > this.RECENT_OPERATION_BUFFER_SIZE) {
       this.recentOps.shift();
     }
-    log.trace(rpcName, { id, uri, request: op.request });
+    log.trace(`${rpcName}.request`, { id, uri, request: op.request });
 
     const remove = () => {
       const index = this.pendingOps.indexOf(op);

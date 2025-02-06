@@ -1,14 +1,15 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
-import { EditSubject, makeExpression } from "@/language/core/expression";
+import { EditSubject, makeAndConditional, makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
 import { getTextLine } from "@/language/core/text";
-import { uploadFile } from "@/language/resource/file";
+import { INLINE_FILE_TYPES, uploadFile } from "@/language/resource/file";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
-  BlockData,
   ChannelData,
+  ExpressionData,
   ExpressionType,
+  FileData,
   IconData,
   MessageData,
   MessageProperty,
@@ -39,12 +40,9 @@ import {
 } from "@/ui/action";
 import { useSingleDropZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
-import { pushDefaultMenu } from "@/ui/popover";
-import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, tsToDt } from "@/utils/time";
-import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
-import NodePath from "@/views/builtins/NodePath.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -73,10 +71,13 @@ const state = canvas.registerView(self, id);
 const subnodePacked = toRef(props, "subnodePacked");
 
 // node
+const channelPtr = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "channelPtr");
+const threadPtr = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "threadPtr");
+const channel = supergraph.getRef(channelPtr);
+const thread = supergraph.getRef(threadPtr);
 const nodePtr = computedValue(() => props.nodePtr);
 const node = pkgGraph.getRef(nodePtr) as Ref<PageData | PackageData | ChannelData | ThreadData>;
 const nodeAncestors = pkgGraph.getAncestorsRef(nodePtr);
-
 const scope: Ref<PageData | PackageData | null> = computed(() => {
   if (isNode(node.value, NodeType.PAGE) || isNode(node.value, NodeType.PACKAGE)) {
     return node.value;
@@ -86,19 +87,12 @@ const scope: Ref<PageData | PackageData | null> = computed(() => {
       return scope;
     }
   }
-  return null;
+  return pkg.value;
 });
 const scopePtr = computed(() => (scope.value != null ? toNodeRef(scope.value) : null));
 
-const inputContainerRef = ref<HTMLInputElement | null>(null);
-const inputRef = ref<InstanceType<typeof Text> | null>(null);
-const inputSize = useElementSize(inputContainerRef);
-const containerRef = ref<HTMLDivElement | null>(null);
-const bodyScrollRef = ref<InstanceType<typeof Scroll> | null>(null);
-const editingTextRefs = ref<InstanceType<typeof Text>[] | null>(null); // there can only be one but it's inside a v-for (so it has to be an array)
-
 //
-// Messages :MessageRouting
+// Messages
 //
 
 const DEFAULT_SORT = makeExpression({
@@ -106,13 +100,52 @@ const DEFAULT_SORT = makeExpression({
   propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.createdAt),
 });
 const filter = computed(() => {
-  const scopeFilter = makeExpression({
-    type: ExpressionType.EQUALS,
-    propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.scopePtr),
-    value: scopePtr.value,
-  });
-
-  return scopeFilter;
+  const filters: ExpressionData[] = [];
+  // channel
+  if (channelPtr.value != null) {
+    filters.push(
+      makeExpression({
+        type: ExpressionType.EQUALS,
+        propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.channelPtr),
+        value: channelPtr.value,
+      }),
+    );
+  } else {
+    filters.push(
+      makeExpression({
+        type: ExpressionType.NOT_EXISTS,
+        propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.channelPtr),
+      }),
+    );
+  }
+  // thread
+  if (threadPtr.value != null) {
+    filters.push(
+      makeExpression({
+        type: ExpressionType.EQUALS,
+        propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.threadPtr),
+        value: threadPtr.value,
+      }),
+    );
+  } else {
+    filters.push(
+      makeExpression({
+        type: ExpressionType.NOT_EXISTS,
+        propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.threadPtr),
+      }),
+    );
+  }
+  // scope
+  if (channelPtr.value == null && threadPtr.value == null) {
+    filters.push(
+      makeExpression({
+        type: ExpressionType.EQUALS,
+        propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.scopePtr),
+        value: scopePtr.value,
+      }),
+    );
+  }
+  return makeAndConditional(filters);
 });
 const {
   roots: messages,
@@ -242,6 +275,13 @@ const draftFiles = computed(() => draftNodes.value.filter((n) => isNode(n, NodeT
 // Interaction
 //
 
+const inputContainerRef = ref<HTMLInputElement | null>(null);
+const inputRef = ref<InstanceType<typeof Text> | null>(null);
+const inputSize = useElementSize(inputContainerRef);
+const containerRef = ref<HTMLDivElement | null>(null);
+const bodyScrollRef = ref<InstanceType<typeof Scroll> | null>(null);
+const editingTextRefs = ref<InstanceType<typeof Text>[] | null>(null); // there can only be one but it's inside a v-for (so it has to be an array)
+
 const currentAuthor = user;
 const editingText = ref<TextData | null>(null);
 const editingPtr = ref<NodeReferenceData | null>(null);
@@ -279,13 +319,15 @@ function submit() {
       parentPtr: benchPtr.value,
       scopePtr: toNodeRef(scope.value),
       text: draftText.value,
+      channelPtr: channelPtr.value,
+      threadPtr: threadPtr.value,
       replyToPtr: replyTo.value != null ? draftReplyTo.value : undefined,
       nodesPtr: draftNodesPtr.value,
     },
   });
 }
 
-function clear() {
+function clearDraft() {
   state.update(
     {
       metatype: NodeType.VIEW,
@@ -318,6 +360,17 @@ async function addFiles(files: FileList | File[]) {
       { debounce: "tick" },
     );
   });
+}
+
+function removeFiles(files: (FileData | NodeReferenceData)[]) {
+  state.update(
+    {
+      metatype: NodeType.VIEW,
+      type: ViewType.CHAT,
+      subnode: { draftNodesPtr: draftNodesPtr.value?.filter((f) => !files.some((f2) => f2.id == f.id)) },
+    },
+    { debounce: "tick" },
+  );
 }
 
 // drop
@@ -377,7 +430,13 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
 <template>
   <div ref="containerRef" class="relative">
     <!-- Root header -->
-    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="$props.focus" :graph="pkgGraph" />
+    <RootHeader
+      v-if="isRoot"
+      :self="self"
+      :node-ptr="threadPtr ?? channelPtr"
+      :focus="$props.focus"
+      :graph="pkgGraph"
+    />
 
     <!-- Drop zone -->
     <div
@@ -396,6 +455,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <Scroll
       id="scroll"
       ref="bodyScrollRef"
+      class=""
       :orientation="Orientation.VERTICAL"
       stick-to-end
       :size="{
@@ -426,7 +486,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           } in messageViews"
           :key="message.id"
           class="group/message mx-5 max-w-full"
-          :class="[isNewGroup && idx != 0 ? 'mt-2' : '']"
+          :class="[isNewGroup && idx != 0 ? 'mt-2.5' : '']"
           :data-node-id="message.id"
           :data-node-type="message.metatype"
           data-contextmenu-items="chat.message*"
@@ -595,7 +655,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       </div>
     </Scroll>
     <!-- Input -->
-    <div ref="inputContainerRef" class="mx-5">
+    <div ref="inputContainerRef" class="mx-5" @click="inputRef?.focus?.()">
       <!-- Replying to -->
       <div
         v-if="replyTo != null"
@@ -631,6 +691,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             <button
               v-tooltip="{ small: true, title: 'Add Context' }"
               class="transition-color mr-3 rounded-2xl bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-150 hover:bg-gray-200"
+              @click.stop
             >
               <i class="fas fa-plus" />
             </button>
@@ -665,28 +726,41 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                     if (!e.shiftKey) {
                       e.preventDefault();
                       submit();
-                      clear();
+                      clearDraft();
                     }
                   }
                 "
               />
               <!-- Extras -->
               <div v-if="draftFiles.length > 0" class="mt-1 flex flex-row flex-wrap gap-x-2 gap-y-1">
-                <File
-                  v-for="file in draftFiles"
-                  :id="'file-' + file.id"
-                  :key="file.id"
-                  is-minimal
-                  is-inline
-                  :model-value="toNodeRef(file)"
-                />
+                <div v-for="file in draftFiles" :key="file.id" class="group/file relative">
+                  <File
+                    :id="'file-' + file.id"
+                    is-minimal
+                    is-inline
+                    :model-value="toNodeRef(file)"
+                    :size="{
+                      height:
+                        size?.height != null && INLINE_FILE_TYPES.includes(file.type)
+                          ? Math.min(300, size.height / 2)
+                          : undefined,
+                    }"
+                  />
+                  <!-- Remove -->
+                  <button
+                    class="absolute right-1 top-1 rounded-full bg-white/80 px-1.5 py-0.5 text-gray-700 transition-colors duration-150 group-hover/file:bg-white/100 group-hover/file:text-gray-900"
+                    @click.stop="removeFiles([file])"
+                  >
+                    <i class="fas fa-xmark" />
+                  </button>
+                </div>
               </div>
             </Scroll>
           </div>
         </div>
       </div>
       <!-- Spacing -->
-      <div class="h-3" />
+      <div class="h-4" />
     </div>
   </div>
 </template>

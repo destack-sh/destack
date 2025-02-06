@@ -132,9 +132,9 @@ defineExpose<ViewExposed>({ self });
     <!-- Bench Header -->
     <div
       v-menu="(): PopoverInfoIn => ({ kind: 'menu', items: BENCH_MENU_ITEMS, placement: 'bottom-left' })"
-      class="mx-2 my-1.5 flex flex-shrink-0 cursor-pointer flex-row items-center rounded pl-2.5 pr-1 transition-colors duration-75 hover:bg-gray-100"
+      class="mx-2 py-1.5 flex flex-shrink-0 cursor-pointer flex-row items-center rounded pl-2.5 pr-1 transition-colors duration-75 hover:bg-gray-100"
       :style="{
-        height: `${BAR_HEADER_HEIGHT - 12}px`,
+        height: `${BAR_HEADER_HEIGHT}px`,
       }"
     >
       <span class="flex flex-row items-center gap-x-2">
@@ -159,10 +159,10 @@ defineExpose<ViewExposed>({ self });
 
     <!-- Header -->
     <div
-      class="mx-3 my-1.5 flex flex-shrink-0 flex-row items-center gap-x-2"
+      class="mx-3 py-1.5 flex flex-shrink-0 flex-row items-center gap-x-2"
       :class="[visibleAspectsOverflow ? 'justify-between' : '']"
       :style="{
-        height: `${HEADER_HEIGHT - 12}px`,
+        height: `${HEADER_HEIGHT}px`,
       }"
     >
       <button
@@ -205,9 +205,9 @@ defineExpose<ViewExposed>({ self });
         <div v-if="aspect == HubAspect.BENCH">
           <!-- Pages -->
           <div
-            class="mx-4 mt-1.5 flex flex-row items-center"
+            class="mx-4 pt-1.5 flex flex-row items-center"
             :style="{
-              height: `${HEADER_HEIGHT - 6}px`,
+              height: `${HEADER_HEIGHT}px`,
             }"
           >
             <span class="font-medium">Pages</span>
@@ -236,9 +236,9 @@ defineExpose<ViewExposed>({ self });
           />
           <!-- Channels -->
           <div
-            class="mx-4 mt-1.5 flex flex-row items-center"
+            class="mx-4 pt-1.5 flex flex-row items-center"
             :style="{
-              height: `${HEADER_HEIGHT - 6}px`,
+              height: `${HEADER_HEIGHT}px`,
             }"
           >
             <span class="font-medium">Channels</span>
@@ -271,9 +271,9 @@ defineExpose<ViewExposed>({ self });
           />
           <!-- Outline -->
           <div
-            class="mx-4 mt-1.5 flex flex-row items-center"
+            class="mx-4 pt-1.5 flex flex-row items-center"
             :style="{
-              height: `${HEADER_HEIGHT - 6}px`,
+              height: `${HEADER_HEIGHT}px`,
             }"
           >
             <span class="font-medium">Outline</span>

@@ -3693,6 +3693,8 @@ message ChatViewData {
   optional TextData draft_text = 100;
   repeated NodeReferenceData draft_nodes_ptr = 101;
   optional NodeReferenceData draft_reply_to_ptr = 102;
+  optional NodeReferenceData channel_ptr = 110;
+  optional NodeReferenceData thread_ptr = 111;
 }
 
 // A View is a graphical interface in a Bench.

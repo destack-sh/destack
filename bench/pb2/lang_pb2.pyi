@@ -6629,14 +6629,18 @@ class UserWizardViewData(_message.Message):
     def __init__(self, stage: _Optional[_Union[UserWizardViewStage, str]] = ...) -> None: ...
 
 class ChatViewData(_message.Message):
-    __slots__ = ("draft_text", "draft_nodes_ptr", "draft_reply_to_ptr")
+    __slots__ = ("draft_text", "draft_nodes_ptr", "draft_reply_to_ptr", "channel_ptr", "thread_ptr")
     DRAFT_TEXT_FIELD_NUMBER: _ClassVar[int]
     DRAFT_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
     DRAFT_REPLY_TO_PTR_FIELD_NUMBER: _ClassVar[int]
+    CHANNEL_PTR_FIELD_NUMBER: _ClassVar[int]
+    THREAD_PTR_FIELD_NUMBER: _ClassVar[int]
     draft_text: TextData
     draft_nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     draft_reply_to_ptr: NodeReferenceData
-    def __init__(self, draft_text: _Optional[_Union[TextData, _Mapping]] = ..., draft_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., draft_reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    channel_ptr: NodeReferenceData
+    thread_ptr: NodeReferenceData
+    def __init__(self, draft_text: _Optional[_Union[TextData, _Mapping]] = ..., draft_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., draft_reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., channel_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class HubViewData(_message.Message):
     __slots__ = ("aspect",)

@@ -27,7 +27,7 @@ from bench.pb2 import ViewData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Expression, Message, Page, Space, Text, Type
+    from bench.language import Channel, Expression, Message, Page, Space, Text, Thread, Type
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -511,6 +511,12 @@ class ChatView(View):
     draft_nodes: list["Node"] = p_regular(101, require=False, array=True, references="any")
     draft_reply_to: Optional["Message"] = p_regular(
         102, require=False, array=False, references=NodeType.MESSAGE
+    )
+    channel: Optional["Channel"] = p_regular(
+        110, require=False, array=False, references=NodeType.CHANNEL
+    )
+    thread: Optional["Thread"] = p_regular(
+        111, require=False, array=False, references=NodeType.THREAD
     )
 
 

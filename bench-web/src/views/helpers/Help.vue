@@ -93,9 +93,9 @@ defineExpose<ViewExposed>({ self });
   <div class="flex h-full w-full flex-col">
     <!-- Bench Header -->
     <div
-      class="mx-2 my-1.5 flex flex-shrink-0 flex-row items-center gap-x-1 rounded pl-2.5 pr-2.5"
+      class="mx-2 py-1.5 flex flex-shrink-0 flex-row items-center gap-x-1 rounded pl-2.5 pr-2.5"
       :style="{
-        height: `${BAR_HEADER_HEIGHT - 12}px`,
+        height: `${BAR_HEADER_HEIGHT}px`,
       }"
     >
       <!-- Node -->
@@ -139,9 +139,9 @@ defineExpose<ViewExposed>({ self });
 
     <!-- Header -->
     <div
-      class="mx-3 mb-3 mt-1.5 flex flex-row items-center gap-x-2"
+      class="mx-3 pb-3 pt-1.5 flex flex-row items-center gap-x-2"
       :style="{
-        height: `${HEADER_HEIGHT - 12}px`,
+        height: `${HEADER_HEIGHT}px`,
       }"
     >
       <button

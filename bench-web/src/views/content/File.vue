@@ -4,6 +4,7 @@ import {
   FileStatus,
   getFileAcceptFromConstraint,
   getFileIconMaybe,
+  INLINE_FILE_TYPES,
   uploadFile,
   useFileDownload,
   type FileUpload,
@@ -33,8 +34,6 @@ import { computed, ref, toRef, type Ref } from "vue";
 
 const FILE_POPOVER_WIDTH_MIN = 400;
 const FILE_POPOVER_WIDTH_MAX = 800;
-
-const INLINE_FILE_TYPES = [FileType.IMAGE];
 
 const props = defineProps<
   {
@@ -359,6 +358,7 @@ defineExpose<ViewExposed>({
         </div>
         <!-- Meta/Controls -->
         <div
+          v-if="!isMinimal"
           class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded border border-gray-200 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover:text-gray-700 group-hover:opacity-100"
         >
           <!-- Format -->
