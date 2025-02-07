@@ -55,7 +55,7 @@ class LogSink:
             text = None
 
         # coerce to none if empty
-        if text is not None and len(text) == 0:
+        if text is not None and len(text.lines) == 0:
             text = None  # we can't have empty strings
 
         # truncate plain text if too long

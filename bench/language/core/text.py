@@ -21,7 +21,6 @@ class TextOptionsBase(BuiltinObject):
     is_italic: Optional[bool] = p_regular(61, default=None)
     is_strikethrough: Optional[bool] = p_regular(62, default=None)
     is_underline: Optional[bool] = p_regular(63, default=None)
-    is_code: Optional[bool] = p_regular(64, default=None)
 
     def _to_option_kwargs(self):
         kwargs = {}
@@ -35,37 +34,38 @@ class TextOptionsBase(BuiltinObject):
 @enum_(EnumType.TEXT_LINE_TYPE)
 class TextLineType(BuiltinEnum):
     # basic
-    PARAGRAPH = 1, "plain paragraph"
+    PARAGRAPH = 1, "Plain paragraph"
     # heading
-    HEADING_1 = 10, "very big heading"
-    HEADING_2 = 11, "big heading"
-    HEADING_3 = 12, "medium heading"
-    HEADING_4 = 13, "small heading"
+    HEADING_1 = 10, "Very big heading"
+    HEADING_2 = 11, "Big heading"
+    HEADING_3 = 12, "Medium heading"
+    HEADING_4 = 13, "Small heading"
     # highlight
-    CALLOUT = 20, "callout"
-    QUOTE = 21, "quote"
+    CALLOUT = 20, "Callout"
+    QUOTE = 21, "Quote"
     # list
-    LIST_BULLET = 30, "bullet list"
-    LIST_NUMBERED = 31, "numbered list"
-    LIST_UNCHECKED = 32, "unchecked list"
-    LIST_CHECKED = 33, "checked list"
+    LIST_BULLET = 30, "Bullet list"
+    LIST_NUMBERED = 31, "Numbered list"
+    LIST_UNCHECKED = 32, "Unchecked list"
+    LIST_CHECKED = 33, "Checked list"
     # divider
-    DIVIDER = 40, "horizontal line"
+    DIVIDER = 40, "Horizontal line"
     # table
-    TABLE = 50, "table"
-    TABLE_ROW = 51, "table row"
+    TABLE = 50, "Table"
+    TABLE_ROW = 51, "Table row"
     # code
-    CODE = 60, "code block"
-    EQUATION = 61, "equation (tex)"
-    DIAGRAM = 62, "diagram (mermaid)"
+    CODE = 60, "Code block"
+    EQUATION = 61, "Equation (TeX)"
+    DIAGRAM = 62, "Diagram (Mermaid)"
 
 
 @enum_(EnumType.TEXT_SPAN_TYPE)
 class TextSpanType(BuiltinEnum):
     TEXT = 1, "Formatted text"
-    NODE = 2, "Reference to a Node"
-    LINK = 3, "Hyperlink"
-    EQUATION = 4, "TeX equation"
+    NODE = 10, "Reference to a Node"
+    LINK = 11, "Hyperlink"
+    CODE = 20, "Code"
+    EQUATION = 21, "TeX equation"
 
 
 @struct_(StructType.TEXT_SPAN)
@@ -90,7 +90,6 @@ class TextSpan(TextOptionsBase, Struct):
         is_italic: bool | None = None,
         is_strikethrough: bool | None = None,
         is_underline: bool | None = None,
-        is_code: bool | None = None,
         color: "ColorType | None" = None,
         background_color: "ColorType | None" = None,
     ) -> "TextSpan":
@@ -109,7 +108,6 @@ class TextSpan(TextOptionsBase, Struct):
             is_italic=is_italic,
             is_strikethrough=is_strikethrough,
             is_underline=is_underline,
-            is_code=is_code,
             color=color,
             background_color=background_color,
         )
@@ -229,7 +227,6 @@ class TextLine(TextOptionsBase, Struct):
         is_italic: bool | None = None,
         is_strikethrough: bool | None = None,
         is_underline: bool | None = None,
-        is_code: bool | None = None,
         color: "ColorType | None" = None,
     ) -> "TextLine":
         if spans is None:
@@ -245,7 +242,6 @@ class TextLine(TextOptionsBase, Struct):
             is_italic=is_italic,
             is_strikethrough=is_strikethrough,
             is_underline=is_underline,
-            is_code=is_code,
             color=color,
         )
 
@@ -286,7 +282,6 @@ class Text(Struct):
 
 
 text = Text.plain
-
 #
 # Parsing
 #
@@ -297,7 +292,6 @@ MARKER_TO_FLAG = {
     "**": "is_bold",
     "__": "is_bold",
     "~~": "is_strikethrough",
-    "`": "is_code",
     "<u>": "is_underline",
 }
 
@@ -379,8 +373,15 @@ def _parse_inline_raw(
                 sp.is_underline = True
             spans.extend(inner)
             continue
-        # symmetric markers: *, **, ~~ or `
-        if marker in {"*", "**", "~~", "`"}:
+        # symmetric marker for inline code
+        if marker == "`":
+            inner, pos = _parse_inline_raw(text, pos, end_marker=marker, base=base.copy())
+            merged = _merge_spans(inner)
+            content = "".join(sp.content or "" for sp in merged)
+            spans.append(TextSpan(type=TextSpanType.CODE, content=content, **base))
+            continue
+        # symmetric markers: *, **, ~~
+        if marker in {"*", "**", "~~"}:
             flag = MARKER_TO_FLAG[marker]
             inner, pos = _parse_inline_raw(text, pos, end_marker=marker, base=base.copy())
             for sp in inner:
@@ -428,7 +429,6 @@ def _span_format_key(span: TextSpan) -> tuple:
         span.is_italic,
         span.is_strikethrough,
         span.is_underline,
-        span.is_code,
         span.color,
         span.background_color,
     )
@@ -623,8 +623,8 @@ def _render_span_no_color(span: TextSpan) -> str:
     Render a TextSpan without color.
     """
     txt = span.content or ""
-    if span.is_code:
-        txt = f"`{txt}`"
+    if span.type == TextSpanType.CODE:
+        return f"`{txt}`"
     if span.is_underline:
         txt = f"<u>{txt}</u>"
     if span.is_bold:
@@ -669,14 +669,12 @@ MARKER_OPEN = {
     "is_bold": "**",
     "is_strikethrough": "~~",
     "is_underline": "<u>",
-    "is_code": "`",
 }
 MARKER_CLOSE = {
     "is_italic": "*",
     "is_bold": "**",
     "is_strikethrough": "~~",
     "is_underline": "</u>",
-    "is_code": "`",
 }
 
 
@@ -688,14 +686,15 @@ def _render_formatted_spans(spans: list[TextSpan]) -> str:
     """
 
     def _get_options(span: TextSpan) -> list[str]:
-        if span.is_code:
-            return ["is_code"]
+        # For inline code, equation, and link, do not apply additional formatting markers.
+        if span.type in (TextSpanType.CODE, TextSpanType.EQUATION, TextSpanType.LINK):
+            return []
         return [flag for flag in MARKER_ORDER if getattr(span, flag)]
 
     result = []
     current_state: list[str] = []
     for span in spans:
-        # render links and inline equations without wrapping formatting markers.
+        # render links, inline equations, and inline code without wrapping formatting markers.
         if span.type == TextSpanType.LINK:
             for flag in reversed(current_state):
                 result.append(MARKER_CLOSE[flag])
@@ -705,6 +704,11 @@ def _render_formatted_spans(spans: list[TextSpan]) -> str:
             for flag in reversed(current_state):
                 result.append(MARKER_CLOSE[flag])
             result.append(f"$${span.content}$$")
+            current_state = []
+        elif span.type == TextSpanType.CODE:
+            for flag in reversed(current_state):
+                result.append(MARKER_CLOSE[flag])
+            result.append(f"`{span.content}`")
             current_state = []
         else:
             new_state = _get_options(span)
