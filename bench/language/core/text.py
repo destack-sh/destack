@@ -60,26 +60,39 @@ class TextLineType(BuiltinEnum):
     DIAGRAM = 62, "diagram (mermaid)"
 
 
+@enum_(EnumType.TEXT_SPAN_TYPE)
+class TextSpanType(BuiltinEnum):
+    TEXT = 1, "Formatted text"
+    NODE = 2, "Reference to a Node"
+    LINK = 3, "Hyperlink"
+    EQUATION = 4, "TeX equation"
+
+
 @struct_(StructType.TEXT_SPAN)
 class TextSpan(TextOptionsBase, Struct):
-    """a span of text with optional formatting"""
+    """A span of text with optional formatting"""
 
+    type: TextSpanType = p_regular(30, default=TextSpanType.TEXT)
     content: Optional[str] = p_regular(33, default=None)
     node: Optional[Node] = p_regular(34, array=False, default=None, require=False, references="any")
     if TYPE_CHECKING:
         node_id: Optional[UUID] = None
         node_ck: Optional[UUID] = None
         node_ptr: Optional[NodeReference] = None
+    url: Optional[str] = p_regular(35, default=None)
 
     @staticmethod
     def new(
+        type: TextSpanType,
         content: str | Node | None,
+        href: str | None = None,
         is_bold: bool | None = None,
         is_italic: bool | None = None,
         is_strikethrough: bool | None = None,
         is_underline: bool | None = None,
         is_code: bool | None = None,
         color: "ColorType | None" = None,
+        background_color: "ColorType | None" = None,
     ) -> "TextSpan":
         if isinstance(content, str):
             assert content, "content must be non-empty"
@@ -88,21 +101,24 @@ class TextSpan(TextOptionsBase, Struct):
             node = content
             content = None
         return TextSpan(
+            type=type,
             content=content,
             node=node,
+            url=href,
             is_bold=is_bold,
             is_italic=is_italic,
             is_strikethrough=is_strikethrough,
             is_underline=is_underline,
             is_code=is_code,
             color=color,
+            background_color=background_color,
         )
 
 
 @struct_(StructType.TEXT_TABLE)
 class TextTable(Struct):
     """
-    a table of text cells; header row defines keys; rows are stored as table rows
+    A TextTable is a list of TextCells.
     """
 
     lines: List["TextLine"] = p_regular(33, array=True, struct=StructType.TEXT_LINE)
@@ -112,7 +128,7 @@ class TextTable(Struct):
 
 @struct_(StructType.TEXT_CELL)
 class TextCell(TextOptionsBase, Struct):
-    """a cell of text in a table"""
+    """A cell of Text in a TextTable"""
 
     spans: List[TextSpan] = p_regular(33, array=True, struct=StructType.TEXT_SPAN)
     colspan: int = p_regular(40, default=1)
@@ -123,7 +139,7 @@ class TextCell(TextOptionsBase, Struct):
 @struct_(StructType.TEXT_LINE)
 class TextLine(TextOptionsBase, Struct):
     """
-    a single line of text; may contain inline spans or hold a table or code block
+    A single line of text; may contain inline TextSpans, or hold a TextTable or such.
     """
 
     type: TextLineType = p_regular(30, default=TextLineType.PARAGRAPH)
@@ -237,7 +253,7 @@ class TextLine(TextOptionsBase, Struct):
 @struct_(StructType.TEXT)
 class Text(Struct):
     """
-    rich text structure; composed of text lines
+    Rich Text; composed of TextLines with many markdown+ goodies.
     """
 
     lines: List[TextLine] = p_regular(32, array=True, struct=StructType.TEXT_LINE)
@@ -270,6 +286,7 @@ class Text(Struct):
 
 
 text = Text.plain
+
 #
 # Parsing
 #
@@ -284,8 +301,6 @@ MARKER_TO_FLAG = {
     "<u>": "is_underline",
 }
 
-_pat = regex.compile(r"(\*\*|~~|`|<u>|<\/u>|\*|\[[a-zA-Z]+\]|\[\/[a-zA-Z]+\])")
-
 
 def _parse_color(color: str) -> "ColorType":
     from bench.language import ColorType
@@ -298,14 +313,20 @@ def _parse_color(color: str) -> "ColorType":
         ) from e
 
 
-def _parse_inlines(
+_marker_pattern = regex.compile(r"(\$\$|\*\*|~~|`|<u>|<\/u>|\*|\[[a-zA-Z]+\]|\[\/[a-zA-Z]+\])")
+
+
+def _parse_inline_raw(
     text: str, pos: int = 0, end_marker: str | None = None, base: dict[str, Any] | None = None
 ) -> tuple[list[TextSpan], int]:
+    """
+    Parse a string of text into a list of TextSpans, with optional end marker.
+    """
     if base is None:
         base = {}
     spans: list[TextSpan] = []
     while pos < len(text):
-        m = _pat.search(text, pos)
+        m = _marker_pattern.search(text, pos)
         if not m:
             spans.append(TextSpan(content=text[pos:], **base))
             return spans, len(text)
@@ -323,18 +344,37 @@ def _parse_inlines(
             else:
                 spans.append(TextSpan(content=marker, **base))
                 continue
-        # opening color marker, e.g. [red]
-        if marker.startswith("[") and marker.endswith("]") and not marker.startswith("[/"):
-            color = _parse_color(marker[1:-1])
-            closing = f"[/{marker[1:-1]}]"
-            inner, pos = _parse_inlines(text, pos, end_marker=closing, base=base.copy())
-            for sp in inner:
-                sp.color = color
-            spans.extend(inner)
+        # inline equation marker: $$...$$
+        if marker == "$$":
+            inner, pos = _parse_inline_raw(text, pos, end_marker="$$", base=base.copy())
+            merged = _merge_spans(inner)
+            content = "".join(sp.content or "" for sp in merged)
+            spans.append(TextSpan(type=TextSpanType.EQUATION, content=content, **base))
             continue
+        # opening marker: could be a link or a color marker
+        if marker.startswith("[") and marker.endswith("]") and not marker.startswith("[/"):
+            if pos < len(text) and text[pos] == "(":
+                end_paren = text.find(")", pos)
+                if end_paren == -1:
+                    spans.append(TextSpan(content=marker, **base))
+                    continue
+                href = text[pos + 1 : end_paren]
+                pos = end_paren + 1
+                spans.append(
+                    TextSpan(type=TextSpanType.LINK, content=marker[1:-1], url=href, **base)
+                )
+                continue
+            else:
+                color = _parse_color(marker[1:-1])
+                closing = f"[/{marker[1:-1]}]"
+                inner, pos = _parse_inline_raw(text, pos, end_marker=closing, base=base.copy())
+                for sp in inner:
+                    sp.color = color
+                spans.extend(inner)
+                continue
         # <u> marker with explicit closing </u>
         if marker == "<u>":
-            inner, pos = _parse_inlines(text, pos, end_marker="</u>", base=base.copy())
+            inner, pos = _parse_inline_raw(text, pos, end_marker="</u>", base=base.copy())
             for sp in inner:
                 sp.is_underline = True
             spans.extend(inner)
@@ -342,7 +382,7 @@ def _parse_inlines(
         # symmetric markers: *, **, ~~ or `
         if marker in {"*", "**", "~~", "`"}:
             flag = MARKER_TO_FLAG[marker]
-            inner, pos = _parse_inlines(text, pos, end_marker=marker, base=base.copy())
+            inner, pos = _parse_inline_raw(text, pos, end_marker=marker, base=base.copy())
             for sp in inner:
                 setattr(sp, flag, True)
             spans.extend(inner)
@@ -353,7 +393,10 @@ def _parse_inlines(
 
 
 def _parse_inline(text: str) -> list[TextSpan]:
-    spans, _ = _parse_inlines(text, 0, None, {})
+    """
+    Parse a string of text into a list of TextSpans.
+    """
+    spans, _ = _parse_inline_raw(text, 0, None, {})
     return _merge_spans(spans)
 
 
@@ -365,7 +408,11 @@ def _merge_spans(spans: list[TextSpan]) -> list[TextSpan]:
         return spans
     merged = [spans[0]]
     for sp in spans[1:]:
-        if _span_format_key(merged[-1]) == _span_format_key(sp):
+        if (
+            sp.type == TextSpanType.TEXT
+            and merged[-1].type == TextSpanType.TEXT
+            and _span_format_key(merged[-1]) == _span_format_key(sp)
+        ):
             merged[-1].content = (merged[-1].content or "") + (sp.content or "")
         else:
             merged.append(sp)
@@ -373,6 +420,9 @@ def _merge_spans(spans: list[TextSpan]) -> list[TextSpan]:
 
 
 def _span_format_key(span: TextSpan) -> tuple:
+    """
+    A key that uniquely identifies the formatting of a TextSpan.
+    """
     return (
         span.is_bold,
         span.is_italic,
@@ -384,7 +434,10 @@ def _span_format_key(span: TextSpan) -> tuple:
     )
 
 
-def is_table_start(lines: list[str], idx: int) -> bool:
+def _is_table_start(lines: list[str], idx: int) -> bool:
+    """
+    Check if the current line is the start of a table.
+    """
     if "|" not in lines[idx]:
         return False
     if idx + 1 >= len(lines):
@@ -455,6 +508,9 @@ def _parse_line(line: str) -> TextLine:
 
 
 def _parse_code(lines: list[str], start: int) -> tuple[TextLine, int]:
+    """
+    Parse a code line.
+    """
     first = lines[start].strip()
     lang = first[3:].strip().lower()
     if lang == "tex":
@@ -481,6 +537,7 @@ def _parse_table(lines: list[str], start: int) -> tuple[TextLine, int]:
 
     header_line = lines[start].strip()
     sep_line = lines[start + 1].strip()
+    # separator
     sep_cells = [cell.strip() for cell in sep_line.strip("|").split("|")]
     alignments: list[Alignment | None] = []
     for cell in sep_cells:
@@ -492,12 +549,14 @@ def _parse_table(lines: list[str], start: int) -> tuple[TextLine, int]:
             alignments.append(Alignment.END)
         else:
             alignments.append(None)
+    # header
     header_cells = [cell.strip() for cell in header_line.strip("|").split("|")]
     header_objs: list[TextCell] = []
     for j, txt in enumerate(header_cells):
         spans = _parse_inline(txt)
         alignment = alignments[j] if j < len(alignments) else None
         header_objs.append(TextCell(spans=spans, alignment=alignment))
+    # body
     body_rows: list[TextLine] = []
     i = start + 2
     while i < len(lines) and "|" in lines[i]:
@@ -522,7 +581,7 @@ def _parse_table(lines: list[str], start: int) -> tuple[TextLine, int]:
 
 def markdown_to_text(markdown: str) -> Text:
     """
-    Parse markdown into a Text object.
+    Parse markdown as Text.
     """
     if not markdown:
         return Text.empty()
@@ -537,7 +596,7 @@ def markdown_to_text(markdown: str) -> Text:
         if line.startswith("```"):
             tl, i = _parse_code(lines_str, i)
             lines.append(tl)
-        elif is_table_start(lines_str, i):
+        elif _is_table_start(lines_str, i):
             tl, i = _parse_table(lines_str, i)
             lines.append(tl)
         else:
@@ -553,10 +612,16 @@ def markdown_to_text(markdown: str) -> Text:
 
 
 def _render_color(color: "ColorType") -> str:
+    """
+    Render a ColorType as a string.
+    """
     return color.name.lower()
 
 
 def _render_span_no_color(span: TextSpan) -> str:
+    """
+    Render a TextSpan without color.
+    """
     txt = span.content or ""
     if span.is_code:
         txt = f"`{txt}`"
@@ -621,32 +686,41 @@ def _render_formatted_spans(spans: list[TextSpan]) -> str:
     This function computes formatting state transitions between spans so that
     nested formatting markers (e.g. *…~~…~~…*) are rendered correctly.
     """
-    # fixed order for non-code markers
 
     def _get_options(span: TextSpan) -> list[str]:
-        # code spans ignore other formatting
         if span.is_code:
             return ["is_code"]
-        # using list comprehension is efficient enough here
         return [flag for flag in MARKER_ORDER if getattr(span, flag)]
 
     result = []
     current_state: list[str] = []
     for span in spans:
-        new_state = _get_options(span)
-        # compute common prefix length
-        min_len = min(len(new_state), len(current_state))
-        common = 0
-        while common < min_len and current_state[common] == new_state[common]:
-            common += 1
-        # close markers that are no longer active
-        for flag in reversed(current_state[common:]):
-            result.append(MARKER_CLOSE[flag])
-        # open new markers
-        for flag in new_state[common:]:
-            result.append(MARKER_OPEN[flag])
-        result.append(span.content or "")
-        current_state = new_state
+        # render links and inline equations without wrapping formatting markers.
+        if span.type == TextSpanType.LINK:
+            for flag in reversed(current_state):
+                result.append(MARKER_CLOSE[flag])
+            result.append(f"[{span.content}]({span.url})")
+            current_state = []
+        elif span.type == TextSpanType.EQUATION:
+            for flag in reversed(current_state):
+                result.append(MARKER_CLOSE[flag])
+            result.append(f"$${span.content}$$")
+            current_state = []
+        else:
+            new_state = _get_options(span)
+            # compute common prefix length
+            min_len = min(len(new_state), len(current_state))
+            common = 0
+            while common < min_len and current_state[common] == new_state[common]:
+                common += 1
+            # close markers that are no longer active
+            for flag in reversed(current_state[common:]):
+                result.append(MARKER_CLOSE[flag])
+            # open new markers
+            for flag in new_state[common:]:
+                result.append(MARKER_OPEN[flag])
+            result.append(span.content or "")
+            current_state = new_state
     # close any markers still open
     for flag in reversed(current_state):
         result.append(MARKER_CLOSE[flag])
