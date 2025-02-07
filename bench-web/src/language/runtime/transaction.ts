@@ -1,4 +1,4 @@
-import { NODE_SUBTYPE_PACKED_KEY } from "@/language/core/const";
+import { isInlineSourceNode, NODE_SUBTYPE_PACKED_KEY } from "@/language/core/const";
 import { getPropertyType, TypeIdentity } from "@/language/core/type";
 import { PartialNode, type ReadNodeGraph, type WriteNodeGraph } from "@/language/core/graph";
 import { makeNode, NodeIn } from "@/language/core/node";
@@ -35,6 +35,7 @@ import {
   describeEdit,
   describeNode,
   EMPTY_SCOPE,
+  isNode,
   makeScope,
   nodeReference,
   propertyInfo,
@@ -51,6 +52,8 @@ import { toValueRef } from "@/utils/ref";
 import { uuidt } from "@/utils/uuidt";
 import type { RpcError } from "grpc-web";
 import { computed, nextTick, ref, shallowRef, toValue, triggerRef, watch, type MaybeRef, type Ref } from "vue";
+import { unwrapBlock } from "@/language/source/block";
+import { supergraph } from "@/globals";
 
 export type DebounceLevel = "tick" | "short" | "long";
 const DEBOUNCE_LEVELS: Record<"short" | "long", number> = {
@@ -128,8 +131,6 @@ export type Transaction = TransactionMeta & {
   delete(node: AnyNodeData): void;
   /** Restore node from soft delete */
   restore(node: AnyNodeData): void;
-  /** Erase a node and its descendants forever */
-  erase(node: AnyNodeData): void;
 };
 
 /* Shared state to create multiple TransactionBuilder handles from different connections with same data */
@@ -406,7 +407,7 @@ export class TransactionBuilder implements Transaction {
 
   move<T extends AnyNodeData>(
     node: T,
-    update: (Partial<T> & { parentPtr: NodeReferenceData }) | EditOperationData[],
+    update: Partial<T> & { parentPtr: NodeReferenceData },
     options?: TransactionOptions,
   ) {
     this._doUpdate(EditType.MOVE, node, update, options);
@@ -418,10 +419,6 @@ export class TransactionBuilder implements Transaction {
 
   restore(node: AnyNodeData) {
     this._addSimpleEdit(EditType.RESTORE, { ...node, deletedAt: undefined }, null);
-  }
-
-  erase(node: AnyNodeData) {
-    this._addSimpleEdit(EditType.ERASE, { ...node }, null);
   }
 }
 

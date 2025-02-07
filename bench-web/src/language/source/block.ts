@@ -113,7 +113,7 @@ export function createInlineSourceNode(
 }
 
 /** Unwrap a Block into its inner node, if it has one. */
-export function unwrapBlock(block: BlockData): AnyNodeData | undefined {
+export function unwrapBlock(block: BlockData): InlineSourceNodeData | undefined {
   if (block.type == BlockType.DATABASE) {
     const database = supergraph.get(block.nodePtr!);
     if (!isNode(database, NodeType.DATABASE)) {

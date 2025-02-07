@@ -2,12 +2,15 @@
  * Many constants are generated into proto/wire, here some additional ones.
  */
 
-import { TIMED_NODE_TYPES, toCamelName } from "@/language/core/const";
+import { supergraph } from "@/globals";
+import { isInlineSourceNode, TIMED_NODE_TYPES, toCamelName } from "@/language/core/const";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/core/graph";
 import { updateOrder } from "@/language/core/order";
-import { newChangeId, type Transaction } from "@/language/runtime/transaction";
 import { JsonValue, packBuiltinObjectProperty, unpackBuiltinObjectProperty } from "@/language/core/value";
+import { newChangeId, type Transaction } from "@/language/runtime/transaction";
+import { unwrapBlock } from "@/language/source/block";
 import {
+  BlockData,
   ENUM_BY_TYPE,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
@@ -38,7 +41,7 @@ import {
 import { FLOW_GRID_STEP } from "@/ui/flow";
 import { addVector2 } from "@/ui/view";
 import { INTEGER_ZERO } from "@/utils/fractional";
-import { groupByList } from "@/utils/functools";
+import { assertNever, groupByList } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
 import { uuidt } from "@/utils/uuidt";
 import { computed, Ref } from "vue";
@@ -535,22 +538,24 @@ export function moveNode(
   graph: ReadNodeGraph,
   nodeOrRef: AnyNodeData | NodeReferenceData,
   options: {
-    anchor: "start" | "center" | "end" | "before" | "after" | "up" | "down";
+    anchor: "start" | "center" | "end" | "before" | "after";
     target?: AnyNodeData | NodeReferenceData;
   },
 ) {
   const { anchor } = options;
   const node = resolveNode(graph, nodeOrRef);
-  const target = options.target != null ? resolveNode(graph, options.target) : undefined;
+  let target = options.target != null ? resolveNode(graph, options.target) : undefined;
   if (node?.id == target?.id) {
     return; // no-op
   } else if (target != null && isDescendantOf(graph, target, node)) {
     throw new Error(`move ${describeNode(node)} to ${anchor} ${describeNode(target)} would be circular`);
   }
+  if (tx.change?.key == null) {
+    tx = tx.with({ change: { key: newChangeId(), title: "Move" } });
+  }
 
-  if (anchor == "up" || anchor == "down") {
-    throw new Error(`not yet implemented`);
-  } else if (anchor == "start" || anchor == "end" || anchor == "before" || anchor == "after") {
+  let parentPtr: NodeReferenceData | undefined;
+  if (anchor == "start" || anchor == "end" || anchor == "before" || anchor == "after") {
     // move before target (in its parent's children = target siblings)
     if (target == null) throw new Error(`target required to move node ${anchor} ${describeNode(node)}`);
     const targetParent = graph.getOrError(target.parentPtr!);
@@ -563,7 +568,7 @@ export function moveNode(
         getNodes: () => graph.getChildren(targetParent, target!.metatype as unknown as NodeType) as any,
       });
     }
-    tx.move(node, { parentPtr: target.parentPtr! }, { debounce: "tick" });
+    parentPtr = target.parentPtr!;
   } else if (anchor == "center") {
     // move to end of target's children of that type
     if (target == null) throw new Error(`target required to move node ${anchor} ${describeNode(node)}`);
@@ -576,9 +581,26 @@ export function moveNode(
         getNodes: () => graph.getChildren(target!, node.metatype as unknown as NodeType) as any,
       });
     }
-    tx.move(node, { parentPtr: toNodeRef(target) }, { debounce: "tick" });
+    parentPtr = toNodeRef(target);
   } else {
-    throw new Error(`unexpected anchor: ${anchor}`);
+    assertNever(anchor);
+  }
+  tx.move(node, { parentPtr }, { debounce: "tick" });
+
+  // move block and source node together
+  if (isNode(node, NodeType.BLOCK)) {
+    // for blocks, also move the source node
+    const source = unwrapBlock(node);
+    if (source?.blockPtr?.id == node.id) {
+      tx.move(source, { parentPtr }, { debounce: "tick" });
+    }
+  } else if (isInlineSourceNode(node)) {
+    // for inline source nodes, also move the block definition
+    const block = supergraph.getOrError(node.blockPtr!) as BlockData;
+    if (!isNode(target, NodeType.PAGE) && isInlineSourceNode(target)) {
+      target = supergraph.getOrError(target.blockPtr!) as BlockData;
+    }
+    moveNode(tx, graph, block, { anchor, target });
   }
 }
 
@@ -590,7 +612,7 @@ export function moveNodes(
   graph: ReadNodeGraph,
   nodes: AnyNodeData[],
   options: {
-    anchor: "start" | "center" | "end" | "before" | "after" | "up" | "down";
+    anchor: "start" | "center" | "end" | "before" | "after";
     target?: AnyNodeData | NodeReferenceData;
   },
 ) {
