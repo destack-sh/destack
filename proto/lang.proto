@@ -58,6 +58,7 @@ enum EnumType {
   ENUM_TYPE_TYPE_FORMAT = 21303;
   ENUM_TYPE_BLOCK_TYPE = 21304;
   ENUM_TYPE_TEXT_LINE_TYPE = 21400;
+  ENUM_TYPE_TEXT_SPAN_TYPE = 21401;
   ENUM_TYPE_EXPRESSION_KIND = 21500;
   ENUM_TYPE_EXPRESSION_OP = 21501;
   ENUM_TYPE_LITERAL_TYPE = 21502;
@@ -500,6 +501,7 @@ enum BenchType {
   BENCH_TYPE_TYPE_FORMAT = 21303;
   BENCH_TYPE_BLOCK_TYPE = 21304;
   BENCH_TYPE_TEXT_LINE_TYPE = 21400;
+  BENCH_TYPE_TEXT_SPAN_TYPE = 21401;
   BENCH_TYPE_EXPRESSION_KIND = 21500;
   BENCH_TYPE_EXPRESSION_OP = 21501;
   BENCH_TYPE_LITERAL_TYPE = 21502;
@@ -1102,6 +1104,15 @@ enum TextLineType {
   TEXT_LINE_TYPE_CODE = 60;
   TEXT_LINE_TYPE_EQUATION = 61;
   TEXT_LINE_TYPE_DIAGRAM = 62;
+}
+
+enum TextSpanType {
+  TEXT_SPAN_TYPE_UNSPECIFIED = 0;
+  TEXT_SPAN_TYPE_TEXT = 1;
+  TEXT_SPAN_TYPE_NODE = 10;
+  TEXT_SPAN_TYPE_LINK = 11;
+  TEXT_SPAN_TYPE_CODE = 20;
+  TEXT_SPAN_TYPE_EQUATION = 21;
 }
 
 enum ExpressionKind {
@@ -1953,15 +1964,16 @@ message NodeReferenceData {
 
 message TextSpanData {
   ObjectType metatype = 1;
+  TextSpanType type = 30;
   optional string content = 33;
   optional NodeReferenceData node_ptr = 34;
+  optional string url = 35;
   optional ColorType color = 50;
   optional ColorType background_color = 51;
   optional bool is_bold = 60;
   optional bool is_italic = 61;
   optional bool is_strikethrough = 62;
   optional bool is_underline = 63;
-  optional bool is_code = 64;
 }
 
 message TextTableData {
@@ -1983,7 +1995,6 @@ message TextCellData {
   optional bool is_italic = 61;
   optional bool is_strikethrough = 62;
   optional bool is_underline = 63;
-  optional bool is_code = 64;
 }
 
 message TextLineData {
@@ -1999,7 +2010,6 @@ message TextLineData {
   optional bool is_italic = 61;
   optional bool is_strikethrough = 62;
   optional bool is_underline = 63;
-  optional bool is_code = 64;
 }
 
 message TextData {

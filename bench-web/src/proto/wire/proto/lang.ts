@@ -103,6 +103,10 @@ export interface TextSpanData {
      */
     metatype: ObjectType;
     /**
+     * @generated from protobuf field: symbolx.bench.TextSpanType type = 30;
+     */
+    type: TextSpanType;
+    /**
      * @generated from protobuf field: optional string content = 33;
      */
     content?: string;
@@ -110,6 +114,10 @@ export interface TextSpanData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 34;
      */
     nodePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional string url = 35;
+     */
+    url?: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.ColorType color = 50;
      */
@@ -134,10 +142,6 @@ export interface TextSpanData {
      * @generated from protobuf field: optional bool is_underline = 63;
      */
     isUnderline?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_code = 64;
-     */
-    isCode?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.TextTableData
@@ -208,10 +212,6 @@ export interface TextCellData {
      * @generated from protobuf field: optional bool is_underline = 63;
      */
     isUnderline?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_code = 64;
-     */
-    isCode?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.TextLineData
@@ -265,10 +265,6 @@ export interface TextLineData {
      * @generated from protobuf field: optional bool is_underline = 63;
      */
     isUnderline?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_code = 64;
-     */
-    isCode?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.TextData
@@ -7436,6 +7432,10 @@ export enum EnumType {
      */
     TEXT_LINE_TYPE = 21400,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPAN_TYPE = 21401;
+     */
+    TEXT_SPAN_TYPE = 21401,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_KIND = 21500;
      */
     EXPRESSION_KIND = 21500,
@@ -9175,6 +9175,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE_TYPE = 21400;
      */
     TEXT_LINE_TYPE = 21400,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN_TYPE = 21401;
+     */
+    TEXT_SPAN_TYPE = 21401,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_KIND = 21500;
      */
@@ -11246,6 +11250,35 @@ export enum TextLineType {
      * @generated from protobuf enum value: TEXT_LINE_TYPE_DIAGRAM = 62;
      */
     DIAGRAM = 62
+}
+/**
+ * @generated from protobuf enum symbolx.bench.TextSpanType
+ */
+export enum TextSpanType {
+    /**
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_TEXT = 1;
+     */
+    TEXT = 1,
+    /**
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_NODE = 10;
+     */
+    NODE = 10,
+    /**
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_LINK = 11;
+     */
+    LINK = 11,
+    /**
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_CODE = 20;
+     */
+    CODE = 20,
+    /**
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_EQUATION = 21;
+     */
+    EQUATION = 21
 }
 /**
  * @generated from protobuf enum symbolx.bench.ExpressionKind
@@ -14313,20 +14346,22 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
     constructor() {
         super("symbolx.bench.TextSpanData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.TextSpanType", TextSpanType, "TEXT_SPAN_TYPE_"] },
             { no: 33, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 51, name: "background_color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TextSpanData>): TextSpanData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.type = 0;
         if (value !== undefined)
             reflectionMergePartial<TextSpanData>(this, message, value);
         return message;
@@ -14339,11 +14374,17 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
+                case /* symbolx.bench.TextSpanType type */ 30:
+                    message.type = reader.int32();
+                    break;
                 case /* optional string content */ 33:
                     message.content = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData node_ptr */ 34:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                case /* optional string url */ 35:
+                    message.url = reader.string();
                     break;
                 case /* optional symbolx.bench.ColorType color */ 50:
                     message.color = reader.int32();
@@ -14363,9 +14404,6 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
                 case /* optional bool is_underline */ 63:
                     message.isUnderline = reader.bool();
                     break;
-                case /* optional bool is_code */ 64:
-                    message.isCode = reader.bool();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -14381,12 +14419,18 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.TextSpanType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
         /* optional string content = 33; */
         if (message.content !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.content);
         /* optional symbolx.bench.NodeReferenceData node_ptr = 34; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional string url = 35; */
+        if (message.url !== undefined)
+            writer.tag(35, WireType.LengthDelimited).string(message.url);
         /* optional symbolx.bench.ColorType color = 50; */
         if (message.color !== undefined)
             writer.tag(50, WireType.Varint).int32(message.color);
@@ -14405,9 +14449,6 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
         /* optional bool is_underline = 63; */
         if (message.isUnderline !== undefined)
             writer.tag(63, WireType.Varint).bool(message.isUnderline);
-        /* optional bool is_code = 64; */
-        if (message.isCode !== undefined)
-            writer.tag(64, WireType.Varint).bool(message.isCode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14503,8 +14544,7 @@ class TextCellData$Type extends MessageType$<TextCellData> {
             { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TextCellData>): TextCellData {
@@ -14555,9 +14595,6 @@ class TextCellData$Type extends MessageType$<TextCellData> {
                 case /* optional bool is_underline */ 63:
                     message.isUnderline = reader.bool();
                     break;
-                case /* optional bool is_code */ 64:
-                    message.isCode = reader.bool();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -14603,9 +14640,6 @@ class TextCellData$Type extends MessageType$<TextCellData> {
         /* optional bool is_underline = 63; */
         if (message.isUnderline !== undefined)
             writer.tag(63, WireType.Varint).bool(message.isUnderline);
-        /* optional bool is_code = 64; */
-        if (message.isCode !== undefined)
-            writer.tag(64, WireType.Varint).bool(message.isCode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14631,8 +14665,7 @@ class TextLineData$Type extends MessageType$<TextLineData> {
             { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TextLineData>): TextLineData {
@@ -14686,9 +14719,6 @@ class TextLineData$Type extends MessageType$<TextLineData> {
                 case /* optional bool is_underline */ 63:
                     message.isUnderline = reader.bool();
                     break;
-                case /* optional bool is_code */ 64:
-                    message.isCode = reader.bool();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -14737,9 +14767,6 @@ class TextLineData$Type extends MessageType$<TextLineData> {
         /* optional bool is_underline = 63; */
         if (message.isUnderline !== undefined)
             writer.tag(63, WireType.Varint).bool(message.isUnderline);
-        /* optional bool is_code = 64; */
-        if (message.isCode !== undefined)
-            writer.tag(64, WireType.Varint).bool(message.isCode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -32152,6 +32179,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.TYPE_FORMAT]: TypeFormat,
   [EnumType.BLOCK_TYPE]: BlockType,
   [EnumType.TEXT_LINE_TYPE]: TextLineType,
+  [EnumType.TEXT_SPAN_TYPE]: TextSpanType,
   [EnumType.EXPRESSION_KIND]: ExpressionKind,
   [EnumType.EXPRESSION_OP]: ExpressionType,
   [EnumType.LITERAL_TYPE]: LiteralType,
@@ -32575,6 +32603,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.TYPE_FORMAT]: TypeFormat,
   [EnumType.BLOCK_TYPE]: BlockType,
   [EnumType.TEXT_LINE_TYPE]: TextLineType,
+  [EnumType.TEXT_SPAN_TYPE]: TextSpanType,
   [EnumType.EXPRESSION_KIND]: ExpressionKind,
   [EnumType.EXPRESSION_OP]: ExpressionType,
   [EnumType.LITERAL_TYPE]: LiteralType,
@@ -34342,20 +34371,20 @@ export enum TextLineProperty {
   isItalic = 61,
   isStrikethrough = 62,
   isUnderline = 63,
-  isCode = 64,
 }
 
 export enum TextSpanProperty {
   metatype = 1,
+  type = 30,
   content = 33,
   nodePtr = 34,
+  url = 35,
   color = 50,
   backgroundColor = 51,
   isBold = 60,
   isItalic = 61,
   isStrikethrough = 62,
   isUnderline = 63,
-  isCode = 64,
 }
 
 export enum TextTableProperty {
@@ -34377,7 +34406,6 @@ export enum TextCellProperty {
   isItalic = 61,
   isStrikethrough = 62,
   isUnderline = 63,
-  isCode = 64,
 }
 
 export enum CodeProperty {
@@ -35231,8 +35259,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.07.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.07.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.07.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.07.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35263,8 +35291,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.07.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.07.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.07.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.07.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36600,19 +36628,19 @@ export const TextLineDataInfo: Record<TextLineProperty, PropertyInfo> = {
   [TextLineProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
 }
 export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
   [TextSpanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_SPAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TextSpanProperty.type]: { id: 30, name: 'type', component: ObjectType.TEXT_SPAN, enumType: EnumType.TEXT_SPAN_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.content]: { id: 33, name: 'content', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.nodePtr]: { id: 34, name: 'node_ptr', component: ObjectType.TEXT_SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [TextSpanProperty.url]: { id: 35, name: 'url', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.color]: { id: 50, name: 'color', component: ObjectType.TEXT_SPAN, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.backgroundColor]: { id: 51, name: 'background_color', component: ObjectType.TEXT_SPAN, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.isBold]: { id: 60, name: 'is_bold', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
 }
 export const TextTableDataInfo: Record<TextTableProperty, PropertyInfo> = {
   [TextTableProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_TABLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -36632,7 +36660,6 @@ export const TextCellDataInfo: Record<TextCellProperty, PropertyInfo> = {
   [TextCellProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextCellProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextCellProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextCellProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
 }
 export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
   [CodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -37130,23 +37157,31 @@ export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
 }
 
 export const TextLineTypeOptionInfo: Partial<Record<TextLineType, EnumOptionInfo>> = {
-  [TextLineType.PARAGRAPH]: { id: 1, name: 'PARAGRAPH', text: 'plain paragraph' },
-  [TextLineType.HEADING_1]: { id: 10, name: 'HEADING_1', text: 'very big heading' },
-  [TextLineType.HEADING_2]: { id: 11, name: 'HEADING_2', text: 'big heading' },
-  [TextLineType.HEADING_3]: { id: 12, name: 'HEADING_3', text: 'medium heading' },
-  [TextLineType.HEADING_4]: { id: 13, name: 'HEADING_4', text: 'small heading' },
-  [TextLineType.CALLOUT]: { id: 20, name: 'CALLOUT', text: 'callout' },
-  [TextLineType.QUOTE]: { id: 21, name: 'QUOTE', text: 'quote' },
-  [TextLineType.LIST_BULLET]: { id: 30, name: 'LIST_BULLET', text: 'bullet list' },
-  [TextLineType.LIST_NUMBERED]: { id: 31, name: 'LIST_NUMBERED', text: 'numbered list' },
-  [TextLineType.LIST_UNCHECKED]: { id: 32, name: 'LIST_UNCHECKED', text: 'unchecked list' },
-  [TextLineType.LIST_CHECKED]: { id: 33, name: 'LIST_CHECKED', text: 'checked list' },
-  [TextLineType.DIVIDER]: { id: 40, name: 'DIVIDER', text: 'horizontal line' },
-  [TextLineType.TABLE]: { id: 50, name: 'TABLE', text: 'table' },
-  [TextLineType.TABLE_ROW]: { id: 51, name: 'TABLE_ROW', text: 'table row' },
-  [TextLineType.CODE]: { id: 60, name: 'CODE', text: 'code block' },
-  [TextLineType.EQUATION]: { id: 61, name: 'EQUATION', text: 'equation (tex)' },
-  [TextLineType.DIAGRAM]: { id: 62, name: 'DIAGRAM', text: 'diagram (mermaid)' },
+  [TextLineType.PARAGRAPH]: { id: 1, name: 'PARAGRAPH', text: 'Plain paragraph' },
+  [TextLineType.HEADING_1]: { id: 10, name: 'HEADING_1', text: 'Very big heading' },
+  [TextLineType.HEADING_2]: { id: 11, name: 'HEADING_2', text: 'Big heading' },
+  [TextLineType.HEADING_3]: { id: 12, name: 'HEADING_3', text: 'Medium heading' },
+  [TextLineType.HEADING_4]: { id: 13, name: 'HEADING_4', text: 'Small heading' },
+  [TextLineType.CALLOUT]: { id: 20, name: 'CALLOUT', text: 'Callout' },
+  [TextLineType.QUOTE]: { id: 21, name: 'QUOTE', text: 'Quote' },
+  [TextLineType.LIST_BULLET]: { id: 30, name: 'LIST_BULLET', text: 'Bullet list' },
+  [TextLineType.LIST_NUMBERED]: { id: 31, name: 'LIST_NUMBERED', text: 'Numbered list' },
+  [TextLineType.LIST_UNCHECKED]: { id: 32, name: 'LIST_UNCHECKED', text: 'Unchecked list' },
+  [TextLineType.LIST_CHECKED]: { id: 33, name: 'LIST_CHECKED', text: 'Checked list' },
+  [TextLineType.DIVIDER]: { id: 40, name: 'DIVIDER', text: 'Horizontal line' },
+  [TextLineType.TABLE]: { id: 50, name: 'TABLE', text: 'Table' },
+  [TextLineType.TABLE_ROW]: { id: 51, name: 'TABLE_ROW', text: 'Table row' },
+  [TextLineType.CODE]: { id: 60, name: 'CODE', text: 'Code block' },
+  [TextLineType.EQUATION]: { id: 61, name: 'EQUATION', text: 'Equation (TeX)' },
+  [TextLineType.DIAGRAM]: { id: 62, name: 'DIAGRAM', text: 'Diagram (Mermaid)' },
+}
+
+export const TextSpanTypeOptionInfo: Partial<Record<TextSpanType, EnumOptionInfo>> = {
+  [TextSpanType.TEXT]: { id: 1, name: 'TEXT', text: 'Formatted text' },
+  [TextSpanType.NODE]: { id: 10, name: 'NODE', text: 'Reference to a Node' },
+  [TextSpanType.LINK]: { id: 11, name: 'LINK', text: 'Hyperlink' },
+  [TextSpanType.CODE]: { id: 20, name: 'CODE', text: 'Code' },
+  [TextSpanType.EQUATION]: { id: 21, name: 'EQUATION', text: 'TeX equation' },
 }
 
 export const PathElementTypeOptionInfo: Partial<Record<PathElementType, EnumOptionInfo>> = {
@@ -37252,6 +37287,7 @@ export const ToolFilterOptionInfo: Partial<Record<ToolFilter, EnumOptionInfo>> =
 export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, EnumOptionInfo>>> = {
   [EnumType.BLOCK_TYPE]: BlockTypeOptionInfo,
   [EnumType.TEXT_LINE_TYPE]: TextLineTypeOptionInfo,
+  [EnumType.TEXT_SPAN_TYPE]: TextSpanTypeOptionInfo,
   [EnumType.PATH_ELEMENT_TYPE]: PathElementTypeOptionInfo,
   [EnumType.TRIGGER_EFFECT]: TriggerEffectOptionInfo,
   [EnumType.CALL_EXECUTION_MODE]: CallExecutionModeOptionInfo,

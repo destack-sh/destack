@@ -144,7 +144,7 @@ def complex_function():
         """\
 | Language | Paradigm | Year | Creator | Color |
 | --- | ---: | :---: | :--- | --- |
-| Python | Multi-paradigm | 1991 | Guido van Rossum | [blue]blue[/blue] |
+| Python | Multi-paradigm | 1991 | Guido `van` *Rossum* | [blue]blue[/blue] |
 | Rust | Systems | 2010 | Graydon Hoare | [red]red[/red] |""",
         """\
 This text has **multiple** *different* ~~formatting~~ <u>styles</u>
