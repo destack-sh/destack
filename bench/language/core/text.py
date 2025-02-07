@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence
 from uuid import UUID
 
 import regex
@@ -62,6 +62,7 @@ class TextLineType(BuiltinEnum):
 @enum_(EnumType.TEXT_SPAN_TYPE)
 class TextSpanType(BuiltinEnum):
     TEXT = 1, "Formatted text"
+    HARD_BREAK = 2, "Hard break"
     NODE = 10, "Reference to a Node"
     LINK = 11, "Hyperlink"
     CODE = 20, "Code"
@@ -82,9 +83,13 @@ class TextSpan(TextOptionsBase, Struct):
     url: Optional[str] = p_regular(35, default=None)
 
     @staticmethod
+    def hard_break() -> "TextSpan":
+        return TextSpan(type=TextSpanType.HARD_BREAK)
+
+    @staticmethod
     def new(
         type: TextSpanType,
-        content: str | Node | None,
+        content: str | Node | None = None,
         href: str | None = None,
         is_bold: bool | None = None,
         is_italic: bool | None = None,
@@ -297,6 +302,9 @@ MARKER_TO_FLAG = {
 
 
 def _parse_color(color: str) -> "ColorType":
+    """
+    Parse a color from a string.
+    """
     from bench.language import ColorType
 
     try:
@@ -307,7 +315,7 @@ def _parse_color(color: str) -> "ColorType":
         ) from e
 
 
-_marker_pattern = regex.compile(r"(\$\$|\*\*|~~|`|<u>|<\/u>|\*|\[[a-zA-Z]+\]|\[\/[a-zA-Z]+\])")
+_marker_pattern = regex.compile(r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\*|\[[a-zA-Z]+\]|\[\/[a-zA-Z]+\])")
 
 
 def _parse_inline_raw(
@@ -331,6 +339,10 @@ def _parse_inline_raw(
         # if the marker matches the expected closing marker
         if end_marker is not None and marker == end_marker:
             return spans, pos
+        # handle hard break marker
+        if marker == "<br>":
+            spans.append(TextSpan.hard_break())
+            continue
         # closing color marker (if unexpected, treat as literal)
         if marker.startswith("[/") and marker.endswith("]"):
             if end_marker is not None and marker == end_marker:
@@ -610,30 +622,26 @@ def markdown_to_text(markdown: str) -> Text:
 # Rendering
 #
 
+MARKER_ORDER = ["is_italic", "is_bold", "is_strikethrough", "is_underline"]
+MARKER_OPEN = {
+    "is_italic": "*",
+    "is_bold": "**",
+    "is_strikethrough": "~~",
+    "is_underline": "<u>",
+}
+MARKER_CLOSE = {
+    "is_italic": "*",
+    "is_bold": "**",
+    "is_strikethrough": "~~",
+    "is_underline": "</u>",
+}
+
 
 def _render_color(color: "ColorType") -> str:
     """
     Render a ColorType as a string.
     """
     return color.name.lower()
-
-
-def _render_span_no_color(span: TextSpan) -> str:
-    """
-    Render a TextSpan without color.
-    """
-    txt = span.content or ""
-    if span.type == TextSpanType.CODE:
-        return f"`{txt}`"
-    if span.is_underline:
-        txt = f"<u>{txt}</u>"
-    if span.is_bold:
-        txt = f"**{txt}**"
-    if span.is_italic:
-        txt = f"*{txt}*"
-    if span.is_strikethrough:
-        txt = f"~~{txt}~~"
-    return txt
 
 
 def _render_inline(spans: list[TextSpan]) -> str:
@@ -663,21 +671,6 @@ def _render_inline(spans: list[TextSpan]) -> str:
     return "".join(parts)
 
 
-MARKER_ORDER = ["is_italic", "is_bold", "is_strikethrough", "is_underline"]
-MARKER_OPEN = {
-    "is_italic": "*",
-    "is_bold": "**",
-    "is_strikethrough": "~~",
-    "is_underline": "<u>",
-}
-MARKER_CLOSE = {
-    "is_italic": "*",
-    "is_bold": "**",
-    "is_strikethrough": "~~",
-    "is_underline": "</u>",
-}
-
-
 def _render_formatted_spans(spans: list[TextSpan]) -> str:
     """
     Render a list of TextSpan objects with inline markdown formatting.
@@ -685,53 +678,61 @@ def _render_formatted_spans(spans: list[TextSpan]) -> str:
     nested formatting markers (e.g. *…~~…~~…*) are rendered correctly.
     """
 
-    def _get_options(span: TextSpan) -> list[str]:
-        # For inline code, equation, and link, do not apply additional formatting markers.
-        if span.type in (TextSpanType.CODE, TextSpanType.EQUATION, TextSpanType.LINK):
-            return []
-        return [flag for flag in MARKER_ORDER if getattr(span, flag)]
+    def _get_options(span: TextSpan) -> Sequence[str]:
+        # for inline code, equation, link, and hard break, do not apply additional formatting markers.
+        if span.type in (
+            TextSpanType.CODE,
+            TextSpanType.EQUATION,
+            TextSpanType.LINK,
+            TextSpanType.HARD_BREAK,
+        ):
+            return ()
+        return tuple(flag for flag in MARKER_ORDER if getattr(span, flag))
 
     result = []
-    current_state: list[str] = []
+    current_state: Sequence[str] = ()
     for span in spans:
-        # render links, inline equations, and inline code without wrapping formatting markers.
         if span.type == TextSpanType.LINK:
             for flag in reversed(current_state):
                 result.append(MARKER_CLOSE[flag])
             result.append(f"[{span.content}]({span.url})")
-            current_state = []
+            current_state = ()
         elif span.type == TextSpanType.EQUATION:
             for flag in reversed(current_state):
                 result.append(MARKER_CLOSE[flag])
             result.append(f"$${span.content}$$")
-            current_state = []
+            current_state = ()
         elif span.type == TextSpanType.CODE:
             for flag in reversed(current_state):
                 result.append(MARKER_CLOSE[flag])
             result.append(f"`{span.content}`")
-            current_state = []
+            current_state = ()
+        elif span.type == TextSpanType.HARD_BREAK:
+            for flag in reversed(current_state):
+                result.append(MARKER_CLOSE[flag])
+            result.append("<br>")
+            current_state = ()
         else:
             new_state = _get_options(span)
-            # compute common prefix length
             min_len = min(len(new_state), len(current_state))
             common = 0
             while common < min_len and current_state[common] == new_state[common]:
                 common += 1
-            # close markers that are no longer active
             for flag in reversed(current_state[common:]):
                 result.append(MARKER_CLOSE[flag])
-            # open new markers
             for flag in new_state[common:]:
                 result.append(MARKER_OPEN[flag])
             result.append(span.content or "")
             current_state = new_state
-    # close any markers still open
     for flag in reversed(current_state):
         result.append(MARKER_CLOSE[flag])
     return "".join(result)
 
 
 def _render_table(table: TextTable) -> str:
+    """
+    Render a TextTable as markdown.
+    """
     from bench.language import Alignment
 
     if not table.lines:

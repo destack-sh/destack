@@ -569,7 +569,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     :style="{
       marginBottom: isMinimal ? '0' : `${GUTTER_WIDTH}px`,
     }"
-    @mousedown="(e) => startSelectingIfAllowed(selectionZoneContainer, e)"
+    @mousedown="(e: MouseEvent) => startSelectingIfAllowed(selectionZoneContainer, e)"
   >
     <!-- Root header -->
     <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="props.focus" :graph="graph" />
@@ -680,7 +680,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <button
             class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @click="
-              (e) => {
+              (e: MouseEvent) => {
                 const button = (e.target as HTMLElement).closest('button')!;
                 pushPopover({
                   kind: 'view',

@@ -367,7 +367,6 @@ export const EDIT_TYPE_PAST_VERB: Partial<Record<EditType, string>> = {
 
 export const EXPOSED_NODE_TYPES = NODE_TYPES.filter((t) => t != NodeType.SKIP);
 export const EXPOSED_BLOCK_TYPES = [
-  // BlockType.TEXT,
   BlockType.DATABASE,
   BlockType.FLOW,
   BlockType.PAGE,
@@ -433,7 +432,6 @@ export const EXPOSED_MODEL_TYPES = [
 export const EXPOSED_REGIONS = [Region.FRANKFURT];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
-  [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
   [EnumType.STRUCT_TYPE]: EXPOSED_STRUCT_TYPES,
   [EnumType.OBJECT_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES],
   [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],

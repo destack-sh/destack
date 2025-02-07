@@ -47,6 +47,15 @@ def test_text_span_link():
     )
 
 
+def test_text_hard_break():
+    md = """\
+This is a hard break<br>This is another line"""
+    text = markdown_to_text(md)
+    assert text.lines[0].spans[0] == TextSpan.new(TextSpanType.TEXT, "This is a hard break")
+    assert text.lines[0].spans[1] == TextSpan.hard_break()
+    assert text.lines[0].spans[2] == TextSpan.new(TextSpanType.TEXT, "This is another line")
+
+
 def test_text_inline_formatting():
     md = """\
 this is **bold** and *italic* and ~~strike~~ and `code` and <u>underline</u>.
