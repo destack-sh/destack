@@ -590,12 +590,67 @@ def _render_inline(spans: list[TextSpan]) -> str:
         grouped.append((current_color, current_group))
     parts = []
     for color, group in grouped:
-        inner = "".join(_render_span_no_color(s) for s in group)
+        inner = _render_formatted_spans(group)
         if color:
             parts.append(f"[{_render_color(color)}]{inner}[/{_render_color(color)}]")
         else:
             parts.append(inner)
     return "".join(parts)
+
+
+MARKER_ORDER = ["is_italic", "is_bold", "is_strikethrough", "is_underline"]
+MARKER_OPEN = {
+    "is_italic": "*",
+    "is_bold": "**",
+    "is_strikethrough": "~~",
+    "is_underline": "<u>",
+    "is_code": "`",
+}
+MARKER_CLOSE = {
+    "is_italic": "*",
+    "is_bold": "**",
+    "is_strikethrough": "~~",
+    "is_underline": "</u>",
+    "is_code": "`",
+}
+
+
+def _render_formatted_spans(spans: list[TextSpan]) -> str:
+    """
+    Render a list of TextSpan objects with inline markdown formatting.
+    This function computes formatting state transitions between spans so that
+    nested formatting markers (e.g. *…~~…~~…*) are rendered correctly.
+    """
+    # fixed order for non-code markers
+
+    def _get_options(span: TextSpan) -> list[str]:
+        # code spans ignore other formatting
+        if span.is_code:
+            return ["is_code"]
+        # using list comprehension is efficient enough here
+        return [flag for flag in MARKER_ORDER if getattr(span, flag)]
+
+    result = []
+    current_state: list[str] = []
+    for span in spans:
+        new_state = _get_options(span)
+        # compute common prefix length
+        min_len = min(len(new_state), len(current_state))
+        common = 0
+        while common < min_len and current_state[common] == new_state[common]:
+            common += 1
+        # close markers that are no longer active
+        for flag in reversed(current_state[common:]):
+            result.append(MARKER_CLOSE[flag])
+        # open new markers
+        for flag in new_state[common:]:
+            result.append(MARKER_OPEN[flag])
+        result.append(span.content or "")
+        current_state = new_state
+    # close any markers still open
+    for flag in reversed(current_state):
+        result.append(MARKER_CLOSE[flag])
+    return "".join(result)
 
 
 def _render_table(table: TextTable) -> str:

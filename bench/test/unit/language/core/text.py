@@ -28,7 +28,7 @@ def test_text_inline_formatting():
     md = """\
 this is **bold** and *italic* and ~~strike~~ and `code` and <u>underline</u>.
 also we have [red]red[/red] and [blue]blue[/blue] and [green]green[/green].
-they [yellow]can be *nested, like ~~deeply~~ nested, * and ~~combined~~[/yellow]."""
+they [yellow]can be *nested, like ~~deeply~~ nested* _and_ ~~combined~~[/yellow]."""
     text = markdown_to_text(md)
     md_out = text_to_markdown(text)
     assert md_out == md
