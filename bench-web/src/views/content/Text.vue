@@ -2,7 +2,7 @@
 import { getBaseFromNodeReference } from "@/language/core/const";
 import { makeType } from "@/language/core/type";
 import { downloadFile, prefetchFile, uploadFile } from "@/language/resource/file";
-import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/language/core/text";
+import { isTextEmpty } from "@/language/core/text";
 import {
   BenchType,
   ColorShade,
@@ -25,7 +25,14 @@ import { toaster } from "@/ui/toast";
 import { getElement } from "@/utils/element";
 import { copy, cyrb53a } from "@/utils/functools";
 import { log } from "@/utils/log";
-import { PM_INPUT_RULES, PM_KEYMAP_EXTRA, PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
+import {
+  mapPmNodeToText,
+  mapTextToPmNode,
+  PM_INPUT_RULES,
+  PM_KEYMAP_EXTRA,
+  PM_SCHEMA,
+  type TextMarkType,
+} from "@/ui/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { whenever } from "@vueuse/core";

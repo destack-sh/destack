@@ -1,4 +1,4 @@
-from bench.language import Block, BlockType, Choice, Package, Page, Session, md
+from bench.language import Block, BlockType, Choice, Package, Page, Session, TextLine
 
 
 def test_cast_block_in_page(session: Session):
@@ -7,7 +7,7 @@ def test_cast_block_in_page(session: Session):
     Page2 = Page.new("Page2")
 
     # plain Text Block
-    Text1 = Block.new(BlockType.PARAGRAPH, text=md("Hello, world!"))
+    Text1 = Block.new(BlockType.PARAGRAPH, line=TextLine.plain("Hello, world!"))
     Page1.append(Text1)
     assert len(Page1.blocks) == 1
 

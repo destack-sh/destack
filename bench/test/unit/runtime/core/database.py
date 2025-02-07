@@ -16,7 +16,7 @@ from bench.language import (
     Text,
     TypeBase,
     TypeKind,
-    md,
+    text,
 )
 from bench.language.core.query import NodeNotFoundError
 from bench.test.simulation.core import Simulation
@@ -391,10 +391,12 @@ async def test_search_record(simulation: Simulation, runtime: RuntimeLambdaWorkl
         Field.member("Description", Text),
     )
     runtime.page().append(Database1)
-    Record1 = Database1.records.create(Name="Alice", Age=30, Description=md("Alice is a *person*."))
-    Record2 = Database1.records.create(Name="Bob", Age=40, Description=md("Bob is a *goat*."))
+    Record1 = Database1.records.create(
+        Name="Alice", Age=30, Description=text("Alice is a *person*.")
+    )
+    Record2 = Database1.records.create(Name="Bob", Age=40, Description=text("Bob is a *goat*."))
     Record3 = Database1.records.create(
-        Name="Charlie", Age=50, Description=md("Charlie is a *cat*.")
+        Name="Charlie", Age=50, Description=text("Charlie is a *cat*.")
     )
     await runtime.commit()
 

@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Optional, cast, final
 import structlog
 
 from bench.language.core import (
-    BlockType,
     FieldType,
     HasNodeBase,
     Node,
@@ -11,7 +10,6 @@ from bench.language.core import (
     StateNode,
     StructType,
     TypeBase,
-    constraint,
     node_,
     p_internal,
     p_regular,
@@ -49,11 +47,7 @@ class Record(StateNode[RecordData], HasNodeBase):
         35, default=None, require=False, array=False, struct=StructType.TEXT
     )
     database: "Database" = p_system(
-        36,
-        require=True,
-        references=NodeType.BLOCK,
-        constraint=constraint(node_subtypes=[BlockType.DATABASE]),
-        description="The Database this Record is from.",
+        36, require=True, references=NodeType.BLOCK, description="The Database this Record is from."
     )
 
     # value

@@ -91,6 +91,8 @@ AnyStructData = Union[
     TextData,
     TextLineData,
     TextSpanData,
+    TextTableData,
+    TextCellData,
     CodeData,
     CodeLineData,
     PathData,

@@ -109,7 +109,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_MODEL_FAMILY: _ClassVar[EnumType]
     ENUM_TYPE_MODEL_PROVIDER: _ClassVar[EnumType]
     ENUM_TYPE_CODE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_CODE_LANGUAGE: _ClassVar[EnumType]
     ENUM_TYPE_ACTION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ACTION_CATEGORY: _ClassVar[EnumType]
     ENUM_TYPE_PORT_SIDE: _ClassVar[EnumType]
@@ -217,6 +216,8 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_TEXT: _ClassVar[StructType]
     STRUCT_TYPE_TEXT_LINE: _ClassVar[StructType]
     STRUCT_TYPE_TEXT_SPAN: _ClassVar[StructType]
+    STRUCT_TYPE_TEXT_TABLE: _ClassVar[StructType]
+    STRUCT_TYPE_TEXT_CELL: _ClassVar[StructType]
     STRUCT_TYPE_CODE: _ClassVar[StructType]
     STRUCT_TYPE_CODE_LINE: _ClassVar[StructType]
     STRUCT_TYPE_PATH: _ClassVar[StructType]
@@ -322,6 +323,8 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_TEXT: _ClassVar[ObjectType]
     OBJECT_TYPE_TEXT_LINE: _ClassVar[ObjectType]
     OBJECT_TYPE_TEXT_SPAN: _ClassVar[ObjectType]
+    OBJECT_TYPE_TEXT_TABLE: _ClassVar[ObjectType]
+    OBJECT_TYPE_TEXT_CELL: _ClassVar[ObjectType]
     OBJECT_TYPE_CODE: _ClassVar[ObjectType]
     OBJECT_TYPE_CODE_LINE: _ClassVar[ObjectType]
     OBJECT_TYPE_PATH: _ClassVar[ObjectType]
@@ -427,6 +430,8 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_TEXT: _ClassVar[BenchType]
     BENCH_TYPE_TEXT_LINE: _ClassVar[BenchType]
     BENCH_TYPE_TEXT_SPAN: _ClassVar[BenchType]
+    BENCH_TYPE_TEXT_TABLE: _ClassVar[BenchType]
+    BENCH_TYPE_TEXT_CELL: _ClassVar[BenchType]
     BENCH_TYPE_CODE: _ClassVar[BenchType]
     BENCH_TYPE_CODE_LINE: _ClassVar[BenchType]
     BENCH_TYPE_PATH: _ClassVar[BenchType]
@@ -546,7 +551,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_MODEL_FAMILY: _ClassVar[BenchType]
     BENCH_TYPE_MODEL_PROVIDER: _ClassVar[BenchType]
     BENCH_TYPE_CODE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_CODE_LANGUAGE: _ClassVar[BenchType]
     BENCH_TYPE_ACTION_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_ACTION_CATEGORY: _ClassVar[BenchType]
     BENCH_TYPE_PORT_SIDE: _ClassVar[BenchType]
@@ -1052,6 +1056,22 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BLOCK_TYPE_ROLE: _ClassVar[BlockType]
     BLOCK_TYPE_IDENTITY: _ClassVar[BlockType]
     BLOCK_TYPE_PARAGRAPH: _ClassVar[BlockType]
+    BLOCK_TYPE_HEADING_1: _ClassVar[BlockType]
+    BLOCK_TYPE_HEADING_2: _ClassVar[BlockType]
+    BLOCK_TYPE_HEADING_3: _ClassVar[BlockType]
+    BLOCK_TYPE_HEADING_4: _ClassVar[BlockType]
+    BLOCK_TYPE_CALLOUT: _ClassVar[BlockType]
+    BLOCK_TYPE_QUOTE: _ClassVar[BlockType]
+    BLOCK_TYPE_LIST_BULLET: _ClassVar[BlockType]
+    BLOCK_TYPE_LIST_NUMBERED: _ClassVar[BlockType]
+    BLOCK_TYPE_LIST_UNCHECKED: _ClassVar[BlockType]
+    BLOCK_TYPE_LIST_CHECKED: _ClassVar[BlockType]
+    BLOCK_TYPE_DIVIDER: _ClassVar[BlockType]
+    BLOCK_TYPE_TABLE: _ClassVar[BlockType]
+    BLOCK_TYPE_TABLE_ROW: _ClassVar[BlockType]
+    BLOCK_TYPE_CODE: _ClassVar[BlockType]
+    BLOCK_TYPE_EQUATION: _ClassVar[BlockType]
+    BLOCK_TYPE_DIAGRAM: _ClassVar[BlockType]
 
 class TextLineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1068,6 +1088,11 @@ class TextLineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TEXT_LINE_TYPE_LIST_UNCHECKED: _ClassVar[TextLineType]
     TEXT_LINE_TYPE_LIST_CHECKED: _ClassVar[TextLineType]
     TEXT_LINE_TYPE_DIVIDER: _ClassVar[TextLineType]
+    TEXT_LINE_TYPE_TABLE: _ClassVar[TextLineType]
+    TEXT_LINE_TYPE_TABLE_ROW: _ClassVar[TextLineType]
+    TEXT_LINE_TYPE_CODE: _ClassVar[TextLineType]
+    TEXT_LINE_TYPE_EQUATION: _ClassVar[TextLineType]
+    TEXT_LINE_TYPE_DIAGRAM: _ClassVar[TextLineType]
 
 class ExpressionKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1465,11 +1490,6 @@ class CodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CODE_TYPE_SNIPPET: _ClassVar[CodeType]
     CODE_TYPE_SCRIPT: _ClassVar[CodeType]
     CODE_TYPE_FUNCTION: _ClassVar[CodeType]
-
-class CodeLanguage(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    CODE_LANGUAGE_UNSPECIFIED: _ClassVar[CodeLanguage]
-    CODE_LANGUAGE_PYTHON: _ClassVar[CodeLanguage]
 
 class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1986,7 +2006,6 @@ ENUM_TYPE_MODEL_TYPE: EnumType
 ENUM_TYPE_MODEL_FAMILY: EnumType
 ENUM_TYPE_MODEL_PROVIDER: EnumType
 ENUM_TYPE_CODE_TYPE: EnumType
-ENUM_TYPE_CODE_LANGUAGE: EnumType
 ENUM_TYPE_ACTION_TYPE: EnumType
 ENUM_TYPE_ACTION_CATEGORY: EnumType
 ENUM_TYPE_PORT_SIDE: EnumType
@@ -2088,6 +2107,8 @@ STRUCT_TYPE_SCHEDULE: StructType
 STRUCT_TYPE_TEXT: StructType
 STRUCT_TYPE_TEXT_LINE: StructType
 STRUCT_TYPE_TEXT_SPAN: StructType
+STRUCT_TYPE_TEXT_TABLE: StructType
+STRUCT_TYPE_TEXT_CELL: StructType
 STRUCT_TYPE_CODE: StructType
 STRUCT_TYPE_CODE_LINE: StructType
 STRUCT_TYPE_PATH: StructType
@@ -2190,6 +2211,8 @@ OBJECT_TYPE_SCHEDULE: ObjectType
 OBJECT_TYPE_TEXT: ObjectType
 OBJECT_TYPE_TEXT_LINE: ObjectType
 OBJECT_TYPE_TEXT_SPAN: ObjectType
+OBJECT_TYPE_TEXT_TABLE: ObjectType
+OBJECT_TYPE_TEXT_CELL: ObjectType
 OBJECT_TYPE_CODE: ObjectType
 OBJECT_TYPE_CODE_LINE: ObjectType
 OBJECT_TYPE_PATH: ObjectType
@@ -2292,6 +2315,8 @@ BENCH_TYPE_SCHEDULE: BenchType
 BENCH_TYPE_TEXT: BenchType
 BENCH_TYPE_TEXT_LINE: BenchType
 BENCH_TYPE_TEXT_SPAN: BenchType
+BENCH_TYPE_TEXT_TABLE: BenchType
+BENCH_TYPE_TEXT_CELL: BenchType
 BENCH_TYPE_CODE: BenchType
 BENCH_TYPE_CODE_LINE: BenchType
 BENCH_TYPE_PATH: BenchType
@@ -2411,7 +2436,6 @@ BENCH_TYPE_MODEL_TYPE: BenchType
 BENCH_TYPE_MODEL_FAMILY: BenchType
 BENCH_TYPE_MODEL_PROVIDER: BenchType
 BENCH_TYPE_CODE_TYPE: BenchType
-BENCH_TYPE_CODE_LANGUAGE: BenchType
 BENCH_TYPE_ACTION_TYPE: BenchType
 BENCH_TYPE_ACTION_CATEGORY: BenchType
 BENCH_TYPE_PORT_SIDE: BenchType
@@ -2794,6 +2818,22 @@ BLOCK_TYPE_DATABASE: BlockType
 BLOCK_TYPE_ROLE: BlockType
 BLOCK_TYPE_IDENTITY: BlockType
 BLOCK_TYPE_PARAGRAPH: BlockType
+BLOCK_TYPE_HEADING_1: BlockType
+BLOCK_TYPE_HEADING_2: BlockType
+BLOCK_TYPE_HEADING_3: BlockType
+BLOCK_TYPE_HEADING_4: BlockType
+BLOCK_TYPE_CALLOUT: BlockType
+BLOCK_TYPE_QUOTE: BlockType
+BLOCK_TYPE_LIST_BULLET: BlockType
+BLOCK_TYPE_LIST_NUMBERED: BlockType
+BLOCK_TYPE_LIST_UNCHECKED: BlockType
+BLOCK_TYPE_LIST_CHECKED: BlockType
+BLOCK_TYPE_DIVIDER: BlockType
+BLOCK_TYPE_TABLE: BlockType
+BLOCK_TYPE_TABLE_ROW: BlockType
+BLOCK_TYPE_CODE: BlockType
+BLOCK_TYPE_EQUATION: BlockType
+BLOCK_TYPE_DIAGRAM: BlockType
 TEXT_LINE_TYPE_UNSPECIFIED: TextLineType
 TEXT_LINE_TYPE_PARAGRAPH: TextLineType
 TEXT_LINE_TYPE_HEADING_1: TextLineType
@@ -2807,6 +2847,11 @@ TEXT_LINE_TYPE_LIST_NUMBERED: TextLineType
 TEXT_LINE_TYPE_LIST_UNCHECKED: TextLineType
 TEXT_LINE_TYPE_LIST_CHECKED: TextLineType
 TEXT_LINE_TYPE_DIVIDER: TextLineType
+TEXT_LINE_TYPE_TABLE: TextLineType
+TEXT_LINE_TYPE_TABLE_ROW: TextLineType
+TEXT_LINE_TYPE_CODE: TextLineType
+TEXT_LINE_TYPE_EQUATION: TextLineType
+TEXT_LINE_TYPE_DIAGRAM: TextLineType
 EXPRESSION_KIND_UNSPECIFIED: ExpressionKind
 EXPRESSION_KIND_LITERAL: ExpressionKind
 EXPRESSION_KIND_FUNCTIONAL: ExpressionKind
@@ -3087,8 +3132,6 @@ CODE_TYPE_UNSPECIFIED: CodeType
 CODE_TYPE_SNIPPET: CodeType
 CODE_TYPE_SCRIPT: CodeType
 CODE_TYPE_FUNCTION: CodeType
-CODE_LANGUAGE_UNSPECIFIED: CodeLanguage
-CODE_LANGUAGE_PYTHON: CodeLanguage
 ACTION_TYPE_UNSPECIFIED: ActionType
 ACTION_TYPE_START: ActionType
 ACTION_TYPE_COMPLETE: ActionType
@@ -3465,11 +3508,12 @@ class NodeReferenceData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., bench_id: _Optional[str] = ..., base_ck: _Optional[str] = ..., base_bench_id: _Optional[str] = ...) -> None: ...
 
 class TextSpanData(_message.Message):
-    __slots__ = ("metatype", "content", "node_ptr", "color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
+    __slots__ = ("metatype", "content", "node_ptr", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
+    BACKGROUND_COLOR_FIELD_NUMBER: _ClassVar[int]
     IS_BOLD_FIELD_NUMBER: _ClassVar[int]
     IS_ITALIC_FIELD_NUMBER: _ClassVar[int]
     IS_STRIKETHROUGH_FIELD_NUMBER: _ClassVar[int]
@@ -3479,19 +3523,64 @@ class TextSpanData(_message.Message):
     content: str
     node_ptr: NodeReferenceData
     color: ColorType
+    background_color: ColorType
     is_bold: bool
     is_italic: bool
     is_strikethrough: bool
     is_underline: bool
     is_code: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., content: _Optional[str] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., content: _Optional[str] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorType, str]] = ..., background_color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
+
+class TextTableData(_message.Message):
+    __slots__ = ("metatype", "lines", "has_row_header", "has_column_header")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    LINES_FIELD_NUMBER: _ClassVar[int]
+    HAS_ROW_HEADER_FIELD_NUMBER: _ClassVar[int]
+    HAS_COLUMN_HEADER_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    lines: _containers.RepeatedCompositeFieldContainer[TextLineData]
+    has_row_header: bool
+    has_column_header: bool
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., lines: _Optional[_Iterable[_Union[TextLineData, _Mapping]]] = ..., has_row_header: bool = ..., has_column_header: bool = ...) -> None: ...
+
+class TextCellData(_message.Message):
+    __slots__ = ("metatype", "spans", "colspan", "rowspan", "alignment", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    SPANS_FIELD_NUMBER: _ClassVar[int]
+    COLSPAN_FIELD_NUMBER: _ClassVar[int]
+    ROWSPAN_FIELD_NUMBER: _ClassVar[int]
+    ALIGNMENT_FIELD_NUMBER: _ClassVar[int]
+    COLOR_FIELD_NUMBER: _ClassVar[int]
+    BACKGROUND_COLOR_FIELD_NUMBER: _ClassVar[int]
+    IS_BOLD_FIELD_NUMBER: _ClassVar[int]
+    IS_ITALIC_FIELD_NUMBER: _ClassVar[int]
+    IS_STRIKETHROUGH_FIELD_NUMBER: _ClassVar[int]
+    IS_UNDERLINE_FIELD_NUMBER: _ClassVar[int]
+    IS_CODE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    spans: _containers.RepeatedCompositeFieldContainer[TextSpanData]
+    colspan: int
+    rowspan: int
+    alignment: Alignment
+    color: ColorType
+    background_color: ColorType
+    is_bold: bool
+    is_italic: bool
+    is_strikethrough: bool
+    is_underline: bool
+    is_code: bool
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., spans: _Optional[_Iterable[_Union[TextSpanData, _Mapping]]] = ..., colspan: _Optional[int] = ..., rowspan: _Optional[int] = ..., alignment: _Optional[_Union[Alignment, str]] = ..., color: _Optional[_Union[ColorType, str]] = ..., background_color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
 
 class TextLineData(_message.Message):
-    __slots__ = ("metatype", "type", "spans", "color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
+    __slots__ = ("metatype", "type", "spans", "content", "table", "cells", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     SPANS_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    TABLE_FIELD_NUMBER: _ClassVar[int]
+    CELLS_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
+    BACKGROUND_COLOR_FIELD_NUMBER: _ClassVar[int]
     IS_BOLD_FIELD_NUMBER: _ClassVar[int]
     IS_ITALIC_FIELD_NUMBER: _ClassVar[int]
     IS_STRIKETHROUGH_FIELD_NUMBER: _ClassVar[int]
@@ -3500,13 +3589,17 @@ class TextLineData(_message.Message):
     metatype: ObjectType
     type: TextLineType
     spans: _containers.RepeatedCompositeFieldContainer[TextSpanData]
+    content: str
+    table: TextTableData
+    cells: _containers.RepeatedCompositeFieldContainer[TextCellData]
     color: ColorType
+    background_color: ColorType
     is_bold: bool
     is_italic: bool
     is_strikethrough: bool
     is_underline: bool
     is_code: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TextLineType, str]] = ..., spans: _Optional[_Iterable[_Union[TextSpanData, _Mapping]]] = ..., color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TextLineType, str]] = ..., spans: _Optional[_Iterable[_Union[TextSpanData, _Mapping]]] = ..., content: _Optional[str] = ..., table: _Optional[_Union[TextTableData, _Mapping]] = ..., cells: _Optional[_Iterable[_Union[TextCellData, _Mapping]]] = ..., color: _Optional[_Union[ColorType, str]] = ..., background_color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
 
 class TextData(_message.Message):
     __slots__ = ("metatype", "lines")
@@ -3647,14 +3740,14 @@ class CodeLineData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., content: _Optional[str] = ...) -> None: ...
 
 class CodeData(_message.Message):
-    __slots__ = ("metatype", "lines", "language")
+    __slots__ = ("metatype", "language", "lines")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    LINES_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_FIELD_NUMBER: _ClassVar[int]
+    LINES_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
+    language: str
     lines: _containers.RepeatedCompositeFieldContainer[CodeLineData]
-    language: CodeLanguage
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., lines: _Optional[_Iterable[_Union[CodeLineData, _Mapping]]] = ..., language: _Optional[_Union[CodeLanguage, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., language: _Optional[str] = ..., lines: _Optional[_Iterable[_Union[CodeLineData, _Mapping]]] = ...) -> None: ...
 
 class ColorData(_message.Message):
     __slots__ = ("metatype", "type", "shade", "hex")
@@ -5919,7 +6012,7 @@ class GoToTabActionData(_message.Message):
     def __init__(self, application_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., element_id: _Optional[str] = ..., element_position: _Optional[_Union[Vector2Data, _Mapping]] = ..., tab_index: _Optional[int] = ...) -> None: ...
 
 class BlockData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "template_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_at", "mode", "computed_values", "subnode_packed", "type", "order_key", "text", "node_ptr")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "template_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_at", "mode", "computed_values", "subnode_packed", "type", "order_key", "line", "node_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -5938,7 +6031,7 @@ class BlockData(_message.Message):
     SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
-    TEXT_FIELD_NUMBER: _ClassVar[int]
+    LINE_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
@@ -5958,9 +6051,9 @@ class BlockData(_message.Message):
     subnode_packed: _struct_pb2.Value
     type: BlockType
     order_key: str
-    text: TextData
+    line: TextLineData
     node_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., computed_values: _Optional[_Iterable[_Union[ComputedValueData, _Mapping]]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[BlockType, str]] = ..., order_key: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., computed_values: _Optional[_Iterable[_Union[ComputedValueData, _Mapping]]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[BlockType, str]] = ..., order_key: _Optional[str] = ..., line: _Optional[_Union[TextLineData, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class ChannelData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "template_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_at", "mode", "computed_values", "subnode_packed", "type", "name", "order_key", "icon", "text", "block_ptr")

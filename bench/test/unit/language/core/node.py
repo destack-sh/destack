@@ -32,8 +32,8 @@ from bench.language import (
     Property,
     Session,
     Text,
-    md,
 )
+from bench.language.core.text import TextLine
 from bench.proto import unpack_builtin_object
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
@@ -70,10 +70,10 @@ def test_get_set_non_existing_property(session: "Session"):
 
 def test_node_subtype_property_access(session: "Session"):
     # subtype -> regular property
-    Text1 = Block.new(BlockType.PARAGRAPH, text=md("Hello!"))
-    assert Text1.text is not None and Text1.text.to_markdown() == "Hello!"
-    Text1.text = md("Hello, world!")
-    assert Text1.text is not None and Text1.text.to_markdown() == "Hello, world!"
+    Text1 = Block.new(BlockType.PARAGRAPH, line=TextLine.plain("Hello!"))
+    assert Text1.line is not None and Text1.line.spans[0].content == "Hello!"
+    Text1.line = TextLine.plain("Hello, world!")
+    assert Text1.line is not None and Text1.line.spans[0].content == "Hello, world!"
 
     # subtype -> node ref property
     Duplicate1 = Action.new(DuplicateAction, "BlockAction1", node=Text1)
@@ -84,21 +84,21 @@ def test_node_subtype_property_access(session: "Session"):
 
 
 def test_node_subtype_property_reference(session: "Session"):
-    Text1 = Block.new(BlockType.PARAGRAPH, text=md("Hello!"))
+    Text1 = Block.new(BlockType.PARAGRAPH, line=TextLine.plain("Hello!"))
     Duplicate1 = Action.new(DuplicateAction, "BlockAction1", node=Text1)
     node_prop: Property = Duplicate1.get_property("node")
     assert node_prop.to_ref().resolve_or_error() is node_prop
 
 
 def test_node_subtype_pack_unpack(session: "Session"):
-    block = Block.new(BlockType.PARAGRAPH, text=md("Hello!"))
+    block = Block.new(BlockType.PARAGRAPH, line=TextLine.plain("Hello!"))
     # pack/unpack wiring
     block_data = block._to_data()
     unpacked_block = cast(
         Block, unpack_builtin_object(block_data, expect=Block, supergraph=session._supergraph)
     )
     assert unpacked_block.equals(block)
-    assert unpacked_block.text is not None and unpacked_block.text.to_markdown() == "Hello!"
+    assert unpacked_block.line is not None and unpacked_block.line.spans[0].content == "Hello!"
 
 
 def test_node_pointers_consistency(session: "Session"):
