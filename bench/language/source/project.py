@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Collection, Sequence, cast
+from typing import TYPE_CHECKING, Collection, cast
 from uuid import UUID
 
 import structlog
@@ -8,7 +8,6 @@ from opentelemetry import trace
 from bench.language import LocalNodeList, NodeSuperGraph
 from bench.language.core import (
     NODE_TYPES_SET,
-    BlockType,
     BuiltinObject,
     CustomObject,
     Node,
@@ -17,14 +16,11 @@ from bench.language.core import (
     Property,
     ReferenceKind,
     SomeValue,
-    SourceNode,
     Struct,
     TypeBase,
     TypeKind,
     get_custom_object_properties,
 )
-
-from .block import Block
 
 if TYPE_CHECKING:
     pass
@@ -194,18 +190,3 @@ class Projection:
             else:
                 node = self.supergraph.get(cast(NodeReference, value))
                 self.add_node(node or cast(NodeReference, value), depth)
-
-
-def get_containing_pages(*nodes: Node, include_self: bool) -> Sequence[Block]:
-    """Gets the containing pages for the given nodes"""
-    pages_by_id: dict[UUID, Block] = {}
-    for node in nodes:
-        if not isinstance(node, SourceNode):
-            continue
-        parent = node if include_self else node.parent
-        while parent is not None:
-            if isinstance(parent, Block) and parent.type == BlockType.PAGE:
-                pages_by_id[parent.id] = parent
-                break
-            parent = parent.parent
-    return tuple(pages_by_id.values())

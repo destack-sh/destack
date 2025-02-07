@@ -3,21 +3,27 @@ from typing import TYPE_CHECKING, Optional, Union, cast, override
 from uuid import UUID
 
 from bench.language.core import (
-    BlockType,
+    BuiltinEnum,
+    EnumType,
     InlineSourceNode,
+    LocalNodeList,
     NodeReference,
     NodeSubtypeStub,
     NodeType,
     SourceNode,
     StructType,
-    Text,
+    TextLine,
+    TextLineType,
+    enum_,
     node_,
     p_internal,
+    p_node_children,
     p_node_parent,
     p_regular,
     p_system,
 )
 from bench.pb2 import BlockData
+from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
@@ -28,33 +34,121 @@ if TYPE_CHECKING:
 _type = type
 
 
+@enum_(EnumType.BLOCK_TYPE)
+class BlockType(BuiltinEnum):
+    # NOTE: see NodeType
+    # resources
+    FILE = 2200, "Any File"
+    # source
+    PAGE = 5020, "Page of Blocks"
+    # types
+    CHOICE = 5030, "Choice of Field options"
+    CLASS = 5031, "Class of Fields"
+    # flow
+    FLOW = 5050, "Flow of connected Actions"
+    ACTION = 5051, "Action in a Flow"
+    PIPE = 5052, "Pipe between Actions"
+    TRIGGER = 5053, "Trigger for a Flow"
+    # views
+    VIEW = 5080, "Graphical Interface"
+    # data
+    DATABASE = 5090, "Database of Records"
+    # auth
+    ROLE = 5110, "Role to assign"
+    IDENTITY = 5120, "Unique Identity"
+
+    # text
+    # NOTE: text BlockTypes should align with :TextLineTypes
+    PARAGRAPH = 10001, "Line of rich Text"
+    # heading
+    HEADING_1 = 10010, "Very big heading"
+    HEADING_2 = 10011, "Big heading"
+    HEADING_3 = 10012, "Medium heading"
+    HEADING_4 = 10013, "Small heading"
+    # callout
+    CALLOUT = 10020, "Callout to something important"
+    QUOTE = 10021, "Quote from someone"
+    # list
+    LIST_BULLET = 10030, "Bullet list"
+    LIST_NUMBERED = 10031, "Numbered list"
+    LIST_UNCHECKED = 10032, "Unchecked list"
+    LIST_CHECKED = 10033, "Checked list"
+    # presentation
+    DIVIDER = 10040, "Horizontal line"
+    # table
+    TABLE = 10050, "Table of data"
+    TABLE_ROW = 10051, "Row of a table"
+    # code
+    CODE = 10060, "Code block"
+    EQUATION = 10061, "Equation (TeX)"
+    DIAGRAM = 10062, "Diagram (Mermaid)"
+
+    # layout?
+    # ROW
+
+
+BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
+NODE_BLOCK_TYPES: tuple[BlockType, ...] = tuple(t for t in BLOCK_TYPES if t.id < 10000)
+TEXT_BLOCK_TYPES: tuple[BlockType, ...] = tuple(t for t in BLOCK_TYPES if t.id >= 10000)
+
+# cross-check BlockType
+if IS_DEV or IS_TEST:
+    # check that every NodeType is a real NodeType
+    for block_type in NODE_BLOCK_TYPES:
+        try:
+            node_type = NodeType(block_type.id)
+        except ValueError as e:
+            raise ValueError(f"no NodeType with id {block_type.id}") from e
+        if node_type.name != block_type.name:
+            raise ValueError(f"BlockType {block_type.name} != NodeType {node_type.name}")
+
+    # check that every TextLineType has a BlockType
+    for text_line_type in TextLineType:
+        block_type_id = text_line_type.id + 10000
+        try:
+            block_type = BlockType(block_type_id)
+        except ValueError as e:
+            raise ValueError(f"no BlockType with id {block_type_id}") from e
+        if block_type.name != text_line_type.name:
+            raise ValueError(f"TextLineType {text_line_type.name} != BlockType {block_type.name}")
+
+
 @node_(NodeType.BLOCK, has_subtypes=True)
 class Block(SourceNode[BlockData]):
     """A Block on a Page."""
 
-    parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
+    parent: Union["Page", "Block", None] = p_node_parent(4, NodeType.PAGE, NodeType.BLOCK)
 
-    # content
+    # meta
     type: BlockType = p_system(30, description="The type of block.")
     order_key: str = p_internal(33, default=INTEGER_ZERO)
-    text: Optional["Text"] = p_regular(
-        35, default=None, require=False, array=False, struct=StructType.TEXT
+
+    # content
+    line: Optional["TextLine"] = p_regular(
+        40, default=None, require=False, array=False, struct=StructType.TEXT
     )
     node: Optional["InlineSourceNode"] = p_regular(
-        36, references="any", default=None, require=False, array=False, baseless=True
+        41, references="any", default=None, require=False, array=False, baseless=True
     )
     if TYPE_CHECKING:
         node_id: Optional[UUID] = None
         node_ck: Optional[UUID] = None
         node_ptr: Optional[NodeReference] = None
 
+    blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
+
     def __content_str__(self):
-        if (node := self.node) is not None:
+        if self.node_ptr is not None and (node := self.node) is not None:
             return node.__content_str__()
-        elif (text := self.text) is not None:
-            return text.__content_str__()
+        elif (line := self.line) is not None:
+            return line.__content_str__()
         else:
             return ""
+
+    @property
+    def container(self) -> "Page | None":
+        """The container of this Block."""
+        return self.page
 
     @property
     def name(self) -> str | None:

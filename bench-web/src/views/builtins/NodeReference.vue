@@ -111,7 +111,7 @@ defineExpose({
       v-if="isInput"
       id="identifier"
       ref="identifierRef"
-      class="flex-shrink-0 rounded text-gray-900 transition-colors duration-150 focus-within:bg-gray-100 hover:bg-gray-100"
+      class="flex-shrink-0 rounded text-gray-900"
       :style="{ maxWidth: `${identifierWidthMax}px` }"
       :class="identifierClass"
       :placeholder="nodeTypeName"

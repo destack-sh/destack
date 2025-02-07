@@ -32,7 +32,6 @@ from .const import (
     AccessMode,
     AccessType,
     BenchError,
-    BlockType,
     BuiltinEnum,
     EditType,
     NodeType,
@@ -49,10 +48,10 @@ from .node import NODE_CLASS_BY_TYPE, NodeReference
 from .property import Property, p_regular, p_runtime, p_system
 from .struct import Struct, struct_
 from .text import Text
-from .validation import NAME_CONSTRAINT, ValidationError, constraint
+from .validation import NAME_CONSTRAINT, ValidationError
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Client, Machine, Organization, Query, User
+    from bench.language import Bench, Block, Client, Identity, Machine, Organization, Query, User
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -366,13 +365,12 @@ class Subject(Struct):
         server_id: Optional[UUID] = None
 
     # accessories
-    identity: Optional["Block"] = p_system(
+    identity: Optional["Identity"] = p_system(
         50,
         default=None,
         require=False,
         array=False,
-        references=NodeType.BLOCK,
-        constraint=constraint(node_subtypes=[BlockType.IDENTITY]),
+        references=NodeType.IDENTITY,
     )
     owned: list[Ownable] = p_system(
         52, array=True, require=False, references=OWNABLE_NODE_TYPES.tuple

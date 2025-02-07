@@ -400,7 +400,6 @@ class EnumType(BuiltinEnum):
 
     # code (22400-22499)
     CODE_TYPE = 22400
-    CODE_LANGUAGE = 22401
 
     # flow (22500-22599)
     ACTION_TYPE = 22500
@@ -708,6 +707,8 @@ class StructType(BuiltinEnum):
     TEXT = 12000
     TEXT_LINE = 12001
     TEXT_SPAN = 12002
+    TEXT_TABLE = 12003
+    TEXT_CELL = 12004
 
     # code (12100-12199)
     CODE = 12100
@@ -957,47 +958,6 @@ class RegionZone(BuiltinEnum):
 
 REGION_SLUGS: dict[Region, str] = {r: r.slug for r in Region}
 REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
-
-
-@enum_(EnumType.BLOCK_TYPE)
-class BlockType(BuiltinEnum):  # NOTE: see NodeType
-    # resources
-    FILE = 2200, "A media File"
-    # source
-    PAGE = 5020, "Page of Blocks"
-    # types
-    CHOICE = 5030, "Choice of Field options"
-    CLASS = 5031, "Class of Fields"
-    # flow
-    FLOW = 5050, "Flow of connected Actions"
-    ACTION = 5051, "Action in a Flow"
-    PIPE = 5052, "Pipe between Actions"
-    TRIGGER = 5053, "Trigger for a Flow"
-    # views
-    VIEW = 5080, "Graphical Interface"
-    # data
-    DATABASE = 5090, "Database of Records"
-    # auth
-    ROLE = 5110, "Role to assign"
-    IDENTITY = 5111, "Unique Identity"
-
-    # text
-    # NOTE: text BlockTypes should align with :TextLineTypes
-    PARAGRAPH = 10000, "Line of rich Text"
-    # ...  # TODO :Incomplete: add other :TextLineTypes as BlockTypes
-
-    # layout?
-    # ...
-
-    @property
-    def is_nested(self) -> bool:
-        return self <= 10000
-
-
-BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
-TEXT_BLOCK_TYPES: tuple[BlockType, ...] = tuple(t for t in BLOCK_TYPES if t.id < 100)
-TYPE_BLOCK_TYPES: tuple[BlockType, ...] = tuple(t for t in BLOCK_TYPES if 100 <= t.id < 200)
-NESTED_BLOCK_TYPES: tuple[BlockType, ...] = tuple(t for t in BLOCK_TYPES if 200 <= t.id < 300)
 
 
 class ReferenceKind(BuiltinEnum):

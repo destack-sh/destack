@@ -47,20 +47,13 @@ class CodeLine(Struct):
             return other in self.content
 
 
-@enum_(EnumType.CODE_LANGUAGE)
-class CodeLanguage(BuiltinEnum):
-    """The language of some Code."""
-
-    PYTHON = 1
-
-
 @struct_(StructType.CODE)
 class Code(Struct):
     """Code composed of multiple lines."""
 
     # TODO :Incomplete: support references in nodes (incl. Paths? also in Text?)
 
-    language: Optional[CodeLanguage] = p_regular(EnumType.CODE_LANGUAGE, require=False)
+    language: Optional[str] = p_regular(32, require=False)
     lines: list[CodeLine] = p_regular(35, require=True, array=True, struct=StructType.CODE_LINE)
 
     def __content_str__(self) -> str:

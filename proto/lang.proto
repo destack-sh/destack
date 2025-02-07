@@ -97,7 +97,6 @@ enum EnumType {
   ENUM_TYPE_MODEL_FAMILY = 22302;
   ENUM_TYPE_MODEL_PROVIDER = 22303;
   ENUM_TYPE_CODE_TYPE = 22400;
-  ENUM_TYPE_CODE_LANGUAGE = 22401;
   ENUM_TYPE_ACTION_TYPE = 22500;
   ENUM_TYPE_ACTION_CATEGORY = 22501;
   ENUM_TYPE_PORT_SIDE = 22510;
@@ -205,6 +204,8 @@ enum StructType {
   STRUCT_TYPE_TEXT = 12000;
   STRUCT_TYPE_TEXT_LINE = 12001;
   STRUCT_TYPE_TEXT_SPAN = 12002;
+  STRUCT_TYPE_TEXT_TABLE = 12003;
+  STRUCT_TYPE_TEXT_CELL = 12004;
   STRUCT_TYPE_CODE = 12100;
   STRUCT_TYPE_CODE_LINE = 12101;
   STRUCT_TYPE_PATH = 12200;
@@ -310,6 +311,8 @@ enum ObjectType {
   OBJECT_TYPE_TEXT = 12000;
   OBJECT_TYPE_TEXT_LINE = 12001;
   OBJECT_TYPE_TEXT_SPAN = 12002;
+  OBJECT_TYPE_TEXT_TABLE = 12003;
+  OBJECT_TYPE_TEXT_CELL = 12004;
   OBJECT_TYPE_CODE = 12100;
   OBJECT_TYPE_CODE_LINE = 12101;
   OBJECT_TYPE_PATH = 12200;
@@ -415,6 +418,8 @@ enum BenchType {
   BENCH_TYPE_TEXT = 12000;
   BENCH_TYPE_TEXT_LINE = 12001;
   BENCH_TYPE_TEXT_SPAN = 12002;
+  BENCH_TYPE_TEXT_TABLE = 12003;
+  BENCH_TYPE_TEXT_CELL = 12004;
   BENCH_TYPE_CODE = 12100;
   BENCH_TYPE_CODE_LINE = 12101;
   BENCH_TYPE_PATH = 12200;
@@ -534,7 +539,6 @@ enum BenchType {
   BENCH_TYPE_MODEL_FAMILY = 22302;
   BENCH_TYPE_MODEL_PROVIDER = 22303;
   BENCH_TYPE_CODE_TYPE = 22400;
-  BENCH_TYPE_CODE_LANGUAGE = 22401;
   BENCH_TYPE_ACTION_TYPE = 22500;
   BENCH_TYPE_ACTION_CATEGORY = 22501;
   BENCH_TYPE_PORT_SIDE = 22510;
@@ -1059,8 +1063,24 @@ enum BlockType {
   BLOCK_TYPE_VIEW = 5080;
   BLOCK_TYPE_DATABASE = 5090;
   BLOCK_TYPE_ROLE = 5110;
-  BLOCK_TYPE_IDENTITY = 5111;
-  BLOCK_TYPE_PARAGRAPH = 10000;
+  BLOCK_TYPE_IDENTITY = 5120;
+  BLOCK_TYPE_PARAGRAPH = 10001;
+  BLOCK_TYPE_HEADING_1 = 10010;
+  BLOCK_TYPE_HEADING_2 = 10011;
+  BLOCK_TYPE_HEADING_3 = 10012;
+  BLOCK_TYPE_HEADING_4 = 10013;
+  BLOCK_TYPE_CALLOUT = 10020;
+  BLOCK_TYPE_QUOTE = 10021;
+  BLOCK_TYPE_LIST_BULLET = 10030;
+  BLOCK_TYPE_LIST_NUMBERED = 10031;
+  BLOCK_TYPE_LIST_UNCHECKED = 10032;
+  BLOCK_TYPE_LIST_CHECKED = 10033;
+  BLOCK_TYPE_DIVIDER = 10040;
+  BLOCK_TYPE_TABLE = 10050;
+  BLOCK_TYPE_TABLE_ROW = 10051;
+  BLOCK_TYPE_CODE = 10060;
+  BLOCK_TYPE_EQUATION = 10061;
+  BLOCK_TYPE_DIAGRAM = 10062;
 }
 
 enum TextLineType {
@@ -1077,6 +1097,11 @@ enum TextLineType {
   TEXT_LINE_TYPE_LIST_UNCHECKED = 32;
   TEXT_LINE_TYPE_LIST_CHECKED = 33;
   TEXT_LINE_TYPE_DIVIDER = 40;
+  TEXT_LINE_TYPE_TABLE = 50;
+  TEXT_LINE_TYPE_TABLE_ROW = 51;
+  TEXT_LINE_TYPE_CODE = 60;
+  TEXT_LINE_TYPE_EQUATION = 61;
+  TEXT_LINE_TYPE_DIAGRAM = 62;
 }
 
 enum ExpressionKind {
@@ -1480,12 +1505,6 @@ enum CodeType {
   CODE_TYPE_SNIPPET = 1;
   CODE_TYPE_SCRIPT = 2;
   CODE_TYPE_FUNCTION = 3;
-}
-
-// The language of some Code.
-enum CodeLanguage {
-  CODE_LANGUAGE_UNSPECIFIED = 0;
-  CODE_LANGUAGE_PYTHON = 1;
 }
 
 enum ActionType {
@@ -1937,6 +1956,29 @@ message TextSpanData {
   optional string content = 33;
   optional NodeReferenceData node_ptr = 34;
   optional ColorType color = 50;
+  optional ColorType background_color = 51;
+  optional bool is_bold = 60;
+  optional bool is_italic = 61;
+  optional bool is_strikethrough = 62;
+  optional bool is_underline = 63;
+  optional bool is_code = 64;
+}
+
+message TextTableData {
+  ObjectType metatype = 1;
+  repeated TextLineData lines = 33;
+  bool has_row_header = 40;
+  bool has_column_header = 41;
+}
+
+message TextCellData {
+  ObjectType metatype = 1;
+  repeated TextSpanData spans = 33;
+  int32 colspan = 40;
+  int32 rowspan = 41;
+  optional Alignment alignment = 42;
+  optional ColorType color = 50;
+  optional ColorType background_color = 51;
   optional bool is_bold = 60;
   optional bool is_italic = 61;
   optional bool is_strikethrough = 62;
@@ -1948,7 +1990,11 @@ message TextLineData {
   ObjectType metatype = 1;
   TextLineType type = 30;
   repeated TextSpanData spans = 33;
+  optional string content = 34;
+  optional TextTableData table = 35;
+  repeated TextCellData cells = 36;
   optional ColorType color = 50;
+  optional ColorType background_color = 51;
   optional bool is_bold = 60;
   optional bool is_italic = 61;
   optional bool is_strikethrough = 62;
@@ -2035,8 +2081,8 @@ message CodeLineData {
 
 message CodeData {
   ObjectType metatype = 1;
+  optional string language = 32;
   repeated CodeLineData lines = 35;
-  optional CodeLanguage language = 22401;
 }
 
 message ColorData {
@@ -3320,8 +3366,8 @@ message BlockData {
   optional google.protobuf.Value subnode_packed = 29;
   BlockType type = 30;
   string order_key = 33;
-  optional TextData text = 35;
-  optional NodeReferenceData node_ptr = 36;
+  optional TextLineData line = 40;
+  optional NodeReferenceData node_ptr = 41;
 }
 
 message ChannelData {

@@ -1,105 +1,136 @@
 import pytest
 
-from bench.language import (
-    Text,
-    TextLine,
-    TextLineType,
-    TextSpan,
-    markdown_to_text,
-)
+from bench.language import TextLineType, markdown_to_text, text_to_markdown
+from bench.language.core.text import TextLine
+
+
+def test_text_heading_and_list():
+    md = (
+        "# Heading 1\n"
+        "## Heading 2\n"
+        "! callout text\n"
+        "> quoted text\n"
+        "- list item\n"
+        "1. numbered item\n"
+        "---"
+    )
+    text = markdown_to_text(md)
+    assert text.lines[0] == TextLine.heading(1, "Heading 1")
+    assert text.lines[1] == TextLine.heading(2, "Heading 2")
+    assert text.lines[2] == TextLine.callout("callout text")
+    assert text.lines[3] == TextLine.quote("quoted text")
+    assert text.lines[4] == TextLine.list_bullet("list item")
+    assert text.lines[5] == TextLine.list_numbered("numbered item")
+    assert text.lines[6] == TextLine.divider()
+
+
+def test_text_inline_formatting():
+    md = """\
+this is **bold** and *italic* and ~~strike~~ and `code` and <u>underline</u>.
+also we have [red]red[/red] and [blue]blue[/blue] and [green]green[/green].
+they [yellow]can be *nested, like ~~deeply~~ nested, * and ~~combined~~[/yellow]."""
+    text = markdown_to_text(md)
+    md_out = text_to_markdown(text)
+    assert md_out == md
+
+
+def test_text_code_block():
+    md = """\
+```python
+print('hello')
+line2
+```
+"""
+    text = markdown_to_text(md)
+    line = text.lines[0]
+    assert line.type == TextLineType.CODE
+    assert "print('hello')" in (line.content or "")
+    md_out = text_to_markdown(text)
+    assert "```" in md_out
+    assert "print('hello')" in md_out
+
+
+def test_text_equation_block():
+    md = """\
+```tex
+E = mc^2
+```
+"""
+    text = markdown_to_text(md)
+    assert text.lines[0].type == TextLineType.EQUATION
+    assert text.lines[0].content == "E = mc^2"
+    md_out = text_to_markdown(text)
+    assert "```tex" in md_out
+    assert "E = mc^2" in md_out
+
+
+def test_text_diagram_block():
+    md = """\
+```mermaid
+graph TD;
+A-->B;
+```
+"""
+    text = markdown_to_text(md)
+    assert text.lines[0].type == TextLineType.DIAGRAM
+    assert text.lines[0].content == "graph TD;\nA-->B;"
+    md_out = text_to_markdown(text)
+    assert "```mermaid" in md_out
+    assert "graph TD;" in md_out
+
+
+def test_text_table():
+    md = """\
+| Product | Price | Stock | Description |
+| --- | ---: | :---: | :--- |
+| iPhone 13 | $999.99 | 50 | Latest model with A15 chip |
+| AirPods Pro | $249.99 | 100 | Active *noise* cancellation |
+| MacBook Air | $1299.99 | 25 | M1 chip, 13" display |
+    """.strip()
+    text = markdown_to_text(md)
+    table_line = text.lines[0]
+    assert table_line.type == TextLineType.TABLE
+    table = table_line.table
+    assert table is not None
+    md_out = text_to_markdown(text)
+    assert md_out == md
 
 
 @pytest.mark.parametrize(
-    ("markdown", "lines"),
+    "md",
     [
-        ("", []),
-        ("---", [TextLine.new(TextLineType.DIVIDER)]),
-        (
-            "## Hello",
-            [TextLine.new(TextLineType.HEADING_2, "Hello")],
-        ),
-        (
-            """\
----
-# Heading Large
-## Heading Medium
-### Heading Small
-
-! Callout
-> Quote
-
-- List Bullet
-1. List Numbered
-- [ ] List Unchecked
-- [x] List Checked""",
-            [
-                TextLine.new(TextLineType.DIVIDER),
-                TextLine.new(TextLineType.HEADING_1, "Heading Large"),
-                TextLine.new(TextLineType.HEADING_2, "Heading Medium"),
-                TextLine.new(TextLineType.HEADING_3, "Heading Small"),
-                TextLine.new(TextLineType.PARAGRAPH, []),
-                TextLine.new(TextLineType.CALLOUT, "Callout"),
-                TextLine.new(TextLineType.QUOTE, "Quote"),
-                TextLine.new(TextLineType.PARAGRAPH, []),
-                TextLine.new(TextLineType.LIST_BULLET, "List Bullet"),
-                TextLine.new(TextLineType.LIST_NUMBERED, "List Numbered"),
-                TextLine.new(TextLineType.LIST_UNCHECKED, "List Unchecked"),
-                TextLine.new(TextLineType.LIST_CHECKED, "List Checked"),
-            ],
-        ),
-        (
-            """\
-- Hey!: **Bold** and *Italic* and ~~Strikethrough~~
- ! **Bold and *Italic*** and *Italic and **Bold***
-## <u>Underline</u> and `Code` too""",
-            [
-                TextLine.new(
-                    TextLineType.LIST_BULLET,
-                    [
-                        TextSpan.new("Hey!: "),
-                        TextSpan.new("Bold", is_bold=True),
-                        TextSpan.new(" and "),
-                        TextSpan.new("Italic", is_italic=True),
-                        TextSpan.new(" and "),
-                        TextSpan.new("Strikethrough", is_strikethrough=True),
-                    ],
-                ),
-                TextLine.new(
-                    TextLineType.CALLOUT,
-                    [
-                        TextSpan.new("Bold and ", is_bold=True),
-                        TextSpan.new("Italic", is_bold=True, is_italic=True),
-                        TextSpan.new(" and "),
-                        TextSpan.new("Italic and ", is_italic=True),
-                        TextSpan.new("Bold", is_bold=True, is_italic=True),
-                    ],
-                ),
-                TextLine.new(
-                    TextLineType.HEADING_2,
-                    [
-                        TextSpan.new("Underline", is_underline=True),
-                        TextSpan.new(" and "),
-                        TextSpan.new("Code", is_code=True),
-                        TextSpan.new(" too"),
-                    ],
-                ),
-            ],
-        ),
+        """\
+# Project Overview
+## Key Features
+This is a paragraph with **bold** and *italic* formatting.
+- [x] Task 1 completed
+- [ ] Task 2 pending""",
+        """\
+Normal text with `inline code` and ~~strikethrough~~.
+> This is a blockquote with <u>underlined text</u>
+! Important callout message""",
+        """\
+```
+def complex_function():
+    # This is a comment
+    result = [x for x in range(10) if x % 2 == 0]
+    print(f"Even numbers: {result}")
+```""",
+        """\
+| Language | Paradigm | Year | Creator | Color |
+| --- | ---: | :---: | :--- | --- |
+| Python | Multi-paradigm | 1991 | Guido van Rossum | [blue]blue[/blue] |
+| Rust | Systems | 2010 | Graydon Hoare | [red]red[/red] |""",
+        """\
+This text has **multiple** *different* ~~formatting~~ <u>styles</u>
+And **spans multiple** lines with *consistent* formatting""",
     ],
 )
-def test_text_to_markdown_roundtrip(markdown: str, lines: list[TextLine]):
-    text = Text(lines=lines)
-
-    # markdown -> text
-    text_from_markdown = markdown_to_text(markdown)
-    # easier to debug than text_from_markdown == text (because its nested)
-    for i, expected_line in enumerate(lines):
-        parsed_line = text_from_markdown.lines[i]
-        assert parsed_line == expected_line
-    assert text_from_markdown == text  # for sanity
-
-    # text -> markdown
-    # NOTE :Incomplete :Test: implement more optimal text to markdown (and test it in roundtrip)
-    #  Currently, we naively wrap each span individually (ignoring successive spans), resulting in bloated MD.
-    # markdown_from_text = text_to_markdown(text)
-    # assert markdown_from_text == markdown
+def test_text_roundtrip(md):
+    text = markdown_to_text(md)
+    md_rendered = text_to_markdown(text)
+    # should equal original markdown
+    assert md_rendered == md
+    # should roundtrip
+    text_reparsed = markdown_to_text(md_rendered)
+    assert text_to_markdown(text_reparsed) == text_to_markdown(text)

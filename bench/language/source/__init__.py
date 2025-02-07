@@ -34,7 +34,7 @@ from .action import (
     UpdateAction,
     WaitAction,
 )
-from .block import Block, BlockType
+from .block import BLOCK_TYPES, NODE_BLOCK_TYPES, TEXT_BLOCK_TYPES, Block, BlockType
 from .channel import Channel, ChannelType
 from .choice import Choice
 from .clazz import Class
@@ -81,7 +81,10 @@ from .view import (
 )
 
 __all__ = [
+    "BLOCK_TYPES",
     "DYNAMIC_ACTION_TYPES",
+    "NODE_BLOCK_TYPES",
+    "TEXT_BLOCK_TYPES",
     "Action",
     "ActionType",
     "Aliasing",
