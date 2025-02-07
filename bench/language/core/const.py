@@ -347,6 +347,7 @@ class EnumType(BuiltinEnum):
 
     # text (21400-21499)
     TEXT_LINE_TYPE = 21400
+    TEXT_SPAN_TYPE = 21401
 
     # expressions (21500-21599)
     EXPRESSION_KIND = 21500

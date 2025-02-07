@@ -1,7 +1,7 @@
 import pytest
 
 from bench.language import TextLineType, markdown_to_text, text_to_markdown
-from bench.language.core.text import TextLine
+from bench.language.core.text import TextLine, TextSpan, TextSpanType
 
 
 def test_text_heading_and_list():
@@ -22,6 +22,29 @@ def test_text_heading_and_list():
     assert text.lines[4] == TextLine.list_bullet("list item")
     assert text.lines[5] == TextLine.list_numbered("numbered item")
     assert text.lines[6] == TextLine.divider()
+
+
+def test_text_span_equation():
+    md = """\
+And then he said $$E = mc^2$$ and $$F = ma$$"""
+    text = markdown_to_text(md)
+    assert text.lines[0].spans[0] == TextSpan.new(TextSpanType.TEXT, "And then he said ")
+    assert text.lines[0].spans[1] == TextSpan.new(TextSpanType.EQUATION, "E = mc^2")
+    assert text.lines[0].spans[2] == TextSpan.new(TextSpanType.TEXT, " and ")
+    assert text.lines[0].spans[3] == TextSpan.new(TextSpanType.EQUATION, "F = ma")
+
+
+def test_text_span_link():
+    md = """\
+[link](https://example.com) and [another](https://test.com/path?q=123#fragment)"""
+    text = markdown_to_text(md)
+    assert text.lines[0].spans[0] == TextSpan.new(
+        TextSpanType.LINK, content="link", href="https://example.com"
+    )
+    assert text.lines[0].spans[1] == TextSpan.new(TextSpanType.TEXT, " and ")
+    assert text.lines[0].spans[2] == TextSpan.new(
+        TextSpanType.LINK, content="another", href="https://test.com/path?q=123#fragment"
+    )
 
 
 def test_text_inline_formatting():
@@ -100,6 +123,8 @@ def test_text_table():
     "md",
     [
         """\
+Here is my $$E = mc^2$$ equation, check out [this link](https://example.com) and [another one](https://test.com/path?q=123#fragment)""",
+        """\
 # Project Overview
 ## Key Features
 This is a paragraph with **bold** and *italic* formatting.
@@ -128,9 +153,9 @@ And **spans multiple** lines with *consistent* formatting""",
 )
 def test_text_roundtrip(md):
     text = markdown_to_text(md)
-    md_rendered = text_to_markdown(text)
+    text_rendered = text_to_markdown(text)
     # should equal original markdown
-    assert md_rendered == md
+    assert text_rendered == md
     # should roundtrip
-    text_reparsed = markdown_to_text(md_rendered)
+    text_reparsed = markdown_to_text(text_rendered)
     assert text_to_markdown(text_reparsed) == text_to_markdown(text)
