@@ -589,7 +589,7 @@ export function moveNode(
 
   // move block and source node together
   if (isNode(node, NodeType.BLOCK)) {
-    // for blocks, also move the source node
+    // for definition blocks, also move the source node
     const source = unwrapBlock(node);
     if (source?.blockPtr?.id == node.id) {
       tx.move(source, { parentPtr }, { debounce: "tick" });
