@@ -176,6 +176,8 @@ export const AUTH_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType >= 100 &
 export const FINANCE_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType >= 200 && nodeType < 300);
 export const SOURCE_NODE_TYPES = NODE_TYPES.filter(isSourceNodeType);
 export const INLINE_SOURCE_NODE_TYPES = [
+  NodeType.CHANNEL,
+  NodeType.PAGE,
   NodeType.CLASS,
   NodeType.CHOICE,
   NodeType.DATABASE,

@@ -18,6 +18,9 @@ export function createPage(
 ): PageData {
   const { target, anchor } = options;
   const packagePtr = isNode(target, NodeType.PACKAGE) ? toNodeRef(target) : target.packagePtr;
+  if (tx.change?.key == null) {
+    tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
+  }
 
   // position
   let parentPtr: NodeReferenceData;
@@ -35,8 +38,8 @@ export function createPage(
   }
 
   // create
-  if (tx.change?.key == null) {
-    tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
+  if (isNode(target, NodeType.PAGE) && options.page.blockPtr == null) {
+    throw new Error("cannot create inline page without block");
   }
   const name = options.page.name ?? generateNodeName({ metatype: ObjectType.PAGE, ...options.page }, siblings);
   const page = tx.create({
@@ -45,7 +48,7 @@ export function createPage(
     packagePtr,
     ...options.page,
     orderKey,
-		name,
+    name,
   });
 
   return page;

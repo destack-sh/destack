@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.05.3"
+VERSION = "2025.02.07.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -747,6 +747,9 @@ PAGE_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("block_id", PrimitiveType.UUID, is_nullable=True),
+        Column("block_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1231,6 +1234,9 @@ CHANNEL_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("block_id", PrimitiveType.UUID, is_nullable=True),
+        Column("block_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),

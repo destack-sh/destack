@@ -3,6 +3,7 @@ import { INLINE_SOURCE_NODE_TYPES, toCamelName } from "@/language/core/const";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/core/graph";
 import { cloneNode, moveNode, useSubnodeProperty } from "@/language/core/node";
 import { newChangeId } from "@/language/runtime/transaction";
+import { createBlock } from "@/language/source/block";
 import { createPage } from "@/language/source/page";
 import {
   BlockType,
@@ -13,7 +14,7 @@ import {
   TreeViewPreset,
   ViewData,
   ViewType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
@@ -422,7 +423,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               class="text-gray-400 opacity-0 hover:text-gray-400 group-hover/node:opacity-100"
               @click.stop="
                 () => {
-                  const page = createPage(connection.tx, graph, { anchor: 'inside', target: node, page: {} });
+                  const page = createBlock(connection.tx, graph, {
+                    anchor: 'inside',
+                    target: node,
+                    block: { type: BlockType.PAGE },
+                  });
                   canvas.goToNode(page);
                 }
               "

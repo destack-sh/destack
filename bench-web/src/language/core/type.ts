@@ -1,38 +1,37 @@
+import { supergraph } from "@/globals";
 import {
-	getTkB64FromCk,
-	getTkB64FromPtr,
-	isNodeType,
-	NAME_CONSTRAINT,
-	padCkFromTkB64,
-	TITLE_CONSTRAINT,
-	toCamelName
+  getTkB64FromCk,
+  getTkB64FromPtr,
+  isNodeType,
+  NAME_CONSTRAINT,
+  padCkFromTkB64,
+  TITLE_CONSTRAINT,
+  toCamelName,
 } from "@/language/core/const";
 import { getEnumTitle } from "@/language/core/enum";
+import { blockToTypeMaybe } from "@/language/source/block";
+import { choiceToType } from "@/language/source/choice";
+import { classToType } from "@/language/source/class";
+import { flowToType } from "@/language/source/flow";
 import {
-	BenchType,
-	EnumType,
-	FieldData,
-	FieldType,
-	NodeType,
-	ObjectType,
-	PrimitiveType,
-	PROPERTY_ENUM_BY_TYPE,
-	PROPERTY_INFOS_BY_TYPE,
-	PropertyReferenceData,
-	StructType,
-	TypeConstraintData,
-	TypeData,
-	TypeKind,
-	type AnyNodeData,
-	type PropertyInfo
+  BenchType,
+  EnumType,
+  FieldData,
+  FieldType,
+  NodeType,
+  ObjectType,
+  PrimitiveType,
+  PROPERTY_ENUM_BY_TYPE,
+  PROPERTY_INFOS_BY_TYPE,
+  PropertyReferenceData,
+  StructType,
+  TypeConstraintData,
+  TypeData,
+  TypeKind,
+  type AnyNodeData,
+  type PropertyInfo,
 } from "@/proto/wire";
-import {
-	describeNode,
-	isStruct,
-	makeDefaultObject,
-	propertyInfo
-} from "@/proto/wiring";
-import { supergraph } from "@/globals";
+import { describeNode, isNode, isStruct, makeDefaultObject, propertyInfo } from "@/proto/wiring";
 import { decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
 
@@ -394,4 +393,32 @@ export function getTypeName(field: Partial<TypeData>): string {
   } else {
     throw new Error(`unexpected type kind: ${field.kind}`);
   }
+}
+
+/** Get the Type expressed by a Node. */
+export function nodeToTypeMaybe(
+  node: AnyNodeData,
+  of?: "instance" | "value",
+  fieldTypes?: FieldType[],
+): TypeData | undefined {
+  if (isNode(node, NodeType.CLASS)) {
+    return classToType(node, of ?? "value", fieldTypes);
+  } else if (isNode(node, NodeType.CHOICE)) {
+    return choiceToType(node);
+  } else if (isNode(node, NodeType.BLOCK)) {
+    return blockToTypeMaybe(node, of, fieldTypes);
+  } else if (isNode(node, NodeType.FLOW)) {
+    return flowToType(node, of, fieldTypes);
+  } else {
+    return undefined;
+  }
+}
+
+/** Get the Type expressed by a Node. */
+export function nodeToType(node: AnyNodeData, of?: "instance" | "value", fieldTypes?: FieldType[]): TypeData {
+  const type = nodeToTypeMaybe(node, of, fieldTypes);
+  if (type == null) {
+    throw new Error(`node has no type: ${describeNode(node)}`);
+  }
+  return type;
 }

@@ -1,11 +1,10 @@
-import { actionToType } from "@/language/source/action";
-import { blockToType } from "@/language/source/block";
 import { ACTIVE_RUN_STATUSES, getBaseFromNode, isResourceNodeType, TK_LENGTH_B64 } from "@/language/core/const";
 import { makeExpression } from "@/language/core/expression";
-import { decodeTypeIdentity } from "@/language/core/type";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import { makeNode } from "@/language/core/node";
 import { timesortNode } from "@/language/core/order";
+import { decodeTypeIdentity } from "@/language/core/type";
+import { unpackValue } from "@/language/core/value";
 import {
   getRunType,
   isRunActive,
@@ -16,7 +15,8 @@ import {
   RunnableNodeType,
 } from "@/language/runtime/run";
 import { newChangeId, type Transaction } from "@/language/runtime/transaction";
-import { unpackValue } from "@/language/core/value";
+import { actionToType } from "@/language/source/action";
+import { flowToType } from "@/language/source/flow";
 import {
   ActionData,
   ChangeCategory,
@@ -460,8 +460,8 @@ export function getInterruptActions(interrupt: InterruptionData): RuntimeAction[
 export function getInputType(node: RunnableNode) {
   if (isNode(node, NodeType.ACTION)) {
     return actionToType(node, "value", [FieldType.INPUT]);
-  } else if (isNode(node, NodeType.BLOCK)) {
-    return blockToType(node, "value", [FieldType.INPUT]);
+  } else if (isNode(node, NodeType.FLOW)) {
+    return flowToType(node, "value", [FieldType.INPUT]);
   } else {
     return undefined;
   }
@@ -470,8 +470,8 @@ export function getInputType(node: RunnableNode) {
 export function getOutputType(node: RunnableNode) {
   if (isNode(node, NodeType.ACTION)) {
     return actionToType(node, "value", [FieldType.OUTPUT]);
-  } else if (isNode(node, NodeType.BLOCK)) {
-    return blockToType(node, "value", [FieldType.OUTPUT]);
+  } else if (isNode(node, NodeType.FLOW)) {
+    return flowToType(node, "value", [FieldType.OUTPUT]);
   } else {
     return undefined;
   }
