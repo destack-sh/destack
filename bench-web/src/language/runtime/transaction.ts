@@ -428,9 +428,9 @@ export class TransactionBuilder implements Transaction {
       if (source?.blockPtr?.id == node.id) {
         tx._addSimpleEdit(EditType.DELETE, source, null);
       }
-    } else if (isInlineSourceNode(node)) {
+    } else if (isInlineSourceNode(node) && node.blockPtr != null) {
       // for inline source nodes, also delete the block definition
-      const block = supergraph.getOrError(node.blockPtr!) as BlockData;
+      const block = supergraph.getOrError(node.blockPtr) as BlockData;
       tx._addSimpleEdit(EditType.DELETE, block, null);
     }
   }
@@ -449,9 +449,9 @@ export class TransactionBuilder implements Transaction {
       if (source?.blockPtr?.id == node.id) {
         tx._addSimpleEdit(EditType.RESTORE, source, null);
       }
-    } else if (isInlineSourceNode(node)) {
+    } else if (isInlineSourceNode(node) && node.blockPtr != null) {
       // for inline source nodes, also restore the block definition
-      const block = supergraph.getOrError(node.blockPtr!) as BlockData;
+      const block = supergraph.getOrError(node.blockPtr) as BlockData;
       tx._addSimpleEdit(EditType.RESTORE, block, null);
     }
   }

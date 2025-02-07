@@ -2,7 +2,7 @@
 import { toCamelName } from "@/language/core/const";
 import { NAME_TYPE, TITLE_TYPE } from "@/language/core/type";
 import { Transaction } from "@/language/runtime/transaction";
-import { AnyNodeData, NodeType, PROPERTY_ENUM_BY_TYPE } from "@/proto/wire";
+import { AnyNodeData, NodeType, Orientation, PROPERTY_ENUM_BY_TYPE } from "@/proto/wire";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn } from "@/ui/popover";
 import { TooltipInfo } from "@/ui/tooltip";
@@ -22,6 +22,8 @@ const props = defineProps<{
   isLight?: boolean;
   isIconLight?: boolean;
   isMinimal?: boolean;
+  hideIcon?: boolean;
+  orientation?: Orientation;
   maxWidth?: number;
 }>();
 const iconRef = ref<InstanceType<typeof Icon> | null>(null);
@@ -75,7 +77,8 @@ defineExpose({
 </script>
 <template>
   <div
-    class="flex flex-row items-center"
+    class=""
+    :class="orientation == Orientation.VERTICAL ? 'flex flex-col gap-y-0.5' : 'flex flex-row items-center'"
     :data-node-id="node.id"
     :data-node-ck="(node as any).ck"
     :data-node-type="node.metatype"
@@ -83,6 +86,7 @@ defineExpose({
     data-contextmenu-items="space.navigate.open"
   >
     <IconInline
+      v-if="!hideIcon"
       ref="iconRef"
       v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
       v-menu="

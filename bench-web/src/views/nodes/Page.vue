@@ -270,7 +270,15 @@ defineExpose<ViewExposed>({ self, actions, focus });
             width: widths.block + 'px',
           }"
         >
-          <NodeReference ref="nameRef" size="title" :node="page" is-input :tx="() => connection.tx" />
+          <NodeReference
+            ref="nameRef"
+            :orientation="Orientation.VERTICAL"
+            :hide-icon="page.icon == null"
+            size="title"
+            :node="page"
+            is-input
+            :tx="() => connection.tx"
+          />
         </div>
 
         <!-- Blocks -->

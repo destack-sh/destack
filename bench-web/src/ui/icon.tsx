@@ -41,6 +41,7 @@ import {
   PipeTrigger,
   ActionCategory,
   ToolFilter,
+  TextLineType,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // fa-icons is generated with:
@@ -325,11 +326,42 @@ export const ICON_BY_BENCH_TYPE: Partial<Record<BenchType, IconData>> = {
   ...ICON_BY_OBJECT_TYPE,
 };
 
+export const ICON_BY_TEXT_LINE_TYPE: Partial<Record<TextLineType, IconData>> = _makeIcons<TextLineType>({
+  // plain
+  [TextLineType.PARAGRAPH]: "fas fa-align-left",
+  // heading
+  [TextLineType.HEADING_1]: "fas fa-heading",
+  [TextLineType.HEADING_2]: "fas fa-heading",
+  [TextLineType.HEADING_3]: "fas fa-heading",
+  [TextLineType.HEADING_4]: "fas fa-heading",
+  // highlight
+  [TextLineType.CALLOUT]: "fas fa-circle-exclamation",
+  [TextLineType.QUOTE]: "fas fa-quote-left",
+  // list
+  [TextLineType.LIST_BULLET]: "fas fa-list-ul",
+  [TextLineType.LIST_NUMBERED]: "fas fa-list-ol",
+  [TextLineType.LIST_CHECKED]: "fas fa-list-check",
+  [TextLineType.LIST_UNCHECKED]: "fas fa-list-check",
+  // presentation
+  [TextLineType.DIVIDER]: "fas fa-horizontal-rule",
+  // table
+  [TextLineType.TABLE]: "fas fa-table",
+  [TextLineType.TABLE_ROW]: "fas fa-table-rows",
+  // code
+  [TextLineType.CODE]: "fas fa-code",
+  [TextLineType.EQUATION]: "fas fa-sigma",
+  [TextLineType.DIAGRAM]: "fas fa-diagram-project",
+});
+
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
-  // text
-  [BlockType.PARAGRAPH]: "fas fa-align-left",
   // nodes
   ...ICON_BY_NODE_TYPE,
+  // text (like ICON_BY_TEXT_LINE_TYPE but +10000)
+  ...Object.fromEntries(
+    Object.entries(ICON_BY_TEXT_LINE_TYPE).map(([key, value]) => {
+      return [Number.parseInt(key) + 10_000, value];
+    }),
+  ),
 });
 
 export const ICON_BY_ACTION_TYPE: Partial<Record<ActionType, IconData>> = _makeIcons<ActionType>({
@@ -773,6 +805,7 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.REGION]: ICON_BY_REGION,
   [EnumType.RESOURCE_STATUS]: ICON_BY_RESOURCE_STATUS,
   [EnumType.CACHE_MODE]: ICON_BY_CACHE_MODE,
+  [EnumType.TEXT_LINE_TYPE]: ICON_BY_TEXT_LINE_TYPE,
 };
 
 /** Resolves the icon for a type :FieldIcon */
