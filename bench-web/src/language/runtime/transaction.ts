@@ -1,11 +1,14 @@
+import { supergraph } from "@/globals";
 import { isInlineSourceNode, NODE_SUBTYPE_PACKED_KEY } from "@/language/core/const";
-import { getPropertyType, TypeIdentity } from "@/language/core/type";
 import { PartialNode, type ReadNodeGraph, type WriteNodeGraph } from "@/language/core/graph";
 import { makeNode, NodeIn } from "@/language/core/node";
+import { getPropertyType, TypeIdentity } from "@/language/core/type";
 import { packValue, unpackValue } from "@/language/core/value";
+import { unwrapBlock } from "@/language/source/block";
 import { getCachedGraphClient, HUMANIZED_OPERATION_STATUS } from "@/proto/services";
 import {
   BenchType,
+  BlockData,
   BlockProperty,
   ChangeCategory,
   CommitTransactionRequest,
@@ -52,8 +55,6 @@ import { toValueRef } from "@/utils/ref";
 import { uuidt } from "@/utils/uuidt";
 import type { RpcError } from "grpc-web";
 import { computed, nextTick, ref, shallowRef, toValue, triggerRef, watch, type MaybeRef, type Ref } from "vue";
-import { unwrapBlock } from "@/language/source/block";
-import { supergraph } from "@/globals";
 
 export type DebounceLevel = "tick" | "short" | "long";
 const DEBOUNCE_LEVELS: Record<"short" | "long", number> = {
@@ -414,11 +415,45 @@ export class TransactionBuilder implements Transaction {
   }
 
   delete(node: AnyNodeData) {
-    this._addSimpleEdit(EditType.DELETE, { ...node }, null);
+    let tx: TransactionBuilder = this;
+    if (this.change?.key == null) {
+      tx = tx.with({ change: { key: newChangeId(), title: "Delete" } }) as TransactionBuilder;
+    }
+    tx._addSimpleEdit(EditType.DELETE, { ...node }, null);
+
+    // delete blocks and definitions together
+    if (isNode(node, NodeType.BLOCK)) {
+      // for definition blocks, also delete the source node
+      const source = unwrapBlock(node);
+      if (source?.blockPtr?.id == node.id) {
+        tx._addSimpleEdit(EditType.DELETE, source, null);
+      }
+    } else if (isInlineSourceNode(node)) {
+      // for inline source nodes, also delete the block definition
+      const block = supergraph.getOrError(node.blockPtr!) as BlockData;
+      tx._addSimpleEdit(EditType.DELETE, block, null);
+    }
   }
 
   restore(node: AnyNodeData) {
-    this._addSimpleEdit(EditType.RESTORE, { ...node, deletedAt: undefined }, null);
+    let tx: TransactionBuilder = this;
+    if (this.change?.key == null) {
+      tx = tx.with({ change: { key: newChangeId(), title: "Restore" } }) as TransactionBuilder;
+    }
+    tx._addSimpleEdit(EditType.RESTORE, { ...node, deletedAt: undefined }, null);
+
+    // restore blocks and definitions together
+    if (isNode(node, NodeType.BLOCK)) {
+      // for definition blocks, also restore the source node
+      const source = unwrapBlock(node);
+      if (source?.blockPtr?.id == node.id) {
+        tx._addSimpleEdit(EditType.RESTORE, source, null);
+      }
+    } else if (isInlineSourceNode(node)) {
+      // for inline source nodes, also restore the block definition
+      const block = supergraph.getOrError(node.blockPtr!) as BlockData;
+      tx._addSimpleEdit(EditType.RESTORE, block, null);
+    }
   }
 }
 
