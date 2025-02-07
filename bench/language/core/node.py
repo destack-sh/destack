@@ -1570,7 +1570,7 @@ class SourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC
 
 @node_component_()
 class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
-    """A named SourceNode that is defined inline in a Page."""
+    """A named SourceNode that can be defined inline in a Page."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
 

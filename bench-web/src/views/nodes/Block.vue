@@ -1,22 +1,18 @@
 <script lang="ts" setup>
 import { CANVAS_BLOCK_TYPES } from "@/language/core/const";
-import { unpackSubnodeProperty } from "@/language/core/node";
-import { getTransactionOptionsForType, makeEdit } from "@/language/runtime/transaction";
-import { packValue, unpackValue } from "@/language/core/value";
-import { BlockType, FieldType, NodeReferenceData, NodeType, TypeKind, ViewData } from "@/proto/wire";
+import { BlockType, FieldType, NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
-import GenericValue from "@/views/builtins/GenericValue.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Text from "@/views/content/Text.vue";
-import FieldList from "@/views/objects/FieldList.vue";
 import Database from "@/views/nodes/Database.vue";
 import Flow from "@/views/nodes/Flow.vue";
+import FieldList from "@/views/objects/FieldList.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -33,20 +29,22 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const blockRef = ref<HTMLElement | null>(null);
-const NodeReferenceRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
+const nodeRefRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 
-const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
-const preparedConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
+const blockPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
+const preparedConnection = props.preparedConnection ?? useExistingConnection(blockPtr);
 const { graph, connection } = preparedConnection;
-const block = graph.getRef(nodePtr, { ignoreAncestors: props.self == null });
-const fields = graph.getChildrenRef(block, NodeType.FIELD);
+const block = graph.getRef(blockPtr, { ignoreAncestors: true });
+const nodePtr = computed(() => block.value?.nodePtr);
+const node = graph.getRef(nodePtr, { ignoreAncestors: true });
+const fields = graph.getChildrenRef(nodePtr, NodeType.FIELD);
 
 const isPage = computed(() => block.value?.type == BlockType.PAGE);
 const hasCanvas = computed(() => CANVAS_BLOCK_TYPES.includes(block.value?.type!));
-const isInspected = computed(() => canvas.isInspected(nodePtr.value));
-const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
-const isSelected = computed(() => state.isSelected(nodePtr.value));
+const isInspected = computed(() => canvas.isInspected(blockPtr.value) || canvas.isInspected(nodePtr.value));
+const isHighlighted = computed(() => canvas.isHighlighted(blockPtr.value) || canvas.isHighlighted(nodePtr.value));
+const isSelected = computed(() => state.isSelected(blockPtr.value));
 
 //
 // Interaction
@@ -56,7 +54,7 @@ const actions: Partial<ActionMapImplementation<"space">> & ActionMapImplementati
   // space
   "space.edit.rename": {
     action: () => {
-      nextTick(() => NodeReferenceRef.value?.focusIdentifier());
+      nextTick(() => nodeRefRef.value?.focusIdentifier());
     },
   },
 };
@@ -84,12 +82,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     @click="() => isPage && canvas.goToNode(block!)"
   >
     <!-- Header -->
-    <div v-if="block.type != BlockType.PARAGRAPH" class="flex flex-row items-center rounded-t px-1 py-1">
+    <div v-if="node" class="flex flex-row items-center rounded-t px-1 py-1">
       <NodeReference
-        ref="NodeReferenceRef"
+        ref="nodeRefRef"
         :size="hasCanvas ? 'large' : 'regular'"
         :isUnderline="block.type == BlockType.PAGE"
-        :node="block"
+        :node="node"
         :is-input="block.type != BlockType.PAGE"
         :tx="() => connection.tx"
       />
@@ -123,7 +121,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         id="type"
         :node="block"
         :prepared-connection="preparedConnection"
-        :node-ptr="props.nodePtr"
+        :node-ptr="nodePtr"
         :field-type="block.type == BlockType.CHOICE ? FieldType.OPTION : FieldType.MEMBER"
       />
       <!-- Runnable -->
@@ -135,7 +133,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             class=""
             :node="block"
             :prepared-connection="preparedConnection"
-            :node-ptr="props.nodePtr"
+            :node-ptr="nodePtr"
             :field-type="FieldType.INPUT"
           />
           <i
@@ -147,7 +145,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             class=""
             :node="block"
             :prepared-connection="preparedConnection"
-            :node-ptr="props.nodePtr"
+            :node-ptr="nodePtr"
             :field-type="FieldType.OUTPUT"
           />
           <FieldList
@@ -155,7 +153,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             class="ml-auto"
             :node="block"
             :prepared-connection="preparedConnection"
-            :node-ptr="props.nodePtr"
+            :node-ptr="nodePtr"
             :field-type="FieldType.VARIABLE"
           />
         </div>
@@ -165,7 +163,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           id="flow"
           class="mt-2 h-[400px]"
           v-bind="state.getChildState('flow')"
-          :node-ptr="props.nodePtr"
+          :node-ptr="nodePtr"
           is-minimal
           :prepared-connection="preparedConnection"
         />
@@ -174,12 +172,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         v-if="block.type == BlockType.DATABASE"
         id="database"
         v-bind="state.getChildState('database')"
-        :node-ptr="props.nodePtr"
+        :node-ptr="nodePtr"
         is-minimal
         :container-gutter-width="containerGutterWidth"
         is-input
       />
     </div>
   </div>
-  <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="connection" />
+  <Inaccessible v-else class="h-full w-full" :node="blockPtr" :connection="connection" />
 </template>

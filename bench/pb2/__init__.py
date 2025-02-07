@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.02.05.3"
+VERSION = "2025.02.07.1"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -188,7 +188,15 @@ SourceNodeData = Union[
     SpaceData,
 ]
 InlineSourceNodeData = Union[
-    ChoiceData, ClassData, FlowData, ViewData, DatabaseData, RoleData, IdentityData
+    PageData,
+    ChoiceData,
+    ClassData,
+    FlowData,
+    ViewData,
+    DatabaseData,
+    ChannelData,
+    RoleData,
+    IdentityData,
 ]
 StateNodeData = Union[ThreadData, MessageData, RecordData]
 RuntimeNodeData = Union[SessionData, RunData, RunSpanData, RunPlanData, InterruptionData, LogData]

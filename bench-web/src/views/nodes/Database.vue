@@ -2,7 +2,7 @@
 import { getPropertyName, getPropertyTitle } from "@/language/core/const";
 import { makeAndConditional, makeExpression } from "@/language/core/expression";
 import { moveNode, packSubnode } from "@/language/core/node";
-import { getPropertyType, getStorageKey, makeType, NAME_TYPE, TypeIdentity } from "@/language/core/type";
+import { getPropertyType, getStorageKey, makeType, NAME_TYPE, nodeToType, TypeIdentity } from "@/language/core/type";
 import { packValue, unpackValue } from "@/language/core/value";
 import {
   DebounceLevel,
@@ -11,7 +11,6 @@ import {
   Transaction,
   TransactionOptions,
 } from "@/language/runtime/transaction";
-import { blockToType } from "@/language/source/block";
 import { createField } from "@/language/source/field";
 import {
   BenchType,
@@ -502,9 +501,9 @@ function onDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | nu
       } else {
         moveNode(tx, graph, node, { anchor: "center", target: block.value! });
       }
-    } else if (isNode(node, NodeType.BLOCK)) {
+    } else  {
       // add field with block type
-      const type = blockToType(node, "instance");
+      const type = nodeToType(node, "instance");
       const fieldIn = { ...type, zone: FieldType.MEMBER };
       if (target != null) {
         if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);

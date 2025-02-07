@@ -75,8 +75,6 @@ const mentionPtrs: Ref<NodeReferenceData[]> = computed(() => {
   }
   return mentionPtrs;
 });
-// TODO :Incomplete: some mentioned nodes may not be in package graph for Text
-//  (use supergraph? but when to load missing nodes?)
 const basePtrs = computed(() => mentionPtrs.value.map((ptr) => getBaseFromNodeReference(ptr)).filter((b) => b != null));
 const bases = supergraph.getManyRef(basePtrs);
 const mentions = supergraph.getManyRef(mentionPtrs);

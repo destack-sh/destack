@@ -1,4 +1,4 @@
-import { blockToType } from "@/language/source/block";
+import { supergraph } from "@/globals";
 import {
   isBenchNodeType,
   isEnumType,
@@ -9,12 +9,11 @@ import {
 } from "@/language/core/const";
 import { ENUM_OPTIONS_BY_VALUE, EnumOption, getEnumOption, getEnumOptions } from "@/language/core/enum";
 import { makeExpression } from "@/language/core/expression";
-import { getSubtypeEnum, makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/core/type";
 import type { NodeSuperGraph, ReadNodeGraph, TypedNodeKey } from "@/language/core/graph";
+import { getSubtypeEnum, makeTypeConstraint, nodeToType, typeIdentityEquals, type TypeIdentity } from "@/language/core/type";
 import {
   ActionType,
   BenchType,
-  BlockData,
   BlockType,
   ColorType,
   EnumType,
@@ -31,7 +30,7 @@ import {
   ViewType,
   type AnyNodeData,
   type IconData,
-  type NodeReferenceData,
+  type NodeReferenceData
 } from "@/proto/wire";
 import { isNode, makeScope, propertyReference, toNodeRef } from "@/proto/wiring";
 import { BENCH_SCOPE } from "@/system/client";
@@ -41,7 +40,6 @@ import {
   RemoteSearchConnection,
   SearchConnectionParams,
 } from "@/system/connection";
-import { supergraph } from "@/globals";
 import { benchGraph, pkgGraph } from "@/system/space";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, isActionEnabled, type Action } from "@/ui/action";
 import {
@@ -912,7 +910,7 @@ export function typeIndex(idx: {
   }
 
   function typeItemFromNode(nodeItem: NodeItem): TypeItem {
-    const blockAsType = blockToType(nodeItem.node as BlockData, "instance");
+    const blockAsType = nodeToType(nodeItem.node);
     const item: TypeItem = {
       ...nodeItem,
       ...blockAsType,

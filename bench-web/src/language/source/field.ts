@@ -1,13 +1,9 @@
-import {
-  RUNNABLE_NODE_TYPES,
-  TYPE_NODE_TYPES
-} from "@/language/core/const";
+import { RUNNABLE_NODE_TYPES, TYPE_NODE_TYPES } from "@/language/core/const";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import { cloneNode, makeNodeName, moveNode } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
-import { getTypeName, TypeIdentity } from "@/language/core/type";
+import { getTypeName, nodeToType, TypeIdentity } from "@/language/core/type";
 import { newChangeId, type Transaction } from "@/language/runtime/transaction";
-import { blockToType } from "@/language/source/block";
 import {
   ActionData,
   BenchType,
@@ -19,20 +15,14 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
-  TypeKind
+  TypeKind,
 } from "@/proto/wire";
-import {
-  describeNode,
-  isNode,
-  toNodeRef,
-  type TypedNodeReferenceData
-} from "@/proto/wiring";
+import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { DragContent, MultiAnchor } from "@/ui/drag";
 import { getNodeIcon, makeIcon } from "@/ui/icon";
 import { getRandomColorType } from "@/ui/style";
 import { assertNever } from "@/utils/functools";
 import { Ref } from "vue";
-
 
 /** Create a Field relative to some Field-containing node. */
 export function createField(
@@ -252,9 +242,9 @@ export function useFieldList(options: {
         if ((node as FieldData).type != fieldType.value) {
           tx.update(node, { type: fieldType.value ?? undefined }, { debounce: "tick" });
         }
-      } else if (isNode(node, NodeType.BLOCK)) {
-        // add field with block type
-        const type = blockToType(node, "instance");
+      } else {
+        // add field with any node type
+        const type = nodeToType(node, "instance");
         const fieldIn = { ...type, type: fieldType.value! };
         if (target != null) {
           if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);

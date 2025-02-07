@@ -111,6 +111,9 @@ export type Transaction = TransactionMeta & {
   with(meta: TransactionMeta): Transaction;
   /** Stops debouncing the given edit (force start a new edit on that node) */
   clearDebounce(nodeId: string): void;
+  /** Make a Node (but not create it) for this Transaction */
+  make<T extends NodeType>(nodeIn: NodeIn<T>): NodeTypeMapping[T];
+
   /** Create a new node */
   create<T extends NodeType>(node: NodeIn<T>): NodeTypeMapping[T];
   /** Update regular properties in this node. v*/
@@ -305,9 +308,7 @@ export class TransactionBuilder implements Transaction {
     this._notifyEdit(edit, null);
   }
 
-  create<T extends NodeType>(
-    nodeIn: { metatype: T | ObjectType } & Partial<Omit<NodeTypeMapping[NodeType], "metatype">>,
-  ): NodeTypeMapping[T] {
+  make<T extends NodeType>(nodeIn: NodeIn<T>): NodeTypeMapping[T] {
     // fill in scope
     const properties = PROPERTY_ENUM_BY_TYPE[nodeIn.metatype as unknown as ObjectType];
     if (properties == null) {
@@ -329,10 +330,14 @@ export class TransactionBuilder implements Transaction {
     }
 
     // create node
-    // NOTE :Cleanup: why doesn't makeNode typecheck properly here?
     const node: NodeTypeMapping[T] =
       nodeIn.id == null ? makeNode(nodeIn as any) : (nodeIn as unknown as NodeTypeMapping[T]);
 
+    return node;
+  }
+
+  create<T extends NodeType>(nodeIn: NodeIn<T>): NodeTypeMapping[T] {
+    const node = this.make(nodeIn);
     this._addSimpleEdit(EditType.CREATE, node, null);
     return node as NodeTypeMapping[T];
   }

@@ -1,6 +1,32 @@
+import { ReadNodeGraph } from "@/language/core/graph";
+import { generateNodeName } from "@/language/core/node";
 import { makeType } from "@/language/core/type";
-import { BenchType, FieldType, FlowData, TypeData, TypeKind } from "@/proto/wire";
+import { Transaction } from "@/language/runtime/transaction";
+import { ActionType, BenchType, FieldType, FlowData, NodeType, ObjectType, TypeData, TypeKind } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
+
+/** Create a Flow. */
+export function createFlow(tx: Transaction, graph: ReadNodeGraph, options: { flow: Partial<FlowData> }): FlowData {
+  if (options.flow.blockPtr == null) {
+    throw new Error("cannot create inline flow without block");
+  }
+
+  // create
+  const siblings = graph.getChildren(options.flow.parentPtr!, NodeType.FLOW);
+  const name = options.flow.name ?? generateNodeName({ metatype: ObjectType.FLOW, ...options.flow }, siblings);
+  const flow = tx.create({ metatype: NodeType.FLOW, ...options.flow, name });
+
+  // create inner stuff
+  const start = tx.create({
+    metatype: NodeType.ACTION,
+    type: ActionType.START,
+    name: "Start",
+    parentPtr: toNodeRef(flow),
+    packagePtr: flow.packagePtr,
+  });
+
+  return flow;
+}
 
 /** Get the Type of a Flow. */
 export function flowToType(flow: FlowData, of: "instance" | "value" = "instance", fieldTypes?: FieldType[]): TypeData {

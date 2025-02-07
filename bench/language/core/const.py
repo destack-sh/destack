@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.05.3"
+VERSION = "2025.02.07.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -504,7 +504,7 @@ class NodeType(BuiltinEnum):
 
     # source (named, versioned, templatable)
     PACKAGE = 5000
-    DEPENDENCY = 5002
+    DEPENDENCY = 5010
     # page
     PAGE = 5020
     BLOCK = 5021
@@ -526,7 +526,7 @@ class NodeType(BuiltinEnum):
     CHANNEL = 5100
     # auth
     ROLE = 5110
-    IDENTITY = 5111
+    IDENTITY = 5120
     # BADGE? POLICY? (POLICY_)RULE?
     SPACE = 5200
 
