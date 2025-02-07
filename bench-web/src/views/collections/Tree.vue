@@ -255,14 +255,6 @@ const { activeDropZone } = useMultiDropZone({
       if (!CHILD_NODE_TYPES[targetParentType].includes(node.metatype as unknown as NodeType)) {
         return false; // not a child
       }
-      if (
-        isNode(target, NodeType.BLOCK) &&
-        isNode(dragged.nodes[0], NodeType.BLOCK) &&
-        anchor == "center" &&
-        target.type != BlockType.PAGE
-      ) {
-        return false; // can only move blocks into page blocks
-      }
       return true;
     });
   },
