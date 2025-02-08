@@ -267,14 +267,14 @@ function focusText(anchor: "top" | "bottom" = "bottom") {
   if (anchor == "top") {
     const firstBlock = blocks.value[0];
     if (firstBlock.type >= BlockType.PARAGRAPH) {
-      focus(firstBlock);
+      focus(firstBlock, "top");
     } else {
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, "before", firstBlock);
     }
   } else {
     const lastBlock = blocks.value[blocks.value.length - 1];
     if (lastBlock.type >= BlockType.PARAGRAPH) {
-      focus(lastBlock);
+      focus(lastBlock, "bottom");
     } else {
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, "after", lastBlock);
     }
@@ -285,7 +285,6 @@ function focusText(anchor: "top" | "bottom" = "bottom") {
 function navigateFromGroup(group: BlockGroup, direction: NavigationDirection) {
   const navigableGroups = groups.value.filter((g) => g.type == "text");
   const groupIdx = navigableGroups.findIndex((g) => g.id == group.id);
-  console.log("navigateFromGroup", { group, groupIdx, direction });
   if (direction == "up" || direction == "left") {
     const prevGroup = navigableGroups[groupIdx - 1];
     if (prevGroup != null) {
@@ -313,7 +312,7 @@ function deleteGroup(group: BlockGroup) {
 
 // focus
 // NOTE :UX: focus in Page should scroll into view but that sometimes pushes the root window out of frame somehow..
-function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData) {
+function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData, innerAnchor?: FocusAnchor) {
   let block: BlockData | undefined;
   if (typeof anchor != "object") {
     if (anchor != "bottom") {
@@ -333,10 +332,10 @@ function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData) {
     if (block.type >= BlockType.PARAGRAPH) {
       const group = groups.value.find((g) => g.type == "text" && g.blocks.some((b) => b.id == block.id));
       const groupRef = textBlockGroupRefs.value[group!.id!];
-      groupRef?.focus?.();
+      groupRef?.focus?.(innerAnchor);
     } else {
       const groupRef = nodeBlockRefs.value[block.id!];
-      groupRef?.focus?.();
+      groupRef?.focus?.(innerAnchor);
     }
   }
 }

@@ -166,7 +166,7 @@ mark {
   @apply pb-0; /* ignore bottom margin */
 }
 .pm-text .line {
-  @apply min-h-[30px] py-[3px] text-base;
+  @apply py-[3px] text-base;
 }
 .pm-text hr {
   @apply my-2 border-gray-200 p-0 focus:outline-none focus:ring-0;

@@ -131,7 +131,6 @@ defineExpose({
       :value-type="identifierKind == 'name' ? NAME_TYPE : TITLE_TYPE"
       is-minimal
       :model-value="identifier"
-      aria-hidden
       @update:model-value="
         (newValue) => getTx().update(node!, { [identifierKind!]: newValue as string }, { debounce: 'long' })
       "
