@@ -68,10 +68,8 @@ class BlockType(BuiltinEnum):
     CALLOUT = 10020, "Callout to something important"
     QUOTE = 10021, "Quote from someone"
     # list
-    LIST_BULLET = 10030, "Bullet list"
-    LIST_NUMBERED = 10031, "Numbered list"
-    LIST_UNCHECKED = 10032, "Unchecked list"
-    LIST_CHECKED = 10033, "Checked list"
+    LIST_UNORDERED = 10030, "Unorderd list"
+    LIST_ORDERED = 10031, "Numbered list"
     # presentation
     DIVIDER = 10040, "Horizontal line"
     # table

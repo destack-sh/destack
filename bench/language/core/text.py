@@ -44,10 +44,8 @@ class TextLineType(BuiltinEnum):
     CALLOUT = 20, "Callout"
     QUOTE = 21, "Quote"
     # list
-    LIST_BULLET = 30, "Bullet list"
-    LIST_NUMBERED = 31, "Numbered list"
-    LIST_UNCHECKED = 32, "Unchecked list"
-    LIST_CHECKED = 33, "Checked list"
+    LIST_UNORDERED = 30, "Unorderd list"
+    LIST_ORDERED = 31, "Numbered list"
     # divider
     DIVIDER = 40, "Horizontal line"
     # table
@@ -198,19 +196,11 @@ class TextLine(TextOptionsBase, Struct):
 
     @staticmethod
     def list_bullet(text: str) -> "TextLine":
-        return TextLine(type=TextLineType.LIST_BULLET, spans=_parse_inline(text))
+        return TextLine(type=TextLineType.LIST_UNORDERED, spans=_parse_inline(text))
 
     @staticmethod
     def list_numbered(text: str) -> "TextLine":
-        return TextLine(type=TextLineType.LIST_NUMBERED, spans=_parse_inline(text))
-
-    @staticmethod
-    def list_unchecked(text: str) -> "TextLine":
-        return TextLine(type=TextLineType.LIST_UNCHECKED, spans=_parse_inline(text))
-
-    @staticmethod
-    def list_checked(text: str) -> "TextLine":
-        return TextLine(type=TextLineType.LIST_CHECKED, spans=_parse_inline(text))
+        return TextLine(type=TextLineType.LIST_ORDERED, spans=_parse_inline(text))
 
     @staticmethod
     def divider() -> "TextLine":
@@ -497,17 +487,11 @@ def _parse_line(line: str) -> TextLine:
     elif content_stripped.startswith("> "):
         ttype = TextLineType.QUOTE
         content = content_stripped[2:]
-    elif content_stripped.startswith("- [ ] "):
-        ttype = TextLineType.LIST_UNCHECKED
-        content = content_stripped[6:]
-    elif content_stripped.startswith("- [x] "):
-        ttype = TextLineType.LIST_CHECKED
-        content = content_stripped[6:]
     elif content_stripped.startswith("- "):
-        ttype = TextLineType.LIST_BULLET
+        ttype = TextLineType.LIST_UNORDERED
         content = content_stripped[2:]
     elif regex.match(r"^\d+\.\s", content_stripped):
-        ttype = TextLineType.LIST_NUMBERED
+        ttype = TextLineType.LIST_ORDERED
         content = regex.sub(r"^\d+\.\s", "", content_stripped)
     elif content_stripped == "---":
         ttype = TextLineType.DIVIDER
@@ -794,13 +778,9 @@ def text_to_markdown(text_obj: Text) -> str:
                 prefix = "! "
             elif line.type == TextLineType.QUOTE:
                 prefix = "> "
-            elif line.type == TextLineType.LIST_UNCHECKED:
-                prefix = "- [ ] "
-            elif line.type == TextLineType.LIST_CHECKED:
-                prefix = "- [x] "
-            elif line.type == TextLineType.LIST_BULLET:
+            elif line.type == TextLineType.LIST_UNORDERED:
                 prefix = "- "
-            elif line.type == TextLineType.LIST_NUMBERED:
+            elif line.type == TextLineType.LIST_ORDERED:
                 prefix = "1. "
             content = _render_inline(line.spans)
             if line.color:

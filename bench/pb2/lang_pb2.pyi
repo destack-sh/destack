@@ -1064,10 +1064,8 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BLOCK_TYPE_HEADING_4: _ClassVar[BlockType]
     BLOCK_TYPE_CALLOUT: _ClassVar[BlockType]
     BLOCK_TYPE_QUOTE: _ClassVar[BlockType]
-    BLOCK_TYPE_LIST_BULLET: _ClassVar[BlockType]
-    BLOCK_TYPE_LIST_NUMBERED: _ClassVar[BlockType]
-    BLOCK_TYPE_LIST_UNCHECKED: _ClassVar[BlockType]
-    BLOCK_TYPE_LIST_CHECKED: _ClassVar[BlockType]
+    BLOCK_TYPE_LIST_UNORDERED: _ClassVar[BlockType]
+    BLOCK_TYPE_LIST_ORDERED: _ClassVar[BlockType]
     BLOCK_TYPE_DIVIDER: _ClassVar[BlockType]
     BLOCK_TYPE_TABLE: _ClassVar[BlockType]
     BLOCK_TYPE_TABLE_ROW: _ClassVar[BlockType]
@@ -1085,10 +1083,8 @@ class TextLineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TEXT_LINE_TYPE_HEADING_4: _ClassVar[TextLineType]
     TEXT_LINE_TYPE_CALLOUT: _ClassVar[TextLineType]
     TEXT_LINE_TYPE_QUOTE: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_LIST_BULLET: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_LIST_NUMBERED: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_LIST_UNCHECKED: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_LIST_CHECKED: _ClassVar[TextLineType]
+    TEXT_LINE_TYPE_LIST_UNORDERED: _ClassVar[TextLineType]
+    TEXT_LINE_TYPE_LIST_ORDERED: _ClassVar[TextLineType]
     TEXT_LINE_TYPE_DIVIDER: _ClassVar[TextLineType]
     TEXT_LINE_TYPE_TABLE: _ClassVar[TextLineType]
     TEXT_LINE_TYPE_TABLE_ROW: _ClassVar[TextLineType]
@@ -2838,10 +2834,8 @@ BLOCK_TYPE_HEADING_3: BlockType
 BLOCK_TYPE_HEADING_4: BlockType
 BLOCK_TYPE_CALLOUT: BlockType
 BLOCK_TYPE_QUOTE: BlockType
-BLOCK_TYPE_LIST_BULLET: BlockType
-BLOCK_TYPE_LIST_NUMBERED: BlockType
-BLOCK_TYPE_LIST_UNCHECKED: BlockType
-BLOCK_TYPE_LIST_CHECKED: BlockType
+BLOCK_TYPE_LIST_UNORDERED: BlockType
+BLOCK_TYPE_LIST_ORDERED: BlockType
 BLOCK_TYPE_DIVIDER: BlockType
 BLOCK_TYPE_TABLE: BlockType
 BLOCK_TYPE_TABLE_ROW: BlockType
@@ -2856,10 +2850,8 @@ TEXT_LINE_TYPE_HEADING_3: TextLineType
 TEXT_LINE_TYPE_HEADING_4: TextLineType
 TEXT_LINE_TYPE_CALLOUT: TextLineType
 TEXT_LINE_TYPE_QUOTE: TextLineType
-TEXT_LINE_TYPE_LIST_BULLET: TextLineType
-TEXT_LINE_TYPE_LIST_NUMBERED: TextLineType
-TEXT_LINE_TYPE_LIST_UNCHECKED: TextLineType
-TEXT_LINE_TYPE_LIST_CHECKED: TextLineType
+TEXT_LINE_TYPE_LIST_UNORDERED: TextLineType
+TEXT_LINE_TYPE_LIST_ORDERED: TextLineType
 TEXT_LINE_TYPE_DIVIDER: TextLineType
 TEXT_LINE_TYPE_TABLE: TextLineType
 TEXT_LINE_TYPE_TABLE_ROW: TextLineType

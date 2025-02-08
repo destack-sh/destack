@@ -136,9 +136,7 @@ Here is my $$E = mc^2$$ equation, check out [this link](https://example.com) and
         """\
 # Project Overview
 ## Key Features
-This is a paragraph with **bold** and *italic* formatting.
-- [x] Task 1 completed
-- [ ] Task 2 pending""",
+This is a paragraph with **bold** and *italic* formatting""",
         """\
 Normal text with `inline code` and ~~strikethrough~~.
 > This is a blockquote with <u>underlined text</u>
