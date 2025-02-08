@@ -554,7 +554,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               <!-- Meta (if new group) -->
               <div v-if="isNewGroup" class="">
                 <!-- Author -->
-                <span class="font-medium text-base">
+                <span class="text-base font-medium">
                   {{ authorName ?? "???" }}
                 </span>
                 <!-- Timestamp -->
@@ -681,7 +681,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       </div>
       <!-- Box -->
       <div
-        class="peer relative rounded border border-gray-200 px-2 py-1.5"
+        class="peer relative rounded border border-gray-200 px-2 py-2"
         :class="[replyTo != null ? 'rounded-t-none' : '']"
       >
         <div class="flex flex-row">
@@ -690,7 +690,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             <!-- Add extra -->
             <button
               v-tooltip="{ small: true, title: 'Add Context' }"
-              class="transition-color mr-3 rounded-2xl bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-150 hover:bg-gray-200"
+              class="transition-color mr-3 rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-150 hover:bg-gray-200"
               @click.stop
             >
               <i class="fas fa-plus" />

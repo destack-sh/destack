@@ -622,48 +622,45 @@ export function useTextEditor(props: {
     }
     const bindings: Record<string, Command> = {
       ...commands.baseKeymap,
-      ArrowLeft: (state, dispatch) => {
-        const { $cursor } = state.selection as TextSelection;
-        console.log("ArrowLeft", { state, $cursor });
-        if ($cursor && $cursor.pos == 1) {
-          // navigate left if we're at the very start
+      ArrowLeft(state, dispatch, view) {
+        const { selection } = state;
+        if (
+          state.doc.textContent == "" ||
+          ((selection as TextSelection).$cursor && view?.endOfTextblock("left", state))
+        ) {
           navigate("left");
           return true;
         }
         return false;
       },
-      ArrowRight: (state, dispatch) => {
-        const { $cursor } = state.selection as TextSelection;
-        console.log("ArrowRight", { state, $cursor });
-        if ($cursor && $cursor.pos == state.doc.content.size - 1) {
-          // navigate right if we're at the very end
+      ArrowRight(state, dispatch, view) {
+        const { selection } = state;
+        if (
+          state.doc.textContent == "" ||
+          ((selection as TextSelection).$cursor && view?.endOfTextblock("right", state))
+        ) {
           navigate("right");
           return true;
         }
         return false;
       },
-      ArrowUp: (state, dispatch) => {
-        const { $cursor } = state.selection as TextSelection;
-        console.log("ArrowUp", { state, $cursor });
-        if (!$cursor) return false;
-        // Resolve the position immediately before the current block.
-        // That gives us a handle on the index of the block node in the doc.
-        const blockIndex = state.doc.resolve($cursor.before(1)).index(0);
-        if (blockIndex === 0) {
-          // We’re in the top line – navigate out.
+      ArrowUp(state, dispatch, view) {
+        const { selection } = state;
+        if (
+          state.doc.textContent == "" ||
+          ((selection as TextSelection).$cursor && view?.endOfTextblock("up", state))
+        ) {
           navigate("up");
           return true;
         }
-        // Otherwise, fall back to the default behavior.
         return false;
       },
-      ArrowDown: (state, dispatch) => {
-        const { $cursor } = state.selection as TextSelection;
-        console.log("ArrowDown", { state, $cursor });
-        if (!$cursor) return false;
-        const blockIndex = state.doc.resolve($cursor.before(1)).index(0);
-        if (blockIndex === state.doc.childCount - 1) {
-          // We’re in the bottom line – navigate out.
+      ArrowDown(state, dispatch, view) {
+        const { selection } = state;
+        if (
+          state.doc.textContent == "" ||
+          ((selection as TextSelection).$cursor && view?.endOfTextblock("down", state))
+        ) {
           navigate("down");
           return true;
         }
@@ -832,7 +829,6 @@ export function useTextEditor(props: {
         if (view == null) return;
         const { from } = view.state.selection;
         const hardBreak = PM_SCHEMA.node("spanHardBreak");
-        console.log("insert hardBreak", { from, hardBreak });
         view.dispatch(view.state.tr.insert(from, hardBreak));
       },
     },
