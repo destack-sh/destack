@@ -67,9 +67,11 @@ import {
   VIEW_DEFAULT_ROOT_HEADER_HEIGHT,
 } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
+import BlockHeader from "@/views/builtins/BlockHeader.vue";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
+import PageHeader from "@/views/builtins/PageHeader.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { type ViewEmits, type ViewExposed } from "@/views/common";
@@ -95,7 +97,7 @@ const props = defineProps<
     paddingY?: number;
     containerGutterWidth?: number;
     isRoot?: boolean;
-  } & Partial<Pick<ViewData, "focus" | "icon" | "nodePtr" | "isInput" | "isMinimal">>
+  } & Partial<Pick<ViewData, "focus" | "icon" | "nodePtr" | "isInput" | "isInline" | "isMinimal">>
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
@@ -191,7 +193,7 @@ const {
 
 const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const headerRef: Ref<HTMLDivElement | null> = ref(null);
-const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
+const pageHeaderRef: Ref<InstanceType<typeof PageHeader> | null> = ref(null);
 const containerRef = ref<HTMLDivElement | null>(null);
 const columnHeaderRef: Ref<HTMLDivElement | null> = ref(null);
 const bodyRef: Ref<HTMLDivElement | null> = ref(null);
@@ -533,7 +535,7 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
 const actions: Partial<ActionMapImplementation<"space" | "table" | "list">> = {
   // edit
   "space.edit.rename": () => {
-    nameRef.value?.focusIdentifier();
+    pageHeaderRef.value?.focusIdentifier("left");
   },
   ...useNodeTableActions({
     nodeType: NodeType.RECORD,
@@ -574,7 +576,22 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- Root header -->
     <RootHeader v-if="isRoot" :self="self" :node-ptr="databasePtr" :focus="props.focus" :graph="graph" />
 
-    <!-- Header -->
+    <!-- Page header -->
+    <PageHeader
+      v-if="!isMinimal && database"
+      ref="pageHeaderRef"
+      :width="rowWidth"
+      :node="database"
+      :connection="preparedConnection"
+      is-input
+    />
+    <BlockHeader v-else-if="isInline && database" :node="database" :connection="preparedConnection">
+      <template #right>
+        <!-- ... -->
+      </template>
+    </BlockHeader>
+
+    <!-- Inner header -->
     <div
       v-if="database"
       :style="{
@@ -582,21 +599,6 @@ defineExpose<ViewExposed>({ self, id, actions });
         marginRight: !isMinimal ? `${GUTTER_WIDTH}px` : undefined,
       }"
     >
-      <!-- Page header (title) -->
-      <div v-if="!isMinimal">
-        <NodeReference
-          v-if="database"
-          ref="nameRef"
-          is-input
-          :orientation="Orientation.VERTICAL"
-          :hide-icon="database.icon == null"
-          class="mb-2 mt-5 px-0.5"
-          size="title"
-          :node="database"
-          :tx="() => connection.tx"
-        />
-      </div>
-
       <!-- Action header -->
       <div
         v-if="!isMinimal"
@@ -895,22 +897,6 @@ defineExpose<ViewExposed>({ self, id, actions });
             <i class="fas fa-spinner-third animate-spin text-gray-400" />
           </Transition>
         </div>
-        <!-- No rows -->
-        <div
-          v-else-if="records.length == 0"
-          class="flex flex-row items-center justify-center text-center"
-          :style="{ paddingLeft: `${ROW_ACTIONS_WIDTH}px`, height: `${ROW_HEIGHT_MIN}px` }"
-        >
-          <!-- Loading -->
-          <span v-if="recordConnection.isConnecting.value">
-            <i class="fas fa-spinner-third animate-spin text-gray-400" />
-          </span>
-          <!-- Nothing here -->
-          <button v-else class="h-full w-full text-center text-gray-400 hover:bg-gray-100" @click="createRecord()">
-            <i class="fas fa-empty-set mr-1.5" />
-            <span class="">No records. Click to add.</span>
-          </button>
-        </div>
 
         <!-- Row -->
         <div
@@ -1036,6 +1022,31 @@ defineExpose<ViewExposed>({ self, id, actions });
             class="w-full border-b border-gray-200 text-center text-gray-400 hover:bg-gray-100"
             :style="{ height: `${ROW_HEIGHT_MIN}px` }"
           />
+        </div>
+
+        <!-- Footer -->
+        <div
+          class="flex flex-row items-center justify-center text-center"
+          :style="{ paddingLeft: `${ROW_ACTIONS_WIDTH}px`, height: `${ROW_HEIGHT_MIN}px` }"
+        >
+          <!-- Loading -->
+          <span v-if="recordConnection.isConnecting.value">
+            <i class="fas fa-spinner-third animate-spin text-gray-400" />
+          </span>
+          <!-- Nothing here -->
+          <button
+            v-else-if="records.length == 0"
+            class="h-full w-full text-center text-gray-400 hover:bg-gray-100"
+            @click="createRecord()"
+          >
+            <i class="fas fa-empty-set mr-1.5" />
+            <span class="">No records. Click to add.</span>
+          </button>
+          <!-- Default add -->
+          <button v-else class="h-full w-full px-3 text-left text-gray-400 hover:bg-gray-100" @click="createRecord()">
+            <i class="fas fa-plus mr-1.5" />
+            <span class="">Add record</span>
+          </button>
         </div>
 
         <!-- Selection -->

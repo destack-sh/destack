@@ -288,7 +288,7 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.SCHEDULE]: "fas fa-calendar",
   [StructType.COMPUTED_VALUE]: "fas fa-divide",
   // files
-  [StructType.ICON]: "fas fa-icons",
+  [StructType.ICON]: "fas fa-face-smile",
   // code
   [StructType.CODE]: "fas fa-code",
   // expression

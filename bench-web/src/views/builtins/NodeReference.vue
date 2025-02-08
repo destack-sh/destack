@@ -46,11 +46,11 @@ const identifier: Ref<string | undefined> = computed(() => (props.node as any)?.
 const iconClass = computed(() => [
   props.size == "regular" ? "w-5 mr-1" : "",
   props.size == "large" ? "w-5 text-base mr-1.5" : "",
-  props.size == "title" ? "w-8 text-2xl mr-1.5" : "",
+  props.size == "title" ? "w-8 text-4xl mr-1.5" : "",
 ]);
 const identifierClass = computed(() => [
   props.size == "regular" ? [props.isLight ? "" : "font-medium"] : "",
-  props.size == "large" ? ["text-xl", props.isLight ? "" : "font-medium"] : "",
+  props.size == "large" ? ["text-base", props.isLight ? "" : "font-medium"] : "",
   props.size == "title" ? ["text-4xl", props.isLight ? "font-medium" : "font-bold"] : "",
   props.isUnderline ? "underline decoration-gray-300 underline-offset-3" : "",
 ]);
@@ -65,6 +65,11 @@ const identifierWidthMax = computed(() => {
   else if (props.size == "large") return 400;
   else return 300;
 });
+const verticalClass = computed(() => [
+  props.size == "regular" ? "gap-y-0.5" : "",
+  props.size == "large" ? "gap-y-1" : "",
+  props.size == "title" ? "gap-y-2" : "",
+]);
 
 function getTx() {
   if (props.tx == null) {
@@ -81,7 +86,7 @@ defineExpose({
 <template>
   <div
     class=""
-    :class="orientation == Orientation.VERTICAL ? 'flex flex-col gap-y-0.5' : 'flex flex-row items-center'"
+    :class="[orientation == Orientation.VERTICAL ? ['flex flex-col', verticalClass] : ['flex flex-row items-center']]"
     :data-node-id="node.id"
     :data-node-ck="(node as any).ck"
     :data-node-type="node.metatype"
