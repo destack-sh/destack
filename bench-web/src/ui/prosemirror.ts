@@ -1,20 +1,57 @@
+import { supergraph } from "@/globals";
+import { getBaseFromNodeReference } from "@/language/core/const";
 import { defaultSortStruct } from "@/language/core/order";
-import { ObjectType, TextData, TextLineData, TextLineType, TextSpanData, TextSpanType } from "@/proto/wire";
-import * as commands from "prosemirror-commands";
+import { uploadFile } from "@/language/resource/file";
 import {
-  InputRule,
+  NodeReferenceData,
+  NodeType,
+  ObjectType,
+  TextData,
+  TextLineData,
+  TextLineType,
+  TextSpanData,
+  TextSpanType,
+} from "@/proto/wire";
+import { toNodeRef } from "@/proto/wiring";
+import { bench, pkgConnection } from "@/system/space";
+import { type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
+import { useDropZone } from "@/ui/drag";
+import { DEFAULT_MISSING_ICON, getNodeIcon, getNodeName, ICON_BY_NODE_TYPE } from "@/ui/icon";
+import {} from "@/ui/prosemirror";
+import { getColorHex } from "@/ui/style";
+import { copy, cyrb53a } from "@/utils/functools";
+import { deepValueEquals } from "@/utils/ref";
+import { whenever } from "@vueuse/core";
+import * as commands from "prosemirror-commands";
+import { dropCursor } from "prosemirror-dropcursor";
+import {
   closeDoubleQuote,
   closeSingleQuote,
   ellipsis,
   emDash,
+  InputRule,
+  inputRules,
   openDoubleQuote,
   openSingleQuote,
   smartQuotes,
 } from "prosemirror-inputrules";
-import { Node as PmNode, NodeType as PmNodeType, Schema as PmSchema, type DOMOutputSpec } from "prosemirror-model";
-import { EditorState, Transaction as PmTransaction, TextSelection } from "prosemirror-state";
+import { keymap } from "prosemirror-keymap";
+import { Node as PmNode } from "prosemirror-model";
+import {
+  Command,
+  Selection as EditorSelection,
+  EditorState,
+  Plugin,
+  TextSelection,
+  type SelectionBookmark as EditorSelectionBookmark,
+} from "prosemirror-state";
+import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
+import { computed, onBeforeUnmount, toRef, watch, type Ref } from "vue";
 
-export type TextMarkType = "bold" | "italic" | "strikethrough" | "underline" | "code";
+import { NodeType as PmNodeType, Schema as PmSchema, type DOMOutputSpec } from "prosemirror-model";
+import { Transaction as PmTransaction } from "prosemirror-state";
+
+export type TextMarkType = "bold" | "italic" | "strikethrough" | "underline";
 
 const P_DOM: DOMOutputSpec = ["p", { class: "line" }, 0];
 const H1_DOM: DOMOutputSpec = ["h1", { class: "line" }, 0];
@@ -272,7 +309,9 @@ function convertToPlainBeforeDelete(state: EditorState, dispatch?: (tr: PmTransa
     $to.pos === $from.end()
   ) {
     // convert to plain
-    dispatch(state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.lineParagraph, { type: TextLineType.PARAGRAPH }));
+    dispatch(
+      state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.lineParagraph, { type: TextLineType.PARAGRAPH }),
+    );
     return true;
   } else {
     // imitate default behavior
@@ -289,9 +328,11 @@ export const PM_KEYMAP_EXTRA = {
   Backspace: convertToPlainBeforeDelete,
 };
 
-// TODO :Performance: mapTextToPmNode/mapPmNodeToText should cache somehow?
-//  (we re-create the entire deep object on every conversion)
+//
+// Mapping
+//
 
+/** Convert TextData to a PmNode. */
 export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNode {
   const schema = PM_SCHEMA;
   defaultSortStruct(text.lines);
@@ -357,7 +398,8 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
   return docNode;
 }
 
-export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextData {
+/** Convert a PmNode to TextData. */
+export function mapPmNodeToText(node: PmNode): TextData {
   const lines: TextLineData[] = [];
   for (let lineIdx = 0; lineIdx < node.childCount; lineIdx++) {
     const lineNode = node.child(lineIdx);
@@ -400,4 +442,257 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
 
   const text: TextData = { metatype: ObjectType.TEXT, lines };
   return text;
+}
+
+/** Mini-component for PM mentions */
+class MentionView implements PmNodeView {
+  dom: HTMLElement;
+  nodePtr: NodeReferenceData;
+  iconDom: HTMLElement;
+  nameDom: HTMLElement;
+
+  constructor(pmNode: PmNode, view: EditorView) {
+    this.dom = document.createElement("span");
+    (this.dom as any).__pmView = this;
+    this.dom.classList.add("mention");
+    this.dom.dataset.nodeType = pmNode.attrs.nodePtr.nodeType;
+    this.dom.dataset.nodeId = pmNode.attrs.nodePtr.id;
+    this.dom.dataset.nodeCk = pmNode.attrs.nodePtr.ck;
+    this.nodePtr = {
+      ...pmNode.attrs.nodePtr,
+      nodeType: Number(pmNode.attrs.nodePtr.nodeType),
+      metatype: ObjectType.NODE_REFERENCE,
+    };
+    this.iconDom = this.dom.appendChild(document.createElement("span"));
+    this.iconDom.classList.add(
+      "icon",
+      ...(ICON_BY_NODE_TYPE[pmNode.attrs.nodePtr.nodeType as unknown as NodeType]?.faName?.split(" ") ?? [
+        "fas",
+        "fa-question",
+      ]),
+    );
+    this.nameDom = this.dom.appendChild(document.createElement("span"));
+    this.nameDom.classList.add("name");
+    this.nameDom.textContent = "???";
+
+    this.updateMention();
+  }
+
+  updateMention() {
+    const nodePtr = this.nodePtr;
+    const node = supergraph.get(nodePtr);
+    this.nameDom.textContent = (node != null ? getNodeName(node) : null) ?? "???";
+    const icon = (node != null ? getNodeIcon(node) : null) ?? DEFAULT_MISSING_ICON;
+    this.iconDom.className = icon?.faName != null ? `icon ${icon.faName}` : "icon fa fa-question";
+    if (icon.color != null) this.iconDom.style.color = getColorHex(icon.color)!;
+    else this.iconDom.style.removeProperty("color");
+    this.dom.dataset.nodeType = nodePtr.nodeType.toString();
+  }
+}
+
+export function useTextEditor(props: {
+  textRef: Ref<HTMLElement | null>;
+  modelValue: Ref<TextData | undefined | null>;
+  isInput: Ref<boolean>;
+  suppressEnter: Ref<boolean>;
+  suppressDrop: Ref<boolean>;
+}) {
+  const previousSelectionByState: Record<number, EditorSelectionBookmark> = {};
+  const { textRef, modelValue, isInput, suppressEnter, suppressDrop } = props;
+
+  const nodePtrs: Ref<NodeReferenceData[]> = computed(() => {
+    const nodePtrs: NodeReferenceData[] = [];
+    for (const line of modelValue?.value?.lines ?? []) {
+      for (const span of line.spans ?? []) {
+        if (span.nodePtr != null) nodePtrs.push(span.nodePtr);
+      }
+    }
+    return nodePtrs;
+  });
+  const basePtrs = computed(() => nodePtrs.value.map((ptr) => getBaseFromNodeReference(ptr)).filter((b) => b != null));
+  const bases = supergraph.getManyRef(basePtrs);
+  const mentions = supergraph.getManyRef(nodePtrs);
+
+  function makeEditorState(text: TextData | undefined | null, options?: { restoreSelection?: boolean }): EditorState {
+    const doc = text != null ? mapTextToPmNode(text, undefined) : undefined;
+    let selection: EditorSelection | undefined = undefined;
+    if (options?.restoreSelection && doc != null) {
+      selection = previousSelectionByState[cyrb53a(text)]?.resolve(doc);
+    }
+    const bindings: Record<string, Command> = {
+      ...commands.baseKeymap,
+      ...PM_KEYMAP_EXTRA,
+    };
+    if (suppressEnter.value) {
+      bindings["Shift-Enter"] = commands.baseKeymap["Enter"];
+      bindings.Enter = () => true;
+    }
+    return EditorState.create({
+      doc: doc,
+      schema: PM_SCHEMA,
+      selection,
+      plugins: [keymap(bindings), inputRules({ rules: PM_INPUT_RULES })],
+    });
+  }
+
+  let view: EditorView | null = null;
+  let lastAppliedModelValue: TextData | null = null;
+
+  function makeEditorView(): EditorView {
+    const plugins: Plugin[] = [];
+    if (!props.suppressDrop) {
+      plugins.push(dropCursor({ width: 2, color: "#fbbf24" }));
+    }
+    return new EditorView(textRef.value, {
+      state: makeEditorState(modelValue?.value),
+      editable: () => isInput?.value ?? false,
+      nodeViews: {
+        mention: (node, view, getPos) => new MentionView(node, view),
+      },
+      plugins,
+      dispatchTransaction(tx) {
+        if (view == null) throw new Error("view not mounted");
+
+        // update the state directly for responsiveness & performance
+        const newState = view.state.apply(tx);
+        view.updateState(newState);
+        const updatedText = mapPmNodeToText(newState.doc);
+        if (view?.state.selection != null) {
+          // remember selection for this state
+          previousSelectionByState[cyrb53a(updatedText)] = newState.selection.getBookmark();
+        }
+        // also update the modelValue if underlying doc changed
+        if (tx.docChanged) {
+          lastAppliedModelValue = updatedText;
+          // emit("update:modelValue", updatedText);
+        }
+      },
+    });
+  }
+
+  // sync mentions with mention views
+  watch(
+    mentions,
+    () => {
+      if (view == null) return;
+      view.dom.querySelectorAll(".mention").forEach((mentionDom) => {
+        if (!(mentionDom instanceof HTMLElement)) return;
+        const pmView = (mentionDom as any).__pmView as MentionView;
+        if (pmView == null) return;
+        pmView.updateMention();
+      });
+    },
+    { immediate: true },
+  );
+
+  // mount the editor view
+  whenever(textRef, () => {
+    if (view) throw new Error("view already exists");
+    lastAppliedModelValue = copy(modelValue?.value ?? null);
+    view = makeEditorView();
+  });
+  onBeforeUnmount(() => {
+    view?.destroy();
+    view = null;
+  });
+
+  // overwrite state from modelValue if different
+  watch(toRef(props, "modelValue"), () => {
+    if (view == null) return;
+    if (deepValueEquals(modelValue?.value, lastAppliedModelValue)) return;
+    const updatedState = makeEditorState(modelValue?.value, { restoreSelection: true });
+    view.updateState(updatedState);
+    lastAppliedModelValue = modelValue?.value ?? null;
+  });
+
+  function insertMention(nodePtr: NodeReferenceData, pos: { pos: number }) {
+    if (view == null) throw new Error("view not mounted");
+    const pmNode = PM_SCHEMA.node("mention", { nodePtr });
+    view.dispatch(view.state.tr.insert(pos.pos, pmNode).insertText(" ", pos.pos + 1, pos.pos + 1));
+  }
+
+  // drag/drop
+  const { isInDropZone } = useDropZone({
+    name: "text",
+    container: textRef,
+    isEnabled: computed(() => isInput?.value && !suppressDrop?.value),
+    kinds: ["node", "file"],
+    onDrop: (dragged, event) => {
+      if (view == null) return;
+      if (dragged.kind == "file") {
+        // upload files and insert as mentions at position (surrounded by spaces)
+        if (dragged.files == null) return;
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+        if (pos == null) return; // not in editor
+        Array.from(dragged.files).forEach(async (file) => {
+          // upload and insert each file individually
+          if (bench.value == null) throw new Error("no current bench");
+          const upload = uploadFile(() => pkgConnection.tx, file, { bench: bench.value });
+          await upload.completion.wait();
+          if (view == null) throw new Error("view no mounted");
+          insertMention(toNodeRef(upload.file.value!), pos);
+        });
+      } else if (dragged.kind == "node") {
+        // insert node mention at position (surrounded by spaces)
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+        if (pos == null) return; // not in editor
+        insertMention(toNodeRef(dragged.node), pos);
+      }
+    },
+  });
+
+  function formatAction(mark: TextMarkType): ActionImplementation {
+    return {
+      isEnabled: () => isInput?.value ?? false,
+      isChecked: () => {
+        if (view == null) return false;
+        const { from, to } = view.state.selection;
+        let hasMark = false;
+        view.state.doc.nodesBetween(from, to, (node) => {
+          if (node.marks.some((markType) => markType.type.name === mark)) {
+            hasMark = true;
+          }
+        });
+        return hasMark;
+      },
+      action: () => {
+        if (view == null) throw new Error("view not mounted");
+        commands.toggleMark(view.state.schema.marks[mark])(view.state, view.dispatch);
+      },
+    };
+  }
+  const actions: ActionMapImplementation<"text"> & Partial<ActionMapImplementation<"space">> = {
+    // text
+    "text.format.bold": formatAction("bold"),
+    "text.format.italic": formatAction("italic"),
+    "text.format.strikethrough": formatAction("strikethrough"),
+    "text.format.underline": formatAction("underline"),
+    "text.edit.hardBreak": {
+      action: () => {
+        // insert 'hardBreak' node at cursor
+        if (view == null) return;
+        const { from } = view.state.selection;
+        const hardBreak = PM_SCHEMA.node("hardBreak");
+        view.dispatch(view.state.tr.insert(from, hardBreak));
+      },
+    },
+    // space
+    "space.edit.delete": {
+      action: () => commands.deleteSelection(view!.state, view!.dispatch),
+    },
+    "space.select.all": {
+      action: () => commands.selectAll(view!.state, view!.dispatch),
+    },
+  };
+
+  function focus() {
+    if (view) {
+      const { state } = view;
+      const end = state.doc.content.size;
+      view.focus();
+      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, end)));
+    }
+  }
+
+  return { focus, actions, isInDropZone };
 }

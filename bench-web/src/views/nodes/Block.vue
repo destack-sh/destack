@@ -6,6 +6,7 @@ import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
+import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -88,7 +89,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <!-- Other definition -->
     <template v-else-if="node">
       <!-- Header -->
-      <div class="mb-1 flex flex-row items-center rounded-t border-b border-gray-200 px-1 py-0.5">
+      <div
+        class="flex flex-row items-center rounded-t border-b border-gray-200 px-1"
+        :style="{
+          height: VIEW_DEFAULT_HEADER_HEIGHT + 'px',
+        }"
+      >
         <NodeReference ref="nodeRefRef" size="regular" :node="node" is-input :tx="() => connection.tx" />
         <!-- Open in its own page -->
         <button
@@ -105,54 +111,22 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <FieldList
           v-if="block.type == BlockType.CHOICE"
           id="type"
-          class="px-1"
+          class="px-1 py-0.5"
           :node="block"
           :prepared-connection="preparedConnection"
           :node-ptr="nodePtr"
           :field-type="FieldType.OPTION"
         />
         <!-- Flow -->
-        <template v-else-if="block.type == BlockType.FLOW">
-          <!-- Signature -->
-          <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 px-1">
-            <FieldList
-              id="type.input"
-              class=""
-              :node="block"
-              :prepared-connection="preparedConnection"
-              :node-ptr="nodePtr"
-              :field-type="FieldType.INPUT"
-            />
-            <i
-              v-if="fields?.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT)"
-              class="fas fa-arrow-right-long text-base text-gray-400"
-            />
-            <FieldList
-              id="type.output"
-              class=""
-              :node="block"
-              :prepared-connection="preparedConnection"
-              :node-ptr="nodePtr"
-              :field-type="FieldType.OUTPUT"
-            />
-            <FieldList
-              id="type.input"
-              class="ml-auto"
-              :node="block"
-              :prepared-connection="preparedConnection"
-              :node-ptr="nodePtr"
-              :field-type="FieldType.VARIABLE"
-            />
-          </div>
-          <Flow
-            id="flow"
-            class="mt-2 h-[400px]"
-            v-bind="state.getChildState('flow')"
-            :node-ptr="nodePtr"
-            is-minimal
-            :prepared-connection="preparedConnection"
-          />
-        </template>
+        <Flow
+          v-else-if="block.type == BlockType.FLOW"
+          id="flow"
+          class="mt-2 h-[400px]"
+          v-bind="state.getChildState('flow')"
+          :node-ptr="nodePtr"
+          is-minimal
+          :prepared-connection="preparedConnection"
+        />
         <Database
           v-else-if="block.type == BlockType.DATABASE"
           id="database"

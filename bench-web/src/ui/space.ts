@@ -2,6 +2,7 @@ import {
   getBaseFromNode,
   HELPER_VIEW_TYPES,
   INLINE_SOURCE_NODE_TYPES,
+  isInlineSourceNode,
   ROOT_VIEW_TYPES,
   toCamelName,
 } from "@/language/core/const";
@@ -1017,23 +1018,6 @@ export class SpaceCanvas {
       this.inspect({ node: nodePtr, view });
     }
 
-    // open page
-    else if (
-      isNode(node, NodeType.PAGE) ||
-      isNode(node, NodeType.BLOCK) ||
-      INLINE_SOURCE_NODE_TYPES.includes(nodePtr.nodeType)
-    ) {
-      const containingPage = graph
-        .getAncestors(nodePtr, { metatypes: [NodeType.PAGE], includeSelf: !options?.skipSelf })
-        .find((p) => true);
-      if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
-      const view = this.addView(
-        { type: ViewType.PAGE, nodePtr: toNodeRef(containingPage), focus: makeSelection(nodePtr), ...options?.props },
-        { ifPresent: "upsertAndFocus", ...options },
-      );
-      this.inspect({ node: nodePtr, view });
-    }
-
     // open chat
     else if (isNode(node, NodeType.MESSAGE) || isNode(node, NodeType.THREAD) || isNode(node, NodeType.CHANNEL)) {
       let scopePtr: NodeReferenceData | undefined;
@@ -1071,6 +1055,23 @@ export class SpaceCanvas {
         },
       );
       this.inspect({ node: inspectPtr, view });
+    }
+
+    // open page
+    else if (
+      isNode(node, NodeType.PAGE) ||
+      isNode(node, NodeType.BLOCK) ||
+      (isInlineSourceNode(node) && node.blockPtr != null)
+    ) {
+      const containingPage = graph
+        .getAncestors(nodePtr, { metatypes: [NodeType.PAGE], includeSelf: !options?.skipSelf })
+        .find((p) => true);
+      if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
+      const view = this.addView(
+        { type: ViewType.PAGE, nodePtr: toNodeRef(containingPage), focus: makeSelection(nodePtr), ...options?.props },
+        { ifPresent: "upsertAndFocus", ...options },
+      );
+      this.inspect({ node: nodePtr, view });
     }
 
     // focus on runnable source + run
