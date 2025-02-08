@@ -1,0 +1,70 @@
+<script lang="ts" setup>
+import { InlineSourceNodeData, Orientation } from "@/proto/wire";
+import { PreparedGetConnection } from "@/system/connection";
+import { PopoverInfoIn } from "@/ui/popover";
+import NodeReference from "@/views/builtins/NodeReference.vue";
+import { FocusAnchor, ViewEmits, ViewExposed } from "@/views/common";
+import Icon from "@/views/content/Icon.vue";
+import { ref, Ref } from "vue";
+
+const props = defineProps<{
+  width: number;
+  node: InlineSourceNodeData;
+  connection: PreparedGetConnection;
+	isInput?: boolean;
+}>();
+const { graph, connection } = props.connection;
+const emits = defineEmits<ViewEmits>();
+const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
+
+defineExpose<Partial<ViewExposed> & { focusIdentifier: (anchor: FocusAnchor) => void }>({
+  focusIdentifier: (anchor) => nameRef.value?.focusIdentifier(anchor),
+});
+</script>
+<template>
+  <div class="w-full">
+    <!-- Cover image? -->
+    <!-- ... -->
+    <!-- Main header -->
+    <div
+      class="group/title mx-auto items-center rounded pb-3 pt-4"
+      :style="{
+        width: props.width + 'px',
+      }"
+    >
+      <!-- Title actions -->
+      <div class="flex flex-row items-center gap-x-2 py-1">
+        <!-- Add icon -->
+        <button
+          v-menu="
+            (): PopoverInfoIn => ({
+              kind: 'view',
+              component: Icon,
+              placement: 'bottom-right',
+              offset: '-referenceWidth',
+              props: { modelValue: (node as any)!.icon, isInput: true },
+              isEnabled: isInput,
+              onApply: (newIcon) => connection.tx.update(node!, { icon: newIcon }),
+            })
+          "
+          class="rounded-full px-1.5 py-0.5 text-gray-400 opacity-0 transition-colors hover:bg-gray-100 group-hover/title:opacity-100"
+        >
+          <i class="fas fa-face-smile mr-1.5 text-gray-400" />
+          <span>{{ node.icon == null ? "Add icon" : "Change icon" }}</span>
+        </button>
+      </div>
+      <!-- Title -->
+      <NodeReference
+        ref="nameRef"
+        class="px-0.5"
+        :orientation="Orientation.VERTICAL"
+        :hide-icon="node.icon == null"
+        size="title"
+        :node="node"
+        is-input
+        :tx="() => connection.tx"
+        @navigate="(direction) => emits('navigate', direction)"
+      />
+    </div>
+  </div>
+</template>

@@ -6,14 +6,13 @@ import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
-import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { type ViewEmits, type FocusAnchor, type ViewExposed, ModelValueOptions } from "@/views/common";
+import { type FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
 import Text from "@/views/content/Text.vue";
+import Choice from "@/views/nodes/Choice.vue";
 import Database from "@/views/nodes/Database.vue";
 import Flow from "@/views/nodes/Flow.vue";
-import FieldList from "@/views/objects/FieldList.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -86,58 +85,39 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div v-if="node && block.type == BlockType.PAGE" class="flex h-[30px] flex-row items-center">
       <NodeReference ref="nodeRefRef" size="large" is-underline is-light :node="node" :tx="() => connection.tx" />
     </div>
-    <!-- Other definition -->
-    <template v-else-if="node">
-      <!-- Header -->
-      <div
-        class="flex flex-row items-center rounded-t border-b border-gray-200 px-1"
-        :style="{
-          height: VIEW_DEFAULT_HEADER_HEIGHT + 'px',
-        }"
-      >
-        <NodeReference ref="nodeRefRef" size="large" :node="node" is-light is-input :tx="() => connection.tx" />
-        <!-- Open in its own page -->
-        <button
-          v-if="hasCanvas"
-          class="ml-1 rounded px-1 text-base text-gray-400 opacity-0 transition-opacity duration-75 hover:bg-gray-100 hover:text-gray-700 group-focus-within/block-line:opacity-100 group-hover/block-line:opacity-100 group-hover/block:opacity-100"
-          @click="() => canvas.goToNode(block!)"
-        >
-          <i class="fas fa-arrow-up-right" />
-        </button>
-      </div>
-      <!-- Body -->
-      <div class="rounded-b border-gray-200 pb-1">
-        <!-- Choice -->
-        <FieldList
-          v-if="block.type == BlockType.CHOICE"
-          id="type"
-          class="px-1 py-0.5"
-          :node="block"
-          :prepared-connection="preparedConnection"
-          :node-ptr="nodePtr"
-          :field-type="FieldType.OPTION"
-        />
-        <!-- Flow -->
-        <Flow
-          v-else-if="block.type == BlockType.FLOW"
-          id="flow"
-          class="mt-2 h-[400px]"
-          v-bind="state.getChildState('flow')"
-          :node-ptr="nodePtr"
-          is-minimal
-          :prepared-connection="preparedConnection"
-        />
-        <Database
-          v-else-if="block.type == BlockType.DATABASE"
-          id="database"
-          v-bind="state.getChildState('database')"
-          :node-ptr="nodePtr"
-          is-minimal
-          :container-gutter-width="containerGutterWidth"
-          is-input
-        />
-      </div>
-    </template>
+    <!-- Inline definition -->
+    <div v-else-if="node">
+      <!-- Choice -->
+      <Choice
+        v-if="block.type == BlockType.CHOICE"
+        id="choice"
+        class=""
+        :prepared-connection="preparedConnection"
+        :node-ptr="nodePtr"
+        is-minimal
+        is-inline
+      />
+      <Flow
+        v-else-if="block.type == BlockType.FLOW"
+        id="flow"
+        class="h-[400px]"
+        v-bind="state.getChildState('flow')"
+        :node-ptr="nodePtr"
+        :prepared-connection="preparedConnection"
+        is-minimal
+        is-inline
+      />
+      <Database
+        v-else-if="block.type == BlockType.DATABASE"
+        id="database"
+        v-bind="state.getChildState('database')"
+        :node-ptr="nodePtr"
+        :container-gutter-width="containerGutterWidth"
+        is-minimal
+        is-inline
+        is-input
+      />
+    </div>
   </div>
   <Inaccessible v-else class="h-full w-full" :node="blockPtr" :connection="connection" />
 </template>

@@ -35,6 +35,7 @@ import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
+import PageHeader from "@/views/builtins/PageHeader.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import TextBlockGroup from "@/views/builtins/TextBlockGroup.vue";
@@ -67,8 +68,8 @@ const { graph, connection } = preparedConnection;
 const page = graph.getRef(nodePtr) as Ref<PageData | undefined>;
 const blocks = graph.getChildrenRef(nodePtr, NodeType.BLOCK);
 
-const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const nodeBlockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
+const pageHeaderRef: Ref<InstanceType<typeof PageHeader> | null> = ref(null);
 const textBlockGroupRefs: Ref<Record<string, InstanceType<typeof TextBlockGroup>>> = ref({});
 const contentRef = ref<HTMLElement | null>(null);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
@@ -232,7 +233,7 @@ const { activeDropZone } = useMultiDropZone({
 const actions: Partial<ActionMapImplementation<"list" | "space">> = {
   // edit
   "space.edit.rename": () => {
-    nameRef.value?.focusIdentifier();
+    pageHeaderRef.value?.focusIdentifier("left");
   },
   ...useNodeListActions({
     nodeType: NodeType.BLOCK,
@@ -282,17 +283,19 @@ function focusText(anchor: "top" | "bottom" = "bottom") {
 
 // navigate
 function navigateFromGroup(group: BlockGroup, direction: NavigationDirection) {
-  const groupIdx = groups.value.indexOf(group);
+  const navigableGroups = groups.value.filter((g) => g.type == "text");
+  const groupIdx = navigableGroups.findIndex((g) => g.id == group.id);
+  console.log("navigateFromGroup", { group, groupIdx, direction });
   if (direction == "up" || direction == "left") {
-    const prevGroup = groups.value[groupIdx - 1];
+    const prevGroup = navigableGroups[groupIdx - 1];
     if (prevGroup != null) {
       const prevGroupRef = getGroupRef(prevGroup);
       prevGroupRef?.focus?.("bottom");
     } else {
-      nameRef.value?.focusIdentifier("right");
+      pageHeaderRef.value?.focusIdentifier("right");
     }
   } else if (direction == "down" || direction == "right") {
-    const nextGroup = groups.value[groupIdx + 1];
+    const nextGroup = navigableGroups[groupIdx + 1];
     if (nextGroup != null) {
       const nextGroupRef = getGroupRef(nextGroup);
       nextGroupRef?.focus?.("top");
@@ -367,29 +370,20 @@ defineExpose<ViewExposed>({ self, actions, focus });
     >
       <div ref="contentRef" class="flex min-h-full flex-col">
         <!-- Page header (title) -->
-        <div
-          class="mx-auto mb-5 mt-7 flex flex-row items-center rounded px-0.5"
-          :style="{
-            width: widths.block + 'px',
-          }"
-        >
-          <NodeReference
-            ref="nameRef"
-            :orientation="Orientation.VERTICAL"
-            :hide-icon="page.icon == null"
-            size="title"
-            :node="page"
-            is-input
-            :tx="() => connection.tx"
-            @navigate="
-              (direction) => {
-                if (direction == 'right' || direction == 'down') {
-                  focusText('top');
-                }
+        <PageHeader
+          ref="pageHeaderRef"
+          :width="widths.block"
+          :node="page"
+          :connection="preparedConnection"
+          is-input
+          @navigate="
+            (direction) => {
+              if (direction == 'right' || direction == 'down') {
+                focusText('top');
               }
-            "
-          />
-        </div>
+            }
+          "
+        />
 
         <!-- Blocks -->
         <div v-for="(group, i) in groups" :key="group.type" class="group/block-group relative my-[3px]" :style="{}">
@@ -414,7 +408,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Block -->
           <div
             v-else
-            class="relative mx-auto rounded"
+            class="relative mx-auto my-1 rounded"
             :style="{
               width: widths.block + 'px',
             }"
@@ -447,7 +441,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
         <!-- Footer -->
         <div
-          class="group/footer mx-auto my-8 flex flex-row justify-center gap-x-1.5 text-base"
+          class="group/footer mx-auto flex flex-row justify-center gap-x-2.5 py-8"
           :style="{
             width: widths.block + 'px',
           }"
@@ -460,7 +454,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             class="rounded-2xl border border-gray-200 px-2 py-0.5 transition-colors duration-150"
             :class="[
               isEmpty
-                ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                ? 'bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-gray-900'
                 : 'text-gray-400 hover:bg-gray-100 hover:text-gray-900 group-hover/footer:text-gray-700',
             ]"
             @click.stop="() => createAndFocusBlock({ type: blockType as any }, 'inside', page!)"
@@ -468,9 +462,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <IconInline
               v-bind="ICON_BY_BLOCK_TYPE[blockType]"
               class="mr-1.5 w-5 text-center transition-colors duration-150"
-              :class="[isEmpty ? 'text-gray-700' : 'text-gray-400 group-hover/footer:text-gray-700']"
+              :class="isEmpty ? 'text-gray-700' : 'text-gray-400 group-hover/footer:text-gray-700'"
             />
-            <span>{{ toCamelName(BlockType, blockType) }}</span>
+            <span class="text-small">{{ toCamelName(BlockType, blockType) }}</span>
           </button>
         </div>
 

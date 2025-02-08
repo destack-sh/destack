@@ -36,11 +36,13 @@ import {
 } from "@/ui/flow";
 import { PopoverInfoIn } from "@/ui/popover";
 import { lengthVector2, subVector2, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import BlockHeader from "@/views/builtins/BlockHeader.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
+import PageHeader from "@/views/builtins/PageHeader.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { type ViewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { type FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
 import Pipe from "@/views/nodes/Pipe.vue";
 import FieldList from "@/views/objects/FieldList.vue";
@@ -57,7 +59,7 @@ const props = defineProps<
     id: string;
     preparedConnection?: PreparedGetConnection;
     isRoot?: boolean;
-  } & Partial<Pick<ViewData, "icon" | "nodePtr" | "focus" | "transform" | "isMinimal">>
+  } & Partial<Pick<ViewData, "icon" | "nodePtr" | "focus" | "transform" | "isInline" | "isMinimal">>
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
@@ -70,11 +72,14 @@ const { graph, connection } = preparedConnection;
 
 const containerRef = ref<HTMLElement | null>(null);
 const headerRef: Ref<HTMLElement | null> = ref(null);
+const pageHeaderRef: Ref<InstanceType<typeof PageHeader> | null> = ref(null);
+const blockHeaderRef: Ref<InstanceType<typeof BlockHeader> | null> = ref(null);
 const bodyRef: Ref<HTMLElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const createActionRef: Ref<HTMLButtonElement | null> = ref(null);
 const actionRefs: Ref<Record<string, InstanceType<typeof Action>>> = ref({});
 const pipeRefs: Ref<Record<string, InstanceType<typeof Pipe>>> = ref({});
+const containerSize = useElementSize(containerRef);
 const headerSize = useElementSize(headerRef);
 
 const flowCtx = new FlowContext({
@@ -285,18 +290,35 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
     data-contextmenu-items="flow.edit.create*"
     @mousedown="(e) => startSelectingIfAllowed(selectionZoneContainer, e)"
   >
-    <!-- Root header -->
-    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="props.focus" :graph="graph" />
     <!-- Header -->
-    <div
-      v-if="flow && !isMinimal"
-      ref="headerRef"
-      :style="{
-        marginLeft: `${GUTTER_WIDTH}px`,
-        marginRight: `${GUTTER_WIDTH}px`,
-      }"
-    >
-      <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1">
+    <div ref="headerRef">
+      <!-- Root header -->
+      <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="props.focus" :graph="graph" />
+
+      <!-- Page/block header -->
+      <PageHeader
+        v-if="!isMinimal && flow"
+        ref="pageHeaderRef"
+        :width="containerSize.width.value - GUTTER_WIDTH * 2"
+        :node="flow"
+        :connection="preparedConnection"
+        is-input
+      />
+      <BlockHeader v-else-if="isInline && flow" ref="blockHeaderRef" :node="flow" :connection="preparedConnection">
+        <template #right>
+          <!-- ... -->
+        </template>
+      </BlockHeader>
+
+      <!-- Inner header -->
+      <div
+        v-if="!isMinimal"
+        class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1"
+        :style="{
+          marginLeft: `${GUTTER_WIDTH}px`,
+          marginRight: `${GUTTER_WIDTH}px`,
+        }"
+      >
         <!-- Signature -->
         <!-- Inputs -->
         <FieldList
@@ -364,13 +386,10 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
       ref="bodyRef"
       class="group/flow relative w-full select-none"
       :class="[
-        isMinimal ? 'h-full' : '',
         flowCtx.dragging.value ? (flowCtx.isDraggingPort ? 'cursor-crosshair' : 'cursor-grabbing') : '',
       ]"
       :style="{
-        height: !isMinimal
-          ? `calc(100% - ${HEADER_HEIGHT + headerSize.height.value + 28 /* headerRef margin*/}px)`
-          : undefined,
+        height: `calc(100% - ${headerSize.height.value}px)`,
       }"
       @mousedown="(e) => startSelectingIfAllowed(selectionZoneBody, e)"
       @mousemove="(e) => flowCtx.onDragging(e)"

@@ -624,7 +624,9 @@ export function useTextEditor(props: {
       ...commands.baseKeymap,
       ArrowLeft: (state, dispatch) => {
         const { $cursor } = state.selection as TextSelection;
+        console.log("ArrowLeft", { state, $cursor });
         if ($cursor && $cursor.pos == 1) {
+          // navigate left if we're at the very start
           navigate("left");
           return true;
         }
@@ -632,7 +634,9 @@ export function useTextEditor(props: {
       },
       ArrowRight: (state, dispatch) => {
         const { $cursor } = state.selection as TextSelection;
+        console.log("ArrowRight", { state, $cursor });
         if ($cursor && $cursor.pos == state.doc.content.size - 1) {
+          // navigate right if we're at the very end
           navigate("right");
           return true;
         }
@@ -640,49 +644,28 @@ export function useTextEditor(props: {
       },
       ArrowUp: (state, dispatch) => {
         const { $cursor } = state.selection as TextSelection;
-        if ($cursor) {
-          let lineDepth: number | null = null;
-          // Traverse upward to find the nearest ancestor whose node type starts with "line"
-          for (let depth = $cursor.depth; depth > 0; depth--) {
-            const node = $cursor.node(depth);
-            if (node.type.name.startsWith("line")) {
-              lineDepth = depth;
-              break;
-            }
-          }
-          if (lineDepth !== null) {
-            // The parent of the line node is at depth lineDepth - 1.
-            // The index at lineDepth tells us the position of the line node in its parent's children.
-            const parent = $cursor.node(lineDepth - 1);
-            const index = $cursor.index(lineDepth);
-            if (index === 0) {
-              navigate("up");
-              return true;
-            }
-          }
+        console.log("ArrowUp", { state, $cursor });
+        if (!$cursor) return false;
+        // Resolve the position immediately before the current block.
+        // That gives us a handle on the index of the block node in the doc.
+        const blockIndex = state.doc.resolve($cursor.before(1)).index(0);
+        if (blockIndex === 0) {
+          // We’re in the top line – navigate out.
+          navigate("up");
+          return true;
         }
+        // Otherwise, fall back to the default behavior.
         return false;
       },
       ArrowDown: (state, dispatch) => {
         const { $cursor } = state.selection as TextSelection;
-        if ($cursor) {
-          let lineDepth: number | null = null;
-          // Traverse upward to find the nearest ancestor whose node type starts with "line"
-          for (let depth = $cursor.depth; depth > 0; depth--) {
-            const node = $cursor.node(depth);
-            if (node.type.name.startsWith("line")) {
-              lineDepth = depth;
-              break;
-            }
-          }
-          if (lineDepth !== null) {
-            const parent = $cursor.node(lineDepth - 1);
-            const index = $cursor.index(lineDepth);
-            if (index === parent.childCount - 1) {
-              navigate("down");
-              return true;
-            }
-          }
+        console.log("ArrowDown", { state, $cursor });
+        if (!$cursor) return false;
+        const blockIndex = state.doc.resolve($cursor.before(1)).index(0);
+        if (blockIndex === state.doc.childCount - 1) {
+          // We’re in the bottom line – navigate out.
+          navigate("down");
+          return true;
         }
         return false;
       },
@@ -849,7 +832,7 @@ export function useTextEditor(props: {
         if (view == null) return;
         const { from } = view.state.selection;
         const hardBreak = PM_SCHEMA.node("spanHardBreak");
-        console.log("insert hardBreak", { from , hardBreak});
+        console.log("insert hardBreak", { from, hardBreak });
         view.dispatch(view.state.tr.insert(from, hardBreak));
       },
     },
