@@ -24,7 +24,6 @@ export default {
     },
     fontFamily: {
       sans: [
-        "IBM Plex Sans",
         "ui-sans-serif",
         "-apple-system",
         "BlinkMacSystemFont",
@@ -33,7 +32,7 @@ export default {
         "Arial",
         "sans-serif",
       ],
-      serif: ["IBM Plex Serif", "Georgia", "Cambria", "Times New Roman", "Times", "serif"],
+      serif: ["Georgia", "Cambria", "Times New Roman", "Times", "serif"],
       mono: ["IBM Plex Mono", "Droid Sans Mono", "monospace"],
     },
     extend: {

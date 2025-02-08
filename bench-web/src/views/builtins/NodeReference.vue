@@ -8,6 +8,7 @@ import { PopoverInfoIn } from "@/ui/popover";
 import { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
+import { FocusAnchor, ViewEmits } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { MaybeElement } from "@vueuse/core";
@@ -26,6 +27,8 @@ const props = defineProps<{
   orientation?: Orientation;
   maxWidth?: number;
 }>();
+const emit = defineEmits<ViewEmits>();
+
 const iconRef = ref<InstanceType<typeof Icon> | null>(null);
 const identifierRef = ref<InstanceType<typeof NativeInput> | null>(null);
 const nodeType = computed(() => props.node.metatype as unknown as NodeType);
@@ -47,7 +50,7 @@ const iconClass = computed(() => [
 ]);
 const identifierClass = computed(() => [
   props.size == "regular" ? [props.isLight ? "" : "font-medium"] : "",
-  props.size == "large" ? ["text-xl", props.isLight ? "font-medium" : "font-bold"] : "",
+  props.size == "large" ? ["text-xl", props.isLight ? "" : "font-medium"] : "",
   props.size == "title" ? ["text-4xl", props.isLight ? "font-medium" : "font-bold"] : "",
   props.isUnderline ? "underline decoration-gray-300 underline-offset-3" : "",
 ]);
@@ -71,8 +74,8 @@ function getTx() {
 }
 
 defineExpose({
-  focusIcon: () => focusInElement(iconRef.value!),
-  focusIdentifier: () => focusInElement(identifierRef.value as MaybeElement),
+  focusIcon: () => focusInElement(iconRef.value as MaybeElement),
+  focusIdentifier: (anchor?: FocusAnchor) => identifierRef.value?.focus?.(anchor),
 });
 </script>
 <template>
@@ -127,6 +130,7 @@ defineExpose({
       @update:model-value="
         (newValue) => getTx().update(node!, { [identifierKind!]: newValue as string }, { debounce: 'long' })
       "
+      @navigate="emit('navigate', $event)"
     />
     <span v-else :class="identifierClass" class="truncate" :style="{ maxWidth: `${identifierWidthMax}px` }">
       {{ identifier }}

@@ -84,7 +84,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   >
     <!-- Page -->
     <div v-if="node && block.type == BlockType.PAGE" class="flex h-[30px] flex-row items-center">
-      <NodeReference ref="nodeRefRef" size="regular" is-underline :node="node" :tx="() => connection.tx" />
+      <NodeReference ref="nodeRefRef" size="large" is-underline is-light :node="node" :tx="() => connection.tx" />
     </div>
     <!-- Other definition -->
     <template v-else-if="node">
@@ -95,7 +95,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           height: VIEW_DEFAULT_HEADER_HEIGHT + 'px',
         }"
       >
-        <NodeReference ref="nodeRefRef" size="regular" :node="node" is-input :tx="() => connection.tx" />
+        <NodeReference ref="nodeRefRef" size="large" :node="node" is-light is-input :tx="() => connection.tx" />
         <!-- Open in its own page -->
         <button
           v-if="hasCanvas"

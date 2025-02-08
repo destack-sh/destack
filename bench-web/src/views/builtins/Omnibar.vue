@@ -23,7 +23,7 @@ import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const PANEL_WIDTH = 600;
 const PANEL_MAX_HEIGHT = 420;
-const PANEL_HEADER_HEIGHT = 38;
+const PANEL_HEADER_HEIGHT = 44;
 const DEFAULT_ACTION_ICON = makeIcon({ faName: "fas fas fa-arrow-right" });
 
 const props = defineProps<{ box: { left: number; top: number; width: number; height: number } }>();
@@ -226,7 +226,7 @@ defineExpose({ isActive, open });
             :style="{ height: PANEL_HEADER_HEIGHT + 'px' }"
           >
             <!-- Icon -->
-            <i class="fas fa-magnifying-glass w-5 text-center text-gray-500" />
+            <i class="fas text-base fa-magnifying-glass w-5 text-center text-gray-500" />
             <!-- Mode -->
             <span v-if="mode != 'everywhere'" class="select-none font-semibold">
               {{ toCasing(mode, Casing.CAMEL) }}
@@ -237,7 +237,7 @@ defineExpose({ isActive, open });
               v-model="query"
               type="text"
               :placeholder="TEXT_BY_MODE[mode] + '...'"
-              class="h-full w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
+              class="h-full w-full border-0 bg-transparent p-0 text-base placeholder-gray-500 outline-none ring-0 focus:ring-0"
               @keydown.enter.stop.prevent="go"
               @keydown.down.stop.prevent="select(1)"
               @keydown.up.stop.prevent="select(-1)"
