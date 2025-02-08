@@ -34,7 +34,7 @@ import { getColorHex } from "@/ui/style";
 import { computedValue, toValueRef } from "@/utils/ref";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { viewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
+import { type ViewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
@@ -57,7 +57,7 @@ const props = defineProps<
     >
   >
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);

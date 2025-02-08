@@ -4,7 +4,7 @@ import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, pkgGraph, spaceGraph } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
 import { HISTORY_STATE_KEY, HistoryState } from "@/ui/view";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, provide, Ref, toRef } from "vue";
 
@@ -16,7 +16,7 @@ const props = defineProps<
     isRoot?: boolean;
   } & Pick<ViewData, "icon" | "nodePtr" | "focus" | "subnodePacked">
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);

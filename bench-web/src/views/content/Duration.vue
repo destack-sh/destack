@@ -6,7 +6,7 @@ import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { formatDuration, parseDurationString } from "@/utils/time";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import { Duration } from "luxon";
 import { computed, ref, toRef, watch } from "vue";
 
@@ -25,7 +25,7 @@ const props = defineProps<
   >
 >();
 
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);

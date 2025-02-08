@@ -6,7 +6,7 @@ import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import { computed, nextTick, ref, toRef } from "vue";
 
 const props = defineProps<
@@ -14,7 +14,7 @@ const props = defineProps<
     Pick<ViewData, "isMinimal" | "nodePtr" | "orientation">
   >
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);

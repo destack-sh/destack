@@ -1,7 +1,6 @@
 <script lang="ts" setup>
-import { makeType } from "@/language/core/type";
 import { packSubnode, useSubnode } from "@/language/core/node";
-import { makeEdit } from "@/language/runtime/transaction";
+import { makeType } from "@/language/core/type";
 import {
   BenchType,
   ButtonVariant,
@@ -14,12 +13,12 @@ import {
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr } from "@/system/client";
-import { canvas, goToBench, spaceGraph } from "@/system/space";
+import { canvas, goToBench } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
 import { makeIcon } from "@/ui/icon";
 import { getViewComponentChildren, isVueInstanceOf } from "@/ui/view";
 import { DEFAULT_REGION_BY_AREA, GEOLOCATION } from "@/utils/geolocation";
-import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { type FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Picker from "@/views/content/Picker.vue";
 import Button from "@/views/controls/Button.vue";
@@ -28,7 +27,7 @@ import { computed, ref, toRef, watchEffect, type Ref } from "vue";
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<ViewData, "title" | "subnodePacked">
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
@@ -59,25 +58,20 @@ function clear() {
 }
 
 function switchStage() {
-  const selfNode = spaceGraph.getOrError(self.value);
   if (stage.value == UserWizardViewStage.LOG_IN) {
-    state.update(
-      makeEdit(selfNode, {
-        metatype: NodeType.VIEW,
-        type: ViewType.USER_WIZARD,
-        title: "Sign up",
-        subnode: { stage: UserWizardViewStage.SIGN_UP },
-      }),
-    );
+    state.update({
+      metatype: NodeType.VIEW,
+      type: ViewType.USER_WIZARD,
+      title: "Sign up",
+      subnode: { stage: UserWizardViewStage.SIGN_UP },
+    });
   } else if (stage.value == UserWizardViewStage.SIGN_UP) {
-    state.update(
-      makeEdit(selfNode, {
-        metatype: NodeType.VIEW,
-        type: ViewType.USER_WIZARD,
-        title: "Log in",
-        subnode: { stage: UserWizardViewStage.LOG_IN },
-      }),
-    );
+    state.update({
+      metatype: NodeType.VIEW,
+      type: ViewType.USER_WIZARD,
+      title: "Log in",
+      subnode: { stage: UserWizardViewStage.LOG_IN },
+    });
   } else {
     throw new Error(`unexpected registration stage: ${stage.value}`);
   }

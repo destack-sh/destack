@@ -7,7 +7,7 @@ import { canvas } from "@/system/space";
 import { ICON_BY_PRIMITIVE_TYPE, IconInline } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { dtToTs, formatAbsoluteDate, tsToDt } from "@/utils/time";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import { DateTime, WeekdayNumbers } from "luxon";
 import { computed, Ref, ref, toRef, watch } from "vue";
 
@@ -29,7 +29,7 @@ const props = defineProps<
   >
 >();
 
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);

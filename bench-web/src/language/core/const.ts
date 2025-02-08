@@ -33,6 +33,7 @@ import {
   StateNodeData,
   StaticResourceNodeData,
   StructType,
+  TypeBaseNodeData,
   TypeFormat,
   ViewDataInfo,
   ViewProperty,
@@ -77,6 +78,10 @@ export function isInlineSourceNodeType(nodeType: NodeType): boolean {
   return INLINE_SOURCE_NODE_TYPES.includes(nodeType);
 }
 
+export function isTypeBaseNodeType(nodeType: NodeType): boolean {
+  return TYPE_BASE_NODE_TYPES.includes(nodeType);
+}
+
 export function isSourceNode(node: any): node is SourceNodeData {
   if (node == null || typeof node != "object") return false;
   else return isSourceNodeType(node.metatype as unknown as NodeType);
@@ -85,6 +90,11 @@ export function isSourceNode(node: any): node is SourceNodeData {
 export function isInlineSourceNode(node: any): node is InlineSourceNodeData {
   if (node == null || typeof node != "object") return false;
   else return isInlineSourceNodeType(node.metatype as unknown as NodeType);
+}
+
+export function isTypeBaseNode(node: any): node is TypeBaseNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isTypeBaseNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isStateNodeType(nodeType: any): boolean {

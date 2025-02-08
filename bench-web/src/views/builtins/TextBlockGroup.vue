@@ -4,7 +4,7 @@ import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { useTextBlockGroupInterface, useTextEditor, useTextInterface } from "@/ui/prosemirror";
-import { viewEmits, ViewExposed } from "@/views/common";
+import { type ViewEmits, ViewExposed } from "@/views/common";
 import { ref, toRef } from "vue";
 
 const props = defineProps<{
@@ -22,7 +22,7 @@ const props = defineProps<{
 const { graph, connection } = props.connection;
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const state = canvas.registerView(self, id);
 
 const textRef = ref<HTMLElement | null>(null);

@@ -29,7 +29,7 @@ import { FILE_TYPE_BY_VIEW_TYPE } from "@/ui/view";
 import { getElement } from "@/utils/element";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";
-import { viewEmits, type ViewExposed, type ViewProps } from "@/views/common";
+import { type ViewEmits, type ViewExposed, type ViewProps } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const FILE_POPOVER_WIDTH_MIN = 400;
@@ -48,7 +48,7 @@ const props = defineProps<
     >
   >
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 

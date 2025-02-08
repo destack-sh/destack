@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ViewData, NodeType, ComputedValueData, ObjectType, TypeKind, BenchType } from "@/proto/wire";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
 import { toRef } from "vue";
 import { TypedNodeReferenceData } from "@/proto/wiring";
@@ -13,7 +13,7 @@ const props = defineProps<
   >
 >();
 const modelValue = defineModel<ComputedValueData | undefined>();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);

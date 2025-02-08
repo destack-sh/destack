@@ -10,7 +10,7 @@ import { ActionMapImplementation } from "@/ui/action";
 import { ICON_BY_PIPE_TYPE, IconInline } from "@/ui/icon";
 import { getColorHex, getRunColorHex } from "@/ui/style";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { computed, Ref, ref, toRef } from "vue";
 
@@ -19,7 +19,7 @@ const props = defineProps<
     Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "transform" | "isMinimal">
   >
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);

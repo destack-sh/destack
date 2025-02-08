@@ -72,7 +72,7 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -97,7 +97,7 @@ const props = defineProps<
     isRoot?: boolean;
   } & Partial<Pick<ViewData, "focus" | "icon" | "nodePtr" | "isInput" | "isMinimal">>
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
@@ -733,7 +733,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       :style="{
         marginLeft: containerGutterWidth != null ? `${-containerGutterWidth}px` : undefined,
       }"
-      @mousedown="(e) => startSelectingIfAllowed(selectionZoneBody, e)"
+      @mousedown="(e: MouseEvent) => startSelectingIfAllowed(selectionZoneBody, e)"
     >
       <!-- Body inner wrapper -->
       <div

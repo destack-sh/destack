@@ -7,14 +7,14 @@ import { createBench, user } from "@/system/user";
 import { makeIcon } from "@/ui/icon";
 import { getViewComponentChildren, isVueInstanceOf } from "@/ui/view";
 import { DEFAULT_REGION_BY_AREA, GEOLOCATION } from "@/utils/geolocation";
-import { viewEmits, type FocusAnchor } from "@/views/common";
+import { type ViewEmits, type FocusAnchor } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Picker from "@/views/content/Picker.vue";
 import Button from "@/views/controls/Button.vue";
 import { computed, ref, toRef, watch, watchEffect, type Ref } from "vue";
 
 const props = defineProps<{ self: NodeReferenceData; id: string } & Pick<ViewData, "nodePtr">>();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 
 const self = toRef(props, "self");
 const id = toRef(props, "id");

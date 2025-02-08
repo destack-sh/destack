@@ -1,4 +1,4 @@
-import { FieldData, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
+import { ComputedValueData, FieldData, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/ui/action";
 import { Casing, toCasing } from "@/utils/string";
@@ -17,16 +17,14 @@ export type ViewComponent = {
   exposed: ViewExposed;
 };
 
-export const VIEW_EMITS = {
-  apply: null,
-  cancel: null,
-  close: null,
-  ["update:modelValue"]: null,
+export type ViewEmits = {
+  (e: "update:modelValue", modelValue: any, options?: ModelValueOptions): void;
+  (e: "update:computedValues", computedValues: ComputedValueData[] | undefined): void;
+  (e: "apply", value: any, keepOpen?: boolean): void;
+  (e: "cancel"): void;
+  (e: "close"): void;
+  (e: "navigate", direction: "left" | "right" | "up" | "down"): void;
 };
-
-export function viewEmits(): Partial<typeof VIEW_EMITS> {
-  return VIEW_EMITS;
-}
 
 export type FocusAnchor = "left" | "right" | "top" | "bottom" | "center";
 

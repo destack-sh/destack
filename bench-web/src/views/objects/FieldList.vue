@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/core/const";
 import { createField, useFieldList } from "@/language/source/field";
-import { FieldType, NodeType, Orientation, ViewData } from "@/proto/wire";
+import { FieldType, NodeType, Orientation, TypeBaseNodeData, ViewData } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -16,7 +16,7 @@ import {
 import { useNodeListActions } from "@/ui/list";
 import { onAddFieldAction } from "@/ui/object";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
@@ -28,7 +28,7 @@ const props = defineProps<
     fieldType: FieldType;
   } & Partial<Pick<ViewData, "isMinimal" | "orientation" | "nodePtr">>
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const orientation = computed(() => props.orientation ?? Orientation.HORIZONTAL);
@@ -40,10 +40,10 @@ const state = canvas.registerView(self, id);
 const containerRef = ref<HTMLElement | null>(null);
 const fieldRefs: Ref<Record<string, InstanceType<typeof Field> | null>> = ref({});
 
-const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
-const { graph, connection } = props.preparedConnection ?? useExistingConnection(nodePtr);
-const block = graph.getRef(nodePtr, { ignoreAncestors: props.self == null });
-const allFields = graph.getChildrenRef(block, NodeType.FIELD);
+const basePtr = computed(() => props.nodePtr);
+const { graph, connection } = props.preparedConnection ?? useExistingConnection(basePtr);
+const base = graph.getRef(basePtr, { ignoreAncestors: props.self == null }) as Ref<TypeBaseNodeData | null>;
+const allFields = graph.getChildrenRef(base, NodeType.FIELD);
 const fields = computed(() => allFields.value.filter((f) => f.type == props.fieldType));
 
 // dragging :TypeDragAndDrop
@@ -51,7 +51,7 @@ const { allowDrop, onDrop } = useFieldList({
   graph,
   txFactory: () => connection.tx,
   fieldType: toRef(props, "fieldType"),
-  base: block,
+  base: base,
 });
 const { activeDropZone } = useMultiDropZone({
   name: "type",
@@ -81,7 +81,7 @@ const actions: Partial<ActionMapImplementation<"list">> = {
     create: (anchor, node) =>
       createField(connection.tx, graph, {
         anchor: node != null ? anchor : "inside",
-        target: node ?? block.value!,
+        target: node ?? base.value!,
         field: { type: props.fieldType },
       }),
   }),
@@ -151,7 +151,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         v-if="!isMinimal || fields.length == 0"
         class="h-[28px] rounded px-1 text-left text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
         :class="isHorizontal ? '' : 'mx-1.5'"
-        @click="(e) => onAddFieldAction(e, fieldType, block!, graph, () => connection.tx)"
+        @click="(e) => onAddFieldAction(e, fieldType, base!, graph, () => connection.tx)"
       >
         <i class="fas fa-plus mr-1.5" />
         <span> {{ toCamelName(FieldType, props.fieldType) }} </span>

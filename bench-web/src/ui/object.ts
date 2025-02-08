@@ -84,6 +84,7 @@ import {
   ToolFilter,
   ChannelProperty,
   ThreadProperty,
+  TypeBaseNodeData,
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
@@ -595,7 +596,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       icon: makeIcon(icon),
       action: (e) => {
         const tool = options?.toolPtr != null ? this.graph.get(options.toolPtr) : null;
-        onAddFieldAction(e, fieldType, (tool ?? this.node) as BlockData, this.graph, this.txFactory, {
+        onAddFieldAction(e, fieldType, (tool ?? this.node) as TypeBaseNodeData, this.graph, this.txFactory, {
           dontFocus: true,
         });
       },
@@ -1543,7 +1544,7 @@ export function useObjectLayout(options: {
 export function onAddFieldAction(
   e: MouseEvent,
   fieldType: FieldType,
-  parent: BlockData | ActionData,
+  parent: TypeBaseNodeData,
   graph: ReadNodeGraph,
   txFactory: () => Transaction,
   options?: { dontFocus?: boolean },

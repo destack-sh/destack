@@ -18,7 +18,7 @@ import type { PopoverInfoIn } from "@/ui/popover";
 import { ICON_INDEX, useIndexSearch, type IconItem } from "@/ui/search";
 import { getColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
-import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
@@ -32,7 +32,7 @@ const props = defineProps<
     Pick<ViewData, "name" | "title" | "icon" | "isInput" | "isInline" | "isDisabled" | "valueType">
   >
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 
