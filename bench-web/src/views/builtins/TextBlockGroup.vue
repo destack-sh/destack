@@ -2,7 +2,8 @@
 import { BlockData, NodeType, PageData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedGetConnection } from "@/system/connection";
-import { useTextEditor } from "@/ui/prosemirror";
+import { canvas } from "@/system/space";
+import { useTextBlockGroupInterface, useTextEditor, useTextInterface } from "@/ui/prosemirror";
 import { viewEmits, ViewExposed } from "@/views/common";
 import { ref, toRef } from "vue";
 
@@ -22,11 +23,14 @@ const { graph, connection } = props.connection;
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const emit = defineEmits(viewEmits());
+const state = canvas.registerView(self, id);
 
 const textRef = ref<HTMLElement | null>(null);
+
+const textInterface = useTextBlockGroupInterface(toRef(props, "blocks"));
 const { focus, actions, isInDropZone } = useTextEditor({
   textRef,
-  modelValue: toRef(props, "modelValue"),
+  text: textInterface,
   isInput: toRef(props, "isInput"),
   suppressEnter: toRef(props, "suppressEnter"),
   suppressDrop: toRef(props, "suppressDrop"),

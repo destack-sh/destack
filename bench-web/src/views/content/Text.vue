@@ -3,7 +3,7 @@ import { isTextEmpty } from "@/language/core/text";
 import { NodeType, TextData, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import { useTextEditor } from "@/ui/prosemirror";
+import { useTextEditor, useTextInterface } from "@/ui/prosemirror";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { ref, toRef } from "vue";
 
@@ -22,9 +22,10 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 
 const textRef = ref<HTMLElement | null>(null);
+const textInterface = useTextInterface(toRef(props, "modelValue"), (text) => emit("update:modelValue", text));
 const { focus, actions, isInDropZone } = useTextEditor({
   textRef,
-  modelValue: toRef(props, "modelValue"),
+  text: textInterface,
   isInput: toRef(props, "isInput"),
   suppressEnter: toRef(props, "suppressEnter"),
   suppressDrop: toRef(props, "suppressDrop"),

@@ -1,5 +1,5 @@
 import type { Transaction } from "@/language/runtime/transaction";
-import type { AnyNodeData, AnyStructData } from "@/proto/wire";
+import type { AnyNodeData } from "@/proto/wire";
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
 
 /** Sorts the nodes using createdAt, then id. */
@@ -30,18 +30,6 @@ export function defaultSortNode<T extends AnyNodeData>(nodes: T[]): void {
     }
     return a.id > b.id ? 1 : -1;
   });
-}
-
-/** Sorts the given structs using explicit order keys if available, otherwise retains input order. */
-export function defaultSortStruct<T extends AnyStructData>(structs: T[]): void {
-  if (structs.length == 0) return;
-  if ("orderKey" in structs[0]) {
-    structs.sort((a, b) => {
-      return (a as any).orderKey > (b as any).orderKey ? 1 : -1;
-    });
-  } else {
-    // retain input order
-  }
 }
 
 /**
