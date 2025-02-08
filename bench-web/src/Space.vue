@@ -85,6 +85,10 @@ watch(
   </div>
 </template>
 <style>
+/*
+ * General styles
+ */
+
 /* stop overscrolling */
 * {
   overscroll-behavior: none;
@@ -139,5 +143,104 @@ mark {
   background-color: #bae6fd;
   font-weight: normal;
   text-decoration: none;
+}
+</style>
+<style>
+/*
+ * ProseMirror styling
+ */
+
+@import url("/node_modules/prosemirror-view/style/prosemirror.css");
+
+.pm-text {
+  @apply text-gray-900;
+  line-height: 1.65;
+}
+.pm-text strong {
+  @apply font-semibold;
+}
+.pm-text .line:first-child {
+  @apply mt-0; /* ignore top margin */
+}
+.pm-text .line:last-child {
+  @apply mb-0; /* ignore bottom margin */
+}
+.pm-text p {
+  @apply my-[4px];
+}
+.pm-text hr {
+  @apply my-2 border-gray-200 p-0 focus:outline-none focus:ring-0;
+}
+.pm-text h1 {
+  @apply mb-2 mt-4 text-2xl font-bold;
+  line-height: 1.2;
+}
+.pm-text h2 {
+  @apply mb-1.5 mt-2.5 text-xl font-bold;
+  line-height: 1.4;
+}
+.pm-text h3 {
+  @apply mb-0.5 mt-1.5 text-lg font-bold;
+  line-height: 1.5;
+}
+.pm-text h4 {
+  @apply mb-0.5 mt-1.5 text-base font-medium;
+  line-height: 1.5;
+}
+.pm-text code {
+  @apply rounded bg-gray-100 px-0.5;
+}
+.pm-text blockquote {
+  @apply my-2 border-l-4 border-gray-400 py-[1px] pl-2;
+}
+.pm-text div.callout {
+  @apply my-2 rounded bg-gray-100 px-2 py-2.5;
+}
+/* TODO: UI: callout/heading/etc. line icons should be editable */
+.pm-text div.callout::before {
+  content: "\f06a"; /* fa-icon: circle-exclamation */
+  font-family: "Font Awesome 6 Pro";
+  font-weight: 900;
+  @apply mr-1 px-1 text-gray-700;
+}
+
+/* Mentions */
+.pm-text span.mention {
+  @apply rounded px-1 py-0;
+}
+.pm-text span.mention:hover {
+  @apply bg-gray-100;
+}
+.pm-text span.mention .icon {
+  @apply mr-1.5 text-gray-700;
+}
+.pm-text span.mention:hover .icon {
+  @apply text-gray-700;
+}
+.pm-text span.mention .name {
+  @apply underline decoration-gray-300 underline-offset-3;
+}
+.pm-text span.pm-textMirror-selectednode.mention .name {
+  @apply bg-primary-100 text-primary-700 decoration-primary-700;
+}
+.altmode .pm-text span.mention:hover,
+.pm-text span.mention[data-node-type="file"]:hover .name {
+  @apply cursor-pointer;
+}
+.altmode .pm-text span.mention:hover .name,
+.pm-text span.mention[data-node-type="file"]:hover .name {
+  @apply decoration-primary-700;
+}
+
+.ProseMirror-focused {
+  outline: none;
+}
+.ProseMirror-selectednode {
+  @apply p-2 outline-primary-700;
+}
+.ProseMirror[contenteditable="false"] {
+  user-select: text; /* let user highlight text */
+  -webkit-user-select: text;
+  -moz-user-select: text;
 }
 </style>

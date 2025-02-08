@@ -941,7 +941,7 @@ export class SpaceCanvas {
     node: AnyNodeData | NodeReferenceData | null,
     options?: { graph?: ReadNodeGraph; skipSelf?: boolean } & OpenViewOptions,
   ) {
-    const nodePtr = isNodeRef(node) ? node : toNodeRef(node as AnyNodeData);
+    let nodePtr = isNodeRef(node) ? node : toNodeRef(node as AnyNodeData);
     const graph = options?.graph ?? this.graph;
     log.debug("canvas.goToNode", node);
     if (graph.has(nodePtr)) {
@@ -969,6 +969,7 @@ export class SpaceCanvas {
       if (isNode(node, NodeType.BLOCK)) {
         // unwrap FlowBlock to Flow
         node = supergraph.getOrError(node.nodePtr!);
+        nodePtr = toNodeRef(node);
       }
       const containingFlow = getContainingFlow(graph, node);
       if (!containingFlow) throw new Error(`no containing flow for: ${describeNode(node)}`);

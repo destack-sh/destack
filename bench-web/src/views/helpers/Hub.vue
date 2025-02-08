@@ -132,7 +132,7 @@ defineExpose<ViewExposed>({ self });
     <!-- Bench Header -->
     <div
       v-menu="(): PopoverInfoIn => ({ kind: 'menu', items: BENCH_MENU_ITEMS, placement: 'bottom-left' })"
-      class="mx-2 py-1.5 flex flex-shrink-0 cursor-pointer flex-row items-center rounded pl-2.5 pr-1 transition-colors duration-75 hover:bg-gray-100"
+      class="mx-2 flex flex-shrink-0 cursor-pointer flex-row items-center rounded py-1.5 pl-2.5 pr-1 transition-colors duration-75 hover:bg-gray-100"
       :style="{
         height: `${BAR_HEADER_HEIGHT}px`,
       }"
@@ -159,7 +159,7 @@ defineExpose<ViewExposed>({ self });
 
     <!-- Header -->
     <div
-      class="mx-3 py-1.5 flex flex-shrink-0 flex-row items-center gap-x-2"
+      class="mx-3 flex flex-shrink-0 flex-row items-center gap-x-2 py-1.5"
       :class="[visibleAspectsOverflow ? 'justify-between' : '']"
       :style="{
         height: `${HEADER_HEIGHT}px`,
@@ -198,6 +198,7 @@ defineExpose<ViewExposed>({ self });
     >
       <div
         ref="bodyRef"
+        class="flex flex-col"
         :style="{
           minHeight: `${bodyHeight - 10 /* not entirely sure why, the Scroll component seems to have some padding/border? */}px`,
         }"
@@ -205,16 +206,16 @@ defineExpose<ViewExposed>({ self });
         <div v-if="aspect == HubAspect.BENCH">
           <!-- Pages -->
           <div
-            class="mx-4 pt-1.5 flex flex-row items-center"
+            class="group/header mx-4 flex flex-row items-center pt-1.5"
             :style="{
               height: `${HEADER_HEIGHT}px`,
             }"
           >
-            <span class="font-medium">Pages</span>
+            <span class="font-medium text-gray-400">Pages</span>
             <!-- Create -->
             <button
               v-if="pkg != null"
-              class="ml-auto rounded px-1.5 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-200 hover:text-gray-700"
+              class="ml-auto rounded px-1.5 py-0.5 text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-200 hover:text-gray-700 group-hover/header:opacity-100"
               @click.stop="
                 () => {
                   if (pkg == null) return;
@@ -236,16 +237,16 @@ defineExpose<ViewExposed>({ self });
           />
           <!-- Channels -->
           <div
-            class="mx-4 pt-1.5 flex flex-row items-center"
+            class="group/header mx-4 flex flex-row items-center pt-1.5"
             :style="{
               height: `${HEADER_HEIGHT}px`,
             }"
           >
-            <span class="font-medium">Channels</span>
+            <span class="font-medium text-gray-400">Channels</span>
             <!-- Create -->
             <button
               v-if="pkg != null"
-              class="ml-auto rounded px-1.5 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-200 hover:text-gray-700"
+              class="ml-auto rounded px-1.5 py-0.5 text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-200 hover:text-gray-700 group-hover/header:opacity-100"
               @click.stop="
                 () => {
                   if (pkg == null) return;
@@ -271,12 +272,12 @@ defineExpose<ViewExposed>({ self });
           />
           <!-- Outline -->
           <div
-            class="mx-4 pt-1.5 flex flex-row items-center"
+            class="group/header mx-4 flex flex-row items-center pt-1.5"
             :style="{
               height: `${HEADER_HEIGHT}px`,
             }"
           >
-            <span class="font-medium">Outline</span>
+            <span class="font-medium text-gray-400">Outline</span>
           </div>
           <Tree
             id="outline"

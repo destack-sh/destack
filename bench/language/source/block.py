@@ -20,7 +20,6 @@ from bench.language.core import (
     p_node_children,
     p_node_parent,
     p_regular,
-    p_system,
 )
 from bench.pb2 import BlockData
 from bench.utils.env import IS_DEV, IS_TEST
@@ -120,11 +119,11 @@ class Block(SourceNode[BlockData]):
     parent: Union["Page", "Block", None] = p_node_parent(4, NodeType.PAGE, NodeType.BLOCK)
 
     # meta
-    type: BlockType = p_system(30, description="The type of block.")
+    type: BlockType = p_regular(30, description="The type of block.")
     order_key: str = p_internal(33, default=INTEGER_ZERO)
 
     # content
-    line: Optional["TextLine"] = p_regular(
+    text: Optional["TextLine"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.TEXT
     )
     node: Optional["InlineSourceNode"] = p_regular(
@@ -140,8 +139,8 @@ class Block(SourceNode[BlockData]):
     def __content_str__(self):
         if self.node_ptr is not None and (node := self.node) is not None:
             return node.__content_str__()
-        elif (line := self.line) is not None:
-            return line.__content_str__()
+        elif (text := self.text) is not None:
+            return text.__content_str__()
         else:
             return ""
 

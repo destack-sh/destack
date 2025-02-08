@@ -101,17 +101,17 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
-const isSelected = computed(() => state.isSelected(nodePtr.value));
+const isSelected = computed(() => state.isSelected(databasePtr.value));
 
-// TODO :UX :Architecture: Database view should be factored out into general Table/Feed/List/etc. query/collection views (?)
+// NOTE :UX :Architecture: Database view should be factored out into general Table/Feed/List/etc. query/collection views (?)
 
-const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
-const preparedConnection = useExistingConnection(nodePtr);
+const databasePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.DATABASE>);
+const preparedConnection = useExistingConnection(databasePtr);
 const { graph: graph, graphRaw: graphRaw, connection: connection } = preparedConnection;
-const block = graph.getRef(nodePtr, { ignoreAncestors: true });
-const blockRaw = graphRaw.getRef(nodePtr);
-const fields = graph.getChildrenRef(block, NodeType.FIELD);
-const fieldsRaw = graphRaw.getChildrenRef(blockRaw, NodeType.FIELD);
+const database = graph.getRef(databasePtr, { ignoreAncestors: true });
+const databaseRaw = graphRaw.getRef(databasePtr);
+const fields = graph.getChildrenRef(database, NodeType.FIELD);
+const fieldsRaw = graphRaw.getChildrenRef(databaseRaw, NodeType.FIELD);
 
 //
 // Search/filter
@@ -147,7 +147,7 @@ function addSort(column: ColumnView, type: ExpressionType) {
     }
   } else if (column.kind == "field") {
     const existing = sorts.value.find((sort) => sort.fieldPtr?.ck == column.field.ck);
-    const sort = makeExpression({ type, blockPtr: nodePtr.value, fieldPtr: toNodeRef(column.field) });
+    const sort = makeExpression({ type, blockPtr: databasePtr.value, fieldPtr: toNodeRef(column.field) });
     if (existing != null) {
       sorts.value = [...sorts.value.filter((sort) => sort.fieldPtr?.ck != column.field.ck), sort];
     } else {
@@ -176,8 +176,8 @@ const {
       nodeType: NodeType.RECORD,
       first: limit.value,
       count: true,
-      baseTypePtr: nodePtr.value,
-      isEnabled: nodePtr.value != null && blockRaw.value != null,
+      baseTypePtr: databasePtr.value,
+      isEnabled: databasePtr.value != null && databaseRaw.value != null,
       sort: sorts.value.length > 0 ? sorts.value : [DEFAULT_SORT],
       filter: makeAndConditional(filters.value),
       select: { metatype: ObjectType.SELECT_OPTIONS, selectFieldsPtr: fieldsRaw.value.map(toNodeRef) },
@@ -230,11 +230,11 @@ function getCellId(record: RecordData, column: ColumnView) {
 // NOTE :UX :Architecture: add records optimistically in Database?
 //  (right now, they only show up once committed in the backend and the search connection is updated from there)
 function createRecord() {
-  if (block.value == null) throw new Error("no block to add record to");
+  if (database.value == null) throw new Error("no block to add record to");
   const record = recordConnection.tx.create({
     metatype: NodeType.RECORD,
-    databasePtr: toNodeRef(block.value),
-    parentPtr: block.value.benchPtr,
+    databasePtr: toNodeRef(database.value),
+    parentPtr: database.value.benchPtr,
     valuePacked: {},
   });
   canvas.inspect({ node: record, view: containerRef.value });
@@ -499,9 +499,9 @@ function onDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | nu
         if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
         moveNode(tx, graph, node, { anchor, target });
       } else {
-        moveNode(tx, graph, node, { anchor: "center", target: block.value! });
+        moveNode(tx, graph, node, { anchor: "center", target: database.value! });
       }
-    } else  {
+    } else {
       // add field with block type
       const type = nodeToType(node, "instance");
       const fieldIn = { ...type, zone: FieldType.MEMBER };
@@ -509,7 +509,7 @@ function onDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | nu
         if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
         createField(tx, graph, { field: fieldIn, anchor, target });
       } else {
-        createField(tx, graph, { field: fieldIn, anchor: "inside", target: block.value! });
+        createField(tx, graph, { field: fieldIn, anchor: "inside", target: database.value! });
       }
     }
   }
@@ -572,11 +572,11 @@ defineExpose<ViewExposed>({ self, id, actions });
     @mousedown="(e: MouseEvent) => startSelectingIfAllowed(selectionZoneContainer, e)"
   >
     <!-- Root header -->
-    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="props.focus" :graph="graph" />
+    <RootHeader v-if="isRoot" :self="self" :node-ptr="databasePtr" :focus="props.focus" :graph="graph" />
 
     <!-- Header -->
     <div
-      v-if="block"
+      v-if="database"
       :style="{
         marginLeft: !isMinimal ? `${GUTTER_WIDTH}px` : undefined,
         marginRight: !isMinimal ? `${GUTTER_WIDTH}px` : undefined,
@@ -585,12 +585,14 @@ defineExpose<ViewExposed>({ self, id, actions });
       <!-- Page header (title) -->
       <div v-if="!isMinimal">
         <NodeReference
-          v-if="block"
+          v-if="database"
           ref="nameRef"
           is-input
+          :orientation="Orientation.VERTICAL"
+          :hide-icon="database.icon == null"
           class="mb-2 mt-5 px-0.5"
           size="title"
-          :node="block"
+          :node="database"
           :tx="() => connection.tx"
         />
       </div>
@@ -697,7 +699,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                     }),
                   },
                   onApply: (typeInfo: TypeIdentity) => {
-                    createField(connection.tx, graph, { anchor: 'inside', target: block!, field: typeInfo });
+                    createField(connection.tx, graph, { anchor: 'inside', target: database!, field: typeInfo });
                   },
                 });
               }
@@ -721,7 +723,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 
     <!-- Body outer wrapper (scroll horizontally, and vertically if not compact) -->
     <Scroll
-      v-if="block"
+      v-if="database"
       id="scroll"
       :size="bodySize"
       :orientation="isMinimal ? Orientation.HORIZONTAL : undefined"
@@ -866,7 +868,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             @click="
               createField(connection.tx, graph, {
                 anchor: 'inside',
-                target: block!,
+                target: database!,
                 field: { type: FieldType.MEMBER, kind: TypeKind.STRUCT, benchType: BenchType.TEXT, name: 'Text' },
               })
             "
@@ -1042,6 +1044,6 @@ defineExpose<ViewExposed>({ self, id, actions });
 
     <!-- Selection -->
     <SelectionOverlay ref="selectionOverlayContainerRef" :zone="selectionZoneContainer" />
-    <Inaccessible v-if="!block" :connection="connection" :node="nodePtr" class="h-full w-full" />
+    <Inaccessible v-if="!database" :connection="connection" :node="databasePtr" class="h-full w-full" />
   </div>
 </template>

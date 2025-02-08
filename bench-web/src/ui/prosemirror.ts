@@ -1,5 +1,5 @@
 import { defaultSortStruct } from "@/language/core/order";
-import { ObjectType, TextData, TextLineData, TextLineType, TextSpanData } from "@/proto/wire";
+import { ObjectType, TextData, TextLineData, TextLineType, TextSpanData, TextSpanType } from "@/proto/wire";
 import * as commands from "prosemirror-commands";
 import {
   InputRule,
@@ -30,12 +30,18 @@ const ITALIC_DOM: DOMOutputSpec = ["em", 0];
 const STRIKETHROUGH_DOM: DOMOutputSpec = ["s", 0];
 const UNDERLINE_DOM: DOMOutputSpec = ["u", 0];
 const CODE_DOM: DOMOutputSpec = ["code", 0];
+const LIST_BULLET_DOM: DOMOutputSpec = ["ul", 0];
+const LIST_NUMBERED_DOM: DOMOutputSpec = ["ol", 0];
+const LIST_CHECKED_DOM: DOMOutputSpec = ["div", { class: "list-checked" }, 0];
+const LIST_UNCHECKED_DOM: DOMOutputSpec = ["div", { class: "list-unchecked" }, 0];
 
 export const PM_SCHEMA = new PmSchema({
   nodes: {
     doc: { content: "line+" },
+    //
     // line
-    linePlain: {
+    //
+    lineParagraph: {
       group: "line",
       content: "span*",
       attrs: { id: { default: null }, type: { default: TextLineType.PARAGRAPH } },
@@ -43,6 +49,7 @@ export const PM_SCHEMA = new PmSchema({
         return P_DOM;
       },
     },
+    // headings
     lineHeading: {
       group: "line",
       content: "span*",
@@ -62,6 +69,7 @@ export const PM_SCHEMA = new PmSchema({
         { tag: "h4", attrs: { type: TextLineType.HEADING_4 } },
       ],
     },
+    // highlights
     lineCallout: {
       group: "line",
       content: "span*",
@@ -80,6 +88,44 @@ export const PM_SCHEMA = new PmSchema({
       },
       parseDOM: [{ tag: "blockquote", attrs: { type: TextLineType.QUOTE } }],
     },
+    // list
+    lineListBullet: {
+      group: "line",
+      content: "span*",
+      attrs: { id: { default: null }, type: { default: TextLineType.LIST_BULLET } },
+      toDOM(node) {
+        return LIST_BULLET_DOM;
+      },
+      parseDOM: [{ tag: "ul", attrs: { type: TextLineType.LIST_BULLET } }],
+    },
+    lineListNumber: {
+      group: "line",
+      content: "span*",
+      attrs: { id: { default: null }, type: { default: TextLineType.LIST_NUMBERED } },
+      toDOM(node) {
+        return LIST_NUMBERED_DOM;
+      },
+      parseDOM: [{ tag: "ol", attrs: { type: TextLineType.LIST_NUMBERED } }],
+    },
+    lineListChecked: {
+      group: "line",
+      content: "span*",
+      attrs: { id: { default: null }, type: { default: TextLineType.LIST_CHECKED } },
+      toDOM(node) {
+        return LIST_CHECKED_DOM;
+      },
+      parseDOM: [{ tag: "div.list-checked", attrs: { type: TextLineType.LIST_CHECKED } }],
+    },
+    lineListUnchecked: {
+      group: "line",
+      content: "span*",
+      attrs: { id: { default: null }, type: { default: TextLineType.LIST_UNCHECKED } },
+      toDOM(node) {
+        return LIST_UNCHECKED_DOM;
+      },
+      parseDOM: [{ tag: "div.list-unchecked", attrs: { type: TextLineType.LIST_UNCHECKED } }],
+    },
+    // presentation
     lineDivider: {
       group: "line",
       attrs: { id: { default: null }, type: { default: TextLineType.DIVIDER } },
@@ -88,13 +134,26 @@ export const PM_SCHEMA = new PmSchema({
       },
       parseDOM: [{ tag: "hr" }],
     },
+    // table
+    // ...
+    // code
+    lineCode: {
+      group: "line",
+      content: "text*",
+      attrs: { id: { default: null }, type: { default: TextLineType.CODE } },
+      code: true,
+      toDOM(node) {
+        return CODE_DOM;
+      },
+      parseDOM: [{ tag: "code", attrs: { type: TextLineType.CODE } }],
+    },
     // span
     text: {
       group: "span",
       inline: true,
       marks: "_", // all marks
     },
-    mention: {
+    spanMention: {
       group: "span",
       draggable: true,
       inline: true,
@@ -103,9 +162,20 @@ export const PM_SCHEMA = new PmSchema({
       attrs: { nodePtr: {} },
       // render manually, can't parse mention nodes
     },
-    hardBreak: {
-      inline: true,
+    spanCode: {
       group: "span",
+      inline: true,
+      code: true,
+      attrs: { id: { default: null }, type: { default: TextSpanType.CODE } },
+      marks: "",
+      toDOM(node) {
+        return CODE_DOM;
+      },
+      parseDOM: [{ tag: "code", attrs: { type: TextSpanType.CODE } }],
+    },
+    spanHardBreak: {
+      group: "span",
+      inline: true,
       selectable: false,
       toDOM() {
         return ["br"];
@@ -151,16 +221,10 @@ export const PM_SCHEMA = new PmSchema({
         return UNDERLINE_DOM;
       },
     },
-    code: {
-      parseDOM: [{ tag: "code" }],
-      toDOM() {
-        return CODE_DOM;
-      },
-    },
   },
 });
 
-function blockTypeRule(char: string, nodeType: PmNodeType, type: TextLineType) {
+function lineTypeRule(char: string, nodeType: PmNodeType, type: TextLineType) {
   return new InputRule(new RegExp(`^(${char})\\s$`), (state, match, start, end) => {
     const { tr } = state;
     tr.setBlockType(start, end, nodeType, { type });
@@ -172,7 +236,7 @@ function blockTypeRule(char: string, nodeType: PmNodeType, type: TextLineType) {
 const lineDividerRule = new InputRule(/(^---$)|(^—-$)/, (state, match, start, end) => {
   const { tr } = state;
   tr.replaceWith(start - 1, end, state.schema.nodes.lineDivider.create());
-  tr.insert(start, state.schema.nodes.linePlain.create());
+  tr.insert(start, state.schema.nodes.lineParagraph.create());
   tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
   return tr;
 });
@@ -187,13 +251,13 @@ export const PM_INPUT_RULES: InputRule[] = [
   closeSingleQuote,
   ...smartQuotes,
   // line rules
-  blockTypeRule("#", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_1),
-  blockTypeRule("##", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_2),
-  blockTypeRule("###", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_3),
-  blockTypeRule("####", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_4),
+  lineTypeRule("#", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_1),
+  lineTypeRule("##", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_2),
+  lineTypeRule("###", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_3),
+  lineTypeRule("####", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_4),
   lineDividerRule,
-  blockTypeRule(">", PM_SCHEMA.nodes.lineQuote, TextLineType.QUOTE),
-  blockTypeRule("!", PM_SCHEMA.nodes.lineCallout, TextLineType.CALLOUT),
+  lineTypeRule(">", PM_SCHEMA.nodes.lineQuote, TextLineType.QUOTE),
+  lineTypeRule("!", PM_SCHEMA.nodes.lineCallout, TextLineType.CALLOUT),
 ];
 
 /* Convert non-plain text nodes to plain text nodes when deleting */
@@ -202,13 +266,13 @@ function convertToPlainBeforeDelete(state: EditorState, dispatch?: (tr: PmTransa
   if (!dispatch) {
     return false;
   } else if (
-    $from.node().type.name !== "linePlain" &&
+    $from.node().type.name !== "lineParagraph" &&
     $from.parentOffset === 0 &&
     $from.start() == $from.end() &&
     $to.pos === $from.end()
   ) {
     // convert to plain
-    dispatch(state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.linePlain, { type: TextLineType.PARAGRAPH }));
+    dispatch(state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.lineParagraph, { type: TextLineType.PARAGRAPH }));
     return true;
   } else {
     // imitate default behavior
@@ -224,7 +288,6 @@ function convertToPlainBeforeDelete(state: EditorState, dispatch?: (tr: PmTransa
 export const PM_KEYMAP_EXTRA = {
   Backspace: convertToPlainBeforeDelete,
 };
-
 
 // TODO :Performance: mapTextToPmNode/mapPmNodeToText should cache somehow?
 //  (we re-create the entire deep object on every conversion)
@@ -255,7 +318,6 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
       if (span.isItalic) markTypes.push("italic");
       if (span.isStrikethrough) markTypes.push("strikethrough");
       if (span.isUnderline) markTypes.push("underline");
-      if (span.isCode) markTypes.push("code");
       if (markTypes.length > 0) {
         const marks = markTypes.map((type) => schema.mark(type));
         spanNode = spanNode.mark(marks);
@@ -267,7 +329,7 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
     let lineNode: PmNode;
     const attrs = { type: line.type };
     if (line.type == TextLineType.PARAGRAPH) {
-      lineNode = schema.node("linePlain", attrs, spanNodes);
+      lineNode = schema.node("lineParagraph", attrs, spanNodes);
     } else if (
       line.type == TextLineType.HEADING_1 ||
       line.type == TextLineType.HEADING_2 ||
@@ -289,7 +351,7 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
 
   // map doc
   if (lineNodes.length == 0) {
-    lineNodes.push(schema.node("linePlain")); // ensure at least one line
+    lineNodes.push(schema.node("lineParagraph")); // ensure at least one line
   }
   const docNode = schema.node("doc", {}, lineNodes);
   return docNode;
@@ -306,11 +368,11 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
       const spanNode = lineNode.child(spanIdx);
       let span: TextSpanData;
       if (spanNode.type.name == "hardBreak") {
-        span = { metatype: ObjectType.TEXT_SPAN, content: "\n" };
+        span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.HARD_BREAK, content: "\n" };
       } else if (spanNode.type.name == "text") {
-        span = { metatype: ObjectType.TEXT_SPAN, content: spanNode.text };
+        span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.TEXT, content: spanNode.text };
       } else if (spanNode.type.name == "mention") {
-        span = { metatype: ObjectType.TEXT_SPAN, nodePtr: spanNode.attrs.nodePtr };
+        span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.NODE, nodePtr: spanNode.attrs.nodePtr };
       } else {
         throw new Error(`unexpected span node type: ${spanNode.type.name}`);
       }
@@ -324,8 +386,6 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
           span.isStrikethrough = true;
         } else if (mark.type.name == "underline") {
           span.isUnderline = true;
-        } else if (mark.type.name == "code") {
-          span.isCode = true;
         } else {
           throw new Error(`unexpected mark type: ${mark.type.name}`);
         }
@@ -334,7 +394,7 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
     }
 
     // map line
-    const line: TextLineData = { metatype: ObjectType.TEXT_LINE, type: lineNode.attrs.type, spans };
+    const line: TextLineData = { metatype: ObjectType.TEXT_LINE, type: lineNode.attrs.type, spans, cells: [] };
     lines.push(line);
   }
 

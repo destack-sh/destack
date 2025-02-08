@@ -74,110 +74,96 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     class="group/block relative select-none rounded transition-colors duration-150"
     :class="[
       isSelected ? 'bg-orange-400/20' : '',
-      isPage ? 'cursor-pointer' : '',
+      isPage ? 'h-[30px] cursor-pointer' : '',
       isPage && !isSelected ? 'hover:bg-gray-100' : '',
     ]"
     :data-suppress-drag="isPage ? 'select' : undefined"
     data-contextmenu-items="space.navigate.open"
     @click="() => isPage && canvas.goToNode(block!)"
   >
-    <!-- Header -->
-    <div v-if="node" class="flex flex-row items-center rounded-t px-1 py-1">
-      <NodeReference
-        ref="nodeRefRef"
-        :size="hasCanvas ? 'large' : 'regular'"
-        :isUnderline="block.type == BlockType.PAGE"
-        :node="node"
-        :is-input="block.type != BlockType.PAGE"
-        :tx="() => connection.tx"
-      />
-      <!-- Open in its own page -->
-      <button
-        v-if="hasCanvas"
-        class="ml-1.5 rounded px-1 py-0.5 text-base text-gray-400 opacity-0 transition-opacity duration-75 hover:bg-gray-100 hover:text-gray-700 group-focus-within/block-line:opacity-100 group-hover/block-line:opacity-100 group-hover/block:opacity-100"
-        @click="() => canvas.goToNode(block!)"
-      >
-        <i class="fas fa-arrow-up-right" />
-      </button>
+    <!-- Page -->
+    <div v-if="node && block.type == BlockType.PAGE" class="flex h-[30px] flex-row items-center">
+      <NodeReference ref="nodeRefRef" size="regular" is-underline :node="node" :tx="() => connection.tx" />
     </div>
-    <!-- Body -->
-    <!-- TODO :Incomplete: TextBlock.text is intended to be a single line only
-       (but would need to make multi-block navigation/editing better before we enforce this) -->
-    <Text
-      v-if="block.type == BlockType.PARAGRAPH"
-      id="text"
-      ref="textRef"
-      is-input
-      is-minimal
-      class="px-1 py-1"
-      :model-value="block.text"
-      v-bind="state.getChildState('text')"
-      @update:model-value="(newText) => connection.tx.update(block!, { text: newText }, { debounce: 'long' })"
-    />
-    <div v-else-if="block.type != BlockType.PAGE" class="rounded-b border-gray-200 pb-1">
-      <!-- Types -->
-      <FieldList
-        v-if="[BlockType.CHOICE].includes(block.type)"
-        id="type"
-        :node="block"
-        :prepared-connection="preparedConnection"
-        :node-ptr="nodePtr"
-        :field-type="block.type == BlockType.CHOICE ? FieldType.OPTION : FieldType.MEMBER"
-      />
-      <!-- Runnable -->
-      <template v-if="block.type == BlockType.FLOW">
-        <!-- Signature -->
-        <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1">
-          <FieldList
-            id="type.input"
-            class=""
-            :node="block"
-            :prepared-connection="preparedConnection"
-            :node-ptr="nodePtr"
-            :field-type="FieldType.INPUT"
-          />
-          <i
-            v-if="fields?.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT)"
-            class="fas fa-arrow-right-long text-base text-gray-400"
-          />
-          <FieldList
-            id="type.output"
-            class=""
-            :node="block"
-            :prepared-connection="preparedConnection"
-            :node-ptr="nodePtr"
-            :field-type="FieldType.OUTPUT"
-          />
-          <FieldList
-            id="type.input"
-            class="ml-auto"
-            :node="block"
-            :prepared-connection="preparedConnection"
-            :node-ptr="nodePtr"
-            :field-type="FieldType.VARIABLE"
-          />
-        </div>
+    <!-- Other definition -->
+    <template v-else-if="node">
+      <!-- Header -->
+      <div class="mb-1 flex flex-row items-center rounded-t border-b border-gray-200 px-1 py-0.5">
+        <NodeReference ref="nodeRefRef" size="regular" :node="node" is-input :tx="() => connection.tx" />
+        <!-- Open in its own page -->
+        <button
+          v-if="hasCanvas"
+          class="ml-1 rounded px-1 text-base text-gray-400 opacity-0 transition-opacity duration-75 hover:bg-gray-100 hover:text-gray-700 group-focus-within/block-line:opacity-100 group-hover/block-line:opacity-100 group-hover/block:opacity-100"
+          @click="() => canvas.goToNode(block!)"
+        >
+          <i class="fas fa-arrow-up-right" />
+        </button>
+      </div>
+      <!-- Body -->
+      <div class="rounded-b border-gray-200 pb-1">
+        <!-- Choice -->
+        <FieldList
+          v-if="block.type == BlockType.CHOICE"
+          id="type"
+          class="px-1"
+          :node="block"
+          :prepared-connection="preparedConnection"
+          :node-ptr="nodePtr"
+          :field-type="FieldType.OPTION"
+        />
         <!-- Flow -->
-        <Flow
-          v-if="block.type == BlockType.FLOW"
-          id="flow"
-          class="mt-2 h-[400px]"
-          v-bind="state.getChildState('flow')"
+        <template v-else-if="block.type == BlockType.FLOW">
+          <!-- Signature -->
+          <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 px-1">
+            <FieldList
+              id="type.input"
+              class=""
+              :node="block"
+              :prepared-connection="preparedConnection"
+              :node-ptr="nodePtr"
+              :field-type="FieldType.INPUT"
+            />
+            <i
+              v-if="fields?.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT)"
+              class="fas fa-arrow-right-long text-base text-gray-400"
+            />
+            <FieldList
+              id="type.output"
+              class=""
+              :node="block"
+              :prepared-connection="preparedConnection"
+              :node-ptr="nodePtr"
+              :field-type="FieldType.OUTPUT"
+            />
+            <FieldList
+              id="type.input"
+              class="ml-auto"
+              :node="block"
+              :prepared-connection="preparedConnection"
+              :node-ptr="nodePtr"
+              :field-type="FieldType.VARIABLE"
+            />
+          </div>
+          <Flow
+            id="flow"
+            class="mt-2 h-[400px]"
+            v-bind="state.getChildState('flow')"
+            :node-ptr="nodePtr"
+            is-minimal
+            :prepared-connection="preparedConnection"
+          />
+        </template>
+        <Database
+          v-else-if="block.type == BlockType.DATABASE"
+          id="database"
+          v-bind="state.getChildState('database')"
           :node-ptr="nodePtr"
           is-minimal
-          :prepared-connection="preparedConnection"
+          :container-gutter-width="containerGutterWidth"
+          is-input
         />
-      </template>
-      <Database
-        v-if="block.type == BlockType.DATABASE"
-        id="database"
-        v-bind="state.getChildState('database')"
-        :node-ptr="nodePtr"
-        is-minimal
-        :container-gutter-width="containerGutterWidth"
-        is-input
-      />
-    </div>
+      </div>
+    </template>
   </div>
   <Inaccessible v-else class="h-full w-full" :node="blockPtr" :connection="connection" />
 </template>

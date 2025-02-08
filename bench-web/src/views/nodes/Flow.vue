@@ -296,16 +296,6 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
         marginRight: `${GUTTER_WIDTH}px`,
       }"
     >
-      <!-- Title -->
-      <NodeReference
-        v-if="flow"
-        ref="nameRef"
-        class="mb-2 mt-5"
-        size="title"
-        is-input
-        :node="flow"
-        :tx="() => connection.tx"
-      />
       <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1">
         <!-- Signature -->
         <!-- Inputs -->

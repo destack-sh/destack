@@ -649,6 +649,7 @@ const SELECTION_RANK_BY_NODE_TYPE: Partial<Record<NodeType, number>> = {
   [NodeType.PIPE]: 5,
   [NodeType.RECORD]: 5,
   [NodeType.BLOCK]: 10,
+  [NodeType.PAGE]: 10,
 };
 
 const SELECTION_MIN_SIZE = 5;
