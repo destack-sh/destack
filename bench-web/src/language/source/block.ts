@@ -28,7 +28,7 @@ export function createBlock(
   tx: Transaction,
   graph: ReadNodeGraph,
   options: {
-    block: Partial<NodeIn<NodeType.BLOCK>> & Required<Pick<NodeIn<NodeType.BLOCK>, "type">>;
+    block: Partial<NodeIn<NodeType.BLOCK>>;
     node?: InlineSourceNodeData | Partial<NodeIn<any>>;
     anchor: "before" | "after" | "inside";
     target: BlockData | PageData;

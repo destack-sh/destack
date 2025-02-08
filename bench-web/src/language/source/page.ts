@@ -51,5 +51,13 @@ export function createPage(
     name,
   });
 
+  // create default contents
+  const text = tx.create({
+    metatype: NodeType.BLOCK,
+    parentPtr: toNodeRef(page),
+    packagePtr,
+    orderKey: generateOrderKey(null, null),
+  });
+
   return page;
 }

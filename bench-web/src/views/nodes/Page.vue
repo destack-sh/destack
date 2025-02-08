@@ -1,27 +1,22 @@
 <script lang="ts" setup>
-import { supergraph } from "@/globals";
-import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/core/const";
+import { toCamelName } from "@/language/core/const";
 import { isDescendantOf } from "@/language/core/graph";
-import { cloneNode, moveNode, NodeIn, packSubnode } from "@/language/core/node";
-import { makeType } from "@/language/core/type";
+import { cloneNode, moveNode, NodeIn } from "@/language/core/node";
 import { uploadFile } from "@/language/resource/file";
 import { newChangeId } from "@/language/runtime/transaction";
 import { createBlock } from "@/language/source/block";
 import {
-  BenchType,
   BlockData,
   BlockType,
   NodeReferenceData,
   NodeType,
   Orientation,
   PageData,
-  PickerVariant,
   RectangleData,
   ViewData,
-  ViewType,
   type AnyNodeData,
 } from "@/proto/wire/";
-import { describeNode, isNode, isNodeRef, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { bench, canvas } from "@/system/space";
 import { BLOCK_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
@@ -35,16 +30,15 @@ import {
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { useNodeListActions } from "@/ui/list";
-import { pushDefaultMenu, type PopoverInfoIn } from "@/ui/popover";
-import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { pushDefaultMenu } from "@/ui/popover";
+import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { blurDocument } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
-import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import NodePath from "@/views/builtins/NodePath.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
+import TextBlockGroup from "@/views/builtins/TextBlockGroup.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/nodes/Block.vue";
@@ -102,8 +96,60 @@ function getAnchorPositionStyle(anchor: "start" | "end", blockIdx: number, ancho
 }
 
 //
+// Layout
+//
+
+type BlockGroup =
+  | {
+      id: string;
+      type: "text";
+      blocks: BlockData[];
+      beforeBlock: BlockData | undefined;
+      afterBlock: BlockData | undefined;
+    }
+  | {
+      id: string;
+      type: "node";
+      block: BlockData;
+    };
+
+const groups = computed(() => {
+  const groups: BlockGroup[] = [];
+  // accumulate successive text blocks into text groups
+  for (const [i, block] of blocks.value.entries()) {
+    const lastGroup = groups[groups.length - 1];
+    if (block.type >= BlockType.PARAGRAPH) {
+      if (lastGroup?.type === "text") {
+        // expand text group
+        lastGroup.blocks.push(block);
+        lastGroup.afterBlock = blocks.value[i + 1];
+      } else {
+        groups.push({
+          id: block.id,
+          type: "text",
+          blocks: [block],
+          beforeBlock: blocks.value[i - 1],
+          afterBlock: blocks.value[i + 1],
+        });
+      }
+    } else {
+      groups.push({ id: block.id, type: "node", block });
+    }
+  }
+  return groups;
+});
+
+//
 // Interaction
 //
+
+const HIGHLIGHTED_BLOCK_TYPES = [
+  BlockType.PARAGRAPH,
+  BlockType.PAGE,
+  BlockType.FLOW,
+  BlockType.DATABASE,
+  BlockType.CHOICE,
+];
 
 // selecting
 const selectionZone = useSelectionZone({ containerEl: contentRef, overlayEl: selectionOverlayRef });
@@ -194,13 +240,13 @@ const actions: Partial<ActionMapImplementation<"list" | "space">> = {
   }),
 };
 function createAndFocusBlock(
-  blockIn: Partial<NodeIn<NodeType.BLOCK>> & Required<Pick<NodeIn<NodeType.BLOCK>, "type">>,
+  blockIn: Partial<NodeIn<NodeType.BLOCK>>,
   anchor: "before" | "after" | "inside",
   target: PageData | BlockData,
 ) {
   const block = createBlock(connection.tx, graph, { block: blockIn, anchor, target });
   canvas.inspect({ node: block });
-  if (block.type == BlockType.PARAGRAPH) {
+  if (block.type >= BlockType.PARAGRAPH) {
     nextTick(() => focus(block));
   } else if (block.type != BlockType.PAGE) {
     canvas.select([block]);
@@ -262,10 +308,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
       track-is-overlay
       @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
     >
-      <div ref="contentRef" class="flex min-h-full flex-col pb-[320px]">
+      <div ref="contentRef" class="flex min-h-full flex-col">
         <!-- Page header (title) -->
         <div
-          class="mx-auto mb-2 mt-5 flex flex-row items-center"
+          class="mx-auto mb-5 mt-7 flex flex-row items-center rounded px-0.5"
           :style="{
             width: widths.block + 'px',
           }"
@@ -282,89 +328,46 @@ defineExpose<ViewExposed>({ self, actions, focus });
         </div>
 
         <!-- Blocks -->
-        <div
-          v-for="(block, i) in blocks"
-          :key="block.id"
-          class="group/block-line relative flex min-w-fit flex-row"
-          :style="{
-            paddingTop: CANVAS_BLOCK_TYPES.includes(block.type) ? '10px' : undefined,
-            marginTop: BLOCK_GAP_Y + 'px',
-          }"
-        >
-          <!-- Left gutter -->
+        <div v-for="(group, i) in groups" :key="group.type" class="group/block-group relative my-[3px]" :style="{}">
+          <!-- Text block group -->
+          <TextBlockGroup
+            v-if="group.type == 'text'"
+            class="mx-auto rounded px-0.5"
+            :blocks="group.blocks"
+            :before-block="group.beforeBlock"
+            :after-block="group.afterBlock"
+            :page="page"
+            :connection="preparedConnection"
+            :style="{
+              width: widths.block + 'px',
+            }"
+          />
+          <!-- Block -->
           <div
-            class="relative flex flex-shrink-0 flex-row items-start justify-end gap-x-1 px-1 text-right transition-colors duration-150"
-            :class="[
-              CANVAS_BLOCK_TYPES.includes(block.type) ? 'pt-2' : 'pt-1',
-              canvas.isInspected(block) || canvas.isHighlighted(block)
-                ? 'opacity-100'
-                : 'opacity-0 group-focus-within/block-line:opacity-100 group-hover/block-line:opacity-100',
-            ]"
-            :style="{ width: widths.gutter + 'px' }"
-          >
-            <!-- Create above / below -->
-            <button
-              v-menu="
-                (): PopoverInfoIn => ({
-                  kind: 'view',
-                  component: ViewType.PICKER,
-                  title: 'Add Block Below',
-                  placement: 'bottom',
-                  // TODO :Incomplete :UX: into-Node (partial?) Picker (for Action, Block, Resource, ...)
-                  props: {
-                    valueType: makeType({ benchType: BenchType.BLOCK_TYPE, isRequired: true }),
-                    subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, {
-                      variant: PickerVariant.DROPDOWN_LARGE,
-                    }),
-                  },
-                  onApply: (blockType: BlockType) => createAndFocusBlock({ type: blockType }, 'after', block),
-                })
-              "
-              class="ml-2 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
-              :style="{}"
-              @click="(e) => canvas.select([block])"
-            >
-              <i class="fas fa-plus" />
-            </button>
-            <!-- Controls/Drag -->
-            <button
-              class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-              :draggable="true"
-              data-suppress-drag="select"
-              @click="(e) => pushDefaultMenu('main', block, e)"
-              @dragstart.stop="(e) => startDraggingIfAllowed(e, block)"
-            >
-              <i class="fas fa-grip-vertical w-5 text-center" />
-            </button>
-          </div>
-
-          <!-- Block wrapper -->
-          <div
-            class="group/block-wrapper relative rounded"
+            v-else
+            class="relative mx-auto rounded"
             :style="{
               width: widths.block + 'px',
             }"
           >
             <!-- Drag above/below -->
             <div
-              v-if="activeDropZone?.targetId == block.id"
+              v-if="activeDropZone?.targetId == group.block.id"
               class="absolute z-10 h-1 w-full rounded bg-gray-400"
               :style="getAnchorPositionStyle(activeDropZone?.anchor as 'start' | 'end', i, 4)"
             />
-
-            <!-- Block -->
             <Block
-              :id="block.id"
-              :ref="(ref: any) => (ref ? (blockRefs[block.id!] = ref) : delete blockRefs[block.id!])"
+              :id="group.block.id"
+              :ref="(ref: any) => (ref ? (blockRefs[group.block.id!] = ref) : delete blockRefs[group.block.id!])"
               class="w-full"
-              :class="isDragging(block) ? 'opacity-50' : ''"
-              :node-ptr="toNodeRef(block)"
+              :class="isDragging(group.block) ? 'opacity-50' : ''"
+              :node-ptr="toNodeRef(group.block)"
               :prepared-connection="preparedConnection"
               :container-gutter-width="widths.gutter"
-              v-bind="state.getChildState(block.id)"
+              v-bind="state.getChildState(group.block.id)"
               :data-contextmenu-items="BLOCK_CONTEXT_ACTIONS.join(',')"
-              :draggable="block.type == BlockType.PAGE"
-              @dragstart.stop="(e) => startDraggingIfAllowed(e, block)"
+              :draggable="group.block.type == BlockType.PAGE"
+              @dragstart.stop="(e) => startDraggingIfAllowed(e, group.block)"
             />
           </div>
         </div>
@@ -378,21 +381,31 @@ defineExpose<ViewExposed>({ self, actions, focus });
         >
           <!-- Add blocks -->
           <button
-            v-for="blockType in [
-              BlockType.PARAGRAPH,
-              BlockType.DATABASE,
-              BlockType.FLOW,
-              BlockType.PAGE,
-              BlockType.CHOICE,
-            ]"
+            v-for="blockType in HIGHLIGHTED_BLOCK_TYPES"
             data-suppress-drag="both"
             class="rounded-2xl border border-gray-200 px-2 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
-            @click="() => createAndFocusBlock({ type: blockType }, 'inside', page!)"
+            @click="() => createAndFocusBlock({ type: blockType as any }, 'inside', page!)"
           >
             <IconInline v-bind="ICON_BY_BLOCK_TYPE[blockType]" class="mr-1.5 w-5 text-center text-gray-700" />
             <span>{{ toCamelName(BlockType, blockType) }}</span>
           </button>
         </div>
+
+        <!-- Padding -->
+        <div
+          class="h-[320px]"
+          @click="
+            () => {
+              // focus or create text block at end
+              const lastBlock = blocks[blocks.length - 1];
+              if (lastBlock.type >= BlockType.PARAGRAPH) {
+                focus(lastBlock);
+              } else {
+                createAndFocusBlock({ type: BlockType.PARAGRAPH }, 'after', lastBlock);
+              }
+            }
+          "
+        />
 
         <!-- Selection -->
         <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />

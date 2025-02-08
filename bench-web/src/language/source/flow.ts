@@ -16,7 +16,7 @@ export function createFlow(tx: Transaction, graph: ReadNodeGraph, options: { flo
   const name = options.flow.name ?? generateNodeName({ metatype: ObjectType.FLOW, ...options.flow }, siblings);
   const flow = tx.create({ metatype: NodeType.FLOW, ...options.flow, name });
 
-  // create inner stuff
+  // create default contents
   const start = tx.create({
     metatype: NodeType.ACTION,
     type: ActionType.START,

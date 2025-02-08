@@ -1,6 +1,6 @@
 {
   "name": "bench-web",
-  "version": "2025.02.07.2",
+  "version": "2025.02.07.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -43,6 +43,7 @@
     "prosemirror-inputrules": "^1.4.0",
     "prosemirror-keymap": "^1.2.2",
     "prosemirror-model": "^1.24.1",
+    "prosemirror-schema-list": "^1.5.0",
     "prosemirror-state": "^1.4.3",
     "prosemirror-tables": "^1.6.4",
     "prosemirror-transform": "^1.10.2",
@@ -50,6 +51,9 @@
     "rrule": "^2.8.1",
     "uuid": "^10.0.0",
     "vue": "^3.5.13"
+  },
+  "overrides": {
+    "prosemirror-model": "^1.24.1"
   },
   "devDependencies": {
     "@eslint/compat": "^1.2.6",

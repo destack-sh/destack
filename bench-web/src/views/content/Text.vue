@@ -1,30 +1,14 @@
 <script lang="ts" setup>
-import { getBaseFromNodeReference } from "@/language/core/const";
-import { makeType } from "@/language/core/type";
-import { downloadFile, prefetchFile, uploadFile } from "@/language/resource/file";
-import { isTextEmpty } from "@/language/core/text";
-import {
-  BenchType,
-  ColorShade,
-  NodeReferenceData,
-  NodeType,
-  ObjectType,
-  TextData,
-  ViewData,
-  ViewType,
-} from "@/proto/wire";
-import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/globals";
+import { getBaseFromNodeReference } from "@/language/core/const";
+import { isTextEmpty } from "@/language/core/text";
+import { uploadFile } from "@/language/resource/file";
+import { ColorShade, NodeReferenceData, NodeType, ObjectType, TextData, ViewData } from "@/proto/wire";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { bench, canvas, pkgConnection } from "@/system/space";
-import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
+import { type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
-import { DEFAULT_MISSING_ICON, ICON_BY_NODE_TYPE, getNodeIcon, getNodeName } from "@/ui/icon";
-import { popPopover, pushPopover, trackHoverElementOnce, type PopoverInstance } from "@/ui/popover";
-import { getColorHex } from "@/ui/style";
-import { toaster } from "@/ui/toast";
-import { getElement } from "@/utils/element";
-import { copy, cyrb53a } from "@/utils/functools";
-import { log } from "@/utils/log";
+import { DEFAULT_MISSING_ICON, getNodeIcon, getNodeName, ICON_BY_NODE_TYPE } from "@/ui/icon";
 import {
   mapPmNodeToText,
   mapTextToPmNode,
@@ -33,6 +17,8 @@ import {
   PM_SCHEMA,
   type TextMarkType,
 } from "@/ui/prosemirror";
+import { getColorHex } from "@/ui/style";
+import { copy, cyrb53a } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { whenever } from "@vueuse/core";
@@ -50,9 +36,9 @@ import {
   type SelectionBookmark as EditorSelectionBookmark,
 } from "prosemirror-state";
 import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
-import { computed, nextTick, onBeforeUnmount, ref, toRef, watch, type Ref } from "vue";
+import { computed, onBeforeUnmount, ref, toRef, watch, type Ref } from "vue";
 
-const MENTION_TRIGGER_CHAR = "@";
+const NODE_TRIGGER_CHAR = "@";
 
 const props = defineProps<
   {
@@ -73,18 +59,18 @@ let view: EditorView | null = null;
 let lastAppliedModelValue: TextData | null = null;
 const previousSelectionByState: Record<number, EditorSelectionBookmark> = {};
 
-const mentionPtrs: Ref<NodeReferenceData[]> = computed(() => {
-  const mentionPtrs: NodeReferenceData[] = [];
+const nodePtrs: Ref<NodeReferenceData[]> = computed(() => {
+  const nodePtrs: NodeReferenceData[] = [];
   for (const line of props.modelValue?.lines ?? []) {
     for (const span of line.spans ?? []) {
-      if (span.nodePtr != null) mentionPtrs.push(span.nodePtr);
+      if (span.nodePtr != null) nodePtrs.push(span.nodePtr);
     }
   }
-  return mentionPtrs;
+  return nodePtrs;
 });
-const basePtrs = computed(() => mentionPtrs.value.map((ptr) => getBaseFromNodeReference(ptr)).filter((b) => b != null));
+const basePtrs = computed(() => nodePtrs.value.map((ptr) => getBaseFromNodeReference(ptr)).filter((b) => b != null));
 const bases = supergraph.getManyRef(basePtrs);
-const mentions = supergraph.getManyRef(mentionPtrs);
+const mentions = supergraph.getManyRef(nodePtrs);
 
 function makeEditorState(text?: TextData, options?: { restoreSelection?: boolean }): EditorState {
   const doc = text != null ? mapTextToPmNode(text, undefined) : undefined;
@@ -136,37 +122,6 @@ function makeEditorView(): EditorView {
         lastAppliedModelValue = updatedText;
         emit("update:modelValue", updatedText);
       }
-
-      // trigger mention if we just typed the trigger char
-      const { selection } = newState;
-      if (tx.docChanged && selection.empty && selection.$head.nodeBefore?.text?.endsWith(MENTION_TRIGGER_CHAR)) {
-        const referencePos = view.coordsAtPos(selection.$head.pos);
-        pushPopover({
-          kind: "view",
-          trigger: getElement(textRef.value)!,
-          reference: { x: referencePos.left, y: referencePos.top },
-          component: ViewType.PICKER,
-          referenceMargin: 2,
-          offset: { x: 0, y: -8 }, // align query text with line
-          placement: "inside-top-left",
-          props: { placeholder: "Mention Node", valueType: makeType({ benchType: BenchType.BLOCK }) },
-          onApply(node) {
-            if (view == null) throw new Error("view no longer mounted");
-            // replace @ with mention and focus there
-            const mention = PM_SCHEMA.node("mention", { nodePtr: toNodeRef(node) });
-            view.dispatch(
-              view.state.tr
-                .delete(selection.$head.pos - 1, selection.$head.pos)
-                .insert(selection.$head.pos - 1, mention)
-                .insert(selection.$head.pos, PM_SCHEMA.text(" ")),
-            );
-          },
-          onClose: () => {
-            if (view == null) throw new Error("view no longer mounted");
-            nextTick(() => view!.focus());
-          },
-        });
-      }
     },
   });
 }
@@ -198,66 +153,6 @@ class MentionView implements PmNodeView {
     this.nameDom = this.dom.appendChild(document.createElement("span"));
     this.nameDom.classList.add("name");
     this.nameDom.textContent = "???";
-
-    // click
-    this.dom.addEventListener("click", async () => {
-      // go to mention on alt-click
-      if (IS_IN_ALT_MODE.value) {
-        canvas.goToNode(this.nodePtr);
-      } else if (this.nodePtr.nodeType == NodeType.FILE) {
-        // open file on click
-        const download = downloadFile(this.nodePtr);
-        try {
-          await download.completion.wait();
-          if (download.getUrl.value == null) throw new Error(`missing GET url`);
-        } catch (e) {
-          log.error("text.file.download.error", download, e);
-          toaster.error({
-            title: "Download Failed",
-            text: `'${download.file.value?.name ?? "Unknown File"}': ${(e as any).message ?? "unknown error"}`,
-          });
-        }
-        window.open(download.getUrl.value!, "_blank");
-      }
-    });
-
-    // open file preview on hover
-    // (would be nice to have this be more general :NodePreviews)
-    if (pmNode.attrs.nodePtr.nodeType == NodeType.FILE) {
-      let popoverInstance: PopoverInstance | undefined;
-      this.dom.addEventListener("mouseenter", () => {
-        // prefetch (to speed up load on hover)
-        prefetchFile(pmNode.attrs.nodePtr);
-        // keep preview open on hover
-        trackHoverElementOnce(this.dom, {
-          getOtherElements: () => (popoverInstance?.element != null ? [popoverInstance.element] : []),
-          onHover: () => {
-            if (popoverInstance != null) {
-              return;
-            }
-            popoverInstance = pushPopover({
-              kind: "view",
-              trigger: this.dom,
-              reference: this.dom,
-              placement: "bottom",
-              component: ViewType.FILE,
-              props: {
-                modelValue: pmNode.attrs.nodePtr,
-                isInline: true,
-                size: { metatype: ObjectType.RECTANGLE, width: 400 },
-              },
-            });
-          },
-          onLeave: () => {
-            if (popoverInstance != null) {
-              popPopover(popoverInstance);
-              popoverInstance = undefined;
-            }
-          },
-          immediate: true,
-        });
-      });
-    }
 
     this.updateMention();
   }
@@ -405,7 +300,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
 <template>
   <div
     ref="textRef"
-    class="text relative rounded hover:cursor-text"
+    class="pm-text relative rounded hover:cursor-text"
     :class="[
       !isMinimal
         ? 'border border-gray-200 px-2 py-0.5 focus-within:border-gray-400 not-focus-within:hover:border-gray-200'
@@ -415,8 +310,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     data-suppress-actions="space.move.left,space.move.right"
     data-suppress-drag="both"
   >
-    <!-- NOTE :UX :Incomplete: Text menus (insert, morph, bubble, etc.) -->
-    <!-- NOTE: textRef must be in a stable fragment to mount the editor view -->
     <!-- Placeholder -->
     <div
       v-if="placeholder && isTextEmpty(modelValue)"
@@ -427,101 +320,4 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     </div>
   </div>
 </template>
-<style>
-/* Prose */
-.text {
-  @apply text-gray-900;
-  line-height: 1.65;
-}
-.text strong {
-  @apply font-semibold;
-}
-.text .line:first-child {
-  @apply mt-0; /* ignore top margin */
-}
-.text .line:last-child {
-  @apply mb-0; /* ignore bottom margin */
-}
-.text p {
-  @apply my-[4px];
-}
-.text hr {
-  @apply my-2 border-gray-200 p-0 focus:outline-none focus:ring-0;
-}
-.text h1 {
-  @apply mb-2 mt-4 text-2xl font-bold;
-  line-height: 1.2;
-}
-.text h2 {
-  @apply mb-1.5 mt-2.5 text-xl font-bold;
-  line-height: 1.4;
-}
-.text h3 {
-  @apply mb-0.5 mt-1.5 text-lg font-bold;
-  line-height: 1.5;
-}
-.text h4 {
-  @apply mb-0.5 mt-1.5 text-base font-medium;
-  line-height: 1.5;
-}
-.text code {
-  @apply rounded bg-gray-100 px-0.5;
-}
-.text blockquote {
-  @apply my-2 border-l-4 border-gray-400 py-[1px] pl-2;
-}
-.text div.callout {
-  @apply my-2 rounded bg-gray-100 px-2 py-2.5;
-}
-/* TODO: UI: callout/heading/etc. line icons should be editable */
-.text div.callout::before {
-  content: "\f06a"; /* fa-icon: circle-exclamation */
-  font-family: "Font Awesome 6 Pro";
-  font-weight: 900;
-  @apply mr-1 px-1 text-gray-700;
-}
 
-/* Mentions */
-.text span.mention {
-  @apply rounded px-1 py-0;
-}
-.text span.mention:hover {
-  @apply bg-gray-100;
-}
-.text span.mention .icon {
-  @apply mr-1.5 text-gray-700;
-}
-.text span.mention:hover .icon {
-  @apply text-gray-700;
-}
-.text span.mention .name {
-  @apply underline decoration-gray-300 underline-offset-3;
-}
-.text span.textMirror-selectednode.mention .name {
-  @apply bg-primary-100 text-primary-700 decoration-primary-700;
-}
-.altmode .text span.mention:hover,
-.text span.mention[data-node-type="file"]:hover .name {
-  @apply cursor-pointer;
-}
-.altmode .text span.mention:hover .name,
-.text span.mention[data-node-type="file"]:hover .name {
-  @apply decoration-primary-700;
-}
-</style>
-<style>
-/* PM */
-@import url("/node_modules/prosemirror-view/style/prosemirror.css");
-
-.ProseMirror-focused {
-  outline: none;
-}
-.ProseMirror-selectednode {
-  @apply p-2 outline-primary-700;
-}
-.ProseMirror[contenteditable="false"] {
-  user-select: text; /* let user highlight text */
-  -webkit-user-select: text;
-  -moz-user-select: text;
-}
-</style>

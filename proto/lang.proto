@@ -1109,6 +1109,7 @@ enum TextLineType {
 enum TextSpanType {
   TEXT_SPAN_TYPE_UNSPECIFIED = 0;
   TEXT_SPAN_TYPE_TEXT = 1;
+  TEXT_SPAN_TYPE_HARD_BREAK = 2;
   TEXT_SPAN_TYPE_NODE = 10;
   TEXT_SPAN_TYPE_LINK = 11;
   TEXT_SPAN_TYPE_CODE = 20;
@@ -3376,7 +3377,7 @@ message BlockData {
   optional google.protobuf.Value subnode_packed = 29;
   BlockType type = 30;
   string order_key = 33;
-  optional TextLineData line = 40;
+  optional TextLineData text = 40;
   optional NodeReferenceData node_ptr = 41;
 }
 

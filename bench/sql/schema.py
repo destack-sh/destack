@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.07.2"
+VERSION = "2025.02.07.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -783,7 +783,7 @@ BLOCK_TABLE = Table(
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
-        Column("line", PrimitiveType.JSON, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("node_id", PrimitiveType.UUID, is_nullable=True),
         Column("node_ck", PrimitiveType.UUID, is_nullable=True),
         Column("node_type", PrimitiveType.INT16, is_nullable=True),

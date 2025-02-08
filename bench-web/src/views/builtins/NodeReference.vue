@@ -41,14 +41,14 @@ const identifier: Ref<string | undefined> = computed(() => (props.node as any)?.
 
 // :NodeReferenceStyle
 const iconClass = computed(() => [
-  props.size == "regular" ? "w-5" : "",
-  props.size == "large" ? "w-5 text-base" : "",
-  props.size == "title" ? "w-8 text-2xl" : "",
+  props.size == "regular" ? "w-5 mr-1" : "",
+  props.size == "large" ? "w-5 text-base mr-1.5" : "",
+  props.size == "title" ? "w-8 text-2xl mr-1.5" : "",
 ]);
 const identifierClass = computed(() => [
-  props.size == "regular" ? ["ml-1", props.isLight ? "" : "font-medium"] : "",
-  props.size == "large" ? ["ml-1.5 text-xl", props.isLight ? "font-medium" : "font-bold"] : "",
-  props.size == "title" ? ["ml-1.5 text-3xl", props.isLight ? "font-medium" : "font-bold"] : "",
+  props.size == "regular" ? [props.isLight ? "" : "font-medium"] : "",
+  props.size == "large" ? ["text-xl", props.isLight ? "font-medium" : "font-bold"] : "",
+  props.size == "title" ? ["text-4xl", props.isLight ? "font-medium" : "font-bold"] : "",
   props.isUnderline ? "underline decoration-gray-300 underline-offset-3" : "",
 ]);
 const metadataClass = computed(() => [

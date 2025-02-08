@@ -1,4 +1,4 @@
-import { RUNNABLE_NODE_TYPES, TYPE_NODE_TYPES } from "@/language/core/const";
+import { isInlineSourceNode, RUNNABLE_NODE_TYPES, TYPE_NODE_TYPES } from "@/language/core/const";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import { cloneNode, makeNodeName, moveNode } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
@@ -12,6 +12,7 @@ import {
   ColorType,
   FieldData,
   FieldType,
+  InlineSourceNodeData,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -31,13 +32,7 @@ export function createField(
   options: {
     field?: Partial<FieldData>;
     anchor: "before" | "above" | "after" | "below" | "inside" | "start" | "end" | "center";
-    target:
-      | FieldData
-      | TypedNodeReferenceData<NodeType.FIELD>
-      | BlockData
-      | TypedNodeReferenceData<NodeType.BLOCK>
-      | ActionData
-      | TypedNodeReferenceData<NodeType.ACTION>;
+    target: FieldData | ActionData | InlineSourceNodeData;
   },
 ): FieldData {
   // eslint-disable-next-line prefer-const
@@ -50,7 +45,7 @@ export function createField(
   let type: FieldType;
   let kind: TypeKind | null = fieldIn?.kind ?? null;
   let siblings: FieldData[];
-  if (isNode(target, NodeType.BLOCK)) {
+  if (isInlineSourceNode(target)) {
     if (anchor != "inside" && anchor != "center") throw new Error(`unexpected anchor for block: ${anchor}`);
     siblings = graph.getChildren(target, NodeType.FIELD);
     parentPtr = toNodeRef(target);
@@ -194,9 +189,9 @@ export function useFieldList(options: {
   graph: ReadNodeGraph;
   txFactory: () => Transaction;
   fieldType: Ref<FieldType>;
-  base: Ref<BlockData | ActionData | null>;
+  base: Ref<InlineSourceNodeData | ActionData | null>;
 }) {
-  const { graph, txFactory, fieldType, base: block } = options;
+  const { graph, txFactory, fieldType, base } = options;
 
   /** Whether the given drag content is allowed to be dropped on the target. */
   function allowDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent): boolean {
@@ -205,11 +200,7 @@ export function useFieldList(options: {
       node = graph.getOrError(node);
       if (isNode(node, NodeType.FIELD) && (node.type == FieldType.OPTION) == (fieldType.value == FieldType.OPTION)) {
         return true;
-      } else if (
-        isNode(node, NodeType.BLOCK) &&
-        block.value?.type != BlockType.CHOICE &&
-        TYPE_NODE_TYPES.includes(node.type as unknown as NodeType)
-      ) {
+      } else if (isInlineSourceNode(node) && TYPE_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
         return true;
       } else {
         return false;
@@ -237,7 +228,7 @@ export function useFieldList(options: {
             target: i == 0 ? target : graph.getOrError(dragged.nodes[i - 1]),
           });
         } else {
-          moveNode(tx, graph, node, { anchor: "center", target: block.value! });
+          moveNode(tx, graph, node, { anchor: "center", target: base.value! });
         }
         if ((node as FieldData).type != fieldType.value) {
           tx.update(node, { type: fieldType.value ?? undefined }, { debounce: "tick" });
@@ -254,7 +245,7 @@ export function useFieldList(options: {
             target: i == 0 ? target : (graph.getOrError(dragged.nodes[i - 1]) as FieldData),
           });
         } else {
-          createField(tx, graph, { field: fieldIn, anchor: "inside", target: block.value! });
+          createField(tx, graph, { field: fieldIn, anchor: "inside", target: base.value! });
         }
       }
     }
