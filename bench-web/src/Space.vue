@@ -160,10 +160,10 @@ mark {
   @apply font-semibold;
 }
 .pm-text .line:first-child {
-  @apply mt-0; /* ignore top margin */
+  @apply pt-0; /* ignore top margin */
 }
 .pm-text .line:last-child {
-  @apply mb-0; /* ignore bottom margin */
+  @apply pb-0; /* ignore bottom margin */
 }
 .pm-text .line {
   @apply min-h-[30px] py-[3px] text-base;

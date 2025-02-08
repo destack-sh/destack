@@ -554,7 +554,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               <!-- Meta (if new group) -->
               <div v-if="isNewGroup" class="">
                 <!-- Author -->
-                <span class="font-medium">
+                <span class="font-medium text-base">
                   {{ authorName ?? "???" }}
                 </span>
                 <!-- Timestamp -->

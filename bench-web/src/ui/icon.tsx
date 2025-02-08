@@ -249,7 +249,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   // source
   [NodeType.PACKAGE]: "fas fa-box-open",
   [NodeType.DEPENDENCY]: "fas fa-turn-down-right",
-  [NodeType.PAGE]: "fas fa-memo",
+  [NodeType.PAGE]: "far fa-file",
   [NodeType.BLOCK]: "fas fa-cube",
   [NodeType.CHOICE]: "fas fa-circle-chevron-down",
   [NodeType.CLASS]: "fas fa-shapes",
@@ -338,10 +338,8 @@ export const ICON_BY_TEXT_LINE_TYPE: Partial<Record<TextLineType, IconData>> = _
   [TextLineType.CALLOUT]: "fas fa-circle-exclamation",
   [TextLineType.QUOTE]: "fas fa-quote-left",
   // list
-  [TextLineType.LIST_BULLET]: "fas fa-list-ul",
-  [TextLineType.LIST_NUMBERED]: "fas fa-list-ol",
-  [TextLineType.LIST_CHECKED]: "fas fa-list-check",
-  [TextLineType.LIST_UNCHECKED]: "fas fa-list-check",
+  [TextLineType.LIST_UNORDERED]: "fas fa-list-ul",
+  [TextLineType.LIST_ORDERED]: "fas fa-list-ol",
   // presentation
   [TextLineType.DIVIDER]: "fas fa-horizontal-rule",
   // table

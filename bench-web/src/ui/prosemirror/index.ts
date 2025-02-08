@@ -58,10 +58,8 @@ const H4_DOM: DOMOutputSpec = ["h4", { class: "line" }, 0];
 const HR_DOM: DOMOutputSpec = ["hr", { clas: "line" }];
 const CALLOUT_DOM: DOMOutputSpec = ["div", { class: "line callout" }, 0];
 const QUOTE_DOM: DOMOutputSpec = ["blockquote", { class: "line" }, 0];
-const LIST_BULLET_DOM: DOMOutputSpec = ["ul", { class: "line" }, 0];
+const LIST_UNORDERED_DOM: DOMOutputSpec = ["ul", { class: "line" }, 0];
 const LIST_NUMBERED_DOM: DOMOutputSpec = ["ol", { class: "line" }, 0];
-const LIST_CHECKED_DOM: DOMOutputSpec = ["li", { class: "line list-checked" }, 0];
-const LIST_UNCHECKED_DOM: DOMOutputSpec = ["li", { class: "line list-unchecked" }, 0];
 const LINE_CODE_DOM: DOMOutputSpec = ["code", { class: "line" }, 0];
 
 const SPAN_STRONG_DOM: DOMOutputSpec = ["strong", 0];
@@ -125,41 +123,23 @@ export const PM_SCHEMA = new PmSchema({
       parseDOM: [{ tag: "blockquote", attrs: { type: TextLineType.QUOTE } }],
     },
     // list
-    lineListBullet: {
+    lineListUnordered: {
       group: "line",
       content: "span*",
-      attrs: { id: { default: null }, type: { default: TextLineType.LIST_BULLET } },
+      attrs: { id: { default: null }, type: { default: TextLineType.LIST_UNORDERED } },
       toDOM(node) {
-        return LIST_BULLET_DOM;
+        return LIST_UNORDERED_DOM;
       },
-      parseDOM: [{ tag: "ul", attrs: { type: TextLineType.LIST_BULLET } }],
+      parseDOM: [{ tag: "ul", attrs: { type: TextLineType.LIST_UNORDERED } }],
     },
-    lineListNumber: {
+    lineListOrdered: {
       group: "line",
       content: "span*",
-      attrs: { id: { default: null }, type: { default: TextLineType.LIST_NUMBERED } },
+      attrs: { id: { default: null }, type: { default: TextLineType.LIST_ORDERED } },
       toDOM(node) {
         return LIST_NUMBERED_DOM;
       },
-      parseDOM: [{ tag: "ol", attrs: { type: TextLineType.LIST_NUMBERED } }],
-    },
-    lineListChecked: {
-      group: "line",
-      content: "span*",
-      attrs: { id: { default: null }, type: { default: TextLineType.LIST_CHECKED } },
-      toDOM(node) {
-        return LIST_CHECKED_DOM;
-      },
-      parseDOM: [{ tag: "li.list-checked", attrs: { type: TextLineType.LIST_CHECKED } }],
-    },
-    lineListUnchecked: {
-      group: "line",
-      content: "span*",
-      attrs: { id: { default: null }, type: { default: TextLineType.LIST_UNCHECKED } },
-      toDOM(node) {
-        return LIST_UNCHECKED_DOM;
-      },
-      parseDOM: [{ tag: "li.list-unchecked", attrs: { type: TextLineType.LIST_UNCHECKED } }],
+      parseDOM: [{ tag: "ol", attrs: { type: TextLineType.LIST_ORDERED } }],
     },
     // presentation
     lineDivider: {
@@ -478,6 +458,10 @@ export function mapTextToPmNode(lines: TextLineInterface[], prev: PmNode | undef
       lineNode = schema.node("lineCallout", attrs, spanNodes);
     } else if (line.type == TextLineType.CODE) {
       lineNode = schema.node("lineCode", attrs, spanNodes);
+    } else if (line.type == TextLineType.LIST_UNORDERED) {
+      lineNode = schema.node("lineListUnordered", attrs, spanNodes);
+    } else if (line.type == TextLineType.LIST_ORDERED) {
+      lineNode = schema.node("lineListOrdered", attrs, spanNodes);
     } else {
       throw new Error(`unexpected line type: ${line.type}`);
     }

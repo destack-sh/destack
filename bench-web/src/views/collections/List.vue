@@ -91,7 +91,7 @@ defineExpose<ViewExposed & { total: Ref<number | undefined>; roots: Ref<AnyNodeD
         <!-- Icon -->
         <IconInline
           v-bind="getNodeIcon(node)"
-          class="mr-1.5 w-5 text-center text-gray-700 transition-colors duration-75"
+          class="mr-1 w-5 text-center text-gray-700 transition-colors duration-75"
         />
         <span class="max-w-full select-none truncate">{{ getNodeName(node) ?? "???" }}</span>
         <!-- Metadata -->

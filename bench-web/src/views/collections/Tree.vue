@@ -386,7 +386,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             }"
           />
           <!-- Icon/Expand button -->
-          <button class="group/icon relative mr-1.5 flex-shrink-0" aria-hidden @click.stop="() => toggleExpanded(node)">
+          <button class="group/icon relative mr-1 flex-shrink-0" aria-hidden @click.stop="() => toggleExpanded(node)">
             <IconInline
               v-bind="getNodeIcon(node)"
               class="w-5 text-center transition-colors duration-75"

@@ -11134,21 +11134,13 @@ export enum BlockType {
      */
     QUOTE = 10021,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_LIST_BULLET = 10030;
+     * @generated from protobuf enum value: BLOCK_TYPE_LIST_UNORDERED = 10030;
      */
-    LIST_BULLET = 10030,
+    LIST_UNORDERED = 10030,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_LIST_NUMBERED = 10031;
+     * @generated from protobuf enum value: BLOCK_TYPE_LIST_ORDERED = 10031;
      */
-    LIST_NUMBERED = 10031,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_LIST_UNCHECKED = 10032;
-     */
-    LIST_UNCHECKED = 10032,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_LIST_CHECKED = 10033;
-     */
-    LIST_CHECKED = 10033,
+    LIST_ORDERED = 10031,
     /**
      * @generated from protobuf enum value: BLOCK_TYPE_DIVIDER = 10040;
      */
@@ -11211,21 +11203,13 @@ export enum TextLineType {
      */
     QUOTE = 21,
     /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_BULLET = 30;
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_UNORDERED = 30;
      */
-    LIST_BULLET = 30,
+    LIST_UNORDERED = 30,
     /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_NUMBERED = 31;
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_ORDERED = 31;
      */
-    LIST_NUMBERED = 31,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_UNCHECKED = 32;
-     */
-    LIST_UNCHECKED = 32,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_CHECKED = 33;
-     */
-    LIST_CHECKED = 33,
+    LIST_ORDERED = 31,
     /**
      * @generated from protobuf enum value: TEXT_LINE_TYPE_DIVIDER = 40;
      */
@@ -35264,8 +35248,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.07.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.07.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35296,8 +35280,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.07.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.07.3", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.08.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -37149,10 +37133,8 @@ export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
   [BlockType.HEADING_4]: { id: 10013, name: 'HEADING_4', text: 'Small heading' },
   [BlockType.CALLOUT]: { id: 10020, name: 'CALLOUT', text: 'Callout to something important' },
   [BlockType.QUOTE]: { id: 10021, name: 'QUOTE', text: 'Quote from someone' },
-  [BlockType.LIST_BULLET]: { id: 10030, name: 'LIST_BULLET', text: 'Bullet list' },
-  [BlockType.LIST_NUMBERED]: { id: 10031, name: 'LIST_NUMBERED', text: 'Numbered list' },
-  [BlockType.LIST_UNCHECKED]: { id: 10032, name: 'LIST_UNCHECKED', text: 'Unchecked list' },
-  [BlockType.LIST_CHECKED]: { id: 10033, name: 'LIST_CHECKED', text: 'Checked list' },
+  [BlockType.LIST_UNORDERED]: { id: 10030, name: 'LIST_UNORDERED', text: 'Unorderd list' },
+  [BlockType.LIST_ORDERED]: { id: 10031, name: 'LIST_ORDERED', text: 'Numbered list' },
   [BlockType.DIVIDER]: { id: 10040, name: 'DIVIDER', text: 'Horizontal line' },
   [BlockType.TABLE]: { id: 10050, name: 'TABLE', text: 'Table of data' },
   [BlockType.TABLE_ROW]: { id: 10051, name: 'TABLE_ROW', text: 'Row of a table' },
@@ -37169,10 +37151,8 @@ export const TextLineTypeOptionInfo: Partial<Record<TextLineType, EnumOptionInfo
   [TextLineType.HEADING_4]: { id: 13, name: 'HEADING_4', text: 'Small heading' },
   [TextLineType.CALLOUT]: { id: 20, name: 'CALLOUT', text: 'Callout' },
   [TextLineType.QUOTE]: { id: 21, name: 'QUOTE', text: 'Quote' },
-  [TextLineType.LIST_BULLET]: { id: 30, name: 'LIST_BULLET', text: 'Bullet list' },
-  [TextLineType.LIST_NUMBERED]: { id: 31, name: 'LIST_NUMBERED', text: 'Numbered list' },
-  [TextLineType.LIST_UNCHECKED]: { id: 32, name: 'LIST_UNCHECKED', text: 'Unchecked list' },
-  [TextLineType.LIST_CHECKED]: { id: 33, name: 'LIST_CHECKED', text: 'Checked list' },
+  [TextLineType.LIST_UNORDERED]: { id: 30, name: 'LIST_UNORDERED', text: 'Unorderd list' },
+  [TextLineType.LIST_ORDERED]: { id: 31, name: 'LIST_ORDERED', text: 'Numbered list' },
   [TextLineType.DIVIDER]: { id: 40, name: 'DIVIDER', text: 'Horizontal line' },
   [TextLineType.TABLE]: { id: 50, name: 'TABLE', text: 'Table' },
   [TextLineType.TABLE_ROW]: { id: 51, name: 'TABLE_ROW', text: 'Table row' },
