@@ -1,12 +1,20 @@
 <script lang="ts" setup>
 import { STRING_TYPE, typeIsNumeric } from "@/language/core/type";
 import { checkValueScalar, checkValueScalarConstraint } from "@/language/core/value";
-import { Alignment, ColorShade, NodeType, PrimitiveType, ViewType, type ViewData } from "@/proto/wire";
+import {
+  Alignment,
+  ColorShade,
+  NodeReferenceData,
+  NodeType,
+  PrimitiveType,
+  ViewType,
+  type ViewData,
+} from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import { getNativeConstraintProps, TEXT_DIRECTION_BY_ALIGNMENT } from "@/ui/view";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
 import { useElementSize } from "@vueuse/core";
 import { computed, Ref, ref, toRef, watch } from "vue";
 
@@ -121,7 +129,15 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed & { select: () => void }>({
   self,
   id,
-  focus: () => inputRef.value,
+  focus: (anchor: FocusAnchor | NodeReferenceData | undefined = "right") => {
+    if (anchor == "left") {
+      inputRef.value?.focus();
+      inputRef.value?.setSelectionRange(0, 0);
+    } else {
+      inputRef.value?.focus();
+      inputRef.value?.setSelectionRange(inputRef.value?.value?.length ?? 0, inputRef.value?.value?.length ?? 0);
+    }
+  },
   select: () => {
     if (inputRef.value != null) inputRef.value.select();
   },
@@ -159,7 +175,25 @@ defineExpose<ViewExposed & { select: () => void }>({
         v-bind="getNativeConstraintProps(valueType?.constraint)"
         :disabled="isDisabled"
         :aria-hidden="ariaHidden"
-        @keydown.enter.stop.prevent="emit('apply', currentValue)"
+        @keydown.left.stop="
+          () => {
+            // only if we're at the start of the input
+            if (inputRef?.selectionStart == 0) {
+              emit('navigate', 'left');
+            }
+          }
+        "
+        @keydown.right.stop="
+          () => {
+            // only if we're at the end of the input
+            if (inputRef?.selectionEnd == inputRef?.value?.length) {
+              emit('navigate', 'right');
+            }
+          }
+        "
+        @keydown.up.stop="() => emit('navigate', 'up')"
+        @keydown.down.stop="() => emit('navigate', 'down')"
+        @keydown.enter.stop.prevent="() => (emit('apply', currentValue), emit('navigate', 'down'))"
         @input="currentValue = ($event.target as HTMLInputElement).value"
       />
       <!-- Invisible input to measure width -->
@@ -204,7 +238,7 @@ defineExpose<ViewExposed & { select: () => void }>({
         :size="isMinimal ? size : undefined"
         :disabled="isDisabled"
         :aria-hidden="ariaHidden"
-        @keydown.enter.stop.prevent="addCurrentValue(), $nextTick(() => inputRef?.focus())"
+        @keydown.enter.stop.prevent="(addCurrentValue(), $nextTick(() => inputRef?.focus()))"
         @input="currentValue = ($event.target as HTMLInputElement).value"
       />
       <!-- Add to list-->
@@ -213,7 +247,7 @@ defineExpose<ViewExposed & { select: () => void }>({
         class="hover:text-pgrayrimary-700 mr-2 self-center text-gray-400 opacity-0 group-hover:opacity-100"
         aria-hidden
         tabindex="-1"
-        @click.stop="addNewValue(), $nextTick(() => inputRef?.focus())"
+        @click.stop="(addNewValue(), $nextTick(() => inputRef?.focus()))"
       >
         <i class="fas fa-plus" />
       </button>

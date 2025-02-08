@@ -1,6 +1,5 @@
 import { supergraph } from "@/globals";
 import { getBaseFromNodeReference } from "@/language/core/const";
-import { defaultSortStruct } from "@/language/core/order";
 import { uploadFile } from "@/language/resource/file";
 import {
   BlockData,
@@ -18,10 +17,10 @@ import { bench, pkgConnection } from "@/system/space";
 import { type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
 import { DEFAULT_MISSING_ICON, getNodeIcon, getNodeName, ICON_BY_NODE_TYPE } from "@/ui/icon";
-import {} from "@/ui/prosemirror";
 import { getColorHex } from "@/ui/style";
-import { copy, cyrb53a } from "@/utils/functools";
+import { cyrb53a } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
+import { FocusAnchor, NavigationDirection } from "@/views/common";
 import { whenever } from "@vueuse/core";
 import * as commands from "prosemirror-commands";
 import { dropCursor } from "prosemirror-dropcursor";
@@ -37,20 +36,17 @@ import {
   smartQuotes,
 } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
-import { Node as PmNode } from "prosemirror-model";
+import { Node as PmNode, NodeType as PmNodeType, Schema as PmSchema, type DOMOutputSpec } from "prosemirror-model";
 import {
   Command,
-  Selection as EditorSelection,
   EditorState,
   Plugin,
+  Transaction as PmTransaction,
   TextSelection,
   type SelectionBookmark as EditorSelectionBookmark,
 } from "prosemirror-state";
 import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
-import { computed, onBeforeUnmount, toRef, watch, type Ref } from "vue";
-
-import { NodeType as PmNodeType, Schema as PmSchema, type DOMOutputSpec } from "prosemirror-model";
-import { Transaction as PmTransaction } from "prosemirror-state";
+import { computed, onBeforeUnmount, watch, type Ref } from "vue";
 
 export type TextMarkType = "bold" | "italic" | "strikethrough" | "underline";
 
@@ -62,16 +58,18 @@ const H4_DOM: DOMOutputSpec = ["h4", { class: "line" }, 0];
 const HR_DOM: DOMOutputSpec = ["hr", { clas: "line" }];
 const CALLOUT_DOM: DOMOutputSpec = ["div", { class: "line callout" }, 0];
 const QUOTE_DOM: DOMOutputSpec = ["blockquote", { class: "line" }, 0];
+const LIST_BULLET_DOM: DOMOutputSpec = ["ul", { class: "line" }, 0];
+const LIST_NUMBERED_DOM: DOMOutputSpec = ["ol", { class: "line" }, 0];
+const LIST_CHECKED_DOM: DOMOutputSpec = ["li", { class: "line list-checked" }, 0];
+const LIST_UNCHECKED_DOM: DOMOutputSpec = ["li", { class: "line list-unchecked" }, 0];
+const LINE_CODE_DOM: DOMOutputSpec = ["code", { class: "line" }, 0];
 
-const STRONG_DOM: DOMOutputSpec = ["strong", 0];
-const ITALIC_DOM: DOMOutputSpec = ["em", 0];
-const STRIKETHROUGH_DOM: DOMOutputSpec = ["s", 0];
-const UNDERLINE_DOM: DOMOutputSpec = ["u", 0];
-const CODE_DOM: DOMOutputSpec = ["code", 0];
-const LIST_BULLET_DOM: DOMOutputSpec = ["ul", 0];
-const LIST_NUMBERED_DOM: DOMOutputSpec = ["ol", 0];
-const LIST_CHECKED_DOM: DOMOutputSpec = ["li", { class: "list-checked" }, 0];
-const LIST_UNCHECKED_DOM: DOMOutputSpec = ["li", { class: "list-unchecked" }, 0];
+const SPAN_STRONG_DOM: DOMOutputSpec = ["strong", 0];
+const SPAN_ITALIC_DOM: DOMOutputSpec = ["em", 0];
+const SPAN_STRIKETHROUGH_DOM: DOMOutputSpec = ["s", 0];
+const SPAN_UNDERLINE_DOM: DOMOutputSpec = ["u", 0];
+const SPAN_CODE_DOM: DOMOutputSpec = ["code", 0];
+const SPAN_HARD_BREAK_DOM: DOMOutputSpec = ["br"];
 
 export const PM_SCHEMA = new PmSchema({
   nodes: {
@@ -173,7 +171,7 @@ export const PM_SCHEMA = new PmSchema({
       parseDOM: [{ tag: "hr" }],
     },
     // table
-    // ...
+    // ... TODO
     // code
     lineCode: {
       group: "line",
@@ -181,7 +179,7 @@ export const PM_SCHEMA = new PmSchema({
       attrs: { id: { default: null }, type: { default: TextLineType.CODE } },
       code: true,
       toDOM(node) {
-        return CODE_DOM;
+        return SPAN_CODE_DOM;
       },
       parseDOM: [{ tag: "code", attrs: { type: TextLineType.CODE } }],
     },
@@ -196,7 +194,7 @@ export const PM_SCHEMA = new PmSchema({
       inline: true,
       selectable: false,
       toDOM() {
-        return ["br"];
+        return SPAN_HARD_BREAK_DOM;
       },
       parseDOM: [{ tag: "br" }],
     },
@@ -207,7 +205,7 @@ export const PM_SCHEMA = new PmSchema({
       atom: true,
       marks: "",
       attrs: { nodePtr: {}, type: { default: TextSpanType.NODE } },
-      // render manually, can't parse mention nodes
+      // render manually, can't parse nodes
     },
     spanLink: {
       group: "span",
@@ -233,11 +231,18 @@ export const PM_SCHEMA = new PmSchema({
       attrs: { id: { default: null }, type: { default: TextSpanType.CODE } },
       marks: "",
       toDOM(node) {
-        return CODE_DOM;
+        return SPAN_CODE_DOM;
       },
       parseDOM: [{ tag: "code", attrs: { type: TextSpanType.CODE } }],
     },
-    // TODO: spanEquation
+    spanEquation: {
+      group: "span",
+      inline: true,
+      code: true,
+      attrs: { id: { default: null }, type: { default: TextSpanType.EQUATION } },
+      marks: "",
+      // render manually & can't parse equation nodes
+    },
   },
   marks: {
     // basic options
@@ -252,7 +257,7 @@ export const PM_SCHEMA = new PmSchema({
         },
       ],
       toDOM() {
-        return STRONG_DOM;
+        return SPAN_STRONG_DOM;
       },
     },
     italic: {
@@ -263,19 +268,19 @@ export const PM_SCHEMA = new PmSchema({
         { style: "font-style=normal", clearMark: (m) => m.type.name == "em" },
       ],
       toDOM() {
-        return ITALIC_DOM;
+        return SPAN_ITALIC_DOM;
       },
     },
     strikethrough: {
       parseDOM: [{ tag: "s" }, { tag: "del" }, { tag: "strike" }],
       toDOM() {
-        return STRIKETHROUGH_DOM;
+        return SPAN_STRIKETHROUGH_DOM;
       },
     },
     underline: {
       parseDOM: [{ tag: "u" }, { style: "text-decoration=underline" }],
       toDOM() {
-        return UNDERLINE_DOM;
+        return SPAN_UNDERLINE_DOM;
       },
     },
     // colors
@@ -317,10 +322,11 @@ export const PM_INPUT_RULES: InputRule[] = [
   lineDividerRule,
   lineTypeRule(">", PM_SCHEMA.nodes.lineQuote, TextLineType.QUOTE),
   lineTypeRule("!", PM_SCHEMA.nodes.lineCallout, TextLineType.CALLOUT),
+  lineTypeRule("```", PM_SCHEMA.nodes.lineCode, TextLineType.CODE),
 ];
 
 /* Convert non-plain text nodes to plain text nodes when deleting */
-function convertToPlainOrDelete(state: EditorState, dispatch?: (tr: PmTransaction) => void) {
+function convertToParagraphOrDelete(state: EditorState, dispatch?: (tr: PmTransaction) => void) {
   const { $from, $to } = state.selection;
   if (!dispatch) {
     return false;
@@ -345,11 +351,6 @@ function convertToPlainOrDelete(state: EditorState, dispatch?: (tr: PmTransactio
   }
 }
 
-// Keymap integration
-export const PM_KEYMAP_EXTRA = {
-  Backspace: convertToPlainOrDelete,
-};
-
 //
 // Mapping
 //
@@ -371,14 +372,20 @@ export function useTextInterface(
   modelValue: Readonly<Ref<TextData | undefined | null>>,
   update: (text: TextData) => void,
 ) {
-  const lines = computed(() => (modelValue.value?.lines ?? []).map((line) => ({ line, blockPtr: undefined })));
+  const lines = computed(() => {
+    const lines: TextLineInterface[] = [];
+    for (const line of modelValue.value?.lines ?? []) {
+      lines.push({ line, blockPtr: undefined });
+    }
+    return lines;
+  });
 
   function read(): TextLineInterface[] {
     return lines.value;
   }
 
   function write(lines: TextLineInterface[]) {
-    update({ metatype: ObjectType.TEXT, lines: lines.map(({ line }) => line) });
+    // update({ metatype: ObjectType.TEXT, lines: lines.map(({ line }) => line) }); // TODO
   }
 
   return { read, write };
@@ -416,23 +423,29 @@ export function useTextBlockGroupInterface(blocks: Ref<BlockData[]>) {
 export function mapTextToPmNode(lines: TextLineInterface[], prev: PmNode | undefined): PmNode {
   const schema = PM_SCHEMA;
 
-  // map lines
+  // lines
   const lineNodes: PmNode[] = [];
   for (const { line, blockPtr } of lines) {
-    // map spans
+    // spans
     const spanNodes: PmNode[] = [];
     for (const span of line.spans) {
       let spanNode;
-      if (span.content == "\n") {
-        spanNode = schema.node("hardBreak");
-      } else if (span.content != null) {
-        spanNode = schema.text(span.content);
-      } else if (span.nodePtr != null) {
-        spanNode = schema.node("mention", { nodePtr: span.nodePtr });
+      if (span.type == TextSpanType.TEXT) {
+        spanNode = schema.text(span.content ?? "");
+      } else if (span.type == TextSpanType.HARD_BREAK) {
+        spanNode = schema.node("spanHardBreak");
+      } else if (span.type == TextSpanType.NODE) {
+        spanNode = schema.node("spanNode", { nodePtr: span.nodePtr });
+      } else if (span.type == TextSpanType.LINK) {
+        spanNode = schema.node("spanLink", { content: span.content, href: span.url });
+      } else if (span.type == TextSpanType.CODE) {
+        spanNode = schema.node("spanCode", { content: span.content });
+      } else if (span.type == TextSpanType.EQUATION) {
+        spanNode = schema.node("spanEquation", { content: span.content });
       } else {
         throw new Error(`unexpected span: ${JSON.stringify(span)}`);
       }
-      // map marks
+      // marks
       const markTypes: TextMarkType[] = [];
       if (span.isBold) markTypes.push("bold");
       if (span.isItalic) markTypes.push("italic");
@@ -445,7 +458,7 @@ export function mapTextToPmNode(lines: TextLineInterface[], prev: PmNode | undef
       spanNodes.push(spanNode);
     }
 
-    // map line
+    // line
     let lineNode: PmNode;
     const attrs = { type: line.type, blockPtr };
     if (line.type == TextLineType.PARAGRAPH) {
@@ -463,13 +476,15 @@ export function mapTextToPmNode(lines: TextLineInterface[], prev: PmNode | undef
       lineNode = schema.node("lineQuote", attrs, spanNodes);
     } else if (line.type == TextLineType.CALLOUT) {
       lineNode = schema.node("lineCallout", attrs, spanNodes);
+    } else if (line.type == TextLineType.CODE) {
+      lineNode = schema.node("lineCode", attrs, spanNodes);
     } else {
       throw new Error(`unexpected line type: ${line.type}`);
     }
     lineNodes.push(lineNode);
   }
 
-  // map doc
+  // doc
   if (lineNodes.length == 0) {
     lineNodes.push(schema.node("lineParagraph")); // ensure at least one line
   }
@@ -488,12 +503,23 @@ export function mapPmNodeToText(node: PmNode): TextLineInterface[] {
     for (let spanIdx = 0; spanIdx < lineNode.childCount; spanIdx++) {
       const spanNode = lineNode.child(spanIdx);
       let span: TextSpanData;
-      if (spanNode.type.name == "hardBreak") {
+      if (spanNode.type.name == "spanHardBreak") {
         span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.HARD_BREAK, content: "\n" };
       } else if (spanNode.type.name == "text") {
         span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.TEXT, content: spanNode.text };
-      } else if (spanNode.type.name == "mention") {
+      } else if (spanNode.type.name == "spanNode") {
         span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.NODE, nodePtr: spanNode.attrs.nodePtr };
+      } else if (spanNode.type.name == "spanLink") {
+        span = {
+          metatype: ObjectType.TEXT_SPAN,
+          type: TextSpanType.LINK,
+          url: spanNode.attrs.href,
+          content: spanNode.text,
+        };
+      } else if (spanNode.type.name == "spanCode") {
+        span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.CODE, content: spanNode.text };
+      } else if (spanNode.type.name == "spanEquation") {
+        span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.EQUATION, content: spanNode.text };
       } else {
         throw new Error(`unexpected span node type: ${spanNode.type.name}`);
       }
@@ -523,8 +549,8 @@ export function mapPmNodeToText(node: PmNode): TextLineInterface[] {
   return lines;
 }
 
-/** Mini-component for PM mentions */
-class MentionView implements PmNodeView {
+/** Mini-component for PM Node spans */
+class SpanNodeView implements PmNodeView {
   dom: HTMLElement;
   nodePtr: NodeReferenceData;
   iconDom: HTMLElement;
@@ -533,7 +559,7 @@ class MentionView implements PmNodeView {
   constructor(pmNode: PmNode, view: EditorView) {
     this.dom = document.createElement("span");
     (this.dom as any).__pmView = this;
-    this.dom.classList.add("mention");
+    this.dom.classList.add("spanNode");
     this.dom.dataset.nodeType = pmNode.attrs.nodePtr.nodeType;
     this.dom.dataset.nodeId = pmNode.attrs.nodePtr.id;
     this.dom.dataset.nodeCk = pmNode.attrs.nodePtr.ck;
@@ -554,10 +580,10 @@ class MentionView implements PmNodeView {
     this.nameDom.classList.add("name");
     this.nameDom.textContent = "???";
 
-    this.updateMention();
+    this.updateNode();
   }
 
-  updateMention() {
+  updateNode() {
     const nodePtr = this.nodePtr;
     const node = supergraph.get(nodePtr);
     this.nameDom.textContent = (node != null ? getNodeName(node) : null) ?? "???";
@@ -582,12 +608,14 @@ export function useTextEditor(props: {
   isInput: Ref<boolean>;
   suppressEnter: Ref<boolean>;
   suppressDrop: Ref<boolean>;
+  navigate: (direction: NavigationDirection) => void;
+  deleteSelf: () => void;
 }) {
   const previousSelectionByState: Record<number, EditorSelectionBookmark> = {};
-  const { textRef, text, isInput, suppressEnter, suppressDrop } = props;
+  const { textRef, text, isInput, suppressEnter, suppressDrop, navigate, deleteSelf } = props;
 
+  // state
   const lines = computed(() => text.read());
-
   const nodePtrs: Ref<NodeReferenceData[]> = computed(() => {
     const nodePtrs: NodeReferenceData[] = [];
     for (const line of lines.value) {
@@ -601,15 +629,87 @@ export function useTextEditor(props: {
   const bases = supergraph.getManyRef(basePtrs);
   const nodes = supergraph.getManyRef(nodePtrs);
 
+  // prosemirror state
   function makeEditorState(options?: { restoreSelection?: boolean }): EditorState {
     const doc = mapTextToPmNode(lines.value, undefined);
-    let selection: EditorSelection | undefined = undefined;
+    // let selection: EditorSelection | undefined = undefined;
     if (options?.restoreSelection && doc != null) {
-      selection = previousSelectionByState[cyrb53a(doc)]?.resolve(doc);
+      // selection = previousSelectionByState[cyrb53a(doc)]?.resolve(doc); // TODO
     }
     const bindings: Record<string, Command> = {
       ...commands.baseKeymap,
-      ...PM_KEYMAP_EXTRA,
+      ArrowLeft: (state, dispatch) => {
+        const { $cursor } = state.selection as TextSelection;
+        if ($cursor && $cursor.pos == 1) {
+          navigate("left");
+          return true;
+        }
+        return false;
+      },
+      ArrowRight: (state, dispatch) => {
+        const { $cursor } = state.selection as TextSelection;
+        if ($cursor && $cursor.pos == state.doc.content.size - 1) {
+          navigate("right");
+          return true;
+        }
+        return false;
+      },
+      ArrowUp: (state, dispatch) => {
+        const { $cursor } = state.selection as TextSelection;
+        if ($cursor) {
+          let lineDepth: number | null = null;
+          // Traverse upward to find the nearest ancestor whose node type starts with "line"
+          for (let depth = $cursor.depth; depth > 0; depth--) {
+            const node = $cursor.node(depth);
+            if (node.type.name.startsWith("line")) {
+              lineDepth = depth;
+              break;
+            }
+          }
+          if (lineDepth !== null) {
+            // The parent of the line node is at depth lineDepth - 1.
+            // The index at lineDepth tells us the position of the line node in its parent's children.
+            const parent = $cursor.node(lineDepth - 1);
+            const index = $cursor.index(lineDepth);
+            if (index === 0) {
+              navigate("up");
+              return true;
+            }
+          }
+        }
+        return false;
+      },
+      ArrowDown: (state, dispatch) => {
+        const { $cursor } = state.selection as TextSelection;
+        if ($cursor) {
+          let lineDepth: number | null = null;
+          // Traverse upward to find the nearest ancestor whose node type starts with "line"
+          for (let depth = $cursor.depth; depth > 0; depth--) {
+            const node = $cursor.node(depth);
+            if (node.type.name.startsWith("line")) {
+              lineDepth = depth;
+              break;
+            }
+          }
+          if (lineDepth !== null) {
+            const parent = $cursor.node(lineDepth - 1);
+            const index = $cursor.index(lineDepth);
+            if (index === parent.childCount - 1) {
+              navigate("down");
+              return true;
+            }
+          }
+        }
+        return false;
+      },
+      Backspace: (state, dispatch) => {
+        const { empty, $cursor } = state.selection as TextSelection;
+        if (empty && $cursor && $cursor.pos == 1 && state.doc.textContent.length == 0) {
+          deleteSelf();
+          return true;
+        }
+        return convertToParagraphOrDelete(state, dispatch);
+      },
     };
     if (suppressEnter.value) {
       bindings["Shift-Enter"] = commands.baseKeymap["Enter"];
@@ -618,15 +718,15 @@ export function useTextEditor(props: {
     const state = EditorState.create({
       doc: doc,
       schema: PM_SCHEMA,
-      selection,
+      // selection,
       plugins: [keymap(bindings), inputRules({ rules: PM_INPUT_RULES })],
     });
     return state;
   }
 
+  // prosemirror view
   let view: EditorView | null = null;
   let lastAppliedModelValue: TextLineInterface[] = [];
-
   function makeEditorView(): EditorView {
     const plugins: Plugin[] = [];
     if (!props.suppressDrop) {
@@ -636,7 +736,7 @@ export function useTextEditor(props: {
       state: makeEditorState(),
       editable: () => isInput?.value ?? false,
       nodeViews: {
-        mention: (node, view, getPos) => new MentionView(node, view),
+        spanNode: (node, view, getPos) => new SpanNodeView(node, view),
       },
       plugins,
       dispatchTransaction(tx) {
@@ -659,16 +759,16 @@ export function useTextEditor(props: {
     return view;
   }
 
-  // sync mentions with mention views
+  // sync nodes with their views
   watch(
     nodes,
     () => {
       if (view == null) return;
-      view.dom.querySelectorAll(".mention").forEach((mentionDom) => {
-        if (!(mentionDom instanceof HTMLElement)) return;
-        const pmView = (mentionDom as any).__pmView as MentionView;
+      view.dom.querySelectorAll(".spanNode").forEach((nodeDom) => {
+        if (!(nodeDom instanceof HTMLElement)) return;
+        const pmView = (nodeDom as any).__pmView as SpanNodeView;
         if (pmView == null) return;
-        pmView.updateMention();
+        pmView.updateNode();
       });
     },
     { immediate: true },
@@ -677,7 +777,7 @@ export function useTextEditor(props: {
   // mount the editor view
   whenever(textRef, () => {
     if (view) throw new Error("view already exists");
-    lastAppliedModelValue = copy(lines.value);
+    lastAppliedModelValue = lines.value.map((l) => l);
     view = makeEditorView();
   });
   onBeforeUnmount(() => {
@@ -686,7 +786,7 @@ export function useTextEditor(props: {
   });
 
   // overwrite state from modelValue if different
-  watch(toRef(props, "modelValue"), () => {
+  watch(lines, () => {
     if (view == null) return;
     if (deepValueEquals(lines.value, lastAppliedModelValue)) return;
     const updatedState = makeEditorState({ restoreSelection: true });
@@ -694,9 +794,9 @@ export function useTextEditor(props: {
     lastAppliedModelValue = lines.value;
   });
 
-  function insertMention(nodePtr: NodeReferenceData, pos: { pos: number }) {
+  function insertNode(nodePtr: NodeReferenceData, pos: { pos: number }) {
     if (view == null) throw new Error("view not mounted");
-    const pmNode = PM_SCHEMA.node("mention", { nodePtr });
+    const pmNode = PM_SCHEMA.node("spanNode", { type: TextSpanType.NODE, nodePtr });
     view.dispatch(view.state.tr.insert(pos.pos, pmNode).insertText(" ", pos.pos + 1, pos.pos + 1));
   }
 
@@ -709,7 +809,7 @@ export function useTextEditor(props: {
     onDrop: (dragged, event) => {
       if (view == null) return;
       if (dragged.kind == "file") {
-        // upload files and insert as mentions at position (surrounded by spaces)
+        // upload files and insert as nodes at position (surrounded by spaces)
         if (dragged.files == null) return;
         const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
         if (pos == null) return; // not in editor
@@ -719,17 +819,18 @@ export function useTextEditor(props: {
           const upload = uploadFile(() => pkgConnection.tx, file, { bench: bench.value });
           await upload.completion.wait();
           if (view == null) throw new Error("view no mounted");
-          insertMention(toNodeRef(upload.file.value!), pos);
+          insertNode(toNodeRef(upload.file.value!), pos);
         });
       } else if (dragged.kind == "node") {
-        // insert node mention at position (surrounded by spaces)
+        // insert node at position (surrounded by spaces)
         const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
         if (pos == null) return; // not in editor
-        insertMention(toNodeRef(dragged.node), pos);
+        insertNode(toNodeRef(dragged.node), pos);
       }
     },
   });
 
+  // formatting
   function formatAction(mark: TextMarkType): ActionImplementation {
     return {
       isEnabled: () => isInput?.value ?? false,
@@ -750,6 +851,8 @@ export function useTextEditor(props: {
       },
     };
   }
+
+  // actions
   const actions: ActionMapImplementation<"text"> & Partial<ActionMapImplementation<"space">> = {
     // text
     "text.format.bold": formatAction("bold"),
@@ -761,7 +864,8 @@ export function useTextEditor(props: {
         // insert 'hardBreak' node at cursor
         if (view == null) return;
         const { from } = view.state.selection;
-        const hardBreak = PM_SCHEMA.node("hardBreak");
+        const hardBreak = PM_SCHEMA.node("spanHardBreak");
+        console.log("insert hardBreak", { from , hardBreak});
         view.dispatch(view.state.tr.insert(from, hardBreak));
       },
     },
@@ -774,11 +878,15 @@ export function useTextEditor(props: {
     },
   };
 
-  function focus() {
-    if (view) {
-      const { state } = view;
+  // focus the editor
+  function focus(anchor: FocusAnchor | NodeReferenceData = "bottom") {
+    if (view == null) throw new Error("view not mounted");
+    const { state } = view;
+    view.focus();
+    if (anchor == "top" || anchor == "left") {
+      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, 0)));
+    } else {
       const end = state.doc.content.size;
-      view.focus();
       view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, end)));
     }
   }

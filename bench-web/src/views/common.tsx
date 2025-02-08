@@ -17,13 +17,15 @@ export type ViewComponent = {
   exposed: ViewExposed;
 };
 
+export type NavigationDirection = "left" | "right" | "up" | "down";
 export type ViewEmits = {
   (e: "update:modelValue", modelValue: any, options?: ModelValueOptions): void;
   (e: "update:computedValues", computedValues: ComputedValueData[] | undefined): void;
   (e: "apply", value: any, keepOpen?: boolean): void;
   (e: "cancel"): void;
   (e: "close"): void;
-  (e: "navigate", direction: "left" | "right" | "up" | "down"): void;
+  (e: "deleteSelf"): void;
+  (e: "navigate", direction: NavigationDirection): void;
 };
 
 export type FocusAnchor = "left" | "right" | "top" | "bottom" | "center";

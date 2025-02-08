@@ -4,7 +4,7 @@ import { NodeType, TextData, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { useTextEditor, useTextInterface } from "@/ui/prosemirror";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
 import { ref, toRef } from "vue";
 
 const props = defineProps<
@@ -29,6 +29,8 @@ const { focus, actions, isInDropZone } = useTextEditor({
   isInput: toRef(props, "isInput"),
   suppressEnter: toRef(props, "suppressEnter"),
   suppressDrop: toRef(props, "suppressDrop"),
+  navigate: (direction: NavigationDirection) => emit("navigate", direction),
+  deleteSelf: () => emit("deleteSelf"),
 });
 
 canvas.registerView(self, id);
@@ -54,7 +56,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         class="pointer-events-none absolute"
         :class="!isMinimal ? 'left-2 top-1' : 'left-0.5 top-0.5'"
       >
-        <div class="text-sm text-gray-400">{{ placeholder }}</div>
+        <div class="text-base text-gray-400">{{ placeholder }}</div>
       </div>
     </template>
   </div>

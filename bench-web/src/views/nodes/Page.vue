@@ -32,14 +32,13 @@ import { ScrollbarWidth } from "@/ui/layout";
 import { useNodeListActions } from "@/ui/list";
 import { pushDefaultMenu } from "@/ui/popover";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
-import { blurDocument } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import TextBlockGroup from "@/views/builtins/TextBlockGroup.vue";
-import { type ViewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/nodes/Block.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
@@ -69,7 +68,8 @@ const page = graph.getRef(nodePtr) as Ref<PageData | undefined>;
 const blocks = graph.getChildrenRef(nodePtr, NodeType.BLOCK);
 
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
-const blockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
+const nodeBlockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
+const textBlockGroupRefs: Ref<Record<string, InstanceType<typeof TextBlockGroup>>> = ref({});
 const contentRef = ref<HTMLElement | null>(null);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
@@ -111,6 +111,7 @@ type BlockGroup =
       id: string;
       type: "node";
       block: BlockData;
+      blocks: BlockData[];
     };
 
 const groups = computed(() => {
@@ -133,22 +134,27 @@ const groups = computed(() => {
         });
       }
     } else {
-      groups.push({ id: block.id, type: "node", block });
+      groups.push({ id: block.id, type: "node", block, blocks: [block] });
     }
   }
   return groups;
 });
+const isEmpty = computed(
+  () => blocks.value.length == 0 || blocks.value.every((b) => b.type >= BlockType.PARAGRAPH && b.text == null),
+);
+function getGroupRef(group: BlockGroup) {
+  if (group.type == "text") {
+    return textBlockGroupRefs.value[group.id!];
+  } else {
+    return nodeBlockRefs.value[group.block.id!];
+  }
+}
 
 //
 // Interaction
 //
 
-const HIGHLIGHTED_BLOCK_TYPES = [
-  BlockType.PAGE,
-  BlockType.FLOW,
-  BlockType.DATABASE,
-  BlockType.CHOICE,
-];
+const HIGHLIGHTED_BLOCK_TYPES = [BlockType.PAGE, BlockType.FLOW, BlockType.DATABASE, BlockType.CHOICE];
 
 // selecting
 const selectionZone = useSelectionZone({ containerEl: contentRef, overlayEl: selectionOverlayRef });
@@ -157,7 +163,7 @@ const selectionZone = useSelectionZone({ containerEl: contentRef, overlayEl: sel
 const { activeDropZone } = useMultiDropZone({
   name: "page",
   container: contentRef,
-  targets: blockRefs,
+  targets: nodeBlockRefs,
   orientation: Orientation.VERTICAL,
   kinds: ["node", "selection", "file"],
   metatypes: [NodeType.BLOCK],
@@ -256,38 +262,80 @@ function createAndFocusBlock(
 }
 
 /** Focus or create text block at end of page. */
-function focusText() {
-  const lastBlock = blocks.value[blocks.value.length - 1];
-  if (lastBlock.type >= BlockType.PARAGRAPH) {
-    focus(lastBlock);
+function focusText(anchor: "top" | "bottom" = "bottom") {
+  if (anchor == "top") {
+    const firstBlock = blocks.value[0];
+    if (firstBlock.type >= BlockType.PARAGRAPH) {
+      focus(firstBlock);
+    } else {
+      createAndFocusBlock({ type: BlockType.PARAGRAPH }, "before", firstBlock);
+    }
   } else {
-    createAndFocusBlock({ type: BlockType.PARAGRAPH }, "after", lastBlock);
+    const lastBlock = blocks.value[blocks.value.length - 1];
+    if (lastBlock.type >= BlockType.PARAGRAPH) {
+      focus(lastBlock);
+    } else {
+      createAndFocusBlock({ type: BlockType.PARAGRAPH }, "after", lastBlock);
+    }
   }
+}
+
+// navigate
+function navigateFromGroup(group: BlockGroup, direction: NavigationDirection) {
+  const groupIdx = groups.value.indexOf(group);
+  if (direction == "up" || direction == "left") {
+    const prevGroup = groups.value[groupIdx - 1];
+    if (prevGroup != null) {
+      const prevGroupRef = getGroupRef(prevGroup);
+      prevGroupRef?.focus?.("bottom");
+    } else {
+      nameRef.value?.focusIdentifier("right");
+    }
+  } else if (direction == "down" || direction == "right") {
+    const nextGroup = groups.value[groupIdx + 1];
+    if (nextGroup != null) {
+      const nextGroupRef = getGroupRef(nextGroup);
+      nextGroupRef?.focus?.("top");
+    } else {
+      focusText("bottom");
+    }
+  }
+}
+
+function deleteGroup(group: BlockGroup) {
+  navigateFromGroup(group, "up");
+  const tx = connection.tx.with({ change: { key: newChangeId(), title: "Delete" } });
+  group.blocks.forEach((b) => tx.delete(b));
 }
 
 // focus
 // NOTE :UX: focus in Page should scroll into view but that sometimes pushes the root window out of frame somehow..
 function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData) {
-  let blockEl: InstanceType<typeof Block> | undefined;
+  let block: BlockData | undefined;
   if (typeof anchor != "object") {
     if (anchor != "bottom") {
-      blockEl = blockRefs.value[blocks.value[0].id!];
+      block = blocks.value[0];
     } else {
-      blockEl = blockRefs.value[blocks.value[blocks.value.length - 1].id!];
+      block = blocks.value[blocks.value.length - 1];
     }
   } else {
-    if (anchor.id == nodePtr.value?.id) {
-      // just focus first
-      if (blocks.value.length > 0) {
-        blockEl = blockRefs.value[blocks.value[0].id!];
-      }
-    } else {
-      blockEl = blockRefs.value[anchor.id!];
-    }
+    block = graph.get(anchor) as BlockData | undefined;
   }
 
-  blurDocument(); // nothing to focus directly
-  return blockEl?.$el;
+  if (block == null) {
+    // just focus page
+    focusText("bottom");
+  } else {
+    // focus containing group
+    if (block.type >= BlockType.PARAGRAPH) {
+      const group = groups.value.find((g) => g.type == "text" && g.blocks.some((b) => b.id == block.id));
+      const groupRef = textBlockGroupRefs.value[group!.id!];
+      groupRef?.focus?.();
+    } else {
+      const groupRef = nodeBlockRefs.value[block.id!];
+      groupRef?.focus?.();
+    }
+  }
 }
 const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
 
@@ -333,6 +381,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
             :node="page"
             is-input
             :tx="() => connection.tx"
+            @navigate="
+              (direction) => {
+                if (direction == 'right' || direction == 'down') {
+                  focusText('top');
+                }
+              }
+            "
           />
         </div>
 
@@ -342,6 +397,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <TextBlockGroup
             v-if="group.type == 'text'"
             :id="group.id"
+            :ref="(ref: any) => (ref ? (textBlockGroupRefs[group.id!] = ref) : delete textBlockGroupRefs[group.id!])"
             class="mx-auto rounded px-0.5"
             :blocks="group.blocks"
             :before-block="group.beforeBlock"
@@ -352,6 +408,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
             :style="{
               width: widths.block + 'px',
             }"
+            @navigate="(direction: NavigationDirection) => navigateFromGroup(group, direction)"
+            @delete-self="deleteGroup(group)"
           />
           <!-- Block -->
           <div
@@ -369,7 +427,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
             />
             <Block
               :id="group.block.id"
-              :ref="(ref: any) => (ref ? (blockRefs[group.block.id!] = ref) : delete blockRefs[group.block.id!])"
+              :ref="
+                (ref: any) => (ref ? (nodeBlockRefs[group.block.id!] = ref) : delete nodeBlockRefs[group.block.id!])
+              "
               class="w-full"
               :class="isDragging(group.block) ? 'opacity-50' : ''"
               :node-ptr="toNodeRef(group.block)"
@@ -379,26 +439,37 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :data-contextmenu-items="BLOCK_CONTEXT_ACTIONS.join(',')"
               :draggable="group.block.type == BlockType.PAGE"
               @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, group.block)"
+              @navigate="(direction: NavigationDirection) => navigateFromGroup(group, direction)"
+              @delete-self="deleteGroup(group)"
             />
           </div>
         </div>
 
         <!-- Footer -->
         <div
-          class="mx-auto my-4 flex flex-row justify-center gap-x-1.5"
+          class="group/footer mx-auto my-8 flex flex-row justify-center gap-x-1.5 text-base"
           :style="{
             width: widths.block + 'px',
           }"
-          @click="focusText()"
+          @click.stop="focusText()"
         >
           <!-- Add blocks -->
           <button
             v-for="blockType in HIGHLIGHTED_BLOCK_TYPES"
             data-suppress-drag="both"
-            class="rounded-2xl border border-gray-200 px-2 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
-            @click="() => createAndFocusBlock({ type: blockType as any }, 'inside', page!)"
+            class="rounded-2xl border border-gray-200 px-2 py-0.5 transition-colors duration-150"
+            :class="[
+              isEmpty
+                ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                : 'text-gray-400 hover:bg-gray-100 hover:text-gray-900 group-hover/footer:text-gray-700',
+            ]"
+            @click.stop="() => createAndFocusBlock({ type: blockType as any }, 'inside', page!)"
           >
-            <IconInline v-bind="ICON_BY_BLOCK_TYPE[blockType]" class="mr-1.5 w-5 text-center text-gray-700" />
+            <IconInline
+              v-bind="ICON_BY_BLOCK_TYPE[blockType]"
+              class="mr-1.5 w-5 text-center transition-colors duration-150"
+              :class="[isEmpty ? 'text-gray-700' : 'text-gray-400 group-hover/footer:text-gray-700']"
+            />
             <span>{{ toCamelName(BlockType, blockType) }}</span>
           </button>
         </div>

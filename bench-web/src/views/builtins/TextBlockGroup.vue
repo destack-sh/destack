@@ -4,7 +4,7 @@ import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { useTextBlockGroupInterface, useTextEditor, useTextInterface } from "@/ui/prosemirror";
-import { type ViewEmits, ViewExposed } from "@/views/common";
+import { NavigationDirection, type ViewEmits, ViewExposed } from "@/views/common";
 import { ref, toRef } from "vue";
 
 const props = defineProps<{
@@ -34,9 +34,11 @@ const { focus, actions, isInDropZone } = useTextEditor({
   isInput: toRef(props, "isInput"),
   suppressEnter: toRef(props, "suppressEnter"),
   suppressDrop: toRef(props, "suppressDrop"),
+  navigate: (direction: NavigationDirection) => emit("navigate", direction),
+  deleteSelf: () => emit("deleteSelf"),
 });
 
-defineExpose<ViewExposed>({ self, id, actions, focus });
+defineExpose<ViewExposed>({ self, id, actions, focus: (anchor) => focus(anchor) });
 </script>
 <template>
   <div
