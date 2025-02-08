@@ -144,7 +144,6 @@ const groups = computed(() => {
 //
 
 const HIGHLIGHTED_BLOCK_TYPES = [
-  BlockType.PARAGRAPH,
   BlockType.PAGE,
   BlockType.FLOW,
   BlockType.DATABASE,
@@ -256,6 +255,16 @@ function createAndFocusBlock(
   return block;
 }
 
+/** Focus or create text block at end of page. */
+function focusText() {
+  const lastBlock = blocks.value[blocks.value.length - 1];
+  if (lastBlock.type >= BlockType.PARAGRAPH) {
+    focus(lastBlock);
+  } else {
+    createAndFocusBlock({ type: BlockType.PARAGRAPH }, "after", lastBlock);
+  }
+}
+
 // focus
 // NOTE :UX: focus in Page should scroll into view but that sometimes pushes the root window out of frame somehow..
 function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData) {
@@ -332,9 +341,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Text block group -->
           <TextBlockGroup
             v-if="group.type == 'text'"
+            :id="group.id"
             class="mx-auto rounded px-0.5"
             :blocks="group.blocks"
             :before-block="group.beforeBlock"
+            is-input
             :after-block="group.afterBlock"
             :page="page"
             :connection="preparedConnection"
@@ -374,10 +385,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
         <!-- Footer -->
         <div
-          class="mx-auto mt-8 flex flex-row justify-center gap-x-1.5"
+          class="mx-auto my-4 flex flex-row justify-center gap-x-1.5"
           :style="{
             width: widths.block + 'px',
           }"
+          @click="focusText()"
         >
           <!-- Add blocks -->
           <button
@@ -392,20 +404,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         </div>
 
         <!-- Padding -->
-        <div
-          class="h-[320px]"
-          @click="
-            () => {
-              // focus or create text block at end
-              const lastBlock = blocks[blocks.length - 1];
-              if (lastBlock.type >= BlockType.PARAGRAPH) {
-                focus(lastBlock);
-              } else {
-                createAndFocusBlock({ type: BlockType.PARAGRAPH }, 'after', lastBlock);
-              }
-            }
-          "
-        />
+        <div class="h-[320px]" @click="focusText()" />
 
         <!-- Selection -->
         <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />

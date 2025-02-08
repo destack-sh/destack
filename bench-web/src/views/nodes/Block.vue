@@ -80,7 +80,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     ]"
     :data-suppress-drag="isPage ? 'select' : undefined"
     data-contextmenu-items="space.navigate.open"
-    @click="() => isPage && canvas.goToNode(block!)"
+    @click="() => isPage && canvas.goToNode(node!)"
   >
     <!-- Page -->
     <div v-if="node && block.type == BlockType.PAGE" class="flex h-[30px] flex-row items-center">

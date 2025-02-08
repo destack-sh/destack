@@ -3,6 +3,7 @@ import { getBaseFromNodeReference } from "@/language/core/const";
 import { defaultSortStruct } from "@/language/core/order";
 import { uploadFile } from "@/language/resource/file";
 import {
+  BlockData,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -69,8 +70,8 @@ const UNDERLINE_DOM: DOMOutputSpec = ["u", 0];
 const CODE_DOM: DOMOutputSpec = ["code", 0];
 const LIST_BULLET_DOM: DOMOutputSpec = ["ul", 0];
 const LIST_NUMBERED_DOM: DOMOutputSpec = ["ol", 0];
-const LIST_CHECKED_DOM: DOMOutputSpec = ["div", { class: "list-checked" }, 0];
-const LIST_UNCHECKED_DOM: DOMOutputSpec = ["div", { class: "list-unchecked" }, 0];
+const LIST_CHECKED_DOM: DOMOutputSpec = ["li", { class: "list-checked" }, 0];
+const LIST_UNCHECKED_DOM: DOMOutputSpec = ["li", { class: "list-unchecked" }, 0];
 
 export const PM_SCHEMA = new PmSchema({
   nodes: {
@@ -151,7 +152,7 @@ export const PM_SCHEMA = new PmSchema({
       toDOM(node) {
         return LIST_CHECKED_DOM;
       },
-      parseDOM: [{ tag: "div.list-checked", attrs: { type: TextLineType.LIST_CHECKED } }],
+      parseDOM: [{ tag: "li.list-checked", attrs: { type: TextLineType.LIST_CHECKED } }],
     },
     lineListUnchecked: {
       group: "line",
@@ -160,7 +161,7 @@ export const PM_SCHEMA = new PmSchema({
       toDOM(node) {
         return LIST_UNCHECKED_DOM;
       },
-      parseDOM: [{ tag: "div.list-unchecked", attrs: { type: TextLineType.LIST_UNCHECKED } }],
+      parseDOM: [{ tag: "li.list-unchecked", attrs: { type: TextLineType.LIST_UNCHECKED } }],
     },
     // presentation
     lineDivider: {
@@ -190,14 +191,40 @@ export const PM_SCHEMA = new PmSchema({
       inline: true,
       marks: "_", // all marks
     },
-    spanMention: {
+    spanHardBreak: {
+      group: "span",
+      inline: true,
+      selectable: false,
+      toDOM() {
+        return ["br"];
+      },
+      parseDOM: [{ tag: "br" }],
+    },
+    spanNode: {
       group: "span",
       draggable: true,
       inline: true,
       atom: true,
       marks: "",
-      attrs: { nodePtr: {} },
+      attrs: { nodePtr: {}, type: { default: TextSpanType.NODE } },
       // render manually, can't parse mention nodes
+    },
+    spanLink: {
+      group: "span",
+      inline: true,
+      marks: "",
+      attrs: { href: {} },
+      toDOM(node) {
+        return ["a", { href: node.attrs.href }, 0];
+      },
+      parseDOM: [
+        {
+          tag: "a",
+          getAttrs(dom) {
+            return { href: (dom as HTMLAnchorElement).href };
+          },
+        },
+      ],
     },
     spanCode: {
       group: "span",
@@ -210,17 +237,10 @@ export const PM_SCHEMA = new PmSchema({
       },
       parseDOM: [{ tag: "code", attrs: { type: TextSpanType.CODE } }],
     },
-    spanHardBreak: {
-      group: "span",
-      inline: true,
-      selectable: false,
-      toDOM() {
-        return ["br"];
-      },
-      parseDOM: [{ tag: "br" }],
-    },
+    // TODO: spanEquation
   },
   marks: {
+    // basic options
     bold: {
       parseDOM: [
         { tag: "strong" },
@@ -258,6 +278,8 @@ export const PM_SCHEMA = new PmSchema({
         return UNDERLINE_DOM;
       },
     },
+    // colors
+    // TODO: foregroundColor, backgroundColor
   },
 });
 
@@ -298,7 +320,7 @@ export const PM_INPUT_RULES: InputRule[] = [
 ];
 
 /* Convert non-plain text nodes to plain text nodes when deleting */
-function convertToPlainBeforeDelete(state: EditorState, dispatch?: (tr: PmTransaction) => void) {
+function convertToPlainOrDelete(state: EditorState, dispatch?: (tr: PmTransaction) => void) {
   const { $from, $to } = state.selection;
   if (!dispatch) {
     return false;
@@ -325,21 +347,78 @@ function convertToPlainBeforeDelete(state: EditorState, dispatch?: (tr: PmTransa
 
 // Keymap integration
 export const PM_KEYMAP_EXTRA = {
-  Backspace: convertToPlainBeforeDelete,
+  Backspace: convertToPlainOrDelete,
 };
 
 //
 // Mapping
 //
 
+/** TextLine + metadata */
+type TextLineInterface = {
+  line: TextLineData;
+  blockPtr: NodeReferenceData | undefined; // if the TextLine comes from a Block
+};
+
+/** Read/write source of Text */
+type TextInterface = {
+  read: () => TextLineInterface[];
+  write: (lines: TextLineInterface[]) => void;
+};
+
+/** Read/write directly from TextData. */
+export function useTextInterface(
+  modelValue: Readonly<Ref<TextData | undefined | null>>,
+  update: (text: TextData) => void,
+) {
+  const lines = computed(() => (modelValue.value?.lines ?? []).map((line) => ({ line, blockPtr: undefined })));
+
+  function read(): TextLineInterface[] {
+    return lines.value;
+  }
+
+  function write(lines: TextLineInterface[]) {
+    update({ metatype: ObjectType.TEXT, lines: lines.map(({ line }) => line) });
+  }
+
+  return { read, write };
+}
+
+/** Read/write Text from Blocks. */
+export function useTextBlockGroupInterface(blocks: Ref<BlockData[]>) {
+  const lines = computed(() => {
+    const lines: TextLineInterface[] = [];
+    for (const block of blocks.value) {
+      const line: TextLineData = block.text ?? {
+        metatype: ObjectType.TEXT_LINE,
+        type: TextLineType.PARAGRAPH,
+        spans: [],
+        cells: [],
+      };
+      const blockPtr = { metatype: ObjectType.NODE_REFERENCE, nodeType: NodeType.BLOCK, id: block.id, ck: block.ck };
+      lines.push({ line, blockPtr });
+    }
+    return lines;
+  });
+
+  function read(): TextLineInterface[] {
+    return lines.value;
+  }
+
+  function write(lines: TextLineInterface[]) {
+    // TODO
+  }
+
+  return { read, write };
+}
+
 /** Convert TextData to a PmNode. */
-export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNode {
+export function mapTextToPmNode(lines: TextLineInterface[], prev: PmNode | undefined): PmNode {
   const schema = PM_SCHEMA;
-  defaultSortStruct(text.lines);
 
   // map lines
   const lineNodes: PmNode[] = [];
-  for (const line of text.lines) {
+  for (const { line, blockPtr } of lines) {
     // map spans
     const spanNodes: PmNode[] = [];
     for (const span of line.spans) {
@@ -368,7 +447,7 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
 
     // map line
     let lineNode: PmNode;
-    const attrs = { type: line.type };
+    const attrs = { type: line.type, blockPtr };
     if (line.type == TextLineType.PARAGRAPH) {
       lineNode = schema.node("lineParagraph", attrs, spanNodes);
     } else if (
@@ -399,8 +478,8 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
 }
 
 /** Convert a PmNode to TextData. */
-export function mapPmNodeToText(node: PmNode): TextData {
-  const lines: TextLineData[] = [];
+export function mapPmNodeToText(node: PmNode): TextLineInterface[] {
+  const lines: TextLineInterface[] = [];
   for (let lineIdx = 0; lineIdx < node.childCount; lineIdx++) {
     const lineNode = node.child(lineIdx);
 
@@ -437,11 +516,11 @@ export function mapPmNodeToText(node: PmNode): TextData {
 
     // map line
     const line: TextLineData = { metatype: ObjectType.TEXT_LINE, type: lineNode.attrs.type, spans, cells: [] };
-    lines.push(line);
+    const blockPtr = lineNode.attrs.blockPtr;
+    lines.push({ line, blockPtr });
   }
 
-  const text: TextData = { metatype: ObjectType.TEXT, lines };
-  return text;
+  return lines;
 }
 
 /** Mini-component for PM mentions */
@@ -490,20 +569,29 @@ class MentionView implements PmNodeView {
   }
 }
 
+//
+// Editor
+//
+
+/**
+ * Install a Text editor on a DOM element.
+ */
 export function useTextEditor(props: {
   textRef: Ref<HTMLElement | null>;
-  modelValue: Ref<TextData | undefined | null>;
+  text: TextInterface;
   isInput: Ref<boolean>;
   suppressEnter: Ref<boolean>;
   suppressDrop: Ref<boolean>;
 }) {
   const previousSelectionByState: Record<number, EditorSelectionBookmark> = {};
-  const { textRef, modelValue, isInput, suppressEnter, suppressDrop } = props;
+  const { textRef, text, isInput, suppressEnter, suppressDrop } = props;
+
+  const lines = computed(() => text.read());
 
   const nodePtrs: Ref<NodeReferenceData[]> = computed(() => {
     const nodePtrs: NodeReferenceData[] = [];
-    for (const line of modelValue?.value?.lines ?? []) {
-      for (const span of line.spans ?? []) {
+    for (const line of lines.value) {
+      for (const span of line.line.spans ?? []) {
         if (span.nodePtr != null) nodePtrs.push(span.nodePtr);
       }
     }
@@ -511,13 +599,13 @@ export function useTextEditor(props: {
   });
   const basePtrs = computed(() => nodePtrs.value.map((ptr) => getBaseFromNodeReference(ptr)).filter((b) => b != null));
   const bases = supergraph.getManyRef(basePtrs);
-  const mentions = supergraph.getManyRef(nodePtrs);
+  const nodes = supergraph.getManyRef(nodePtrs);
 
-  function makeEditorState(text: TextData | undefined | null, options?: { restoreSelection?: boolean }): EditorState {
-    const doc = text != null ? mapTextToPmNode(text, undefined) : undefined;
+  function makeEditorState(options?: { restoreSelection?: boolean }): EditorState {
+    const doc = mapTextToPmNode(lines.value, undefined);
     let selection: EditorSelection | undefined = undefined;
     if (options?.restoreSelection && doc != null) {
-      selection = previousSelectionByState[cyrb53a(text)]?.resolve(doc);
+      selection = previousSelectionByState[cyrb53a(doc)]?.resolve(doc);
     }
     const bindings: Record<string, Command> = {
       ...commands.baseKeymap,
@@ -527,24 +615,25 @@ export function useTextEditor(props: {
       bindings["Shift-Enter"] = commands.baseKeymap["Enter"];
       bindings.Enter = () => true;
     }
-    return EditorState.create({
+    const state = EditorState.create({
       doc: doc,
       schema: PM_SCHEMA,
       selection,
       plugins: [keymap(bindings), inputRules({ rules: PM_INPUT_RULES })],
     });
+    return state;
   }
 
   let view: EditorView | null = null;
-  let lastAppliedModelValue: TextData | null = null;
+  let lastAppliedModelValue: TextLineInterface[] = [];
 
   function makeEditorView(): EditorView {
     const plugins: Plugin[] = [];
     if (!props.suppressDrop) {
       plugins.push(dropCursor({ width: 2, color: "#fbbf24" }));
     }
-    return new EditorView(textRef.value, {
-      state: makeEditorState(modelValue?.value),
+    const view = new EditorView(textRef.value, {
+      state: makeEditorState(),
       editable: () => isInput?.value ?? false,
       nodeViews: {
         mention: (node, view, getPos) => new MentionView(node, view),
@@ -563,16 +652,16 @@ export function useTextEditor(props: {
         }
         // also update the modelValue if underlying doc changed
         if (tx.docChanged) {
-          lastAppliedModelValue = updatedText;
-          // emit("update:modelValue", updatedText);
+          text.write(updatedText);
         }
       },
     });
+    return view;
   }
 
   // sync mentions with mention views
   watch(
-    mentions,
+    nodes,
     () => {
       if (view == null) return;
       view.dom.querySelectorAll(".mention").forEach((mentionDom) => {
@@ -588,7 +677,7 @@ export function useTextEditor(props: {
   // mount the editor view
   whenever(textRef, () => {
     if (view) throw new Error("view already exists");
-    lastAppliedModelValue = copy(modelValue?.value ?? null);
+    lastAppliedModelValue = copy(lines.value);
     view = makeEditorView();
   });
   onBeforeUnmount(() => {
@@ -599,10 +688,10 @@ export function useTextEditor(props: {
   // overwrite state from modelValue if different
   watch(toRef(props, "modelValue"), () => {
     if (view == null) return;
-    if (deepValueEquals(modelValue?.value, lastAppliedModelValue)) return;
-    const updatedState = makeEditorState(modelValue?.value, { restoreSelection: true });
+    if (deepValueEquals(lines.value, lastAppliedModelValue)) return;
+    const updatedState = makeEditorState({ restoreSelection: true });
     view.updateState(updatedState);
-    lastAppliedModelValue = modelValue?.value ?? null;
+    lastAppliedModelValue = lines.value;
   });
 
   function insertMention(nodePtr: NodeReferenceData, pos: { pos: number }) {

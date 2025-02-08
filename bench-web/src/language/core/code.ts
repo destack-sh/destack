@@ -1,10 +1,7 @@
-import { defaultSortStruct } from "@/language/core/order";
 import { ObjectType, type CodeData, type CodeLineData } from "@/proto/wire";
 import { Text as PmText } from "@codemirror/state";
 
 export function mapCodeToCmDoc(code: CodeData): string {
-  defaultSortStruct(code.lines);
-
   // map lines
   const linesPm: string[] = [];
   for (const line of code.lines) {
