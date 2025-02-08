@@ -117,7 +117,6 @@ export const ACTION_BUILTIN_IDS = [
   "text.format.italic",
   "text.format.strikethrough",
   "text.format.underline",
-  "text.format.code",
   "text.edit.hardBreak",
   // code
   "code.edit.format",
@@ -689,12 +688,6 @@ declareActions<"text">({
     title: "Underline",
     text: "Underline text",
     shortcuts: ["mod+u"],
-  },
-  "text.format.code": {
-    type: "toggle",
-    icon: "fas fa-code",
-    title: "Code",
-    text: "Code text",
   },
   // edit
   "text.edit.hardBreak": {

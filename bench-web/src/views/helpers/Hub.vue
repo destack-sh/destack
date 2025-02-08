@@ -211,7 +211,7 @@ defineExpose<ViewExposed>({ self });
               height: `${HEADER_HEIGHT}px`,
             }"
           >
-            <span class="font-medium text-gray-400">Pages</span>
+            <span class="font-medium">Pages</span>
             <!-- Create -->
             <button
               v-if="pkg != null"
@@ -242,7 +242,7 @@ defineExpose<ViewExposed>({ self });
               height: `${HEADER_HEIGHT}px`,
             }"
           >
-            <span class="font-medium text-gray-400">Channels</span>
+            <span class="font-medium">Channels</span>
             <!-- Create -->
             <button
               v-if="pkg != null"
@@ -277,7 +277,7 @@ defineExpose<ViewExposed>({ self });
               height: `${HEADER_HEIGHT}px`,
             }"
           >
-            <span class="font-medium text-gray-400">Outline</span>
+            <span class="font-medium">Outline</span>
           </div>
           <Tree
             id="outline"

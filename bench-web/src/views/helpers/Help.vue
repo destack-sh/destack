@@ -3,7 +3,7 @@ import { getBaseFromNode, toCamelName } from "@/language/core/const";
 import { useSubnodeProperty } from "@/language/core/node";
 import { isRunnable } from "@/language/runtime/run";
 import { HelpAspect, NodeType, Orientation, RunData, ViewData, ViewType } from "@/proto/wire";
-import { TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/runtime/runtime";
 import { canvas, inspectionPtr } from "@/system/space";
@@ -40,6 +40,14 @@ const state = canvas.registerView(self, id);
 const nodePtr = computedValue(() => props.nodePtr ?? inspectionPtr.value);
 const { node, connection } = supergraph.getLinkRef(nodePtr);
 const isNodeRunnable = computed(() => node.value != null && isRunnable(node.value));
+const delegatePtr = computed(() => {
+  if (isNode(node.value, NodeType.BLOCK)) {
+    return node.value.nodePtr;
+  } else {
+    return null;
+  }
+});
+const { node: delegate, connection: delegateConnection } = supergraph.getLinkRef(delegatePtr);
 
 // run
 const containingRun: Ref<RunData | null> = computed(() => {
@@ -93,7 +101,7 @@ defineExpose<ViewExposed>({ self });
   <div class="flex h-full w-full flex-col">
     <!-- Bench Header -->
     <div
-      class="mx-2 py-1.5 flex flex-shrink-0 flex-row items-center gap-x-1 rounded pl-2.5 pr-2.5"
+      class="mx-2 flex flex-shrink-0 flex-row items-center gap-x-1 rounded py-1.5 pl-2.5 pr-2.5"
       :style="{
         height: `${BAR_HEADER_HEIGHT}px`,
       }"
@@ -139,7 +147,7 @@ defineExpose<ViewExposed>({ self });
 
     <!-- Header -->
     <div
-      class="mx-3 pb-3 pt-1.5 flex flex-row items-center gap-x-2"
+      class="mx-3 flex flex-row items-center gap-x-2 pb-3 pt-1.5"
       :style="{
         height: `${HEADER_HEIGHT}px`,
       }"
@@ -176,7 +184,7 @@ defineExpose<ViewExposed>({ self });
         <SomeObject
           v-if="aspect == HelpAspect.DETAIL"
           id="detail"
-          :node-ptr="nodePtr"
+          :node-ptr="delegatePtr ?? nodePtr"
           is-input
           v-bind="state.getChildState('scroll.detail', { nodePtr, isInput: true, isMinimal: false })"
           data-contextmenu="ignore"
@@ -186,7 +194,7 @@ defineExpose<ViewExposed>({ self });
           v-else-if="aspect == HelpAspect.RUN"
           id="start"
           ref="startRef"
-          :node-ptr="nodePtr"
+          :node-ptr="delegatePtr ?? nodePtr"
           v-bind="state.getChildState('scroll.start', { nodePtr })"
           data-contextmenu="ignore"
         />
@@ -195,7 +203,7 @@ defineExpose<ViewExposed>({ self });
           v-else-if="aspect == HelpAspect.CHAT"
           id="chat"
           ref="chatRef"
-          :node-ptr="nodePtr"
+          :node-ptr="delegatePtr ?? nodePtr"
           v-bind="state.getChildState('scroll.chat', { nodePtr })"
           :size="{ width: size?.width, height: bodyHeight }"
           data-contextmenu="ignore"

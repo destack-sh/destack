@@ -599,6 +599,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 
       <!-- Action header -->
       <div
+        v-if="!isMinimal"
         class="flex w-full flex-row items-center gap-x-1"
         :style="{
           height: isMinimal ? undefined : `${ACTION_HEADER_HEIGHT}px`,
