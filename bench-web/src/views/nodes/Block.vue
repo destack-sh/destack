@@ -9,7 +9,7 @@ import type { ActionMapImplementation } from "@/ui/action";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type FocusAnchor, type ViewExposed, ModelValueOptions } from "@/views/common";
 import Text from "@/views/content/Text.vue";
 import Database from "@/views/nodes/Database.vue";
 import Flow from "@/views/nodes/Flow.vue";
@@ -24,7 +24,7 @@ const props = defineProps<
     containerGutterWidth?: number;
   } & Partial<Pick<ViewData, "isMinimal" | "nodePtr">>
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);

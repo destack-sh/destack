@@ -7,7 +7,7 @@ import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import { ObjectSection, useObjectLayout } from "@/ui/object";
 import { computedValue } from "@/utils/ref";
-import { ModelValueOptions, viewEmits, type ViewExposed } from "@/views/common";
+import { ModelValueOptions, ViewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
 import ComputedValue from "@/views/objects/ComputedValue.vue";
 import FieldList from "@/views/objects/FieldList.vue";
@@ -30,7 +30,7 @@ const props = defineProps<
 >();
 const modelValue = defineModel<any>("modelValue");
 const computedValues = defineModel<ComputedValueData[] | undefined>("computedValues");
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
@@ -67,9 +67,9 @@ function toggleSection(section: ObjectSection) {
   if (section.isDefaultCollapsed) {
     let newExpandedSections;
     if (isSectionExpanded(section)) {
-      newExpandedSections = expandedSections.value.filter((key) => key != section.key);
+      newExpandedSections = expandedSections.value.filter((key) => section.key && key != section.key);
     } else {
-      newExpandedSections = [...(expandedSections.value ?? []), section.key];
+      newExpandedSections = [...(expandedSections.value ?? []), section.key!];
     }
     state.update(
       { metatype: NodeType.VIEW, type: ViewType.OBJECT, subnode: { expandedSections: newExpandedSections } },
@@ -78,9 +78,9 @@ function toggleSection(section: ObjectSection) {
   } else {
     let newCollapsedSections;
     if (isSectionExpanded(section)) {
-      newCollapsedSections = [...(collapsedSections.value ?? []), section.key];
+      newCollapsedSections = [...(collapsedSections.value ?? []), section.key!];
     } else {
-      newCollapsedSections = collapsedSections.value.filter((key) => key != section.key);
+      newCollapsedSections = collapsedSections.value.filter((key) => section.key && key != section.key);
     }
     state.update(
       { metatype: NodeType.VIEW, type: ViewType.OBJECT, subnode: { collapsedSections: newCollapsedSections } },
@@ -192,7 +192,7 @@ defineExpose<ViewExposed>({ self, id });
             is-input
             :model-value="computer.get(row.computedPathKey)"
             :value-type="computedType"
-            @update:model-value="(value) => computer.set(row.computedPath!, value)"
+            @update:model-value="(value: any) => computer.set(row.computedPath!, value)"
           />
           <!-- Dynamic View -->
           <component

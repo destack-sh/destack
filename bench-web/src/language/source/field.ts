@@ -51,12 +51,13 @@ export function createField(
     parentPtr = toNodeRef(target);
     orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
     // figure out field kind based on block type
-    if (target.type == BlockType.CHOICE) {
+    const nodeAsType = nodeToType(target, "instance");
+    if (isNode(nodeAsType, NodeType.CHOICE)) {
       type = FieldType.OPTION;
       kind = TypeKind.LITERAL;
-    } else if (TYPE_NODE_TYPES.includes(target.type as unknown as NodeType)) {
+    } else if (TYPE_NODE_TYPES.includes(target.metatype as unknown as NodeType)) {
       type = FieldType.MEMBER;
-    } else if (RUNNABLE_NODE_TYPES.includes(target.type as unknown as NodeType)) {
+    } else if (RUNNABLE_NODE_TYPES.includes(target.metatype as unknown as NodeType)) {
       type = FieldType.INPUT;
     } else {
       type = FieldType.VARIABLE;
@@ -80,7 +81,7 @@ export function createField(
     // copy kind if none given
     kind = fieldIn?.kind ?? (target as FieldData).kind;
   } else {
-    assertNever(target, `unexpected target node type: ${describeNode(target)}`);
+    throw new Error(`unexpected target node type: ${describeNode(target)}`);
   }
 
   // type

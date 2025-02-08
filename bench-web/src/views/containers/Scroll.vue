@@ -3,7 +3,7 @@ import { NodeType, Orientation, RectangleData, ViewData } from "@/proto/wire/";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { ScrollbarWidth, useScrollArea } from "@/ui/layout";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const props = defineProps<
@@ -18,7 +18,7 @@ const props = defineProps<
     stickToEnd?: boolean;
   } & Pick<ViewData, "orientation">
 >();
-const emit = defineEmits({ ...viewEmits(), scroll: null });
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 

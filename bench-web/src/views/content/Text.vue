@@ -4,7 +4,7 @@ import { NodeType, TextData, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { useTextEditor, useTextInterface } from "@/ui/prosemirror";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import { ref, toRef } from "vue";
 
 const props = defineProps<
@@ -17,7 +17,7 @@ const props = defineProps<
     suppressDrop?: boolean;
   } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "isInput" | "isMinimal">>
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 

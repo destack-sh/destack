@@ -44,7 +44,7 @@ import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/u
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, tsToDt } from "@/utils/time";
 import RootHeader from "@/views/builtins/RootHeader.vue";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
 import Text from "@/views/content/Text.vue";
@@ -64,7 +64,7 @@ const props = defineProps<
     isRoot?: boolean;
   } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focus" | "selection" | "subnodePacked">>
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
@@ -598,7 +598,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                     }
                   "
                   @keydown.enter="
-                    (e) => {
+                    (e: KeyboardEvent) => {
                       if (!e.shiftKey) {
                         submitEdit();
                         stopEdit();
@@ -722,7 +722,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                     )
                 "
                 @keydown.enter="
-                  (e) => {
+                  (e: KeyboardEvent) => {
                     if (!e.shiftKey) {
                       e.preventDefault();
                       submit();

@@ -11,7 +11,7 @@ import { getNodeName, ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@
 import { ScrollbarWidth } from "@/ui/layout";
 import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 import Empty from "@/views/builtins/Empty.vue";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
@@ -25,7 +25,7 @@ const props = defineProps<
     size: Required<Pick<RectangleData, "width" | "height">>;
   } & Pick<ViewData, "focus">
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 

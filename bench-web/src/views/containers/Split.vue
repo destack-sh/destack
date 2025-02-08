@@ -7,7 +7,7 @@ import type { SplitLayout } from "@/ui/layout";
 import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView } from "@/ui/layout";
 import Empty from "@/views/builtins/Empty.vue";
 import type { ViewExposed } from "@/views/common";
-import { viewEmits } from "@/views/common";
+import { type ViewEmits } from "@/views/common";
 import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, ref, toRef, type Ref } from "vue";
 
@@ -19,7 +19,7 @@ const props = defineProps<
     isRoot?: boolean;
   } & Pick<ViewData, "type" | "name" | "title" | "icon" | "orientation" | "focus">
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 

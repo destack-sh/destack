@@ -40,7 +40,7 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
 import Pipe from "@/views/nodes/Pipe.vue";
 import FieldList from "@/views/objects/FieldList.vue";
@@ -59,7 +59,7 @@ const props = defineProps<
     isRoot?: boolean;
   } & Partial<Pick<ViewData, "icon" | "nodePtr" | "focus" | "transform" | "isMinimal">>
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
@@ -495,7 +495,7 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
             :node-ptr="toNodeRef(action)"
             :data-contextmenu-items="ACTION_CONTEXT_ACTIONS.join(',')"
             data-suppress-drag="select"
-            @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'action', action: action! })"
+            @mousedown="(e: MouseEvent) => flowCtx.startDraggingIfAllowed(e, { kind: 'action', action: action! })"
           />
           <!-- Pending Pipe (above Actions for clarity)-->
           <div v-if="flowCtx.draggable?.kind == 'port'" class="pointer-events-none absolute text-gray-700 opacity-50">

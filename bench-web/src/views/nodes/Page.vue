@@ -39,7 +39,7 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import TextBlockGroup from "@/views/builtins/TextBlockGroup.vue";
-import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/nodes/Block.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
@@ -57,7 +57,7 @@ const props = defineProps<
     isRoot?: boolean;
   } & Pick<ViewData, "name" | "icon" | "nodePtr" | "focus" | "isMinimal" | "selection">
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const nodePtr = computed(() => props.nodePtr);
@@ -315,7 +315,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
       track-is-overlay
-      @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
+      @mousedown="(e: MouseEvent) => startSelectingIfAllowed(selectionZone, e)"
     >
       <div ref="contentRef" class="flex min-h-full flex-col">
         <!-- Page header (title) -->
@@ -378,7 +378,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               v-bind="state.getChildState(group.block.id)"
               :data-contextmenu-items="BLOCK_CONTEXT_ACTIONS.join(',')"
               :draggable="group.block.type == BlockType.PAGE"
-              @dragstart.stop="(e) => startDraggingIfAllowed(e, group.block)"
+              @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, group.block)"
             />
           </div>
         </div>

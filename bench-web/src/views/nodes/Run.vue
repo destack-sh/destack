@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { getBaseFromNode } from "@/language/core/const";
-import { makeType } from "@/language/core/type";
 import { useSubnodeProperty } from "@/language/core/node";
+import { makeType } from "@/language/core/type";
 import { isRunnable, RunnableNode, VERB_BY_RUN_STATUS } from "@/language/runtime/run";
 import { getTransactionOptionsForType } from "@/language/runtime/transaction";
 import { ColorShade, FieldType, NodeType, RunData, RunStatus, TypeKind, ViewData, ViewType } from "@/proto/wire";
@@ -14,7 +14,7 @@ import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate } from "@/utils/time";
 import Error from "@/views/builtins/Error.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
-import { ModelValueOptions, viewEmits, type ViewExposed } from "@/views/common";
+import { ModelValueOptions, type ViewEmits, type ViewExposed } from "@/views/common";
 import SomeObject from "@/views/objects/Object.vue";
 import { computed, toRef, type Ref } from "vue";
 
@@ -28,7 +28,7 @@ const props = defineProps<
     id: string;
   } & Pick<ViewData, "nodePtr" | "focus" | "size" | "subnodePacked">
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
@@ -97,7 +97,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
           is-minimal
           :model-value="fieldType == FieldType.INPUT ? inputsPacked : variablesPacked"
           @update:model-value="
-            (value, options?: ModelValueOptions) => {
+            (value: any, options?: ModelValueOptions) => {
               const subnode = { [fieldType == FieldType.INPUT ? 'inputsPacked' : 'variablesPacked']: value };
               state.update(
                 { metatype: NodeType.VIEW, type: ViewType.RUN, subnode },

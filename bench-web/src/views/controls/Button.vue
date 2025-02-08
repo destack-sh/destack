@@ -3,7 +3,7 @@ import { ButtonVariant, ColorShade, NodeType, ViewData, ViewType } from "@/proto
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline } from "@/ui/icon";
 import { canvas } from "@/system/space";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 import { useSubnodeProperty } from "@/language/core/node";
 
@@ -12,7 +12,7 @@ const props = defineProps<
     Pick<ViewData, "name" | "title" | "icon" | "isDisabled" | "isLoading" | "subnodePacked">
   >
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const subnodePacked = toRef(props, "subnodePacked");

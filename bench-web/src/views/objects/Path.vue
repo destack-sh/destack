@@ -18,7 +18,7 @@ import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/globals";
 import { canvas } from "@/system/space";
 import { ICON_BY_STRUCT_TYPE } from "@/ui/icon";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import Picker from "@/views/content/Picker.vue";
 import { computed, toRef } from "vue";
 
@@ -28,7 +28,7 @@ const props = defineProps<
   >
 >();
 const modelValue = defineModel<PathData | undefined>();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);

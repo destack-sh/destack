@@ -24,7 +24,7 @@ import { getNodeColorHex, getRunColorHex } from "@/ui/style";
 import { focusInElement } from "@/ui/view";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Text from "@/views/content/Text.vue";
@@ -36,7 +36,7 @@ const props = defineProps<
     Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "transform">
   >
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);

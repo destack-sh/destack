@@ -2,7 +2,7 @@
 import { NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import { ref, toRef } from "vue";
 
 const props = defineProps<
@@ -10,7 +10,7 @@ const props = defineProps<
     Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "orientation" | "isInput" | "isDisabled" | "isMinimal">
   >
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const inputRef = ref<HTMLInputElement | null>(null);

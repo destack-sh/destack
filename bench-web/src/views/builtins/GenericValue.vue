@@ -4,7 +4,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { getViewForType } from "@/ui/view";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, toRef } from "vue";
 
@@ -17,7 +17,7 @@ const props = defineProps<
     size?: Partial<Pick<RectangleData, "width" | "height">>;
   } & Partial<Pick<ViewData, "name" | "title" | "icon" | "valueType" | "isInput" | "isInline" | "isDisabled">>
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 

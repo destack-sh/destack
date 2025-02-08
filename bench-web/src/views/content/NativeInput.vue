@@ -6,7 +6,7 @@ import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import { getNativeConstraintProps, TEXT_DIRECTION_BY_ALIGNMENT } from "@/ui/view";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import { useElementSize } from "@vueuse/core";
 import { computed, Ref, ref, toRef, watch } from "vue";
 
@@ -20,7 +20,7 @@ const props = defineProps<
     >
   >
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const valueType = computed(() => props.valueType ?? STRING_TYPE);
@@ -159,7 +159,7 @@ defineExpose<ViewExposed & { select: () => void }>({
         v-bind="getNativeConstraintProps(valueType?.constraint)"
         :disabled="isDisabled"
         :aria-hidden="ariaHidden"
-        @keydown.enter.stop.prevent="emit('apply')"
+        @keydown.enter.stop.prevent="emit('apply', currentValue)"
         @input="currentValue = ($event.target as HTMLInputElement).value"
       />
       <!-- Invisible input to measure width -->

@@ -200,5 +200,6 @@ InlineSourceNodeData = Union[
     RoleData,
     IdentityData,
 ]
+TypeBaseNodeData = Union[ChoiceData, ClassData, FlowData, ActionData, DatabaseData]
 StateNodeData = Union[ThreadData, MessageData, RecordData]
 RuntimeNodeData = Union[SessionData, RunData, RunSpanData, RunPlanData, InterruptionData, LogData]

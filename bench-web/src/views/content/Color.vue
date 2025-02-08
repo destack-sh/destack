@@ -4,7 +4,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { REAL_COLORS, getColorHex, getColorTitle, makeColor } from "@/ui/style";
-import { viewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
+import { type ViewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
 import { ref, toRef, type Ref } from "vue";
 
 const COLORS_PER_ROW = 9;
@@ -14,7 +14,7 @@ const props = defineProps<
     Pick<ViewData, "name" | "title" | "icon" | "valueType" | "isInput" | "isInline" | "isDisabled">
   >
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 

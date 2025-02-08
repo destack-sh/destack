@@ -12,7 +12,7 @@ import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import { computed, Ref, ref, toRef } from "vue";
 
 const ITEM_HEIGHT = 28;
@@ -20,7 +20,7 @@ const ITEM_HEIGHT = 28;
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<Pick<ViewData, "subnodePacked">>
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);

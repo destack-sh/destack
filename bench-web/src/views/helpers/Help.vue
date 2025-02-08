@@ -12,7 +12,7 @@ import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/u
 import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import SomeObject from "@/views/objects/Object.vue";
 import Run from "@/views/nodes/Run.vue";
@@ -31,7 +31,7 @@ const props = defineProps<
     "name" | "title" | "icon" | "nodePtr" | "size" | "subnodePacked"
   >
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
@@ -172,7 +172,7 @@ defineExpose<ViewExposed>({ self });
       :orientation="Orientation.VERTICAL"
       size-is-dynamic
       :size="{ width: size?.width, height: bodyHeight }"
-      @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
+      @mousedown="(e: MouseEvent) => startSelectingIfAllowed(selectionZone, e)"
     >
       <div
         ref="bodyRef"
