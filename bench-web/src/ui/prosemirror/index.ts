@@ -2,12 +2,15 @@ import { supergraph } from "@/globals";
 import { getBaseFromNodeReference } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { uploadFile } from "@/language/resource/file";
-import { Transaction } from "@/language/runtime/transaction";
+import { newChangeId, Transaction } from "@/language/runtime/transaction";
+import { createBlock } from "@/language/source/block";
 import {
   BlockData,
+  BlockType,
   NodeReferenceData,
   NodeType,
   ObjectType,
+  PageData,
   TextData,
   TextLineData,
   TextLineType,
@@ -20,7 +23,7 @@ import { type ActionImplementation, type ActionMapImplementation } from "@/ui/ac
 import { useDropZone } from "@/ui/drag";
 import { DEFAULT_MISSING_ICON, getNodeIcon, getNodeName, ICON_BY_NODE_TYPE } from "@/ui/icon";
 import { getColorHex } from "@/ui/style";
-import { cyrb53a } from "@/utils/functools";
+import { cyrb53a, groupByScalar } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
 import { FocusAnchor, NavigationDirection } from "@/views/common";
 import { whenever } from "@vueuse/core";
@@ -269,48 +272,6 @@ export const PM_SCHEMA = new PmSchema({
   },
 });
 
-function lineTypeRule(pattern: string | RegExp, nodeType: PmNodeType, type: TextLineType) {
-  const regexp = typeof pattern == "string" ? new RegExp(`^(${pattern})\\s$`) : pattern;
-  const rule = new InputRule(regexp, (state, match, start, end) => {
-    const { tr } = state;
-    tr.setBlockType(start, end, nodeType, { type });
-    tr.delete(start, end);
-    tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
-    return tr;
-  });
-  return rule;
-}
-const lineDividerRule = new InputRule(/(^---$)|(^—-$)/, (state, match, start, end) => {
-  const { tr } = state;
-  tr.replaceWith(start - 1, end, state.schema.nodes.lineDivider.create());
-  tr.insert(start, state.schema.nodes.lineParagraph.create());
-  tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
-  return tr;
-});
-
-export const PM_INPUT_RULES: InputRule[] = [
-  // existing rules
-  emDash,
-  ellipsis,
-  openDoubleQuote,
-  closeDoubleQuote,
-  openSingleQuote,
-  closeSingleQuote,
-  ...smartQuotes,
-  // line rules
-  lineTypeRule("#", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_1),
-  lineTypeRule("##", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_2),
-  lineTypeRule("###", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_3),
-  lineTypeRule("####", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_4),
-  lineDividerRule,
-  lineTypeRule(" -", PM_SCHEMA.nodes.lineListUnordered, TextLineType.LIST_UNORDERED),
-  lineTypeRule("-", PM_SCHEMA.nodes.lineListUnordered, TextLineType.LIST_UNORDERED),
-  lineTypeRule(/^[0-9a-z]+\.\s/, PM_SCHEMA.nodes.lineListOrdered, TextLineType.LIST_ORDERED),
-  lineTypeRule(">", PM_SCHEMA.nodes.lineQuote, TextLineType.QUOTE),
-  lineTypeRule("!", PM_SCHEMA.nodes.lineCallout, TextLineType.CALLOUT),
-  lineTypeRule("```", PM_SCHEMA.nodes.lineCode, TextLineType.CODE),
-];
-
 //
 // Mapping
 //
@@ -355,12 +316,16 @@ export function useTextInterface(options: {
 
 /** Read/write Text from Blocks. */
 export function useTextBlockGroupInterface(options: {
+  page: Ref<PageData>;
   blocks: Ref<BlockData[]>;
   graph: ReadNodeGraph;
   txFactory: () => Transaction;
 }) {
-  const { blocks, graph, txFactory } = options;
+  const { page, blocks, graph, txFactory } = options;
 
+  const blocksById: Ref<Record<string, BlockData>> = computed(() => groupByScalar(blocks.value, (b) => b.id));
+
+  // map blocks to lines
   const lines = computed(() => {
     const lines: TextLineInterface[] = [];
     for (const block of blocks.value) {
@@ -373,12 +338,11 @@ export function useTextBlockGroupInterface(options: {
       const blockPtr = {
         metatype: ObjectType.NODE_REFERENCE,
         nodeType: NodeType.BLOCK,
-        blockPtr: block.id,
+        id: block.id,
         ck: block.ck,
       };
       lines.push({ line, blockPtr });
     }
-    console.log("block.lines", { lines });
     return lines;
   });
 
@@ -386,9 +350,48 @@ export function useTextBlockGroupInterface(options: {
     return lines.value;
   }
 
+  /** Difference update the TextLines with Blocks. */
   function write(lines: TextLineInterface[]) {
-    console.log("block.write", { lines });
-    // TODO :Incomplete: TextTables
+    const lineByBlockId: Record<string, TextLineInterface> = {};
+    for (const line of lines) {
+      if (line.blockPtr?.id != null) {
+        lineByBlockId[line.blockPtr.id] = line;
+      }
+    }
+
+    const tx = txFactory().with({ change: { title: "Edit", key: newChangeId() } });
+    console.log("block.write", { lines, lineByBlockId });
+
+    // delete removed blocks
+    for (const block of blocks.value) {
+      if (lineByBlockId[block.id] == null) {
+        tx.delete(block);
+      }
+    }
+
+    // add new blocks
+    let prevBlockId: string | undefined = undefined;
+    for (const line of lines) {
+      if (line.blockPtr?.id != null) {
+        prevBlockId = line.blockPtr.id;
+      } else {
+        const prevBlock = blocksById.value[prevBlockId!];
+        const block = createBlock(tx, graph, {
+          block: { type: (line.line.type + 10_000) as any },
+          anchor: prevBlock != null ? "after" : "inside",
+          target: prevBlock ?? page.value,
+        });
+        line.blockPtr = toNodeRef(block);
+      }
+    }
+
+    // update blocks
+    for (const block of blocks.value) {
+      const line = lineByBlockId[block.id];
+      if (line != null && !deepValueEquals(block.text, line.line)) {
+        tx.update(block, { text: line.line }, { debounce: "long" });
+      }
+    }
   }
 
   return { read, write };
@@ -578,6 +581,154 @@ class SpanNodeView implements PmNodeView {
 // Editor
 //
 
+function lineTypeRule(pattern: string | RegExp, nodeType: PmNodeType, type: TextLineType) {
+  const regexp = typeof pattern == "string" ? new RegExp(`^(${pattern})\\s$`) : pattern;
+  const rule = new InputRule(regexp, (state, match, start, end) => {
+    const { tr } = state;
+    tr.setBlockType(start, end, nodeType, { type });
+    tr.delete(start, end);
+    tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
+    return tr;
+  });
+  return rule;
+}
+const lineDividerRule = new InputRule(/(^---$)|(^—-$)/, (state, match, start, end) => {
+  const { tr } = state;
+  tr.replaceWith(start - 1, end, state.schema.nodes.lineDivider.create());
+  tr.insert(start, state.schema.nodes.lineParagraph.create());
+  tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
+  return tr;
+});
+
+const PM_INPUT_RULES: InputRule[] = [
+  // existing rules
+  emDash,
+  ellipsis,
+  openDoubleQuote,
+  closeDoubleQuote,
+  openSingleQuote,
+  closeSingleQuote,
+  ...smartQuotes,
+  // line rules
+  lineTypeRule("#", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_1),
+  lineTypeRule("##", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_2),
+  lineTypeRule("###", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_3),
+  lineTypeRule("####", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_4),
+  lineDividerRule,
+  lineTypeRule(" -", PM_SCHEMA.nodes.lineListUnordered, TextLineType.LIST_UNORDERED),
+  lineTypeRule("-", PM_SCHEMA.nodes.lineListUnordered, TextLineType.LIST_UNORDERED),
+  lineTypeRule(/^[0-9a-z]+\.\s/, PM_SCHEMA.nodes.lineListOrdered, TextLineType.LIST_ORDERED),
+  lineTypeRule(">", PM_SCHEMA.nodes.lineQuote, TextLineType.QUOTE),
+  lineTypeRule("!", PM_SCHEMA.nodes.lineCallout, TextLineType.CALLOUT),
+  lineTypeRule("```", PM_SCHEMA.nodes.lineCode, TextLineType.CODE),
+];
+
+function getPMCommands(options: { navigate: (direction: NavigationDirection) => void; deleteSelf: () => void }) {
+  const { navigate, deleteSelf } = options;
+  const extraCommands: Record<string, Command> = {
+    ArrowLeft(state, dispatch, view) {
+      const { selection } = state;
+      if (
+        selection.$anchor.parent === state.doc.children[0] &&
+        (state.doc.textContent == "" || view?.endOfTextblock("left", state))
+      ) {
+        navigate("left");
+        return true;
+      }
+      return false;
+    },
+    ArrowRight(state, dispatch, view) {
+      const { selection } = state;
+      if (
+        selection.$anchor.parent === state.doc.children[state.doc.children.length - 1] &&
+        (state.doc.textContent == "" || view?.endOfTextblock("right", state))
+      ) {
+        navigate("right");
+        return true;
+      }
+      return false;
+    },
+    ArrowUp(state, dispatch, view) {
+      const { selection } = state;
+      if (
+        selection.$anchor.parent === state.doc.children[0] &&
+        (state.doc.textContent == "" || view?.endOfTextblock("up", state))
+      ) {
+        navigate("up");
+        return true;
+      }
+      return false;
+    },
+    ArrowDown(state, dispatch, view) {
+      const { selection } = state;
+      if (
+        selection.$anchor.parent === state.doc.children[state.doc.children.length - 1] &&
+        (state.doc.textContent == "" || view?.endOfTextblock("down", state))
+      ) {
+        navigate("down");
+        return true;
+      }
+      return false;
+    },
+    Backspace: (state, dispatch) => {
+      const { empty, $cursor, $from, $to } = state.selection as TextSelection;
+      if (
+        $from.parent.type.name !== "lineParagraph" &&
+        $from.parentOffset === 0 &&
+        $from.start() == $from.end() &&
+        $to.pos === $from.end()
+      ) {
+        // convert to plain
+        dispatch?.(
+          state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.lineParagraph, {
+            type: TextLineType.PARAGRAPH,
+          }),
+        );
+        return true;
+      } else if (empty && state.doc.textContent == "" && state.doc.children.length <= 1) {
+        // delete self
+        deleteSelf();
+        return true;
+      } else {
+        // imitate default behavior
+        return commands.chainCommands(
+          commands.deleteSelection,
+          commands.joinBackward,
+          commands.selectNodeBackward,
+        )(state, dispatch);
+      }
+    },
+    "Mod-Enter": (state, dispatch, view) => {
+      // if the cmd key is held, do the default split behavior
+      return commands.splitBlock(state, dispatch);
+    },
+    Enter: (state, dispatch, view) => {
+      if (!state.selection.empty) {
+        return commands.splitBlock(state, dispatch);
+      }
+      const { $from } = state.selection;
+      const parentType = $from.parent.type.name;
+      if (parentType === "lineListOrdered" || parentType === "lineListUnordered") {
+        // if the list item line is empty, convert it to a paragraph
+        if ($from.parent.textContent.trim() === "") {
+          dispatch?.(
+            state.tr.setBlockType($from.start(), $from.end(), state.schema.nodes.lineParagraph, {
+              type: TextLineType.PARAGRAPH,
+            }),
+          );
+          return true;
+        } else {
+          // otherwise, split the list item at the cursor position
+          dispatch?.(state.tr.split($from.pos, 1));
+          return true;
+        }
+      }
+      return commands.splitBlock(state, dispatch);
+    },
+  };
+  return extraCommands;
+}
+
 /**
  * Install a Text editor on a DOM element.
  */
@@ -618,105 +769,7 @@ export function useTextEditor(options: {
     }
     const bindings: Record<string, Command> = {
       ...commands.baseKeymap,
-      ArrowLeft(state, dispatch, view) {
-        const { selection } = state;
-        if (
-          selection.$anchor.parent === state.doc.children[0] &&
-          (state.doc.textContent == "" || view?.endOfTextblock("left", state))
-        ) {
-          navigate("left");
-          return true;
-        }
-        return false;
-      },
-      ArrowRight(state, dispatch, view) {
-        const { selection } = state;
-        if (
-          selection.$anchor.parent === state.doc.children[state.doc.children.length - 1] &&
-          (state.doc.textContent == "" || view?.endOfTextblock("right", state))
-        ) {
-          navigate("right");
-          return true;
-        }
-        return false;
-      },
-      ArrowUp(state, dispatch, view) {
-        const { selection } = state;
-        if (
-          selection.$anchor.parent === state.doc.children[0] &&
-          (state.doc.textContent == "" || view?.endOfTextblock("up", state))
-        ) {
-          navigate("up");
-          return true;
-        }
-        return false;
-      },
-      ArrowDown(state, dispatch, view) {
-        const { selection } = state;
-        if (
-          selection.$anchor.parent === state.doc.children[state.doc.children.length - 1] &&
-          (state.doc.textContent == "" || view?.endOfTextblock("down", state))
-        ) {
-          navigate("down");
-          return true;
-        }
-        return false;
-      },
-      Backspace: (state, dispatch) => {
-        const { empty, $cursor, $from, $to } = state.selection as TextSelection;
-        if (
-          $from.parent.type.name !== "lineParagraph" &&
-          $from.parentOffset === 0 &&
-          $from.start() == $from.end() &&
-          $to.pos === $from.end()
-        ) {
-          // convert to plain
-          dispatch?.(
-            state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.lineParagraph, {
-              type: TextLineType.PARAGRAPH,
-            }),
-          );
-          return true;
-        } else if (empty && state.doc.textContent == "" && state.doc.children.length <= 1) {
-          // delete self
-          deleteSelf();
-          return true;
-        } else {
-          // imitate default behavior
-          return commands.chainCommands(
-            commands.deleteSelection,
-            commands.joinBackward,
-            commands.selectNodeBackward,
-          )(state, dispatch);
-        }
-      },
-      "Mod-Enter": (state, dispatch, view) => {
-        // if the cmd key is held, do the default split behavior
-        return commands.splitBlock(state, dispatch);
-      },
-      Enter: (state, dispatch, view) => {
-        if (!state.selection.empty) {
-          return commands.splitBlock(state, dispatch);
-        }
-        const { $from } = state.selection;
-        const parentType = $from.parent.type.name;
-        if (parentType === "lineListOrdered" || parentType === "lineListUnordered") {
-          // if the list item line is empty, convert it to a paragraph
-          if ($from.parent.textContent.trim() === "") {
-            dispatch?.(
-              state.tr.setBlockType($from.start(), $from.end(), state.schema.nodes.lineParagraph, {
-                type: TextLineType.PARAGRAPH,
-              }),
-            );
-            return true;
-          } else {
-            // otherwise, split the list item at the cursor position
-            dispatch?.(state.tr.split($from.pos, 1));
-            return true;
-          }
-        }
-        return commands.splitBlock(state, dispatch);
-      },
+      ...getPMCommands({ navigate, deleteSelf }),
     };
     if (suppressEnter.value) {
       bindings["Shift-Enter"] = bindings.Enter;

@@ -3,7 +3,7 @@ import { BlockData, NodeType, PageData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { useTextBlockGroupInterface, useTextEditor, useTextInterface } from "@/ui/prosemirror";
+import { useTextBlockGroupInterface, useTextEditor } from "@/ui/prosemirror";
 import { NavigationDirection, type ViewEmits, ViewExposed } from "@/views/common";
 import { ref, toRef } from "vue";
 
@@ -28,6 +28,7 @@ const state = canvas.registerView(self, id);
 const textRef = ref<HTMLElement | null>(null);
 
 const textInterface = useTextBlockGroupInterface({
+  page: toRef(props, "page"),
   blocks: toRef(props, "blocks"),
   graph,
   txFactory: () => connection.tx,
