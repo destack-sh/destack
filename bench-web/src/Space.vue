@@ -191,9 +191,11 @@ mark {
 }
 .pm-text li.line.list-unordered {
   @apply list-disc pl-1;
+  list-style-position: inside;
 }
 .pm-text li.line.list-ordered {
   @apply list-decimal pl-1;
+  list-style-position: inside;
 }
 .pm-text p.line.code {
   @apply my-2 w-full rounded bg-gray-100 px-3 py-2;
