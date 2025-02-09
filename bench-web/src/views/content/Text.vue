@@ -3,7 +3,7 @@ import { isTextEmpty } from "@/language/core/text";
 import { NodeType, TextData, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import { useTextEditor, useTextInterface } from "@/ui/prosemirror";
+import { useTextEditor, useTextModelValueInterface } from "@/ui/prosemirror";
 import { NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
 import { ref, toRef } from "vue";
 
@@ -22,7 +22,7 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 
 const textRef = ref<HTMLElement | null>(null);
-const textInterface = useTextInterface({
+const textInterface = useTextModelValueInterface({
   modelValue: toRef(props, "modelValue"),
   update: (text) => emit("update:modelValue", text),
 });

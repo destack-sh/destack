@@ -7,7 +7,7 @@ import { isInlineSourceNode, TIMED_NODE_TYPES, toCamelName } from "@/language/co
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/core/graph";
 import { updateOrder } from "@/language/core/order";
 import { JsonValue, packBuiltinObjectProperty, unpackBuiltinObjectProperty } from "@/language/core/value";
-import { newChangeId, type Transaction } from "@/language/runtime/transaction";
+import { DebounceLevel, newChangeId, type Transaction } from "@/language/runtime/transaction";
 import { unwrapBlock } from "@/language/source/block";
 import {
   BlockData,
@@ -540,6 +540,7 @@ export function moveNode(
   options: {
     anchor: "start" | "center" | "end" | "before" | "after";
     target?: AnyNodeData | NodeReferenceData;
+    debounce?: DebounceLevel;
   },
 ) {
   const { anchor } = options;
@@ -585,14 +586,14 @@ export function moveNode(
   } else {
     assertNever(anchor);
   }
-  tx.move(node, { parentPtr }, { debounce: "tick" });
+  tx.move(node, { parentPtr }, { debounce: options.debounce ?? "tick" });
 
   // move block and source node together
   if (isNode(node, NodeType.BLOCK)) {
     // for definition blocks, also move the source node
     const source = unwrapBlock(node);
     if (source?.blockPtr?.id == node.id) {
-      tx.move(source, { parentPtr }, { debounce: "tick" });
+      tx.move(source, { parentPtr }, { debounce: options.debounce ?? "tick" });
     }
   } else if (isInlineSourceNode(node)) {
     // for inline source nodes, also move the block definition

@@ -159,15 +159,16 @@ mark {
 .pm-text strong {
   @apply font-semibold;
 }
-.pm-text p.line:first-child {
+.pm-text .line:first-child {
   @apply pt-0; /* ignore top margin */
 }
-.pm-text p.line:last-child {
+.pm-text .line:last-child {
   @apply pb-0; /* ignore bottom margin */
 }
 .pm-text p.line,
-.pm-text li.line {
-  @apply py-[3px] text-base;
+.pm-text li.line,
+.pm-text blockquote.line {
+  @apply py-[3px] text-base transition-colors duration-150;
 }
 .pm-text hr {
   @apply my-2 border-gray-200 p-0 focus:outline-none focus:ring-0;
@@ -198,7 +199,7 @@ mark {
   @apply my-2 w-full rounded bg-gray-100 px-3 py-2;
 }
 .pm-text blockquote.line {
-  @apply my-2 border-l-4 border-gray-400 py-[1px] pl-2;
+  @apply my-2 border-l-4 border-gray-400 pl-2;
 }
 .pm-text p.line.callout {
   @apply my-2 rounded bg-gray-100 px-2 py-3;
