@@ -191,8 +191,8 @@ defineExpose<ViewExposed & { select: () => void }>({
             }
           }
         "
-        @keydown.up.stop="() => emit('navigate', 'up')"
-        @keydown.down.stop="() => emit('navigate', 'down')"
+        @keydown.up.stop.prevent="() => emit('navigate', 'up')"
+        @keydown.down.stop.prevent="() => emit('navigate', 'down')"
         @keydown.enter.stop.prevent="() => (emit('apply', currentValue), emit('navigate', 'enter'))"
         @input="currentValue = ($event.target as HTMLInputElement).value"
       />

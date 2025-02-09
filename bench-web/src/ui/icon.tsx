@@ -136,7 +136,7 @@ export const AvatarInline: FunctionalComponent<
 
   let sizeClasses;
   if (props.size === "medium") {
-    sizeClasses = "w-8 h-8 text-lg";
+    sizeClasses = "w-9 h-9 text-lg";
   } else if (props.size === "large") {
     sizeClasses = "w-10 h-10 text-lg";
   } else if (props.size === "title") {
@@ -163,13 +163,15 @@ export const AvatarInline: FunctionalComponent<
     );
   } else {
     // invalid icon
-    if (IS_DEV || IS_DEVELOPER_MODE.value) return <span class="text-danger-500">?icon: {JSON.stringify(props)}</span>;
-    else
+    if (IS_DEV || IS_DEVELOPER_MODE.value) {
+      return <span class="text-danger-500">?icon: {JSON.stringify(props)}</span>;
+    } else {
       return (
         <div class={baseClasses} style={{ backgroundColor: colorHex }}>
           <span class="text-white">???</span>
         </div>
       );
+    }
   }
 };
 AvatarInline.props = ["emoji", "faName", "vscName", "color", "fallbackColor", "shade", "ignoreColor", "size"];

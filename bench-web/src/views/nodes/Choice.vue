@@ -1,13 +1,13 @@
 <script lang="ts" setup>
-import { FieldType, NodeType, ViewData } from "@/proto/wire";
+import { FieldType, NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import InlineHeader from "@/views/builtins/InlineHeader.vue";
-import { NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
+import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
 import FieldList from "@/views/objects/FieldList.vue";
-import { computed, toRef } from "vue";
+import { computed, ref, toRef } from "vue";
 
 const props = defineProps<
   {
@@ -21,16 +21,24 @@ const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
+
 const choicePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.CHOICE>);
 const preparedConnection = props.preparedConnection ?? useExistingConnection(choicePtr);
 const { graph, connection } = preparedConnection;
 const choice = graph.getRef(choicePtr);
 
-defineExpose<ViewExposed>({ self, id });
+const headerRef = ref<InstanceType<typeof InlineHeader> | null>(null);
+
+function focus(anchor: FocusAnchor | NodeReferenceData = "bottom") {
+  headerRef.value?.focus?.(anchor ?? "top");
+}
+
+defineExpose<ViewExposed>({ self, id, focus });
 </script>
 <template>
   <div>
     <InlineHeader
+      ref="headerRef"
       :self="self"
       :node="choice"
       :connection="preparedConnection"

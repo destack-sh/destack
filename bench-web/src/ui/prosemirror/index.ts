@@ -303,33 +303,8 @@ export const PM_INPUT_RULES: InputRule[] = [
   lineTypeRule(">", PM_SCHEMA.nodes.lineQuote, TextLineType.QUOTE),
   lineTypeRule("!", PM_SCHEMA.nodes.lineCallout, TextLineType.CALLOUT),
   lineTypeRule("```", PM_SCHEMA.nodes.lineCode, TextLineType.CODE),
+  lineTypeRule("'''", PM_SCHEMA.nodes.lineCode, TextLineType.CODE),
 ];
-
-/* Convert non-plain text nodes to plain text nodes when deleting */
-function convertToParagraphOrDelete(state: EditorState, dispatch?: (tr: PmTransaction) => void) {
-  const { $from, $to } = state.selection;
-  if (!dispatch) {
-    return false;
-  } else if (
-    $from.node().type.name !== "lineParagraph" &&
-    $from.parentOffset === 0 &&
-    $from.start() == $from.end() &&
-    $to.pos === $from.end()
-  ) {
-    // convert to plain
-    dispatch(
-      state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.lineParagraph, { type: TextLineType.PARAGRAPH }),
-    );
-    return true;
-  } else {
-    // imitate default behavior
-    return commands.chainCommands(
-      commands.deleteSelection,
-      commands.joinBackward,
-      commands.selectNodeBackward,
-    )(state, dispatch);
-  }
-}
 
 //
 // Mapping
@@ -625,8 +600,8 @@ export function useTextEditor(props: {
       ArrowLeft(state, dispatch, view) {
         const { selection } = state;
         if (
-          state.doc.textContent == "" ||
-          ((selection as TextSelection).$cursor && view?.endOfTextblock("left", state))
+          selection.$anchor.parent === state.doc.children[0] &&
+          (state.doc.textContent == "" || view?.endOfTextblock("left", state))
         ) {
           navigate("left");
           return true;
@@ -636,8 +611,8 @@ export function useTextEditor(props: {
       ArrowRight(state, dispatch, view) {
         const { selection } = state;
         if (
-          state.doc.textContent == "" ||
-          ((selection as TextSelection).$cursor && view?.endOfTextblock("right", state))
+          selection.$anchor.parent === state.doc.children[state.doc.children.length - 1] &&
+          (state.doc.textContent == "" || view?.endOfTextblock("right", state))
         ) {
           navigate("right");
           return true;
@@ -647,8 +622,8 @@ export function useTextEditor(props: {
       ArrowUp(state, dispatch, view) {
         const { selection } = state;
         if (
-          state.doc.textContent == "" ||
-          ((selection as TextSelection).$cursor && view?.endOfTextblock("up", state))
+          selection.$anchor.parent === state.doc.children[0] &&
+          (state.doc.textContent == "" || view?.endOfTextblock("up", state))
         ) {
           navigate("up");
           return true;
@@ -658,8 +633,8 @@ export function useTextEditor(props: {
       ArrowDown(state, dispatch, view) {
         const { selection } = state;
         if (
-          state.doc.textContent == "" ||
-          ((selection as TextSelection).$cursor && view?.endOfTextblock("down", state))
+          selection.$anchor.parent === state.doc.children[state.doc.children.length - 1] &&
+          (state.doc.textContent == "" || view?.endOfTextblock("down", state))
         ) {
           navigate("down");
           return true;
@@ -667,12 +642,32 @@ export function useTextEditor(props: {
         return false;
       },
       Backspace: (state, dispatch) => {
-        const { empty, $cursor } = state.selection as TextSelection;
-        if (empty && $cursor && $cursor.pos == 1 && state.doc.textContent.length == 0) {
+        const { empty, $cursor, $from, $to } = state.selection as TextSelection;
+        if (
+          $from.parent.type.name !== "lineParagraph" &&
+          $from.parentOffset === 0 &&
+          $from.start() == $from.end() &&
+          $to.pos === $from.end()
+        ) {
+          // convert to plain
+          dispatch?.(
+            state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.lineParagraph, {
+              type: TextLineType.PARAGRAPH,
+            }),
+          );
+          return true;
+        } else if (empty && state.doc.textContent == "" && state.doc.children.length <= 1) {
+          // delete self
           deleteSelf();
           return true;
+        } else {
+          // imitate default behavior
+          return commands.chainCommands(
+            commands.deleteSelection,
+            commands.joinBackward,
+            commands.selectNodeBackward,
+          )(state, dispatch);
         }
-        return convertToParagraphOrDelete(state, dispatch);
       },
     };
     if (suppressEnter.value) {
@@ -846,12 +841,13 @@ export function useTextEditor(props: {
     if (view == null) throw new Error("view not mounted");
     const { state } = view;
     view.focus();
+    let selection;
     if (anchor == "top" || anchor == "left") {
-      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, 0)));
+      selection = TextSelection.atStart(state.doc);
     } else {
-      const end = state.doc.content.size;
-      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, end)));
+      selection = TextSelection.atEnd(state.doc);
     }
+    view.dispatch(state.tr.setSelection(selection));
   }
 
   return { focus, actions, isInDropZone };
