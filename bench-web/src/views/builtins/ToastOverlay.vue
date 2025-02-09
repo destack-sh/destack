@@ -77,11 +77,11 @@ const absoluteStyle = computed(() => {
     :style="absoluteStyle"
     move-class="transition-all duration-100"
     enter-active-class="transition-all ease-in duration-150"
-    :enter-from-class="'scale-95 transform ' + ENTER_FROM_BY_ANCHOR[props.anchor]"
+    :enter-from-class="'scale-90 transform ' + ENTER_FROM_BY_ANCHOR[props.anchor]"
     enter-to-class="scale-100 transform translate-x-0 translate-y-0"
     leave-active-class="transition-all ease-out duration-200"
     leave-from-class="scale-100 transform translate-x-0 translate-y-0"
-    :leave-to-class="'scale-95 transform ' + LEAVE_TO_BY_ANCHOR[props.anchor]"
+    :leave-to-class="'scale-100 transform ' + LEAVE_TO_BY_ANCHOR[props.anchor]"
   >
     <!-- Toasts -->
     <li

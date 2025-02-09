@@ -1,6 +1,23 @@
 import { ObjectType, TextData, TextLineType } from "@/proto/wire";
 
 
+export const HIGHLIGHTED_TEXT_LINE_TYPES: TextLineType[] = [
+  TextLineType.HEADING_1,
+  TextLineType.HEADING_2,
+  TextLineType.HEADING_3,
+  TextLineType.HEADING_4,
+  TextLineType.CALLOUT,
+  TextLineType.QUOTE,
+  TextLineType.CODE,
+  TextLineType.EQUATION,
+  TextLineType.DIAGRAM,
+];
+export const STANDARD_TEXT_LINE_TYPES: TextLineType[] = [
+  TextLineType.PARAGRAPH,
+  TextLineType.LIST_UNORDERED,
+  TextLineType.LIST_ORDERED,
+];
+
 export function emptyText(): TextData {
   return { metatype: ObjectType.TEXT, lines: [] };
 }
