@@ -6,7 +6,6 @@ import { newChangeId, Transaction } from "@/language/runtime/transaction";
 import { createBlock } from "@/language/source/block";
 import {
   BlockData,
-  BlockType,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -23,7 +22,7 @@ import { type ActionImplementation, type ActionMapImplementation } from "@/ui/ac
 import { useDropZone } from "@/ui/drag";
 import { DEFAULT_MISSING_ICON, getNodeIcon, getNodeName, ICON_BY_NODE_TYPE } from "@/ui/icon";
 import { getColorHex } from "@/ui/style";
-import { cyrb53a, groupByScalar } from "@/utils/functools";
+import { groupByScalar } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
 import { FocusAnchor, NavigationDirection } from "@/views/common";
 import { whenever } from "@vueuse/core";
@@ -284,12 +283,14 @@ type TextLineInterface = {
 
 /** Read/write source of Text */
 type TextInterface = {
+  /** Reads the TextLines (reactive). */
   read: () => TextLineInterface[];
-  write: (lines: TextLineInterface[]) => void;
+  /** Writes the TextLine, returning the updated TextLines (if changed). */
+  write: (lines: TextLineInterface[]) => TextLineInterface[];
 };
 
 /** Read/write directly from TextData. */
-export function useTextInterface(options: {
+export function useTextModelValueInterface(options: {
   modelValue: Readonly<Ref<TextData | undefined | null>>;
   update: (text: TextData) => void;
 }) {
@@ -307,8 +308,9 @@ export function useTextInterface(options: {
     return lines.value;
   }
 
-  function write(lines: TextLineInterface[]) {
+  function write(lines: TextLineInterface[]): TextLineInterface[] {
     update({ metatype: ObjectType.TEXT, lines: lines.map(({ line }) => line) });
+    return lines;
   }
 
   return { read, write };
@@ -335,12 +337,7 @@ export function useTextBlockGroupInterface(options: {
         spans: [],
         cells: [],
       };
-      const blockPtr = {
-        metatype: ObjectType.NODE_REFERENCE,
-        nodeType: NodeType.BLOCK,
-        id: block.id,
-        ck: block.ck,
-      };
+      const blockPtr = toNodeRef(block);
       lines.push({ line, blockPtr });
     }
     return lines;
@@ -353,6 +350,7 @@ export function useTextBlockGroupInterface(options: {
   /** Difference update the TextLines with Blocks. */
   function write(lines: TextLineInterface[]) {
     const lineByBlockId: Record<string, TextLineInterface> = {};
+    const newLines: TextLineInterface[] = lines.map((l) => ({ ...l }));
     for (const line of lines) {
       if (line.blockPtr?.id != null) {
         lineByBlockId[line.blockPtr.id] = line;
@@ -366,22 +364,24 @@ export function useTextBlockGroupInterface(options: {
     for (const block of blocks.value) {
       if (lineByBlockId[block.id] == null) {
         tx.delete(block);
+        console.log("block.delete", block.id, { block });
       }
     }
 
     // add new blocks
     let prevBlockId: string | undefined = undefined;
-    for (const line of lines) {
+    for (const line of newLines) {
       if (line.blockPtr?.id != null) {
         prevBlockId = line.blockPtr.id;
       } else {
         const prevBlock = blocksById.value[prevBlockId!];
         const block = createBlock(tx, graph, {
-          block: { type: (line.line.type + 10_000) as any },
+          block: { type: (line.line.type + 10_000) as any, text: line.line },
           anchor: prevBlock != null ? "after" : "inside",
           target: prevBlock ?? page.value,
         });
         line.blockPtr = toNodeRef(block);
+        console.log("block.create", block.id, { line, block });
       }
     }
 
@@ -390,15 +390,18 @@ export function useTextBlockGroupInterface(options: {
       const line = lineByBlockId[block.id];
       if (line != null && !deepValueEquals(block.text, line.line)) {
         tx.update(block, { text: line.line }, { debounce: "long" });
+        console.log("block.update", block.id, { line, block });
       }
     }
+
+    return newLines;
   }
 
   return { read, write };
 }
 
 /** Convert TextData to a PmNode. */
-export function mapTextToPmNode(lines: TextLineInterface[], prev: PmNode | undefined): PmNode {
+export function mapTextToPmNode(lines: TextLineInterface[]): PmNode {
   const schema = PM_SCHEMA;
 
   // lines
@@ -531,6 +534,10 @@ export function mapPmNodeToText(node: PmNode): TextLineInterface[] {
   return lines;
 }
 
+//
+// Editor
+//
+
 /** Mini-component for PM Node spans */
 class SpanNodeView implements PmNodeView {
   dom: HTMLElement;
@@ -577,15 +584,13 @@ class SpanNodeView implements PmNodeView {
   }
 }
 
-//
-// Editor
-//
-
-function lineTypeRule(pattern: string | RegExp, nodeType: PmNodeType, type: TextLineType) {
-  const regexp = typeof pattern == "string" ? new RegExp(`^(${pattern})\\s$`) : pattern;
+function linePrefixRule(pattern: string | RegExp, nodeType: PmNodeType, type: TextLineType) {
+  const regexp = typeof pattern == "string" ? new RegExp(`^(${pattern})$`) : pattern;
   const rule = new InputRule(regexp, (state, match, start, end) => {
     const { tr } = state;
-    tr.setBlockType(start, end, nodeType, { type });
+    const $start = tr.doc.resolve(start);
+    const block = $start.parent; // keep existing attrs, set new type
+    tr.setBlockType(start, end, nodeType, { ...block.attrs, type });
     tr.delete(start, end);
     tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
     return tr;
@@ -600,6 +605,7 @@ const lineDividerRule = new InputRule(/(^---$)|(^—-$)/, (state, match, start, 
   return tr;
 });
 
+const UNORDERED_LIST_CHARS = ["-", "\\*", "•"];
 const PM_INPUT_RULES: InputRule[] = [
   // existing rules
   emDash,
@@ -610,17 +616,23 @@ const PM_INPUT_RULES: InputRule[] = [
   closeSingleQuote,
   ...smartQuotes,
   // line rules
-  lineTypeRule("#", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_1),
-  lineTypeRule("##", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_2),
-  lineTypeRule("###", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_3),
-  lineTypeRule("####", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_4),
+  linePrefixRule("# ", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_1),
+  linePrefixRule("## ", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_2),
+  linePrefixRule("### ", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_3),
+  linePrefixRule("#### ", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_4),
   lineDividerRule,
-  lineTypeRule(" -", PM_SCHEMA.nodes.lineListUnordered, TextLineType.LIST_UNORDERED),
-  lineTypeRule("-", PM_SCHEMA.nodes.lineListUnordered, TextLineType.LIST_UNORDERED),
-  lineTypeRule(/^[0-9a-z]+\.\s/, PM_SCHEMA.nodes.lineListOrdered, TextLineType.LIST_ORDERED),
-  lineTypeRule(">", PM_SCHEMA.nodes.lineQuote, TextLineType.QUOTE),
-  lineTypeRule("!", PM_SCHEMA.nodes.lineCallout, TextLineType.CALLOUT),
-  lineTypeRule("```", PM_SCHEMA.nodes.lineCode, TextLineType.CODE),
+  ...UNORDERED_LIST_CHARS.map((char) =>
+    linePrefixRule(`${char} `, PM_SCHEMA.nodes.lineListUnordered, TextLineType.LIST_UNORDERED),
+  ),
+  ...UNORDERED_LIST_CHARS.map((char) =>
+    linePrefixRule(` ${char} `, PM_SCHEMA.nodes.lineListUnordered, TextLineType.LIST_UNORDERED),
+  ),
+  linePrefixRule(/^[0-9a-z]+\.\s/, PM_SCHEMA.nodes.lineListOrdered, TextLineType.LIST_ORDERED),
+  linePrefixRule(/^\s[0-9a-z]+\.\s/, PM_SCHEMA.nodes.lineListOrdered, TextLineType.LIST_ORDERED),
+  linePrefixRule("> ", PM_SCHEMA.nodes.lineQuote, TextLineType.QUOTE),
+  linePrefixRule("! ", PM_SCHEMA.nodes.lineCallout, TextLineType.CALLOUT),
+  linePrefixRule("``` ", PM_SCHEMA.nodes.lineCode, TextLineType.CODE),
+  linePrefixRule("```", PM_SCHEMA.nodes.lineCode, TextLineType.CODE),
 ];
 
 function getPMCommands(options: { navigate: (direction: NavigationDirection) => void; deleteSelf: () => void }) {
@@ -713,13 +725,18 @@ function getPMCommands(options: { navigate: (direction: NavigationDirection) => 
         if ($from.parent.textContent.trim() === "") {
           dispatch?.(
             state.tr.setBlockType($from.start(), $from.end(), state.schema.nodes.lineParagraph, {
+              ...$from.parent.attrs, // keep attrs incl. blockPtr
               type: TextLineType.PARAGRAPH,
             }),
           );
           return true;
         } else {
-          // otherwise, split the list item at the cursor position
-          dispatch?.(state.tr.split($from.pos, 1));
+          // otherwise, split the list item at the cursor position (keep attrs except blockPtr)
+          dispatch?.(
+            state.tr.split($from.pos, 1, [
+              { type: $from.parent.type, attrs: { ...$from.parent.attrs, blockPtr: null } },
+            ]),
+          );
           return true;
         }
       }
@@ -760,25 +777,22 @@ export function useTextEditor(options: {
   const nodes = supergraph.getManyRef(nodePtrs);
 
   // prosemirror state
-  function makeEditorState(options?: { restoreSelection?: boolean }): EditorState {
-    const doc = mapTextToPmNode(lines.value, undefined);
+  function makeEditorState(options: { lines: TextLineInterface[]; selection?: EditorSelectionBookmark }): EditorState {
+    const doc = mapTextToPmNode(options.lines);
     console.log("makeEditorState", { doc });
-    // let selection: EditorSelection | undefined = undefined;
-    if (options?.restoreSelection && doc != null) {
-      // selection = previousSelectionByState[cyrb53a(doc)]?.resolve(doc); // TODO :Broken: remember Text selection
-    }
     const bindings: Record<string, Command> = {
       ...commands.baseKeymap,
       ...getPMCommands({ navigate, deleteSelf }),
     };
     if (suppressEnter.value) {
       bindings["Shift-Enter"] = bindings.Enter;
-      bindings.Enter = () => true;
+      bindings.Enter = () => false;
     }
+    const selection = options.selection?.resolve(doc);
     const state = EditorState.create({
       doc: doc,
       schema: PM_SCHEMA,
-      // selection,
+      selection,
       plugins: [keymap(bindings), inputRules({ rules: PM_INPUT_RULES })],
     });
     return state;
@@ -793,7 +807,7 @@ export function useTextEditor(options: {
       plugins.push(dropCursor({ width: 2, color: "#fbbf24" }));
     }
     const view = new EditorView(textRef.value, {
-      state: makeEditorState(),
+      state: makeEditorState({ lines: lines.value }),
       editable: () => isInput?.value ?? false,
       nodeViews: {
         spanNode: (node, view, getPos) => new SpanNodeView(node, view),
@@ -801,20 +815,19 @@ export function useTextEditor(options: {
       plugins,
       dispatchTransaction(tx) {
         if (view == null) throw new Error("view not mounted");
-
-        // update the state directly for responsiveness & performance
-        const newState = view.state.apply(tx);
-        view.updateState(newState);
+        // update the state
+        let newState = view.state.apply(tx);
         const updatedText = mapPmNodeToText(newState.doc);
-        if (view?.state.selection != null) {
-          // remember selection for this state
-          previousSelectionByState[cyrb53a(updatedText)] = newState.selection.getBookmark();
-        }
-        // also update the modelValue if underlying doc changed
+        // also write the doc (if changed)
         if (tx.docChanged) {
-          text.write(updatedText);
-          lastAppliedModelValue = updatedText;
+          lastAppliedModelValue = text.write(updatedText);
+          if (lastAppliedModelValue !== updatedText) {
+            // re-derive state in case we modified the doc (like when creating a new line)
+            // NOTE :Performance: re-deriving the ProseMirror state (twice) seems wasteful.. but it's chugging fine so far
+            newState = makeEditorState({ lines: lastAppliedModelValue, selection: newState.selection.getBookmark() });
+          }
         }
+        view.updateState(newState);
       },
     });
     return view;
@@ -851,7 +864,7 @@ export function useTextEditor(options: {
     if (view == null) return;
     if (deepValueEquals(lines.value, lastAppliedModelValue)) return; // already applied
     console.log("overwrite state from modelValue", { lines: lines.value, lastAppliedModelValue });
-    const updatedState = makeEditorState({ restoreSelection: true });
+    const updatedState = makeEditorState({ lines: lines.value });
     view.updateState(updatedState);
     lastAppliedModelValue = lines.value;
   });

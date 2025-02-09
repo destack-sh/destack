@@ -263,29 +263,6 @@ function createAndFocusBlock(
   return block;
 }
 
-/** Focus or create text block at end of page. */
-function focusText(anchor: "top" | "bottom" = "bottom") {
-  if (anchor == "top") {
-    const firstBlock = blocks.value[0];
-    if (firstBlock == null) {
-      createAndFocusBlock({ type: BlockType.PARAGRAPH }, "inside", page.value!);
-    } else if (firstBlock.type >= BlockType.PARAGRAPH && !STANDARD_TEXT_LINE_TYPES.includes(firstBlock.text?.type!)) {
-      focus(firstBlock, "top");
-    } else {
-      createAndFocusBlock({ type: BlockType.PARAGRAPH }, "before", firstBlock);
-    }
-  } else {
-    const lastBlock = blocks.value[blocks.value.length - 1];
-    if (lastBlock == null) {
-      createAndFocusBlock({ type: BlockType.PARAGRAPH }, "inside", page.value!);
-    } else if (lastBlock.type >= BlockType.PARAGRAPH && STANDARD_TEXT_LINE_TYPES.includes(lastBlock.text?.type!)) {
-      focus(lastBlock, "bottom");
-    } else {
-      createAndFocusBlock({ type: BlockType.PARAGRAPH }, "after", lastBlock);
-    }
-  }
-}
-
 // navigate
 function navigateFromGroup(group: BlockGroup, direction: NavigationDirection) {
   const navigableGroups = groups.value.filter(
@@ -318,6 +295,29 @@ function deleteGroup(group: BlockGroup) {
   navigateFromGroup(group, "up");
   const tx = connection.tx.with({ change: { key: newChangeId(), title: "Delete" } });
   group.blocks.forEach((b) => tx.delete(b));
+}
+
+/** Focus or create text block at end of page. */
+function focusText(anchor: "top" | "bottom" = "bottom") {
+  if (anchor == "top") {
+    const firstBlock = blocks.value[0];
+    if (firstBlock == null) {
+      createAndFocusBlock({ type: BlockType.PARAGRAPH }, "inside", page.value!);
+    } else if (firstBlock.type >= BlockType.PARAGRAPH && !STANDARD_TEXT_LINE_TYPES.includes(firstBlock.text?.type!)) {
+      focus(firstBlock, "top");
+    } else {
+      createAndFocusBlock({ type: BlockType.PARAGRAPH }, "before", firstBlock);
+    }
+  } else {
+    const lastBlock = blocks.value[blocks.value.length - 1];
+    if (lastBlock == null) {
+      createAndFocusBlock({ type: BlockType.PARAGRAPH }, "inside", page.value!);
+    } else if (lastBlock.type >= BlockType.PARAGRAPH && STANDARD_TEXT_LINE_TYPES.includes(lastBlock.text?.type!)) {
+      focus(lastBlock, "bottom");
+    } else {
+      createAndFocusBlock({ type: BlockType.PARAGRAPH }, "after", lastBlock);
+    }
+  }
 }
 
 // focus
