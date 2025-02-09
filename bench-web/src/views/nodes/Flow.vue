@@ -36,11 +36,9 @@ import {
 } from "@/ui/flow";
 import { PopoverInfoIn } from "@/ui/popover";
 import { lengthVector2, subVector2, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
-import BlockHeader from "@/views/builtins/BlockHeader.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
+import InlineHeader from "@/views/builtins/InlineHeader.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import PageHeader from "@/views/builtins/PageHeader.vue";
-import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
@@ -71,9 +69,7 @@ const preparedConnection = props.preparedConnection ?? useExistingConnection(nod
 const { graph, connection } = preparedConnection;
 
 const containerRef = ref<HTMLElement | null>(null);
-const headerRef: Ref<HTMLElement | null> = ref(null);
-const pageHeaderRef: Ref<InstanceType<typeof PageHeader> | null> = ref(null);
-const blockHeaderRef: Ref<InstanceType<typeof BlockHeader> | null> = ref(null);
+const headerRef: Ref<InstanceType<typeof InlineHeader> | null> = ref(null);
 const bodyRef: Ref<HTMLElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const createActionRef: Ref<HTMLButtonElement | null> = ref(null);
@@ -277,7 +273,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
       return pipeRefs.value[anchor.id!].$el;
     }
   } else {
-    (pageHeaderRef.value ?? blockHeaderRef.value)?.focus?.(anchor ?? "top");
+    headerRef.value?.focus?.(anchor ?? "top");
     return true;
   }
 
@@ -295,44 +291,24 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
     @mousedown="(e) => startSelectingIfAllowed(selectionZoneContainer, e)"
   >
     <!-- Header -->
-    <div ref="headerRef">
-      <!-- Root header -->
-      <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="props.focus" :graph="graph" />
-
-      <!-- Page/block header -->
-      <PageHeader
-        v-if="!isMinimal && flow"
-        ref="pageHeaderRef"
-        :width="containerSize.width.value - GUTTER_WIDTH * 2"
-        :node="flow"
-        :connection="preparedConnection"
-        is-input
-        @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
-      />
-      <BlockHeader
-        v-else-if="isInline && flow"
-        ref="blockHeaderRef"
-        :node="flow"
-        :connection="preparedConnection"
-        @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
-      >
-        <template #right>
-          <!-- ... -->
-        </template>
-      </BlockHeader>
-
-      <!-- Inner header -->
-      <div
-        v-if="!isMinimal"
-        class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1"
-        :style="{
-          marginLeft: `${GUTTER_WIDTH}px`,
-          marginRight: `${GUTTER_WIDTH}px`,
-        }"
-      >
-        <!-- Signature -->
+    <InlineHeader
+      ref="headerRef"
+      :self="self"
+      :node="flow"
+      :node-ptr="nodePtr"
+      :prepared-connection="preparedConnection"
+      :is-root="isRoot"
+      :is-inline="isInline"
+      :is-minimal="isMinimal"
+      :focus="props.focus"
+      :width="containerSize.width.value - GUTTER_WIDTH * 2"
+      @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+    >
+      <!-- Signature -->
+      <template #left="{ style }">
         <!-- Inputs -->
         <FieldList
+          v-if="style == 'page'"
           id="type.input"
           class=""
           :node="flow"
@@ -346,6 +322,7 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
         />
         <!-- Outputs -->
         <FieldList
+          v-if="style == 'page'"
           id="type.output"
           class=""
           :node="flow"
@@ -353,8 +330,12 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
           :node-ptr="props.nodePtr"
           :field-type="FieldType.OUTPUT"
         />
+      </template>
+      <!-- Meta -->
+      <template #right="{ style }">
         <!-- Variables -->
         <FieldList
+          v-if="style == 'page'"
           id="type.input"
           class="ml-auto"
           :node="flow"
@@ -365,7 +346,8 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
         <!-- Add action -->
         <button
           ref="createActionRef"
-          class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+          class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
+          :class="style == 'block' ? 'opacity-0 group-hover/block:opacity-100 group-hover/header:opacity-100' : ''"
           @click="
             (e) =>
               canvas.pushPopover({
@@ -378,7 +360,9 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
                 offset: 'referenceWidth',
                 props: {
                   valueType: makeType({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
-                  subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
+                  subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, {
+                    variant: PickerVariant.DROPDOWN_LARGE,
+                  }),
                 },
                 onApply: (value) => {
                   flowCtx.createAction({ parent: flow!, action: { type: value } });
@@ -389,9 +373,10 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
           <i class="fas fa-plus mr-1.5 text-center" />
           <span class="">Action</span>
         </button>
-      </div>
-    </div>
-    <!-- Canvas body -->
+      </template>
+    </InlineHeader>
+
+    <!-- Canvas -->
     <div
       v-if="flow"
       ref="bodyRef"
@@ -553,37 +538,9 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
           :class="
             !isMinimal
               ? 'opacity-100'
-              : 'opacity-0 transition-colors duration-150 group-hover/block-line:opacity-100 group-hover/flow:opacity-100'
+              : 'opacity-0 transition-colors duration-150 group-hover/block:opacity-100 group-hover/flow:opacity-100'
           "
         >
-          <!-- Add action -->
-          <button
-            ref="createActionRef"
-            class="group/button rounded px-1 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            @click="
-              (e) =>
-                canvas.pushPopover({
-                  kind: 'view',
-                  trigger: e.target as HTMLElement,
-                  reference: e.target as HTMLElement,
-                  title: 'Add Action',
-                  component: ViewType.PICKER,
-                  placement: 'top',
-                  props: {
-                    valueType: makeType({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
-                    subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, {
-                      variant: PickerVariant.DROPDOWN_LARGE,
-                    }),
-                  },
-                  onApply: (value) => {
-                    flowCtx.createAction({ parent: flow!, action: { type: value } });
-                  },
-                })
-            "
-          >
-            <i class="fas fa-plus mr-1.5 text-center" />
-            <span class="">Action</span>
-          </button>
           <!-- Zoom -->
           <button
             class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"

@@ -37,11 +37,12 @@ defineExpose<Partial<ViewExposed> & { focusIdentifier: (anchor: FocusAnchor) => 
 <template>
   <!-- Header -->
   <div
-    class="flex flex-row items-center rounded-t border-b border-gray-200 px-1"
+    class="group/header flex flex-row items-center rounded-t border-b border-gray-200 px-1"
     :style="{
       height: VIEW_DEFAULT_HEADER_HEIGHT + 'px',
     }"
   >
+    <!-- Title -->
     <NodeReference
       ref="nameRef"
       size="large"
@@ -51,6 +52,10 @@ defineExpose<Partial<ViewExposed> & { focusIdentifier: (anchor: FocusAnchor) => 
       :tx="() => connection.tx"
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
     />
+    <!-- Left slot -->
+    <div class="ml-1 flex flex-row items-center gap-x-2">
+      <slot name="left" />
+    </div>
     <!-- Open in its own view -->
     <button
       v-if="hasCanvas"
@@ -61,11 +66,8 @@ defineExpose<Partial<ViewExposed> & { focusIdentifier: (anchor: FocusAnchor) => 
       <i class="fas fa-arrow-up-right" />
     </button>
 
-    <!-- Left slot -->
-    <slot name="left" />
-
     <!-- Right slot -->
-    <div class="ml-auto">
+    <div class="ml-auto flex flex-row items-center gap-x-2">
       <slot name="right" />
     </div>
   </div>

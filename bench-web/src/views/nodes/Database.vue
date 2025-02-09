@@ -71,6 +71,7 @@ import { assertNever } from "@/utils/functools";
 import BlockHeader from "@/views/builtins/BlockHeader.vue";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
+import InlineHeader from "@/views/builtins/InlineHeader.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import PageHeader from "@/views/builtins/PageHeader.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
@@ -193,9 +194,7 @@ const {
 //
 
 const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
-const headerRef: Ref<HTMLDivElement | null> = ref(null);
-const pageHeaderRef: Ref<InstanceType<typeof PageHeader> | null> = ref(null);
-const blockHeaderRef: Ref<InstanceType<typeof BlockHeader> | null> = ref(null);
+const headerRef: Ref<InstanceType<typeof InlineHeader> | null> = ref(null);
 const containerRef = ref<HTMLDivElement | null>(null);
 const columnHeaderRef: Ref<HTMLDivElement | null> = ref(null);
 const bodyRef: Ref<HTMLDivElement | null> = ref(null);
@@ -535,17 +534,8 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
 //
 
 function navigateFromHeader(direction: NavigationDirection) {
-  if (direction == "right" || direction == "down" || direction == "enter") {
-    // focus first record or go down
-    if (records.value.length > 0) {
-      canvas.select([records.value[0]]);
-      canvas.inspect({ node: records.value[0] });
-    } else {
-      emit("navigate", "down");
-    }
-  } else {
-    emit("navigate", direction);
-  }
+  // NOTE :UX: navigate to records for Database
+  emit("navigate", direction);
 }
 
 //
@@ -555,7 +545,7 @@ function navigateFromHeader(direction: NavigationDirection) {
 const actions: Partial<ActionMapImplementation<"space" | "table" | "list">> = {
   // edit
   "space.edit.rename": () => {
-    pageHeaderRef.value?.focusIdentifier("left");
+    headerRef.value?.focusIdentifier("left");
   },
   ...useNodeTableActions({
     nodeType: NodeType.RECORD,
@@ -583,7 +573,7 @@ const actions: Partial<ActionMapImplementation<"space" | "table" | "list">> = {
 };
 
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
-  (pageHeaderRef.value ?? blockHeaderRef.value)?.focus?.(anchor ?? "left");
+  headerRef.value?.focus?.(anchor ?? "left");
 }
 
 defineExpose<ViewExposed>({ self, id, actions, focus });
@@ -597,58 +587,29 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     }"
     @mousedown="(e: MouseEvent) => startSelectingIfAllowed(selectionZoneContainer, e)"
   >
-    <!-- Root header -->
-    <RootHeader v-if="isRoot" :self="self" :node-ptr="databasePtr" :focus="props.focus" :graph="graph" />
-
-    <!-- Page header -->
-    <PageHeader
-      v-if="!isMinimal && database"
-      ref="pageHeaderRef"
+    <!-- Header -->
+    <InlineHeader
+      ref="headerRef"
+      :self="self"
+      :node="database"
+      :node-ptr="databasePtr"
+      :prepared-connection="preparedConnection"
+      :is-root="isRoot"
+      :is-inline="isInline"
+      :is-minimal="isMinimal"
+      :focus="props.focus"
       :width="rowWidth"
-      :node="database"
-      :connection="preparedConnection"
-      is-input
-      @navigate="(direction: NavigationDirection) => navigateFromHeader(direction)"
-    />
-    <BlockHeader
-      v-else-if="isInline && database"
-      ref="blockHeaderRef"
-      :node="database"
-      :connection="preparedConnection"
       @navigate="(direction: NavigationDirection) => navigateFromHeader(direction)"
     >
-      <template #right>
-        <!-- ... -->
-      </template>
-    </BlockHeader>
-
-    <!-- Inner header -->
-    <div
-      v-if="database"
-      :style="{
-        marginLeft: !isMinimal ? `${GUTTER_WIDTH}px` : undefined,
-        marginRight: !isMinimal ? `${GUTTER_WIDTH}px` : undefined,
-      }"
-    >
-      <!-- Action header -->
-      <div
-        v-if="!isMinimal"
-        class="flex w-full flex-row items-center gap-x-1"
-        :style="{
-          height: isMinimal ? undefined : `${ACTION_HEADER_HEIGHT}px`,
-          paddingLeft: `${props.paddingX ?? 0}px`,
-          paddingRight: `${props.paddingX ?? 0}px`,
-          paddingBottom: isMinimal ? '8px' : undefined,
-        }"
-      >
+      <template #left="{ style }">
         <!-- Expressions (filters/sorts) -->
         <!-- TODO :UX: Incomplete: filter/sort Database/Table view properly -->
-        <div class="flex flex-row items-center gap-x-1">
-          <!-- (this should of course be Expression views) -->
+        <!-- (this should of course be Expression views) -->
+        <template v-if="style == 'page'">
           <div
             v-for="(sort, i) in sorts.length > 0 ? sorts : [DEFAULT_SORT]"
             :key="i"
-            class="group rounded-xl border border-gray-200 px-2 py-0.5 hover:bg-gray-100"
+            class="group rounded-full px-2 py-0.5 hover:bg-gray-100"
           >
             <IconInline v-bind="ICON_BY_EXPRESSION_TYPE[sort.type]" class="mr-1.5 text-gray-700" />
             <span class="text-gray-900">
@@ -661,99 +622,105 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               <i class="fas fa-xmark" />
             </button>
           </div>
-        </div>
-        <!-- Meta (pagination, status, controls) -->
-        <div class="ml-auto flex flex-row items-center gap-x-2">
-          <!-- Staleness/Loading -->
-          <Transition
-            enter-active-class="transition-opacity ease-in duration-150"
-            enter-from-class="opacity-0"
-            enter-to-class="opacity-100"
-            leave-active-class="transition-all ease-out duration-150"
-            leave-from-class="opacity-100"
-            leave-to-class="opacity-0"
-          >
-            <span v-if="isStale || isConnecting" class="ml-1">
-              <i class="fas fa-circle-small animate-pulse text-gray-400" />
-            </span>
-          </Transition>
+        </template>
+      </template>
 
-          <!-- Selection -->
-          <div
-            class="flex flex-row items-center rounded border transition-colors duration-150"
-            :class="numSelectedRows > 0 ? 'opacity-100' : 'pointer-events-none opacity-0'"
-            data-suppress-drag="both"
-          >
-            <button class="h-full px-2 py-0.5 font-medium hover:bg-gray-100" @click="state.deselect()">
-              {{ numSelectedRows }} selected
-            </button>
-            <button
-              v-tooltip="{ title: 'Duplicate', small: true }"
-              class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100"
-              :disabled="numSelectedRows == 0"
-              @click.stop="fireActionById('space.edit.duplicate', { nodes: selectedRecords })"
-            >
-              <i class="fas fa-clone" />
-            </button>
-            <button
-              v-tooltip="{ title: 'Delete', small: true }"
-              class="w-8 py-0.5 text-gray-700 hover:bg-gray-100"
-              :disabled="numSelectedRows == 0"
-              @click.stop="fireActionById('space.edit.delete', { nodes: selectedRecords })"
-            >
-              <i class="fas fa-trash" />
-            </button>
-          </div>
+      <!-- Meta -->
+      <template #right="{ style }">
+        <!-- Staleness/Loading -->
+        <Transition
+          enter-active-class="transition-opacity ease-in duration-150"
+          enter-from-class="opacity-0"
+          enter-to-class="opacity-100"
+          leave-active-class="transition-all ease-out duration-150"
+          leave-from-class="opacity-100"
+          leave-to-class="opacity-0"
+        >
+          <span v-if="isStale || isConnecting" class="ml-1">
+            <i class="fas fa-circle-small animate-pulse text-gray-400" />
+          </span>
+        </Transition>
 
-          <!-- Pagination -->
-          <!-- TODO :Incomplete: Database pagination -->
-          <div>
-            <span v-if="page?.total != null" class="text-gray-400">{{ page.size }} / {{ page?.total }}</span>
-          </div>
-
-          <!-- Controls -->
-          <!-- Add field -->
-          <button
-            class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
-            @click="
-              (e: MouseEvent) => {
-                const button = (e.target as HTMLElement).closest('button')!;
-                pushPopover({
-                  kind: 'view',
-                  trigger: button,
-                  reference: button,
-                  component: ViewType.PICKER,
-                  title: 'Add Field',
-                  placement: 'bottom-left',
-                  offset: 'referenceWidth',
-                  props: {
-                    valueType: makeType({ benchType: BenchType.TYPE }),
-                    subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, {
-                      variant: PickerVariant.DROPDOWN_LARGE,
-                    }),
-                  },
-                  onApply: (typeInfo: TypeIdentity) => {
-                    createField(connection.tx, graph, { anchor: 'inside', target: database!, field: typeInfo });
-                  },
-                });
-              }
-            "
-          >
-            <i class="fas fa-plus mr-1.5 text-center" />
-            <span>Field</span>
+        <!-- Selection -->
+        <div
+          class="flex flex-row items-center rounded border transition-colors duration-150"
+          :class="numSelectedRows > 0 ? 'opacity-100' : 'pointer-events-none opacity-0'"
+          data-suppress-drag="both"
+        >
+          <button class="h-full px-2 py-0.5 font-medium hover:bg-gray-100" @click="state.deselect()">
+            {{ numSelectedRows }} selected
           </button>
-          <!-- Add record -->
           <button
-            class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
-            :class="isMinimal ? 'text-gray-400 hover:text-gray-700' : ''"
-            @click="() => createRecord()"
+            v-tooltip="{ title: 'Duplicate', small: true }"
+            class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100"
+            :disabled="numSelectedRows == 0"
+            @click.stop="fireActionById('space.edit.duplicate', { nodes: selectedRecords })"
           >
-            <i class="fas fa-plus mr-1.5 text-center" />
-            <span class="">Record</span>
+            <i class="fas fa-clone" />
+          </button>
+          <button
+            v-tooltip="{ title: 'Delete', small: true }"
+            class="w-8 py-0.5 text-gray-700 hover:bg-gray-100"
+            :disabled="numSelectedRows == 0"
+            @click.stop="fireActionById('space.edit.delete', { nodes: selectedRecords })"
+          >
+            <i class="fas fa-trash" />
           </button>
         </div>
-      </div>
-    </div>
+
+        <!-- Pagination -->
+        <!-- TODO :Incomplete: Database pagination -->
+        <div
+          class="transition-opacity duration-150"
+          :class="style == 'block' ? 'opacity-0 group-hover/block:opacity-100 group-hover/header:opacity-100' : ''"
+        >
+          <span v-if="page?.total != null" class="text-gray-400">{{ page.size }} / {{ page?.total }}</span>
+        </div>
+
+        <!-- Controls -->
+        <!-- Add field -->
+        <button
+          class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
+          :class="style == 'block' ? 'opacity-0 group-hover/block:opacity-100 group-hover/header:opacity-100' : ''"
+          @click="
+            (e: MouseEvent) => {
+              const button = (e.target as HTMLElement).closest('button')!;
+              pushPopover({
+                kind: 'view',
+                trigger: button,
+                reference: button,
+                component: ViewType.PICKER,
+                title: 'Add Field',
+                placement: 'bottom-left',
+                offset: 'referenceWidth',
+                props: {
+                  valueType: makeType({ benchType: BenchType.TYPE }),
+                  subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, {
+                    variant: PickerVariant.DROPDOWN_LARGE,
+                  }),
+                },
+                onApply: (typeInfo: TypeIdentity) => {
+                  createField(connection.tx, graph, { anchor: 'inside', target: database!, field: typeInfo });
+                },
+              });
+            }
+          "
+        >
+          <i class="fas fa-plus mr-1.5 text-center" />
+          <span>Field</span>
+        </button>
+        <!-- Add record -->
+        <button
+          v-if="style == 'page'"
+          class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+          :class="isMinimal ? 'text-gray-400 hover:text-gray-700' : ''"
+          @click="() => createRecord()"
+        >
+          <i class="fas fa-plus mr-1.5 text-center" />
+          <span class="">Record</span>
+        </button>
+      </template>
+    </InlineHeader>
 
     <!-- Body outer wrapper (scroll horizontally, and vertically if not compact) -->
     <Scroll

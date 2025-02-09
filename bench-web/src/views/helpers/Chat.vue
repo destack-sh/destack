@@ -492,13 +492,14 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           data-contextmenu-items="chat.message*"
         >
           <!-- New date (line with date in middle) -->
-          <div v-if="isNewDate" class="relative mb-1 flex items-center">
+          <div v-if="isNewDate" class="relative mb-2 flex items-center">
             <div class="flex-grow border-t border-gray-200" />
             <div class="mx-4 flex-shrink text-sm text-gray-400">
               {{ formatAbsoluteDate(message.createdAt!, { prefer: "date" }) }}
             </div>
             <div class="flex-grow border-t border-gray-200"></div>
           </div>
+
           <!-- Replying to -->
           <div v-if="replyTo != null" class="relative flex max-w-full items-center">
             <!-- 'Line' (supposed to go from avatar to the author with a bend) -->
@@ -519,6 +520,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               {{ getTextLine(replyTo.message.text) }}
             </span>
           </div>
+
           <!-- Body -->
           <div
             class="flex flex-row rounded transition-colors duration-150"

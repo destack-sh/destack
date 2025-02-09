@@ -89,6 +89,7 @@ type IconInlineProps = Pick<IconData, "emoji" | "faName" | "vscName"> & {
   fallbackColor?: ColorType;
 };
 
+/** Inline functional Icon component */
 export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
   let colorHex;
   if (props.forceColor == "inherit") {
@@ -116,6 +117,7 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
 };
 IconInline.props = ["emoji", "faName", "vscName", "color", "fallbackColor", "shade", "ignoreColor"];
 
+/** Inline functional Avatar component */
 export const AvatarInline: FunctionalComponent<
   IconInlineProps & { size?: "regular" | "medium" | "large" | "title" }
 > = (props) => {
