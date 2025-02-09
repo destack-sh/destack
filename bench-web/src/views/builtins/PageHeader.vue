@@ -8,9 +8,9 @@ import Icon from "@/views/content/Icon.vue";
 import { ref, Ref } from "vue";
 
 const props = defineProps<{
-  width: number;
   node: InlineSourceNodeData;
   connection: PreparedGetConnection;
+  width?: number;
   isInput?: boolean;
 }>();
 const { graph, connection } = props.connection;
@@ -31,7 +31,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
 
 defineExpose<Partial<ViewExposed> & { focusIdentifier: (anchor: FocusAnchor) => void }>({
   focusIdentifier,
-	focus,
+  focus,
 });
 </script>
 <template>
@@ -42,7 +42,7 @@ defineExpose<Partial<ViewExposed> & { focusIdentifier: (anchor: FocusAnchor) => 
     <div
       class="group/title mx-auto items-center rounded pb-3 pt-4"
       :style="{
-        width: props.width + 'px',
+        width: props.width != null ? props.width + 'px' : undefined,
       }"
     >
       <!-- Title actions -->
@@ -78,6 +78,8 @@ defineExpose<Partial<ViewExposed> & { focusIdentifier: (anchor: FocusAnchor) => 
         :tx="() => connection.tx"
         @navigate="(direction) => emits('navigate', direction)"
       />
+      <!-- Header "footer" -->
+      <slot name="footer" />
     </div>
   </div>
 </template>
