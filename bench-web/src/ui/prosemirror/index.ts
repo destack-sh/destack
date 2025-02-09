@@ -358,13 +358,11 @@ export function useTextBlockGroupInterface(options: {
     }
 
     const tx = txFactory().with({ change: { title: "Edit", key: newChangeId() } });
-    console.log("block.write", { lines, lineByBlockId });
 
     // delete removed blocks
     for (const block of blocks.value) {
       if (lineByBlockId[block.id] == null) {
         tx.delete(block);
-        console.log("block.delete", block.id, { block });
       }
     }
 
@@ -381,7 +379,6 @@ export function useTextBlockGroupInterface(options: {
           target: prevBlock ?? page.value,
         });
         line.blockPtr = toNodeRef(block);
-        console.log("block.create", block.id, { line, block });
       }
     }
 
@@ -389,8 +386,12 @@ export function useTextBlockGroupInterface(options: {
     for (const block of blocks.value) {
       const line = lineByBlockId[block.id];
       if (line != null && !deepValueEquals(block.text, line.line)) {
-        tx.update(block, { text: line.line }, { debounce: "long" });
-        console.log("block.update", block.id, { line, block });
+        const update: Partial<BlockData> = { text: line.line };
+        const blockType = (line.line.type + 10_000) as any;
+        if (blockType != block.type) {
+          update.type = blockType;
+        }
+        tx.update(block, update, { debounce: "long" });
       }
     }
 
@@ -635,7 +636,8 @@ const PM_INPUT_RULES: InputRule[] = [
   linePrefixRule("```", PM_SCHEMA.nodes.lineCode, TextLineType.CODE),
 ];
 
-function getPMCommands(options: { navigate: (direction: NavigationDirection) => void; deleteSelf: () => void }) {
+/** Build the ProseMirror commands. */
+function getPmCommands(options: { navigate: (direction: NavigationDirection) => void; deleteSelf: () => void }) {
   const { navigate, deleteSelf } = options;
   const extraCommands: Record<string, Command> = {
     ArrowLeft(state, dispatch, view) {
@@ -715,17 +717,15 @@ function getPMCommands(options: { navigate: (direction: NavigationDirection) => 
       return commands.splitBlock(state, dispatch);
     },
     Enter: (state, dispatch, view) => {
-      if (!state.selection.empty) {
-        return commands.splitBlock(state, dispatch);
-      }
       const { $from } = state.selection;
       const parentType = $from.parent.type.name;
       if (parentType === "lineListOrdered" || parentType === "lineListUnordered") {
-        // if the list item line is empty, convert it to a paragraph
         if ($from.parent.textContent.trim() === "") {
+          // if the list item line is empty, convert it to a paragraph
+          //  (change type, keep attrs incl. blockPtr)
           dispatch?.(
             state.tr.setBlockType($from.start(), $from.end(), state.schema.nodes.lineParagraph, {
-              ...$from.parent.attrs, // keep attrs incl. blockPtr
+              ...$from.parent.attrs,
               type: TextLineType.PARAGRAPH,
             }),
           );
@@ -779,14 +779,14 @@ export function useTextEditor(options: {
   // prosemirror state
   function makeEditorState(options: { lines: TextLineInterface[]; selection?: EditorSelectionBookmark }): EditorState {
     const doc = mapTextToPmNode(options.lines);
-    console.log("makeEditorState", { doc });
     const bindings: Record<string, Command> = {
       ...commands.baseKeymap,
-      ...getPMCommands({ navigate, deleteSelf }),
+      ...getPmCommands({ navigate, deleteSelf }),
     };
     if (suppressEnter.value) {
       bindings["Shift-Enter"] = bindings.Enter;
-      bindings.Enter = () => false;
+      bindings["Mod-Enter"] = () => true;
+      bindings.Enter = () => true;
     }
     const selection = options.selection?.resolve(doc);
     const state = EditorState.create({
@@ -863,7 +863,6 @@ export function useTextEditor(options: {
   watch(lines, () => {
     if (view == null) return;
     if (deepValueEquals(lines.value, lastAppliedModelValue)) return; // already applied
-    console.log("overwrite state from modelValue", { lines: lines.value, lastAppliedModelValue });
     const updatedState = makeEditorState({ lines: lines.value });
     view.updateState(updatedState);
     lastAppliedModelValue = lines.value;
@@ -937,7 +936,7 @@ export function useTextEditor(options: {
     "text.edit.hardBreak": {
       action: () => {
         // insert 'hardBreak' node at cursor
-        if (view == null) return;
+        if (view == null || suppressEnter.value) return false;
         const { from } = view.state.selection;
         const hardBreak = PM_SCHEMA.node("spanHardBreak");
         view.dispatch(view.state.tr.insert(from, hardBreak));
