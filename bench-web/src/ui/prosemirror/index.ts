@@ -410,7 +410,7 @@ export function mapTextToPmNode(lines: TextLineInterface[], prev: PmNode | undef
     const spanNodes: PmNode[] = [];
     for (const span of line.spans) {
       let spanNode;
-      if (span.type == TextSpanType.TEXT) {
+      if (span.type == TextSpanType.UNSPECIFIED || span.type == TextSpanType.TEXT) {
         spanNode = schema.text(span.content ?? "");
       } else if (span.type == TextSpanType.HARD_BREAK) {
         spanNode = schema.node("spanHardBreak");
@@ -488,7 +488,7 @@ export function mapPmNodeToText(node: PmNode): TextLineInterface[] {
       const spanNode = lineNode.child(spanIdx);
       let span: TextSpanData;
       if (spanNode.type.name == "spanHardBreak") {
-        span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.HARD_BREAK, content: "\n" };
+        span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.HARD_BREAK };
       } else if (spanNode.type.name == "text") {
         span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.TEXT, content: spanNode.text };
       } else if (spanNode.type.name == "spanNode") {

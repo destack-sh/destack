@@ -17,7 +17,7 @@ export type ViewComponent = {
   exposed: ViewExposed;
 };
 
-export type NavigationDirection = "left" | "right" | "up" | "down";
+export type NavigationDirection = "left" | "right" | "up" | "down" | "enter";
 export type ViewEmits = {
   (e: "update:modelValue", modelValue: any, options?: ModelValueOptions): void;
   (e: "update:computedValues", computedValues: ComputedValueData[] | undefined): void;
@@ -55,6 +55,7 @@ export type ViewExposed = (
   /** Focus the element at the given anchor inside the view OR return the element to focus. May be a view or any element. */
   focus?: (
     anchor?: FocusAnchor | NodeReferenceData,
+    innerAnchor?: FocusAnchor,
   ) => void | boolean | ViewComponent | HTMLElement | SVGElement | null;
   /** 'Interact's with the primary interaction of the view. */
   interact?: () => void;

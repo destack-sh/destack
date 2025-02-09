@@ -283,7 +283,9 @@ function focusText(anchor: "top" | "bottom" = "bottom") {
 
 // navigate
 function navigateFromGroup(group: BlockGroup, direction: NavigationDirection) {
-  const navigableGroups = groups.value.filter((g) => g.type == "text");
+  const navigableGroups = groups.value.filter(
+    (g) => g.type == "text" || (g.type == "node" && g.block.type != BlockType.PAGE),
+  );
   const groupIdx = navigableGroups.findIndex((g) => g.id == group.id);
   if (direction == "up" || direction == "left") {
     const prevGroup = navigableGroups[groupIdx - 1];
@@ -301,6 +303,9 @@ function navigateFromGroup(group: BlockGroup, direction: NavigationDirection) {
     } else {
       focusText("bottom");
     }
+  } else if (direction == "enter") {
+    // add text right below
+    createAndFocusBlock({ type: BlockType.PARAGRAPH }, "after", group.blocks[group.blocks.length - 1]);
   }
 }
 
@@ -311,7 +316,6 @@ function deleteGroup(group: BlockGroup) {
 }
 
 // focus
-// NOTE :UX: focus in Page should scroll into view but that sometimes pushes the root window out of frame somehow..
 function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData, innerAnchor?: FocusAnchor) {
   let block: BlockData | undefined;
   if (typeof anchor != "object") {
@@ -377,7 +381,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           is-input
           @navigate="
             (direction) => {
-              if (direction == 'right' || direction == 'down') {
+              if (direction == 'right' || direction == 'down' || direction == 'enter') {
                 focusText('top');
               }
             }
@@ -407,7 +411,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Block -->
           <div
             v-else
-            class="relative mx-auto my-1 rounded"
+            class="relative mx-auto rounded"
             :style="{
               width: widths.block + 'px',
             }"

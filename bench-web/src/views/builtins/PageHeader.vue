@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { InlineSourceNodeData, Orientation } from "@/proto/wire";
+import { InlineSourceNodeData, NodeReferenceData, Orientation } from "@/proto/wire";
 import { PreparedGetConnection } from "@/system/connection";
 import { PopoverInfoIn } from "@/ui/popover";
 import NodeReference from "@/views/builtins/NodeReference.vue";
@@ -11,14 +11,27 @@ const props = defineProps<{
   width: number;
   node: InlineSourceNodeData;
   connection: PreparedGetConnection;
-	isInput?: boolean;
+  isInput?: boolean;
 }>();
 const { graph, connection } = props.connection;
 const emits = defineEmits<ViewEmits>();
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 
+function focusIdentifier(anchor: FocusAnchor) {
+  nameRef.value?.focusIdentifier(anchor);
+}
+
+function focusIcon() {
+  nameRef.value?.focusIcon();
+}
+
+function focus(anchor?: FocusAnchor | NodeReferenceData) {
+  focusIdentifier(typeof anchor == "string" ? anchor : "top");
+}
+
 defineExpose<Partial<ViewExposed> & { focusIdentifier: (anchor: FocusAnchor) => void }>({
-  focusIdentifier: (anchor) => nameRef.value?.focusIdentifier(anchor),
+  focusIdentifier,
+	focus,
 });
 </script>
 <template>

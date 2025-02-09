@@ -1,11 +1,12 @@
 <script lang="ts" setup>
 import { canvas } from "@/globals";
 import { CANVAS_BLOCK_TYPES } from "@/language/core/const";
-import { BlockType, InlineSourceNodeData } from "@/proto/wire";
+import { BlockType, InlineSourceNodeData, NodeReferenceData } from "@/proto/wire";
 import { PreparedGetConnection } from "@/system/connection";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { computed } from "vue";
+import { FocusAnchor, NavigationDirection, ViewEmits, ViewExposed } from "@/views/common";
+import { computed, ref, Ref } from "vue";
 
 const props = defineProps<{
   node: InlineSourceNodeData;
@@ -13,6 +14,25 @@ const props = defineProps<{
 }>();
 const { graph, connection } = props.connection;
 const hasCanvas = computed(() => CANVAS_BLOCK_TYPES.includes(props.node.metatype as unknown as BlockType));
+const emit = defineEmits<ViewEmits>();
+const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
+
+function focusIdentifier(anchor: FocusAnchor) {
+  nameRef.value?.focusIdentifier(anchor);
+}
+
+function focusIcon() {
+  nameRef.value?.focusIcon();
+}
+
+function focus(anchor?: FocusAnchor | NodeReferenceData) {
+  focusIdentifier(typeof anchor == "string" ? anchor : "top");
+}
+
+defineExpose<Partial<ViewExposed> & { focusIdentifier: (anchor: FocusAnchor) => void }>({
+  focusIdentifier,
+  focus,
+});
 </script>
 <template>
   <!-- Header -->
@@ -22,7 +42,15 @@ const hasCanvas = computed(() => CANVAS_BLOCK_TYPES.includes(props.node.metatype
       height: VIEW_DEFAULT_HEADER_HEIGHT + 'px',
     }"
   >
-    <NodeReference ref="nodeRefRef" size="large" :node="node" is-light is-input :tx="() => connection.tx" />
+    <NodeReference
+      ref="nameRef"
+      size="large"
+      :node="node"
+      is-light
+      is-input
+      :tx="() => connection.tx"
+      @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+    />
     <!-- Open in its own view -->
     <button
       v-if="hasCanvas"
