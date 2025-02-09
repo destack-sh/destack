@@ -74,11 +74,17 @@ function focus(anchor?: "up" | "down" | "left" | "right" | FocusAnchor | NodeRef
   if (props.isInline) {
     let nextIdx;
     const currentIdx = results.value.findIndex((item) => item.id === activeResultId.value);
-    if (anchor === "up") nextIdx = currentIdx - ITEMS_PER_ROW;
-    else if (anchor === "down") nextIdx = currentIdx + ITEMS_PER_ROW;
-    else if (anchor === "left") nextIdx = currentIdx - 1;
-    else if (anchor === "right") nextIdx = currentIdx + 1;
-    else nextIdx = 0;
+    if (anchor === "up") {
+      nextIdx = currentIdx - ITEMS_PER_ROW;
+    } else if (anchor === "down") {
+      nextIdx = currentIdx + ITEMS_PER_ROW;
+    } else if (anchor === "left") {
+      nextIdx = currentIdx - 1;
+    } else if (anchor === "right") {
+      nextIdx = currentIdx + 1;
+    } else {
+      nextIdx = 0;
+    }
 
     nextIdx = Math.max(0, Math.min(results.value.length - 1, nextIdx));
     activeResultId.value = results.value[nextIdx].id;

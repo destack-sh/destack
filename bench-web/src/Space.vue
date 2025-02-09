@@ -159,42 +159,42 @@ mark {
 .pm-text strong {
   @apply font-semibold;
 }
-.pm-text .line:first-child {
+.pm-text p.line:first-child {
   @apply pt-0; /* ignore top margin */
 }
-.pm-text .line:last-child {
+.pm-text p.line:last-child {
   @apply pb-0; /* ignore bottom margin */
 }
-.pm-text .line {
+.pm-text p.line {
   @apply py-[3px] text-base;
 }
 .pm-text hr {
   @apply my-2 border-gray-200 p-0 focus:outline-none focus:ring-0;
 }
-.pm-text h1 {
+.pm-text h1.line {
   @apply mb-2 mt-4 text-2xl font-bold;
   line-height: 1.2;
 }
-.pm-text h2 {
+.pm-text h2.line {
   @apply mb-1.5 mt-2.5 text-xl font-bold;
   line-height: 1.4;
 }
-.pm-text h3 {
+.pm-text h3.line {
   @apply mb-0.5 mt-1.5 text-lg font-bold;
   line-height: 1.5;
 }
-.pm-text h4 {
+.pm-text h4.line {
   @apply mb-0.5 mt-1.5 text-base font-medium;
   line-height: 1.5;
 }
-.pm-text code {
+.pm-text code.line {
   @apply rounded bg-gray-100 px-0.5;
 }
-.pm-text blockquote {
+.pm-text blockquote.line {
   @apply my-2 border-l-4 border-gray-400 py-[1px] pl-2;
 }
 .pm-text div.callout {
-  @apply my-2 rounded bg-gray-100 px-2 py-2.5;
+  @apply my-2 rounded bg-gray-100 px-2 py-4;
 }
 /* TODO: UI: callout/heading/etc. line icons should be editable */
 .pm-text div.callout::before {

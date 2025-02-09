@@ -661,10 +661,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Replying to -->
       <div
         v-if="replyTo != null"
-        class="flex w-full flex-row items-center rounded rounded-b-none border border-b-0 border-gray-200 bg-gray-100 px-2.5 py-1"
+        class="flex w-full flex-row items-baseline rounded rounded-b-none border border-b-0 border-gray-200 bg-gray-100 px-2.5 py-1"
         role="button"
       >
-        <span>Replying to</span>
+        <span class="text-gray-700">Replying to</span>
         <span class="ml-1 font-medium text-gray-900">{{ replyTo.authorName ?? "???" }}</span>
         <!-- Preview -->
         <span
