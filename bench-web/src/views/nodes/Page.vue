@@ -303,7 +303,7 @@ function focusText(anchor: "top" | "bottom" = "bottom") {
     const firstBlock = blocks.value[0];
     if (firstBlock == null) {
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, "inside", page.value!);
-    } else if (firstBlock.type >= BlockType.PARAGRAPH && !STANDARD_TEXT_LINE_TYPES.includes(firstBlock.text?.type!)) {
+    } else if (firstBlock.type >= BlockType.PARAGRAPH && STANDARD_TEXT_LINE_TYPES.includes(firstBlock.text?.type!)) {
       focus(firstBlock, "top");
     } else {
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, "before", firstBlock);
