@@ -42,7 +42,7 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import PageHeader from "@/views/builtins/PageHeader.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { type FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
+import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
 import Pipe from "@/views/nodes/Pipe.vue";
 import FieldList from "@/views/objects/FieldList.vue";
@@ -276,7 +276,11 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
       }
       return pipeRefs.value[anchor.id!].$el;
     }
+  } else {
+    (pageHeaderRef.value ?? blockHeaderRef.value)?.focus?.(anchor ?? "top");
+    return true;
   }
+
   return false;
 }
 
@@ -303,8 +307,15 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
         :node="flow"
         :connection="preparedConnection"
         is-input
+        @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
       />
-      <BlockHeader v-else-if="isInline && flow" ref="blockHeaderRef" :node="flow" :connection="preparedConnection">
+      <BlockHeader
+        v-else-if="isInline && flow"
+        ref="blockHeaderRef"
+        :node="flow"
+        :connection="preparedConnection"
+        @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+      >
         <template #right>
           <!-- ... -->
         </template>
@@ -385,9 +396,7 @@ defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
       v-if="flow"
       ref="bodyRef"
       class="group/flow relative w-full select-none"
-      :class="[
-        flowCtx.dragging.value ? (flowCtx.isDraggingPort ? 'cursor-crosshair' : 'cursor-grabbing') : '',
-      ]"
+      :class="[flowCtx.dragging.value ? (flowCtx.isDraggingPort ? 'cursor-crosshair' : 'cursor-grabbing') : '']"
       :style="{
         height: `calc(100% - ${headerSize.height.value}px)`,
       }"

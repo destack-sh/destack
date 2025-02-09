@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { CANVAS_BLOCK_TYPES } from "@/language/core/const";
-import { BlockType, FieldType, NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
+import { BlockType, NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
@@ -8,8 +8,7 @@ import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { type FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
-import Text from "@/views/content/Text.vue";
+import { type FocusAnchor, type NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
 import Choice from "@/views/nodes/Choice.vue";
 import Database from "@/views/nodes/Database.vue";
 import Flow from "@/views/nodes/Flow.vue";
@@ -29,8 +28,7 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const blockRef = ref<HTMLElement | null>(null);
-const nodeRefRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
-const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
+const nodeRef: Ref<InstanceType<typeof Choice> | null> = ref(null);
 
 const blockPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
 const preparedConnection = props.preparedConnection ?? useExistingConnection(blockPtr);
@@ -50,19 +48,11 @@ const isSelected = computed(() => state.isSelected(blockPtr.value));
 // Interaction
 //
 
-const actions: Partial<ActionMapImplementation<"space">> & ActionMapImplementation<"block"> = {
-  // space
-  "space.edit.rename": {
-    action: () => {
-      nextTick(() => nodeRefRef.value?.focusIdentifier());
-    },
-  },
-};
+const actions: Partial<ActionMapImplementation<"space">> & ActionMapImplementation<"block"> = {};
 
 // focus
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
-  // TODO :Incomplete: focus/navigate nodes and subnodes (Block/Page) :Navigation
-  return false;
+  nodeRef.value?.focus?.(anchor);
 }
 
 defineExpose<ViewExposed>({ self, id, actions, focus });
@@ -83,7 +73,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   >
     <!-- Page -->
     <div v-if="node && block.type == BlockType.PAGE" class="flex h-[30px] flex-row items-center">
-      <NodeReference ref="nodeRefRef" size="large" is-underline is-light :node="node" :tx="() => connection.tx" />
+      <NodeReference ref="nodeRef" size="large" is-underline is-light :node="node" :tx="() => connection.tx" />
     </div>
     <!-- Inline definition -->
     <div v-else-if="node">
@@ -91,31 +81,37 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <Choice
         v-if="block.type == BlockType.CHOICE"
         id="choice"
+        ref="nodeRef"
         class=""
         :prepared-connection="preparedConnection"
         :node-ptr="nodePtr"
         is-minimal
         is-inline
+        @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
       />
       <Flow
         v-else-if="block.type == BlockType.FLOW"
         id="flow"
+        ref="nodeRef"
         class="h-[400px]"
         v-bind="state.getChildState('flow')"
         :node-ptr="nodePtr"
         :prepared-connection="preparedConnection"
         is-minimal
         is-inline
+        @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
       />
       <Database
         v-else-if="block.type == BlockType.DATABASE"
         id="database"
+        ref="nodeRef"
         v-bind="state.getChildState('database')"
         :node-ptr="nodePtr"
         :container-gutter-width="containerGutterWidth"
         is-minimal
         is-inline
         is-input
+        @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
       />
     </div>
   </div>

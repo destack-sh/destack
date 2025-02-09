@@ -193,7 +193,7 @@ defineExpose<ViewExposed & { select: () => void }>({
         "
         @keydown.up.stop="() => emit('navigate', 'up')"
         @keydown.down.stop="() => emit('navigate', 'down')"
-        @keydown.enter.stop.prevent="() => (emit('apply', currentValue), emit('navigate', 'down'))"
+        @keydown.enter.stop.prevent="() => (emit('apply', currentValue), emit('navigate', 'enter'))"
         @input="currentValue = ($event.target as HTMLInputElement).value"
       />
       <!-- Invisible input to measure width -->

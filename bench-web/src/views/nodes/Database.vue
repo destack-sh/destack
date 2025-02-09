@@ -21,6 +21,7 @@ import {
   FieldData,
   FieldType,
   IconData,
+  NodeReferenceData,
   NodeType,
   ObjectType,
   Orientation,
@@ -74,7 +75,7 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import PageHeader from "@/views/builtins/PageHeader.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -194,6 +195,7 @@ const {
 const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const headerRef: Ref<HTMLDivElement | null> = ref(null);
 const pageHeaderRef: Ref<InstanceType<typeof PageHeader> | null> = ref(null);
+const blockHeaderRef: Ref<InstanceType<typeof BlockHeader> | null> = ref(null);
 const containerRef = ref<HTMLDivElement | null>(null);
 const columnHeaderRef: Ref<HTMLDivElement | null> = ref(null);
 const bodyRef: Ref<HTMLDivElement | null> = ref(null);
@@ -529,6 +531,24 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
 });
 
 //
+// Navigation
+//
+
+function navigateFromHeader(direction: NavigationDirection) {
+  if (direction == "right" || direction == "down" || direction == "enter") {
+    // focus first record or go down
+    if (records.value.length > 0) {
+      canvas.select([records.value[0]]);
+      canvas.inspect({ node: records.value[0] });
+    } else {
+      emit("navigate", "down");
+    }
+  } else {
+    emit("navigate", direction);
+  }
+}
+
+//
 // Actions
 //
 
@@ -562,7 +582,11 @@ const actions: Partial<ActionMapImplementation<"space" | "table" | "list">> = {
   },
 };
 
-defineExpose<ViewExposed>({ self, id, actions });
+function focus(anchor?: FocusAnchor | NodeReferenceData) {
+  (pageHeaderRef.value ?? blockHeaderRef.value)?.focus?.(anchor ?? "left");
+}
+
+defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
   <div
@@ -584,8 +608,15 @@ defineExpose<ViewExposed>({ self, id, actions });
       :node="database"
       :connection="preparedConnection"
       is-input
+      @navigate="(direction: NavigationDirection) => navigateFromHeader(direction)"
     />
-    <BlockHeader v-else-if="isInline && database" :node="database" :connection="preparedConnection">
+    <BlockHeader
+      v-else-if="isInline && database"
+      ref="blockHeaderRef"
+      :node="database"
+      :connection="preparedConnection"
+      @navigate="(direction: NavigationDirection) => navigateFromHeader(direction)"
+    >
       <template #right>
         <!-- ... -->
       </template>
@@ -1045,7 +1076,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Default add -->
           <button v-else class="h-full w-full px-3 text-left text-gray-400 hover:bg-gray-100" @click="createRecord()">
             <i class="fas fa-plus mr-1.5" />
-            <span class="">Add record</span>
+            <span class="">Record</span>
           </button>
         </div>
 
