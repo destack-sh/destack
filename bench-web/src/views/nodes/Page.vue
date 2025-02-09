@@ -2,7 +2,7 @@
 import { toCamelName } from "@/language/core/const";
 import { isDescendantOf } from "@/language/core/graph";
 import { cloneNode, moveNode, NodeIn } from "@/language/core/node";
-import { HIGHLIGHTED_TEXT_LINE_TYPES, STANDARD_TEXT_LINE_TYPES } from "@/language/core/text";
+import { STANDARD_TEXT_LINE_TYPES } from "@/language/core/text";
 import { uploadFile } from "@/language/resource/file";
 import { newChangeId } from "@/language/runtime/transaction";
 import { createBlock } from "@/language/source/block";
@@ -35,7 +35,6 @@ import { pushDefaultMenu } from "@/ui/popover";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import NodeReference from "@/views/builtins/NodeReference.vue";
 import PageHeader from "@/views/builtins/PageHeader.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
@@ -49,6 +48,7 @@ const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 60;
 const BLOCK_GAP_Y = 4;
+const MIN_FOOTER_PADDING = 200;
 
 const props = defineProps<
   {
@@ -355,7 +355,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 <template>
   <div class="flex w-full select-none flex-col bg-white text-gray-900" :class="[page ? '' : 'h-full']">
     <!-- Root header -->
-    <RootHeader v-if="!isMinimal && isRoot" :self="self" :node-ptr="nodePtr" :focus="props.focus" :graph="graph">
+    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="props.focus" :graph="graph">
       <template #meta>
         <button
           class="text-gray-400 hover:bg-gray-100 hover:text-gray-700"
@@ -376,7 +376,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
       track-is-overlay
       @mousedown="(e: MouseEvent) => startSelectingIfAllowed(selectionZone, e)"
     >
-      <div ref="contentRef" class="flex min-h-full flex-col">
+      <div
+        ref="contentRef"
+        class="flex min-h-full flex-col"
+        :style="{ minHeight: size.height - (isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0) + 'px' }"
+      >
         <!-- Page header (title) -->
         <PageHeader
           ref="pageHeaderRef"
@@ -447,6 +451,14 @@ defineExpose<ViewExposed>({ self, actions, focus });
           </div>
         </div>
 
+        <!-- Padding -->
+        <div
+          class="transform transition-all duration-300"
+          :class="!isEmpty ? 'pt-auto' : 'pt-0'"
+          :style="{ height: MIN_FOOTER_PADDING / 2 + 'px' }"
+          @click="focusText()"
+        />
+
         <!-- Footer -->
         <div
           class="group/footer mx-auto flex flex-row justify-center gap-x-2.5 py-8"
@@ -477,7 +489,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         </div>
 
         <!-- Padding -->
-        <div class="h-[320px]" @click="focusText()" />
+        <div class="" :style="{ height: MIN_FOOTER_PADDING / 2 + 'px' }" @click="focusText()" />
 
         <!-- Selection -->
         <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
