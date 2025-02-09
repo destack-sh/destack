@@ -22,7 +22,10 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 
 const textRef = ref<HTMLElement | null>(null);
-const textInterface = useTextInterface(toRef(props, "modelValue"), (text) => emit("update:modelValue", text));
+const textInterface = useTextInterface({
+  modelValue: toRef(props, "modelValue"),
+  update: (text) => emit("update:modelValue", text),
+});
 const { focus, actions, isInDropZone } = useTextEditor({
   textRef,
   text: textInterface,

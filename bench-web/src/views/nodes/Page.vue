@@ -2,6 +2,7 @@
 import { toCamelName } from "@/language/core/const";
 import { isDescendantOf } from "@/language/core/graph";
 import { cloneNode, moveNode, NodeIn } from "@/language/core/node";
+import { HIGHLIGHTED_TEXT_LINE_TYPES, STANDARD_TEXT_LINE_TYPES } from "@/language/core/text";
 import { uploadFile } from "@/language/resource/file";
 import { newChangeId } from "@/language/runtime/transaction";
 import { createBlock } from "@/language/source/block";
@@ -266,14 +267,18 @@ function createAndFocusBlock(
 function focusText(anchor: "top" | "bottom" = "bottom") {
   if (anchor == "top") {
     const firstBlock = blocks.value[0];
-    if (firstBlock.type >= BlockType.PARAGRAPH) {
+    if (firstBlock == null) {
+      createAndFocusBlock({ type: BlockType.PARAGRAPH }, "inside", page.value!);
+    } else if (firstBlock.type >= BlockType.PARAGRAPH && !STANDARD_TEXT_LINE_TYPES.includes(firstBlock.text?.type!)) {
       focus(firstBlock, "top");
     } else {
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, "before", firstBlock);
     }
   } else {
     const lastBlock = blocks.value[blocks.value.length - 1];
-    if (lastBlock.type >= BlockType.PARAGRAPH) {
+    if (lastBlock == null) {
+      createAndFocusBlock({ type: BlockType.PARAGRAPH }, "inside", page.value!);
+    } else if (lastBlock.type >= BlockType.PARAGRAPH && STANDARD_TEXT_LINE_TYPES.includes(lastBlock.text?.type!)) {
       focus(lastBlock, "bottom");
     } else {
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, "after", lastBlock);

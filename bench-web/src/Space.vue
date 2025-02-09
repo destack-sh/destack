@@ -165,7 +165,8 @@ mark {
 .pm-text p.line:last-child {
   @apply pb-0; /* ignore bottom margin */
 }
-.pm-text p.line {
+.pm-text p.line,
+.pm-text li.line {
   @apply py-[3px] text-base;
 }
 .pm-text hr {
@@ -187,21 +188,26 @@ mark {
   @apply mb-0.5 mt-1.5 text-base font-medium;
   line-height: 1.5;
 }
-.pm-text code.line {
-  @apply rounded bg-gray-100 px-0.5;
+.pm-text li.line.list-unordered {
+  @apply list-disc pl-1;
+}
+.pm-text li.line.list-ordered {
+  @apply list-decimal pl-1;
+}
+.pm-text p.line.code {
+  @apply my-2 w-full rounded bg-gray-100 px-3 py-2;
 }
 .pm-text blockquote.line {
   @apply my-2 border-l-4 border-gray-400 py-[1px] pl-2;
 }
-.pm-text div.callout {
-  @apply my-2 rounded bg-gray-100 px-2 py-4;
+.pm-text p.line.callout {
+  @apply my-2 rounded bg-gray-100 px-2 py-3;
 }
-/* TODO: UI: callout/heading/etc. line icons should be editable */
-.pm-text div.callout::before {
+.pm-text p.line.callout::before {
   content: "\f06a"; /* fa-icon: circle-exclamation */
   font-family: "Font Awesome 6 Pro";
   font-weight: 900;
-  @apply mr-1 px-1 text-gray-700;
+  @apply mr-1 pl-1.5 pr-2 text-gray-700;
 }
 
 /* Span Nodes */

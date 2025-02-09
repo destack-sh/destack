@@ -27,7 +27,11 @@ const state = canvas.registerView(self, id);
 
 const textRef = ref<HTMLElement | null>(null);
 
-const textInterface = useTextBlockGroupInterface(toRef(props, "blocks"));
+const textInterface = useTextBlockGroupInterface({
+  blocks: toRef(props, "blocks"),
+  graph,
+  txFactory: () => connection.tx,
+});
 const { focus, actions, isInDropZone } = useTextEditor({
   textRef,
   text: textInterface,

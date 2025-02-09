@@ -657,7 +657,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       </div>
     </Scroll>
     <!-- Input -->
-    <div ref="inputContainerRef" class="mx-5" @click="inputRef?.focus?.()">
+    <div ref="inputContainerRef" class="mx-5" @mousedown="inputRef?.focus?.('right')">
       <!-- Replying to -->
       <div
         v-if="replyTo != null"
