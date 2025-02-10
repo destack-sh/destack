@@ -10,8 +10,11 @@ import { NodeSelection, TextSelection, Transaction as PmTransaction } from "pros
 import { Decoration, EditorView, ViewMutationRecord, type NodeView as PmNodeView } from "prosemirror-view";
 import { Component, ComponentInternalInstance, createVNode, render } from "vue";
 
+const PROSEMIRROR_NODE_KEY = "__pmNode";
+
 /** Mini-component for PM Node spans */
 export class SpanNodeView implements PmNodeView {
+  // nocheckin: wrap NodeReference in SpanNodeView? (instead of this custom stuff)
   dom: HTMLElement;
   nodePtr: NodeReferenceData;
   iconDom: HTMLElement;
@@ -77,6 +80,7 @@ export class VueComponentRenderer implements PmNodeView {
     this.vnode = createVNode(component, { ...props });
     this.vnode.parent = parentComponent;
     this.vnode.appContext = parentComponent.appContext;
+    (this.vnode as any)[PROSEMIRROR_NODE_KEY] = node;
     this.view = view;
     render(this.vnode, this.dom);
   }
@@ -91,10 +95,12 @@ export class VueComponentRenderer implements PmNodeView {
   }
 
   stopEvent(event: Event): boolean {
+    // suppress all events
     return true;
   }
 
   ignoreMutation(mutation: ViewMutationRecord): boolean {
+    // ignore all DOM mutations
     return true;
   }
 }
@@ -166,7 +172,7 @@ export class BlockRenderer extends VueComponentRenderer {
       } else {
         // create text line below
         this.view.dispatch(this.view.state.tr.insert(pos + 1, PM_SCHEMA.node("lineParagraph")));
-        targetPos = pos + 2
+        targetPos = pos + 2;
       }
     }
 

@@ -67,7 +67,7 @@ def _on_completing_setup(func: Callable | None = None):
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     from bench.language import BuiltinObject, CustomObject, Node, Struct
-    from bench.language.core import HasNodeBase, const
+    from bench.language.core import HasNodeBase, InlineSourceNode, NodeSubtypeStub, const
     from bench.language.core.object import (
         _is_setup_complete,
         _set_setup_complete,
@@ -201,7 +201,6 @@ def _complete_bench_setup():
                         raise ValueError(f"{prop!r} {prop.reference_struct} != {prop.py_type_raw}")
 
     # add all subtype stubs
-    from bench.language.core import NodeSubtypeStub
 
     for node_type in NODE_TYPES:
         node_cls = NODE_CLASS_BY_TYPE[node_type]
@@ -242,8 +241,18 @@ def _complete_bench_setup():
                     f"{node_cls!r} parent types are inconsistent: root={node_cls.__roots__} implies in_bench={in_bench} and in_package={in_package}, but configured in_bench={node_cls.__is_in_bench__} and in_package={node_cls.__is_in_package__}"
                 )
 
+        # check that INLINE_SOURCE_NODE_TYPES is consistent with InlineSourceNode
+        inline_source_node_types = [
+            cast(Node, n).metatype
+            for n in get_subclasses(InlineSourceNode)
+            if getattr(n, "metatype", None)
+        ]
+        assert_collections_equal(inline_source_node_types, const.INLINE_SOURCE_NODE_TYPES.tuple)
+
         # check that BASED_NODE_TYPES is consistent with HasBase
         base_node_types = [
-            cast(Node, n).metatype for n in get_subclasses(HasNodeBase) if hasattr(n, "metatype")
+            cast(Node, n).metatype
+            for n in get_subclasses(HasNodeBase)
+            if getattr(n, "metatype", None)
         ]
         assert_collections_equal(base_node_types, const.BASED_NODE_TYPES.tuple)

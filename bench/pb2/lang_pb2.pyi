@@ -653,7 +653,7 @@ class TimeInterval(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class PackageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PACKAGE_TYPE_UNSPECIFIED: _ClassVar[PackageType]
-    PACKAGE_TYPE_ROOT: _ClassVar[PackageType]
+    PACKAGE_TYPE_MAIN: _ClassVar[PackageType]
     PACKAGE_TYPE_SIDE: _ClassVar[PackageType]
     PACKAGE_TYPE_SNAPSHOT: _ClassVar[PackageType]
 
@@ -2525,7 +2525,7 @@ TIME_INTERVAL_WEEK: TimeInterval
 TIME_INTERVAL_MONTH: TimeInterval
 TIME_INTERVAL_YEAR: TimeInterval
 PACKAGE_TYPE_UNSPECIFIED: PackageType
-PACKAGE_TYPE_ROOT: PackageType
+PACKAGE_TYPE_MAIN: PackageType
 PACKAGE_TYPE_SIDE: PackageType
 PACKAGE_TYPE_SNAPSHOT: PackageType
 CLOUD_UNSPECIFIED: Cloud

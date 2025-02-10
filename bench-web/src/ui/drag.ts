@@ -338,7 +338,7 @@ export function useMultiDropZone(
     allowDrop?: (dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent) => boolean;
     onDrop?: (dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) => void;
   },
-): { activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null } | null> } {
+): { activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null; targetRect: DOMRect | null } | null> } {
   const { activeDropZone: singleDropZone, getActiveDropZone: getSingleActiveDropZone } = useSingleDropZone({
     ...options,
     orientation: options.orientation,
@@ -350,10 +350,10 @@ export function useMultiDropZone(
     },
   });
 
-  function getActiveDropZone(): { anchor: MultiAnchor; targetId: string | null } {
+  function getActiveDropZone(): { anchor: MultiAnchor; targetId: string | null; targetRect: DOMRect | null } {
     // find directly hit zone (and closest as fallback)
     const cursor = { x: position.x.value, y: position.y.value };
-    let closest: { anchor: MultiAnchor; targetId: string; distance: number } | null = null;
+    let closest: { anchor: MultiAnchor; targetId: string; distance: number; targetRect: DOMRect | null } | null = null;
     for (const [targetId, targetEl] of Object.entries(options.targets.value)) {
       const targetRect = getElement(targetEl)!.getBoundingClientRect();
       const cursorP = options.orientation == Orientation.HORIZONTAL ? cursor.x : cursor.y;
@@ -366,17 +366,17 @@ export function useMultiDropZone(
           const centerZone = edgeZone * SPLIT_EDGE_ZONE_FRACTION;
           const anchor =
             cursorP <= targetStart + centerZone ? "start" : cursorP >= targetEnd - centerZone ? "end" : "center";
-          return { targetId, anchor };
+          return { targetId, anchor, targetRect };
         } else {
           const anchor = cursorP <= (targetStart + targetEnd) / 2 ? "start" : "end";
-          return { targetId, anchor };
+          return { targetId, anchor, targetRect };
         }
       } else {
         // check if it's new closest
         const distance = Math.min(Math.abs(cursorP - targetStart), Math.abs(cursorP - targetEnd));
         if (closest == null || distance < closest.distance) {
           const anchor = cursorP < targetStart ? "start" : "end";
-          closest = { anchor, targetId, distance };
+          closest = { anchor, targetId, distance, targetRect };
         }
       }
     }
@@ -384,16 +384,17 @@ export function useMultiDropZone(
     // fallback to closest if possible
     if (options?.fallbackToClosest && closest != null) return closest;
     // else we attribute to entire container
-    return { targetId: null, anchor: getSingleActiveDropZone().anchor };
+    return { targetId: null, anchor: getSingleActiveDropZone().anchor, targetRect: null };
   }
 
   const position = useMouse();
-  const activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null } | null> = computed(() => {
-    if (singleDropZone.value == null) return null;
-    const activeDropZone = getActiveDropZone();
-    if (options.allowDrop?.(activeDrag.value!, activeDropZone.anchor, activeDropZone.targetId) === false) return null;
-    return activeDropZone;
-  });
+  const activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null; targetRect: DOMRect | null } | null> =
+    computed(() => {
+      if (singleDropZone.value == null) return null;
+      const activeDropZone = getActiveDropZone();
+      if (options.allowDrop?.(activeDrag.value!, activeDropZone.anchor, activeDropZone.targetId) === false) return null;
+      return activeDropZone;
+    });
 
   return { activeDropZone };
 }

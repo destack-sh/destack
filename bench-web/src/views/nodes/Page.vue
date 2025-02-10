@@ -43,7 +43,6 @@ import { computed, getCurrentInstance, nextTick, ref, shallowRef, toRef, watch, 
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 60;
-const BLOCK_GAP_Y = 4;
 const MIN_FOOTER_PADDING = 200;
 
 const props = defineProps<
@@ -66,7 +65,7 @@ const preparedConnection = useExistingConnection(nodePtr);
 const { graph, connection } = preparedConnection;
 const page = graph.getRef(nodePtr) as Ref<PageData | undefined>;
 const blocks = graph.getChildrenRef(nodePtr, NodeType.BLOCK);
-providePageContext(vueInstance.uid.toString(), {
+providePageContext({
   page,
   blocks,
   blocksRefById: shallowRef({}),
@@ -89,19 +88,6 @@ const widths = computed(() => {
 const isEmpty = computed(
   () => blocks.value.length == 0 || blocks.value.every((b) => b.type >= BlockType.PARAGRAPH && b.text == null),
 );
-
-/** Gets the position for a div anchored at the start/end of the given block */
-function getAnchorPositionStyle(anchor: "start" | "end", blockIdx: number, anchorWidth: number) {
-  if (anchor == "start") {
-    return {
-      top: -BLOCK_GAP_Y / 2 - anchorWidth / 2 + "px",
-    };
-  } else {
-    return {
-      bottom: -BLOCK_GAP_Y / 2 - anchorWidth / 2 + "px",
-    };
-  }
-}
 
 //
 // Text
@@ -132,15 +118,20 @@ const textInterface = useTextPageInterface({
 const {
   focus: textFocus,
   actions: textActions,
+  lineRefsById,
   isInDropZone,
   updatePlugin,
 } = useTextEditor({
   textRef,
   text: textInterface,
-  isInput: ref(true),
-  suppressEnter: ref(false),
-  suppressDrop: ref(false),
-  navigate: (direction: NavigationDirection) => emit("navigate", direction),
+  isInput: true,
+  suppressEnter: false,
+  suppressDrop: true, // handled manually (block-by-block) below
+  navigate: (direction: NavigationDirection) => {
+    if (direction == "left" || direction == "up") {
+      pageHeaderRef.value?.focus?.("top");
+    }
+  },
   deleteSelf: () => emit("deleteSelf"),
   plugins: [highlightPlugin],
   parentComponent: vueInstance,
@@ -160,7 +151,7 @@ const selectionZone = useSelectionZone({ containerEl: contentRef, overlayEl: sel
 const { activeDropZone } = useMultiDropZone({
   name: "page",
   container: contentRef,
-  targets: ref({}), // nocheckin
+  targets: lineRefsById,
   orientation: Orientation.VERTICAL,
   kinds: ["node", "selection", "file"],
   metatypes: [NodeType.BLOCK],
@@ -224,6 +215,15 @@ const { activeDropZone } = useMultiDropZone({
     }
   },
 });
+const activeDropAnchorPosition = computed(() => {
+  if (activeDropZone.value?.targetRect == null) return null;
+  const { anchor, targetRect } = activeDropZone.value;
+  if (anchor == "start") {
+    return { y: targetRect.top };
+  } else {
+    return { y: targetRect.bottom };
+  }
+});
 
 // actions
 const actions: Partial<ActionMapImplementation<"list" | "space">> = {
@@ -240,6 +240,7 @@ const actions: Partial<ActionMapImplementation<"list" | "space">> = {
     create: (anchor, node) =>
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, node != null ? anchor : "inside", node ?? page.value!),
   }),
+  ...textActions,
 };
 function createAndFocusBlock(
   blockIn: Partial<NodeIn<NodeType.BLOCK>>,
@@ -299,7 +300,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData, innerAnch
     focusText("bottom");
   } else {
     // focus containing group
-    // nocheckin
+    // nocheckin: focus
     // if (block.type >= BlockType.PARAGRAPH) {
     //   const group = groups.value.find((g) => g.type == "text" && g.blocks.some((b) => b.id == block.id));
     //   const groupRef = textBlockGroupRefs.value[group!.id!];
@@ -366,8 +367,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- Text/Blocks -->
         <div
           ref="textRef"
-          class="pm-text relative mx-auto rounded hover:cursor-text"
-          :class="['stealth', isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '']"
+          class="pm-text stealth relative mx-auto rounded hover:cursor-text"
           data-suppress-actions="space.move.left,space.move.right"
           data-suppress-drag="both"
           :style="{
@@ -376,7 +376,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
         >
           <!-- Floating menu -->
           <!-- nocheckin: factor out to TextFloatingMenu? -->
-          <div v-if="false" class="absolute left-0 top-0 border bg-white">help</div>
+          <!-- <div v-if="false" class="absolute left-0 top-0 border bg-white">help</div> -->
+          <!-- Dragging anchor -->
+          <div
+            v-if="activeDropAnchorPosition"
+            class="fixed z-40 h-[4px] bg-orange-400"
+            :style="{ top: activeDropAnchorPosition.y - 2 + 'px', width: widths.block + 'px' }"
+          />
         </div>
 
         <!-- Padding -->

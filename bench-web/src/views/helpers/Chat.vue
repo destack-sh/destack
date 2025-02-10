@@ -1,16 +1,19 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
+import { getBaseFromNode, isInlineSourceNode } from "@/language/core/const";
 import { EditSubject, makeAndConditional, makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
 import { emptyText, getTextLine, isTextEmpty, trimText } from "@/language/core/text";
 import { INLINE_FILE_TYPES, uploadFile } from "@/language/resource/file";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
-  ChannelData,
+  AnyNodeData,
+  DatabaseData,
   ExpressionData,
   ExpressionType,
   FileData,
   IconData,
+  InlineSourceNodeData,
   MessageData,
   MessageProperty,
   MessageType,
@@ -18,10 +21,8 @@ import {
   NodeType,
   Orientation,
   PackageData,
-  PageData,
   RectangleData,
   TextData,
-  ThreadData,
   ViewData,
   ViewType,
 } from "@/proto/wire";
@@ -76,13 +77,17 @@ const threadPtr = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked
 const channel = supergraph.getRef(channelPtr);
 const thread = supergraph.getRef(threadPtr);
 const nodePtr = computedValue(() => props.nodePtr);
-const node = pkgGraph.getRef(nodePtr) as Ref<PageData | PackageData | ChannelData | ThreadData>;
+const node = supergraph.getRef(nodePtr) as Ref<AnyNodeData>;
+const basePtr = computed(() => (node.value != null ? getBaseFromNode(node.value) : null));
+const base = pkgGraph.getRef(basePtr);
 const nodeAncestors = pkgGraph.getAncestorsRef(nodePtr);
-const scope: Ref<PageData | PackageData | null> = computed(() => {
-  if (isNode(node.value, NodeType.PAGE) || isNode(node.value, NodeType.PACKAGE)) {
+const scope: Ref<InlineSourceNodeData | PackageData | null> = computed(() => {
+  if (isInlineSourceNode(node.value) || isNode(node.value, NodeType.PACKAGE)) {
     return node.value;
+  } else if (isNode(node.value, NodeType.RECORD)) {
+    return base.value as DatabaseData;
   } else {
-    const scope = nodeAncestors.value.find((a) => isNode(a, NodeType.PAGE) || isNode(a, NodeType.PACKAGE));
+    const scope = nodeAncestors.value.find((a) => isInlineSourceNode(a) || isNode(a, NodeType.PACKAGE));
     if (scope != null) {
       return scope;
     }

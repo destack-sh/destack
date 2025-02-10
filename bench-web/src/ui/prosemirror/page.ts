@@ -1,12 +1,14 @@
 import { BlockData, PageData } from "@/proto/wire";
 import { PreparedGetConnection } from "@/system/connection";
 import Block from "@/views/nodes/Block.vue";
-import { inject, Ref } from "vue";
+import { inject, provide, Ref } from "vue";
 
 /**
  * NOTE :Architecture: we can't use provide/inject because the Block views are created manually,
  *  which apparently breaks the inject chain (since parent/children are not connected properly).
  */
+
+export const PAGE_CONTEXT_KEY = Symbol("page");
 
 /** Context for Views on a Page */
 export type PageContext = {
@@ -17,15 +19,14 @@ export type PageContext = {
   gutterWidth: Ref<number | undefined>;
 };
 
-const activePageContextsByKey: Record<string, PageContext> = {};
-
-export function providePageContext(key: string, context: PageContext) {
-  activePageContextsByKey[key] = context;
+/** Provide the PageContext */
+export function providePageContext(context: PageContext) {
+  provide(PAGE_CONTEXT_KEY, context);
 }
 
 /** Inject the PageContext */
-export function usePageContext(key: string): PageContext {
-  const page = activePageContextsByKey[key];
-  if (page == null) throw new Error("no page context");
-  return page;
+export function usePageContext(): PageContext {
+  const context = inject<PageContext>(PAGE_CONTEXT_KEY);
+  if (context == null) throw new Error("no page context");
+  return context;
 }

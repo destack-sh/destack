@@ -9691,9 +9691,9 @@ export enum PackageType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PACKAGE_TYPE_ROOT = 1;
+     * @generated from protobuf enum value: PACKAGE_TYPE_MAIN = 1;
      */
-    ROOT = 1,
+    MAIN = 1,
     /**
      * @generated from protobuf enum value: PACKAGE_TYPE_SIDE = 5;
      */

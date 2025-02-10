@@ -6,6 +6,7 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     HasTimeIdentity,
+    InlineSourceNode,
     Node,
     NodeType,
     StateNode,
@@ -21,7 +22,7 @@ from bench.language.core import (
 from bench.pb2 import ThreadData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Channel, Message, Package, Page, Run
+    from bench.language import Bench, Channel, Message, Package, Run
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -55,7 +56,7 @@ class Thread(HasTimeIdentity, StateNode[ThreadData]):
         same_bench=True,
         references=NodeType.CHANNEL,
     )
-    scope: Union["Page", "Package"] = p_regular(
+    scope: Union["InlineSourceNode", "Package"] = p_regular(
         35, require=False, references=(NodeType.PAGE, NodeType.PACKAGE)
     )
     run: Optional["Run"] = p_regular(
