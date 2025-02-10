@@ -40,14 +40,24 @@ import {
   smartQuotes,
 } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
-import { Node as PmNode, NodeType as PmNodeType, Schema as PmSchema, type DOMOutputSpec } from "prosemirror-model";
+import {
+  NodeRange,
+  Node as PmNode,
+  NodeType as PmNodeType,
+  Schema as PmSchema,
+  ResolvedPos,
+  type DOMOutputSpec,
+  type Mark as PmMark,
+} from "prosemirror-model";
 import {
   Command,
   EditorState,
   Plugin,
+  Transaction as PmTransaction,
   TextSelection,
   type SelectionBookmark as EditorSelectionBookmark,
 } from "prosemirror-state";
+import { liftTarget } from "prosemirror-transform";
 import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
 import { computed, onBeforeUnmount, watch, type Ref } from "vue";
 
@@ -126,6 +136,14 @@ export const PM_SCHEMA = new PmSchema({
       parseDOM: [{ tag: "blockquote", attrs: { type: TextLineType.QUOTE } }],
     },
     // list
+    orderedList: {
+      group: "line",
+      content: "lineListOrdered+",
+      toDOM(node) {
+        return ["ol", { class: "ordered-list" }, 0];
+      },
+      parseDOM: [{ tag: "ol" }],
+    },
     lineListUnordered: {
       group: "line",
       content: "span*",
@@ -135,10 +153,19 @@ export const PM_SCHEMA = new PmSchema({
       },
       parseDOM: [{ tag: "li.list-unordered", attrs: { type: TextLineType.LIST_UNORDERED } }],
     },
+    unorderedList: {
+      group: "line",
+      content: "lineListUnordered+",
+      toDOM(node) {
+        return ["ul", { class: "unordered-list" }, 0];
+      },
+      parseDOM: [{ tag: "ul" }],
+    },
     lineListOrdered: {
       group: "line",
       content: "span*",
       attrs: { blockPtr: { default: null }, type: { default: TextLineType.LIST_ORDERED } },
+      // This node will now only be created inside an orderedList wrapper.
       toDOM(node) {
         return LIST_ORDERED_DOM;
       },
@@ -228,7 +255,6 @@ export const PM_SCHEMA = new PmSchema({
     },
   },
   marks: {
-    // basic options
     bold: {
       parseDOM: [
         { tag: "strong" },
@@ -404,87 +430,100 @@ export function useTextBlockGroupInterface(options: {
 /** Convert TextData to a PmNode. */
 export function mapTextToPmNode(lines: TextLineInterface[]): PmNode {
   const schema = PM_SCHEMA;
+  const nodes: PmNode[] = [];
+  let listGroup: PmNode[] = [];
+  let currentListType: "ordered" | "unordered" | null = null;
 
-  // lines
-  const lineNodes: PmNode[] = [];
+  const flushListGroup = () => {
+    if (listGroup.length > 0) {
+      nodes.push(schema.node(currentListType === "ordered" ? "orderedList" : "unorderedList", {}, listGroup));
+      listGroup = [];
+      currentListType = null;
+    }
+  };
+
   for (const { line, blockPtr } of lines) {
     // spans
-    const spanNodes: PmNode[] = [];
-    for (const span of line.spans) {
-      let spanNode;
-      if (span.type == TextSpanType.UNSPECIFIED || span.type == TextSpanType.TEXT) {
-        spanNode = schema.text(span.content ?? "");
-      } else if (span.type == TextSpanType.HARD_BREAK) {
-        spanNode = schema.node("spanHardBreak");
-      } else if (span.type == TextSpanType.NODE) {
-        spanNode = schema.node("spanNode", { nodePtr: span.nodePtr });
-      } else if (span.type == TextSpanType.LINK) {
-        spanNode = schema.node("spanLink", { content: span.content, href: span.url });
-      } else if (span.type == TextSpanType.CODE) {
-        spanNode = schema.node("spanCode", { content: span.content });
-      } else if (span.type == TextSpanType.EQUATION) {
-        spanNode = schema.node("spanEquation", { content: span.content });
+    const spanNodes = line.spans.map((span) => {
+      let node;
+      if (span.type === TextSpanType.TEXT || span.type === TextSpanType.UNSPECIFIED) {
+        node = schema.text(span.content ?? "");
       } else {
-        throw new Error(`unexpected span: ${JSON.stringify(span)}`);
+        if (span.type === TextSpanType.HARD_BREAK) {
+          node = schema.node("spanHardBreak", {});
+        } else if (span.type === TextSpanType.NODE) {
+          node = schema.node("spanNode", { nodePtr: span.nodePtr });
+        } else if (span.type === TextSpanType.LINK) {
+          node = schema.node("spanLink", { content: span.content, href: span.url });
+        } else if (span.type === TextSpanType.CODE) {
+          node = schema.node("spanCode", { content: span.content });
+        } else if (span.type === TextSpanType.EQUATION) {
+          node = schema.node("spanEquation", { content: span.content });
+        } else {
+          throw new Error(`unexpected span type: ${span.type}`);
+        }
       }
+
       // marks
-      const markTypes: TextMarkType[] = [];
-      if (span.isBold) markTypes.push("bold");
-      if (span.isItalic) markTypes.push("italic");
-      if (span.isStrikethrough) markTypes.push("strikethrough");
-      if (span.isUnderline) markTypes.push("underline");
-      if (markTypes.length > 0) {
-        const marks = markTypes.map((type) => schema.mark(type));
-        spanNode = spanNode.mark(marks);
-      }
-      spanNodes.push(spanNode);
-    }
+      const marks: PmMark[] = [];
+      if (span.isBold) marks.push(schema.mark("bold"));
+      if (span.isItalic) marks.push(schema.mark("italic"));
+      if (span.isStrikethrough) marks.push(schema.mark("strikethrough"));
+      if (span.isUnderline) marks.push(schema.mark("underline"));
+      return marks.length ? node.mark(marks) : node;
+    });
 
     // line
-    let lineNode: PmNode;
     const attrs = { type: line.type, blockPtr };
-    if (line.type == TextLineType.PARAGRAPH) {
-      lineNode = schema.node("lineParagraph", attrs, spanNodes);
-    } else if (
-      line.type == TextLineType.HEADING_1 ||
-      line.type == TextLineType.HEADING_2 ||
-      line.type == TextLineType.HEADING_3 ||
-      line.type == TextLineType.HEADING_4
-    ) {
-      lineNode = schema.node("lineHeading", attrs, spanNodes);
-    } else if (line.type == TextLineType.DIVIDER) {
-      lineNode = schema.node("lineDivider", attrs);
-    } else if (line.type == TextLineType.QUOTE) {
-      lineNode = schema.node("lineQuote", attrs, spanNodes);
-    } else if (line.type == TextLineType.CALLOUT) {
-      lineNode = schema.node("lineCallout", attrs, spanNodes);
-    } else if (line.type == TextLineType.CODE) {
-      lineNode = schema.node("lineCode", attrs, spanNodes);
-    } else if (line.type == TextLineType.LIST_UNORDERED) {
-      lineNode = schema.node("lineListUnordered", attrs, spanNodes);
-    } else if (line.type == TextLineType.LIST_ORDERED) {
-      lineNode = schema.node("lineListOrdered", attrs, spanNodes);
+    if (line.type === TextLineType.LIST_ORDERED || line.type === TextLineType.LIST_UNORDERED) {
+      const isOrdered = line.type === TextLineType.LIST_ORDERED;
+      const listType = isOrdered ? "ordered" : "unordered";
+      const nodeType = isOrdered ? "lineListOrdered" : "lineListUnordered";
+
+      if (currentListType !== listType) {
+        flushListGroup();
+        currentListType = listType;
+      }
+      listGroup.push(schema.node(nodeType, attrs, spanNodes));
+    } else if (line.type >= TextLineType.HEADING_1 && line.type <= TextLineType.HEADING_4) {
+      flushListGroup();
+      nodes.push(schema.node("lineHeading", attrs, spanNodes));
+    } else if (line.type === TextLineType.PARAGRAPH) {
+      flushListGroup();
+      nodes.push(schema.node("lineParagraph", attrs, spanNodes));
+    } else if (line.type === TextLineType.DIVIDER) {
+      flushListGroup();
+      nodes.push(schema.node("lineDivider", attrs, spanNodes));
+    } else if (line.type === TextLineType.QUOTE) {
+      flushListGroup();
+      nodes.push(schema.node("lineQuote", attrs, spanNodes));
+    } else if (line.type === TextLineType.CALLOUT) {
+      flushListGroup();
+      nodes.push(schema.node("lineCallout", attrs, spanNodes));
+    } else if (line.type === TextLineType.CODE) {
+      flushListGroup();
+      nodes.push(schema.node("lineCode", attrs, spanNodes));
     } else {
       throw new Error(`unexpected line type: ${line.type}`);
     }
-    lineNodes.push(lineNode);
   }
 
-  // doc
-  if (lineNodes.length == 0) {
-    lineNodes.push(schema.node("lineParagraph")); // ensure at least one line
+  flushListGroup();
+
+  // ensure at least one line exists
+  if (nodes.length === 0) {
+    nodes.push(schema.node("lineParagraph"));
   }
-  const docNode = schema.node("doc", {}, lineNodes);
-  return docNode;
+
+  return schema.node("doc", {}, nodes);
 }
 
 /** Convert a PmNode to TextData. */
 export function mapPmNodeToText(node: PmNode): TextLineInterface[] {
   const lines: TextLineInterface[] = [];
-  for (let lineIdx = 0; lineIdx < node.childCount; lineIdx++) {
-    const lineNode = node.child(lineIdx);
 
-    // map spans
+  /** Convert a PmNode to a TextLineInterface. */
+  function mapPmLineToTextLine(lineNode: PmNode): TextLineInterface {
     const spans: TextSpanData[] = [];
     for (let spanIdx = 0; spanIdx < lineNode.childCount; spanIdx++) {
       const spanNode = lineNode.child(spanIdx);
@@ -509,7 +548,6 @@ export function mapPmNodeToText(node: PmNode): TextLineInterface[] {
       } else {
         throw new Error(`unexpected span node type: ${spanNode.type.name}`);
       }
-      // map marks
       for (const mark of spanNode.marks) {
         if (mark.type.name == "bold") {
           span.isBold = true;
@@ -525,13 +563,23 @@ export function mapPmNodeToText(node: PmNode): TextLineInterface[] {
       }
       spans.push(span);
     }
-
-    // map line
     const line: TextLineData = { metatype: ObjectType.TEXT_LINE, type: lineNode.attrs.type, spans, cells: [] };
     const blockPtr = lineNode.attrs.blockPtr;
-    lines.push({ line, blockPtr });
+    return { line, blockPtr };
   }
 
+  for (let i = 0; i < node.childCount; i++) {
+    const child = node.child(i);
+    if (child.type.name === "orderedList" || child.type.name === "unorderedList") {
+      for (let j = 0; j < child.childCount; j++) {
+        const line = mapPmLineToTextLine(child.child(j));
+        lines.push(line);
+      }
+    } else {
+      const line = mapPmLineToTextLine(child);
+      lines.push(line);
+    }
+  }
   return lines;
 }
 
@@ -585,8 +633,148 @@ class SpanNodeView implements PmNodeView {
   }
 }
 
+/** Wrap a range in a list container, merging with adjacent lists of the same type if possible. */
+function wrapInList(tr: PmTransaction, range: NodeRange, type: TextLineType) {
+  const listContainerType =
+    type === TextLineType.LIST_ORDERED ? PM_SCHEMA.nodes.orderedList : PM_SCHEMA.nodes.unorderedList;
+  const posAfter = tr.doc.resolve(range.start);
+  if (posAfter.depth < 1 || posAfter.node(posAfter.depth - 1).type !== listContainerType) {
+    const range = posAfter.blockRange();
+    if (range) {
+      tr.wrap(range, [{ type: listContainerType }]);
+    }
+  }
+}
+
+/**
+ * Change the type of a line node, lifting as needed.
+ * If the current node is inside a list item, it will first split the list container
+ * (if necessary) to isolate the current list item, then lift that item out into the grandparent,
+ * and finally change its type to the target type.
+ * The selection is preserved by retaining the original horizontal offset.
+ */
+function morphLineNode(
+  state: EditorState,
+  $from: ResolvedPos,
+  dispatch: (tr: PmTransaction) => void,
+  targetType: TextLineType,
+): boolean {
+  const schema = state.schema;
+  const tr = state.tr;
+
+  // map target node type
+  let targetNodeType: PmNodeType;
+  switch (targetType) {
+    case TextLineType.PARAGRAPH:
+      targetNodeType = schema.nodes.lineParagraph;
+      break;
+    case TextLineType.HEADING_1:
+    case TextLineType.HEADING_2:
+    case TextLineType.HEADING_3:
+    case TextLineType.HEADING_4:
+      targetNodeType = schema.nodes.lineHeading;
+      break;
+    case TextLineType.LIST_ORDERED:
+      targetNodeType = schema.nodes.lineListOrdered;
+      break;
+    case TextLineType.LIST_UNORDERED:
+      targetNodeType = schema.nodes.lineListUnordered;
+      break;
+    default:
+      return false;
+  }
+
+  // if already the target type, do nothing
+  if ($from.parent.type === targetNodeType && $from.parent.attrs.type === targetType) {
+    return false;
+  }
+
+  // if current block is not a list item, simply set its type
+  if ($from.parent.type.name !== "lineListOrdered" && $from.parent.type.name !== "lineListUnordered") {
+    tr.setBlockType($from.start(), $from.end(), targetNodeType, {
+      ...$from.parent.attrs,
+      type: targetType,
+    });
+    // preserve horizontal offset
+    const offset = $from.parentOffset;
+    const $newPos = tr.doc.resolve($from.pos);
+    const newStart = $newPos.start($newPos.depth);
+    const newOffset = Math.min(offset, $newPos.parent.content.size);
+    tr.setSelection(TextSelection.create(tr.doc, newStart + newOffset));
+    if (dispatch) dispatch(tr);
+    return true;
+  }
+
+  // we're inside a list item
+  // get the list container (one level up) and its boundaries
+  const listItem = $from.parent;
+  const listContainer = $from.node($from.depth - 1);
+  const containerStart = $from.before($from.depth - 1);
+  const containerEnd = $from.after($from.depth - 1);
+  const index = $from.index($from.depth - 1);
+
+  // CASE 1: list container has only one item
+  if (listContainer && listContainer.childCount === 1) {
+    const newNode = targetNodeType.create({ ...listItem.attrs, type: targetType }, listItem.content);
+    tr.replaceWith(containerStart, containerEnd, newNode);
+    const offset = $from.parentOffset;
+    const $newPos = tr.doc.resolve(containerStart);
+    const newStart = $newPos.start($newPos.depth);
+    const newOffset = Math.min(offset, $newPos.parent.content.size);
+    tr.setSelection(TextSelection.create(tr.doc, newStart + newOffset));
+    if (dispatch) dispatch(tr);
+    return true;
+  }
+
+  // CASE 2: multiple list items in the container
+  // isolate the current list item by splitting before and after if necessary
+  let $itemStart = tr.doc.resolve($from.before($from.depth));
+  let $itemEnd = tr.doc.resolve($from.after($from.depth));
+  if (listContainer.childCount > 1) {
+    if (index > 0) {
+      // split before the current list item
+      tr.split($from.before($from.depth));
+    }
+    // remap current position after split
+    const mappedPos1 = tr.mapping.map($from.pos);
+    let $mapped = tr.doc.resolve(mappedPos1);
+    const newContainer = $mapped.node($mapped.depth - 1);
+    if (newContainer.childCount > 1) {
+      // split after the current list item
+      tr.split($mapped.after($mapped.depth));
+    }
+    const mappedPos = tr.mapping.map($from.pos);
+    $mapped = tr.doc.resolve(mappedPos);
+    $itemStart = tr.doc.resolve($mapped.before($mapped.depth));
+    $itemEnd = tr.doc.resolve($mapped.after($mapped.depth));
+  }
+
+  // lift the isolated list item out of its parent into the grandparent
+  const range = new NodeRange(tr.doc.resolve($itemStart.pos), tr.doc.resolve($itemEnd.pos), $itemStart.depth);
+  const liftTargetValue = liftTarget(range);
+  if (liftTargetValue == null) return false;
+  tr.lift(range, liftTargetValue);
+
+  // map the original position after lifting
+  const posAfterLift = tr.mapping.map($from.pos);
+  const $newPos = tr.doc.resolve(posAfterLift);
+  // change the type of the now lifted node to the target type
+  tr.setBlockType($newPos.start($newPos.depth), $newPos.end($newPos.depth), targetNodeType, {
+    ...listItem.attrs,
+    type: targetType,
+  });
+  // preserve the horizontal offset from the original selection
+  const offset = $from.parentOffset;
+  const newStart = $newPos.start($newPos.depth);
+  const newOffset = Math.min(offset, $newPos.parent.content.size);
+  tr.setSelection(TextSelection.create(tr.doc, newStart + newOffset));
+  if (dispatch) dispatch(tr);
+  return true;
+}
+
+/** Define a prefix pattern that creates a Line. */
 function linePrefixRule(pattern: string | RegExp, nodeType: PmNodeType, type: TextLineType) {
-  const regexp = typeof pattern == "string" ? new RegExp(`^(${pattern})$`) : pattern;
+  const regexp = typeof pattern === "string" ? new RegExp(`^(${pattern})$`) : pattern;
   const rule = new InputRule(regexp, (state, match, start, end) => {
     const { tr } = state;
     const $start = tr.doc.resolve(start);
@@ -594,6 +782,12 @@ function linePrefixRule(pattern: string | RegExp, nodeType: PmNodeType, type: Te
     tr.setBlockType(start, end, nodeType, { ...block.attrs, type });
     tr.delete(start, end);
     tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
+
+    // wrap list items in an orderedList/unorderedList if not already in one.
+    if (type === TextLineType.LIST_ORDERED || type === TextLineType.LIST_UNORDERED) {
+      wrapInList(tr, new NodeRange($start, $start, $start.depth), type);
+    }
+
     return tr;
   });
   return rule;
@@ -644,7 +838,7 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
       const { selection } = state;
       if (
         selection.$anchor.parent === state.doc.children[0] &&
-        (state.doc.textContent == "" || view?.endOfTextblock("left", state))
+        (state.doc.textContent === "" || view?.endOfTextblock("left", state))
       ) {
         navigate("left");
         return true;
@@ -655,7 +849,7 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
       const { selection } = state;
       if (
         selection.$anchor.parent === state.doc.children[state.doc.children.length - 1] &&
-        (state.doc.textContent == "" || view?.endOfTextblock("right", state))
+        (state.doc.textContent === "" || view?.endOfTextblock("right", state))
       ) {
         navigate("right");
         return true;
@@ -666,7 +860,7 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
       const { selection } = state;
       if (
         selection.$anchor.parent === state.doc.children[0] &&
-        (state.doc.textContent == "" || view?.endOfTextblock("up", state))
+        (state.doc.textContent === "" || view?.endOfTextblock("up", state))
       ) {
         navigate("up");
         return true;
@@ -677,29 +871,24 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
       const { selection } = state;
       if (
         selection.$anchor.parent === state.doc.children[state.doc.children.length - 1] &&
-        (state.doc.textContent == "" || view?.endOfTextblock("down", state))
+        (state.doc.textContent === "" || view?.endOfTextblock("down", state))
       ) {
         navigate("down");
         return true;
       }
       return false;
     },
-    Backspace: (state, dispatch) => {
+    Backspace(state, dispatch) {
       const { empty, $cursor, $from, $to } = state.selection as TextSelection;
       if (
         $from.parent.type.name !== "lineParagraph" &&
         $from.parentOffset === 0 &&
-        $from.start() == $from.end() &&
+        $from.start() === $from.end() &&
         $to.pos === $from.end()
       ) {
-        // convert to plain
-        dispatch?.(
-          state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.lineParagraph, {
-            type: TextLineType.PARAGRAPH,
-          }),
-        );
-        return true;
-      } else if (empty && state.doc.textContent == "" && state.doc.children.length <= 1) {
+        // morph to plain paragraph
+        return morphLineNode(state, $from, dispatch!, TextLineType.PARAGRAPH);
+      } else if (empty && state.doc.textContent === "" && state.doc.children.length <= 1) {
         // delete self
         deleteSelf();
         return true;
@@ -712,31 +901,20 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
         )(state, dispatch);
       }
     },
-    "Mod-Enter": (state, dispatch, view) => {
-      // if the cmd key is held, do the default split behavior
-      return commands.splitBlock(state, dispatch);
-    },
-    Enter: (state, dispatch, view) => {
-      const { $from } = state.selection;
+    "Mod-Enter": (state, dispatch, view) => commands.splitBlock(state, dispatch),
+    Enter(state, dispatch, view) {
+      const { $from, $to } = state.selection;
       const parentType = $from.parent.type.name;
       if (parentType === "lineListOrdered" || parentType === "lineListUnordered") {
         if ($from.parent.textContent.trim() === "") {
-          // if the list item line is empty, convert it to a paragraph
-          //  (change type, keep attrs incl. blockPtr)
-          dispatch?.(
-            state.tr.setBlockType($from.start(), $from.end(), state.schema.nodes.lineParagraph, {
-              ...$from.parent.attrs,
-              type: TextLineType.PARAGRAPH,
-            }),
-          );
-          return true;
+          // morph to plain paragraph
+          return morphLineNode(state, $from, dispatch!, TextLineType.PARAGRAPH);
         } else {
           // otherwise, split the list item at the cursor position (keep attrs except blockPtr)
-          dispatch?.(
-            state.tr.split($from.pos, 1, [
-              { type: $from.parent.type, attrs: { ...$from.parent.attrs, blockPtr: null } },
-            ]),
-          );
+          const tr = state.tr.split($from.pos, 1, [
+            { type: $from.parent.type, attrs: { ...$from.parent.attrs, blockPtr: null } },
+          ]);
+          dispatch?.(tr);
           return true;
         }
       }
@@ -823,7 +1001,6 @@ export function useTextEditor(options: {
           lastAppliedModelValue = text.write(updatedText);
           if (lastAppliedModelValue !== updatedText) {
             // re-derive state in case we modified the doc (like when creating a new line)
-            // NOTE :Performance: re-deriving the ProseMirror state (twice) seems wasteful.. but it's chugging fine so far
             newState = makeEditorState({ lines: lastAppliedModelValue, selection: newState.selection.getBookmark() });
           }
         }
@@ -865,9 +1042,11 @@ export function useTextEditor(options: {
     if (deepValueEquals(lines.value, lastAppliedModelValue)) return; // already applied
     const updatedState = makeEditorState({ lines: lines.value });
     view.updateState(updatedState);
+    console.log("overwrite state");
     lastAppliedModelValue = lines.value;
   });
 
+  /** Insert a Node mention at a position. */
   function insertNode(nodePtr: NodeReferenceData, pos: { pos: number }) {
     if (view == null) throw new Error("view not mounted");
     const pmNode = PM_SCHEMA.node("spanNode", { type: TextSpanType.NODE, nodePtr });
@@ -882,7 +1061,7 @@ export function useTextEditor(options: {
     kinds: ["node", "file"],
     onDrop: (dragged, event) => {
       if (view == null) return;
-      if (dragged.kind == "file") {
+      if (dragged.kind === "file") {
         // upload files and insert as nodes at position (surrounded by spaces)
         if (dragged.files == null) return;
         const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
@@ -892,10 +1071,10 @@ export function useTextEditor(options: {
           if (bench.value == null) throw new Error("no current bench");
           const upload = uploadFile(() => pkgConnection.tx, file, { bench: bench.value });
           await upload.completion.wait();
-          if (view == null) throw new Error("view no mounted");
+          if (view == null) throw new Error("view not mounted");
           insertNode(toNodeRef(upload.file.value!), pos);
         });
-      } else if (dragged.kind == "node") {
+      } else if (dragged.kind === "node") {
         // insert node at position (surrounded by spaces)
         const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
         if (pos == null) return; // not in editor
@@ -957,7 +1136,7 @@ export function useTextEditor(options: {
     const { state } = view;
     view.focus();
     let selection;
-    if (anchor == "top" || anchor == "left") {
+    if (anchor === "top" || anchor === "left") {
       selection = TextSelection.atStart(state.doc);
     } else {
       selection = TextSelection.atEnd(state.doc);

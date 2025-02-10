@@ -152,6 +152,7 @@ mark {
 
 @import url("/node_modules/prosemirror-view/style/prosemirror.css");
 
+/** Basics */
 .pm-text {
   @apply text-gray-900;
   line-height: 1.65;
@@ -159,20 +160,19 @@ mark {
 .pm-text strong {
   @apply font-semibold;
 }
-.pm-text .line:first-child {
-  @apply pt-0; /* ignore top margin */
-}
-.pm-text .line:last-child {
-  @apply pb-0; /* ignore bottom margin */
-}
 .pm-text p.line,
 .pm-text li.line,
 .pm-text blockquote.line {
-  @apply py-[3px] text-base transition-colors duration-150;
+  @apply py-[2px] text-base transition-colors duration-150;
 }
-.pm-text hr {
-  @apply my-2 border-gray-200 p-0 focus:outline-none focus:ring-0;
+.pm-text.compact .ProseMirror > .line:first-child {
+  @apply pt-0; /* ignore top margin */
 }
+.pm-text.compact .ProseMirror > .line:last-child {
+  @apply pb-0; /* ignore bottom margin */
+}
+
+/* Headings */
 .pm-text h1.line {
   @apply mb-2 mt-4 text-2xl font-bold;
   line-height: 1.2;
@@ -189,13 +189,28 @@ mark {
   @apply mb-0.5 mt-1.5 text-base font-medium;
   line-height: 1.5;
 }
-.pm-text li.line.list-unordered {
-  @apply list-disc pl-1;
+
+/* Lists */
+.pm-text ul li.line.list-unordered {
+  @apply pl-1;
   list-style-position: inside;
+  list-style-type: disc;
 }
-.pm-text li.line.list-ordered {
-  @apply list-decimal pl-1;
+.pm-text ol li.line.list-ordered {
+  @apply pl-1;
   list-style-position: inside;
+  list-style-type: decimal;
+}
+.pm-text ol ol li.line.list-ordered {
+  list-style-type: lower-alpha;
+}
+.pm-text ol ol ol li.line.list-ordered {
+  list-style-type: lower-roman;
+}
+
+/* Highlights */
+.pm-text hr {
+  @apply my-2 border-gray-200 p-0 focus:outline-none focus:ring-0;
 }
 .pm-text p.line.code {
   @apply my-2 w-full rounded bg-gray-100 px-3 py-2;

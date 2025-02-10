@@ -110,7 +110,7 @@ def test_node_pointers_consistency(session: "Session"):
     bench_a.main_store = bench_a.stores.create(name="Store")
 
     # sub bench, above package pointers
-    package_a = bench_a.packages.create(type=PackageType.ROOT, name="Main", slug="main")
+    package_a = bench_a.packages.create(type=PackageType.MAIN, name="Main", slug="main")
     assert package_a.bench_id == bench_a.id
     assert package_a.to_ref().equals(
         NodeReference(
@@ -139,7 +139,7 @@ def test_node_pointers_consistency(session: "Session"):
     assert client_a.parent_ptr.bench_id == bench_a.id
 
     # sub package nested pointers
-    package_a = bench_a.packages.create(type=PackageType.ROOT, name="Main B", slug="main-b")
+    package_a = bench_a.packages.create(type=PackageType.MAIN, name="Main B", slug="main-b")
     assert package_a.bench_id == bench_a.id
     page_a_1 = package_a.pages.create()
     assert page_a_1.bench_id == bench_a.id
@@ -166,7 +166,7 @@ def test_node_pointers_consistency(session: "Session"):
     # refs pointing to different bench
     bench_b = Bench(slug="testb", name="testb")
     bench_b.main_store = bench_b.stores.create(name="Store")
-    package_b = bench_b.packages.create(type=PackageType.ROOT, name="Main B", slug="main-b")
+    package_b = bench_b.packages.create(type=PackageType.MAIN, name="Main B", slug="main-b")
     page_b = package_b.pages.create()
     assert page_b.bench_id == bench_b.id
     class_b_1 = Class.new("Class1")
