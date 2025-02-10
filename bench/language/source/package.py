@@ -31,9 +31,10 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.PACKAGE_TYPE)
 class PackageType(BuiltinEnum):
-    ROOT = 1
+    MAIN = 1
     SIDE = 5
     SNAPSHOT = 10
+    # ARCHIVE?
 
 
 @node_(NodeType.PACKAGE, index=(IndexIn(columns=("bench_id", "slug"), is_unique=True),))

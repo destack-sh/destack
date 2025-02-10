@@ -113,7 +113,7 @@ def make_example_bench() -> tuple[Bench, Package, Session, User]:
             _is_new=True,
         )
         main_package = Package(
-            parent=bench, type=PackageType.ROOT, name="Main", slug="main", _supergraph=supergraph
+            parent=bench, type=PackageType.MAIN, name="Main", slug="main", _supergraph=supergraph
         )
         bench.main_package = main_package
         user = User(

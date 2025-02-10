@@ -325,7 +325,7 @@ class HostService(GraphIoServiceBase, HostBase):
         await asyncio.gather(*(provisioner.wait_closed() for provisioner in provisioners))
 
         # main Package
-        main_package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
+        main_package = bench.packages.create(type=PackageType.MAIN, name="Main", slug="main")
         await session.flush(optimistic=True)
         bench.main_package = main_package
 
