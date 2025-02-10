@@ -14,10 +14,17 @@ import * as commands from "prosemirror-commands";
 import { dropCursor } from "prosemirror-dropcursor";
 import { ellipsis, emDash, InputRule, inputRules, smartQuotes } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
-import { NodeRange, NodeType as PmNodeType, ResolvedPos, type MarkType as PmMarkType } from "prosemirror-model";
+import {
+  NodeRange,
+  NodeType as PmNodeType,
+  Node as PmNode,
+  ResolvedPos,
+  type MarkType as PmMarkType,
+} from "prosemirror-model";
 import {
   Command,
   EditorState,
+  NodeSelection,
   Plugin,
   PluginKey,
   Transaction as PmTransaction,
@@ -36,7 +43,7 @@ import {
   toValue,
   triggerRef,
   watch,
-  type Ref
+  type Ref,
 } from "vue";
 
 //
@@ -451,10 +458,8 @@ export function useTextEditor(options: {
     return state;
   }
 
-  // view
+  // view utils
   const lineRefsById: Ref<Record<string, HTMLElement>> = shallowRef({});
-  let view: EditorView | null = null;
-  let lastAppliedModelValue: LineInterface[] = [];
   function updateLineRefs(view: EditorView) {
     lineRefsById.value = {};
     view.dom.querySelectorAll("[data-node-id]").forEach((dom) => {
@@ -465,6 +470,21 @@ export function useTextEditor(options: {
     });
     triggerRef(lineRefsById);
   }
+  function findLineNodeById(id: string): { node: PmNode | null; pos: number | null } {
+    let targetNode: PmNode | null = null;
+    let targetPos: number | null = null;
+    view?.state.doc.descendants((node, pos) => {
+      if (node.attrs.blockPtr?.id == id) {
+        targetNode = node;
+        targetPos = pos;
+      }
+    });
+    return { node: targetNode, pos: targetPos };
+  }
+
+  // view
+  let view: EditorView | null = null;
+  let lastAppliedModelValue: LineInterface[] = [];
   function makeEditorView(): EditorView {
     const plugins: Plugin[] = [];
     if (!options.suppressDrop) {
@@ -626,13 +646,24 @@ export function useTextEditor(options: {
     },
   };
 
-  // focus the editor
+  // focus
   function focus(anchor: FocusAnchor | NodeReferenceData = "bottom") {
     if (view == null) return; // nothing to do
     const { state } = view;
     view.focus();
     let selection;
-    if (anchor === "top" || anchor === "left") {
+    if (typeof anchor == "object") {
+      // focus node with id
+      const { node: targetNode, pos: targetPos } = findLineNodeById(anchor.id!);
+      if (targetNode == null) {
+        selection = TextSelection.atEnd(state.doc);
+      } else if (targetNode.type.name == "block") {
+        selection = NodeSelection.create(state.doc, targetPos!);
+      } else {
+        const $endPos = state.doc.resolve(targetPos!);
+        selection = new TextSelection($endPos);
+      }
+    } else if (anchor === "top" || anchor === "left") {
       selection = TextSelection.atStart(state.doc);
     } else {
       selection = TextSelection.atEnd(state.doc);

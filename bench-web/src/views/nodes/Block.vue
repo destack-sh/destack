@@ -8,6 +8,7 @@ import { usePageContext } from "@/ui/prosemirror/page";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { type FocusAnchor, type NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
+import File from "@/views/content/File.vue";
 import Choice from "@/views/nodes/Choice.vue";
 import Database from "@/views/nodes/Database.vue";
 import Flow from "@/views/nodes/Flow.vue";
@@ -95,48 +96,55 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div v-if="node && block.type == BlockType.PAGE" class="flex h-[30px] flex-row items-center">
       <NodeReference ref="nodeRef" size="large" is-underline is-light :node="node" :tx="() => connection.tx" />
     </div>
-    <!-- Inline source Node definition -->
-    <div v-else-if="node">
-      <!-- Choice -->
-      <Choice
-        v-if="block.type == BlockType.CHOICE"
-        id="choice"
-        ref="nodeRef"
-        class=""
-        :prepared-connection="preparedConnection"
-        :node-ptr="nodePtr"
-        is-minimal
-        is-inline
-        @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
-      />
-      <Flow
-        v-else-if="block.type == BlockType.FLOW"
-        id="flow"
-        ref="nodeRef"
-        class="h-[400px]"
-        v-bind="state.getChildState('flow')"
-        :node-ptr="nodePtr"
-        :prepared-connection="preparedConnection"
-        is-minimal
-        is-inline
-        @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
-      />
-      <Database
-        v-else-if="block.type == BlockType.DATABASE"
-        id="database"
-        ref="nodeRef"
-        v-bind="state.getChildState('database')"
-        :node-ptr="nodePtr"
-        :container-gutter-width="pageContext.gutterWidth.value"
-        is-minimal
-        is-inline
-        is-input
-        @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
-      />
-      <div v-else class="h-[100px] bg-red-100">
-        <span>No View for {{ toCamelName(BlockType, block.type) }}</span>
-      </div>
+    <File
+      v-else-if="block.type == BlockType.FILE"
+      id="file"
+      ref="nodeRef"
+      class=""
+      :prepared-connection="preparedConnection"
+      is-inline
+      :node-ptr="nodePtr"
+    />
+    <!-- Choice -->
+    <Choice
+      v-else-if="block.type == BlockType.CHOICE"
+      id="choice"
+      ref="nodeRef"
+      class=""
+      :prepared-connection="preparedConnection"
+      :node-ptr="nodePtr"
+      is-minimal
+      is-inline
+      @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+    />
+    <Flow
+      v-else-if="block.type == BlockType.FLOW"
+      id="flow"
+      ref="nodeRef"
+      class="h-[400px]"
+      v-bind="state.getChildState('flow')"
+      :node-ptr="nodePtr"
+      :prepared-connection="preparedConnection"
+      is-minimal
+      is-inline
+      @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+    />
+    <Database
+      v-else-if="block.type == BlockType.DATABASE"
+      id="database"
+      ref="nodeRef"
+      v-bind="state.getChildState('database')"
+      :node-ptr="nodePtr"
+      :container-gutter-width="pageContext.gutterWidth.value"
+      is-minimal
+      is-inline
+      is-input
+      @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+    />
+    <div v-else class="h-[100px] bg-red-100">
+      <span>No View for {{ toCamelName(BlockType, block.type) }}</span>
     </div>
+    <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="connection" />
   </div>
   <Inaccessible v-else class="h-full w-full" :node="blockPtr" :connection="connection" />
 </template>
