@@ -14,6 +14,8 @@ import Database from "@/views/nodes/Database.vue";
 import Flow from "@/views/nodes/Flow.vue";
 import { computed, getCurrentInstance, onBeforeUnmount, ref, toRef, triggerRef, type Ref } from "vue";
 
+const MAX_INLINE_HEIGHT = 400;
+
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
@@ -100,10 +102,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       v-else-if="block.type == BlockType.FILE"
       id="file"
       ref="nodeRef"
-      class=""
+      class="max-h-[400px]"
       :prepared-connection="preparedConnection"
       is-inline
-      :node-ptr="nodePtr"
+      is-minimal
+      :model-value="nodePtr"
+      :size="{ height: MAX_INLINE_HEIGHT }"
     />
     <!-- Choice -->
     <Choice
@@ -121,7 +125,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       v-else-if="block.type == BlockType.FLOW"
       id="flow"
       ref="nodeRef"
-      class="h-[400px]"
+      :style="{ height: MAX_INLINE_HEIGHT + 'px' }"
       v-bind="state.getChildState('flow')"
       :node-ptr="nodePtr"
       :prepared-connection="preparedConnection"
