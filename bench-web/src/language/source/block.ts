@@ -18,9 +18,10 @@ import {
   NodeReferenceData,
   NodeType,
   PageData,
-  TypeData
+  StructType,
+  TypeData,
 } from "@/proto/wire";
-import { describeNode, isNode, toNodeRef } from "@/proto/wiring";
+import { describeNode, isNode, makeStruct, toNodeRef } from "@/proto/wiring";
 import { generateOrderKey } from "@/utils/fractional";
 
 /** Create a Block. */
@@ -38,6 +39,10 @@ export function createBlock(
   if (tx.change?.key == null) {
     tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
   }
+  const type = options.block.type;
+  if (type == null) {
+    throw new Error(`block type is required`);
+  }
 
   // position
   let parentPtr: NodeReferenceData;
@@ -52,6 +57,17 @@ export function createBlock(
     parentPtr = target.parentPtr!;
     siblings = graph.getChildren(target.parentPtr!, NodeType.BLOCK);
     orderKey = getOrderKey({ position: anchor, reference: target, nodes: siblings });
+  }
+
+  // text
+  let text = options.block.text;
+  if (type >= BlockType.PARAGRAPH) {
+    if (text == null) {
+      text = makeStruct({ metatype: StructType.TEXT_LINE, type: type + 10_000 });
+    }
+    if (text.type != type - 10_000) {
+      throw new Error(`text type mismatch: ${text.type} != ${type - 10_000}`);
+    }
   }
 
   // create
