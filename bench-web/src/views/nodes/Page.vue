@@ -366,7 +366,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- Text/Blocks -->
         <div
           ref="textRef"
-          class="pm-text relative mx-auto rounded px-0.5 hover:cursor-text"
+          class="pm-text relative mx-auto rounded hover:cursor-text"
           :class="['stealth', isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '']"
           data-suppress-actions="space.move.left,space.move.right"
           data-suppress-drag="both"

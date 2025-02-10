@@ -270,23 +270,6 @@ defineExpose<ViewExposed>({ self });
             size-is-dynamic
             v-bind="state.getChildState('scroll.channels')"
           />
-          <!-- Outline -->
-          <div
-            class="group/header mx-4 flex flex-row items-center pt-1.5"
-            :style="{
-              height: `${HEADER_HEIGHT}px`,
-            }"
-          >
-            <span class="font-medium">Outline</span>
-          </div>
-          <Tree
-            id="outline"
-            class=""
-            :node-ptr="props.nodePtr"
-            :subnode-packed="packSubnode(NodeType.VIEW, ViewType.TREE, { preset: TreeViewPreset.OUTLINE })"
-            size-is-dynamic
-            v-bind="state.getChildState('scroll.outline')"
-          />
         </div>
         <!-- Activity -->
         <Activity

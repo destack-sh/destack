@@ -477,6 +477,7 @@ export function useTextEditor(options: {
             node,
             view,
             getPos,
+            navigate,
             parentComponent: options.parentComponent,
           }),
       },
@@ -573,7 +574,7 @@ export function useTextEditor(options: {
   });
 
   // formatting
-  function formatAction(mark: TextMarkType): ActionImplementation {
+  function markFormatAction(mark: TextMarkType): ActionImplementation {
     return {
       isEnabled: () => isInput?.value ?? false,
       isChecked: () => {
@@ -593,14 +594,26 @@ export function useTextEditor(options: {
       },
     };
   }
+  function typeFormatAction(type: TextSpanType): ActionImplementation {
+    return {
+      isEnabled: () => isInput?.value ?? false,
+      isChecked: () => false,
+      action: () => {
+        if (view == null) throw new Error("view not mounted");
+        // nocheckin
+      },
+    };
+  }
 
   // actions
   const actions: ActionMapImplementation<"text"> & Partial<ActionMapImplementation<"space">> = {
     // text
-    "text.format.bold": formatAction("bold"),
-    "text.format.italic": formatAction("italic"),
-    "text.format.strikethrough": formatAction("strikethrough"),
-    "text.format.underline": formatAction("underline"),
+    "text.format.bold": markFormatAction("bold"),
+    "text.format.italic": markFormatAction("italic"),
+    "text.format.strikethrough": markFormatAction("strikethrough"),
+    "text.format.underline": markFormatAction("underline"),
+    "text.format.code": typeFormatAction(TextSpanType.CODE),
+    "text.format.equation": typeFormatAction(TextSpanType.EQUATION),
     "text.edit.hardBreak": {
       action: () => {
         // insert 'hardBreak' node at cursor
@@ -621,7 +634,7 @@ export function useTextEditor(options: {
 
   // focus the editor
   function focus(anchor: FocusAnchor | NodeReferenceData = "bottom") {
-    if (view == null) throw new Error("view not mounted");
+    if (view == null) return; // nothing to do
     const { state } = view;
     view.focus();
     let selection;
@@ -635,7 +648,7 @@ export function useTextEditor(options: {
 
   // (force) update plugin state
   function updatePlugin(plugin: Plugin) {
-    if (view == null) throw new Error("view not mounted");
+    if (view == null) return; // nothing to do
     const tr = view.state.tr;
     tr.setMeta("plugin", { forceUpdate: Date.now() });
     view.dispatch(tr);
