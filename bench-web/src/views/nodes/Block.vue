@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { CANVAS_BLOCK_TYPES } from "@/language/core/const";
+import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/core/const";
 import { BlockType, NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
@@ -11,7 +11,7 @@ import { type FocusAnchor, type NavigationDirection, type ViewEmits, type ViewEx
 import Choice from "@/views/nodes/Choice.vue";
 import Database from "@/views/nodes/Database.vue";
 import Flow from "@/views/nodes/Flow.vue";
-import { computed, getCurrentInstance, ref, toRef, type Ref } from "vue";
+import { computed, getCurrentInstance, onBeforeUnmount, ref, toRef, triggerRef, type Ref } from "vue";
 
 const props = defineProps<
   {
@@ -25,10 +25,26 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
+// page
 const instance = getCurrentInstance();
-if (instance == null) throw new Error("no instance in Block");
-const pageContext = usePageContext(props.pageKey);
+if (instance == null) {
+  throw new Error("no instance in Block");
+}
+if (instance.parent == null) {
+  instance.parent = (instance.vnode as any).parent;
+}
+if (instance.parent == null) {
+  throw new Error("no parent in Block");
+}
+const pageContext = usePageContext();
+pageContext.blocksRefById.value[props.id] = instance as any;
+triggerRef(pageContext.blocksRefById);
+onBeforeUnmount(() => {
+  delete pageContext.blocksRefById.value[props.id];
+  triggerRef(pageContext.blocksRefById);
+});
 
+// block
 const preparedConnection = pageContext.preparedConnection;
 const blockPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
 const { graph, connection } = preparedConnection;
@@ -37,6 +53,7 @@ const nodePtr = computed(() => block.value?.nodePtr);
 const node = graph.getRef(nodePtr, { ignoreAncestors: true });
 const fields = graph.getChildrenRef(nodePtr, NodeType.FIELD);
 
+// view
 const blockRef = ref<HTMLElement | null>(null);
 const nodeRef: Ref<InstanceType<typeof Choice> | null> = ref(null);
 const isPage = computed(() => block.value?.type == BlockType.PAGE);
@@ -116,6 +133,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         is-input
         @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
       />
+      <div v-else class="h-[100px] bg-red-100">
+        <span>No View for {{ toCamelName(BlockType, block.type) }}</span>
+      </div>
     </div>
   </div>
   <Inaccessible v-else class="h-full w-full" :node="blockPtr" :connection="connection" />

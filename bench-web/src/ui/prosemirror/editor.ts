@@ -1,5 +1,3 @@
-import { supergraph } from "@/globals";
-import { getBaseFromNodeReference } from "@/language/core/const";
 import { uploadFile } from "@/language/resource/file";
 import { NodeReferenceData, TextLineType, TextSpanType } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
@@ -28,7 +26,18 @@ import {
 } from "prosemirror-state";
 import { liftTarget } from "prosemirror-transform";
 import { Decoration, DecorationSet, EditorView } from "prosemirror-view";
-import { Component, ComponentInternalInstance, computed, onBeforeUnmount, watch, type Ref } from "vue";
+import {
+  Component,
+  ComponentInternalInstance,
+  computed,
+  MaybeRef,
+  onBeforeUnmount,
+  shallowRef,
+  toValue,
+  triggerRef,
+  watch,
+  type Ref
+} from "vue";
 
 //
 // Editor
@@ -402,9 +411,9 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
 export function useTextEditor(options: {
   textRef: Ref<HTMLElement | null>;
   text: TextInterface;
-  isInput: Ref<boolean>;
-  suppressEnter: Ref<boolean>;
-  suppressDrop: Ref<boolean>;
+  isInput: MaybeRef<boolean>;
+  suppressEnter: MaybeRef<boolean>;
+  suppressDrop: MaybeRef<boolean>;
   navigate: (direction: NavigationDirection) => void;
   deleteSelf: () => void;
   plugins?: Plugin[];
@@ -417,29 +426,13 @@ export function useTextEditor(options: {
 
   // state
   const lines = computed(() => text.read());
-  const nodePtrs: Ref<NodeReferenceData[]> = computed(() => {
-    const nodePtrs: NodeReferenceData[] = [];
-    for (const line of lines.value) {
-      if (line.type === "text") {
-        for (const span of line.text.spans ?? []) {
-          if (span.nodePtr != null) nodePtrs.push(span.nodePtr);
-        }
-      }
-    }
-    return nodePtrs;
-  });
-  const basePtrs = computed(() => nodePtrs.value.map((ptr) => getBaseFromNodeReference(ptr)).filter((b) => b != null));
-  const bases = supergraph.getManyRef(basePtrs);
-  const nodes = supergraph.getManyRef(nodePtrs);
-
-  // prosemirror state
   function makeEditorState(stateIn: { lines: LineInterface[]; selection?: EditorSelectionBookmark }): EditorState {
     const doc = mapTextToPmNode(stateIn.lines);
     const bindings: Record<string, Command> = {
       ...commands.baseKeymap,
       ...getPmCommands({ navigate, deleteSelf }),
     };
-    if (suppressEnter.value) {
+    if (toValue(suppressEnter)) {
       bindings["Shift-Enter"] = bindings.Enter;
       bindings["Mod-Enter"] = () => true;
       bindings.Enter = () => true;
@@ -458,9 +451,20 @@ export function useTextEditor(options: {
     return state;
   }
 
-  // prosemirror view
+  // view
+  const lineRefsById: Ref<Record<string, HTMLElement>> = shallowRef({});
   let view: EditorView | null = null;
   let lastAppliedModelValue: LineInterface[] = [];
+  function updateLineRefs(view: EditorView) {
+    lineRefsById.value = {};
+    view.dom.querySelectorAll("[data-node-id]").forEach((dom) => {
+      const id = (dom as HTMLElement).dataset?.nodeId;
+      if (id != null) {
+        lineRefsById.value[id] = dom as HTMLElement;
+      }
+    });
+    triggerRef(lineRefsById);
+  }
   function makeEditorView(): EditorView {
     const plugins: Plugin[] = [];
     if (!options.suppressDrop) {
@@ -468,7 +472,7 @@ export function useTextEditor(options: {
     }
     const view = new EditorView(textRef.value, {
       state: makeEditorState({ lines: lines.value }),
-      editable: () => isInput?.value ?? false,
+      editable: () => toValue(isInput),
       nodeViews: {
         spanNode: (node, view, getPos) => new SpanNodeView(node, view),
         block: (node, view, getPos) =>
@@ -492,29 +496,19 @@ export function useTextEditor(options: {
           lastAppliedModelValue = text.write(updatedText);
           if (lastAppliedModelValue !== updatedText) {
             // re-derive state in case we modified the doc (like when creating a new line)
+            // NOTE :Performance: re-deriving state on every write seems wasteful (chugging fine so far though)
             newState = makeEditorState({ lines: lastAppliedModelValue, selection: newState.selection.getBookmark() });
           }
         }
         view.updateState(newState);
+        if (tx.docChanged) {
+          updateLineRefs(view);
+        }
       },
     });
+    updateLineRefs(view);
     return view;
   }
-
-  // sync nodes with their views
-  watch(
-    nodes,
-    () => {
-      if (view == null) return;
-      view.dom.querySelectorAll(".spanNode").forEach((nodeDom) => {
-        if (!(nodeDom instanceof HTMLElement)) return;
-        const pmView = (nodeDom as any).__pmView as SpanNodeView;
-        if (pmView == null) return;
-        pmView.updateNode();
-      });
-    },
-    { immediate: true },
-  );
 
   // mount the editor view
   whenever(textRef, () => {
@@ -547,7 +541,7 @@ export function useTextEditor(options: {
   const { isInDropZone } = useDropZone({
     name: "text",
     container: textRef,
-    isEnabled: computed(() => isInput?.value && !suppressDrop?.value),
+    isEnabled: computed(() => toValue(isInput) && !toValue(suppressDrop)),
     kinds: ["node", "file"],
     onDrop: (dragged, event) => {
       if (view == null) return;
@@ -576,7 +570,7 @@ export function useTextEditor(options: {
   // formatting
   function markFormatAction(mark: TextMarkType): ActionImplementation {
     return {
-      isEnabled: () => isInput?.value ?? false,
+      isEnabled: () => toValue(isInput),
       isChecked: () => {
         if (view == null) return false;
         const { from, to } = view.state.selection;
@@ -594,13 +588,13 @@ export function useTextEditor(options: {
       },
     };
   }
-  function typeFormatAction(type: TextSpanType): ActionImplementation {
+  function spanTypeFormatAction(type: TextSpanType): ActionImplementation {
     return {
-      isEnabled: () => isInput?.value ?? false,
+      isEnabled: () => toValue(isInput),
       isChecked: () => false,
       action: () => {
         if (view == null) throw new Error("view not mounted");
-        // nocheckin
+        // nocheckin: span type format action
       },
     };
   }
@@ -612,12 +606,12 @@ export function useTextEditor(options: {
     "text.format.italic": markFormatAction("italic"),
     "text.format.strikethrough": markFormatAction("strikethrough"),
     "text.format.underline": markFormatAction("underline"),
-    "text.format.code": typeFormatAction(TextSpanType.CODE),
-    "text.format.equation": typeFormatAction(TextSpanType.EQUATION),
+    "text.format.code": spanTypeFormatAction(TextSpanType.CODE),
+    "text.format.equation": spanTypeFormatAction(TextSpanType.EQUATION),
     "text.edit.hardBreak": {
       action: () => {
         // insert 'hardBreak' node at cursor
-        if (view == null || suppressEnter.value) return false;
+        if (view == null || toValue(suppressEnter)) return false;
         const { from } = view.state.selection;
         const hardBreak = PM_SCHEMA.node("spanHardBreak");
         view.dispatch(view.state.tr.insert(from, hardBreak));
@@ -653,5 +647,5 @@ export function useTextEditor(options: {
     tr.setMeta("plugin", { forceUpdate: Date.now() });
     view.dispatch(tr);
   }
-  return { focus, actions, isInDropZone, updatePlugin };
+  return { focus, actions, isInDropZone, updatePlugin, lineRefsById };
 }

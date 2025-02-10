@@ -11,6 +11,7 @@ from bench.language.core import (
     FieldType,
     HasNodeBase,
     HasTimeIdentity,
+    InlineSourceNode,
     Node,
     NodeType,
     StateNode,
@@ -29,7 +30,7 @@ from bench.language.runtime.interruption import Interruption
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Channel, Class, NodeReference, Package, Page, Text, Thread
+    from bench.language import Bench, Channel, Class, NodeReference, Package, Text, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -88,7 +89,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         references=NodeType.THREAD,
         description="The Message thread.",
     )
-    scope: Union["Page", "Package"] = p_regular(
+    scope: Union["InlineSourceNode", "Package"] = p_regular(
         35, require=False, references=(NodeType.PAGE, NodeType.PACKAGE)
     )
     clazz: Optional["Class"] = p_internal(

@@ -647,6 +647,17 @@ RESOURCE_NODE_TYPES = _get_node_types(2000, 3000)
 STATIC_RESOURCE_NODE_TYPES = _get_node_types(2000, 2100)
 DYNAMIC_RESOURCE_NODE_TYPES = _get_node_types(2100, 3000)
 SOURCE_NODE_TYPES = _get_node_types(5000, 5500)
+INLINE_SOURCE_NODE_TYPES = bittuple(
+    NodeType.CHANNEL,
+    NodeType.CHOICE,
+    NodeType.CLASS,
+    NodeType.DATABASE,
+    NodeType.FLOW,
+    NodeType.IDENTITY,
+    NodeType.PAGE,
+    NodeType.ROLE,
+    NodeType.VIEW,
+)
 STATE_NODE_TYPES = _get_node_types(5500, 6000)
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6500)
 BASED_NODE_TYPES = bittuple(  # :HasBase
