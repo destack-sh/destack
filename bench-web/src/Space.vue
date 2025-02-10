@@ -160,11 +160,13 @@ mark {
 .pm-text strong {
   @apply font-semibold;
 }
-.pm-text p.line,
-.pm-text li.line,
-.pm-text blockquote.line {
+.pm-text .line {
   @apply py-[2px] text-base transition-colors duration-150;
 }
+.pm-text .line.selected {
+  @apply rounded bg-orange-400/20;
+}
+
 .pm-text.compact .ProseMirror > .line:first-child {
   @apply pt-0; /* ignore top margin */
 }
@@ -212,14 +214,23 @@ mark {
 .pm-text hr {
   @apply my-2 border-gray-200 p-0 focus:outline-none focus:ring-0;
 }
+.pm-text hr.selected {
+  @apply border-orange-300;
+}
 .pm-text p.line.code {
   @apply my-2 w-full rounded bg-gray-100 px-3 py-2;
+}
+.pm-text p.line.code.selected {
+  @apply bg-orange-400/20;
 }
 .pm-text blockquote.line {
   @apply my-2 border-l-4 border-gray-400 pl-2;
 }
 .pm-text p.line.callout {
   @apply my-2 rounded bg-gray-100 px-2 py-3;
+}
+.pm-text p.line.callout.selected {
+  @apply bg-orange-400/20;
 }
 .pm-text p.line.callout::before {
   content: "\f06a"; /* fa-icon: circle-exclamation */

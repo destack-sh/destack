@@ -53,12 +53,13 @@ import {
   Command,
   EditorState,
   Plugin,
+  PluginKey,
   Transaction as PmTransaction,
   TextSelection,
   type SelectionBookmark as EditorSelectionBookmark,
 } from "prosemirror-state";
 import { liftTarget } from "prosemirror-transform";
-import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
+import { Decoration, DecorationSet, EditorView, type NodeView as PmNodeView } from "prosemirror-view";
 import { computed, onBeforeUnmount, watch, type Ref } from "vue";
 
 export type TextMarkType = "bold" | "italic" | "strikethrough" | "underline";
@@ -82,6 +83,19 @@ const SPAN_UNDERLINE_DOM: DOMOutputSpec = ["u", 0];
 const SPAN_CODE_DOM: DOMOutputSpec = ["code", 0];
 const SPAN_HARD_BREAK_DOM: DOMOutputSpec = ["br"];
 
+/** Make a DOMOutputSpec with node-specific metadata. */
+function toLineDom(node: PmNode, spec: readonly [string, ...any[]]): DOMOutputSpec {
+  const [tag, origAttrs = {}, ...rest] = spec;
+  const attrs = { ...origAttrs };
+  // blockPtr
+  if (node.attrs.blockPtr) {
+    attrs["data-node-id"] = node.attrs.blockPtr.id;
+    attrs["data-node-ck"] = node.attrs.blockPtr.ck;
+    attrs["data-node-type"] = node.attrs.blockPtr.nodeType;
+  }
+  return [tag, attrs, ...rest];
+}
+
 export const PM_SCHEMA = new PmSchema({
   nodes: {
     doc: { content: "line+" },
@@ -93,7 +107,7 @@ export const PM_SCHEMA = new PmSchema({
       content: "span*",
       attrs: { blockPtr: { default: null }, type: { default: TextLineType.PARAGRAPH } },
       toDOM(node) {
-        return P_DOM;
+        return toLineDom(node, P_DOM);
       },
     },
     // headings
@@ -103,10 +117,10 @@ export const PM_SCHEMA = new PmSchema({
       attrs: { blockPtr: { default: null }, type: { default: TextLineType.HEADING_1 } },
       toDOM(node) {
         const type = node.attrs.type;
-        if (type == TextLineType.HEADING_1) return H1_DOM;
-        else if (type == TextLineType.HEADING_2) return H2_DOM;
-        else if (type == TextLineType.HEADING_3) return H3_DOM;
-        else if (type == TextLineType.HEADING_4) return H4_DOM;
+        if (type == TextLineType.HEADING_1) return toLineDom(node, H1_DOM);
+        else if (type == TextLineType.HEADING_2) return toLineDom(node, H2_DOM);
+        else if (type == TextLineType.HEADING_3) return toLineDom(node, H3_DOM);
+        else if (type == TextLineType.HEADING_4) return toLineDom(node, H4_DOM);
         else throw new Error(`unexpected heading type ${type}`);
       },
       parseDOM: [
@@ -122,7 +136,7 @@ export const PM_SCHEMA = new PmSchema({
       content: "span*",
       attrs: { blockPtr: { default: null }, type: { default: TextLineType.CALLOUT } },
       toDOM(node) {
-        return CALLOUT_DOM;
+        return toLineDom(node, CALLOUT_DOM);
       },
       parseDOM: [{ tag: "p.callout", attrs: { type: TextLineType.CALLOUT } }],
     },
@@ -131,7 +145,7 @@ export const PM_SCHEMA = new PmSchema({
       content: "span*",
       attrs: { blockPtr: { default: null }, type: { default: TextLineType.QUOTE } },
       toDOM(node) {
-        return QUOTE_DOM;
+        return toLineDom(node, QUOTE_DOM);
       },
       parseDOM: [{ tag: "blockquote", attrs: { type: TextLineType.QUOTE } }],
     },
@@ -140,7 +154,7 @@ export const PM_SCHEMA = new PmSchema({
       group: "line",
       content: "lineListOrdered+",
       toDOM(node) {
-        return ["ol", { class: "ordered-list" }, 0];
+        return toLineDom(node, ["ol", { class: "ordered-list" }, 0]);
       },
       parseDOM: [{ tag: "ol" }],
     },
@@ -149,7 +163,7 @@ export const PM_SCHEMA = new PmSchema({
       content: "span*",
       attrs: { blockPtr: { default: null }, type: { default: TextLineType.LIST_UNORDERED } },
       toDOM(node) {
-        return LIST_UNORDERED_DOM;
+        return toLineDom(node, LIST_UNORDERED_DOM);
       },
       parseDOM: [{ tag: "li.list-unordered", attrs: { type: TextLineType.LIST_UNORDERED } }],
     },
@@ -157,7 +171,7 @@ export const PM_SCHEMA = new PmSchema({
       group: "line",
       content: "lineListUnordered+",
       toDOM(node) {
-        return ["ul", { class: "unordered-list" }, 0];
+        return toLineDom(node, ["ul", { class: "unordered-list" }, 0]);
       },
       parseDOM: [{ tag: "ul" }],
     },
@@ -167,7 +181,7 @@ export const PM_SCHEMA = new PmSchema({
       attrs: { blockPtr: { default: null }, type: { default: TextLineType.LIST_ORDERED } },
       // This node will now only be created inside an orderedList wrapper.
       toDOM(node) {
-        return LIST_ORDERED_DOM;
+        return toLineDom(node, LIST_ORDERED_DOM);
       },
       parseDOM: [{ tag: "li.list-ordered", attrs: { type: TextLineType.LIST_ORDERED } }],
     },
@@ -176,7 +190,7 @@ export const PM_SCHEMA = new PmSchema({
       group: "line",
       attrs: { blockPtr: { default: null }, type: { default: TextLineType.DIVIDER } },
       toDOM(node) {
-        return HR_DOM;
+        return toLineDom(node, HR_DOM);
       },
       parseDOM: [{ tag: "hr" }],
     },
@@ -189,7 +203,7 @@ export const PM_SCHEMA = new PmSchema({
       attrs: { blockPtr: { default: null }, type: { default: TextLineType.CODE } },
       code: true,
       toDOM(node) {
-        return LINE_CODE_DOM;
+        return toLineDom(node, LINE_CODE_DOM);
       },
       parseDOM: [{ tag: "div.line.code", attrs: { type: TextLineType.CODE } }],
     },
@@ -588,6 +602,36 @@ export function mapPmNodeToText(node: PmNode): TextLineInterface[] {
 // Editor
 //
 
+/** Highlighting plugin */
+const highlightPluginKey = new PluginKey("highlightPlugin");
+export function useHighlightPlugin(options: { selectedBlockIds: Ref<string[]> }) {
+  const { selectedBlockIds } = options;
+
+  return new Plugin({
+    key: highlightPluginKey,
+    state: {
+      init(_config, { doc }) {
+        return DecorationSet.empty;
+      },
+      apply(tr, oldDecos, oldState, newState) {
+        // recompute decorations based on the external highlightedBlockIds
+        const decorations: Decoration[] = [];
+        newState.doc.descendants((node, pos) => {
+          if (node.attrs.blockPtr != null && selectedBlockIds.value.includes(node.attrs.blockPtr.id)) {
+            decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: "selected" }));
+          }
+        });
+        return DecorationSet.create(newState.doc, decorations);
+      },
+    },
+    props: {
+      decorations(state) {
+        return this.getState(state);
+      },
+    },
+  });
+}
+
 /** Mini-component for PM Node spans */
 class SpanNodeView implements PmNodeView {
   dom: HTMLElement;
@@ -931,6 +975,7 @@ export function useTextEditor(options: {
   suppressDrop: Ref<boolean>;
   navigate: (direction: NavigationDirection) => void;
   deleteSelf: () => void;
+  plugins?: Plugin[];
 }) {
   // TODO :Broken: maintain selection across state changes (for undo/redo)
   const previousSelectionByState: Record<number, EditorSelectionBookmark> = {};
@@ -952,8 +997,8 @@ export function useTextEditor(options: {
   const nodes = supergraph.getManyRef(nodePtrs);
 
   // prosemirror state
-  function makeEditorState(options: { lines: TextLineInterface[]; selection?: EditorSelectionBookmark }): EditorState {
-    const doc = mapTextToPmNode(options.lines);
+  function makeEditorState(stateIn: { lines: TextLineInterface[]; selection?: EditorSelectionBookmark }): EditorState {
+    const doc = mapTextToPmNode(stateIn.lines);
     const bindings: Record<string, Command> = {
       ...commands.baseKeymap,
       ...getPmCommands({ navigate, deleteSelf }),
@@ -963,12 +1008,16 @@ export function useTextEditor(options: {
       bindings["Mod-Enter"] = () => true;
       bindings.Enter = () => true;
     }
-    const selection = options.selection?.resolve(doc);
+    const selection = stateIn.selection?.resolve(doc);
+    const plugins: Plugin[] = [keymap(bindings), inputRules({ rules: PM_INPUT_RULES })];
+    if (options?.plugins != null) {
+      plugins.push(...options.plugins);
+    }
     const state = EditorState.create({
       doc: doc,
       schema: PM_SCHEMA,
       selection,
-      plugins: [keymap(bindings), inputRules({ rules: PM_INPUT_RULES })],
+      plugins,
     });
     return state;
   }
@@ -1140,5 +1189,12 @@ export function useTextEditor(options: {
     view.dispatch(state.tr.setSelection(selection));
   }
 
-  return { focus, actions, isInDropZone };
+  // (force) update plugin state
+  function updatePlugin(plugin: Plugin) {
+    if (view == null) throw new Error("view not mounted");
+    const tr = view.state.tr;
+    tr.setMeta("plugin", { forceUpdate: Date.now() });
+    view.dispatch(tr);
+  }
+  return { focus, actions, isInDropZone, updatePlugin };
 }

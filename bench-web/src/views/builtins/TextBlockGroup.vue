@@ -3,9 +3,10 @@ import { BlockData, NodeType, PageData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { useTextBlockGroupInterface, useTextEditor } from "@/ui/prosemirror";
+import { useHighlightPlugin, useTextBlockGroupInterface, useTextEditor } from "@/ui/prosemirror";
+import { computedValue } from "@/utils/ref";
 import { NavigationDirection, type ViewEmits, ViewExposed } from "@/views/common";
-import { ref, toRef } from "vue";
+import { ref, toRef, watch, watchEffect } from "vue";
 
 const props = defineProps<{
   self?: TypedNodeReferenceData<NodeType.VIEW>;
@@ -27,13 +28,29 @@ const state = canvas.registerView(self, id);
 
 const textRef = ref<HTMLElement | null>(null);
 
+// highlighting
+const selectedBlockIds = computedValue(() => {
+  const selectedBlockIds: string[] = [];
+  for (const block of props.blocks) {
+    if (canvas.isSelected(block) || (block.nodePtr != null && canvas.isSelected(block.nodePtr))) {
+      selectedBlockIds.push(block.id!);
+    }
+  }
+  return selectedBlockIds;
+});
+const highlightPlugin = useHighlightPlugin({ selectedBlockIds });
+watch(selectedBlockIds, () => {
+  updatePlugin(highlightPlugin);
+});
+
+// editor
 const textInterface = useTextBlockGroupInterface({
   page: toRef(props, "page"),
   blocks: toRef(props, "blocks"),
   graph,
   txFactory: () => connection.tx,
 });
-const { focus, actions, isInDropZone } = useTextEditor({
+const { focus, actions, isInDropZone, updatePlugin } = useTextEditor({
   textRef,
   text: textInterface,
   isInput: toRef(props, "isInput"),
@@ -41,6 +58,7 @@ const { focus, actions, isInDropZone } = useTextEditor({
   suppressDrop: toRef(props, "suppressDrop"),
   navigate: (direction: NavigationDirection) => emit("navigate", direction),
   deleteSelf: () => emit("deleteSelf"),
+  plugins: [highlightPlugin],
 });
 
 defineExpose<ViewExposed>({ self, id, actions, focus: (anchor) => focus(anchor) });
