@@ -840,6 +840,12 @@ const lineDividerRule = new InputRule(/(^---$)|(^—-$)/, (state, match, start, 
   return tr;
 });
 
+/** Replace inline text with something. */
+function replacementRule(pattern: RegExp, replacement: string) {
+  const rule = new InputRule(pattern, replacement);
+  return rule;
+}
+
 const UNORDERED_LIST_CHARS = ["-", "\\*", "•"];
 const PM_INPUT_RULES: InputRule[] = [
   // existing rules
@@ -850,6 +856,17 @@ const PM_INPUT_RULES: InputRule[] = [
   openSingleQuote,
   closeSingleQuote,
   ...smartQuotes,
+  // character rules
+  replacementRule(/\(c\)/, "©"),
+  replacementRule(/->/, "→"),
+  replacementRule(/>>/, "»"),
+  replacementRule(/!=/, "≠"),
+  replacementRule(/\(tm\)/, "™"),
+  replacementRule(/\(r\)/, "®"),
+  replacementRule(/<3/, "❤️"),
+  replacementRule(/<=>/, "⇔"),
+  replacementRule(/<=/, "≤"),
+  replacementRule(/>=/, "≥"),
   // line rules
   linePrefixRule("# ", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_1),
   linePrefixRule("## ", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_2),
@@ -867,7 +884,6 @@ const PM_INPUT_RULES: InputRule[] = [
   linePrefixRule("> ", PM_SCHEMA.nodes.lineQuote, TextLineType.QUOTE),
   linePrefixRule("! ", PM_SCHEMA.nodes.lineCallout, TextLineType.CALLOUT),
   linePrefixRule("``` ", PM_SCHEMA.nodes.lineCode, TextLineType.CODE),
-  linePrefixRule("```", PM_SCHEMA.nodes.lineCode, TextLineType.CODE),
 ];
 
 /** Build the ProseMirror commands. */
