@@ -161,10 +161,10 @@ mark {
   @apply font-semibold;
 }
 .pm-text .line {
-  @apply py-[2px] text-base transition-colors duration-150;
+  @apply px-0.5 py-[2px] text-base transition-colors duration-150;
 }
 .pm-text .line.selected {
-  @apply rounded bg-orange-400/20;
+  @apply bg-orange-400/20;
 }
 
 .pm-text.compact .ProseMirror > .line:first-child {
@@ -267,6 +267,9 @@ mark {
   @apply decoration-primary-700;
 }
 
+.pm-text .pm-block-view {
+  @apply my-1 cursor-default py-1;
+}
 .pm-text .pm-block-view.ProseMirror-selectednode {
   @apply p-0 outline-none;
 }

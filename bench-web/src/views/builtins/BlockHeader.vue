@@ -47,7 +47,6 @@ defineExpose<Partial<ViewExposed> & { focusIdentifier: (anchor: FocusAnchor) => 
       ref="nameRef"
       size="large"
       :node="node"
-      is-light
       is-input
       :tx="() => connection.tx"
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
