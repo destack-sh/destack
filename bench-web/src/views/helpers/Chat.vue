@@ -2,7 +2,7 @@
 import { supergraph } from "@/globals";
 import { EditSubject, makeAndConditional, makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
-import { getTextLine } from "@/language/core/text";
+import { emptyText, getTextLine, isTextEmpty, trimText } from "@/language/core/text";
 import { INLINE_FILE_TYPES, uploadFile } from "@/language/resource/file";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
@@ -306,19 +306,23 @@ function stopEdit() {
 function submitEdit() {
   const message = messages.value.find((m) => m.id == editingPtr.value?.id);
   if (message == null) throw new Error("message not found");
-  connection.tx.update(message, { text: editingText.value ?? undefined });
+  const text = trimText(editingText.value ?? emptyText());
+  if (isTextEmpty(text)) return; // don't create empty messages
+  connection.tx.update(message, { text });
 }
 
 function submit() {
   // create message
   if (benchPtr.value == null) throw new Error("no bench");
   if (scope.value == null) throw new Error("no scope");
+  const text = trimText(draftText.value ?? emptyText());
+  if (isTextEmpty(text)) return; // don't create empty messages
   createMessage(connection.tx, graph, {
     message: {
       type: MessageType.TEXT,
       parentPtr: benchPtr.value,
       scopePtr: toNodeRef(scope.value),
-      text: draftText.value,
+      text,
       channelPtr: channelPtr.value,
       threadPtr: threadPtr.value,
       replyToPtr: replyTo.value != null ? draftReplyTo.value : undefined,

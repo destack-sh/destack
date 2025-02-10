@@ -1,5 +1,4 @@
-import { ObjectType, TextData, TextLineType } from "@/proto/wire";
-
+import { ObjectType, TextData, TextLineData, TextLineType } from "@/proto/wire";
 
 export const HIGHLIGHTED_TEXT_LINE_TYPES: TextLineType[] = [
   TextLineType.HEADING_1,
@@ -22,10 +21,30 @@ export function emptyText(): TextData {
   return { metatype: ObjectType.TEXT, lines: [] };
 }
 
-export function trimText(text: TextData, numLines: number): TextData {
-  if (text.lines.length <= numLines) return text;
-  const trimmed = { ...text, lines: text.lines.slice(0, numLines) };
-  return trimmed;
+/** Returns true if the line is empty. */
+export function isTextLineEmpty(line: TextLineData): boolean {
+  return (
+    line.type == TextLineType.PARAGRAPH &&
+    (line.spans.length == 0 || line.spans.every((span) => span.content == null || span.content == ""))
+  );
+}
+
+/** Returns true if the text is empty. */
+export function isTextEmpty(text: TextData): boolean {
+  return text.lines.length == 0 || text.lines.every(isTextLineEmpty);
+}
+
+/** Strip leading and trailing empty lines. */
+export function trimTextLines(lines: TextLineData[]): TextLineData[] {
+  if (lines.length == 0) return lines;
+  while (lines.length > 0 && isTextLineEmpty(lines[0])) lines.shift();
+  while (lines.length > 0 && isTextLineEmpty(lines[lines.length - 1])) lines.pop();
+  return lines;
+}
+
+/** Strip leading and trailing empty lines. */
+export function trimText(text: TextData): TextData {
+  return { ...text, lines: trimTextLines(text.lines) };
 }
 
 /** Gets up to maxLines lines of text joined together. */
@@ -38,14 +57,6 @@ export function getTextLine(text: TextData, maxLines: number = 3): string | unde
     }
   }
   return lines.length > 0 ? lines.join(" ") : undefined;
-}
-
-export function isTextEmpty(text: TextData | null | undefined): boolean {
-  return (
-    text == null ||
-    text.lines.length == 0 ||
-    text.lines.every((line) => line.type == TextLineType.PARAGRAPH && line.spans.length == 0)
-  );
 }
 
 /** Rough estimate of the height of a Text */
@@ -62,4 +73,3 @@ export function estimateTextHeight(text: TextData, width?: number): number {
   height *= 1.1; // padding for justify
   return height;
 }
-
