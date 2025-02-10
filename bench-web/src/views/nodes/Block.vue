@@ -2,24 +2,22 @@
 import { CANVAS_BLOCK_TYPES } from "@/language/core/const";
 import { BlockType, NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import type { PreparedGetConnection } from "@/system/connection";
-import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
+import { usePageContext } from "@/ui/prosemirror/page";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { type FocusAnchor, type NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
 import Choice from "@/views/nodes/Choice.vue";
 import Database from "@/views/nodes/Database.vue";
 import Flow from "@/views/nodes/Flow.vue";
-import { computed, nextTick, ref, toRef, type Ref } from "vue";
+import { computed, getCurrentInstance, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
+    pageKey: string;
     id: string;
-    preparedConnection?: PreparedGetConnection;
-    containerGutterWidth?: number;
   } & Partial<Pick<ViewData, "isMinimal" | "nodePtr">>
 >();
 const emit = defineEmits<ViewEmits>();
@@ -27,17 +25,20 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-const blockRef = ref<HTMLElement | null>(null);
-const nodeRef: Ref<InstanceType<typeof Choice> | null> = ref(null);
+const instance = getCurrentInstance();
+if (instance == null) throw new Error("no instance in Block");
+const pageContext = usePageContext(props.pageKey);
 
+const preparedConnection = pageContext.preparedConnection;
 const blockPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
-const preparedConnection = props.preparedConnection ?? useExistingConnection(blockPtr);
 const { graph, connection } = preparedConnection;
 const block = graph.getRef(blockPtr, { ignoreAncestors: true });
 const nodePtr = computed(() => block.value?.nodePtr);
 const node = graph.getRef(nodePtr, { ignoreAncestors: true });
 const fields = graph.getChildrenRef(nodePtr, NodeType.FIELD);
 
+const blockRef = ref<HTMLElement | null>(null);
+const nodeRef: Ref<InstanceType<typeof Choice> | null> = ref(null);
 const isPage = computed(() => block.value?.type == BlockType.PAGE);
 const hasCanvas = computed(() => CANVAS_BLOCK_TYPES.includes(block.value?.type!));
 const isInspected = computed(() => canvas.isInspected(blockPtr.value) || canvas.isInspected(nodePtr.value));
@@ -69,13 +70,15 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     ]"
     :data-suppress-drag="isPage ? 'select' : undefined"
     data-contextmenu-items="space.navigate.open"
+    :contenteditable="false"
+    :draggable="false"
     @click="() => isPage && canvas.goToNode(node!)"
   >
-    <!-- Page -->
+    <!-- Page definition -->
     <div v-if="node && block.type == BlockType.PAGE" class="flex h-[30px] flex-row items-center">
       <NodeReference ref="nodeRef" size="large" is-underline is-light :node="node" :tx="() => connection.tx" />
     </div>
-    <!-- Inline definition -->
+    <!-- Inline source Node definition -->
     <div v-else-if="node">
       <!-- Choice -->
       <Choice
@@ -107,7 +110,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         ref="nodeRef"
         v-bind="state.getChildState('database')"
         :node-ptr="nodePtr"
-        :container-gutter-width="containerGutterWidth"
+        :container-gutter-width="pageContext.gutterWidth.value"
         is-minimal
         is-inline
         is-input
