@@ -3,9 +3,11 @@ import { isTextEmpty } from "@/language/core/text";
 import { NodeType, TextData, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import { useTextEditor, useTextModelValueInterface } from "@/ui/prosemirror";
+import { useTextEditor } from "@/ui/prosemirror/editor";
+import { useTextModelValueInterface } from "@/ui/prosemirror/wiring";
 import { NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
-import { ref, toRef } from "vue";
+import Block from "@/views/nodes/Block.vue";
+import { getCurrentInstance, ref, toRef } from "vue";
 
 const props = defineProps<
   {
@@ -26,6 +28,8 @@ const textInterface = useTextModelValueInterface({
   modelValue: toRef(props, "modelValue"),
   update: (text) => emit("update:modelValue", text),
 });
+const vueInstance = getCurrentInstance();
+if (vueInstance == null) throw new Error("no vue instance in Text");
 const { focus, actions, isInDropZone } = useTextEditor({
   textRef,
   text: textInterface,
@@ -34,6 +38,8 @@ const { focus, actions, isInDropZone } = useTextEditor({
   suppressDrop: toRef(props, "suppressDrop"),
   navigate: (direction: NavigationDirection) => emit("navigate", direction),
   deleteSelf: () => emit("deleteSelf"),
+  parentComponent: vueInstance,
+  blockComponent: Block,
 });
 
 canvas.registerView(self, id);

@@ -203,8 +203,8 @@ const cellWrapperRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const cellComponentRefs: Ref<Record<string, ViewExposed>> = ref({});
 const shiftKey = useKeyModifier("Shift");
 
-const headerSize = useElementSize(headerRef);
-const containerSize = useElementSize(containerRef);
+const headerSize = useElementSize(headerRef as Ref<MaybeElement>);
+const containerSize = useElementSize(containerRef as Ref<MaybeElement>);
 const rowWidth = computed(() => {
   if (props.isMinimal) {
     return containerSize.width.value; // row actions are floating to the left

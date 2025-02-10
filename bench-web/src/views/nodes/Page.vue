@@ -20,30 +20,25 @@ import {
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { bench, canvas } from "@/system/space";
-import { BLOCK_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
-import {
-  isDragging,
-  isSelecting,
-  startDraggingIfAllowed,
-  startSelectingIfAllowed,
-  useMultiDropZone,
-  useSelectionZone,
-} from "@/ui/drag";
+import { type ActionMapImplementation } from "@/ui/action";
+import { isSelecting, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { isDraggingGlobal, ScrollbarWidth } from "@/ui/layout";
 import { useNodeListActions } from "@/ui/list";
 import { pushDefaultMenu } from "@/ui/popover";
+import { useHighlightPlugin, useTextEditor } from "@/ui/prosemirror/editor";
+import { providePageContext } from "@/ui/prosemirror/page";
+import { useTextPageInterface } from "@/ui/prosemirror/wiring";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import PageHeader from "@/views/builtins/PageHeader.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import TextBlockGroup from "@/views/builtins/TextBlockGroup.vue";
 import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/nodes/Block.vue";
-import { computed, nextTick, ref, toRef, type Ref } from "vue";
+import { computed, getCurrentInstance, nextTick, ref, shallowRef, toRef, watch, type Ref } from "vue";
 
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
@@ -64,17 +59,24 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const nodePtr = computed(() => props.nodePtr);
 const state = canvas.registerView(self, id);
+const vueInstance = getCurrentInstance();
+if (vueInstance == null) throw new Error("no vue instance in Page");
 
 const preparedConnection = useExistingConnection(nodePtr);
 const { graph, connection } = preparedConnection;
 const page = graph.getRef(nodePtr) as Ref<PageData | undefined>;
 const blocks = graph.getChildrenRef(nodePtr, NodeType.BLOCK);
+providePageContext(vueInstance.uid.toString(), {
+  page,
+  blocks,
+  blocksRefById: shallowRef({}),
+  preparedConnection,
+  gutterWidth: computed(() => widths.value.gutter),
+});
 
-const nodeBlockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
 const pageHeaderRef: Ref<InstanceType<typeof PageHeader> | null> = ref(null);
-const textBlockGroupRefs: Ref<Record<string, InstanceType<typeof TextBlockGroup>>> = ref({});
+const textRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
-const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 
 // size block/gutter horizontally (try to fit both until min block width)
@@ -84,6 +86,9 @@ const widths = computed(() => {
   const gutterWidth = Math.max(MIN_GUTTER_WIDTH, (props.size.width - blockWidth) / 2);
   return { block: blockWidth, gutter: gutterWidth };
 });
+const isEmpty = computed(
+  () => blocks.value.length == 0 || blocks.value.every((b) => b.type >= BlockType.PARAGRAPH && b.text == null),
+);
 
 /** Gets the position for a div anchored at the start/end of the given block */
 function getAnchorPositionStyle(anchor: "start" | "end", blockIdx: number, anchorWidth: number) {
@@ -99,59 +104,48 @@ function getAnchorPositionStyle(anchor: "start" | "end", blockIdx: number, ancho
 }
 
 //
-// Layout
+// Text
 //
 
-type BlockGroup =
-  | {
-      id: string;
-      type: "text";
-      blocks: BlockData[];
-      beforeBlock: BlockData | undefined;
-      afterBlock: BlockData | undefined;
-    }
-  | {
-      id: string;
-      type: "node";
-      block: BlockData;
-      blocks: BlockData[];
-    };
-
-const groups = computed(() => {
-  const groups: BlockGroup[] = [];
-  // accumulate successive text blocks into text groups
-  for (const [i, block] of blocks.value.entries()) {
-    const lastGroup = groups[groups.length - 1];
-    if (block.type >= BlockType.PARAGRAPH) {
-      if (lastGroup?.type === "text") {
-        // expand text group
-        lastGroup.blocks.push(block);
-        lastGroup.afterBlock = blocks.value[i + 1];
-      } else {
-        groups.push({
-          id: block.id,
-          type: "text",
-          blocks: [block],
-          beforeBlock: blocks.value[i - 1],
-          afterBlock: blocks.value[i + 1],
-        });
-      }
-    } else {
-      groups.push({ id: block.id, type: "node", block, blocks: [block] });
+// highlighting
+const selectedBlockIds = computedValue(() => {
+  const selectedBlockIds: string[] = [];
+  for (const block of blocks.value) {
+    if (canvas.isSelected(block) || (block.nodePtr != null && canvas.isSelected(block.nodePtr))) {
+      selectedBlockIds.push(block.id!);
     }
   }
-  return groups;
+  return selectedBlockIds;
 });
-const isEmpty = computed(
-  () => blocks.value.length == 0 || blocks.value.every((b) => b.type >= BlockType.PARAGRAPH && b.text == null),
-);
-function getGroupRef(group: BlockGroup) {
-  if (group.type == "text") {
-    return textBlockGroupRefs.value[group.id!];
-  } else {
-    return nodeBlockRefs.value[group.block.id!];
-  }
-}
+const highlightPlugin = useHighlightPlugin({ selectedBlockIds });
+watch(selectedBlockIds, () => {
+  updatePlugin(highlightPlugin);
+});
+
+// editor
+const textInterface = useTextPageInterface({
+  page,
+  blocks,
+  graph,
+  txFactory: () => connection.tx,
+});
+const {
+  focus: textFocus,
+  actions: textActions,
+  isInDropZone,
+  updatePlugin,
+} = useTextEditor({
+  textRef,
+  text: textInterface,
+  isInput: ref(true),
+  suppressEnter: ref(false),
+  suppressDrop: ref(false),
+  navigate: (direction: NavigationDirection) => emit("navigate", direction),
+  deleteSelf: () => emit("deleteSelf"),
+  plugins: [highlightPlugin],
+  parentComponent: vueInstance,
+  blockComponent: Block,
+});
 
 //
 // Interaction
@@ -166,7 +160,7 @@ const selectionZone = useSelectionZone({ containerEl: contentRef, overlayEl: sel
 const { activeDropZone } = useMultiDropZone({
   name: "page",
   container: contentRef,
-  targets: nodeBlockRefs,
+  targets: ref({}), // nocheckin
   orientation: Orientation.VERTICAL,
   kinds: ["node", "selection", "file"],
   metatypes: [NodeType.BLOCK],
@@ -264,40 +258,6 @@ function createAndFocusBlock(
   return block;
 }
 
-// navigate
-function navigateFromGroup(group: BlockGroup, direction: NavigationDirection) {
-  const navigableGroups = groups.value.filter(
-    (g) => g.type == "text" || (g.type == "node" && g.block.type != BlockType.PAGE),
-  );
-  const groupIdx = navigableGroups.findIndex((g) => g.id == group.id);
-  if (direction == "up" || direction == "left") {
-    const prevGroup = navigableGroups[groupIdx - 1];
-    if (prevGroup != null) {
-      const prevGroupRef = getGroupRef(prevGroup);
-      prevGroupRef?.focus?.("bottom");
-    } else {
-      pageHeaderRef.value?.focusIdentifier("right");
-    }
-  } else if (direction == "down" || direction == "right") {
-    const nextGroup = navigableGroups[groupIdx + 1];
-    if (nextGroup != null) {
-      const nextGroupRef = getGroupRef(nextGroup);
-      nextGroupRef?.focus?.("top");
-    } else {
-      focusText("bottom");
-    }
-  } else if (direction == "enter") {
-    // add text right below
-    createAndFocusBlock({ type: BlockType.PARAGRAPH }, "after", group.blocks[group.blocks.length - 1]);
-  }
-}
-
-function deleteGroup(group: BlockGroup) {
-  navigateFromGroup(group, "up");
-  const tx = connection.tx.with({ change: { key: newChangeId(), title: "Delete" } });
-  group.blocks.forEach((b) => tx.delete(b));
-}
-
 /** Focus or create text block at end of page. */
 function focusText(anchor: "top" | "bottom" = "bottom") {
   if (anchor == "top") {
@@ -339,14 +299,15 @@ function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData, innerAnch
     focusText("bottom");
   } else {
     // focus containing group
-    if (block.type >= BlockType.PARAGRAPH) {
-      const group = groups.value.find((g) => g.type == "text" && g.blocks.some((b) => b.id == block.id));
-      const groupRef = textBlockGroupRefs.value[group!.id!];
-      groupRef?.focus?.(innerAnchor);
-    } else {
-      const groupRef = nodeBlockRefs.value[block.id!];
-      groupRef?.focus?.(innerAnchor);
-    }
+    // nocheckin
+    // if (block.type >= BlockType.PARAGRAPH) {
+    //   const group = groups.value.find((g) => g.type == "text" && g.blocks.some((b) => b.id == block.id));
+    //   const groupRef = textBlockGroupRefs.value[group!.id!];
+    //   groupRef?.focus?.(innerAnchor);
+    // } else {
+    //   const groupRef = nodeBlockRefs.value[block.id!];
+    //   groupRef?.focus?.(innerAnchor);
+    // }
   }
 }
 
@@ -382,7 +343,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <div
         ref="contentRef"
         class="flex min-h-full flex-col focus:outline-none focus:ring-0"
-        :class="[canSelect ? '' : 'select-none cursor-default']"
+        :class="[canSelect ? '' : 'cursor-default select-none']"
         :style="{ minHeight: size.height - (isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0) + 'px' }"
       >
         <!-- Page header (title) -->
@@ -402,59 +363,20 @@ defineExpose<ViewExposed>({ self, actions, focus });
           "
         />
 
-        <!-- Blocks -->
-        <div v-for="(group, i) in groups" :key="group.type" class="group/block-group relative my-[3px]" :style="{}">
-          <!-- Text block group -->
-          <TextBlockGroup
-            v-if="group.type == 'text'"
-            :id="group.id"
-            :ref="(ref: any) => (ref ? (textBlockGroupRefs[group.id!] = ref) : delete textBlockGroupRefs[group.id!])"
-            class="mx-auto rounded px-0.5"
-            :blocks="group.blocks"
-            :before-block="group.beforeBlock"
-            is-input
-            :after-block="group.afterBlock"
-            :page="page"
-            :connection="preparedConnection"
-            :style="{
-              width: widths.block + 'px',
-            }"
-            @navigate="(direction: NavigationDirection) => navigateFromGroup(group, direction)"
-            @delete-self="deleteGroup(group)"
-          />
-          <!-- Block -->
-          <div
-            v-else
-            :contenteditable="false"
-            class="relative mx-auto rounded"
-            :style="{
-              width: widths.block + 'px',
-            }"
-          >
-            <!-- Drag above/below -->
-            <div
-              v-if="activeDropZone?.targetId == group.block.id"
-              class="absolute z-10 h-1 w-full rounded bg-gray-400"
-              :style="getAnchorPositionStyle(activeDropZone?.anchor as 'start' | 'end', i, 4)"
-            />
-            <Block
-              :id="group.block.id"
-              :ref="
-                (ref: any) => (ref ? (nodeBlockRefs[group.block.id!] = ref) : delete nodeBlockRefs[group.block.id!])
-              "
-              class="w-full"
-              :class="isDragging(group.block) ? 'opacity-50' : ''"
-              :node-ptr="toNodeRef(group.block)"
-              :prepared-connection="preparedConnection"
-              :container-gutter-width="widths.gutter"
-              v-bind="state.getChildState(group.block.id)"
-              :data-contextmenu-items="BLOCK_CONTEXT_ACTIONS.join(',')"
-              :draggable="group.block.type == BlockType.PAGE"
-              @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, group.block)"
-              @navigate="(direction: NavigationDirection) => navigateFromGroup(group, direction)"
-              @delete-self="deleteGroup(group)"
-            />
-          </div>
+        <!-- Text/Blocks -->
+        <div
+          ref="textRef"
+          class="pm-text relative mx-auto rounded px-0.5 hover:cursor-text"
+          :class="['stealth', isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '']"
+          data-suppress-actions="space.move.left,space.move.right"
+          data-suppress-drag="both"
+          :style="{
+            width: widths.block + 'px',
+          }"
+        >
+          <!-- Floating menu -->
+          <!-- nocheckin: factor out to TextFloatingMenu? -->
+          <div v-if="false" class="absolute left-0 top-0 border bg-white">help</div>
         </div>
 
         <!-- Padding -->

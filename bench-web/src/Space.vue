@@ -267,11 +267,15 @@ mark {
   @apply decoration-primary-700;
 }
 
+.pm-text .pm-block-view.ProseMirror-selectednode {
+  @apply p-0 outline-none;
+}
+
 .ProseMirror-focused {
   outline: none;
 }
 .ProseMirror-selectednode {
-  @apply p-2 outline-primary-700;
+  @apply outline-primary-700;
 }
 .ProseMirror[contenteditable="false"] {
   user-select: text; /* let user highlight text */

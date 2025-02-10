@@ -1,4 +1,5 @@
-import { ObjectType, TextData, TextLineData, TextLineType } from "@/proto/wire";
+import { ObjectType, StructType, TextData, TextLineData, TextLineType } from "@/proto/wire";
+import { makeStruct } from "@/proto/wiring";
 
 export const HIGHLIGHTED_TEXT_LINE_TYPES: TextLineType[] = [
   TextLineType.HEADING_1,
@@ -18,7 +19,11 @@ export const STANDARD_TEXT_LINE_TYPES: TextLineType[] = [
 ];
 
 export function emptyText(): TextData {
-  return { metatype: ObjectType.TEXT, lines: [] };
+  return makeStruct({ metatype: StructType.TEXT, lines: [] });
+}
+
+export function emptyTextLine(): TextLineData {
+  return makeStruct({ metatype: StructType.TEXT_LINE, type: TextLineType.PARAGRAPH, spans: [] });
 }
 
 /** Returns true if the line is empty. */
