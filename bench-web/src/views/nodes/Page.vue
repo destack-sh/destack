@@ -17,7 +17,7 @@ import {
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire/";
-import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, isNodeRef, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { bench, canvas } from "@/system/space";
 import { type ActionMapImplementation } from "@/ui/action";
@@ -284,31 +284,12 @@ function focusText(anchor: "top" | "bottom" = "bottom") {
 
 // focus
 function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData, innerAnchor?: FocusAnchor) {
-  let block: BlockData | undefined;
-  if (typeof anchor != "object") {
-    if (anchor != "bottom") {
-      block = blocks.value[0];
-    } else {
-      block = blocks.value[blocks.value.length - 1];
-    }
-  } else {
-    block = graph.get(anchor) as BlockData | undefined;
-  }
-
-  if (block == null) {
+  if (anchor == null || typeof anchor == "string") {
     // just focus page
     focusText("bottom");
   } else {
-    // focus containing group
-    // nocheckin: focus
-    // if (block.type >= BlockType.PARAGRAPH) {
-    //   const group = groups.value.find((g) => g.type == "text" && g.blocks.some((b) => b.id == block.id));
-    //   const groupRef = textBlockGroupRefs.value[group!.id!];
-    //   groupRef?.focus?.(innerAnchor);
-    // } else {
-    //   const groupRef = nodeBlockRefs.value[block.id!];
-    //   groupRef?.focus?.(innerAnchor);
-    // }
+    // focus block
+    textFocus(!isNodeRef(anchor) ? toNodeRef(anchor) : anchor);
   }
 }
 
