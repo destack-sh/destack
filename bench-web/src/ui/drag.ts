@@ -17,7 +17,7 @@ import { log } from "@/utils/log";
 import { uuidt } from "@/utils/uuidt";
 import SelectionZone from "@/views/builtins/SelectionOverlay.vue";
 import { ViewComponent } from "@/views/common";
-import { tryOnBeforeUnmount, useEventListener, useMouse, useMouseInElement, type MaybeElement } from "@vueuse/core";
+import { MaybeElement, tryOnBeforeUnmount, useEventListener, useMouse, useMouseInElement } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, ref, shallowRef, toRef, triggerRef, unref, watch, type MaybeRef, type Ref } from "vue";
 
@@ -167,7 +167,7 @@ type DropOptions = {
   /** Name of the drop zone for debugging */
   name: string;
   /** The top level container for the zone. */
-  container: Ref<MaybeElement>;
+  container: Ref<MaybeElement | any>;
   /** The kinds of supported drag kinds. */
   kinds?: MaybeRef<DragKind[]>;
   /** The metatypes of supported drag nodes (for Dragged with nodes). */
@@ -331,7 +331,7 @@ export type MultiAnchor = "start" | "center" | "end";
  */
 export function useMultiDropZone(
   options: DropOptions & {
-    targets: Ref<Record<string, MaybeElement>>;
+    targets: Ref<Record<string, MaybeElement | any>>;
     orientation: MaybeRef<Orientation>;
     fallbackToClosest?: boolean;
     hasCenterAnchor?: boolean;
@@ -519,6 +519,7 @@ export const activeSelection: Ref<{
   activeOverlay: { x: number; y: number; width: number; height: number } | null;
 } | null> = shallowRef(null);
 
+/** Whether we're actively selecting. */
 export function isSelecting(zone?: SelectionZone) {
   if (zone == null) {
     return activeSelection.value != null;

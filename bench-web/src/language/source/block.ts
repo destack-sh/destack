@@ -63,7 +63,7 @@ export function createBlock(
   let text = options.block.text;
   if (type >= BlockType.PARAGRAPH) {
     if (text == null) {
-      text = makeStruct({ metatype: StructType.TEXT_LINE, type: type + 10_000 });
+      text = makeStruct({ metatype: StructType.TEXT_LINE, type: type - 10_000 });
     }
     if (text.type != type - 10_000) {
       throw new Error(`text type mismatch: ${text.type} != ${type - 10_000}`);
