@@ -405,6 +405,7 @@ export function useTextBlockGroupInterface(options: {
           target: prevBlock ?? page.value,
         });
         line.blockPtr = toNodeRef(block);
+        prevBlockId = block.id;
       }
     }
 
@@ -713,21 +714,16 @@ function morphLineNode(
   const containerEnd = $from.after($from.depth - 1);
   const index = $from.index($from.depth - 1);
 
-  // CASE 1: list container has only one item
+  // if list container has only one item, replace it with the new node
   if (listContainer && listContainer.childCount === 1) {
     const newNode = targetNodeType.create({ ...listItem.attrs, type: targetType }, listItem.content);
     tr.replaceWith(containerStart, containerEnd, newNode);
-    const offset = $from.parentOffset;
-    const $newPos = tr.doc.resolve(containerStart);
-    const newStart = $newPos.start($newPos.depth);
-    const newOffset = Math.min(offset, $newPos.parent.content.size);
-    tr.setSelection(TextSelection.create(tr.doc, newStart + newOffset));
+    tr.setSelection(TextSelection.near(tr.doc.resolve(containerStart + 1)));
     if (dispatch) dispatch(tr);
     return true;
   }
 
-  // CASE 2: multiple list items in the container
-  // isolate the current list item by splitting before and after if necessary
+  // if list container has multiple items, isolate the current list item by splitting before and after if necessary
   let $itemStart = tr.doc.resolve($from.before($from.depth));
   let $itemEnd = tr.doc.resolve($from.after($from.depth));
   if (listContainer.childCount > 1) {
@@ -796,7 +792,7 @@ const lineDividerRule = new InputRule(/(^---$)|(^—-$)/, (state, match, start, 
   const { tr } = state;
   tr.replaceWith(start - 1, end, state.schema.nodes.lineDivider.create());
   tr.insert(start, state.schema.nodes.lineParagraph.create());
-  tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
+  tr.setSelection(TextSelection.near(tr.doc.resolve(end)));
   return tr;
 });
 
@@ -936,6 +932,7 @@ export function useTextEditor(options: {
   navigate: (direction: NavigationDirection) => void;
   deleteSelf: () => void;
 }) {
+  // TODO :Broken: maintain selection across state changes (for undo/redo)
   const previousSelectionByState: Record<number, EditorSelectionBookmark> = {};
   const { textRef, text, isInput, suppressEnter, suppressDrop, navigate, deleteSelf } = options;
 
@@ -1042,7 +1039,6 @@ export function useTextEditor(options: {
     if (deepValueEquals(lines.value, lastAppliedModelValue)) return; // already applied
     const updatedState = makeEditorState({ lines: lines.value });
     view.updateState(updatedState);
-    console.log("overwrite state");
     lastAppliedModelValue = lines.value;
   });
 
