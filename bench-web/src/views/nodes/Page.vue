@@ -3,7 +3,7 @@ import { toCamelName } from "@/language/core/const";
 import { isDescendantOf } from "@/language/core/graph";
 import { cloneNode, moveNode, NodeIn } from "@/language/core/node";
 import { STANDARD_TEXT_LINE_TYPES } from "@/language/core/text";
-import { uploadFile } from "@/language/resource/file";
+import { uploadFile, uploadFiles } from "@/language/resource/file";
 import { newChangeId } from "@/language/runtime/transaction";
 import { createBlock } from "@/language/source/block";
 import {
@@ -38,6 +38,7 @@ import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/nodes/Block.vue";
+import { useEventListener } from "@vueuse/core";
 import { computed, getCurrentInstance, nextTick, ref, shallowRef, toRef, watch, type Ref } from "vue";
 
 const MIN_BLOCK_WIDTH = 500;
@@ -176,17 +177,7 @@ const { activeDropZone } = useMultiDropZone({
       if (!dragged.files) return;
       const target = graph.getOrError({ id: targetId });
       if (!isNode(target, NodeType.BLOCK)) throw new Error(`unexpected target node type: ${describeNode(target)}`);
-      Array.from(dragged.files).forEach(async (file) => {
-        if (bench.value == null) throw new Error("no current bench");
-        const upload = uploadFile(() => connection.tx, file, { bench: bench.value });
-        await upload.completion.wait();
-        const block = createBlock(connection.tx, graph, {
-          block: { type: BlockType.FILE, nodePtr: toNodeRef(upload.file.value!) },
-          anchor: anchor == "start" ? "before" : "after",
-          target: target,
-        });
-        focus(toNodeRef(block));
-      });
+      addFiles(dragged.files, anchor == "start" ? "before" : "after", target);
     } else if (dragged.kind == "node") {
       const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
       let node = graph.getOrError(dragged.node);
@@ -216,12 +207,40 @@ const { activeDropZone } = useMultiDropZone({
   },
 });
 const activeDropAnchorPosition = computed(() => {
-  if (activeDropZone.value?.targetRect == null) return null;
+  if (activeDropZone.value?.targetRect == null) return { y: 0 };
   const { anchor, targetRect } = activeDropZone.value;
   if (anchor == "start") {
     return { y: targetRect.top };
   } else {
     return { y: targetRect.bottom };
+  }
+});
+
+// files
+function addFiles(files: FileList | File[], anchor: "before" | "after" | "inside", target: PageData | BlockData) {
+  Array.from(files).forEach(async (file) => {
+    if (bench.value == null) throw new Error("no current bench");
+    const upload = uploadFile(() => connection.tx, file, { bench: bench.value });
+    await upload.completion.wait();
+    const block = createBlock(connection.tx, graph, {
+      block: { type: BlockType.FILE, nodePtr: toNodeRef(upload.file.value!) },
+      anchor: anchor,
+      target: target,
+    });
+    focus(toNodeRef(block));
+  });
+}
+
+// clipboard
+useEventListener(contentRef, "paste", (event) => {
+  if (event.clipboardData == null) return;
+  const files = Array.from(event.clipboardData.files);
+  if (files.length == 0) return;
+  const focusedBlock = props.focus != null ? graph.get(props.focus.nodesPtr[0]) : null;
+  if (isNode(focusedBlock, NodeType.BLOCK)) {
+    addFiles(files, "before", focusedBlock);
+  } else {
+    addFiles(files, "inside", page.value!);
   }
 });
 
@@ -360,9 +379,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- <div v-if="false" class="absolute left-0 top-0 border bg-white">help</div> -->
           <!-- Dragging anchor -->
           <div
-            v-if="activeDropAnchorPosition"
-            class="fixed z-40 h-[4px] bg-orange-400"
-            :style="{ top: activeDropAnchorPosition.y - 2 + 'px', width: widths.block + 'px' }"
+            v-if="activeDropZone"
+            class="z-40 h-[4px] bg-orange-400"
+            :class="activeDropAnchorPosition.y > 0 ? 'fixed' : 'absolute'"
+            :style="{
+              top: activeDropAnchorPosition.y > 0 ? activeDropAnchorPosition.y - 2 + 'px' : undefined,
+              width: widths.block + 'px',
+            }"
           />
         </div>
 

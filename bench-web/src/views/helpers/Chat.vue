@@ -397,7 +397,7 @@ const dropZone = useSingleDropZone({
 });
 
 // clipboard
-useEventListener("paste", (event) => {
+useEventListener(inputContainerRef, "paste", (event) => {
   if (event.clipboardData == null) return;
   const files = Array.from(event.clipboardData.files);
   if (files.length == 0) return;
