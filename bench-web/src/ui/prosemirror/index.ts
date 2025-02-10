@@ -48,6 +48,7 @@ import {
   ResolvedPos,
   type DOMOutputSpec,
   type Mark as PmMark,
+  type MarkType as PmMarkType,
 } from "prosemirror-model";
 import {
   Command,
@@ -746,7 +747,7 @@ function morphLineNode(
     const newStart = $newPos.start($newPos.depth);
     const newOffset = Math.min(offset, $newPos.parent.content.size);
     tr.setSelection(TextSelection.create(tr.doc, newStart + newOffset));
-    if (dispatch) dispatch(tr);
+    dispatch?.(tr);
     return true;
   }
 
@@ -763,7 +764,7 @@ function morphLineNode(
     const newNode = targetNodeType.create({ ...listItem.attrs, type: targetType }, listItem.content);
     tr.replaceWith(containerStart, containerEnd, newNode);
     tr.setSelection(TextSelection.near(tr.doc.resolve(containerStart + 1)));
-    if (dispatch) dispatch(tr);
+    dispatch?.(tr);
     return true;
   }
 
@@ -803,12 +804,13 @@ function morphLineNode(
     ...listItem.attrs,
     type: targetType,
   });
+
   // preserve the horizontal offset from the original selection
   const offset = $from.parentOffset;
   const newStart = $newPos.start($newPos.depth);
   const newOffset = Math.min(offset, $newPos.parent.content.size);
   tr.setSelection(TextSelection.create(tr.doc, newStart + newOffset));
-  if (dispatch) dispatch(tr);
+  dispatch?.(tr);
   return true;
 }
 
@@ -832,6 +834,7 @@ function linePrefixRule(pattern: string | RegExp, nodeType: PmNodeType, type: Te
   });
   return rule;
 }
+
 const lineDividerRule = new InputRule(/(^---$)|(^—-$)/, (state, match, start, end) => {
   const { tr } = state;
   tr.replaceWith(start - 1, end, state.schema.nodes.lineDivider.create());
@@ -846,17 +849,40 @@ function replacementRule(pattern: RegExp, replacement: string) {
   return rule;
 }
 
+/**
+ * Create an input rule that transforms text wrapped in markers into text with a given mark (applying the mark only within the region).
+ * For example, markerRule('*', PM_SCHEMA.marks.em) will convert "*text*" into italicized text.
+ */
+function markerRule(marker: string, markType: PmMarkType) {
+  const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const char = marker[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  let regex: RegExp;
+  if (marker.length == 1) {
+    // /(?:^|[^*])\*(?!\*)(.+?)\*(?!\*)/
+    regex = new RegExp(`(?:^|[^*])${escapedMarker}(?!${char})(.+?)${escapedMarker}(?!${char})$`);
+  } else if (marker.length == 2) {
+    // /(?:^|[^*])\*\*(?!\*)(.+?)\*\*(?!\*)/
+    regex = new RegExp(`(?:^|[^*])${escapedMarker}(?!${char})(.+?)${escapedMarker}(?!${char})$`);
+  } else {
+    throw new Error(`unsupported marker: ${marker}`);
+  }
+  const rule = new InputRule(regex, (state, match, start, end) => {
+    const { tr, schema } = state;
+    const text = match[1];
+    tr.replaceWith(start, end, schema.text(text, [markType.create()]));
+    tr.setSelection(TextSelection.create(tr.doc, start + text.length));
+    tr.removeStoredMark(markType);
+    return tr;
+  });
+  return rule;
+}
+
 const UNORDERED_LIST_CHARS = ["-", "\\*", "•"];
 const PM_INPUT_RULES: InputRule[] = [
-  // existing rules
+  // character rules
   emDash,
   ellipsis,
-  openDoubleQuote,
-  closeDoubleQuote,
-  openSingleQuote,
-  closeSingleQuote,
   ...smartQuotes,
-  // character rules
   replacementRule(/\(c\)/, "©"),
   replacementRule(/->/, "→"),
   replacementRule(/>>/, "»"),
@@ -867,6 +893,13 @@ const PM_INPUT_RULES: InputRule[] = [
   replacementRule(/<=>/, "⇔"),
   replacementRule(/<=/, "≤"),
   replacementRule(/>=/, "≥"),
+  // marker rules
+  markerRule("*", PM_SCHEMA.marks.italic),
+  markerRule("_", PM_SCHEMA.marks.italic),
+  markerRule("**", PM_SCHEMA.marks.bold),
+  markerRule("__", PM_SCHEMA.marks.bold),
+  markerRule("~", PM_SCHEMA.marks.strikethrough),
+  markerRule("~~", PM_SCHEMA.marks.strikethrough),
   // line rules
   linePrefixRule("# ", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_1),
   linePrefixRule("## ", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_2),

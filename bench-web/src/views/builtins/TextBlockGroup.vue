@@ -70,5 +70,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus: (anchor) => focus(anchor) 
     :class="['stealth', isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '']"
     data-suppress-actions="space.move.left,space.move.right"
     data-suppress-drag="both"
-  />
+  >
+    <!-- Floating menu -->
+    <!-- nocheckin: factor out to TextFloatingMenu? -->
+    <div v-if="false" class="absolute left-0 top-0 border bg-white">
+      help
+    </div>
+  </div>
 </template>
