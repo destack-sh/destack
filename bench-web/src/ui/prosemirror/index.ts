@@ -859,6 +859,7 @@ function markerRule(marker: string, markType: PmMarkType) {
   let regex: RegExp;
   if (marker.length == 1) {
     // /(?:^|[^*])\*(?!\*)(.+?)\*(?!\*)/
+    // (ensure we don't take precedence over **text*)
     regex = new RegExp(`(?:^|[^*])${escapedMarker}(?!${char})(.+?)${escapedMarker}(?!${char})$`);
   } else if (marker.length == 2) {
     // /(?:^|[^*])\*\*(?!\*)(.+?)\*\*(?!\*)/

@@ -23,13 +23,14 @@ import { bench, canvas } from "@/system/space";
 import { BLOCK_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
 import {
   isDragging,
+  isSelecting,
   startDraggingIfAllowed,
   startSelectingIfAllowed,
   useMultiDropZone,
   useSelectionZone,
 } from "@/ui/drag";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
-import { ScrollbarWidth } from "@/ui/layout";
+import { isDraggingGlobal, ScrollbarWidth } from "@/ui/layout";
 import { useNodeListActions } from "@/ui/list";
 import { pushDefaultMenu } from "@/ui/popover";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
@@ -348,7 +349,9 @@ function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData, innerAnch
     }
   }
 }
-const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
+
+const isSelectingPage = computed(() => isSelecting());
+const canSelect = computed(() => !isSelectingPage.value && !isDraggingGlobal.value);
 
 defineExpose<ViewExposed>({ self, actions, focus });
 </script>
@@ -378,12 +381,14 @@ defineExpose<ViewExposed>({ self, actions, focus });
     >
       <div
         ref="contentRef"
-        class="flex min-h-full flex-col"
+        class="flex min-h-full flex-col focus:outline-none focus:ring-0"
+        :class="[canSelect ? '' : 'select-none cursor-default']"
         :style="{ minHeight: size.height - (isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0) + 'px' }"
       >
         <!-- Page header (title) -->
         <PageHeader
           ref="pageHeaderRef"
+          :contenteditable="false"
           :width="widths.block"
           :node="page"
           :connection="preparedConnection"
@@ -420,6 +425,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Block -->
           <div
             v-else
+            :contenteditable="false"
             class="relative mx-auto rounded"
             :style="{
               width: widths.block + 'px',
@@ -453,6 +459,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
         <!-- Padding -->
         <div
+          :contenteditable="false"
           class="transform transition-all duration-300"
           :class="!isEmpty ? 'pt-auto' : 'pt-0'"
           :style="{ height: MIN_FOOTER_PADDING / 2 + 'px' }"
@@ -461,6 +468,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
         <!-- Footer -->
         <div
+          :contenteditable="false"
           class="group/footer mx-auto flex flex-row justify-center gap-x-2.5 py-8"
           :style="{
             width: widths.block + 'px',
@@ -489,10 +497,15 @@ defineExpose<ViewExposed>({ self, actions, focus });
         </div>
 
         <!-- Padding -->
-        <div class="" :style="{ height: MIN_FOOTER_PADDING / 2 + 'px' }" @click="focusText()" />
+        <div
+          :contenteditable="false"
+          class=""
+          :style="{ height: MIN_FOOTER_PADDING / 2 + 'px' }"
+          @click="focusText()"
+        />
 
         <!-- Selection -->
-        <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
+        <SelectionOverlay ref="selectionOverlayRef" :contenteditable="false" :zone="selectionZone" />
       </div>
     </Scroll>
     <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="connection" />
