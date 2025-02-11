@@ -878,7 +878,7 @@ export class SpaceCanvas {
         parent = primary;
       }
 
-      log.debug("canvas.addView.create", view, { existing, options, parent });
+      log.trace("canvas.addView.create", view, { existing, options, parent });
       let siblings = this.graph.getChildren(parent, NodeType.VIEW);
       const change = this.tx().with({ change: { key: newChangeId() } });
 
@@ -1147,7 +1147,7 @@ export class SpaceCanvas {
     move: { self: ViewData; child: ViewData; anchor: "start" | "end"; referenceId?: string | null },
     options?: { tx?: Transaction },
   ) {
-    log.debug("canvas.move", { graph, ...move });
+    log.trace("canvas.move", { graph, ...move });
     const { self, child, anchor, referenceId } = move;
     const tx = options?.tx ?? this.tx();
     // move & update order
@@ -1174,7 +1174,7 @@ export class SpaceCanvas {
     graph: ReadNodeGraph,
     split: { parent: ViewData; child: ViewData; anchor: Omit<SplitAnchor, "center">; duplicateIfSelf?: boolean },
   ) {
-    log.debug("canvas.split", { graph, ...split });
+    log.trace("canvas.split", { graph, ...split });
     // eslint-disable-next-line prefer-const
     let { parent, child, anchor } = split;
     const tx = this.tx();

@@ -294,11 +294,14 @@ class TooltipPlugin implements PluginView {
     gutterWidth?: MaybeRef<number>;
   }) {
     const { view, component, parentComponent, containerBounding, gutterWidth } = options;
+
+    // state
     this.component = component;
     this.parentComponent = parentComponent;
     this.containerBounding = containerBounding;
     this.gutterWidth = gutterWidth ?? 0;
 
+    // view
     this.dom = document.createElement("div");
     this.dom.addEventListener("mousedown", (event) => {
       event.stopPropagation();
@@ -312,7 +315,6 @@ class TooltipPlugin implements PluginView {
       tick: this.tick,
     });
     this.vnode = this.createVNode();
-
     render(this.vnode, this.dom);
     this.update(view, null);
   }
@@ -341,13 +343,11 @@ class TooltipPlugin implements PluginView {
     } else {
       // reposition tooltip and update its content
       this.props.visible = true;
-      const { from } = state.selection;
-      const fromPos = view.coordsAtPos(from);
+      const fromPos = view.coordsAtPos(state.selection.from);
       this.dom.style.position = "fixed";
       this.dom.style.left = this.containerBounding.left.value + toValue(this.gutterWidth) + "px";
       this.dom.style.top = fromPos.top - this.props.height - 6 + "px";
     }
-
     this.vnode = this.createVNode();
     render(this.vnode, this.dom);
   }
