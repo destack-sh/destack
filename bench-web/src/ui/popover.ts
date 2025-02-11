@@ -1,6 +1,6 @@
 import { HELPER_VIEW_TYPES, ROOT_VIEW_TYPES } from "@/language/core/const";
 import { NodeReferenceData, NodeType, ObjectType, type AnyNodeData, type IconData, type ViewType } from "@/proto/wire";
-import { isNode } from "@/proto/wiring";
+import { isNode, isNodeRef } from "@/proto/wiring";
 import { supergraph } from "@/globals";
 import { canvas } from "@/system/space";
 import {
@@ -489,9 +489,17 @@ export function trackHoverElementOnce(
 }
 
 /** Creates the default menu for the views at the given element. */
-export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | undefined, e: MouseEvent) {
+export function pushDefaultMenu(
+  kind: "main" | "context",
+  node: AnyNodeData | NodeReferenceData | null | undefined,
+  e: MouseEvent,
+) {
   const hasSelection = canvas.selection != null && canvas.selection.nodesPtr.length > 1;
   const excludedActions = hasSelection ? SCALAR_CONTEXT_ACTIONS : [];
+
+  if (isNodeRef(node)) {
+    node = supergraph.get(node);
+  }
 
   let currentNode: AnyNodeData | null = node ?? null;
   const nodes: AnyNodeData[] = node != null ? [node] : [];

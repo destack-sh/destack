@@ -152,6 +152,17 @@ const {
   plugins: [highlightPlugin, tooltipPlugin, placeholderPlugin, lineHandlePlugin],
   parentComponent: vueInstance,
   blockComponent: Block,
+  onTransaction: (view, prevState, newState) => {
+    // auto deselect nodes if anything was edited by the user
+    const selectionChanged = !(
+      prevState &&
+      prevState.doc.eq(newState.doc) &&
+      prevState.selection.eq(newState.selection)
+    );
+    if (selectionChanged && !isSelecting()) {
+      canvas.deselect();
+    }
+  },
 });
 
 //

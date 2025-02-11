@@ -3,6 +3,7 @@ import { NodeReferenceData, NodeType, ObjectType } from "@/proto/wire";
 import { isNodeRef } from "@/proto/wiring";
 import { startDragging } from "@/ui/drag";
 import { DEFAULT_MISSING_ICON, getNodeIcon, getNodeName, ICON_BY_NODE_TYPE } from "@/ui/icon";
+import { pushDefaultContextMenu, pushDefaultMenu } from "@/ui/popover";
 import { PM_SCHEMA } from "@/ui/prosemirror/schema";
 import { getColorHex } from "@/ui/style";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
@@ -464,6 +465,12 @@ function createLineHandleDom(node: PmNode): HTMLElement {
   dragButton.draggable = true;
   // data-suppress-drag="select"
   dragButton.dataset.suppressDrag = "select";
+  dragButton.addEventListener("click", (event) => {
+    if (!isNodeRef(blockPtr)) {
+      throw new Error(`blockPtr is not a node ref from ${node.type.name}`);
+    }
+    pushDefaultMenu("context", blockPtr, event);
+  });
   dragButton.addEventListener("dragstart", (event) => {
     if (!isNodeRef(blockPtr)) {
       throw new Error(`blockPtr is not a node ref from ${node.type.name}`);
