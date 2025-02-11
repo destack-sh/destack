@@ -245,7 +245,7 @@ export const HISTORY_ACTIONS = provideActions<"space.history">({
     icon: "fas fa-arrow-turn-right",
     title: "Redo",
     text: "Redo the last undone action or edit",
-    shortcuts: ["mod+shift+z"],
+    shortcuts: ["mod+shift+z", "mod+y"],
     isEnabled: () => getEditStack(canvas.graph, canvas.focusedView).canRedo,
     action: (action, ctx) => {
       const stack = getEditStack(canvas.graph, canvas.focusedView);

@@ -2,7 +2,7 @@
 import { getBaseFromNode, toCamelName } from "@/language/core/const";
 import { useSubnodeProperty } from "@/language/core/node";
 import { isRunnable } from "@/language/runtime/run";
-import { HelpAspect, NodeType, Orientation, RunData, ViewData, ViewType } from "@/proto/wire";
+import { BlockType, HelpAspect, NodeType, Orientation, RunData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/runtime/runtime";
@@ -38,16 +38,34 @@ const state = canvas.registerView(self, id);
 
 // node
 const nodePtr = computedValue(() => props.nodePtr ?? inspectionPtr.value);
-const { node, connection } = supergraph.getLinkRef(nodePtr);
-const isNodeRunnable = computed(() => node.value != null && isRunnable(node.value));
+const { node: inspection, connection: inspectionConnection } = supergraph.getLinkRef(nodePtr);
+const isNodeRunnable = computed(() => inspection.value != null && isRunnable(inspection.value));
+const parentPtr = computed(() => {
+  if (isNode(inspection.value, NodeType.BLOCK)) {
+    return inspection.value.nodePtr;
+  } else {
+    return null;
+  }
+});
+const { node: parent, connection: parentConnection } = supergraph.getLinkRef(parentPtr);
 const delegatePtr = computed(() => {
-  if (isNode(node.value, NodeType.BLOCK)) {
-    return node.value.nodePtr;
+  if (isNode(inspection.value, NodeType.BLOCK)) {
+    return inspection.value.nodePtr;
   } else {
     return null;
   }
 });
 const { node: delegate, connection: delegateConnection } = supergraph.getLinkRef(delegatePtr);
+const scope = computed(() => {
+  if (delegate.value != null) {
+    return delegate.value;
+  } else if (isNode(inspection.value, NodeType.BLOCK) && inspection.value.type >= BlockType.PARAGRAPH) {
+    return parent.value;
+  } else {
+    return inspection.value;
+  }
+});
+
 
 // run
 const containingRun: Ref<RunData | null> = computed(() => {
@@ -107,7 +125,7 @@ defineExpose<ViewExposed>({ self });
       }"
     >
       <!-- Node -->
-      <NodeReference v-if="node" :node="node" :tx="() => connection!.tx" size="regular" is-input />
+      <NodeReference v-if="scope" :node="scope" :tx="() => inspectionConnection!.tx" size="regular" is-input />
       <span v-else class="text-gray-400">Nothing</span>
       <!-- Run status -->
       <div v-if="containingRun != null" class="flex flex-row px-1.5">

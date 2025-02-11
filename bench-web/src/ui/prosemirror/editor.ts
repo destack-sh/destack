@@ -12,6 +12,7 @@ import { FocusAnchor, NavigationDirection } from "@/views/common";
 import { whenever } from "@vueuse/core";
 import * as commands from "prosemirror-commands";
 import { dropCursor } from "prosemirror-dropcursor";
+import { history, redo, undo } from "prosemirror-history";
 import { ellipsis, emDash, InputRule, inputRules, smartQuotes } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
 import {
@@ -470,12 +471,13 @@ export function useTextEditor(options: {
   plugins: Plugin[];
   parentComponent: ComponentInternalInstance;
   blockComponent: Component;
+  history?: boolean;
 }) {
   // nocheckin: maintain selection across state changes (for undo/redo)
   const previousSelectionByState: Record<number, EditorSelectionBookmark> = {};
   const { textRef, text, isInput, suppressEnter, suppressDrop, navigate, deleteSelf } = options;
 
-  // state
+  // setup
   const bindings: Record<string, Command> = {
     ...commands.baseKeymap,
     ...getPmCommands({ navigate, deleteSelf }),
@@ -485,10 +487,20 @@ export function useTextEditor(options: {
     bindings["Mod-Enter"] = () => true;
     bindings.Enter = () => true;
   }
+  if (options?.history) {
+    bindings["Mod-z"] = undo;
+    bindings["Mod-y"] = redo;
+    bindings["Mod-Shift-z"] = redo;
+  }
   const plugins: Plugin[] = [keymap(bindings), inputRules({ rules: PM_INPUT_RULES })];
   if (options?.plugins != null) {
     plugins.push(...options.plugins);
   }
+  if (options?.history) {
+    plugins.push(history({ depth: 1000, newGroupDelay: 3000 }));
+  }
+
+  // state
   const lines = computed(() => text.read());
   function makeEditorState(stateIn: { lines: LineInterface[]; selection?: EditorSelectionBookmark }): EditorState {
     const doc = mapTextToPmNode(stateIn.lines);
@@ -595,6 +607,7 @@ export function useTextEditor(options: {
     if (view == null) return;
     if (deepValueEquals(prevText, lines.value)) return; // already applied
     const updatedState = makeEditorState({ lines: lines.value });
+    console.log("lines.override", { old: prevText, new: lines.value }); // nocheckin: fix accidental line override
     view.updateState(updatedState);
     prevText = lines.value;
   });
