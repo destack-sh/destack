@@ -160,6 +160,9 @@ mark {
 .pm-text strong {
   @apply font-semibold;
 }
+.pm-text code {
+  @apply bg-gray-100 px-1 py-0.5 font-mono;
+}
 .pm-text .line {
   @apply px-0.5 py-[2px] text-base transition-colors duration-150;
 }

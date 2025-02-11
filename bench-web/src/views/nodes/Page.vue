@@ -125,7 +125,7 @@ const textInterface = useTextPageInterface({
   txFactory: () => connection.tx,
 });
 const {
-  focus: textFocus,
+  focus: focusInText,
   actions: textActions,
   lineRefsById,
   isInDropZone,
@@ -317,7 +317,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData, innerAnch
     focusText("bottom");
   } else {
     // focus block
-    textFocus(!isNodeRef(anchor) ? toNodeRef(anchor) : anchor);
+    focusInText(!isNodeRef(anchor) ? toNodeRef(anchor) : anchor);
   }
 }
 
