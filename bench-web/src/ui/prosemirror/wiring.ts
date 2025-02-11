@@ -261,8 +261,10 @@ export function mapTextToPmNode(lines: LineInterface[]): PmNode {
 }
 
 /** Convert a PmNode to Lines. */
-export function mapPmNodeToText(node: PmNode): LineInterface[] {
+export function mapPmNodeToText(node: PmNode): { lines: LineInterface[]; linesNodes: PmNode[]; linesPos: number[] } {
   const lines: LineInterface[] = [];
+  const linesNodes: PmNode[] = [];
+  const linesPos: number[] = [];
 
   /** Convert a PmNode to a LineInterface. */
   function mapPmLineToTextLine(lineNode: PmNode): LineInterface {
@@ -273,34 +275,34 @@ export function mapPmNodeToText(node: PmNode): LineInterface[] {
     for (let spanIdx = 0; spanIdx < lineNode.childCount; spanIdx++) {
       const spanNode = lineNode.child(spanIdx);
       let span: TextSpanData;
-      if (spanNode.type.name == "spanHardBreak") {
+      if (spanNode.type.name === "spanHardBreak") {
         span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.HARD_BREAK };
-      } else if (spanNode.type.name == "text") {
+      } else if (spanNode.type.name === "text") {
         span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.TEXT, content: spanNode.text };
-      } else if (spanNode.type.name == "spanNode") {
+      } else if (spanNode.type.name === "spanNode") {
         span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.NODE, nodePtr: spanNode.attrs.nodePtr };
-      } else if (spanNode.type.name == "spanLink") {
+      } else if (spanNode.type.name === "spanLink") {
         span = {
           metatype: ObjectType.TEXT_SPAN,
           type: TextSpanType.LINK,
           url: spanNode.attrs.href,
           content: spanNode.text,
         };
-      } else if (spanNode.type.name == "spanCode") {
+      } else if (spanNode.type.name === "spanCode") {
         span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.CODE, content: spanNode.text };
-      } else if (spanNode.type.name == "spanEquation") {
+      } else if (spanNode.type.name === "spanEquation") {
         span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.EQUATION, content: spanNode.text };
       } else {
         throw new Error(`unexpected span node type: ${spanNode.type.name}`);
       }
       for (const mark of spanNode.marks) {
-        if (mark.type.name == "bold") {
+        if (mark.type.name === "bold") {
           span.isBold = true;
-        } else if (mark.type.name == "italic") {
+        } else if (mark.type.name === "italic") {
           span.isItalic = true;
-        } else if (mark.type.name == "strikethrough") {
+        } else if (mark.type.name === "strikethrough") {
           span.isStrikethrough = true;
-        } else if (mark.type.name == "underline") {
+        } else if (mark.type.name === "underline") {
           span.isUnderline = true;
         } else {
           throw new Error(`unexpected mark type: ${mark.type.name}`);
@@ -308,22 +310,41 @@ export function mapPmNodeToText(node: PmNode): LineInterface[] {
       }
       spans.push(span);
     }
-    const text: TextLineData = { metatype: ObjectType.TEXT_LINE, type: lineNode.attrs.type, spans, cells: [] };
-    const blockPtr = lineNode.attrs.blockPtr;
-    return { type: "text", text, blockPtr };
+    const text: TextLineData = {
+      metatype: ObjectType.TEXT_LINE,
+      type: lineNode.attrs.type,
+      spans,
+      cells: [],
+    };
+    return { type: "text", text, blockPtr: lineNode.attrs.blockPtr };
   }
 
-  for (let i = 0; i < node.childCount; i++) {
-    const child = node.child(i);
-    if (child.type.name === "orderedList" || child.type.name === "unorderedList") {
-      for (let j = 0; j < child.childCount; j++) {
-        const line = mapPmLineToTextLine(child.child(j));
-        lines.push(line);
+  // use .descendants to traverse the doc with proper positions
+  node.descendants((child, pos, parent) => {
+    // direct children of the doc.
+    if (parent === node) {
+      // if the direct child is a list, skip adding it—its children will be handled below.
+      if (child.type.name === "orderedList" || child.type.name === "unorderedList") {
+        return;
       }
-    } else {
-      const line = mapPmLineToTextLine(child);
-      lines.push(line);
+      lines.push(mapPmLineToTextLine(child));
+      linesNodes.push(child);
+      linesPos.push(pos);
+      return false; // don't descend further into this node
     }
-  }
-  return lines;
+    // immediate children of a list node
+    if (parent && (parent.type.name === "orderedList" || parent.type.name === "unorderedList")) {
+      // only add the direct children of the list.
+      if ((parent as any).parent === node) {
+        lines.push(mapPmLineToTextLine(child));
+        linesNodes.push(child);
+        linesPos.push(pos);
+        return false; // don't descend further into this node
+      }
+    }
+    // otherwise, skip deeper descendants
+    return;
+  });
+
+  return { lines, linesNodes, linesPos };
 }

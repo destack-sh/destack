@@ -3,7 +3,7 @@ import { toCamelName } from "@/language/core/const";
 import { isDescendantOf } from "@/language/core/graph";
 import { cloneNode, moveNode, NodeIn } from "@/language/core/node";
 import { STANDARD_TEXT_LINE_TYPES } from "@/language/core/text";
-import { uploadFile, uploadFiles } from "@/language/resource/file";
+import { uploadFile } from "@/language/resource/file";
 import { newChangeId } from "@/language/runtime/transaction";
 import { createBlock } from "@/language/source/block";
 import {
@@ -26,8 +26,9 @@ import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { isDraggingGlobal, ScrollbarWidth } from "@/ui/layout";
 import { useNodeListActions } from "@/ui/list";
 import { pushDefaultMenu } from "@/ui/popover";
-import { useHighlightPlugin, useTextEditor } from "@/ui/prosemirror/editor";
+import { useTextEditor } from "@/ui/prosemirror/editor";
 import { providePageContext } from "@/ui/prosemirror/page";
+import { useHighlightPlugin, useTooltipPlugin } from "@/ui/prosemirror/view";
 import { useTextPageInterface } from "@/ui/prosemirror/wiring";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
@@ -35,6 +36,7 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import PageHeader from "@/views/builtins/PageHeader.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
+import TextTooltip from "@/views/builtins/TextTooltip.vue";
 import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/nodes/Block.vue";
@@ -110,6 +112,12 @@ watch(selectedBlockIds, () => {
 });
 
 // editor
+const tooltipPlugin = useTooltipPlugin({
+  component: TextTooltip,
+  parentComponent: vueInstance,
+  container: contentRef,
+  gutterWidth: computed(() => widths.value.gutter),
+});
 const textInterface = useTextPageInterface({
   page,
   blocks,
@@ -134,7 +142,7 @@ const {
     }
   },
   deleteSelf: () => emit("deleteSelf"),
-  plugins: [highlightPlugin],
+  plugins: [highlightPlugin, tooltipPlugin],
   parentComponent: vueInstance,
   blockComponent: Block,
 });
@@ -217,6 +225,7 @@ const activeDropAnchorPosition = computed(() => {
 });
 
 // files
+// TODO :UX: paste files with immediate preview
 function addFiles(files: FileList | File[], anchor: "before" | "after" | "inside", target: PageData | BlockData) {
   Array.from(files).forEach(async (file) => {
     if (bench.value == null) throw new Error("no current bench");
@@ -374,10 +383,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
             width: widths.block + 'px',
           }"
         >
-          <!-- Floating menu -->
-          <!-- nocheckin: factor out to TextFloatingMenu? -->
-          <!-- <div v-if="false" class="absolute left-0 top-0 border bg-white">help</div> -->
           <!-- Dragging anchor -->
+          <!-- NOTE :Cleanup: turn dragging anchor into prosemirror plugin?  -->
           <div
             v-if="activeDropZone"
             class="z-40 h-[4px] bg-orange-400"

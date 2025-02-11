@@ -4,9 +4,12 @@ import { NodeType, TextData, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { useTextEditor } from "@/ui/prosemirror/editor";
+import { useTooltipPlugin } from "@/ui/prosemirror/view";
 import { useTextModelValueInterface } from "@/ui/prosemirror/wiring";
+import TextTooltip from "@/views/builtins/TextTooltip.vue";
 import { NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
 import Block from "@/views/nodes/Block.vue";
+import { Plugin } from "prosemirror-state";
 import { getCurrentInstance, ref, toRef } from "vue";
 
 const props = defineProps<
@@ -30,6 +33,12 @@ const textInterface = useTextModelValueInterface({
 });
 const vueInstance = getCurrentInstance();
 if (vueInstance == null) throw new Error("no vue instance in Text");
+
+const plugins: Plugin[] = [];
+if (props.isInput) {
+  plugins.push(useTooltipPlugin({ component: TextTooltip, parentComponent: vueInstance, container: textRef }));
+}
+
 const { focus, actions, isInDropZone } = useTextEditor({
   textRef,
   text: textInterface,
@@ -40,6 +49,7 @@ const { focus, actions, isInDropZone } = useTextEditor({
   deleteSelf: () => emit("deleteSelf"),
   parentComponent: vueInstance,
   blockComponent: Block,
+  plugins,
 });
 
 canvas.registerView(self, id);

@@ -3,12 +3,40 @@ import { NodeReferenceData, NodeType, ObjectType } from "@/proto/wire";
 import { DEFAULT_MISSING_ICON, getNodeIcon, getNodeName, ICON_BY_NODE_TYPE } from "@/ui/icon";
 import { PM_SCHEMA } from "@/ui/prosemirror/schema";
 import { getColorHex } from "@/ui/style";
+import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { blurDocument } from "@/utils/element";
 import { NavigationDirection, ViewExposed } from "@/views/common";
+import { MaybeElement, useElementBounding } from "@vueuse/core";
 import { Node as PmNode } from "prosemirror-model";
-import { NodeSelection, TextSelection, Transaction as PmTransaction } from "prosemirror-state";
-import { Decoration, EditorView, ViewMutationRecord, type NodeView as PmNodeView } from "prosemirror-view";
-import { Component, ComponentInternalInstance, createVNode, render } from "vue";
+import {
+  EditorState,
+  NodeSelection,
+  Plugin,
+  PluginKey,
+  PluginView,
+  Transaction as PmTransaction,
+  TextSelection,
+} from "prosemirror-state";
+import {
+  Decoration,
+  DecorationSet,
+  EditorView,
+  ViewMutationRecord,
+  type NodeView as PmNodeView,
+} from "prosemirror-view";
+import {
+  Component,
+  ComponentInternalInstance,
+  createVNode,
+  markRaw,
+  MaybeRef,
+  reactive,
+  Ref,
+  render,
+  toValue,
+  VNode,
+  watch,
+} from "vue";
 
 const PROSEMIRROR_NODE_KEY = "__pmNode";
 
@@ -63,7 +91,7 @@ export class SpanNodeView implements PmNodeView {
 export class VueComponentRenderer implements PmNodeView {
   dom: HTMLElement;
   pmnode: PmNode;
-  vnode: any;
+  vnode: VNode;
   view: EditorView;
 
   constructor(options: {
@@ -78,8 +106,8 @@ export class VueComponentRenderer implements PmNodeView {
     this.dom = document.createElement("div");
     this.pmnode = node;
     this.vnode = createVNode(component, { ...props });
-    this.vnode.parent = parentComponent;
     this.vnode.appContext = parentComponent.appContext;
+    (this.vnode as any).parent = parentComponent;
     (this.vnode as any)[PROSEMIRROR_NODE_KEY] = node;
     this.view = view;
     render(this.vnode, this.dom);
@@ -202,4 +230,142 @@ export class BlockRenderer extends VueComponentRenderer {
   setSelection(anchor: number, head: number, root: Document | ShadowRoot) {
     // nothing to do?
   }
+}
+
+/**
+ * Highlighting
+ */
+
+const highlightPluginKey = new PluginKey("highlightPlugin");
+export function useHighlightPlugin(options: { selectedBlockIds: Ref<string[]> }) {
+  const { selectedBlockIds } = options;
+
+  const plugin = new Plugin({
+    key: highlightPluginKey,
+    state: {
+      init(_config, { doc }) {
+        return DecorationSet.empty;
+      },
+      apply(tr, oldDecos, oldState, newState) {
+        // recompute decorations based on the external highlightedBlockIds
+        const decorations: Decoration[] = [];
+        newState.doc.descendants((node, pos) => {
+          if (node.attrs.blockPtr != null && selectedBlockIds.value.includes(node.attrs.blockPtr.id)) {
+            decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: "selected" }));
+          }
+        });
+        return DecorationSet.create(newState.doc, decorations);
+      },
+    },
+    props: {
+      decorations(state) {
+        return this.getState(state);
+      },
+    },
+  });
+  return plugin;
+}
+
+/**
+ * Tooltip
+ */
+
+export type TooltipProps = {
+  view: EditorView;
+  visible: boolean;
+  height: number;
+  tick: number;
+};
+
+class TooltipPlugin implements PluginView {
+  component: Component;
+  parentComponent: ComponentInternalInstance;
+  containerBounding: ReturnType<typeof useElementBounding>;
+  gutterWidth: MaybeRef<number>;
+  dom: HTMLElement;
+  props: TooltipProps;
+  vnode: VNode;
+  tick = 0;
+
+  constructor(options: {
+    view: EditorView;
+    component: Component;
+    parentComponent: ComponentInternalInstance;
+    containerBounding: ReturnType<typeof useElementBounding>;
+    gutterWidth?: MaybeRef<number>;
+  }) {
+    const { view, component, parentComponent, containerBounding, gutterWidth } = options;
+    this.component = component;
+    this.parentComponent = parentComponent;
+    this.containerBounding = containerBounding;
+    this.gutterWidth = gutterWidth ?? 0;
+
+    this.dom = document.createElement("div");
+    view.dom.parentNode?.appendChild(this.dom);
+    this.props = reactive({
+      visible: false,
+      view: markRaw(view),
+      height: VIEW_DEFAULT_HEADER_HEIGHT,
+      tick: this.tick,
+    });
+    this.vnode = this.createVNode();
+
+    render(this.vnode, this.dom);
+    this.update(view, null);
+  }
+
+  createVNode(): VNode {
+    const vnode = createVNode(this.component, this.props);
+    vnode.appContext = this.parentComponent.appContext;
+    return vnode;
+  }
+
+  update(view: EditorView, lastState: EditorState | null) {
+    this.tick++;
+    this.props.tick = this.tick;
+    this.props.view = view;
+
+    // don't do anything if the document/selection didn't change
+    const state = view.state;
+    if (lastState && lastState.doc.eq(state.doc) && lastState.selection.eq(state.selection)) {
+      return;
+    }
+
+    // update the tooltip
+    if (state.selection.empty) {
+      // hide the tooltip if the selection is empty
+      this.props.visible = false;
+    } else {
+      // reposition tooltip and update its content
+      this.props.visible = true;
+      const { from } = state.selection;
+      const fromPos = view.coordsAtPos(from);
+      this.dom.style.position = "fixed";
+      this.dom.style.left = this.containerBounding.left.value + toValue(this.gutterWidth) + "px";
+      this.dom.style.top = fromPos.top - this.props.height - 6 + "px";
+    }
+
+    this.vnode = this.createVNode();
+    render(this.vnode, this.dom);
+  }
+
+  destroy() {
+    render(null, this.dom);
+  }
+}
+
+export function useTooltipPlugin(options: {
+  component: Component;
+  parentComponent: ComponentInternalInstance;
+  container: Ref<MaybeElement | null | undefined>;
+  gutterWidth?: MaybeRef<number>;
+}) {
+  const { component, parentComponent, container, gutterWidth } = options;
+  const containerBounding = useElementBounding(container);
+  const plugin = new Plugin({
+    view(editorView) {
+      return new TooltipPlugin({ view: editorView, component, parentComponent, containerBounding, gutterWidth });
+    },
+  });
+  return plugin;
 }
