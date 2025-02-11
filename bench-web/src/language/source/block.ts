@@ -1,5 +1,5 @@
 import { supergraph } from "@/globals";
-import { INLINE_SOURCE_NODE_TYPES, toCamelName } from "@/language/core/const";
+import { INLINE_SOURCE_NODE_TYPES, isInlineSourceNode, toCamelName } from "@/language/core/const";
 import { type ReadNodeGraph } from "@/language/core/graph";
 import { NodeIn } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
@@ -130,32 +130,12 @@ export function createInlineSourceNode(
 
 /** Unwrap a Block into its inner node, if it has one. */
 export function unwrapBlock(block: BlockData): InlineSourceNodeData | undefined {
-  if (block.type == BlockType.DATABASE) {
-    const database = supergraph.get(block.nodePtr!);
-    if (!isNode(database, NodeType.DATABASE)) {
-      throw new Error(`block is not a database: ${describeNode(block)}`);
-    }
-    return database;
-  } else if (block.type == BlockType.FLOW) {
-    const flow = supergraph.get(block.nodePtr!);
-    if (!isNode(flow, NodeType.FLOW)) {
-      throw new Error(`block is not a flow: ${describeNode(block)}`);
-    }
-    return flow;
-  } else if (block.type == BlockType.CLASS) {
-    const clazz = supergraph.get(block.nodePtr!);
-    if (!isNode(clazz, NodeType.CLASS)) {
-      throw new Error(`block is not a class: ${describeNode(block)}`);
-    }
-    return clazz;
-  } else if (block.type == BlockType.CHOICE) {
-    const choice = supergraph.get(block.nodePtr!);
-    if (!isNode(choice, NodeType.CHOICE)) {
-      throw new Error(`block is not a choice: ${describeNode(block)}`);
-    }
-    return choice;
+  if (block.nodePtr == null) return undefined;
+  const node = supergraph.get(block.nodePtr);
+  if (!isInlineSourceNode(node)) {
+    throw new Error(`block is not an inline source node: ${describeNode(block)}`);
   }
-  return undefined;
+  return node;
 }
 
 /** Get the Type for a Block. Unwraps to the type for the inner node (if any). */

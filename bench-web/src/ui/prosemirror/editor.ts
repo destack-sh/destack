@@ -16,8 +16,8 @@ import { ellipsis, emDash, InputRule, inputRules, smartQuotes } from "prosemirro
 import { keymap } from "prosemirror-keymap";
 import {
   NodeRange,
-  NodeType as PmNodeType,
   Node as PmNode,
+  NodeType as PmNodeType,
   ResolvedPos,
   type MarkType as PmMarkType,
 } from "prosemirror-model";
@@ -26,13 +26,12 @@ import {
   EditorState,
   NodeSelection,
   Plugin,
-  PluginKey,
   Transaction as PmTransaction,
   TextSelection,
   type SelectionBookmark as EditorSelectionBookmark,
 } from "prosemirror-state";
 import { liftTarget } from "prosemirror-transform";
-import { Decoration, DecorationSet, EditorView } from "prosemirror-view";
+import { EditorView } from "prosemirror-view";
 import {
   Component,
   ComponentInternalInstance,
@@ -49,36 +48,6 @@ import {
 //
 // Editor
 //
-
-/** Highlighting plugin */
-const highlightPluginKey = new PluginKey("highlightPlugin");
-export function useHighlightPlugin(options: { selectedBlockIds: Ref<string[]> }) {
-  const { selectedBlockIds } = options;
-
-  return new Plugin({
-    key: highlightPluginKey,
-    state: {
-      init(_config, { doc }) {
-        return DecorationSet.empty;
-      },
-      apply(tr, oldDecos, oldState, newState) {
-        // recompute decorations based on the external highlightedBlockIds
-        const decorations: Decoration[] = [];
-        newState.doc.descendants((node, pos) => {
-          if (node.attrs.blockPtr != null && selectedBlockIds.value.includes(node.attrs.blockPtr.id)) {
-            decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: "selected" }));
-          }
-        });
-        return DecorationSet.create(newState.doc, decorations);
-      },
-    },
-    props: {
-      decorations(state) {
-        return this.getState(state);
-      },
-    },
-  });
-}
 
 /** Wrap a range in a list container, merging with adjacent lists of the same type if possible. */
 function wrapInList(tr: PmTransaction, range: NodeRange, type: TextLineType) {
@@ -423,7 +392,7 @@ export function useTextEditor(options: {
   suppressDrop: MaybeRef<boolean>;
   navigate: (direction: NavigationDirection) => void;
   deleteSelf: () => void;
-  plugins?: Plugin[];
+  plugins: Plugin[];
   parentComponent: ComponentInternalInstance;
   blockComponent: Component;
 }) {
@@ -432,23 +401,23 @@ export function useTextEditor(options: {
   const { textRef, text, isInput, suppressEnter, suppressDrop, navigate, deleteSelf } = options;
 
   // state
+  const bindings: Record<string, Command> = {
+    ...commands.baseKeymap,
+    ...getPmCommands({ navigate, deleteSelf }),
+  };
+  if (toValue(suppressEnter)) {
+    bindings["Shift-Enter"] = bindings.Enter;
+    bindings["Mod-Enter"] = () => true;
+    bindings.Enter = () => true;
+  }
+  const plugins: Plugin[] = [keymap(bindings), inputRules({ rules: PM_INPUT_RULES })];
+  if (options?.plugins != null) {
+    plugins.push(...options.plugins);
+  }
   const lines = computed(() => text.read());
   function makeEditorState(stateIn: { lines: LineInterface[]; selection?: EditorSelectionBookmark }): EditorState {
     const doc = mapTextToPmNode(stateIn.lines);
-    const bindings: Record<string, Command> = {
-      ...commands.baseKeymap,
-      ...getPmCommands({ navigate, deleteSelf }),
-    };
-    if (toValue(suppressEnter)) {
-      bindings["Shift-Enter"] = bindings.Enter;
-      bindings["Mod-Enter"] = () => true;
-      bindings.Enter = () => true;
-    }
     const selection = stateIn.selection?.resolve(doc);
-    const plugins: Plugin[] = [keymap(bindings), inputRules({ rules: PM_INPUT_RULES })];
-    if (options?.plugins != null) {
-      plugins.push(...options.plugins);
-    }
     const state = EditorState.create({
       doc: doc,
       schema: PM_SCHEMA,
@@ -484,7 +453,7 @@ export function useTextEditor(options: {
 
   // view
   let view: EditorView | null = null;
-  let lastAppliedModelValue: LineInterface[] = [];
+  let prevText: LineInterface[] = [];
   function makeEditorView(): EditorView {
     const plugins: Plugin[] = [];
     if (!options.suppressDrop) {
@@ -510,15 +479,20 @@ export function useTextEditor(options: {
         if (view == null) throw new Error("view not mounted");
         // update the state
         let newState = view.state.apply(tx);
-        const updatedText = mapPmNodeToText(newState.doc);
+        const { lines: updatedText, linesNodes, linesPos } = mapPmNodeToText(newState.doc);
         // also write the doc (if changed)
         if (tx.docChanged) {
-          lastAppliedModelValue = text.write(updatedText);
-          if (lastAppliedModelValue !== updatedText) {
-            // re-derive state in case we modified the doc (like when creating a new line)
-            // NOTE :Performance: re-deriving state on every write seems wasteful (chugging fine so far though)
-            newState = makeEditorState({ lines: lastAppliedModelValue, selection: newState.selection.getBookmark() });
+          prevText = text.write(updatedText);
+          // update the blockPtr for modified lines
+          let tr = newState.tr;
+          for (let i = 0; i < linesNodes.length; i++) {
+            const lineNode = linesNodes[i];
+            const line = prevText[i];
+            if (line.blockPtr?.id !== lineNode.attrs.blockPtr?.id) {
+              tr = tr.setNodeAttribute(linesPos[i], "blockPtr", line.blockPtr);
+            }
           }
+          newState = newState.apply(tr);
         }
         view.updateState(newState);
         if (tx.docChanged) {
@@ -533,7 +507,7 @@ export function useTextEditor(options: {
   // mount the editor view
   whenever(textRef, () => {
     if (view) throw new Error("view already exists");
-    lastAppliedModelValue = lines.value.map((l) => l);
+    prevText = lines.value.slice();
     view = makeEditorView();
   });
   onBeforeUnmount(() => {
@@ -544,10 +518,10 @@ export function useTextEditor(options: {
   // overwrite state from modelValue if different
   watch(lines, () => {
     if (view == null) return;
-    if (deepValueEquals(lines.value, lastAppliedModelValue)) return; // already applied
+    if (deepValueEquals(lines.value, prevText)) return; // already applied
     const updatedState = makeEditorState({ lines: lines.value });
     view.updateState(updatedState);
-    lastAppliedModelValue = lines.value;
+    prevText = lines.value;
   });
 
   /** Insert a Node mention at a position. */
@@ -675,8 +649,9 @@ export function useTextEditor(options: {
   function updatePlugin(plugin: Plugin) {
     if (view == null) return; // nothing to do
     const tr = view.state.tr;
-    tr.setMeta("plugin", { forceUpdate: Date.now() });
+    tr.setMeta(plugin, { forceUpdate: Date.now() });
     view.dispatch(tr);
   }
+
   return { focus, actions, isInDropZone, updatePlugin, lineRefsById };
 }
