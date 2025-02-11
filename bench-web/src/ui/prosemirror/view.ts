@@ -7,6 +7,7 @@ import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { blurDocument } from "@/utils/element";
 import { NavigationDirection, ViewExposed } from "@/views/common";
 import { MaybeElement, useElementBounding } from "@vueuse/core";
+import { stateEnd } from "mermaid/dist/rendering-util/rendering-elements/shapes/stateEnd";
 import { Node as PmNode } from "prosemirror-model";
 import {
   EditorState,
@@ -355,8 +356,18 @@ class TooltipPlugin implements PluginView {
       this.hideTimer = null;
     }
 
-    // update the tooltip
-    if (state.selection.empty) {
+    // only show tooltip if selection is inside a line group
+    const { $from, empty } = state.selection;
+    let isInsideLineGroup = false;
+    for (let depth = $from.depth; depth >= 0; depth--) {
+      if ($from.node(depth).type.isInGroup("line")) {
+        isInsideLineGroup = true;
+        break;
+      }
+    }
+
+    // update tooltip
+    if (empty || !isInsideLineGroup) {
       // hide tooltip after delay
       this.hideTimer = setTimeout(() => {
         this.props.visible = false;
@@ -372,7 +383,6 @@ class TooltipPlugin implements PluginView {
         this.render();
       }, TOOLTIP_SHOW_DELAY);
     }
-
     this.render();
   }
 
@@ -412,6 +422,7 @@ export function useTooltipPlugin(options: {
 
 /**
  * Line handles
+ * nocheckin: proper line handles
  */
 
 export const LINE_HANDLE_PLUGIN_KEY = new PluginKey("lineHandlePlugin");
@@ -458,6 +469,78 @@ export function useLineHandlePlugin() {
     props: {
       decorations(state) {
         return this.getState(state);
+      },
+    },
+  });
+  return plugin;
+}
+
+/**
+ * Placeholders
+ */
+
+export const PLACEHOLDER_PLUGIN_KEY = new PluginKey("placeholderPlugin");
+
+export interface PlaceholderConfig {
+  placeholderByNodeType: { [nodeType: string]: string };
+  defaultPlaceholder: string | undefined;
+}
+
+const DEFAULT_PLACEHOLDER_CONFIG: PlaceholderConfig = {
+  placeholderByNodeType: {
+    lineListOrdered: "List item",
+    lineListUnordered: "List item",
+    lineQuote: "Quote",
+    lineCallout: "Callout",
+    lineHeading: "Heading",
+  },
+  defaultPlaceholder: undefined,
+};
+
+/**
+ * ProseMirror placeholder plugin.
+ */
+export function usePlaceholderPlugin(config: Partial<PlaceholderConfig>) {
+  const { placeholderByNodeType, defaultPlaceholder } = { ...DEFAULT_PLACEHOLDER_CONFIG, ...config };
+
+  /** Create a placeholder widget element. */
+  function createPlaceholderWidget(text: string): HTMLElement {
+    const span = document.createElement("span");
+    span.className = "placeholder";
+    span.textContent = text;
+    return span;
+  }
+
+  /** Create a DecorationSet with a placeholder widget for an empty textblock containing the selection. */
+  function getPlaceholderDecoration(state: EditorState): DecorationSet {
+    const { $from, empty } = state.selection;
+    const parent = $from.parent;
+    // only show placeholder if selection is inside an empty textblock
+    const isInsideEmptyLine = parent.isTextblock && empty && parent.textContent == "";
+    if (!isInsideEmptyLine) {
+      return DecorationSet.empty;
+    }
+
+    // figure out placeholder text
+    const placeholderText = placeholderByNodeType[parent.type.name] || defaultPlaceholder;
+    if (placeholderText == null) {
+      return DecorationSet.empty;
+    }
+
+    // insert widget at the beginning of the textblock.
+    const pos = $from.start();
+    const deco = Decoration.widget(pos, () => createPlaceholderWidget(placeholderText), {
+      side: 1,
+      ignoreSelection: true,
+    });
+    return DecorationSet.create(state.doc, [deco]);
+  }
+
+  const plugin = new Plugin({
+    key: PLACEHOLDER_PLUGIN_KEY,
+    props: {
+      decorations(state) {
+        return getPlaceholderDecoration(state);
       },
     },
   });

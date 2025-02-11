@@ -169,6 +169,9 @@ mark {
 .pm-text .line.selected {
   @apply bg-orange-400/20;
 }
+.pm-text .placeholder {
+  @apply text-base text-gray-400;
+}
 
 .pm-text.compact .ProseMirror > .line:first-child {
   @apply pt-0; /* ignore top margin */
