@@ -120,6 +120,7 @@ export function useTextPageInterface(options: {
     for (const block of blocks.value) {
       if (lineByBlockId[block.id] == null) {
         tx.delete(block);
+        console.log("block.delete", block.id);
       }
     }
 
@@ -140,6 +141,7 @@ export function useTextPageInterface(options: {
         });
         line.blockPtr = toNodeRef(block);
         prevBlockId = block.id;
+        console.log("block.create", block.id);
       }
     }
 
@@ -154,6 +156,7 @@ export function useTextPageInterface(options: {
             update.type = blockType;
           }
           tx.update(block, update, { debounce: "long" });
+          console.log("block.update", block.id);
         }
       }
     }
@@ -163,6 +166,7 @@ export function useTextPageInterface(options: {
 
   return { read, write };
 }
+
 
 /** Convert Lines to a PmNode. */
 export function mapTextToPmNode(lines: LineInterface[]): PmNode {
@@ -189,13 +193,11 @@ export function mapTextToPmNode(lines: LineInterface[]): PmNode {
           if (span.type === TextSpanType.HARD_BREAK) {
             node = schema.node("spanHardBreak", {});
           } else if (span.type === TextSpanType.NODE) {
-            node = schema.node("spanNode", { nodePtr: span.nodePtr });
+            node = schema.node("spanNode", { type: span.type, nodePtr: span.nodePtr });
           } else if (span.type === TextSpanType.LINK) {
-            node = schema.node("spanLink", { content: span.content, href: span.url });
-          } else if (span.type === TextSpanType.CODE) {
-            node = schema.node("spanCode", { content: span.content });
+            node = schema.node("spanLink", { type: span.type, content: span.content, href: span.url });
           } else if (span.type === TextSpanType.EQUATION) {
-            node = schema.node("spanEquation", { content: span.content });
+            node = schema.node("spanEquation", { type: span.type, content: span.content });
           } else {
             throw new Error(`unexpected span type: ${span.type}`);
           }
@@ -207,6 +209,7 @@ export function mapTextToPmNode(lines: LineInterface[]): PmNode {
         if (span.isItalic) marks.push(schema.mark("italic"));
         if (span.isStrikethrough) marks.push(schema.mark("strikethrough"));
         if (span.isUnderline) marks.push(schema.mark("underline"));
+        if (span.isCode) marks.push(schema.mark("code"));
         return marks.length ? node.mark(marks) : node;
       });
 
@@ -288,8 +291,6 @@ export function mapPmNodeToText(node: PmNode): { lines: LineInterface[]; linesNo
           url: spanNode.attrs.href,
           content: spanNode.text,
         };
-      } else if (spanNode.type.name === "spanCode") {
-        span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.CODE, content: spanNode.text };
       } else if (spanNode.type.name === "spanEquation") {
         span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.EQUATION, content: spanNode.text };
       } else {
@@ -304,6 +305,8 @@ export function mapPmNodeToText(node: PmNode): { lines: LineInterface[]; linesNo
           span.isStrikethrough = true;
         } else if (mark.type.name === "underline") {
           span.isUnderline = true;
+        } else if (mark.type.name === "code") {
+          span.isCode = true;
         } else {
           throw new Error(`unexpected mark type: ${mark.type.name}`);
         }

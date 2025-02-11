@@ -4,7 +4,7 @@ from bench.language import TextLineType, markdown_to_text, text_to_markdown
 from bench.language.core.text import TextLine, TextSpan, TextSpanType
 
 
-def test_text_heading_and_list():
+def test_text_prefix():
     md = (
         "# Heading 1\n"
         "## Heading 2\n"
@@ -22,6 +22,13 @@ def test_text_heading_and_list():
     assert text.lines[4] == TextLine.list_bullet("list item")
     assert text.lines[5] == TextLine.list_numbered("numbered item")
     assert text.lines[6] == TextLine.divider()
+
+
+def test_text_code():
+    md = "this is my `code`"
+    text = markdown_to_text(md)
+    md_out = text_to_markdown(text)
+    assert md_out == md
 
 
 def test_text_span_equation():
@@ -56,7 +63,7 @@ This is a hard break<br>This is another line"""
     assert text.lines[0].spans[2] == TextSpan.new(TextSpanType.TEXT, "This is another line")
 
 
-def test_text_inline_formatting():
+def test_text_inline_nested():
     md = """\
 this is **bold** and *italic* and ~~strike~~ and `code` and <u>underline</u>.
 also we have [red]red[/red] and [blue]blue[/blue] and [green]green[/green].

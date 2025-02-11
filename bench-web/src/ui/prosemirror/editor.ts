@@ -27,6 +27,7 @@ import {
   NodeSelection,
   Plugin,
   Transaction as PmTransaction,
+  Selection,
   TextSelection,
   type SelectionBookmark as EditorSelectionBookmark,
 } from "prosemirror-state";
@@ -219,11 +220,8 @@ function replacementRule(pattern: RegExp, replacement: string) {
   return rule;
 }
 
-/**
- * Create an input rule that transforms text wrapped in markers into text with a given mark (applying the mark only within the region).
- * For example, markerRule('*', PM_SCHEMA.marks.em) will convert "*text*" into italicized text.
- */
-function markerRule(marker: string, markType: PmMarkType) {
+/** Get a regex for a wrapping marker. */
+function getMarkerRegex(marker: string): RegExp {
   const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const char = marker[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   let regex: RegExp;
@@ -234,12 +232,20 @@ function markerRule(marker: string, markType: PmMarkType) {
   } else {
     throw new Error(`unsupported marker: ${marker}`);
   }
+  return regex;
+}
+
+/**
+ * Create an input rule that transforms text wrapped in markers into text with a given mark.
+ */
+function markerRule(marker: string, markType: PmMarkType) {
+  const regex = getMarkerRegex(marker);
   const rule = new InputRule(regex, (state, match, start, end) => {
     const { tr, schema } = state;
     const text = match[1];
     tr.replaceWith(start, end, schema.text(text, [markType.create()]));
     tr.setSelection(TextSelection.create(tr.doc, start + text.length));
-    tr.removeStoredMark(markType);
+    tr.removeStoredMark(markType); // continue typing without mark
     return tr;
   });
   return rule;
@@ -268,6 +274,7 @@ const PM_INPUT_RULES: InputRule[] = [
   markerRule("__", PM_SCHEMA.marks.bold),
   markerRule("~", PM_SCHEMA.marks.strikethrough),
   markerRule("~~", PM_SCHEMA.marks.strikethrough),
+  markerRule("`", PM_SCHEMA.marks.code),
   // line rules
   linePrefixRule("# ", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_1),
   linePrefixRule("## ", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_2),
@@ -379,6 +386,58 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
     },
   };
   return extraCommands;
+}
+
+/** Whether any of the selected nodes have the given mark. */
+export function hasTextMark(state: EditorState, selection: Selection, mark: TextMarkType): boolean | "mixed" {
+  const { from, to } = selection;
+  let hasMark = false;
+  state.doc.nodesBetween(from, to, (node) => {
+    if (node.marks.some((markType) => markType.type.name === mark)) {
+      hasMark = true;
+    }
+  });
+  return hasMark;
+}
+
+/** Set the mark on the selected nodes. */
+export function setTextMark(
+  state: EditorState,
+  selection: Selection,
+  mark: TextMarkType,
+  isSet: boolean | "toggle",
+  dispatch: (tr: PmTransaction) => void,
+) {
+  if (isSet === "toggle") {
+    commands.toggleMark(state.schema.marks[mark])(state, dispatch);
+  } else if (isSet) {
+    const tr = state.tr.addMark(selection.from, selection.to, state.schema.marks[mark].create());
+    dispatch(tr);
+  } else {
+    const tr = state.tr.removeMark(selection.from, selection.to, state.schema.marks[mark]);
+    dispatch(tr);
+  }
+}
+
+/** Whether any of the selected nodes have the given span type. */
+export function hasTextSpanType(state: EditorState, selection: Selection, type: TextSpanType): boolean | "mixed" {
+  const { from, to } = selection;
+  let hasSpanType = false;
+  state.doc.nodesBetween(from, to, (node) => {
+    if (node.type.name.startsWith("span") && node.attrs.type === type) {
+      hasSpanType = true;
+    }
+  });
+  return hasSpanType;
+}
+
+export function setTextSpanType(
+  state: EditorState,
+  selection: Selection,
+  type: TextSpanType,
+  dispatch: (tr: PmTransaction) => void,
+) {
+  throw new Error("TODO :Incomplete: setTextSpanType not yet supported");
 }
 
 /**
@@ -518,7 +577,8 @@ export function useTextEditor(options: {
   // overwrite state from modelValue if different
   watch(lines, () => {
     if (view == null) return;
-    if (deepValueEquals(lines.value, prevText)) return; // already applied
+    if (deepValueEquals(prevText, lines.value)) return; // already applied
+    console.log("lines.override", { old: prevText, new: lines.value }); // nocheckin: fix occassional line override
     const updatedState = makeEditorState({ lines: lines.value });
     view.updateState(updatedState);
     prevText = lines.value;
@@ -565,27 +625,17 @@ export function useTextEditor(options: {
   function markFormatAction(mark: TextMarkType): ActionImplementation {
     return {
       isEnabled: () => toValue(isInput),
-      isChecked: () => {
-        if (view == null) return false;
-        const { from, to } = view.state.selection;
-        let hasMark = false;
-        view.state.doc.nodesBetween(from, to, (node) => {
-          if (node.marks.some((markType) => markType.type.name === mark)) {
-            hasMark = true;
-          }
-        });
-        return hasMark;
-      },
+      isChecked: () => view != null && hasTextMark(view.state, view.state.selection, mark) !== false,
       action: () => {
         if (view == null) throw new Error("view not mounted");
-        commands.toggleMark(view.state.schema.marks[mark])(view.state, view.dispatch);
+        setTextMark(view.state, view.state.selection, mark, "toggle", view.dispatch);
       },
     };
   }
   function spanTypeFormatAction(type: TextSpanType): ActionImplementation {
     return {
       isEnabled: () => toValue(isInput),
-      isChecked: () => false,
+      isChecked: () => view != null && hasTextSpanType(view.state, view.state.selection, type) !== false,
       action: () => {
         if (view == null) throw new Error("view not mounted");
         // nocheckin: span type format action
@@ -600,8 +650,7 @@ export function useTextEditor(options: {
     "text.format.italic": markFormatAction("italic"),
     "text.format.strikethrough": markFormatAction("strikethrough"),
     "text.format.underline": markFormatAction("underline"),
-    "text.format.code": spanTypeFormatAction(TextSpanType.CODE),
-    "text.format.equation": spanTypeFormatAction(TextSpanType.EQUATION),
+    "text.format.code": markFormatAction("code"),
     "text.edit.hardBreak": {
       action: () => {
         // insert 'hardBreak' node at cursor

@@ -1108,7 +1108,6 @@ enum TextSpanType {
   TEXT_SPAN_TYPE_HARD_BREAK = 2;
   TEXT_SPAN_TYPE_NODE = 10;
   TEXT_SPAN_TYPE_LINK = 11;
-  TEXT_SPAN_TYPE_CODE = 20;
   TEXT_SPAN_TYPE_EQUATION = 21;
 }
 
@@ -1971,6 +1970,7 @@ message TextSpanData {
   optional bool is_italic = 61;
   optional bool is_strikethrough = 62;
   optional bool is_underline = 63;
+  optional bool is_code = 64;
 }
 
 message TextTableData {
@@ -1992,6 +1992,7 @@ message TextCellData {
   optional bool is_italic = 61;
   optional bool is_strikethrough = 62;
   optional bool is_underline = 63;
+  optional bool is_code = 64;
 }
 
 message TextLineData {
@@ -2007,6 +2008,7 @@ message TextLineData {
   optional bool is_italic = 61;
   optional bool is_strikethrough = 62;
   optional bool is_underline = 63;
+  optional bool is_code = 64;
 }
 
 message TextData {

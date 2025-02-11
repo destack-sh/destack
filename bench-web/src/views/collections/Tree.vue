@@ -396,8 +396,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               v-if="hasChildren"
               class="absolute left-0 w-5 rounded bg-gray-100 text-gray-400 opacity-0 transition-all duration-75 group-hover/node:opacity-100"
               :class="isExpanded(node) ? 'rotate-90' : 'rotate-9'"
-              ><i class="fas fa-chevron-right"
-            /></span>
+            >
+              <i class="fas fa-chevron-right" />
+            </span>
           </button>
           <!-- Name -->
           <span

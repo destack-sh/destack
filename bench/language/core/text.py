@@ -21,6 +21,7 @@ class TextOptionsBase(BuiltinObject):
     is_italic: Optional[bool] = p_regular(61, default=None)
     is_strikethrough: Optional[bool] = p_regular(62, default=None)
     is_underline: Optional[bool] = p_regular(63, default=None)
+    is_code: Optional[bool] = p_regular(64, default=None)
 
     def _to_option_kwargs(self):
         kwargs = {}
@@ -63,7 +64,6 @@ class TextSpanType(BuiltinEnum):
     HARD_BREAK = 2, "Hard break"
     NODE = 10, "Reference to a Node"
     LINK = 11, "Hyperlink"
-    CODE = 20, "Code"
     EQUATION = 21, "TeX equation"
 
 
@@ -79,6 +79,18 @@ class TextSpan(TextOptionsBase, Struct):
         node_ck: Optional[UUID] = None
         node_ptr: Optional[NodeReference] = None
     url: Optional[str] = p_regular(35, default=None)
+
+    def __content_str__(self) -> str:
+        flags_parts = []
+        for prop in TextOptionsBase.__declared_properties__.values():
+            value = getattr(self, prop.name)
+            if value is not None:
+                flags_parts.append(prop.name)
+        flags_str = ", ".join(flags_parts)
+        if flags_str:
+            return f"{self.content} [{flags_str}]"
+        else:
+            return self.content or ""
 
     @staticmethod
     def hard_break() -> "TextSpan":
@@ -288,6 +300,7 @@ MARKER_TO_FLAG = {
     "__": "is_bold",
     "~~": "is_strikethrough",
     "<u>": "is_underline",
+    "`": "is_code",
 }
 
 
@@ -375,15 +388,8 @@ def _parse_inline_raw(
                 sp.is_underline = True
             spans.extend(inner)
             continue
-        # symmetric marker for inline code
-        if marker == "`":
-            inner, pos = _parse_inline_raw(text, pos, end_marker=marker, base=base.copy())
-            merged = _merge_spans(inner)
-            content = "".join(sp.content or "" for sp in merged)
-            spans.append(TextSpan(type=TextSpanType.CODE, content=content, **base))
-            continue
-        # symmetric markers: *, **, ~~
-        if marker in {"*", "**", "~~"}:
+        # symmetric markers
+        if marker in {"*", "**", "~~", "`"}:
             flag = MARKER_TO_FLAG[marker]
             inner, pos = _parse_inline_raw(text, pos, end_marker=marker, base=base.copy())
             for sp in inner:
@@ -431,6 +437,7 @@ def _span_format_key(span: TextSpan) -> tuple:
         span.is_italic,
         span.is_strikethrough,
         span.is_underline,
+        span.is_code,
         span.color,
         span.background_color,
     )
@@ -493,7 +500,7 @@ def _parse_line(line: str) -> TextLine:
     elif regex.match(r"^\d+\.\s", content_stripped):
         ttype = TextLineType.LIST_ORDERED
         content = regex.sub(r"^\d+\.\s", "", content_stripped)
-    elif content_stripped == "---":
+    elif content_stripped == "---" or content_stripped == "--":
         ttype = TextLineType.DIVIDER
         content = ""
     spans = _parse_inline(content)
@@ -606,18 +613,20 @@ def markdown_to_text(markdown: str) -> Text:
 # Rendering
 #
 
-MARKER_ORDER = ["is_italic", "is_bold", "is_strikethrough", "is_underline"]
+MARKER_ORDER = ["is_italic", "is_bold", "is_strikethrough", "is_underline", "is_code"]
 MARKER_OPEN = {
     "is_italic": "*",
     "is_bold": "**",
     "is_strikethrough": "~~",
     "is_underline": "<u>",
+    "is_code": "`",
 }
 MARKER_CLOSE = {
     "is_italic": "*",
     "is_bold": "**",
     "is_strikethrough": "~~",
     "is_underline": "</u>",
+    "is_code": "`",
 }
 
 
@@ -628,7 +637,7 @@ def _render_color(color: "ColorType") -> str:
     return color.name.lower()
 
 
-def _render_inline(spans: list[TextSpan]) -> str:
+def _render_inline(spans: Sequence[TextSpan]) -> str:
     """
     Group consecutive spans with the same color so that the outer color marker is rendered once.
     """
@@ -655,7 +664,7 @@ def _render_inline(spans: list[TextSpan]) -> str:
     return "".join(parts)
 
 
-def _render_formatted_spans(spans: list[TextSpan]) -> str:
+def _render_formatted_spans(spans: Sequence[TextSpan]) -> str:
     """
     Render a list of TextSpan objects with inline markdown formatting.
     This function computes formatting state transitions between spans so that
@@ -664,12 +673,7 @@ def _render_formatted_spans(spans: list[TextSpan]) -> str:
 
     def _get_options(span: TextSpan) -> Sequence[str]:
         # for inline code, equation, link, and hard break, do not apply additional formatting markers.
-        if span.type in (
-            TextSpanType.CODE,
-            TextSpanType.EQUATION,
-            TextSpanType.LINK,
-            TextSpanType.HARD_BREAK,
-        ):
+        if span.type in (TextSpanType.EQUATION, TextSpanType.LINK, TextSpanType.HARD_BREAK):
             return ()
         return tuple(flag for flag in MARKER_ORDER if getattr(span, flag))
 
@@ -685,11 +689,6 @@ def _render_formatted_spans(spans: list[TextSpan]) -> str:
             for flag in reversed(current_state):
                 result.append(MARKER_CLOSE[flag])
             result.append(f"$${span.content}$$")
-            current_state = ()
-        elif span.type == TextSpanType.CODE:
-            for flag in reversed(current_state):
-                result.append(MARKER_CLOSE[flag])
-            result.append(f"`{span.content}`")
             current_state = ()
         elif span.type == TextSpanType.HARD_BREAK:
             for flag in reversed(current_state):
