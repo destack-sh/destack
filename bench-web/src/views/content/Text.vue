@@ -11,7 +11,8 @@ import { NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/c
 import Block from "@/views/nodes/Block.vue";
 import { Plugin } from "prosemirror-state";
 import { getCurrentInstance, ref, toRef } from "vue";
-
+import { history, undo, redo } from "prosemirror-history";
+import { ActionMapImplementation } from "@/ui/action";
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
@@ -39,7 +40,11 @@ if (props.isInput) {
   plugins.push(useTooltipPlugin({ component: TextTooltip, parentComponent: vueInstance, container: textRef }));
 }
 
-const { focus, actions, isInDropZone } = useTextEditor({
+const {
+  focus,
+  actions: textActions,
+  isInDropZone,
+} = useTextEditor({
   textRef,
   text: textInterface,
   isInput: toRef(props, "isInput"),
@@ -50,7 +55,12 @@ const { focus, actions, isInDropZone } = useTextEditor({
   parentComponent: vueInstance,
   blockComponent: Block,
   plugins,
+  history: true,
 });
+
+const actions: Partial<ActionMapImplementation<"space">> = {
+  ...textActions,
+};
 
 canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions, focus });
@@ -65,7 +75,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         : 'stealth',
       isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
     ]"
-    data-suppress-actions="space.move.left,space.move.right"
+    data-suppress-actions="space.move.left,space.move.right,space.history.undo,space.history.redo"
     data-suppress-drag="both"
   >
     <!-- Placeholder -->
