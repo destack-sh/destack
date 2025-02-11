@@ -5,6 +5,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import { usePageContext } from "@/ui/prosemirror/page";
+import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { type FocusAnchor, type NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
@@ -85,7 +86,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     class="group/block relative select-none rounded transition-colors duration-150"
     :class="[
       isSelected ? 'bg-orange-400/20' : '',
-      isPage ? 'h-[30px] cursor-pointer' : '',
+      isPage ? 'cursor-pointer' : '',
       isPage && !isSelected ? 'hover:bg-gray-100' : '',
     ]"
     :data-suppress-drag="isPage ? 'select' : undefined"
@@ -95,8 +96,30 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     @click="() => isPage && canvas.goToNode(node!)"
   >
     <!-- Page definition -->
-    <div v-if="node && block.type == BlockType.PAGE" class="flex h-[30px] flex-row items-center">
-      <NodeReference ref="nodeRef" size="large" is-underline is-light :node="node" :tx="() => connection.tx" />
+    <div
+      v-if="node && block.type == BlockType.PAGE"
+      class="flex flex-row items-center"
+      :style="{
+        height: VIEW_DEFAULT_HEADER_HEIGHT + 'px',
+      }"
+    >
+      <NodeReference
+        ref="nodeRef"
+        size="large"
+        is-underline
+        is-light
+        :node="node"
+        :tx="() => connection.tx"
+        @navigate="
+          (direction: NavigationDirection) => {
+            if (direction == 'enter') {
+              canvas.goToNode(node!);
+            } else {
+              emit('navigate', direction);
+            }
+          }
+        "
+      />
     </div>
     <File
       v-else-if="block.type == BlockType.FILE"
@@ -108,8 +131,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       is-minimal
       :model-value="nodePtr"
       :size="{ height: MAX_INLINE_HEIGHT }"
+      @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
     />
-    <!-- Choice -->
     <Choice
       v-else-if="block.type == BlockType.CHOICE"
       id="choice"

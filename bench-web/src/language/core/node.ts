@@ -8,7 +8,7 @@ import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/core
 import { updateOrder } from "@/language/core/order";
 import { JsonValue, packBuiltinObjectProperty, unpackBuiltinObjectProperty } from "@/language/core/value";
 import { DebounceLevel, newChangeId, type Transaction } from "@/language/runtime/transaction";
-import { unwrapBlock } from "@/language/source/block";
+import { unwrapBlockDefinition } from "@/language/source/block";
 import {
   BlockData,
   ENUM_BY_TYPE,
@@ -591,7 +591,7 @@ export function moveNode(
   // move block and source node together
   if (isNode(node, NodeType.BLOCK)) {
     // for definition blocks, also move the source node
-    const source = unwrapBlock(node);
+    const source = unwrapBlockDefinition(node);
     if (source?.blockPtr?.id == node.id) {
       tx.move(source, { parentPtr }, { debounce: options.debounce ?? "tick" });
     }

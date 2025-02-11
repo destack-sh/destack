@@ -1,5 +1,7 @@
 import { supergraph } from "@/globals";
 import { NodeReferenceData, NodeType, ObjectType } from "@/proto/wire";
+import { isNodeRef } from "@/proto/wiring";
+import { startDragging } from "@/ui/drag";
 import { DEFAULT_MISSING_ICON, getNodeIcon, getNodeName, ICON_BY_NODE_TYPE } from "@/ui/icon";
 import { PM_SCHEMA } from "@/ui/prosemirror/schema";
 import { getColorHex } from "@/ui/style";
@@ -7,7 +9,6 @@ import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { blurDocument } from "@/utils/element";
 import { NavigationDirection, ViewExposed } from "@/views/common";
 import { MaybeElement, useElementBounding } from "@vueuse/core";
-import { stateEnd } from "mermaid/dist/rendering-util/rendering-elements/shapes/stateEnd";
 import { Node as PmNode } from "prosemirror-model";
 import {
   EditorState,
@@ -137,7 +138,7 @@ export class VueComponentRenderer implements PmNodeView {
 export class BlockRenderer extends VueComponentRenderer {
   navigateOuter: (direction: NavigationDirection) => void;
   getPos: () => number | undefined; // ensure we have access to getPos
-
+  lineHandleDom: HTMLElement;
   constructor(options: {
     component: Component;
     node: PmNode;
@@ -147,23 +148,27 @@ export class BlockRenderer extends VueComponentRenderer {
     parentComponent: ComponentInternalInstance;
   }) {
     const { component, node, view, getPos, parentComponent, navigate } = options;
-    // Pass the onNavigate prop so that the Vue component can trigger navigation.
+    const props = {
+      id: node.attrs.blockPtr.id,
+      pageKey: parentComponent.uid.toString(),
+      nodePtr: node.attrs.blockPtr,
+      onNavigate: (direction: NavigationDirection) => this.navigate(direction),
+    };
     super({
       component,
       parentComponent,
-      props: {
-        id: node.attrs.blockPtr.id,
-        pageKey: parentComponent.uid.toString(),
-        nodePtr: node.attrs.blockPtr,
-        onNavigate: (direction: NavigationDirection) => this.navigate(direction),
-      },
+      props,
       node,
       view,
       getPos,
     });
     this.navigateOuter = navigate;
     this.getPos = getPos;
-    this.dom.classList.add("pm-block-view");
+    this.dom.classList.add("line-block");
+
+    // create line handle inside the block
+    this.lineHandleDom = createLineHandleDom(node);
+    this.dom.appendChild(this.lineHandleDom);
   }
 
   navigate(direction: NavigationDirection) {
@@ -422,30 +427,62 @@ export function useTooltipPlugin(options: {
 
 /**
  * Line handles
- * nocheckin: proper line handles
  */
 
 export const LINE_HANDLE_PLUGIN_KEY = new PluginKey("lineHandlePlugin");
 
-export function useLineHandlePlugin() {
-  function createLineHandleWidget(node: PmNode, pos: number): Decoration {
-    const widget = document.createElement("div");
-    widget.className = "line-handle";
-    widget.style.position = "absolute";
-    widget.style.left = "-20px"; // adjust offset as needed
-    widget.style.top = "0px";
-    widget.style.zIndex = "40";
-    widget.textContent = "≡"; // optional, e.g., a handle icon
-    const decoration = Decoration.widget(pos, widget, { side: -1 });
-    return decoration;
+/** Create a DOM element for a line handle. */
+function createLineHandleDom(node: PmNode): HTMLElement {
+  const blockPtr = node.attrs.blockPtr as NodeReferenceData;
+
+  function createButton(icon: string): HTMLElement {
+    const button = document.createElement("button");
+    button.className = "line-handle-button";
+    const span = document.createElement("span");
+    span.className = icon;
+    button.appendChild(span);
+    return button;
   }
 
+  const containerDom = document.createElement("div");
+  containerDom.className = "line-handle";
+
+  // add
+  const addButton = createButton("fas fa-plus");
+  addButton.addEventListener("click", (event) => {
+    if (!isNodeRef(blockPtr)) {
+      throw new Error(`blockPtr is not a node ref from ${node.type.name}`);
+    }
+    // nocheckin: add button
+    event.stopPropagation();
+    event.preventDefault();
+  });
+  containerDom.appendChild(addButton);
+
+  // drag
+  const dragButton = createButton("fas fa-grip-vertical");
+  dragButton.draggable = true;
+  // data-suppress-drag="select"
+  dragButton.dataset.suppressDrag = "select";
+  dragButton.addEventListener("dragstart", (event) => {
+    if (!isNodeRef(blockPtr)) {
+      throw new Error(`blockPtr is not a node ref from ${node.type.name}`);
+    }
+    startDragging(event, blockPtr);
+    event.stopPropagation();
+  });
+  containerDom.appendChild(dragButton);
+
+  return containerDom;
+}
+
+export function useLineHandlePlugin() {
   function buildLineHandleDecorations(doc: any) {
     const decorations: Decoration[] = [];
     doc.descendants((node: PmNode, pos: number) => {
-      if (node.type.isInGroup("line")) {
-        const widget = createLineHandleWidget(node, pos);
-        console.log("widget", node, pos, widget);
+      // only create line handles for text nodes (block line handles are created in the BlockRenderer)
+      if (node.type.isInGroup("line") && node.type.name != "block") {
+        const widget = Decoration.widget(pos + 1, () => createLineHandleDom(node), { side: 10 });
         decorations.push(widget);
       }
     });
@@ -513,11 +550,10 @@ export function usePlaceholderPlugin(config: Partial<PlaceholderConfig>) {
 
   /** Create a DecorationSet with a placeholder widget for an empty textblock containing the selection. */
   function getPlaceholderDecoration(state: EditorState): DecorationSet {
-    const { $from, empty } = state.selection;
+    const { $from } = state.selection;
     const parent = $from.parent;
     // only show placeholder if selection is inside an empty textblock
-    const isInsideEmptyLine = parent.isTextblock && empty && parent.textContent == "";
-    if (!isInsideEmptyLine) {
+    if (!(parent.isTextblock && state.selection.empty && parent.textContent == "")) {
       return DecorationSet.empty;
     }
 

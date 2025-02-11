@@ -4,7 +4,7 @@ import { PartialNode, type ReadNodeGraph, type WriteNodeGraph } from "@/language
 import { makeNode, NodeIn } from "@/language/core/node";
 import { getPropertyType, TypeIdentity } from "@/language/core/type";
 import { packValue, unpackValue } from "@/language/core/value";
-import { unwrapBlock } from "@/language/source/block";
+import { unwrapBlockDefinition } from "@/language/source/block";
 import { getCachedGraphClient, HUMANIZED_OPERATION_STATUS } from "@/proto/services";
 import {
   BenchType,
@@ -424,7 +424,7 @@ export class TransactionBuilder implements Transaction {
     // delete blocks and definitions together
     if (isNode(node, NodeType.BLOCK)) {
       // for definition blocks, also delete the source node
-      const source = unwrapBlock(node);
+      const source = unwrapBlockDefinition(node);
       if (source?.blockPtr?.id == node.id) {
         tx._addSimpleEdit(EditType.DELETE, source, null);
       }
@@ -445,7 +445,7 @@ export class TransactionBuilder implements Transaction {
     // restore blocks and definitions together
     if (isNode(node, NodeType.BLOCK)) {
       // for definition blocks, also restore the source node
-      const source = unwrapBlock(node);
+      const source = unwrapBlockDefinition(node);
       if (source?.blockPtr?.id == node.id) {
         tx._addSimpleEdit(EditType.RESTORE, source, null);
       }

@@ -1,9 +1,5 @@
-import { uploadFile } from "@/language/resource/file";
 import { NodeReferenceData, TextLineType, TextSpanType } from "@/proto/wire";
-import { toNodeRef } from "@/proto/wiring";
-import { bench, pkgConnection } from "@/system/space";
 import { type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
-import { useDropZone } from "@/ui/drag";
 import { PM_SCHEMA, TextMarkType } from "@/ui/prosemirror/schema";
 import { BlockRenderer, SpanNodeView } from "@/ui/prosemirror/view";
 import { LineInterface, mapPmNodeToText, mapTextToPmNode, TextInterface } from "@/ui/prosemirror/wiring";
@@ -514,7 +510,7 @@ export function useTextEditor(options: {
     return state;
   }
 
-  // view utils
+  // view nodes
   const lineRefsById: Ref<Record<string, HTMLElement>> = shallowRef({});
   function updateLineRefs(view: EditorView) {
     lineRefsById.value = {};
@@ -619,35 +615,6 @@ export function useTextEditor(options: {
     view.dispatch(view.state.tr.insert(pos.pos, pmNode).insertText(" ", pos.pos + 1, pos.pos + 1));
   }
 
-  // drag/drop
-  const { isInDropZone } = useDropZone({
-    name: "text",
-    container: textRef,
-    isEnabled: computed(() => toValue(isInput) && !toValue(suppressDrop)),
-    kinds: ["node", "file"],
-    onDrop: (dragged, event) => {
-      if (view == null) return;
-      if (dragged.kind === "file") {
-        // upload files and insert as nodes at position (surrounded by spaces)
-        if (dragged.files == null) return;
-        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
-        if (pos == null) return; // not in editor
-        Array.from(dragged.files).forEach(async (file) => {
-          // upload and insert each file individually
-          if (bench.value == null) throw new Error("no current bench");
-          const upload = uploadFile(() => pkgConnection.tx, file, { bench: bench.value });
-          await upload.completion.wait();
-          if (view == null) throw new Error("view not mounted");
-          insertNode(toNodeRef(upload.file.value!), pos);
-        });
-      } else if (dragged.kind === "node") {
-        // insert node at position (surrounded by spaces)
-        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
-        if (pos == null) return; // not in editor
-        insertNode(toNodeRef(dragged.node), pos);
-      }
-    },
-  });
 
   // formatting
   function markFormatAction(mark: TextMarkType): ActionImplementation {
@@ -719,5 +686,5 @@ export function useTextEditor(options: {
     view.dispatch(tr);
   }
 
-  return { focus, actions, isInDropZone, updatePlugin, lineRefsById };
+  return { focus, actions, updatePlugin, lineRefsById };
 }

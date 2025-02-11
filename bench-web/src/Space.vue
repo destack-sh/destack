@@ -170,14 +170,28 @@ mark {
   @apply bg-orange-400/20;
 }
 .pm-text .placeholder {
-  @apply text-base text-gray-400;
+  @apply pointer-events-none text-base text-gray-400 opacity-0;
+}
+.pm-text .ProseMirror-focused .placeholder {
+  @apply opacity-100;
 }
 
-.pm-text.compact .ProseMirror > .line:first-child {
-  @apply pt-0; /* ignore top margin */
+/** Line handles */
+.pm-text .line-handle {
+  @apply absolute -left-[6px] top-[2px] z-40 flex -translate-x-full text-base text-gray-400 opacity-0 transition-colors duration-150;
 }
-.pm-text.compact .ProseMirror > .line:last-child {
-  @apply pb-0; /* ignore bottom margin */
+.pm-text .line-handle-button {
+  @apply w-5 rounded text-base transition-colors duration-150;
+}
+.pm-text .line-handle-button:hover {
+  @apply bg-gray-100 text-gray-700;
+}
+.pm-text .line-block > .line-handle {
+  @apply mt-2;
+}
+.pm-text .line-block:hover .line-handle,
+.pm-text .line:hover .line-handle {
+  @apply opacity-100;
 }
 
 /* Headings */
@@ -273,10 +287,11 @@ mark {
   @apply decoration-primary-700;
 }
 
-.pm-text .pm-block-view {
-  @apply my-1 cursor-default py-1;
+/* Block Lines */
+.pm-text .line-block {
+  @apply relative my-1 cursor-default py-1;
 }
-.pm-text .pm-block-view.ProseMirror-selectednode {
+.pm-text .line-block.ProseMirror-selectednode {
   @apply p-0 outline-none;
 }
 

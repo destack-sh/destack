@@ -128,12 +128,12 @@ export function createInlineSourceNode(
   }
 }
 
-/** Unwrap a Block into its inner node, if it has one. */
-export function unwrapBlock(block: BlockData): InlineSourceNodeData | undefined {
+/** Unwrap a Block into its inner source node, if it has one. */
+export function unwrapBlockDefinition(block: BlockData): InlineSourceNodeData | undefined {
   if (block.nodePtr == null) return undefined;
   const node = supergraph.get(block.nodePtr);
   if (!isInlineSourceNode(node)) {
-    throw new Error(`block is not an inline source node: ${describeNode(block)}`);
+    return undefined; // may be other node type
   }
   return node;
 }
@@ -144,7 +144,7 @@ export function blockToTypeMaybe(
   of?: "instance" | "value",
   fieldTypes?: FieldType[],
 ): TypeData | undefined {
-  const node = unwrapBlock(block);
+  const node = unwrapBlockDefinition(block);
   if (node == null) return undefined;
 
   if (isNode(node, NodeType.DATABASE)) {
