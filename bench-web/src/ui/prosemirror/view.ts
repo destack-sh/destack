@@ -409,3 +409,57 @@ export function useTooltipPlugin(options: {
   });
   return plugin;
 }
+
+/**
+ * Line handles
+ */
+
+export const LINE_HANDLE_PLUGIN_KEY = new PluginKey("lineHandlePlugin");
+
+export function useLineHandlePlugin() {
+  function createLineHandleWidget(node: PmNode, pos: number): Decoration {
+    const widget = document.createElement("div");
+    widget.className = "line-handle";
+    widget.style.position = "absolute";
+    widget.style.left = "-20px"; // adjust offset as needed
+    widget.style.top = "0px";
+    widget.style.zIndex = "40";
+    widget.textContent = "≡"; // optional, e.g., a handle icon
+    const decoration = Decoration.widget(pos, widget, { side: -1 });
+    return decoration;
+  }
+
+  function buildLineHandleDecorations(doc: any) {
+    const decorations: Decoration[] = [];
+    doc.descendants((node: PmNode, pos: number) => {
+      if (node.type.isInGroup("line")) {
+        const widget = createLineHandleWidget(node, pos);
+        console.log("widget", node, pos, widget);
+        decorations.push(widget);
+      }
+    });
+    const decorationSet = DecorationSet.create(doc, decorations);
+    return decorationSet;
+  }
+
+  const plugin = new Plugin({
+    key: LINE_HANDLE_PLUGIN_KEY,
+    state: {
+      init(_, { doc }) {
+        return buildLineHandleDecorations(doc);
+      },
+      apply(tr, decorationSet, oldState, newState) {
+        if (tr.docChanged) {
+          return buildLineHandleDecorations(tr.doc);
+        }
+        return decorationSet.map(tr.mapping, tr.doc);
+      },
+    },
+    props: {
+      decorations(state) {
+        return this.getState(state);
+      },
+    },
+  });
+  return plugin;
+}

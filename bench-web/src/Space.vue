@@ -164,7 +164,7 @@ mark {
   @apply bg-gray-100 px-1 py-0.5 font-mono;
 }
 .pm-text .line {
-  @apply px-0.5 py-[2px] text-base transition-colors duration-150;
+  @apply relative px-0.5 py-[2px] text-base transition-colors duration-150;
 }
 .pm-text .line.selected {
   @apply bg-orange-400/20;
