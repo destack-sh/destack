@@ -34,7 +34,7 @@ import {
   Ref,
   render,
   toValue,
-  VNode
+  VNode,
 } from "vue";
 
 const PROSEMIRROR_NODE_KEY = "__pmNode";
@@ -276,6 +276,8 @@ export type TooltipProps = {
   tick: number;
 };
 
+const TOOLTIP_SHOW_DELAY = 300;
+const TOOLTIP_HIDE_DELAY = 500;
 class TooltipPlugin implements PluginView {
   component: Component;
   parentComponent: ComponentInternalInstance;
@@ -285,6 +287,8 @@ class TooltipPlugin implements PluginView {
   props: TooltipProps;
   vnode: VNode;
   tick = 0;
+  tooltipTimer: ReturnType<typeof setTimeout> | null = null;
+  hideTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(options: {
     view: EditorView;
@@ -325,6 +329,11 @@ class TooltipPlugin implements PluginView {
     return vnode;
   }
 
+  render() {
+    this.vnode = this.createVNode();
+    render(this.vnode, this.dom);
+  }
+
   update(view: EditorView, lastState: EditorState | null) {
     this.tick++;
     this.props.tick = this.tick;
@@ -336,23 +345,51 @@ class TooltipPlugin implements PluginView {
       return;
     }
 
+    // clear any existing timers when selection changes
+    if (this.tooltipTimer) {
+      clearTimeout(this.tooltipTimer);
+      this.tooltipTimer = null;
+    }
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer);
+      this.hideTimer = null;
+    }
+
     // update the tooltip
     if (state.selection.empty) {
-      // hide the tooltip if the selection is empty
-      this.props.visible = false;
+      // hide tooltip after delay
+      this.hideTimer = setTimeout(() => {
+        this.props.visible = false;
+        this.render();
+      }, TOOLTIP_HIDE_DELAY);
     } else {
-      // reposition tooltip and update its content
-      this.props.visible = true;
-      const fromPos = view.coordsAtPos(state.selection.from);
-      this.dom.style.position = "fixed";
-      this.dom.style.left = this.containerBounding.left.value + toValue(this.gutterWidth) + "px";
-      this.dom.style.top = fromPos.top - this.props.height - 6 + "px";
+      // show tooltip after delay
+      this.updatePosition(view, state);
+      this.tooltipTimer = setTimeout(() => {
+        // reposition tooltip and update its content
+        this.props.visible = true;
+        this.updatePosition(view, state);
+        this.render();
+      }, TOOLTIP_SHOW_DELAY);
     }
-    this.vnode = this.createVNode();
-    render(this.vnode, this.dom);
+
+    this.render();
+  }
+
+  updatePosition(view: EditorView, state: EditorState) {
+    const fromPos = view.coordsAtPos(state.selection.from);
+    this.dom.style.position = "fixed";
+    this.dom.style.left = this.containerBounding.left.value + toValue(this.gutterWidth) + "px";
+    this.dom.style.top = fromPos.top - this.props.height - 6 + "px";
   }
 
   destroy() {
+    if (this.tooltipTimer) {
+      clearTimeout(this.tooltipTimer);
+    }
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer);
+    }
     render(null, this.dom);
   }
 }
