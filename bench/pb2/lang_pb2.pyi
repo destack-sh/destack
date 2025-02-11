@@ -1099,7 +1099,6 @@ class TextSpanType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TEXT_SPAN_TYPE_HARD_BREAK: _ClassVar[TextSpanType]
     TEXT_SPAN_TYPE_NODE: _ClassVar[TextSpanType]
     TEXT_SPAN_TYPE_LINK: _ClassVar[TextSpanType]
-    TEXT_SPAN_TYPE_CODE: _ClassVar[TextSpanType]
     TEXT_SPAN_TYPE_EQUATION: _ClassVar[TextSpanType]
 
 class ExpressionKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -2863,7 +2862,6 @@ TEXT_SPAN_TYPE_TEXT: TextSpanType
 TEXT_SPAN_TYPE_HARD_BREAK: TextSpanType
 TEXT_SPAN_TYPE_NODE: TextSpanType
 TEXT_SPAN_TYPE_LINK: TextSpanType
-TEXT_SPAN_TYPE_CODE: TextSpanType
 TEXT_SPAN_TYPE_EQUATION: TextSpanType
 EXPRESSION_KIND_UNSPECIFIED: ExpressionKind
 EXPRESSION_KIND_LITERAL: ExpressionKind
@@ -3521,7 +3519,7 @@ class NodeReferenceData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., bench_id: _Optional[str] = ..., base_ck: _Optional[str] = ..., base_bench_id: _Optional[str] = ...) -> None: ...
 
 class TextSpanData(_message.Message):
-    __slots__ = ("metatype", "type", "content", "node_ptr", "url", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline")
+    __slots__ = ("metatype", "type", "content", "node_ptr", "url", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
@@ -3533,6 +3531,7 @@ class TextSpanData(_message.Message):
     IS_ITALIC_FIELD_NUMBER: _ClassVar[int]
     IS_STRIKETHROUGH_FIELD_NUMBER: _ClassVar[int]
     IS_UNDERLINE_FIELD_NUMBER: _ClassVar[int]
+    IS_CODE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     type: TextSpanType
     content: str
@@ -3544,7 +3543,8 @@ class TextSpanData(_message.Message):
     is_italic: bool
     is_strikethrough: bool
     is_underline: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TextSpanType, str]] = ..., content: _Optional[str] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., url: _Optional[str] = ..., color: _Optional[_Union[ColorType, str]] = ..., background_color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ...) -> None: ...
+    is_code: bool
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TextSpanType, str]] = ..., content: _Optional[str] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., url: _Optional[str] = ..., color: _Optional[_Union[ColorType, str]] = ..., background_color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
 
 class TextTableData(_message.Message):
     __slots__ = ("metatype", "lines", "has_row_header", "has_column_header")
@@ -3559,7 +3559,7 @@ class TextTableData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., lines: _Optional[_Iterable[_Union[TextLineData, _Mapping]]] = ..., has_row_header: bool = ..., has_column_header: bool = ...) -> None: ...
 
 class TextCellData(_message.Message):
-    __slots__ = ("metatype", "spans", "colspan", "rowspan", "alignment", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline")
+    __slots__ = ("metatype", "spans", "colspan", "rowspan", "alignment", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     SPANS_FIELD_NUMBER: _ClassVar[int]
     COLSPAN_FIELD_NUMBER: _ClassVar[int]
@@ -3571,6 +3571,7 @@ class TextCellData(_message.Message):
     IS_ITALIC_FIELD_NUMBER: _ClassVar[int]
     IS_STRIKETHROUGH_FIELD_NUMBER: _ClassVar[int]
     IS_UNDERLINE_FIELD_NUMBER: _ClassVar[int]
+    IS_CODE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     spans: _containers.RepeatedCompositeFieldContainer[TextSpanData]
     colspan: int
@@ -3582,10 +3583,11 @@ class TextCellData(_message.Message):
     is_italic: bool
     is_strikethrough: bool
     is_underline: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., spans: _Optional[_Iterable[_Union[TextSpanData, _Mapping]]] = ..., colspan: _Optional[int] = ..., rowspan: _Optional[int] = ..., alignment: _Optional[_Union[Alignment, str]] = ..., color: _Optional[_Union[ColorType, str]] = ..., background_color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ...) -> None: ...
+    is_code: bool
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., spans: _Optional[_Iterable[_Union[TextSpanData, _Mapping]]] = ..., colspan: _Optional[int] = ..., rowspan: _Optional[int] = ..., alignment: _Optional[_Union[Alignment, str]] = ..., color: _Optional[_Union[ColorType, str]] = ..., background_color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
 
 class TextLineData(_message.Message):
-    __slots__ = ("metatype", "type", "spans", "content", "table", "cells", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline")
+    __slots__ = ("metatype", "type", "spans", "content", "table", "cells", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     SPANS_FIELD_NUMBER: _ClassVar[int]
@@ -3598,6 +3600,7 @@ class TextLineData(_message.Message):
     IS_ITALIC_FIELD_NUMBER: _ClassVar[int]
     IS_STRIKETHROUGH_FIELD_NUMBER: _ClassVar[int]
     IS_UNDERLINE_FIELD_NUMBER: _ClassVar[int]
+    IS_CODE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     type: TextLineType
     spans: _containers.RepeatedCompositeFieldContainer[TextSpanData]
@@ -3610,7 +3613,8 @@ class TextLineData(_message.Message):
     is_italic: bool
     is_strikethrough: bool
     is_underline: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TextLineType, str]] = ..., spans: _Optional[_Iterable[_Union[TextSpanData, _Mapping]]] = ..., content: _Optional[str] = ..., table: _Optional[_Union[TextTableData, _Mapping]] = ..., cells: _Optional[_Iterable[_Union[TextCellData, _Mapping]]] = ..., color: _Optional[_Union[ColorType, str]] = ..., background_color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ...) -> None: ...
+    is_code: bool
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TextLineType, str]] = ..., spans: _Optional[_Iterable[_Union[TextSpanData, _Mapping]]] = ..., content: _Optional[str] = ..., table: _Optional[_Union[TextTableData, _Mapping]] = ..., cells: _Optional[_Iterable[_Union[TextCellData, _Mapping]]] = ..., color: _Optional[_Union[ColorType, str]] = ..., background_color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
 
 class TextData(_message.Message):
     __slots__ = ("metatype", "lines")

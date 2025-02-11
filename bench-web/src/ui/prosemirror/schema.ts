@@ -1,11 +1,12 @@
 import { TextLineType, TextSpanType } from "@/proto/wire";
+import { assertNever } from "@/utils/functools";
 import { Node as PmNode, Schema as PmSchema, type DOMOutputSpec } from "prosemirror-model";
 
 //
 // PM Schema
 //
 
-export type TextMarkType = "bold" | "italic" | "strikethrough" | "underline";
+export type TextMarkType = "bold" | "italic" | "strikethrough" | "underline" | "code";
 
 const P_DOM: DOMOutputSpec = ["p", { class: "line" }, 0];
 const H1_DOM: DOMOutputSpec = ["h1", { class: "line" }, 0];
@@ -176,6 +177,7 @@ export const PM_SCHEMA = new PmSchema({
     },
     spanLink: {
       group: "span",
+      content: "text*",
       inline: true,
       marks: "",
       attrs: { href: {} },
@@ -191,24 +193,12 @@ export const PM_SCHEMA = new PmSchema({
         },
       ],
     },
-    spanCode: {
-      group: "span",
-      inline: true,
-      code: true,
-      attrs: { blockPtr: { default: null }, type: { default: TextSpanType.CODE } },
-      marks: "",
-      toDOM(node) {
-        return SPAN_CODE_DOM;
-      },
-      parseDOM: [{ tag: "code", attrs: { type: TextSpanType.CODE } }],
-    },
     spanEquation: {
       group: "span",
       inline: true,
       code: true,
       attrs: { blockPtr: { default: null }, type: { default: TextSpanType.EQUATION } },
       marks: "",
-      // render manually & can't parse equation nodes
     },
     // custom block node for non-text blocks
     block: {
@@ -259,7 +249,30 @@ export const PM_SCHEMA = new PmSchema({
         return SPAN_UNDERLINE_DOM;
       },
     },
+    code: {
+      parseDOM: [{ tag: "code" }],
+      toDOM() {
+        return SPAN_CODE_DOM;
+      },
+    },
     // colors
     // TODO :Incomplete: foregroundColor, backgroundColor
   },
 });
+
+/** Get the PM node type for a given span type. */
+export function getPmSpanType(type: TextSpanType) {
+  if (type == TextSpanType.UNSPECIFIED || type === TextSpanType.TEXT) {
+    return PM_SCHEMA.nodes.text;
+  } else if (type === TextSpanType.HARD_BREAK) {
+    return PM_SCHEMA.nodes.spanHardBreak;
+  } else if (type === TextSpanType.NODE) {
+    return PM_SCHEMA.nodes.spanNode;
+  } else if (type === TextSpanType.LINK) {
+    return PM_SCHEMA.nodes.spanLink;
+  } else if (type === TextSpanType.EQUATION) {
+    return PM_SCHEMA.nodes.spanEquation;
+  } else {
+    assertNever(type);
+  }
+}

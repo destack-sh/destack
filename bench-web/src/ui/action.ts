@@ -118,7 +118,6 @@ export const ACTION_BUILTIN_IDS = [
   "text.format.strikethrough",
   "text.format.underline",
   "text.format.code",
-  "text.format.equation",
   "text.edit.hardBreak",
   // code
   "code.edit.format",
@@ -698,13 +697,6 @@ declareActions<"text">({
     text: "Format as code",
     shortcuts: ["mod+e"],
   },
-  "text.format.equation": {
-    type: "toggle",
-    icon: "fas fa-equals",
-    title: "Equation",
-    text: "Format as equation",
-  },
-  // edit
   "text.edit.hardBreak": {
     icon: "fas fa-arrow-down",
     title: "Hard Break",

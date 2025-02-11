@@ -142,6 +142,10 @@ export interface TextSpanData {
      * @generated from protobuf field: optional bool is_underline = 63;
      */
     isUnderline?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_code = 64;
+     */
+    isCode?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.TextTableData
@@ -212,6 +216,10 @@ export interface TextCellData {
      * @generated from protobuf field: optional bool is_underline = 63;
      */
     isUnderline?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_code = 64;
+     */
+    isCode?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.TextLineData
@@ -265,6 +273,10 @@ export interface TextLineData {
      * @generated from protobuf field: optional bool is_underline = 63;
      */
     isUnderline?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_code = 64;
+     */
+    isCode?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.TextData
@@ -11260,10 +11272,6 @@ export enum TextSpanType {
      */
     LINK = 11,
     /**
-     * @generated from protobuf enum value: TEXT_SPAN_TYPE_CODE = 20;
-     */
-    CODE = 20,
-    /**
      * @generated from protobuf enum value: TEXT_SPAN_TYPE_EQUATION = 21;
      */
     EQUATION = 21
@@ -14343,7 +14351,8 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
             { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TextSpanData>): TextSpanData {
@@ -14392,6 +14401,9 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
                 case /* optional bool is_underline */ 63:
                     message.isUnderline = reader.bool();
                     break;
+                case /* optional bool is_code */ 64:
+                    message.isCode = reader.bool();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -14437,6 +14449,9 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
         /* optional bool is_underline = 63; */
         if (message.isUnderline !== undefined)
             writer.tag(63, WireType.Varint).bool(message.isUnderline);
+        /* optional bool is_code = 64; */
+        if (message.isCode !== undefined)
+            writer.tag(64, WireType.Varint).bool(message.isCode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14532,7 +14547,8 @@ class TextCellData$Type extends MessageType$<TextCellData> {
             { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TextCellData>): TextCellData {
@@ -14583,6 +14599,9 @@ class TextCellData$Type extends MessageType$<TextCellData> {
                 case /* optional bool is_underline */ 63:
                     message.isUnderline = reader.bool();
                     break;
+                case /* optional bool is_code */ 64:
+                    message.isCode = reader.bool();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -14628,6 +14647,9 @@ class TextCellData$Type extends MessageType$<TextCellData> {
         /* optional bool is_underline = 63; */
         if (message.isUnderline !== undefined)
             writer.tag(63, WireType.Varint).bool(message.isUnderline);
+        /* optional bool is_code = 64; */
+        if (message.isCode !== undefined)
+            writer.tag(64, WireType.Varint).bool(message.isCode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14653,7 +14675,8 @@ class TextLineData$Type extends MessageType$<TextLineData> {
             { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TextLineData>): TextLineData {
@@ -14707,6 +14730,9 @@ class TextLineData$Type extends MessageType$<TextLineData> {
                 case /* optional bool is_underline */ 63:
                     message.isUnderline = reader.bool();
                     break;
+                case /* optional bool is_code */ 64:
+                    message.isCode = reader.bool();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -14755,6 +14781,9 @@ class TextLineData$Type extends MessageType$<TextLineData> {
         /* optional bool is_underline = 63; */
         if (message.isUnderline !== undefined)
             writer.tag(63, WireType.Varint).bool(message.isUnderline);
+        /* optional bool is_code = 64; */
+        if (message.isCode !== undefined)
+            writer.tag(64, WireType.Varint).bool(message.isCode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -34360,6 +34389,7 @@ export enum TextLineProperty {
   isItalic = 61,
   isStrikethrough = 62,
   isUnderline = 63,
+  isCode = 64,
 }
 
 export enum TextSpanProperty {
@@ -34374,6 +34404,7 @@ export enum TextSpanProperty {
   isItalic = 61,
   isStrikethrough = 62,
   isUnderline = 63,
+  isCode = 64,
 }
 
 export enum TextTableProperty {
@@ -34395,6 +34426,7 @@ export enum TextCellProperty {
   isItalic = 61,
   isStrikethrough = 62,
   isUnderline = 63,
+  isCode = 64,
 }
 
 export enum CodeProperty {
@@ -35248,8 +35280,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35280,8 +35312,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.08.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.11.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36617,6 +36649,7 @@ export const TextLineDataInfo: Record<TextLineProperty, PropertyInfo> = {
   [TextLineProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
 }
 export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
   [TextSpanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_SPAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -36630,6 +36663,7 @@ export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
   [TextSpanProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
 }
 export const TextTableDataInfo: Record<TextTableProperty, PropertyInfo> = {
   [TextTableProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_TABLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -36649,6 +36683,7 @@ export const TextCellDataInfo: Record<TextCellProperty, PropertyInfo> = {
   [TextCellProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextCellProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextCellProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextCellProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
 }
 export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
   [CodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -37166,7 +37201,6 @@ export const TextSpanTypeOptionInfo: Partial<Record<TextSpanType, EnumOptionInfo
   [TextSpanType.HARD_BREAK]: { id: 2, name: 'HARD_BREAK', text: 'Hard break' },
   [TextSpanType.NODE]: { id: 10, name: 'NODE', text: 'Reference to a Node' },
   [TextSpanType.LINK]: { id: 11, name: 'LINK', text: 'Hyperlink' },
-  [TextSpanType.CODE]: { id: 20, name: 'CODE', text: 'Code' },
   [TextSpanType.EQUATION]: { id: 21, name: 'EQUATION', text: 'TeX equation' },
 }
 

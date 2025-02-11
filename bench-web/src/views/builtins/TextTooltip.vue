@@ -1,54 +1,49 @@
 <script lang="ts" setup>
-import { IconData } from "@/proto/wire";
+import { IconData, TextSpanType } from "@/proto/wire";
 import { IconInline, makeIcon } from "@/ui/icon";
+import { hasTextMark, hasTextSpanType, setTextMark, setTextSpanType } from "@/ui/prosemirror/editor";
 import { TextMarkType } from "@/ui/prosemirror/schema";
 import { type TooltipProps } from "@/ui/prosemirror/view";
-import * as commands from "prosemirror-commands";
 
 const props = defineProps<TooltipProps>();
 
 type FormatAction = {
-  title: string;
+  id: string | number;
   icon: IconData;
   isChecked: () => boolean;
   toggle: () => void;
 };
 
-const ICON_BY_MARK: Record<TextMarkType, IconData> = {
-  bold: makeIcon("fas fa-bold"),
-  italic: makeIcon("fas fa-italic"),
-  underline: makeIcon("fas fa-underline"),
-  strikethrough: makeIcon("fas fa-strikethrough"),
-};
-
-function markFormatAction(mark: TextMarkType): FormatAction {
+function markFormatAction(mark: TextMarkType, icon: string): FormatAction {
   const action: FormatAction = {
-    title: mark,
-    icon: ICON_BY_MARK[mark],
-    isChecked: () => {
-      const { from, to } = props.view.state.selection;
-      let hasMark = false;
-      props.view.state.doc.nodesBetween(from, to, (node) => {
-        if (node.marks.some((markType) => markType.type.name === mark)) {
-          hasMark = true;
-        }
-      });
-      return hasMark;
-    },
+    id: mark,
+    icon: makeIcon(icon),
+    isChecked: () => hasTextMark(props.view.state, props.view.state.selection, mark) !== false,
     toggle: () => {
-      const view = props.view;
-      const state = view.state;
-      commands.toggleMark(state.schema.marks[mark])(state, view.dispatch);
+      setTextMark(props.view.state, props.view.state.selection, mark, "toggle", props.view.dispatch);
+    },
+  };
+  return action;
+}
+
+function spanTypeFormatAction(type: TextSpanType, icon: string): FormatAction {
+  const action: FormatAction = {
+    id: type,
+    icon: makeIcon(icon),
+    isChecked: () => hasTextSpanType(props.view.state, props.view.state.selection, type) !== false,
+    toggle: () => {
+      setTextSpanType(props.view.state, props.view.state.selection, type, props.view.dispatch);
     },
   };
   return action;
 }
 
 const formatActions: FormatAction[] = [
-  markFormatAction("bold"),
-  markFormatAction("italic"),
-  markFormatAction("underline"),
-  markFormatAction("strikethrough"),
+  markFormatAction("bold", "fas fa-bold"),
+  markFormatAction("italic", "fas fa-italic"),
+  markFormatAction("underline", "fas fa-underline"),
+  markFormatAction("strikethrough", "fas fa-strikethrough"),
+  markFormatAction("code", "fas fa-code"),
 ];
 </script>
 <template>
@@ -65,14 +60,16 @@ const formatActions: FormatAction[] = [
       v-if="visible && tick >= 0 /* react to tick */"
       class="flex w-fit flex-row items-center rounded border border-gray-200 bg-white px-1 py-1"
       :style="{ height: `${height}px` }"
+      @click.stop.prevent
+      @mousedown.stop.prevent
     >
       <!-- Mark-ish actions -->
       <button
         v-for="action in formatActions"
-        :key="action.title"
+        :key="action.id"
         class="rounded px-1 py-0.5 hover:bg-gray-100"
         :class="[action.isChecked() ? 'text-primary-700' : '']"
-        @click.stop.prevent="action.toggle()"
+        @mousedown.stop.prevent="action.toggle()"
       >
         <IconInline class="w-5 text-center" v-bind="action.icon" />
       </button>

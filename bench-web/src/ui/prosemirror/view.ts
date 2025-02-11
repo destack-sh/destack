@@ -34,8 +34,7 @@ import {
   Ref,
   render,
   toValue,
-  VNode,
-  watch,
+  VNode
 } from "vue";
 
 const PROSEMIRROR_NODE_KEY = "__pmNode";
@@ -301,6 +300,10 @@ class TooltipPlugin implements PluginView {
     this.gutterWidth = gutterWidth ?? 0;
 
     this.dom = document.createElement("div");
+    this.dom.addEventListener("mousedown", (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+    });
     view.dom.parentNode?.appendChild(this.dom);
     this.props = reactive({
       visible: false,
