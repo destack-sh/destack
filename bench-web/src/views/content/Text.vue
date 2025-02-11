@@ -3,16 +3,15 @@ import { isTextEmpty } from "@/language/core/text";
 import { NodeType, TextData, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
+import { ActionMapImplementation } from "@/ui/action";
 import { useTextEditor } from "@/ui/prosemirror/editor";
-import { useTooltipPlugin } from "@/ui/prosemirror/view";
+import { usePlaceholderPlugin, useTooltipPlugin } from "@/ui/prosemirror/view";
 import { useTextModelValueInterface } from "@/ui/prosemirror/wiring";
 import TextTooltip from "@/views/builtins/TextTooltip.vue";
 import { NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
 import Block from "@/views/nodes/Block.vue";
 import { Plugin } from "prosemirror-state";
 import { getCurrentInstance, ref, toRef } from "vue";
-import { history, undo, redo } from "prosemirror-history";
-import { ActionMapImplementation } from "@/ui/action";
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
@@ -35,7 +34,7 @@ const textInterface = useTextModelValueInterface({
 const vueInstance = getCurrentInstance();
 if (vueInstance == null) throw new Error("no vue instance in Text");
 
-const plugins: Plugin[] = [];
+const plugins: Plugin[] = [usePlaceholderPlugin({ defaultPlaceholder: props.placeholder })];
 if (props.isInput) {
   plugins.push(useTooltipPlugin({ component: TextTooltip, parentComponent: vueInstance, container: textRef }));
 }
@@ -43,7 +42,6 @@ if (props.isInput) {
 const {
   focus,
   actions: textActions,
-  isInDropZone,
 } = useTextEditor({
   textRef,
   text: textInterface,
@@ -73,7 +71,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       !isMinimal
         ? 'border border-gray-200 px-2 py-0.5 focus-within:border-gray-400 not-focus-within:hover:border-gray-200'
         : 'stealth',
-      isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
     ]"
     data-suppress-actions="space.move.left,space.move.right,space.history.undo,space.history.redo"
     data-suppress-drag="both"

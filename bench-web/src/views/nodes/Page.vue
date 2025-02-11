@@ -45,7 +45,7 @@ import { computed, getCurrentInstance, nextTick, ref, shallowRef, toRef, watch, 
 
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
-const MIN_GUTTER_WIDTH = 60;
+const MIN_GUTTER_WIDTH = 64;
 const MIN_FOOTER_PADDING = 200;
 
 const props = defineProps<
@@ -116,6 +116,9 @@ const placeholderPlugin = usePlaceholderPlugin({
   defaultPlaceholder: "Write or '/' for commands...",
 });
 
+// handle
+const lineHandlePlugin = useLineHandlePlugin();
+
 // editor
 const tooltipPlugin = useTooltipPlugin({
   component: TextTooltip,
@@ -133,7 +136,6 @@ const {
   focus: focusInText,
   actions: textActions,
   lineRefsById,
-  isInDropZone,
   updatePlugin,
 } = useTextEditor({
   textRef,
@@ -147,7 +149,7 @@ const {
     }
   },
   deleteSelf: () => emit("deleteSelf"),
-  plugins: [highlightPlugin, tooltipPlugin, placeholderPlugin],
+  plugins: [highlightPlugin, tooltipPlugin, placeholderPlugin, lineHandlePlugin],
   parentComponent: vueInstance,
   blockComponent: Block,
 });
@@ -156,7 +158,7 @@ const {
 // Interaction
 //
 
-const HIGHLIGHTED_BLOCK_TYPES = [BlockType.PAGE, BlockType.FLOW, BlockType.DATABASE, BlockType.CHOICE];
+const SUGGESTED_BLOCK_TYPES = [BlockType.PAGE, BlockType.FLOW, BlockType.DATABASE, BlockType.CHOICE];
 
 // selecting
 const selectionZone = useSelectionZone({ containerEl: contentRef, overlayEl: selectionOverlayRef });
@@ -421,7 +423,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         >
           <!-- Add blocks -->
           <button
-            v-for="blockType in HIGHLIGHTED_BLOCK_TYPES"
+            v-for="blockType in SUGGESTED_BLOCK_TYPES"
             data-suppress-drag="both"
             class="rounded-2xl border border-gray-200 px-2 py-0.5 transition-colors duration-150"
             :class="[
