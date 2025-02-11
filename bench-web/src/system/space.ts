@@ -105,7 +105,6 @@ watch(
 /** Sets (and creates if needed) a space in the current Package */
 export async function assignSpaceInPackage() {
   if (pkg.value == null) throw new Error(`package not loaded`);
-  log.debug("space.assignSpaceInPackage", { pkg: pkg.value, space: spacePtr.value });
 
   const spaceInPkg = pkgGraph.get(spacePtr.value);
   if (spaceInPkg != null) {

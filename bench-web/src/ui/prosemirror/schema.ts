@@ -256,7 +256,7 @@ export const PM_SCHEMA = new PmSchema({
       },
     },
     // colors
-    // TODO :Incomplete: foregroundColor, backgroundColor
+    // TODO :Incomplete: Text foregroundColor, backgroundColor (for TextSpans and TextLines)
   },
 });
 

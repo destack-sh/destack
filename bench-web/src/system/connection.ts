@@ -383,13 +383,13 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
 
   async close(): Promise<void> {
     this.isClosed.value = true;
-    log.debug(`graph.${this.kind}.close`, { name: this.meta.name, id: this.id });
+    log.trace(`graph.${this.kind}.close`, { name: this.meta.name, id: this.id });
     this.abortController?.abort();
   }
 
   togglePaused(): void {
     this.isPaused.value = !this.isPaused.value;
-    log.debug(`graph.${this.kind}.togglePaused`, { name: this.meta.name, id: this.id, paused: this.isPaused.value });
+    log.trace(`graph.${this.kind}.togglePaused`, { name: this.meta.name, id: this.id, paused: this.isPaused.value });
     toaster.debug({
       title: this.isPaused.value ? "Connection paused" : "Connection resumed",
       text: `'${this.kind}:${this.meta.name}' is ${this.isPaused.value ? "disconnected" : "reconnected"}.`,
@@ -531,7 +531,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
             );
             connectedSignal.resolve();
             this.abortController = null;
-            log.debug(`graph.${this.kind}`, this.meta.name, this.params, newResult);
+            log.trace(`graph.${this.kind}`, this.meta.name, this.params, newResult);
           } finally {
             if (this.abortController) {
               // cleanup

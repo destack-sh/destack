@@ -3,7 +3,7 @@
  */
 
 import { Severity } from "@/proto/wire";
-import { IS_DEVELOPER_MODE } from "@/utils/globals";
+import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 
 const CONSOLE_METHOD_MAP: Record<Severity, keyof typeof console> = {
   [Severity.UNSPECIFIED]: "log",
@@ -38,7 +38,10 @@ export class Logger {
   }
 
   trace(...args: any[]) {
-    this.log(Severity.TRACE, ...args);
+    if (IS_DEV) {
+      // trace info is only available in developer builds
+      this.log(Severity.TRACE, ...args);
+    }
   }
 
   debug(...args: any[]) {
