@@ -137,7 +137,7 @@ export function useTextPageInterface(options: {
             text: line.type === "text" ? line.text : undefined,
           },
           anchor: prevBlock != null ? "after" : "before",
-          target: prevBlock ?? firstBlock,
+          target: prevBlock ?? firstBlock, // if we don't have a prev block, this must be before the first block
         });
         line.blockPtr = toNodeRef(block);
         prevBlockId = block.id;
@@ -334,16 +334,11 @@ export function mapPmNodeToText(node: PmNode): { lines: LineInterface[]; linesNo
     }
     // immediate children of a list node
     if (parent && (parent.type.name === "orderedList" || parent.type.name === "unorderedList")) {
-      // only add the direct children of the list.
-      if ((parent as any).parent === node) {
-        lines.push(mapPmLineToTextLine(child));
-        linesNodes.push(child);
-        linesPos.push(pos);
-        return false; // don't descend further into this node
-      }
+      lines.push(mapPmLineToTextLine(child));
+      linesNodes.push(child);
+      linesPos.push(pos);
+      return false; // don't descend further into this node
     }
-    // otherwise, skip deeper descendants
-    return;
   });
 
   return { lines, linesNodes, linesPos };
