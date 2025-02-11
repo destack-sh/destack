@@ -468,6 +468,7 @@ export function useTextEditor(options: {
   parentComponent: ComponentInternalInstance;
   blockComponent: Component;
   history?: boolean;
+  onTransaction?: (view: EditorView, prevState: EditorState, newState: EditorState) => void;
 }) {
   // nocheckin: maintain selection across state changes (for undo/redo)
   const previousSelectionByState: Record<number, EditorSelectionBookmark> = {};
@@ -561,6 +562,7 @@ export function useTextEditor(options: {
       dispatchTransaction(tx) {
         if (view == null) throw new Error("view not mounted");
         // update the state
+        const prevState = view.state;
         let newState = view.state.apply(tx);
         const { lines: updatedText, linesNodes, linesPos } = mapPmNodeToText(newState.doc);
         // also write the doc (if changed)
@@ -581,6 +583,7 @@ export function useTextEditor(options: {
         if (tx.docChanged) {
           updateLineRefs(view);
         }
+        options.onTransaction?.(view, prevState, newState);
       },
     });
     updateLineRefs(view);
@@ -603,7 +606,6 @@ export function useTextEditor(options: {
     if (view == null) return;
     if (deepValueEquals(prevText, lines.value)) return; // already applied
     const updatedState = makeEditorState({ lines: lines.value });
-    console.log("lines.override", { old: prevText, new: lines.value }); // nocheckin: fix accidental line override
     view.updateState(updatedState);
     prevText = lines.value;
   });
