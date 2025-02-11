@@ -120,12 +120,12 @@ export function useTextPageInterface(options: {
     for (const block of blocks.value) {
       if (lineByBlockId[block.id] == null) {
         tx.delete(block);
-        console.log("block.delete", block.id);
       }
     }
 
     // add new blocks
     let prevBlockId: string | undefined = undefined;
+    const firstBlock = blocks.value[0];
     for (const line of newLines) {
       if (line.blockPtr?.id != null) {
         prevBlockId = line.blockPtr.id;
@@ -136,12 +136,11 @@ export function useTextPageInterface(options: {
             type: (line.type === "text" ? line.text.type + 10_000 : undefined) as any,
             text: line.type === "text" ? line.text : undefined,
           },
-          anchor: prevBlock != null ? "after" : "inside",
-          target: prevBlock ?? page.value,
+          anchor: prevBlock != null ? "after" : "before",
+          target: prevBlock ?? firstBlock,
         });
         line.blockPtr = toNodeRef(block);
         prevBlockId = block.id;
-        console.log("block.create", block.id);
       }
     }
 
@@ -156,7 +155,6 @@ export function useTextPageInterface(options: {
             update.type = blockType;
           }
           tx.update(block, update, { debounce: "long" });
-          console.log("block.update", block.id);
         }
       }
     }
@@ -166,7 +164,6 @@ export function useTextPageInterface(options: {
 
   return { read, write };
 }
-
 
 /** Convert Lines to a PmNode. */
 export function mapTextToPmNode(lines: LineInterface[]): PmNode {

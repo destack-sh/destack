@@ -301,7 +301,7 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
     ArrowLeft(state, dispatch, view) {
       const { selection } = state;
       if (
-        selection.$anchor.parent === state.doc.children[0] &&
+        (selection.$anchor.parent === state.doc || selection.$anchor.parent === state.doc.children[0]) &&
         (state.doc.textContent === "" || view?.endOfTextblock("left", state))
       ) {
         navigate("left");
@@ -312,7 +312,8 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
     ArrowRight(state, dispatch, view) {
       const { selection } = state;
       if (
-        selection.$anchor.parent === state.doc.children[state.doc.children.length - 1] &&
+        (selection.$anchor.parent === state.doc ||
+          selection.$anchor.parent === state.doc.children[state.doc.children.length - 1]) &&
         (state.doc.textContent === "" || view?.endOfTextblock("right", state))
       ) {
         navigate("right");
@@ -323,7 +324,7 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
     ArrowUp(state, dispatch, view) {
       const { selection } = state;
       if (
-        selection.$anchor.parent === state.doc.children[0] &&
+        (selection.$anchor.parent === state.doc || selection.$anchor.parent === state.doc.children[0]) &&
         (state.doc.textContent === "" || view?.endOfTextblock("up", state))
       ) {
         navigate("up");
@@ -334,7 +335,8 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
     ArrowDown(state, dispatch, view) {
       const { selection } = state;
       if (
-        selection.$anchor.parent === state.doc.children[state.doc.children.length - 1] &&
+        (selection.$anchor.parent === state.doc ||
+          selection.$anchor.parent === state.doc.children[state.doc.children.length - 1]) &&
         (state.doc.textContent === "" || view?.endOfTextblock("down", state))
       ) {
         navigate("down");
@@ -365,7 +367,15 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
         )(state, dispatch);
       }
     },
-    "Mod-Enter": (state, dispatch, view) => commands.splitBlock(state, dispatch),
+    "Mod-Enter": (state, dispatch, view) => {
+      return commands.splitBlockAs((node, atEnd, $from) => {
+        if (node.type.isInGroup("line")) {
+          // remove blockPtr from the new block (force create)
+          return { type: node.type, attrs: { ...node.attrs, blockPtr: null } };
+        }
+        return null;
+      })(state, dispatch);
+    },
     Enter(state, dispatch, view) {
       const { $from, $to } = state.selection;
       const parentType = $from.parent.type.name;
@@ -382,7 +392,13 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
           return true;
         }
       }
-      return commands.splitBlock(state, dispatch);
+      return commands.splitBlockAs((node, atEnd, $from) => {
+        if (node.type.isInGroup("line")) {
+          // remove blockPtr from the new block (force create)
+          return { type: node.type, attrs: { ...node.attrs, blockPtr: null } };
+        }
+        return null;
+      })(state, dispatch);
     },
   };
   return extraCommands;
@@ -498,10 +514,10 @@ export function useTextEditor(options: {
     });
     triggerRef(lineRefsById);
   }
-  function findLineNodeById(id: string): { node: PmNode | null; pos: number | null } {
+  function findLineNodeById(state: EditorState, id: string): { node: PmNode | null; pos: number | null } {
     let targetNode: PmNode | null = null;
     let targetPos: number | null = null;
-    view?.state.doc.descendants((node, pos) => {
+    state.doc.descendants((node, pos) => {
       if (node.attrs.blockPtr?.id == id) {
         targetNode = node;
         targetPos = pos;
@@ -578,7 +594,6 @@ export function useTextEditor(options: {
   watch(lines, () => {
     if (view == null) return;
     if (deepValueEquals(prevText, lines.value)) return; // already applied
-    console.log("lines.override", { old: prevText, new: lines.value }); // nocheckin: fix occassional line override
     const updatedState = makeEditorState({ lines: lines.value });
     view.updateState(updatedState);
     prevText = lines.value;
@@ -632,16 +647,6 @@ export function useTextEditor(options: {
       },
     };
   }
-  function spanTypeFormatAction(type: TextSpanType): ActionImplementation {
-    return {
-      isEnabled: () => toValue(isInput),
-      isChecked: () => view != null && hasTextSpanType(view.state, view.state.selection, type) !== false,
-      action: () => {
-        if (view == null) throw new Error("view not mounted");
-        // nocheckin: span type format action
-      },
-    };
-  }
 
   // actions
   const actions: ActionMapImplementation<"text"> & Partial<ActionMapImplementation<"space">> = {
@@ -677,14 +682,13 @@ export function useTextEditor(options: {
     let selection;
     if (typeof anchor == "object") {
       // focus node with id
-      const { node: targetNode, pos: targetPos } = findLineNodeById(anchor.id!);
+      const { node: targetNode, pos: targetPos } = findLineNodeById(state, anchor.id!);
       if (targetNode == null) {
         selection = TextSelection.atEnd(state.doc);
       } else if (targetNode.type.name == "block") {
         selection = NodeSelection.create(state.doc, targetPos!);
       } else {
-        const $endPos = state.doc.resolve(targetPos!);
-        selection = new TextSelection($endPos);
+        selection = TextSelection.near(state.doc.resolve(targetPos!));
       }
     } else if (anchor === "top" || anchor === "left") {
       selection = TextSelection.atStart(state.doc);
