@@ -28,7 +28,7 @@ import { useNodeListActions } from "@/ui/list";
 import { pushDefaultMenu } from "@/ui/popover";
 import { useTextEditor } from "@/ui/prosemirror/editor";
 import { providePageContext } from "@/ui/prosemirror/page";
-import { useHighlightPlugin, useLineHandlePlugin, useTooltipPlugin } from "@/ui/prosemirror/view";
+import { useHighlightPlugin, useLineHandlePlugin, usePlaceholderPlugin, useTooltipPlugin } from "@/ui/prosemirror/view";
 import { useTextPageInterface } from "@/ui/prosemirror/wiring";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
@@ -111,6 +111,11 @@ watch(selectedBlockIds, () => {
   updatePlugin(highlightPlugin);
 });
 
+// placeholder
+const placeholderPlugin = usePlaceholderPlugin({
+  defaultPlaceholder: "Write or '/' for commands...",
+});
+
 // editor
 const tooltipPlugin = useTooltipPlugin({
   component: TextTooltip,
@@ -118,7 +123,6 @@ const tooltipPlugin = useTooltipPlugin({
   container: contentRef,
   gutterWidth: computed(() => widths.value.gutter),
 });
-const lineHandlePlugin = useLineHandlePlugin();
 const textInterface = useTextPageInterface({
   page,
   blocks,
@@ -143,7 +147,7 @@ const {
     }
   },
   deleteSelf: () => emit("deleteSelf"),
-  plugins: [highlightPlugin, tooltipPlugin, lineHandlePlugin],
+  plugins: [highlightPlugin, tooltipPlugin, placeholderPlugin],
   parentComponent: vueInstance,
   blockComponent: Block,
 });
