@@ -1,10 +1,11 @@
 <script lang="ts" setup>
-import { supergraph } from "@/globals";
+import { canvas, supergraph } from "@/globals";
 import { toCamelName } from "@/language/core/const";
 import { NAME_TYPE, TITLE_TYPE } from "@/language/core/type";
 import { Transaction } from "@/language/runtime/transaction";
 import { AnyNodeData, NodeReferenceData, NodeType, Orientation, PROPERTY_ENUM_BY_TYPE } from "@/proto/wire";
 import { ConnectionBase } from "@/system/connection";
+import { IS_IN_ALT_MODE } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn } from "@/ui/popover";
 import { TooltipInfo } from "@/ui/tooltip";
@@ -112,11 +113,18 @@ defineExpose({
     :data-node-type="node.metatype"
     aria-role="button"
     data-contextmenu-items="space.navigate.open"
+    @click="
+      () => {
+        if (!isInput && IS_IN_ALT_MODE && node != null) {
+          canvas.goToNode(node);
+        }
+      }
+    "
   >
     <IconInline
       v-if="!hideIcon"
       ref="iconRef"
-      v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
+      v-tooltip="{ small: true, text: `Change icon`, isEnabled: isInput } as TooltipInfo"
       v-menu="
         (): PopoverInfoIn => ({
           kind: 'view',
@@ -156,7 +164,15 @@ defineExpose({
       "
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
     />
-    <span v-else :class="identifierClass" class="truncate" :style="{ maxWidth: `${identifierWidthMax}px` }">
+    <span
+      v-else
+      class="truncate"
+      :class="[
+        IS_IN_ALT_MODE ? 'underline decoration-gray-300 underline-offset-3 hover:decoration-gray-400' : '',
+        identifierClass,
+      ]"
+      :style="{ maxWidth: `${identifierWidthMax}px` }"
+    >
       {{ identifier }}
     </span>
     <!-- Metadata -->
