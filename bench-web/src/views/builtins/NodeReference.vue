@@ -1,8 +1,10 @@
 <script lang="ts" setup>
+import { supergraph } from "@/globals";
 import { toCamelName } from "@/language/core/const";
 import { NAME_TYPE, TITLE_TYPE } from "@/language/core/type";
 import { Transaction } from "@/language/runtime/transaction";
-import { AnyNodeData, NodeType, Orientation, PROPERTY_ENUM_BY_TYPE } from "@/proto/wire";
+import { AnyNodeData, NodeReferenceData, NodeType, Orientation, PROPERTY_ENUM_BY_TYPE } from "@/proto/wire";
+import { ConnectionBase } from "@/system/connection";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn } from "@/ui/popover";
 import { TooltipInfo } from "@/ui/tooltip";
@@ -12,11 +14,12 @@ import { FocusAnchor, NavigationDirection, ViewEmits } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { MaybeElement } from "@vueuse/core";
-import { computed, Ref, ref } from "vue";
+import { computed, Ref, ref, toRef } from "vue";
 
 const props = defineProps<{
   size: "regular" | "large" | "title";
-  node: AnyNodeData;
+  node?: AnyNodeData;
+  nodePtr?: NodeReferenceData;
   tx?: () => Transaction;
   isUnderline?: boolean;
   isInput?: boolean;
@@ -31,7 +34,17 @@ const emit = defineEmits<ViewEmits>();
 
 const iconRef = ref<InstanceType<typeof Icon> | null>(null);
 const identifierRef = ref<InstanceType<typeof NativeInput> | null>(null);
-const nodeType = computed(() => props.node.metatype as unknown as NodeType);
+
+let node: Ref<AnyNodeData | null | undefined>;
+let connection: Ref<ConnectionBase<any, any> | null | undefined> | null;
+if (props.node == null) {
+  ({ node, connection } = supergraph.getLinkRef(toRef(props, "nodePtr")));
+} else {
+  node = toRef(props, "node");
+  connection = null;
+}
+
+const nodeType = computed(() => props.nodePtr?.nodeType ?? (props.node?.metatype as unknown as NodeType));
 const nodeTypeName = computed(() => toCamelName(NodeType, nodeType.value));
 const nodeProperties = computed(() => (nodeType.value != null ? PROPERTY_ENUM_BY_TYPE[nodeType.value] : null));
 const identifierKind = computed(() => {
@@ -40,7 +53,7 @@ const identifierKind = computed(() => {
   else if ("title" in nodeProperties.value) return "title";
   else return null;
 });
-const identifier: Ref<string | undefined> = computed(() => (props.node as any)?.[identifierKind.value!]);
+const identifier: Ref<string | undefined> = computed(() => (node.value as any)?.[identifierKind.value!]);
 
 // :NodeReferenceStyle
 const iconClass = computed(() => [
@@ -72,10 +85,13 @@ const verticalClass = computed(() => [
 ]);
 
 function getTx() {
-  if (props.tx == null) {
+  if (connection?.value) {
+    return connection.value.tx;
+  } else if (props.tx != null) {
+    return props.tx();
+  } else {
     throw new Error("no transaction provided");
   }
-  return props.tx();
 }
 
 defineExpose({
@@ -88,6 +104,7 @@ defineExpose({
 </script>
 <template>
   <div
+    v-if="node != null"
     class=""
     :class="[orientation == Orientation.VERTICAL ? ['flex flex-col', verticalClass] : ['flex flex-row items-center']]"
     :data-node-id="node.id"
@@ -144,5 +161,12 @@ defineExpose({
     </span>
     <!-- Metadata -->
     <NodeMetadata v-if="!isMinimal" :size="size" :node="node" :is-light="isLight" :class="metadataClass" />
+  </div>
+  <div
+    v-else
+    :class="[orientation == Orientation.VERTICAL ? ['flex flex-col', verticalClass] : ['flex flex-row items-center']]"
+  >
+    <!-- Node not found -->
+    <span class="text-gray-400">???</span>
   </div>
 </template>

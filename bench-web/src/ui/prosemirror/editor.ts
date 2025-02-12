@@ -1,7 +1,7 @@
 import { NodeReferenceData, TextLineType, TextSpanType } from "@/proto/wire";
 import { type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { PM_SCHEMA, TextMarkType } from "@/ui/prosemirror/schema";
-import { BlockRenderer, SpanNodeView } from "@/ui/prosemirror/view";
+import { LineBlockView as LineBlockView, SpanNodeView } from "@/ui/prosemirror/view";
 import { LineInterface, mapPmNodeToText, mapTextToPmNode, TextInterface } from "@/ui/prosemirror/wiring";
 import { deepValueEquals } from "@/utils/ref";
 import { FocusAnchor, NavigationDirection } from "@/views/common";
@@ -467,6 +467,7 @@ export function useTextEditor(options: {
   plugins: Plugin[];
   parentComponent: ComponentInternalInstance;
   blockComponent: Component;
+  nodeReferenceComponent: Component;
   history?: boolean;
   onTransaction?: (view: EditorView, prevState: EditorState, newState: EditorState) => void;
 }) {
@@ -547,15 +548,22 @@ export function useTextEditor(options: {
       state: makeEditorState({ lines: lines.value }),
       editable: () => toValue(isInput),
       nodeViews: {
-        spanNode: (node, view, getPos) => new SpanNodeView(node, view),
+        spanNode: (node, view, getPos) =>
+          new SpanNodeView({
+            component: options.nodeReferenceComponent,
+            parentComponent: options.parentComponent,
+            node,
+            view,
+            getPos,
+          }),
         block: (node, view, getPos) =>
-          new BlockRenderer({
+          new LineBlockView({
             component: options.blockComponent,
+            parentComponent: options.parentComponent,
             node,
             view,
             getPos,
             navigate,
-            parentComponent: options.parentComponent,
           }),
       },
       plugins,
@@ -616,7 +624,6 @@ export function useTextEditor(options: {
     const pmNode = PM_SCHEMA.node("spanNode", { type: TextSpanType.NODE, nodePtr });
     view.dispatch(view.state.tr.insert(pos.pos, pmNode).insertText(" ", pos.pos + 1, pos.pos + 1));
   }
-
 
   // formatting
   function markFormatAction(mark: TextMarkType): ActionImplementation {

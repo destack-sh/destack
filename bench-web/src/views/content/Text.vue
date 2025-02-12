@@ -7,6 +7,7 @@ import { ActionMapImplementation } from "@/ui/action";
 import { useTextEditor } from "@/ui/prosemirror/editor";
 import { usePlaceholderPlugin, useTooltipPlugin } from "@/ui/prosemirror/view";
 import { useTextModelValueInterface } from "@/ui/prosemirror/wiring";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import TextTooltip from "@/views/builtins/TextTooltip.vue";
 import { NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
 import Block from "@/views/nodes/Block.vue";
@@ -39,10 +40,7 @@ if (props.isInput) {
   plugins.push(useTooltipPlugin({ component: TextTooltip, parentComponent: vueInstance, container: textRef }));
 }
 
-const {
-  focus,
-  actions: textActions,
-} = useTextEditor({
+const { focus, actions: textActions } = useTextEditor({
   textRef,
   text: textInterface,
   isInput: toRef(props, "isInput"),
@@ -52,6 +50,7 @@ const {
   deleteSelf: () => emit("deleteSelf"),
   parentComponent: vueInstance,
   blockComponent: Block,
+  nodeReferenceComponent: NodeReference,
   plugins,
   history: true,
 });
@@ -66,7 +65,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
 <template>
   <div
     ref="textRef"
-    class="pm-text relative rounded hover:cursor-text"
+    class="pm-text compact relative rounded hover:cursor-text"
     :class="[
       !isMinimal
         ? 'border border-gray-200 px-2 py-0.5 focus-within:border-gray-400 not-focus-within:hover:border-gray-200'

@@ -164,7 +164,10 @@ mark {
   @apply bg-gray-100 px-1 py-0.5 font-mono;
 }
 .pm-text .line {
-  @apply relative px-0.5 py-[2px] text-base transition-colors duration-150;
+  @apply relative px-0.5 py-[3px] text-base transition-colors duration-150;
+}
+.pm-text.compact .line {
+  @apply py-[2px];
 }
 .pm-text .line.selected {
   @apply bg-orange-400/20;
@@ -194,6 +197,14 @@ mark {
   @apply opacity-100;
 }
 
+/* Block Lines */
+.pm-text .line-block {
+  @apply relative my-1 cursor-default py-1;
+}
+.pm-text .line-block.ProseMirror-selectednode {
+  @apply p-0 outline-none;
+}
+
 /* Headings */
 .pm-text h1.line {
   @apply mb-2 mt-4 text-2xl font-bold;
@@ -214,12 +225,10 @@ mark {
 
 /* Lists */
 .pm-text ul li.line.list-unordered {
-  @apply pl-1;
-  list-style-position: inside;
-  list-style-type: disc;
+  @apply list-inside list-disc pl-1;
 }
 .pm-text ol li.line.list-ordered {
-  @apply pl-1;
+  @apply list-inside list-decimal pl-1;
   list-style-position: inside;
   list-style-type: decimal;
 }
@@ -237,10 +246,10 @@ mark {
 .pm-text hr.selected {
   @apply border-orange-300;
 }
-.pm-text p.line.code {
-  @apply my-2 w-full rounded bg-gray-100 px-3 py-2;
+.pm-text code.line {
+  @apply my-2 block w-full rounded bg-gray-100 px-3 py-2;
 }
-.pm-text p.line.code.selected {
+.pm-text code.line.selected {
   @apply bg-orange-400/20;
 }
 .pm-text blockquote.line {
@@ -285,14 +294,6 @@ mark {
 .altmode .pm-text span.spanNode:hover .name,
 .pm-text span.spanNode[data-node-type="file"]:hover .name {
   @apply decoration-primary-700;
-}
-
-/* Block Lines */
-.pm-text .line-block {
-  @apply relative my-1 cursor-default py-1;
-}
-.pm-text .line-block.ProseMirror-selectednode {
-  @apply p-0 outline-none;
 }
 
 .ProseMirror-focused {
