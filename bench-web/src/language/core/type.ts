@@ -12,6 +12,7 @@ import { getEnumTitle } from "@/language/core/enum";
 import { blockToTypeMaybe } from "@/language/source/block";
 import { choiceToType } from "@/language/source/choice";
 import { classToType } from "@/language/source/class";
+import { databaseToType } from "@/language/source/database";
 import { flowToType } from "@/language/source/flow";
 import {
   BenchType,
@@ -409,6 +410,8 @@ export function nodeToTypeMaybe(
     return blockToTypeMaybe(node, of, fieldTypes);
   } else if (isNode(node, NodeType.FLOW)) {
     return flowToType(node, of, fieldTypes);
+  } else if (isNode(node, NodeType.DATABASE)) {
+    return databaseToType(node);
   } else {
     return undefined;
   }
