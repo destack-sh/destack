@@ -520,7 +520,7 @@ function onDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | nu
 const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
   name: "table.header",
   container: columnHeaderRef,
-  targets: columnHeaderRefs,
+  targetsById: columnHeaderRefs,
   orientation: Orientation.HORIZONTAL,
   kinds: ["node", "selection"],
   metatypes: [NodeType.BLOCK, NodeType.FIELD],

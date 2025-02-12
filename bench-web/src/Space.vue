@@ -163,20 +163,65 @@ mark {
 .pm-text code {
   @apply bg-gray-100 px-1 py-0.5 font-mono;
 }
-.pm-text .line {
+.pm-text .line,
+.pm-text .line-block.page {
   @apply relative px-0.5 py-[3px] text-base transition-colors duration-150;
 }
-.pm-text.compact .line {
+.pm-text.compact .line,
+.pm-text.compact .line-block.page {
   @apply py-[2px];
 }
-.pm-text .line.selected {
-  @apply bg-orange-400/20;
+.pm-text .line,
+.pm-text .line-block {
+  @apply transition-colors duration-150;
 }
+
 .pm-text .placeholder {
   @apply pointer-events-none text-base text-gray-400 opacity-0;
 }
 .pm-text .ProseMirror-focused .placeholder {
   @apply opacity-100;
+}
+
+/* Selected */
+.pm-text .line.selected,
+.pm-text .line-block.selected {
+  @apply bg-orange-400/20;
+}
+.pm-text hr.selected {
+  @apply border-orange-300;
+}
+.pm-text code.line.selected {
+  @apply bg-orange-400/20;
+}
+.pm-text p.line.callout.selected {
+  @apply bg-orange-400/20;
+}
+
+/** Dragging */
+.pm-text .line.dragging,
+.pm-text .line-block.dragging {
+  @apply opacity-50;
+}
+
+/** Other lines */
+.pm-text blockquote.line {
+  @apply my-2 border-l-4 border-gray-400 pl-2;
+}
+.pm-text p.line.callout {
+  @apply my-2 rounded bg-gray-100 px-2 py-3;
+}
+.pm-text p.line.callout::before {
+  content: "\f06a"; /* fa-icon: circle-exclamation */
+  font-family: "Font Awesome 6 Pro";
+  font-weight: 900;
+  @apply mr-1 pl-1.5 pr-2 text-gray-700;
+}
+.pm-text hr {
+  @apply my-2 border-gray-200 p-0 focus:outline-none focus:ring-0;
+}
+.pm-text code.line {
+  @apply my-2 block w-full rounded bg-gray-100 px-3 py-2;
 }
 
 /** Line handles */
@@ -192,6 +237,9 @@ mark {
 .pm-text .line-block > .line-handle {
   @apply mt-2;
 }
+.pm-text .line-block.page > .line-handle {
+  @apply mt-0;
+}
 .pm-text .line-block:hover .line-handle,
 .pm-text .line:hover .line-handle {
   @apply opacity-100;
@@ -200,6 +248,12 @@ mark {
 /* Block Lines */
 .pm-text .line-block {
   @apply relative my-1 cursor-default py-1;
+}
+.pm-text .line-block.page {
+  @apply my-0;
+}
+.pm-text .line-block.page:hover:not(.selected) {
+  @apply cursor-pointer bg-gray-100;
 }
 .pm-text .line-block.ProseMirror-selectednode {
   @apply p-0 outline-none;
@@ -237,35 +291,6 @@ mark {
 }
 .pm-text ol ol ol li.line.list-ordered {
   list-style-type: lower-roman;
-}
-
-/* Highlights */
-.pm-text hr {
-  @apply my-2 border-gray-200 p-0 focus:outline-none focus:ring-0;
-}
-.pm-text hr.selected {
-  @apply border-orange-300;
-}
-.pm-text code.line {
-  @apply my-2 block w-full rounded bg-gray-100 px-3 py-2;
-}
-.pm-text code.line.selected {
-  @apply bg-orange-400/20;
-}
-.pm-text blockquote.line {
-  @apply my-2 border-l-4 border-gray-400 pl-2;
-}
-.pm-text p.line.callout {
-  @apply my-2 rounded bg-gray-100 px-2 py-3;
-}
-.pm-text p.line.callout.selected {
-  @apply bg-orange-400/20;
-}
-.pm-text p.line.callout::before {
-  content: "\f06a"; /* fa-icon: circle-exclamation */
-  font-family: "Font Awesome 6 Pro";
-  font-weight: 900;
-  @apply mr-1 pl-1.5 pr-2 text-gray-700;
 }
 
 /* Span Nodes */

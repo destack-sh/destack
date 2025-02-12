@@ -205,10 +205,7 @@ export const PM_SCHEMA = new PmSchema({
       group: "line",
       atom: true,
       selectable: true,
-      attrs: { blockPtr: {} },
-      toDOM(node) {
-        return ["div", { class: "block" }];
-      },
+      attrs: { blockPtr: {}, nodePtr: {} },
     },
   },
   marks: {

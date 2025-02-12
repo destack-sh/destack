@@ -1,4 +1,5 @@
 import { supergraph } from "@/globals";
+import { toCamelName } from "@/language/core/const";
 import { NodeReferenceData, NodeType, ObjectType } from "@/proto/wire";
 import { isNodeRef } from "@/proto/wiring";
 import { startDragging } from "@/ui/drag";
@@ -147,7 +148,15 @@ export class LineBlockView extends VueComponentView {
     });
     this.navigateOuter = navigate;
     this.getPos = getPos;
+
+    // meta
     this.dom.classList.add("line-block");
+    const nodeType = node.attrs.nodePtr.nodeType;
+    const nodeTypeName = NodeType[nodeType].toLowerCase();
+    this.dom.classList.add(nodeTypeName);
+    this.dom.dataset.nodeType = node.attrs.nodePtr.nodeType;
+    this.dom.dataset.nodeId = node.attrs.nodePtr.id;
+    this.dom.dataset.nodeCk = node.attrs.nodePtr.ck;
 
     // create line handle inside the block
     this.lineHandleDom = createLineHandleDom(node);
@@ -225,8 +234,8 @@ export class LineBlockView extends VueComponentView {
  */
 
 const highlightPluginKey = new PluginKey("highlightPlugin");
-export function useHighlightPlugin(options: { selectedBlockIds: Ref<string[]> }) {
-  const { selectedBlockIds } = options;
+export function useHighlightPlugin(options: { selectedBlockIds: Ref<string[]>; draggingBlockIds: Ref<string[]> }) {
+  const { selectedBlockIds, draggingBlockIds } = options;
 
   const plugin = new Plugin({
     key: highlightPluginKey,
@@ -238,8 +247,21 @@ export function useHighlightPlugin(options: { selectedBlockIds: Ref<string[]> })
         // recompute decorations based on the external highlightedBlockIds
         const decorations: Decoration[] = [];
         newState.doc.descendants((node, pos) => {
-          if (node.attrs.blockPtr != null && selectedBlockIds.value.includes(node.attrs.blockPtr.id)) {
-            decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: "selected" }));
+          if (node.attrs.blockPtr == null) return;
+          const isSelected = selectedBlockIds.value.includes(node.attrs.blockPtr.id);
+          const isDragging = draggingBlockIds.value.includes(node.attrs.blockPtr.id);
+          if (isSelected || isDragging) {
+            let className;
+            if (isSelected) {
+              if (isDragging) {
+                className = "selected dragging";
+              } else {
+                className = "selected";
+              }
+            } else if (isDragging) {
+              className = "dragging";
+            }
+            decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: className }));
           }
         });
         return DecorationSet.create(newState.doc, decorations);

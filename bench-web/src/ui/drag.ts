@@ -331,7 +331,7 @@ export type MultiAnchor = "start" | "center" | "end";
  */
 export function useMultiDropZone(
   options: DropOptions & {
-    targets: Ref<Record<string, MaybeElement | any>>;
+    targetsById: Ref<Record<string, MaybeElement | any>>;
     orientation: MaybeRef<Orientation>;
     fallbackToClosest?: boolean;
     hasCenterAnchor?: boolean;
@@ -354,7 +354,7 @@ export function useMultiDropZone(
     // find directly hit zone (and closest as fallback)
     const cursor = { x: position.x.value, y: position.y.value };
     let closest: { anchor: MultiAnchor; targetId: string; distance: number; targetRect: DOMRect | null } | null = null;
-    for (const [targetId, targetEl] of Object.entries(options.targets.value)) {
+    for (const [targetId, targetEl] of Object.entries(options.targetsById.value)) {
       const targetRect = getElement(targetEl)!.getBoundingClientRect();
       const cursorP = options.orientation == Orientation.HORIZONTAL ? cursor.x : cursor.y;
       const targetStart = options.orientation == Orientation.HORIZONTAL ? targetRect.left : targetRect.top;
