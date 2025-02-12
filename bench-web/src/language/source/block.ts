@@ -76,6 +76,7 @@ export function createBlock(
     parentPtr,
     packagePtr: target.packagePtr,
     ...options.block,
+    text,
     orderKey,
   });
   if (INLINE_SOURCE_NODE_TYPES.includes(options.block.type as unknown as NodeType) && options.block.nodePtr == null) {
