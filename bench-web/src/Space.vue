@@ -177,7 +177,7 @@ mark {
 }
 
 .pm-text .placeholder {
-  @apply pointer-events-none text-base text-gray-400;
+  @apply pointer-events-none text-gray-400;
 }
 .pm-text .ProseMirror-focused .placeholder-hidden {
   @apply opacity-100;
