@@ -940,8 +940,6 @@ export function typeIndex(idx: {
       const primitiveItems = getIntrinsicOptions(EnumType.PRIMITIVE_TYPE);
       const typeFormatItems = getIntrinsicOptions(EnumType.TYPE_FORMAT);
       const fileItems = getIntrinsicOptions(EnumType.FILE_TYPE);
-      const blockItems = getIntrinsicOptions(EnumType.BLOCK_TYPE);
-      const actionItems = getIntrinsicOptions(EnumType.ACTION_TYPE);
       const nodeItems = getIntrinsicOptions(EnumType.NODE_TYPE);
 
       // and any type definitions from blocks
@@ -960,8 +958,6 @@ export function typeIndex(idx: {
         ...typeFormatItems,
         ...fileItems,
         ...graphItems,
-        ...blockItems,
-        ...actionItems,
         ...nodeItems,
       ];
       return allItems;
