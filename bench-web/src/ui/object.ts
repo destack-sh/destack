@@ -1,3 +1,4 @@
+import { canvas, supergraph } from "@/globals";
 import {
   APPLICATION_ACTION_TYPES,
   DYNAMIC_ACTION_TYPES,
@@ -10,6 +11,9 @@ import {
   toCamelName,
 } from "@/language/core/const";
 import { useComputedValues } from "@/language/core/expression";
+import { ReadNodeGraph } from "@/language/core/graph";
+import { generateNodeName, packSubnode, unpackSubnode } from "@/language/core/node";
+import { getPathKey, makePath } from "@/language/core/path";
 import {
   getPropertyType,
   getStorageKey,
@@ -19,28 +23,27 @@ import {
   TypeIdentity,
   typeIsNumeric,
 } from "@/language/core/type";
-import { ReadNodeGraph } from "@/language/core/graph";
-import { generateNodeName, packSubnode, unpackSubnode } from "@/language/core/node";
-import { getPathKey, makePath } from "@/language/core/path";
+import { getPartialObjectType, packValue, unpackPartialNode, unpackValue } from "@/language/core/value";
 import {
   getTransactionOptionsForType,
   makeEditFromSubnode,
   Transaction,
   TransactionOptions,
 } from "@/language/runtime/transaction";
-import { getPartialObjectType, packValue, unpackPartialNode, unpackValue } from "@/language/core/value";
+import { createField, getFieldTypeUpdate } from "@/language/source/field";
 import {
   ActionData,
   ActionProperty,
   ActionType,
   AnyNodeData,
   BenchType,
-  BlockData,
-  BlockProperty,
-  BlockType,
+  ChannelProperty,
+  ChoiceProperty,
   ComputedValueData,
   CreateActionProperty,
+  DatabaseProperty,
   DeleteActionProperty,
+  DuplicateActionProperty,
   EditOperationData,
   EditOperationType,
   EmptyProperty,
@@ -48,17 +51,20 @@ import {
   FieldData,
   FieldProperty,
   FieldType,
+  FlowProperty,
   GoToUrlActionProperty,
   IconData,
+  LookActionProperty,
   NodeReferenceData,
   NodeType,
   NodeTypeMapping,
   ObjectType,
-  LookActionProperty,
   PathData,
   PathElementType,
   PickerVariant,
   PipeProperty,
+  PipeType,
+  PressActionProperty,
   PrimitiveType,
   PROPERTY_ENUM_BY_SUBTYPE,
   PROPERTY_ENUM_BY_TYPE,
@@ -68,27 +74,20 @@ import {
   RecordProperty,
   RunOptionsProperty,
   RunProperty,
+  ScrollActionProperty,
+  ToolFilter,
+  ToolSelectionProperty,
+  TypeActionProperty,
+  TypeBaseNodeData,
   TypeConstraintProperty,
   TypeData,
   TypeKind,
   UpdateActionProperty,
   ViewType,
-  ClickActionProperty,
-  TypeActionProperty,
-  PressActionProperty,
-  ScrollActionProperty,
-  DuplicateActionProperty,
-  PipeType,
   WaitActionProperty,
-  ToolSelectionProperty,
-  ToolFilter,
-  ChannelProperty,
-  ThreadProperty,
-  TypeBaseNodeData,
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { canvas, supergraph } from "@/globals";
 import { getNodeName, ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
 import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
@@ -96,7 +95,6 @@ import { assertNever } from "@/utils/functools";
 import { computedValue } from "@/utils/ref";
 import { ModelValueOptions, ViewProps } from "@/views/common";
 import { computed, Ref } from "vue";
-import { createField, getFieldTypeUpdate } from "@/language/source/field";
 
 export type ObjectAction = {
   title: string;
@@ -750,48 +748,67 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
   }
 }
 
-export class BlockLayout extends NodeLayout<NodeType.BLOCK> {
+export class ChoiceLayout extends NodeLayout<NodeType.CHOICE> {
   make() {
-    const commonRows: Row[] = [];
+    const commonRows: Row[] = [
+      this.rowProperty(ChoiceProperty.text, { title: false, props: { placeholder: "Text..." } }),
+    ];
     this.section(undefined, commonRows);
-    // nocheckin: BlockLayout
-    // if (this.subtype != BlockType.TEXT) {
-    //   commonRows.push(this.rowProperty(BlockProperty.text, { title: false, props: { placeholder: "Text..." } }));
-    // }
 
-    // // schema
-    // if (!this.isPartial) {
-    //   if (this.subtype == BlockType.CHOICE) {
-    //     this.section("Options", [{ type: "fields-list", fieldType: FieldType.OPTION }], {
-    //       actions: [this.actionAddField(FieldType.OPTION)],
-    //     });
-    //   } else if (this.subtype == BlockType.DATABASE || this.subtype == BlockType.MESSAGE) {
-    //     this.section("Members", [{ type: "fields-list", fieldType: FieldType.MEMBER }], {
-    //       actions: [this.actionAddField(FieldType.MEMBER)],
-    //     });
-    //   } else if (RUNNABLE_BLOCK_TYPES.includes(this.subtype as any)) {
-    //     this.section("Variables", [{ type: "fields-list", fieldType: FieldType.VARIABLE }], {
-    //       actions: [this.actionAddField(FieldType.VARIABLE)],
-    //     });
-    //     this.section(
-    //       "Schema",
-    //       [
-    //         { type: "fields-list", fieldType: FieldType.INPUT },
-    //         { type: "icon", icon: makeIcon("fas fa-arrow-down") },
-    //         { type: "fields-list", fieldType: FieldType.OUTPUT },
-    //       ],
-    //       {
-    //         actions: [
-    //           this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
-    //           this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
-    //         ],
-    //       },
-    //     );
-    //   }
-    // }
-    // if (this.subtype == BlockType.FLOW) {
-    //   this.sectionRunOptions(FlowBlockProperty.runOptions);
-    // }
+    // schema
+    if (!this.isPartial) {
+      this.section("Options", [{ type: "fields-list", fieldType: FieldType.OPTION }], {
+        actions: [this.actionAddField(FieldType.OPTION)],
+      });
+    }
+  }
+}
+
+export class DatabaseLayout extends NodeLayout<NodeType.DATABASE> {
+  make() {
+    const commonRows: Row[] = [
+      this.rowProperty(DatabaseProperty.text, { title: false, props: { placeholder: "Text..." } }),
+    ];
+    this.section(undefined, commonRows);
+
+    // schema
+    if (!this.isPartial) {
+      this.section("Members", [{ type: "fields-list", fieldType: FieldType.MEMBER }], {
+        actions: [this.actionAddField(FieldType.MEMBER)],
+      });
+    }
+  }
+}
+
+export class FlowLayout extends NodeLayout<NodeType.FLOW> {
+  make() {
+    const commonRows: Row[] = [
+      this.rowProperty(FieldProperty.text, { title: false, props: { placeholder: "Text..." } }),
+    ];
+    this.section(undefined, commonRows);
+
+    // schema
+    if (!this.isPartial) {
+      this.section("Variables", [{ type: "fields-list", fieldType: FieldType.VARIABLE }], {
+        actions: [this.actionAddField(FieldType.VARIABLE)],
+      });
+      this.section(
+        "Schema",
+        [
+          { type: "fields-list", fieldType: FieldType.INPUT },
+          { type: "icon", icon: makeIcon("fas fa-arrow-down") },
+          { type: "fields-list", fieldType: FieldType.OUTPUT },
+        ],
+        {
+          actions: [
+            this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
+            this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
+          ],
+        },
+      );
+    }
+
+    this.sectionRunOptions(FlowProperty.runOptions);
   }
 }
 
@@ -1242,7 +1259,9 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
 
 export class ChannelLayout extends NodeLayout<NodeType.CHANNEL> {
   make() {
-    this.section(undefined, [this.rowProperty(ChannelProperty.type)]);
+    this.section(undefined, [
+      this.rowProperty(ChannelProperty.text, { title: false, props: { placeholder: "Text..." } }),
+    ]);
   }
 }
 
@@ -1321,7 +1340,9 @@ export class EmptyLayout extends BaseObjectLayout {
 }
 
 const NODE_LAYOUT_BY_TYPE = {
-  [NodeType.BLOCK]: BlockLayout,
+  [NodeType.CHOICE]: ChoiceLayout,
+  [NodeType.DATABASE]: DatabaseLayout,
+  [NodeType.FLOW]: FlowLayout,
   [NodeType.ACTION]: ActionLayout,
   [NodeType.PIPE]: PipeLayout,
   [NodeType.RECORD]: RecordLayout,
