@@ -110,11 +110,12 @@ export class SpanNodeView extends VueComponentView {
       style: "inline",
       component,
       parentComponent,
-      props: { nodePtr: node.attrs.nodePtr, isMinimal: true },
+      props: { nodePtr: node.attrs.nodePtr, isMinimal: true, size: "regular" },
       node,
       view,
       getPos,
     });
+    this.dom.classList.add("span-node-view");
   }
 
   updateNode() {}

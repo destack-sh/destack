@@ -300,31 +300,12 @@ mark {
 }
 
 /* Span Nodes */
-.pm-text span.spanNode {
-  @apply rounded px-1 py-0;
+.pm-text .span-node-view {
+  @apply rounded px-1 transition-colors duration-150;
 }
-.pm-text span.spanNode:hover {
-  @apply bg-gray-100;
-}
-.pm-text span.spanNode .icon {
-  @apply mr-1.5 text-gray-700;
-}
-.pm-text span.spanNode:hover .icon {
-  @apply text-gray-700;
-}
-.pm-text span.spanNode .name {
-  @apply underline decoration-gray-300 underline-offset-3;
-}
-.pm-text span.pm-textMirror-selectednode.spanNode .name {
-  @apply bg-primary-100 text-primary-700 decoration-primary-700;
-}
-.altmode .pm-text span.spanNode:hover,
-.pm-text span.spanNode[data-node-type="file"]:hover .name {
-  @apply cursor-pointer;
-}
-.altmode .pm-text span.spanNode:hover .name,
-.pm-text span.spanNode[data-node-type="file"]:hover .name {
-  @apply decoration-primary-700;
+.pm-text .span-node-view:hover,
+.pm-text .span-node-view:focus-within {
+  @apply bg-gray-100 cursor-pointer;
 }
 
 .ProseMirror-focused {

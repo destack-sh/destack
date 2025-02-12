@@ -11,14 +11,15 @@ import {
   NodeType,
   Orientation,
   TextLineType,
+  TextSpanType,
   TypeKind,
 } from "@/proto/wire";
-import { isNode, toNodeRef } from "@/proto/wiring";
+import { isNode, isNodeRef, toNodeRef } from "@/proto/wiring";
 import { IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { findAncestor, wrapIfNeeded } from "@/ui/prosemirror/editor";
 import { PageContext } from "@/ui/prosemirror/page";
-import { getPmLineType, SpanSpecialInputType } from "@/ui/prosemirror/schema";
+import { getPmLineType, PM_SCHEMA, SpanSpecialInputType } from "@/ui/prosemirror/schema";
 import { SearchItem, useValueSearch } from "@/ui/search";
 import { getColorHex } from "@/ui/style";
 import { useFloating } from "@/utils/floating";
@@ -186,6 +187,7 @@ function apply(item: SearchItem) {
         },
       });
       tx.update(block, { type: blockType, nodePtr: toNodeRef(node) });
+      deleteSelf();
       if (blockType == BlockType.PAGE) {
         canvas.goToNode(node); // immediately go to the new node
       } else {
@@ -200,7 +202,13 @@ function apply(item: SearchItem) {
     }
   } else if (props.type == "@") {
     // create mention
-    // nocheckin: mentions
+    const nodePtr = getValueFromItem(item) as NodeReferenceData;
+    if (!isNodeRef(nodePtr)) throw new Error("nodePtr is not a node ref");
+    const tr = view.state.tr;
+    tr.delete(pos, pos + props.node.nodeSize);
+    tr.insert(pos, PM_SCHEMA.node("spanNode", { type: TextSpanType.NODE, nodePtr }));
+    tr.insertText(" ", pos + 1, pos + 1);
+    view.dispatch(tr);
   }
 
   view.focus();
