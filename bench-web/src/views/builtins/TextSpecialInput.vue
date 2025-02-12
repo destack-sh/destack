@@ -28,7 +28,7 @@ const popoverRef = ref<HTMLDivElement>();
 
 function updateQuery(newQuery: string) {
   query.value = newQuery;
-  if (newQuery == " ") {
+  if (newQuery == " " || newQuery.includes("/") || newQuery.includes("@")) {
     closeSelf();
   }
 }

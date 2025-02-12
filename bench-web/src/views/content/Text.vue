@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { isTextEmpty } from "@/language/core/text";
 import { NodeType, TextData, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
@@ -7,10 +6,8 @@ import { ActionMapImplementation } from "@/ui/action";
 import { useTextEditor } from "@/ui/prosemirror/editor";
 import { usePlaceholderPlugin, useTooltipPlugin } from "@/ui/prosemirror/view";
 import { useTextModelValueInterface } from "@/ui/prosemirror/wiring";
-import NodeReference from "@/views/builtins/NodeReference.vue";
 import TextTooltip from "@/views/builtins/TextTooltip.vue";
 import { NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
-import Block from "@/views/nodes/Block.vue";
 import { Plugin } from "prosemirror-state";
 import { getCurrentInstance, ref, toRef } from "vue";
 const props = defineProps<
@@ -35,7 +32,7 @@ const textInterface = useTextModelValueInterface({
 const vueInstance = getCurrentInstance();
 if (vueInstance == null) throw new Error("no vue instance in Text");
 
-const plugins: Plugin[] = [usePlaceholderPlugin({ defaultPlaceholder: props.placeholder })];
+const plugins: Plugin[] = [usePlaceholderPlugin({ defaultPlaceholder: props.placeholder, alwaysShow: true })];
 if (props.isInput) {
   plugins.push(useTooltipPlugin({ component: TextTooltip, parentComponent: vueInstance, container: textRef }));
 }
@@ -72,15 +69,6 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
     data-suppress-actions="space.move.left,space.move.right,space.history.undo,space.history.redo"
     data-suppress-drag="both"
   >
-    <!-- Placeholder -->
-    <template v-if="modelValue == null || isTextEmpty(modelValue)">
-      <div
-        v-if="placeholder"
-        class="pointer-events-none absolute"
-        :class="!isMinimal ? 'left-2 top-1' : 'left-0.5 top-0.5'"
-      >
-        <div class="text-base text-gray-400">{{ placeholder }}</div>
-      </div>
-    </template>
+    <!-- ... -->
   </div>
 </template>

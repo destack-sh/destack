@@ -1,8 +1,8 @@
 <script lang="ts" setup>
+import { supergraph } from "@/globals";
 import { NodeType, Orientation, ViewType } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
-import { supergraph } from "@/globals";
 import { bench, inspectionPtr, spaceConnection, spaceGraph } from "@/system/space";
 import { IS_IN_ALT_MODE } from "@/ui/action";
 import { keytrap } from "@/ui/keymap";
@@ -177,10 +177,13 @@ mark {
 }
 
 .pm-text .placeholder {
-  @apply pointer-events-none text-base text-gray-400 opacity-0;
+  @apply pointer-events-none text-base text-gray-400;
 }
-.pm-text .ProseMirror-focused .placeholder {
+.pm-text .ProseMirror-focused .placeholder-hidden {
   @apply opacity-100;
+}
+.pm-text .placeholder-hidden {
+  @apply opacity-0;
 }
 
 /* Selected */

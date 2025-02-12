@@ -551,13 +551,19 @@ const DEFAULT_PLACEHOLDER_CONFIG: PlaceholderConfig = {
 /**
  * ProseMirror placeholder plugin.
  */
-export function usePlaceholderPlugin(config: Partial<PlaceholderConfig>) {
-  const { placeholderByNodeType, defaultPlaceholder } = { ...DEFAULT_PLACEHOLDER_CONFIG, ...config };
+export function usePlaceholderPlugin(config: Partial<PlaceholderConfig> & { alwaysShow?: boolean }) {
+  const { placeholderByNodeType, defaultPlaceholder, alwaysShow } = {
+    ...DEFAULT_PLACEHOLDER_CONFIG,
+    ...config,
+  };
 
   /** Create a placeholder widget element. */
   function createPlaceholderWidget(text: string): HTMLElement {
     const span = document.createElement("span");
     span.className = "placeholder";
+    if (!alwaysShow) {
+      span.classList.add("placeholder-hidden");
+    }
     span.textContent = text;
     return span;
   }
@@ -566,8 +572,15 @@ export function usePlaceholderPlugin(config: Partial<PlaceholderConfig>) {
   function getPlaceholderDecoration(state: EditorState): DecorationSet {
     const { $from } = state.selection;
     const parent = $from.parent;
+
     // only show placeholder if selection is inside an empty textblock
-    if (!(parent.isTextblock && state.selection.empty && parent.textContent == "")) {
+    let hasSpecialInput = false;
+    parent.descendants((node, pos) => {
+      if (node.type.name == "spanSpecialInput") {
+        hasSpecialInput = true;
+      }
+    });
+    if (!(parent.isTextblock && state.selection.empty && parent.textContent == "") || hasSpecialInput) {
       return DecorationSet.empty;
     }
 
