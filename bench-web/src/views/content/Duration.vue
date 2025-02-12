@@ -6,7 +6,7 @@ import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { formatDuration, parseDurationString } from "@/utils/time";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { Duration } from "luxon";
 import { computed, ref, toRef, watch } from "vue";
 
@@ -102,7 +102,7 @@ function focus() {
   return buttonRef.value ?? queryRef.value;
 }
 
-defineExpose<ViewExposed>({
+defineExpose<ViewExpose>({
   self,
   id,
   focus,

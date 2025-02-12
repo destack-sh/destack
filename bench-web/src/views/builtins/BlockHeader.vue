@@ -5,7 +5,7 @@ import { BlockType, InlineSourceNodeData, NodeReferenceData } from "@/proto/wire
 import { PreparedGetConnection } from "@/system/connection";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { FocusAnchor, NavigationDirection, ViewEmits, ViewExposed } from "@/views/common";
+import { FocusAnchor, NavigationDirection, ViewEmits, ViewExpose } from "@/views/common";
 import { computed, ref, Ref } from "vue";
 
 const props = defineProps<{
@@ -29,7 +29,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
   focusIdentifier(typeof anchor == "string" ? anchor : "top");
 }
 
-defineExpose<Partial<ViewExposed> & { focusIdentifier: (anchor: FocusAnchor) => void }>({
+defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => void }>({
   focusIdentifier,
   focus,
 });

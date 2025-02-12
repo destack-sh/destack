@@ -12,7 +12,7 @@ import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, Ref, ref, toRef } from "vue";
 
 const ITEM_HEIGHT = 28;
@@ -55,7 +55,7 @@ const itemRefs = ref<Record<string, HTMLElement>>({});
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
-defineExpose<ViewExposed & { total: Ref<number | undefined>; roots: Ref<AnyNodeData[]> }>({
+defineExpose<ViewExpose & { total: Ref<number | undefined>; roots: Ref<AnyNodeData[]> }>({
   self,
   id,
   total,

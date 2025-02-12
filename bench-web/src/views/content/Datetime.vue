@@ -7,7 +7,7 @@ import { canvas } from "@/system/space";
 import { ICON_BY_PRIMITIVE_TYPE, IconInline } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { dtToTs, formatAbsoluteDate, tsToDt } from "@/utils/time";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { DateTime, WeekdayNumbers } from "luxon";
 import { computed, Ref, ref, toRef, watch } from "vue";
 
@@ -222,7 +222,7 @@ function focus() {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({
+defineExpose<ViewExpose>({
   self,
   id,
   focus,

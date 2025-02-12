@@ -2,7 +2,7 @@
 import { NodeType, TypeData, ViewData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Picker from "@/views/content/Picker.vue";
 import { computed, toRef } from "vue";
 
@@ -19,7 +19,7 @@ const state = canvas.registerView(self, id);
 
 const supportsList = computed(() => modelValue.value?.baseTypePtr?.nodeType != NodeType.BLOCK);
 
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExpose>({ self, id });
 </script>
 <template>
   <div class="flex flex-row items-center">

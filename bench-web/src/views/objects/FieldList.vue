@@ -16,7 +16,7 @@ import {
 import { useNodeListActions } from "@/ui/list";
 import { onAddFieldAction } from "@/ui/object";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
@@ -87,7 +87,7 @@ const actions: Partial<ActionMapImplementation<"list">> = {
   }),
 };
 
-defineExpose<ViewExposed>({ self, id, actions });
+defineExpose<ViewExpose>({ self, id, actions });
 </script>
 <template>
   <div

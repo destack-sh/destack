@@ -4,7 +4,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { REAL_COLORS, getColorHex, getColorTitle, makeColor } from "@/ui/style";
-import { type ViewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
+import { type ViewEmits, type FocusAnchor, type ViewExpose, type ViewProps } from "@/views/common";
 import { ref, toRef, type Ref } from "vue";
 
 const COLORS_PER_ROW = 9;
@@ -50,7 +50,7 @@ function focus(anchor?: "up" | "down" | "left" | "right" | FocusAnchor | NodeRef
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, focus });
+defineExpose<ViewExpose>({ self, id, focus });
 </script>
 <template>
   <button

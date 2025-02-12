@@ -40,7 +40,7 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import InlineHeader from "@/views/builtins/InlineHeader.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
+import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
 import Pipe from "@/views/nodes/Pipe.vue";
 import FieldList from "@/views/objects/FieldList.vue";
@@ -281,7 +281,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
 }
 
 const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
-defineExpose<ViewExposed>({ self, id, actions: implementedActions, focus });
+defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
 </script>
 <template>
   <div

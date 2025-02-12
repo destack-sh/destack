@@ -18,7 +18,7 @@ import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/globals";
 import { canvas } from "@/system/space";
 import { ICON_BY_STRUCT_TYPE } from "@/ui/icon";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Picker from "@/views/content/Picker.vue";
 import { computed, toRef } from "vue";
 
@@ -59,7 +59,7 @@ function updateNodeValue(value: NodeReferenceData) {
   emit("update:modelValue", path);
 }
 
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExpose>({ self, id });
 </script>
 <template>
   <div>

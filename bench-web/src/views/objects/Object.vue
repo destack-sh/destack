@@ -7,7 +7,7 @@ import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import { ObjectSection, useObjectLayout } from "@/ui/object";
 import { computedValue } from "@/utils/ref";
-import { ModelValueOptions, ViewEmits, type ViewExposed } from "@/views/common";
+import { ModelValueOptions, ViewEmits, type ViewExpose } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
 import ComputedValue from "@/views/objects/ComputedValue.vue";
 import FieldList from "@/views/objects/FieldList.vue";
@@ -89,7 +89,7 @@ function toggleSection(section: ObjectSection) {
   }
 }
 
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExpose>({ self, id });
 </script>
 <template>
   <div v-if="layout" class="flex flex-col gap-y-2">

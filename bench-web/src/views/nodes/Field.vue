@@ -6,7 +6,7 @@ import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, nextTick, ref, toRef } from "vue";
 
 const props = defineProps<
@@ -39,7 +39,7 @@ const actions: Partial<ActionMapImplementation<"space">> = {
   },
 };
 
-defineExpose<ViewExposed>({ self, id, actions });
+defineExpose<ViewExpose>({ self, id, actions });
 </script>
 <template>
   <div

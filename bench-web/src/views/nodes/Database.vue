@@ -76,7 +76,7 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import PageHeader from "@/views/builtins/PageHeader.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
+import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -200,7 +200,7 @@ const columnHeaderRef: Ref<HTMLDivElement | null> = ref(null);
 const bodyRef: Ref<HTMLDivElement | null> = ref(null);
 const columnHeaderRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const cellWrapperRefs: Ref<Record<string, HTMLElement | null>> = ref({});
-const cellComponentRefs: Ref<Record<string, ViewExposed>> = ref({});
+const cellComponentRefs: Ref<Record<string, ViewExpose>> = ref({});
 const shiftKey = useKeyModifier("Shift");
 
 const headerSize = useElementSize(headerRef as Ref<MaybeElement>);
@@ -576,7 +576,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
   headerRef.value?.focus?.(anchor ?? "left");
 }
 
-defineExpose<ViewExposed>({ self, id, actions, focus });
+defineExpose<ViewExpose>({ self, id, actions, focus });
 </script>
 <template>
   <div

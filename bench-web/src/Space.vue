@@ -226,7 +226,7 @@ mark {
 
 /** Line handles */
 .pm-text .line-handle {
-  @apply absolute -left-[6px] top-[2px] z-40 flex -translate-x-full text-base text-gray-400 opacity-0 transition-colors duration-150;
+  @apply absolute -left-[6px] top-[3px] z-40 flex -translate-x-full text-base text-gray-400 opacity-0 transition-colors duration-150;
 }
 .pm-text .line-handle-button {
   @apply w-5 rounded text-base transition-colors duration-150;

@@ -290,6 +290,8 @@ export function mapPmNodeToText(node: PmNode): { lines: LineInterface[]; linesNo
         };
       } else if (spanNode.type.name === "spanEquation") {
         span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.EQUATION, content: spanNode.text };
+      } else if (spanNode.type.name === "spanSpecialInput") {
+        continue; // ignore temporary input spans
       } else {
         throw new Error(`unexpected span node type: ${spanNode.type.name}`);
       }

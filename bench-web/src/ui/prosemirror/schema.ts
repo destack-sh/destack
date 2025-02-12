@@ -7,6 +7,7 @@ import { Node as PmNode, Schema as PmSchema, type DOMOutputSpec } from "prosemir
 //
 
 export type TextMarkType = "bold" | "italic" | "strikethrough" | "underline" | "code";
+export type SpanSpecialInputType = "/" | "@";
 
 const P_DOM: DOMOutputSpec = ["p", { class: "line" }, 0];
 const H1_DOM: DOMOutputSpec = ["h1", { class: "line" }, 0];
@@ -173,7 +174,7 @@ export const PM_SCHEMA = new PmSchema({
       atom: true,
       marks: "",
       attrs: { nodePtr: {}, type: {} },
-      // render manually, can't parse nodes
+      // render custom; not parseable
     },
     spanLink: {
       group: "span",
@@ -199,6 +200,13 @@ export const PM_SCHEMA = new PmSchema({
       code: true,
       attrs: { blockPtr: { default: null }, type: { default: TextSpanType.EQUATION } },
       marks: "",
+    },
+    spanSpecialInput: {
+      group: "span",
+      inline: true,
+      atom: true,
+      attrs: { type: {} },
+      // render custom; not parseable
     },
     // custom block node for non-text blocks
     block: {

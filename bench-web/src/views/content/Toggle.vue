@@ -2,7 +2,7 @@
 import { NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { ref, toRef } from "vue";
 
 const props = defineProps<
@@ -24,7 +24,7 @@ function apply(value: boolean) {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value, interact: () => toggle() });
+defineExpose<ViewExpose>({ self, id, focus: () => inputRef.value, interact: () => toggle() });
 </script>
 <template>
   <div class="flex flex-row items-center justify-end">

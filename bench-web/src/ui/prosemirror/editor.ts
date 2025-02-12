@@ -1,10 +1,13 @@
 import { NodeReferenceData, TextLineType, TextSpanType } from "@/proto/wire";
 import { type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
-import { PM_SCHEMA, TextMarkType } from "@/ui/prosemirror/schema";
-import { LineBlockView as LineBlockView, SpanNodeView } from "@/ui/prosemirror/view";
+import { PM_SCHEMA, SpanSpecialInputType, TextMarkType } from "@/ui/prosemirror/schema";
+import { LineBlockView, SpanNodeView, VueComponentView } from "@/ui/prosemirror/view";
 import { LineInterface, mapPmNodeToText, mapTextToPmNode, TextInterface } from "@/ui/prosemirror/wiring";
 import { deepValueEquals } from "@/utils/ref";
+import NodeReference from "@/views/builtins/NodeReference.vue";
+import TextSpecialInput from "@/views/builtins/TextSpecialInput.vue";
 import { FocusAnchor, NavigationDirection } from "@/views/common";
+import Block from "@/views/nodes/Block.vue";
 import { whenever } from "@vueuse/core";
 import * as commands from "prosemirror-commands";
 import { dropCursor } from "prosemirror-dropcursor";
@@ -31,7 +34,6 @@ import {
 import { liftTarget } from "prosemirror-transform";
 import { EditorView } from "prosemirror-view";
 import {
-  Component,
   ComponentInternalInstance,
   computed,
   MaybeRef,
@@ -217,6 +219,25 @@ function replacementRule(pattern: RegExp, replacement: string) {
   return rule;
 }
 
+/** Replace inline text with a temporary input. */
+function specialInputRule(pattern: RegExp, type: SpanSpecialInputType, inlineChar: string | undefined) {
+  return new InputRule(pattern, (state, match, start, end) => {
+    if (inlineChar != null) {
+      // only trigger if the cursor is exactly at the end of the inline char
+      if (state.selection.from !== end || match.input == null || match.index == null) return null;
+      if (match.input.length > match.index + 1) {
+        return null;
+      }
+      start -= match.input.length - match.index - 1;
+    }
+
+    const { tr } = state;
+    tr.replaceWith(start, end, PM_SCHEMA.nodes.spanSpecialInput.create({ type }));
+    tr.setSelection(NodeSelection.create(tr.doc, start));
+    return tr;
+  });
+}
+
 /** Get a regex for a wrapping marker. */
 function getMarkerRegex(marker: string): RegExp {
   const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -264,6 +285,9 @@ const PM_INPUT_RULES: InputRule[] = [
   replacementRule(/<=>/, "⇔"),
   replacementRule(/<=/, "≤"),
   replacementRule(/>=/, "≥"),
+  // special input rules
+  specialInputRule(/^\/$/, "/", undefined),
+  specialInputRule(/@/, "@", "@"),
   // marker rules
   markerRule("*", PM_SCHEMA.marks.italic),
   markerRule("_", PM_SCHEMA.marks.italic),
@@ -444,6 +468,7 @@ export function hasTextSpanType(state: EditorState, selection: Selection, type: 
   return hasSpanType;
 }
 
+/** Set the (inner) span type of the selected nodes. */
 export function setTextSpanType(
   state: EditorState,
   selection: Selection,
@@ -466,8 +491,6 @@ export function useTextEditor(options: {
   deleteSelf: () => void;
   plugins: Plugin[];
   parentComponent: ComponentInternalInstance;
-  blockComponent: Component;
-  nodeReferenceComponent: Component;
   history?: boolean;
   onTransaction?: (view: EditorView, prevState: EditorState, newState: EditorState) => void;
 }) {
@@ -548,15 +571,30 @@ export function useTextEditor(options: {
       nodeViews: {
         spanNode: (node, view, getPos) =>
           new SpanNodeView({
-            component: options.nodeReferenceComponent,
+            component: NodeReference,
             parentComponent: options.parentComponent,
+            node,
+            view,
+            getPos,
+          }),
+        spanSpecialInput: (node, view, getPos) =>
+          new VueComponentView({
+            style: "inline",
+            component: TextSpecialInput,
+            parentComponent: options.parentComponent,
+            props: {
+              type: node.attrs.type,
+              node,
+              view,
+              getPos,
+            },
             node,
             view,
             getPos,
           }),
         block: (node, view, getPos) =>
           new LineBlockView({
-            component: options.blockComponent,
+            component: Block,
             parentComponent: options.parentComponent,
             node,
             view,
@@ -575,15 +613,17 @@ export function useTextEditor(options: {
         if (tx.docChanged) {
           prevText = text.write(updatedText);
           // update the blockPtr for modified lines
-          let tr = newState.tr;
-          for (let i = 0; i < linesNodes.length; i++) {
-            const lineNode = linesNodes[i];
-            const line = prevText[i];
-            if (line.blockPtr?.id !== lineNode.attrs.blockPtr?.id) {
-              tr = tr.setNodeAttribute(linesPos[i], "blockPtr", line.blockPtr);
+          if (prevText !== updatedText) {
+            let tr = newState.tr;
+            for (let i = 0; i < linesNodes.length; i++) {
+              const lineNode = linesNodes[i];
+              const line = prevText[i];
+              if (line.blockPtr?.id !== lineNode.attrs.blockPtr?.id) {
+                tr = tr.setNodeAttribute(linesPos[i], "blockPtr", line.blockPtr);
+              }
             }
+            newState = newState.apply(tr);
           }
-          newState = newState.apply(tr);
         }
         view.updateState(newState);
         if (tx.docChanged) {

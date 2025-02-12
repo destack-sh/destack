@@ -45,7 +45,7 @@ import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/u
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, tsToDt } from "@/utils/time";
 import RootHeader from "@/views/builtins/RootHeader.vue";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
 import Text from "@/views/content/Text.vue";
@@ -434,7 +434,7 @@ const actions: Partial<ActionMapImplementation<"chat">> = {
   },
 };
 
-defineExpose<ViewExposed>({ self, id, actions, focus });
+defineExpose<ViewExpose>({ self, id, actions, focus });
 </script>
 <template>
   <div ref="containerRef" class="relative">

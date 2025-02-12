@@ -14,7 +14,7 @@ import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate } from "@/utils/time";
 import Error from "@/views/builtins/Error.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
-import { ModelValueOptions, type ViewEmits, type ViewExposed } from "@/views/common";
+import { ModelValueOptions, type ViewEmits, type ViewExpose } from "@/views/common";
 import SomeObject from "@/views/objects/Object.vue";
 import { computed, toRef, type Ref } from "vue";
 
@@ -79,7 +79,7 @@ function start() {
   });
 }
 
-defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ self, id, start, run });
+defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ self, id, start, run });
 </script>
 <template>
   <div v-if="node && nodeIsRunnable" class="h-full w-full">
