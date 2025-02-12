@@ -40,11 +40,13 @@ import {
   MESSAGE_CONTEXT_ACTIONS,
 } from "@/ui/action";
 import { useSingleDropZone } from "@/ui/drag";
+import { isSelecting, startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, tsToDt } from "@/utils/time";
 import RootHeader from "@/views/builtins/RootHeader.vue";
+import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
@@ -286,10 +288,15 @@ const inputSize = useElementSize(inputContainerRef);
 const containerRef = ref<HTMLDivElement | null>(null);
 const bodyScrollRef = ref<InstanceType<typeof Scroll> | null>(null);
 const editingTextRefs = ref<InstanceType<typeof Text>[] | null>(null); // there can only be one but it's inside a v-for (so it has to be an array)
+const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 
 const currentAuthor = user;
 const editingText = ref<TextData | null>(null);
 const editingPtr = ref<NodeReferenceData | null>(null);
+
+// selecting
+const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
+const isSelectingChat = computed(() => isSelecting());
 
 function focus() {
   inputRef.value?.focus?.();
@@ -464,7 +471,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
     <Scroll
       id="scroll"
       ref="bodyScrollRef"
-      class=""
+      class="relative"
       :orientation="Orientation.VERTICAL"
       stick-to-end
       :size="{
@@ -473,6 +480,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
             ? size.height - inputSize.height.value - (isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0)
             : undefined,
       }"
+      @mousedown="(e: MouseEvent) => startSelectingIfAllowed(selectionZone, e)"
     >
       <!-- Messages -->
       <ul class="relative mb-3 mt-2 flex flex-col">
@@ -499,6 +507,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           :data-node-id="message.id"
           :data-node-type="message.metatype"
           data-contextmenu-items="chat.message*"
+          data-ignore-element="self"
         >
           <!-- New date (line with date in middle) -->
           <div v-if="isNewDate" class="relative mb-2 flex items-center">
@@ -649,6 +658,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           </div>
         </li>
       </ul>
+
       <!-- Empty -->
       <div
         v-if="messages.length == 0"
@@ -664,7 +674,11 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
         <!-- Empty -->
         <span v-else class="text-gray-400">No Messages here yet</span>
       </div>
+
+      <!-- Selection -->
+      <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
     </Scroll>
+
     <!-- Input -->
     <div ref="inputContainerRef" class="mx-5" @mousedown="inputRef?.focus?.('right')">
       <!-- Replying to -->

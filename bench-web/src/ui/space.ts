@@ -152,7 +152,7 @@ export class SpaceCanvas {
       if (
         activeElement.value != null &&
         activeElement.value !== document.body &&
-        // NOTE: Chromium consider scrollable containers to be focusable elements, so ignore those.
+        // NOTE: Chromium considers scrollable containers to be focusable elements, so ignore those.
         //  (Otherwise we would get confused because activeElement change comes after mousedown event,
         //   and if the mousedown'ed target was the next higher container it will trigger later and change focus)
         isFocusableElement(activeElement.value) &&
