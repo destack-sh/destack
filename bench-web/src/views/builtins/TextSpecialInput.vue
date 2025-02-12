@@ -37,9 +37,11 @@ const query = ref("");
 const inputRef = ref<HTMLSpanElement>();
 const inputContainerRef = ref<HTMLDivElement>();
 const popoverRef = ref<HTMLDivElement>();
+let isOpen = true;
 
 /** Convert (type+) query into a regular span. */
 function closeSelf() {
+  if (!isOpen) return;
   const pos = props.getPos();
   const { state, dispatch } = props.view;
   const { schema } = state;
@@ -49,16 +51,19 @@ function closeSelf() {
   tr = tr.setSelection(TextSelection.create(tr.doc, pos + newText.length));
   dispatch(tr);
   props.view.focus();
+  isOpen = false;
 }
 
 /** Delete this temporary span. */
 function deleteSelf() {
+  if (!isOpen) return;
   const pos = props.getPos();
   const { state, dispatch } = props.view;
   let tr = state.tr.delete(pos, pos + props.node.nodeSize);
   tr = tr.setSelection(TextSelection.create(tr.doc, pos));
   dispatch(tr);
   props.view.focus();
+  isOpen = false;
 }
 
 //
@@ -153,13 +158,14 @@ useFloating({
     referenceMargin: 4,
     containerMargin: 20,
   },
+  keepPlacement: true,
   watchElements: true,
 });
 
 defineExpose<Partial<ViewExpose>>({ focus });
 </script>
 <template>
-  <div class="relative inline rounded bg-gray-100 px-0.5 py-0.5" @blur="closeSelf">
+  <div class="relative inline rounded bg-gray-100 px-0.5 py-0.5">
     <!-- Input container -->
     <div ref="inputContainerRef" class="inline">
       <!-- Type -->
@@ -167,7 +173,7 @@ defineExpose<Partial<ViewExpose>>({ focus });
       <!-- Input -->
       <span
         ref="inputRef"
-        class="ml-0.5 inline-block outline-none"
+        class="inline-block outline-none"
         contenteditable="true"
         @keydown.escape.stop.prevent="closeSelf"
         @keydown.up.stop.prevent="select('up')"

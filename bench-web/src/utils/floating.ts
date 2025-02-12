@@ -20,19 +20,18 @@ export type FloatingPlacement =
   | "inside-top-right";
 
 export type FloatingOptions = {
-  /* place floating relative to the reference */
+  /* Place floating relative to the reference */
   placement: FloatingPlacement;
-  /* margin around the container on all axes */
+  /* Margin around the container on all axes */
   containerMargin?: number;
-  /* margin around the reference along the main axis */
+  /* Margin around the reference along the main axis */
   referenceMargin?: number;
-  /* offset the reference position */
+  /* Offset the reference position */
   offset?: { x: number; y: number } | "referenceWidth" | "-referenceWidth" | "referenceHeight" | "-referenceHeight";
 };
 
 /**
  * Gets the position of the floating element relative to the reference while staying in the container.
- * The arrow always points to the relative center of the reference (up to the floating size - margin).
  */
 export function getFloatingPosition(float: {
   floating: { width: number; height: number };
@@ -61,7 +60,7 @@ export function getFloatingPosition(float: {
     reference.y += options.offset.y;
   }
 
-  const recomputePosition = () => {
+  const computePosition = () => {
     switch (placement) {
       case "top":
         x = reference.x + reference.width / 2 - floating.width / 2;
@@ -92,7 +91,7 @@ export function getFloatingPosition(float: {
         y = reference.y + reference.height + referenceMargin;
         break;
       case "bottom-left":
-        x = reference.x - floating.width;
+        x = reference.x - reference.width;
         y = reference.y + reference.height + referenceMargin;
         break;
       case "bottom-right":
@@ -127,19 +126,20 @@ export function getFloatingPosition(float: {
   };
 
   // compute initial position
-  recomputePosition();
+  computePosition();
 
   // flip and recompute if needed
-  if (y < container.y && placement.startsWith("top"))
+  if (y < container.y && placement.startsWith("top")) {
     placement = placement.replace("top", "bottom") as FloatingPlacement;
-  else if (y + floating.height > container.y + container.height && placement.startsWith("bottom"))
+  } else if (y + floating.height > container.y + container.height && placement.startsWith("bottom")) {
     placement = placement.replace("bottom", "top") as FloatingPlacement;
-  else if (x + floating.width > container.x + container.width && placement.startsWith("right"))
+  } else if (x + floating.width > container.x + container.width && placement.startsWith("right")) {
     placement = placement.replace("right", "left") as FloatingPlacement;
-  else if (x < container.x && placement.startsWith("left"))
+  } else if (x < container.x && placement.startsWith("left")) {
     placement = placement.replace("left", "right") as FloatingPlacement;
+  }
   if (options.placement != placement) {
-    recomputePosition();
+    computePosition();
   }
 
   // fit floating to container bounds
@@ -175,6 +175,7 @@ export function useFloating(float: {
   options?: MaybeRef<Partial<FloatingOptions>>;
   isEnabled?: Ref<boolean>;
   watchElements?: boolean;
+  keepPlacement?: boolean;
 }): {
   recompute: () => void;
   floatingPosition: Ref<{ x: number; y: number }>;
@@ -184,8 +185,9 @@ export function useFloating(float: {
   const floatingPosition = shallowRef({ x: 0, y: 0 });
   const placement: Ref<FloatingPlacement | null> = shallowRef(null);
   const foundContainer = shallowRef<HTMLElement | SVGElement | null | undefined>(unrefElement(float.container));
+  const lockedPlacement = shallowRef<FloatingPlacement | null>(null);
 
-  // recomputes & applies the floating (and arrow) position
+  // recomputes & applies the floating position
   const recompute = () => {
     // get elements bounding
     const floating = getElement(float.floating.value);
@@ -201,7 +203,13 @@ export function useFloating(float: {
       foundContainer.value?.getBoundingClientRect() ?? document.documentElement.getBoundingClientRect();
 
     // recompute positions in fixed coordinate space
-    const options = { placement: "top", arrow: false, ...optionsRef.value } as FloatingOptions;
+    const options = { 
+      placement: lockedPlacement.value ?? "top", 
+      ...optionsRef.value,
+      // Override placement with locked value if keepPlacement is true
+      ...(float.keepPlacement && lockedPlacement.value ? { placement: lockedPlacement.value } : {})
+    } as FloatingOptions;
+    
     const newFloat = getFloatingPosition({
       floating: { width: floatingRect.width, height: floatingRect.height },
       reference: referenceRect,
@@ -211,8 +219,12 @@ export function useFloating(float: {
     floatingPosition.value = { x: newFloat.x, y: newFloat.y };
     placement.value = newFloat.placement;
 
-    // apply positions (fixed)
-    // TODO :Robustness: :UI: use absolute positioning for floating elements?
+    // Store first successful placement if keepPlacement is true
+    if (float.keepPlacement && lockedPlacement.value === null) {
+      lockedPlacement.value = newFloat.placement;
+    }
+
+    // apply positions
     floating.style.position = "fixed";
     floating.style.left = `${floatingPosition.value.x}px`;
     floating.style.top = `${floatingPosition.value.y}px`;
