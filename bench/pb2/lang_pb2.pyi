@@ -1048,15 +1048,8 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BLOCK_TYPE_FILE: _ClassVar[BlockType]
     BLOCK_TYPE_PAGE: _ClassVar[BlockType]
     BLOCK_TYPE_CHOICE: _ClassVar[BlockType]
-    BLOCK_TYPE_CLASS: _ClassVar[BlockType]
     BLOCK_TYPE_FLOW: _ClassVar[BlockType]
-    BLOCK_TYPE_ACTION: _ClassVar[BlockType]
-    BLOCK_TYPE_PIPE: _ClassVar[BlockType]
-    BLOCK_TYPE_TRIGGER: _ClassVar[BlockType]
-    BLOCK_TYPE_VIEW: _ClassVar[BlockType]
     BLOCK_TYPE_DATABASE: _ClassVar[BlockType]
-    BLOCK_TYPE_ROLE: _ClassVar[BlockType]
-    BLOCK_TYPE_IDENTITY: _ClassVar[BlockType]
     BLOCK_TYPE_PARAGRAPH: _ClassVar[BlockType]
     BLOCK_TYPE_HEADING_1: _ClassVar[BlockType]
     BLOCK_TYPE_HEADING_2: _ClassVar[BlockType]
@@ -1070,8 +1063,6 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BLOCK_TYPE_TABLE: _ClassVar[BlockType]
     BLOCK_TYPE_TABLE_ROW: _ClassVar[BlockType]
     BLOCK_TYPE_CODE: _ClassVar[BlockType]
-    BLOCK_TYPE_EQUATION: _ClassVar[BlockType]
-    BLOCK_TYPE_DIAGRAM: _ClassVar[BlockType]
 
 class TextLineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1089,8 +1080,6 @@ class TextLineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TEXT_LINE_TYPE_TABLE: _ClassVar[TextLineType]
     TEXT_LINE_TYPE_TABLE_ROW: _ClassVar[TextLineType]
     TEXT_LINE_TYPE_CODE: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_EQUATION: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_DIAGRAM: _ClassVar[TextLineType]
 
 class TextSpanType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2817,15 +2806,8 @@ BLOCK_TYPE_UNSPECIFIED: BlockType
 BLOCK_TYPE_FILE: BlockType
 BLOCK_TYPE_PAGE: BlockType
 BLOCK_TYPE_CHOICE: BlockType
-BLOCK_TYPE_CLASS: BlockType
 BLOCK_TYPE_FLOW: BlockType
-BLOCK_TYPE_ACTION: BlockType
-BLOCK_TYPE_PIPE: BlockType
-BLOCK_TYPE_TRIGGER: BlockType
-BLOCK_TYPE_VIEW: BlockType
 BLOCK_TYPE_DATABASE: BlockType
-BLOCK_TYPE_ROLE: BlockType
-BLOCK_TYPE_IDENTITY: BlockType
 BLOCK_TYPE_PARAGRAPH: BlockType
 BLOCK_TYPE_HEADING_1: BlockType
 BLOCK_TYPE_HEADING_2: BlockType
@@ -2839,8 +2821,6 @@ BLOCK_TYPE_DIVIDER: BlockType
 BLOCK_TYPE_TABLE: BlockType
 BLOCK_TYPE_TABLE_ROW: BlockType
 BLOCK_TYPE_CODE: BlockType
-BLOCK_TYPE_EQUATION: BlockType
-BLOCK_TYPE_DIAGRAM: BlockType
 TEXT_LINE_TYPE_UNSPECIFIED: TextLineType
 TEXT_LINE_TYPE_PARAGRAPH: TextLineType
 TEXT_LINE_TYPE_HEADING_1: TextLineType
@@ -2855,8 +2835,6 @@ TEXT_LINE_TYPE_DIVIDER: TextLineType
 TEXT_LINE_TYPE_TABLE: TextLineType
 TEXT_LINE_TYPE_TABLE_ROW: TextLineType
 TEXT_LINE_TYPE_CODE: TextLineType
-TEXT_LINE_TYPE_EQUATION: TextLineType
-TEXT_LINE_TYPE_DIAGRAM: TextLineType
 TEXT_SPAN_TYPE_UNSPECIFIED: TextSpanType
 TEXT_SPAN_TYPE_TEXT: TextSpanType
 TEXT_SPAN_TYPE_HARD_BREAK: TextSpanType

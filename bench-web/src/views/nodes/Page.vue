@@ -27,7 +27,7 @@ import { isDraggingGlobal, ScrollbarWidth } from "@/ui/layout";
 import { useNodeListActions } from "@/ui/list";
 import { pushDefaultMenu } from "@/ui/popover";
 import { useTextEditor } from "@/ui/prosemirror/editor";
-import { providePageContext } from "@/ui/prosemirror/page";
+import { PageContext, providePageContext } from "@/ui/prosemirror/page";
 import { useHighlightPlugin, useLineHandlePlugin, usePlaceholderPlugin, useTooltipPlugin } from "@/ui/prosemirror/view";
 import { useTextPageInterface } from "@/ui/prosemirror/wiring";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
@@ -67,13 +67,14 @@ const preparedConnection = useExistingConnection(nodePtr);
 const { graph, connection } = preparedConnection;
 const page = graph.getRef(nodePtr) as Ref<PageData | undefined>;
 const blocks = graph.getChildrenRef(nodePtr, NodeType.BLOCK);
-providePageContext({
+const pageContext: PageContext = {
   page,
   blocks,
   blocksRefById: shallowRef({}),
   preparedConnection,
   gutterWidth: computed(() => widths.value.gutter),
-});
+};
+providePageContext(pageContext);
 
 const pageHeaderRef: Ref<InstanceType<typeof PageHeader> | null> = ref(null);
 const textRef = ref<HTMLElement | null>(null);
@@ -159,6 +160,7 @@ const {
   deleteSelf: () => emit("deleteSelf"),
   plugins: [highlightPlugin, tooltipPlugin, placeholderPlugin, lineHandlePlugin],
   parentComponent: vueInstance,
+  pageContext,
   onTransaction: (view, prevState, newState) => {
     // auto deselect nodes if anything was edited by the user
     const selectionChanged = !(

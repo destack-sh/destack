@@ -663,21 +663,33 @@ export const NODE_SUBTYPE_PROPERTY_ID: Partial<Record<NodeType, number>> = {{
 export type EnumOptionInfo = {
     id: number;
     name: string;
-    text: string;
+    text?: string;
+    title?: string;
+    color?: ColorType;
+    icon?: string;
 }
 """
     enum_option_info_parts: list[str] = []
     enum_option_info_map_parts: list[str] = []
     for enum_type in EnumType:
         enum_cls = ENUM_CLASS_BY_TYPE[enum_type]
-        # only include if one of the options has text
-        if not any(option.text for option in enum_cls):
+        # only include if one of the options has something
+        if not any(
+            option.text or option.title or option.color or option.icon for option in enum_cls
+        ):
             continue
         option_info_parts: list[str] = []
         for option in enum_cls:
-            if option.text:
+            if option.text or option.title or option.color or option.icon:
+                option_str_parts = [f"id: {option.value}, name: {option.name!r}"]
+                if option.text:
+                    option_str_parts.append(f"text: {option.text!r}")
+                if option.title:
+                    option_str_parts.append(f"title: {option.title!r}")
+                if option.color:
+                    option_str_parts.append(f"color: {option.color!r}")
                 option_info_parts.append(
-                    f"  [{enum_cls.__name__}.{option.name}]: {{ id: {option.value}, name: {option.name!r}, text: {option.text!r} }},"
+                    f"  [{enum_cls.__name__}.{option.name}]: {{ {', '.join(option_str_parts)} }},"
                 )
         enum_option_info_parts.extend(
             (

@@ -33,7 +33,7 @@ class TextOptionsBase(BuiltinObject):
 
 
 @enum_(EnumType.TEXT_LINE_TYPE)
-class TextLineType(BuiltinEnum):
+class TextLineType(BuiltinEnum):  # :TextLineType
     # basic
     PARAGRAPH = 1, "Plain paragraph"
     # heading
@@ -54,8 +54,6 @@ class TextLineType(BuiltinEnum):
     TABLE_ROW = 51, "Table row"
     # code
     CODE = 60, "Code block"
-    EQUATION = 61, "Equation (TeX)"
-    DIAGRAM = 62, "Diagram (Mermaid)"
 
 
 @enum_(EnumType.TEXT_SPAN_TYPE)
@@ -217,14 +215,6 @@ class TextLine(TextOptionsBase, Struct):
     @staticmethod
     def divider() -> "TextLine":
         return TextLine(type=TextLineType.DIVIDER)
-
-    @staticmethod
-    def equation(text: str) -> "TextLine":
-        return TextLine(type=TextLineType.EQUATION, content=text)
-
-    @staticmethod
-    def diagram(text: str) -> "TextLine":
-        return TextLine(type=TextLineType.DIAGRAM, content=text)
 
     @staticmethod
     def new(
@@ -514,14 +504,6 @@ def _parse_code(lines: list[str], start: int) -> tuple[TextLine, int]:
     """
     Parse a code line.
     """
-    first = lines[start].strip()
-    lang = first[3:].strip().lower()
-    if lang == "tex":
-        ttype = TextLineType.EQUATION
-    elif lang == "mermaid":
-        ttype = TextLineType.DIAGRAM
-    else:
-        ttype = TextLineType.CODE
     i = start + 1
     code_lines = []
     while i < len(lines) and not lines[i].startswith("```"):
@@ -529,7 +511,7 @@ def _parse_code(lines: list[str], start: int) -> tuple[TextLine, int]:
         i += 1
     i += 1  # skip closing ```
     content = "\n".join(code_lines)
-    return TextLine(type=ttype, content=content), i
+    return TextLine(type=TextLineType.CODE, content=content), i
 
 
 def _parse_table(lines: list[str], start: int) -> tuple[TextLine, int]:
@@ -752,13 +734,8 @@ def text_to_markdown(text_obj: Text) -> str:
     for line in text_obj.lines:
         if line.type == TextLineType.DIVIDER:
             md_lines.append("---")
-        elif line.type in (TextLineType.CODE, TextLineType.EQUATION, TextLineType.DIAGRAM):
-            lang = ""
-            if line.type == TextLineType.EQUATION:
-                lang = "tex"
-            elif line.type == TextLineType.DIAGRAM:
-                lang = "mermaid"
-            md_lines.append(f"```{lang}".rstrip())  # noqa: FURB113
+        elif line.type == TextLineType.CODE:
+            md_lines.append("```")  # noqa: FURB113
             md_lines.append(line.content or "")
             md_lines.append("```")
         elif line.type == TextLineType.TABLE and line.table:

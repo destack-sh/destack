@@ -210,10 +210,9 @@ export const TYPE_BASE_NODE_TYPES = [...RUNNABLE_NODE_TYPES, ...TYPE_NODE_TYPES]
 
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
-export const CANVAS_BLOCK_TYPES = [BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW];
+export const CANVAS_BLOCK_TYPES = [BlockType.FLOW, BlockType.DATABASE];
 export const TEXT_BLOCK_TYPES = BLOCK_TYPES.filter((bt) => bt >= BlockType.PARAGRAPH);
 export const NODE_BLOCK_TYPES = BLOCK_TYPES.filter((bt) => bt < BlockType.PARAGRAPH);
-
 
 // action
 export const ACTION_TYPES = Object.values(ActionType).filter((v) => typeof v == "number" && v > 0) as ActionType[];
@@ -357,6 +356,7 @@ export const NODE_SUBTYPE_PACKED_KEY = NODE_SUBTYPE_PACKED_ID.toString(); // it'
 
 //
 // Enums
+// TODO :Architecture: get enum names/titles/icons/colors/... from backend (generated in proto)
 //
 
 export const EDIT_TYPE_PRESENT_VERB: Partial<Record<EditType, string>> = {
@@ -379,7 +379,13 @@ export const EDIT_TYPE_PAST_VERB: Partial<Record<EditType, string>> = {
 };
 
 export const EXPOSED_NODE_TYPES = NODE_TYPES.filter((t) => t != NodeType.SKIP);
-export const EXPOSED_BLOCK_TYPES = [BlockType.DATABASE, BlockType.FLOW, BlockType.PAGE, BlockType.CHOICE];
+export const EXPOSED_BLOCK_TYPES = [
+  BlockType.DATABASE,
+  BlockType.FLOW,
+  BlockType.PAGE,
+  BlockType.CHOICE,
+  ...TEXT_BLOCK_TYPES,
+];
 export const EXPOSED_STRUCT_TYPES = [
   // core
   StructType.PATH,
@@ -440,6 +446,7 @@ export const EXPOSED_MODEL_TYPES = [
 export const EXPOSED_REGIONS = [Region.FRANKFURT];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
+  [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
   [EnumType.STRUCT_TYPE]: EXPOSED_STRUCT_TYPES,
   [EnumType.OBJECT_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES],
   [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],

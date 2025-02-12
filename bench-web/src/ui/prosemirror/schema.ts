@@ -265,6 +265,34 @@ export const PM_SCHEMA = new PmSchema({
   },
 });
 
+/** Get the PM node type for a given line type. */
+export function getPmLineType(type: TextLineType) {
+  if (type == TextLineType.PARAGRAPH) {
+    return PM_SCHEMA.nodes.lineParagraph;
+  } else if (
+    type == TextLineType.HEADING_1 ||
+    type == TextLineType.HEADING_2 ||
+    type == TextLineType.HEADING_3 ||
+    type == TextLineType.HEADING_4
+  ) {
+    return PM_SCHEMA.nodes.lineHeading;
+  } else if (type == TextLineType.CALLOUT) {
+    return PM_SCHEMA.nodes.lineCallout;
+  } else if (type == TextLineType.QUOTE) {
+    return PM_SCHEMA.nodes.lineQuote;
+  } else if (type == TextLineType.LIST_ORDERED) {
+    return PM_SCHEMA.nodes.lineListOrdered;
+  } else if (type == TextLineType.LIST_UNORDERED) {
+    return PM_SCHEMA.nodes.lineListUnordered;
+  } else if (type == TextLineType.DIVIDER) {
+    return PM_SCHEMA.nodes.lineDivider;
+  } else if (type == TextLineType.CODE) {
+    return PM_SCHEMA.nodes.lineCode;
+  } else {
+    throw new Error(`unexpected line type ${type}`);
+  }
+}
+
 /** Get the PM node type for a given span type. */
 export function getPmSpanType(type: TextSpanType) {
   if (type == TextSpanType.UNSPECIFIED || type === TextSpanType.TEXT) {
