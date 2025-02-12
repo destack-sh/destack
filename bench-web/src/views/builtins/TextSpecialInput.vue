@@ -1,10 +1,24 @@
 <script lang="ts" setup>
+import { canvas } from "@/globals";
 import { makeType } from "@/language/core/type";
-import { BenchType, BlockType, ColorShade, NodeReferenceData, Orientation, TypeKind } from "@/proto/wire";
+import { newChangeId } from "@/language/runtime/transaction";
+import { createInlineSourceNode } from "@/language/source/block";
+import {
+  BenchType,
+  BlockType,
+  ColorShade,
+  NodeReferenceData,
+  NodeType,
+  Orientation,
+  TextLineType,
+  TypeKind,
+} from "@/proto/wire";
+import { isNode, toNodeRef } from "@/proto/wiring";
 import { IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
+import { findAncestor, wrapIfNeeded } from "@/ui/prosemirror/editor";
 import { PageContext } from "@/ui/prosemirror/page";
-import { SpanSpecialInputType } from "@/ui/prosemirror/schema";
+import { getPmLineType, SpanSpecialInputType } from "@/ui/prosemirror/schema";
 import { SearchItem, useValueSearch } from "@/ui/search";
 import { getColorHex } from "@/ui/style";
 import { useFloating } from "@/utils/floating";
@@ -14,7 +28,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import { Node as PmNode } from "prosemirror-model";
 import { TextSelection } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
-import { computed, Ref, ref, watch } from "vue";
+import { computed, nextTick, Ref, ref, watch } from "vue";
 
 const MAX_HEIGHT = 500;
 const WIDTH = 320;
@@ -78,7 +92,7 @@ const valueType = computed(() => {
       return makeType({ kind: TypeKind.ENUM, benchType: BenchType.BLOCK_TYPE });
     }
   } else if (props.type == "@") {
-    return makeType({ kind: TypeKind.ENUM, benchType: BenchType.USER });
+    return makeType({ kind: TypeKind.ENUM, benchType: BenchType.FLOW });
   } else {
     return null;
   }
@@ -128,21 +142,69 @@ function select(direction: "up" | "down") {
 
 /** Apply the selected item. */
 function apply(item: SearchItem) {
-  const { state, dispatch } = props.view;
+  const view = props.view;
+  const { state, dispatch } = view;
   const pos = props.getPos();
-  if (props.pageContext == null) {
-    // change type of text line
-    const textLineType = getValueFromItem(item);
-    console.log("apply.text", item, textLineType);
-    const spanNode = props.view.state.doc.nodeAt(props.getPos());
-  } else {
-    // change type of text line and create block if needed
-    // const blockType = getValueFromItem(item);
-    // console.log("apply.block", item, blockType);
-    // if (blockType <= BlockType.PARAGRAPH) {
-    //   // create block
-    // }
+  const { node: lineNode, pos: linePos } = findAncestor(state, state.doc.resolve(pos), (node) =>
+    node.type.isInGroup("line"),
+  );
+  if (lineNode == null || linePos == null) {
+    throw new Error("no containing line node found");
   }
+
+  if (props.type == "/") {
+    const type = getValueFromItem(item) as number;
+    const textLineType = props.pageContext == null ? (type as TextLineType) : ((type - 10_000) as TextLineType);
+    const blockType = props.pageContext == null ? ((type + 10_000) as BlockType) : (type as BlockType);
+
+    if (props.pageContext == null || blockType >= BlockType.PARAGRAPH) {
+      // morph text line directly
+      const tr = view.state.tr;
+      tr.setBlockType(linePos, linePos + lineNode.nodeSize - 1, getPmLineType(textLineType), {
+        ...lineNode.attrs,
+        type: textLineType,
+      });
+      tr.delete(linePos, linePos + lineNode.nodeSize - 1);
+      tr.setSelection(TextSelection.near(tr.doc.resolve(linePos)));
+      wrapIfNeeded(tr, tr.doc.resolve(linePos), textLineType);
+      dispatch(tr);
+    } else {
+      // morph block with node
+      const page = props.pageContext?.page.value;
+      if (page == null) throw new Error("no page context");
+      const { connection, graph } = props.pageContext.preparedConnection;
+      const tx = connection.tx.with({ change: { title: "Morph", key: newChangeId() } });
+      const block = graph.get(lineNode.attrs.blockPtr);
+      if (!isNode(block, NodeType.BLOCK)) throw new Error("block not found");
+      // create inline node
+      const node = createInlineSourceNode(tx, graph, {
+        node: {
+          metatype: blockType as unknown as NodeType,
+          parentPtr: toNodeRef(page),
+          packagePtr: page.packagePtr,
+          blockPtr: toNodeRef(block),
+        },
+      });
+      tx.update(block, { type: blockType, nodePtr: toNodeRef(node) });
+      if (blockType == BlockType.PAGE) {
+        canvas.goToNode(node); // immediately go to the new node
+      } else {
+        // NOTE :Cleanup: focus new blocks in Text properly, using the component ref is a bit hacky
+        //  (ideally we would do this through the prosemirror transaction system, but we're also updating our own graph,
+        //   and I'm not quite sure how to synchronize/connect the two properly)
+        nextTick(() => {
+          const blockRef = props.pageContext?.blocksRefById.value?.[block.id];
+          blockRef?.focus?.("top");
+        });
+      }
+    }
+  } else if (props.type == "@") {
+    // create mention
+    // nocheckin: mentions
+  }
+
+  view.focus();
+  isOpen = false;
 }
 
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
@@ -153,11 +215,12 @@ useFloating({
   floating: popoverRef,
   reference: inputContainerRef,
   options: {
-    placement: "top-left",
+    placement: "bottom-left",
     offset: "referenceWidth",
     referenceMargin: 4,
     containerMargin: 20,
   },
+  isEnabled: computed(() => popoverRef.value != null),
   keepPlacement: true,
   watchElements: true,
 });
@@ -165,7 +228,7 @@ useFloating({
 defineExpose<Partial<ViewExpose>>({ focus });
 </script>
 <template>
-  <div class="relative inline rounded bg-gray-100 px-0.5 py-0.5">
+  <div class="relative inline rounded bg-gray-100 px-0.5 py-0.5" @focusout="$nextTick(closeSelf)">
     <!-- Input container -->
     <div ref="inputContainerRef" class="inline">
       <!-- Type -->
@@ -225,7 +288,6 @@ defineExpose<Partial<ViewExpose>>({ focus });
           width: `${WIDTH}px`,
         }"
       >
-        <!-- nocheckin: Special input popover -->
         <Scroll
           id="body"
           size-is-dynamic

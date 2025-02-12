@@ -1,4 +1,4 @@
-import { ObjectType, StructType, TextData, TextLineData, TextLineType } from "@/proto/wire";
+import { StructType, TextData, TextLineData, TextLineType } from "@/proto/wire";
 import { makeStruct } from "@/proto/wiring";
 
 export const HIGHLIGHTED_TEXT_LINE_TYPES: TextLineType[] = [
@@ -9,8 +9,6 @@ export const HIGHLIGHTED_TEXT_LINE_TYPES: TextLineType[] = [
   TextLineType.CALLOUT,
   TextLineType.QUOTE,
   TextLineType.CODE,
-  TextLineType.EQUATION,
-  TextLineType.DIAGRAM,
 ];
 export const STANDARD_TEXT_LINE_TYPES: TextLineType[] = [
   TextLineType.PARAGRAPH,
@@ -22,8 +20,8 @@ export function emptyText(): TextData {
   return makeStruct({ metatype: StructType.TEXT, lines: [] });
 }
 
-export function emptyTextLine(): TextLineData {
-  return makeStruct({ metatype: StructType.TEXT_LINE, type: TextLineType.PARAGRAPH, spans: [] });
+export function emptyTextLine(type: TextLineType = TextLineType.PARAGRAPH): TextLineData {
+  return makeStruct({ metatype: StructType.TEXT_LINE, type, spans: [] });
 }
 
 /** Returns true if the line is empty. */

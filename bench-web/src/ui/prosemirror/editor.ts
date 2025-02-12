@@ -46,12 +46,8 @@ import {
   type Ref,
 } from "vue";
 
-//
-// Editor
-//
-
 /** Wrap a range in a list container, merging with adjacent lists of the same type if possible. */
-function wrapInList(tr: PmTransaction, range: NodeRange, type: TextLineType) {
+export function wrapInList(tr: PmTransaction, range: NodeRange, type: TextLineType) {
   const listContainerType =
     type === TextLineType.LIST_ORDERED ? PM_SCHEMA.nodes.orderedList : PM_SCHEMA.nodes.unorderedList;
   const posAfter = tr.doc.resolve(range.start);
@@ -63,6 +59,27 @@ function wrapInList(tr: PmTransaction, range: NodeRange, type: TextLineType) {
   }
 }
 
+/** Wrap a range in a container node if needed. */
+export function wrapIfNeeded(tr: PmTransaction, $start: ResolvedPos, type: TextLineType) {
+  if (type === TextLineType.LIST_ORDERED || type === TextLineType.LIST_UNORDERED) {
+    wrapInList(tr, new NodeRange($start, $start, $start.depth), type);
+  }
+}
+
+/**
+ * Find the first ancestor of the given type.
+ */
+export function findAncestor(
+  state: EditorState,
+  $pos: ResolvedPos,
+  predicate: (node: PmNode) => boolean,
+): { node: PmNode | null; pos: number | null } {
+  for (let i = $pos.depth; i >= 0; i--) {
+    if (predicate($pos.node(i))) return { node: $pos.node(i), pos: $pos.pos };
+  }
+  return { node: null, pos: null };
+}
+
 /**
  * Change the type of a line node, lifting as needed.
  * If the current node is inside a list item, it will first split the list container
@@ -70,11 +87,11 @@ function wrapInList(tr: PmTransaction, range: NodeRange, type: TextLineType) {
  * and finally change its type to the target type.
  * The selection is preserved by retaining the original horizontal offset.
  */
-function morphLineNode(
+export function morphLineNode(
   state: EditorState,
   $from: ResolvedPos,
-  dispatch: (tr: PmTransaction) => void,
   targetType: TextLineType,
+  dispatch?: (tr: PmTransaction) => void,
 ): boolean {
   const schema = state.schema;
   const tr = state.tr;
@@ -112,6 +129,7 @@ function morphLineNode(
       ...$from.parent.attrs,
       type: targetType,
     });
+    wrapIfNeeded(tr, $from, targetType);
     // preserve horizontal offset
     const offset = $from.parentOffset;
     const $newPos = tr.doc.resolve($from.pos);
@@ -195,12 +213,7 @@ function linePrefixRule(pattern: string | RegExp, nodeType: PmNodeType, type: Te
     tr.setBlockType(start, end, nodeType, { ...block.attrs, type });
     tr.delete(start, end);
     tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
-
-    // wrap list items in an orderedList/unorderedList if not already in one.
-    if (type === TextLineType.LIST_ORDERED || type === TextLineType.LIST_UNORDERED) {
-      wrapInList(tr, new NodeRange($start, $start, $start.depth), type);
-    }
-
+    wrapIfNeeded(tr, $start, type);
     return tr;
   });
   return rule;
@@ -375,7 +388,7 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
         $to.pos === $from.end()
       ) {
         // morph to plain paragraph
-        return morphLineNode(state, $from, dispatch!, TextLineType.PARAGRAPH);
+        return morphLineNode(state, $from, TextLineType.PARAGRAPH, dispatch);
       } else if (empty && state.doc.textContent === "" && state.doc.children.length <= 1) {
         // delete self
         deleteSelf();
@@ -404,7 +417,7 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
       if (parentType === "lineListOrdered" || parentType === "lineListUnordered") {
         if ($from.parent.textContent.trim() === "") {
           // morph to plain paragraph
-          return morphLineNode(state, $from, dispatch!, TextLineType.PARAGRAPH);
+          return morphLineNode(state, $from, TextLineType.PARAGRAPH, dispatch);
         } else {
           // otherwise, split the list item at the cursor position (keep attrs except blockPtr)
           const tr = state.tr.split($from.pos, 1, [
@@ -660,13 +673,6 @@ export function useTextEditor(options: {
     updateLineRefs(view);
     prevText = lines.value;
   });
-
-  /** Insert a Node mention at a position. */
-  function insertNode(nodePtr: NodeReferenceData, pos: { pos: number }) {
-    if (view == null) throw new Error("view not mounted");
-    const pmNode = PM_SCHEMA.node("spanNode", { type: TextSpanType.NODE, nodePtr });
-    view.dispatch(view.state.tr.insert(pos.pos, pmNode).insertText(" ", pos.pos + 1, pos.pos + 1));
-  }
 
   // formatting
   function markFormatAction(mark: TextMarkType): ActionImplementation {

@@ -244,7 +244,9 @@ mark {
   @apply mt-0;
 }
 .pm-text .line-block:hover .line-handle,
-.pm-text .line:hover .line-handle {
+.pm-text .line:hover .line-handle,
+.pm-text .line-block:focus-within .line-handle,
+.pm-text .line:focus-within .line-handle {
   @apply opacity-100;
 }
 
@@ -255,7 +257,8 @@ mark {
 .pm-text .line-block.page {
   @apply my-0;
 }
-.pm-text .line-block.page:hover:not(.selected) {
+.pm-text .line-block.page:hover:not(.selected),
+.pm-text .line-block.page:focus-within {
   @apply cursor-pointer bg-gray-100;
 }
 .pm-text .line-block.ProseMirror-selectednode {

@@ -399,10 +399,6 @@ defineExpose<ViewExpose>({ self, actions, focus });
           "
         />
 
-        <!-- nocheckin -->
-        <!-- dragging:{{ draggingBlockIds }} -->
-        <!-- selected:{{ selectedBlockIds }} -->
-
         <!-- Text/Blocks -->
         <div
           ref="textRef"
