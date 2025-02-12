@@ -1,5 +1,6 @@
 import { NodeReferenceData, TextLineType, TextSpanType } from "@/proto/wire";
 import { type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
+import { PageContext } from "@/ui/prosemirror/page";
 import { PM_SCHEMA, SpanSpecialInputType, TextMarkType } from "@/ui/prosemirror/schema";
 import { LineBlockView, SpanNodeView, VueComponentView } from "@/ui/prosemirror/view";
 import { LineInterface, mapPmNodeToText, mapTextToPmNode, TextInterface } from "@/ui/prosemirror/wiring";
@@ -492,6 +493,7 @@ export function useTextEditor(options: {
   plugins: Plugin[];
   parentComponent: ComponentInternalInstance;
   history?: boolean;
+  pageContext?: PageContext;
   onTransaction?: (view: EditorView, prevState: EditorState, newState: EditorState) => void;
 }) {
   const { textRef, text, isInput, suppressEnter, suppressDrop, navigate, deleteSelf } = options;
@@ -587,6 +589,7 @@ export function useTextEditor(options: {
               node,
               view,
               getPos,
+              pageContext: options.pageContext,
             },
             node,
             view,

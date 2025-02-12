@@ -41,32 +41,29 @@ class BlockType(BuiltinEnum):
     # source
     PAGE = 5020, "Page of Blocks"
     # types
-    CHOICE = 5030, "Choice of Field options"
-    CLASS = 5031, "Class of Fields"
+    CHOICE = 5030, "Choice of Fields"
+    # CLASS = 5031, "Class of Fields"
     # flow
-    FLOW = 5050, "Flow of connected Actions"
-    ACTION = 5051, "Action in a Flow"
-    PIPE = 5052, "Pipe between Actions"
-    TRIGGER = 5053, "Trigger for a Flow"
+    FLOW = 5050, "Flow of Actions"
     # views
-    VIEW = 5080, "Graphical Interface"
+    # VIEW = 5080, "Graphical Interface"
     # data
     DATABASE = 5090, "Database of Records"
     # auth
-    ROLE = 5110, "Role to assign"
-    IDENTITY = 5120, "Unique Identity"
+    # ROLE = 5110, "Role to assign"
+    # IDENTITY = 5120, "Unique Identity"
 
     # text
     # NOTE: text BlockTypes should align with :TextLineTypes
     PARAGRAPH = 10001, "Line of rich Text"
     # heading
-    HEADING_1 = 10010, "Very big heading"
-    HEADING_2 = 10011, "Big heading"
-    HEADING_3 = 10012, "Medium heading"
-    HEADING_4 = 10013, "Small heading"
+    HEADING_1 = 10010, "Very big heading", "Heading 1"
+    HEADING_2 = 10011, "Big heading", "Heading 2"
+    HEADING_3 = 10012, "Medium heading", "Heading 3"
+    HEADING_4 = 10013, "Small heading", "Heading 4"
     # callout
-    CALLOUT = 10020, "Callout to something important"
-    QUOTE = 10021, "Quote from someone"
+    CALLOUT = 10020, "Callout"
+    QUOTE = 10021, "Quote"
     # list
     LIST_UNORDERED = 10030, "Unorderd list"
     LIST_ORDERED = 10031, "Numbered list"
@@ -77,8 +74,6 @@ class BlockType(BuiltinEnum):
     TABLE_ROW = 10051, "Row of a table"
     # code
     CODE = 10060, "Code block"
-    EQUATION = 10061, "Equation (TeX)"
-    DIAGRAM = 10062, "Diagram (Mermaid)"
 
     # layout?
     # ROW

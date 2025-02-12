@@ -164,17 +164,138 @@ export function useTextPageInterface(options: {
 
   return { read, write };
 }
+/** Convert a span to a PmNode */
+function mapSpanToPmNode(span: TextSpanData): PmNode {
+  let node;
+  if (span.type === TextSpanType.TEXT || span.type === TextSpanType.UNSPECIFIED) {
+    node = PM_SCHEMA.text(span.content ?? "");
+  } else {
+    if (span.type === TextSpanType.HARD_BREAK) {
+      node = PM_SCHEMA.node("spanHardBreak", {});
+    } else if (span.type === TextSpanType.NODE) {
+      node = PM_SCHEMA.node("spanNode", { type: span.type, nodePtr: span.nodePtr });
+    } else if (span.type === TextSpanType.LINK) {
+      node = PM_SCHEMA.node("spanLink", { type: span.type, content: span.content, href: span.url });
+    } else if (span.type === TextSpanType.EQUATION) {
+      node = PM_SCHEMA.node("spanEquation", { type: span.type, content: span.content });
+    } else {
+      throw new Error(`unexpected span type: ${span.type}`);
+    }
+  }
+
+  // marks
+  const marks: PmMark[] = [];
+  if (span.isBold) marks.push(PM_SCHEMA.mark("bold"));
+  if (span.isItalic) marks.push(PM_SCHEMA.mark("italic"));
+  if (span.isStrikethrough) marks.push(PM_SCHEMA.mark("strikethrough"));
+  if (span.isUnderline) marks.push(PM_SCHEMA.mark("underline"));
+  if (span.isCode) marks.push(PM_SCHEMA.mark("code"));
+  return marks.length ? node.mark(marks) : node;
+}
+
+/** Convert a PmNode to a span */
+function mapPmNodeToSpan(spanNode: PmNode): TextSpanData | null {
+  let span: TextSpanData;
+  if (spanNode.type.name === "spanHardBreak") {
+    span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.HARD_BREAK };
+  } else if (spanNode.type.name === "text") {
+    span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.TEXT, content: spanNode.text };
+  } else if (spanNode.type.name === "spanNode") {
+    span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.NODE, nodePtr: spanNode.attrs.nodePtr };
+  } else if (spanNode.type.name === "spanLink") {
+    span = {
+      metatype: ObjectType.TEXT_SPAN,
+      type: TextSpanType.LINK,
+      url: spanNode.attrs.href,
+      content: spanNode.text,
+    };
+  } else if (spanNode.type.name === "spanEquation") {
+    span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.EQUATION, content: spanNode.text };
+  } else if (spanNode.type.name === "spanSpecialInput") {
+    return null; // ignore temporary input spans
+  } else {
+    throw new Error(`unexpected span node type: ${spanNode.type.name}`);
+  }
+
+  for (const mark of spanNode.marks) {
+    if (mark.type.name === "bold") {
+      span.isBold = true;
+    } else if (mark.type.name === "italic") {
+      span.isItalic = true;
+    } else if (mark.type.name === "strikethrough") {
+      span.isStrikethrough = true;
+    } else if (mark.type.name === "underline") {
+      span.isUnderline = true;
+    } else if (mark.type.name === "code") {
+      span.isCode = true;
+    } else {
+      throw new Error(`unexpected mark type: ${mark.type.name}`);
+    }
+  }
+  return span;
+}
+
+/** Convert a line to a PmNode */
+function mapLineToPmNode(line: LineInterface): PmNode {
+  if (line.type === "block") {
+    return PM_SCHEMA.node("block", { blockPtr: line.blockPtr, nodePtr: line.nodePtr });
+  }
+
+  const spanNodes = line.text.spans.map(mapSpanToPmNode);
+  const attrs = { type: line.text.type, blockPtr: line.blockPtr };
+
+  if (line.text.type === TextLineType.LIST_ORDERED || line.text.type === TextLineType.LIST_UNORDERED) {
+    const isOrdered = line.text.type === TextLineType.LIST_ORDERED;
+    const nodeType = isOrdered ? "lineListOrdered" : "lineListUnordered";
+    return PM_SCHEMA.node(nodeType, attrs, spanNodes);
+  } else if (line.text.type >= TextLineType.HEADING_1 && line.text.type <= TextLineType.HEADING_4) {
+    return PM_SCHEMA.node("lineHeading", attrs, spanNodes);
+  } else if (line.text.type === TextLineType.PARAGRAPH) {
+    return PM_SCHEMA.node("lineParagraph", attrs, spanNodes);
+  } else if (line.text.type === TextLineType.DIVIDER) {
+    return PM_SCHEMA.node("lineDivider", attrs, spanNodes);
+  } else if (line.text.type === TextLineType.QUOTE) {
+    return PM_SCHEMA.node("lineQuote", attrs, spanNodes);
+  } else if (line.text.type === TextLineType.CALLOUT) {
+    return PM_SCHEMA.node("lineCallout", attrs, spanNodes);
+  } else if (line.text.type === TextLineType.CODE) {
+    return PM_SCHEMA.node("lineCode", attrs, spanNodes);
+  } else {
+    throw new Error(`unexpected line type: ${line.text.type}`);
+  }
+}
+
+/** Convert a PmNode to a LineInterface */
+function mapPmNodeToLine(lineNode: PmNode): LineInterface {
+  if (lineNode.type.name === "block") {
+    return { type: "block", blockPtr: lineNode.attrs.blockPtr, nodePtr: lineNode.attrs.nodePtr };
+  }
+
+  const spans: TextSpanData[] = [];
+  for (let spanIdx = 0; spanIdx < lineNode.childCount; spanIdx++) {
+    const spanNode = lineNode.child(spanIdx);
+    const span = mapPmNodeToSpan(spanNode);
+    if (span) spans.push(span);
+  }
+
+  const text: TextLineData = {
+    metatype: ObjectType.TEXT_LINE,
+    type: lineNode.attrs.type,
+    spans,
+    cells: [],
+  };
+  return { type: "text", text, blockPtr: lineNode.attrs.blockPtr };
+}
 
 /** Convert Lines to a PmNode. */
 export function mapTextToPmNode(lines: LineInterface[]): PmNode {
-  const schema = PM_SCHEMA;
   const nodes: PmNode[] = [];
   let listGroup: PmNode[] = [];
   let currentListType: "ordered" | "unordered" | null = null;
 
   const flushListGroup = () => {
     if (listGroup.length > 0) {
-      nodes.push(schema.node(currentListType === "ordered" ? "orderedList" : "unorderedList", {}, listGroup));
+      nodes.push(PM_SCHEMA.node(currentListType === "ordered" ? "orderedList" : "unorderedList", {}, listGroup));
       listGroup = [];
       currentListType = null;
     }
@@ -182,69 +303,22 @@ export function mapTextToPmNode(lines: LineInterface[]): PmNode {
 
   for (const line of lines) {
     if (line.type === "text") {
-      const spanNodes = line.text.spans.map((span) => {
-        let node;
-        if (span.type === TextSpanType.TEXT || span.type === TextSpanType.UNSPECIFIED) {
-          node = schema.text(span.content ?? "");
-        } else {
-          if (span.type === TextSpanType.HARD_BREAK) {
-            node = schema.node("spanHardBreak", {});
-          } else if (span.type === TextSpanType.NODE) {
-            node = schema.node("spanNode", { type: span.type, nodePtr: span.nodePtr });
-          } else if (span.type === TextSpanType.LINK) {
-            node = schema.node("spanLink", { type: span.type, content: span.content, href: span.url });
-          } else if (span.type === TextSpanType.EQUATION) {
-            node = schema.node("spanEquation", { type: span.type, content: span.content });
-          } else {
-            throw new Error(`unexpected span type: ${span.type}`);
-          }
-        }
-
-        // marks
-        const marks: PmMark[] = [];
-        if (span.isBold) marks.push(schema.mark("bold"));
-        if (span.isItalic) marks.push(schema.mark("italic"));
-        if (span.isStrikethrough) marks.push(schema.mark("strikethrough"));
-        if (span.isUnderline) marks.push(schema.mark("underline"));
-        if (span.isCode) marks.push(schema.mark("code"));
-        return marks.length ? node.mark(marks) : node;
-      });
-
-      const attrs = { type: line.text.type, blockPtr: line.blockPtr };
       if (line.text.type === TextLineType.LIST_ORDERED || line.text.type === TextLineType.LIST_UNORDERED) {
         const isOrdered = line.text.type === TextLineType.LIST_ORDERED;
         const listType = isOrdered ? "ordered" : "unordered";
-        const nodeType = isOrdered ? "lineListOrdered" : "lineListUnordered";
 
         if (currentListType !== listType) {
           flushListGroup();
           currentListType = listType;
         }
-        listGroup.push(schema.node(nodeType, attrs, spanNodes));
-      } else if (line.text.type >= TextLineType.HEADING_1 && line.text.type <= TextLineType.HEADING_4) {
-        flushListGroup();
-        nodes.push(schema.node("lineHeading", attrs, spanNodes));
-      } else if (line.text.type === TextLineType.PARAGRAPH) {
-        flushListGroup();
-        nodes.push(schema.node("lineParagraph", attrs, spanNodes));
-      } else if (line.text.type === TextLineType.DIVIDER) {
-        flushListGroup();
-        nodes.push(schema.node("lineDivider", attrs, spanNodes));
-      } else if (line.text.type === TextLineType.QUOTE) {
-        flushListGroup();
-        nodes.push(schema.node("lineQuote", attrs, spanNodes));
-      } else if (line.text.type === TextLineType.CALLOUT) {
-        flushListGroup();
-        nodes.push(schema.node("lineCallout", attrs, spanNodes));
-      } else if (line.text.type === TextLineType.CODE) {
-        flushListGroup();
-        nodes.push(schema.node("lineCode", attrs, spanNodes));
+        listGroup.push(mapLineToPmNode(line));
       } else {
-        throw new Error(`unexpected line type: ${line.text.type}`);
+        flushListGroup();
+        nodes.push(mapLineToPmNode(line));
       }
     } else if (line.type === "block") {
       flushListGroup();
-      nodes.push(schema.node("block", { blockPtr: line.blockPtr, nodePtr: line.nodePtr }));
+      nodes.push(mapLineToPmNode(line));
     } else {
       assertNever(line);
     }
@@ -254,10 +328,10 @@ export function mapTextToPmNode(lines: LineInterface[]): PmNode {
 
   // ensure at least one line exists
   if (nodes.length === 0) {
-    nodes.push(schema.node("lineParagraph"));
+    nodes.push(PM_SCHEMA.node("lineParagraph"));
   }
 
-  return schema.node("doc", {}, nodes);
+  return PM_SCHEMA.node("doc", {}, nodes);
 }
 
 /** Convert a PmNode to Lines. */
@@ -265,61 +339,6 @@ export function mapPmNodeToText(node: PmNode): { lines: LineInterface[]; linesNo
   const lines: LineInterface[] = [];
   const linesNodes: PmNode[] = [];
   const linesPos: number[] = [];
-
-  /** Convert a PmNode to a LineInterface. */
-  function mapPmLineToTextLine(lineNode: PmNode): LineInterface {
-    if (lineNode.type.name === "block") {
-      return { type: "block", blockPtr: lineNode.attrs.blockPtr, nodePtr: lineNode.attrs.nodePtr };
-    }
-    const spans: TextSpanData[] = [];
-    for (let spanIdx = 0; spanIdx < lineNode.childCount; spanIdx++) {
-      const spanNode = lineNode.child(spanIdx);
-      let span: TextSpanData;
-      if (spanNode.type.name === "spanHardBreak") {
-        span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.HARD_BREAK };
-      } else if (spanNode.type.name === "text") {
-        span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.TEXT, content: spanNode.text };
-      } else if (spanNode.type.name === "spanNode") {
-        span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.NODE, nodePtr: spanNode.attrs.nodePtr };
-      } else if (spanNode.type.name === "spanLink") {
-        span = {
-          metatype: ObjectType.TEXT_SPAN,
-          type: TextSpanType.LINK,
-          url: spanNode.attrs.href,
-          content: spanNode.text,
-        };
-      } else if (spanNode.type.name === "spanEquation") {
-        span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.EQUATION, content: spanNode.text };
-      } else if (spanNode.type.name === "spanSpecialInput") {
-        continue; // ignore temporary input spans
-      } else {
-        throw new Error(`unexpected span node type: ${spanNode.type.name}`);
-      }
-      for (const mark of spanNode.marks) {
-        if (mark.type.name === "bold") {
-          span.isBold = true;
-        } else if (mark.type.name === "italic") {
-          span.isItalic = true;
-        } else if (mark.type.name === "strikethrough") {
-          span.isStrikethrough = true;
-        } else if (mark.type.name === "underline") {
-          span.isUnderline = true;
-        } else if (mark.type.name === "code") {
-          span.isCode = true;
-        } else {
-          throw new Error(`unexpected mark type: ${mark.type.name}`);
-        }
-      }
-      spans.push(span);
-    }
-    const text: TextLineData = {
-      metatype: ObjectType.TEXT_LINE,
-      type: lineNode.attrs.type,
-      spans,
-      cells: [],
-    };
-    return { type: "text", text, blockPtr: lineNode.attrs.blockPtr };
-  }
 
   // use .descendants to traverse the doc with proper positions
   node.descendants((child, pos, parent) => {
@@ -329,14 +348,14 @@ export function mapPmNodeToText(node: PmNode): { lines: LineInterface[]; linesNo
       if (child.type.name === "orderedList" || child.type.name === "unorderedList") {
         return;
       }
-      lines.push(mapPmLineToTextLine(child));
+      lines.push(mapPmNodeToLine(child));
       linesNodes.push(child);
       linesPos.push(pos);
       return false; // don't descend further into this node
     }
     // immediate children of a list node
     if (parent && (parent.type.name === "orderedList" || parent.type.name === "unorderedList")) {
-      lines.push(mapPmLineToTextLine(child));
+      lines.push(mapPmNodeToLine(child));
       linesNodes.push(child);
       linesPos.push(pos);
       return false; // don't descend further into this node

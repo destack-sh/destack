@@ -89,35 +89,6 @@ line2
     assert "print('hello')" in md_out
 
 
-def test_text_equation_block():
-    md = """\
-```tex
-E = mc^2
-```
-"""
-    text = markdown_to_text(md)
-    assert text.lines[0].type == TextLineType.EQUATION
-    assert text.lines[0].content == "E = mc^2"
-    md_out = text_to_markdown(text)
-    assert "```tex" in md_out
-    assert "E = mc^2" in md_out
-
-
-def test_text_diagram_block():
-    md = """\
-```mermaid
-graph TD;
-A-->B;
-```
-"""
-    text = markdown_to_text(md)
-    assert text.lines[0].type == TextLineType.DIAGRAM
-    assert text.lines[0].content == "graph TD;\nA-->B;"
-    md_out = text_to_markdown(text)
-    assert "```mermaid" in md_out
-    assert "graph TD;" in md_out
-
-
 def test_text_table():
     md = """\
 | Product | Price | Stock | Description |

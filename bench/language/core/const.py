@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.11.0"
+VERSION = "2025.02.12.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -88,7 +88,6 @@ class BuiltinEnum(enum.IntEnum):
         cls,
         id: int,
         text: str | None = None,
-        *,
         title: str | None = None,
         color: "ColorType | None" = None,
         icon: str | None = None,
@@ -1173,22 +1172,28 @@ class PrimitiveType(BuiltinEnum):
     BOOLEAN = 1
     # ...
     # INT8? UINTs?
-    INT16 = 4  # range: -32768 to 32767
-    INT32 = 6  # range: -2147483648 to 2147483647
-    INT64 = 8  # range: -9223372036854775808 to 9223372036854775807
-    DECIMAL = 10  # numeric(precision, scale)
+    # range: -32768 to 32767
+    INT16 = 4, "Integer", "Very small integer"
+    # range: -2147483648 to 2147483647
+    INT32 = 6, "Integer", "Small integer"
+    # range: -9223372036854775808 to 9223372036854775807
+    INT64 = 8, "Integer", "Integer number"
+    # numeric(precision, scale)
+    DECIMAL = 10, "Decimal", "Decimal number"
     # ...
     # FLOAT16?
-    FLOAT32 = 16  # range: 1.175494351e-38 to 3.402823466e+38
-    FLOAT64 = 17  # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
+    # range: 1.175494351e-38 to 3.402823466e+38
+    FLOAT32 = 16, "Float", "Small float"
+    # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
+    FLOAT64 = 17, "Float", "Floating point number"
     # ...
     STRING = 20
-    UUID = 21
-    JSON = 22
+    UUID = 21, "UUID", "UUID"
+    JSON = 22, "JSON", "JSON"
     BYTES = 25
     VECTOR = 26
     # time
-    DATETIME = 30
+    DATETIME = 30, "Date & Time"
     DATE = 31
     TIME = 32
     DURATION = 33

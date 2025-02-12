@@ -11082,41 +11082,13 @@ export enum BlockType {
      */
     CHOICE = 5030,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_CLASS = 5031;
-     */
-    CLASS = 5031,
-    /**
      * @generated from protobuf enum value: BLOCK_TYPE_FLOW = 5050;
      */
     FLOW = 5050,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_ACTION = 5051;
-     */
-    ACTION = 5051,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_PIPE = 5052;
-     */
-    PIPE = 5052,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_TRIGGER = 5053;
-     */
-    TRIGGER = 5053,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_VIEW = 5080;
-     */
-    VIEW = 5080,
-    /**
      * @generated from protobuf enum value: BLOCK_TYPE_DATABASE = 5090;
      */
     DATABASE = 5090,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_ROLE = 5110;
-     */
-    ROLE = 5110,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_IDENTITY = 5120;
-     */
-    IDENTITY = 5120,
     /**
      * @generated from protobuf enum value: BLOCK_TYPE_PARAGRAPH = 10001;
      */
@@ -11168,15 +11140,7 @@ export enum BlockType {
     /**
      * @generated from protobuf enum value: BLOCK_TYPE_CODE = 10060;
      */
-    CODE = 10060,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_EQUATION = 10061;
-     */
-    EQUATION = 10061,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_DIAGRAM = 10062;
-     */
-    DIAGRAM = 10062
+    CODE = 10060
 }
 /**
  * @generated from protobuf enum symbolx.bench.TextLineType
@@ -11237,15 +11201,7 @@ export enum TextLineType {
     /**
      * @generated from protobuf enum value: TEXT_LINE_TYPE_CODE = 60;
      */
-    CODE = 60,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_EQUATION = 61;
-     */
-    EQUATION = 61,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_DIAGRAM = 62;
-     */
-    DIAGRAM = 62
+    CODE = 60
 }
 /**
  * @generated from protobuf enum symbolx.bench.TextSpanType
@@ -35280,8 +35236,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.12.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.12.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35312,8 +35268,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.11.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.12.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.12.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -37145,37 +37101,31 @@ export const NODE_SUBTYPE_PROPERTY_ID: Partial<Record<NodeType, number>> = {
 export type EnumOptionInfo = {
     id: number;
     name: string;
-    text: string;
+    text?: string;
+    title?: string;
+    color?: ColorType;
+    icon?: string;
 }
 
 export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
   [BlockType.FILE]: { id: 2200, name: 'FILE', text: 'Any File' },
   [BlockType.PAGE]: { id: 5020, name: 'PAGE', text: 'Page of Blocks' },
-  [BlockType.CHOICE]: { id: 5030, name: 'CHOICE', text: 'Choice of Field options' },
-  [BlockType.CLASS]: { id: 5031, name: 'CLASS', text: 'Class of Fields' },
-  [BlockType.FLOW]: { id: 5050, name: 'FLOW', text: 'Flow of connected Actions' },
-  [BlockType.ACTION]: { id: 5051, name: 'ACTION', text: 'Action in a Flow' },
-  [BlockType.PIPE]: { id: 5052, name: 'PIPE', text: 'Pipe between Actions' },
-  [BlockType.TRIGGER]: { id: 5053, name: 'TRIGGER', text: 'Trigger for a Flow' },
-  [BlockType.VIEW]: { id: 5080, name: 'VIEW', text: 'Graphical Interface' },
+  [BlockType.CHOICE]: { id: 5030, name: 'CHOICE', text: 'Choice of Fields' },
+  [BlockType.FLOW]: { id: 5050, name: 'FLOW', text: 'Flow of Actions' },
   [BlockType.DATABASE]: { id: 5090, name: 'DATABASE', text: 'Database of Records' },
-  [BlockType.ROLE]: { id: 5110, name: 'ROLE', text: 'Role to assign' },
-  [BlockType.IDENTITY]: { id: 5120, name: 'IDENTITY', text: 'Unique Identity' },
   [BlockType.PARAGRAPH]: { id: 10001, name: 'PARAGRAPH', text: 'Line of rich Text' },
-  [BlockType.HEADING_1]: { id: 10010, name: 'HEADING_1', text: 'Very big heading' },
-  [BlockType.HEADING_2]: { id: 10011, name: 'HEADING_2', text: 'Big heading' },
-  [BlockType.HEADING_3]: { id: 10012, name: 'HEADING_3', text: 'Medium heading' },
-  [BlockType.HEADING_4]: { id: 10013, name: 'HEADING_4', text: 'Small heading' },
-  [BlockType.CALLOUT]: { id: 10020, name: 'CALLOUT', text: 'Callout to something important' },
-  [BlockType.QUOTE]: { id: 10021, name: 'QUOTE', text: 'Quote from someone' },
+  [BlockType.HEADING_1]: { id: 10010, name: 'HEADING_1', text: 'Very big heading', title: 'Heading 1' },
+  [BlockType.HEADING_2]: { id: 10011, name: 'HEADING_2', text: 'Big heading', title: 'Heading 2' },
+  [BlockType.HEADING_3]: { id: 10012, name: 'HEADING_3', text: 'Medium heading', title: 'Heading 3' },
+  [BlockType.HEADING_4]: { id: 10013, name: 'HEADING_4', text: 'Small heading', title: 'Heading 4' },
+  [BlockType.CALLOUT]: { id: 10020, name: 'CALLOUT', text: 'Callout' },
+  [BlockType.QUOTE]: { id: 10021, name: 'QUOTE', text: 'Quote' },
   [BlockType.LIST_UNORDERED]: { id: 10030, name: 'LIST_UNORDERED', text: 'Unorderd list' },
   [BlockType.LIST_ORDERED]: { id: 10031, name: 'LIST_ORDERED', text: 'Numbered list' },
   [BlockType.DIVIDER]: { id: 10040, name: 'DIVIDER', text: 'Horizontal line' },
   [BlockType.TABLE]: { id: 10050, name: 'TABLE', text: 'Table of data' },
   [BlockType.TABLE_ROW]: { id: 10051, name: 'TABLE_ROW', text: 'Row of a table' },
   [BlockType.CODE]: { id: 10060, name: 'CODE', text: 'Code block' },
-  [BlockType.EQUATION]: { id: 10061, name: 'EQUATION', text: 'Equation (TeX)' },
-  [BlockType.DIAGRAM]: { id: 10062, name: 'DIAGRAM', text: 'Diagram (Mermaid)' },
 }
 
 export const TextLineTypeOptionInfo: Partial<Record<TextLineType, EnumOptionInfo>> = {
@@ -37192,8 +37142,6 @@ export const TextLineTypeOptionInfo: Partial<Record<TextLineType, EnumOptionInfo
   [TextLineType.TABLE]: { id: 50, name: 'TABLE', text: 'Table' },
   [TextLineType.TABLE_ROW]: { id: 51, name: 'TABLE_ROW', text: 'Table row' },
   [TextLineType.CODE]: { id: 60, name: 'CODE', text: 'Code block' },
-  [TextLineType.EQUATION]: { id: 61, name: 'EQUATION', text: 'Equation (TeX)' },
-  [TextLineType.DIAGRAM]: { id: 62, name: 'DIAGRAM', text: 'Diagram (Mermaid)' },
 }
 
 export const TextSpanTypeOptionInfo: Partial<Record<TextSpanType, EnumOptionInfo>> = {

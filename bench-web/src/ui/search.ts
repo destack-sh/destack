@@ -10,7 +10,13 @@ import {
 import { ENUM_OPTIONS_BY_VALUE, EnumOption, getEnumOption, getEnumOptions } from "@/language/core/enum";
 import { makeExpression } from "@/language/core/expression";
 import type { NodeSuperGraph, ReadNodeGraph, TypedNodeKey } from "@/language/core/graph";
-import { getSubtypeEnum, makeTypeConstraint, nodeToType, typeIdentityEquals, type TypeIdentity } from "@/language/core/type";
+import {
+  getSubtypeEnum,
+  makeTypeConstraint,
+  nodeToType,
+  typeIdentityEquals,
+  type TypeIdentity,
+} from "@/language/core/type";
 import {
   ActionType,
   BenchType,
@@ -30,7 +36,7 @@ import {
   ViewType,
   type AnyNodeData,
   type IconData,
-  type NodeReferenceData
+  type NodeReferenceData,
 } from "@/proto/wire";
 import { isNode, makeScope, propertyReference, toNodeRef } from "@/proto/wiring";
 import { BENCH_SCOPE } from "@/system/client";
@@ -151,7 +157,7 @@ const HIDDEN_UNNAMED = ` \\ `;
 export function useIndexSearch<T extends SearchItem>(search: {
   query: Ref<string>;
   indices: MaybeRef<Record<string, SearchIndex<any>>>;
-  isEnabled: Ref<boolean>;
+  isEnabled?: MaybeRef<boolean>;
   options?: SearchOptions;
 }): {
   candidates: Ref<(T & SearchCandidateInfo)[]>;
@@ -170,7 +176,7 @@ export function useIndexSearch<T extends SearchItem>(search: {
   const subs: (() => void)[] = [];
 
   function updateCandidates() {
-    if (!search.isEnabled.value) {
+    if (search.isEnabled != null && !toValue(search.isEnabled)) {
       candidatesRef.value = [];
       return;
     }
@@ -185,7 +191,7 @@ export function useIndexSearch<T extends SearchItem>(search: {
   }
 
   function updateResults() {
-    if (!search.isEnabled.value) {
+    if (search.isEnabled != null && !toValue(search.isEnabled)) {
       resultsRef.value = [];
       resultsTotal.value = 0;
       return;
@@ -281,7 +287,7 @@ export function useIndexSearch<T extends SearchItem>(search: {
   // refresh candidates on index change
   subs.push(
     watch(
-      () => search.isEnabled.value && toValue(search.indices),
+      () => (search.isEnabled == null || toValue(search.isEnabled)) || toValue(search.indices),
       () => {
         updateCandidates();
         updateResults();
@@ -424,7 +430,7 @@ const VALUE_SEARCH_DEBOUNCE = 100;
 export function useValueSearch(options: {
   query: Ref<string>;
   valueType: Ref<TypeIdentity | undefined | null>;
-  isEnabled: Ref<boolean>;
+  isEnabled?: MaybeRef<boolean>;
   first?: number;
   debounce?: number;
 }) {
@@ -440,7 +446,7 @@ export function useValueSearch(options: {
   let lastRemoteValueType: TypeIdentity | null = null;
   let lastRemoteTotal: number = 0;
   watch(
-    [queryDebounced, valueType, isEnabled, remoteUpdateTrigger],
+    [queryDebounced, valueType, () => toValue(isEnabled), remoteUpdateTrigger],
     async () => {
       // release old remote connection
       if (remoteConnection != null) {
@@ -449,7 +455,11 @@ export function useValueSearch(options: {
       }
 
       // acquire new remote connection if needed
-      if (isEnabled.value && isNodeType(valueType.value?.benchType) && isUnloadedNodeType(valueType.value?.benchType)) {
+      if (
+        (isEnabled == null || toValue(isEnabled)) &&
+        isNodeType(valueType.value?.benchType) &&
+        isUnloadedNodeType(valueType.value?.benchType)
+      ) {
         // acquire/update remote connection
         if (valueType.value.baseTypePtr != null) {
           const baseType = supergraph.get(valueType.value.baseTypePtr);
