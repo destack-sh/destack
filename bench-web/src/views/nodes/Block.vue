@@ -8,7 +8,7 @@ import { usePageContext } from "@/ui/prosemirror/page";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { type FocusAnchor, type NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
+import { type FocusAnchor, type NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import File from "@/views/content/File.vue";
 import Choice from "@/views/nodes/Choice.vue";
 import Database from "@/views/nodes/Database.vue";
@@ -77,7 +77,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
   nodeRef.value?.focus?.(anchor);
 }
 
-defineExpose<ViewExposed>({ self, id, actions, focus });
+defineExpose<ViewExpose>({ self, id, actions, focus });
 </script>
 <template>
   <div

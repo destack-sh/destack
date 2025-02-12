@@ -34,7 +34,7 @@ import { getColorHex } from "@/ui/style";
 import { computedValue, toValueRef } from "@/utils/ref";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { type ViewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
+import { type ViewEmits, type FocusAnchor, type ViewExpose, type ViewProps } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
@@ -240,7 +240,7 @@ function focus(anchor?: "previous" | "next" | FocusAnchor | NodeReferenceData) {
   }
 }
 
-defineExpose<ViewExposed>({
+defineExpose<ViewExpose>({
   self,
   id,
   focus,

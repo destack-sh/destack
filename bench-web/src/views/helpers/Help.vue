@@ -12,7 +12,7 @@ import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/u
 import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import SomeObject from "@/views/objects/Object.vue";
 import Run from "@/views/nodes/Run.vue";
@@ -113,7 +113,7 @@ const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(nu
 const selectionZone = useSelectionZone({ containerEl: bodyRef, overlayEl: selectionOverlayRef });
 const chatRef: Ref<InstanceType<typeof Chat> | null> = ref(null);
 
-defineExpose<ViewExposed>({ self });
+defineExpose<ViewExpose>({ self });
 </script>
 <template>
   <div class="flex h-full w-full flex-col">

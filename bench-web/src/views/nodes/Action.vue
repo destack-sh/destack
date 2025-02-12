@@ -24,7 +24,7 @@ import { getNodeColorHex, getRunColorHex } from "@/ui/style";
 import { focusInElement } from "@/ui/view";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Text from "@/views/content/Text.vue";
@@ -72,7 +72,7 @@ const actions: Partial<ActionMapImplementation<"space">> & ActionMapImplementati
   },
 };
 
-defineExpose<ViewExposed>({ self, id, actions });
+defineExpose<ViewExpose>({ self, id, actions });
 </script>
 <template>
   <div

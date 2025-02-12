@@ -9,7 +9,7 @@ import { PM_SCHEMA } from "@/ui/prosemirror/schema";
 import { getColorHex } from "@/ui/style";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { blurDocument } from "@/utils/element";
-import { NavigationDirection, ViewExposed } from "@/views/common";
+import { NavigationDirection, ViewExpose } from "@/views/common";
 import { MaybeElement, useElementBounding } from "@vueuse/core";
 import { Node as PmNode } from "prosemirror-model";
 import {
@@ -51,6 +51,7 @@ export class VueComponentView implements PmNodeView {
   view: EditorView;
 
   constructor(options: {
+    style: "block" | "inline";
     component: Component;
     parentComponent: ComponentInternalInstance;
     props: Record<string, any>;
@@ -58,11 +59,11 @@ export class VueComponentView implements PmNodeView {
     view: EditorView;
     getPos: () => number | undefined;
   }) {
-    const { component, parentComponent, props, node, view, getPos } = options;
-    if (node.type.name != "block") {
-      throw new Error(`node is not 'block': ${node.type.name}`);
-    }
+    const { style, component, parentComponent, props, node, view, getPos } = options;
     this.dom = document.createElement("div");
+    if (style == "inline") {
+      this.dom.style.display = "inline-block";
+    }
     this.pmnode = node;
     this.vnode = createVNode(component, { ...props });
     this.vnode.appContext = parentComponent.appContext;
@@ -77,8 +78,8 @@ export class VueComponentView implements PmNodeView {
     return true;
   }
 
-  destroy() {
-    render(null, this.dom);
+  selectNode() {
+    (this.vnode.component?.exposed as ViewExpose)?.focus?.("top");
   }
 
   stopEvent(event: Event): boolean {
@@ -89,6 +90,10 @@ export class VueComponentView implements PmNodeView {
   ignoreMutation(mutation: ViewMutationRecord): boolean {
     // ignore all DOM mutations
     return true;
+  }
+
+  destroy() {
+    render(null, this.dom);
   }
 }
 
@@ -106,6 +111,7 @@ export class SpanNodeView extends VueComponentView {
       throw new Error(`node is not 'span': ${node.type.name}`);
     }
     super({
+      style: "inline",
       component,
       parentComponent,
       props: { nodePtr: node.attrs.nodePtr, isMinimal: true },
@@ -139,6 +145,7 @@ export class LineBlockView extends VueComponentView {
       onNavigate: (direction: NavigationDirection) => this.navigate(direction),
     };
     super({
+      style: "block",
       component,
       parentComponent,
       props,
@@ -218,10 +225,6 @@ export class LineBlockView extends VueComponentView {
       // use outer navigation, no sibling
       this.navigateOuter(direction);
     }
-  }
-
-  selectNode() {
-    (this.vnode.component?.exposed as ViewExposed)?.focus?.("top");
   }
 
   setSelection(anchor: number, head: number, root: Document | ShadowRoot) {
@@ -367,17 +370,16 @@ class TooltipPlugin implements PluginView {
     }
 
     // only show tooltip if selection is inside a line group
-    const { $from, empty } = state.selection;
-    let isInsideLineGroup = false;
-    for (let depth = $from.depth; depth >= 0; depth--) {
-      if ($from.node(depth).type.isInGroup("line")) {
-        isInsideLineGroup = true;
-        break;
+    const { $from, $to, empty } = state.selection;
+    let hasText = false;
+    state.doc.nodesBetween($from.pos, $to.pos, (node, pos) => {
+      if (node.type.isText) {
+        hasText = true;
       }
-    }
+    });
 
     // update tooltip
-    if (empty || !isInsideLineGroup) {
+    if (empty || !hasText) {
       // hide tooltip after delay
       this.hideTimer = setTimeout(() => {
         this.props.visible = false;

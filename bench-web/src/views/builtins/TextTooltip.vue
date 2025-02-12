@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { IconData, TextSpanType } from "@/proto/wire";
+import { IconData } from "@/proto/wire";
 import { IconInline, makeIcon } from "@/ui/icon";
-import { hasTextMark, hasTextSpanType, setTextMark, setTextSpanType } from "@/ui/prosemirror/editor";
+import { hasTextMark, setTextMark } from "@/ui/prosemirror/editor";
 import { TextMarkType } from "@/ui/prosemirror/schema";
 import { type TooltipProps } from "@/ui/prosemirror/view";
 
@@ -21,18 +21,6 @@ function markFormatAction(mark: TextMarkType, icon: string): FormatAction {
     isChecked: () => hasTextMark(props.view.state, props.view.state.selection, mark) !== false,
     toggle: () => {
       setTextMark(props.view.state, props.view.state.selection, mark, "toggle", props.view.dispatch);
-    },
-  };
-  return action;
-}
-
-function spanTypeFormatAction(type: TextSpanType, icon: string): FormatAction {
-  const action: FormatAction = {
-    id: type,
-    icon: makeIcon(icon),
-    isChecked: () => hasTextSpanType(props.view.state, props.view.state.selection, type) !== false,
-    toggle: () => {
-      setTextSpanType(props.view.state, props.view.state.selection, type, props.view.dispatch);
     },
   };
   return action;

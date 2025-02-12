@@ -18,7 +18,7 @@ import { logIn, signUp, user } from "@/system/user";
 import { makeIcon } from "@/ui/icon";
 import { getViewComponentChildren, isVueInstanceOf } from "@/ui/view";
 import { DEFAULT_REGION_BY_AREA, GEOLOCATION } from "@/utils/geolocation";
-import { type FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
+import { type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Picker from "@/views/content/Picker.vue";
 import Button from "@/views/controls/Button.vue";
@@ -110,7 +110,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
   }
 }
 
-defineExpose<ViewExposed>({ self, focus });
+defineExpose<ViewExpose>({ self, focus });
 </script>
 <template>
   <div class="mx-auto mt-[16%] h-fit min-w-80 max-w-96 rounded px-9 py-7 text-gray-900">

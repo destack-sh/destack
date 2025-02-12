@@ -4,7 +4,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { getViewForType } from "@/ui/view";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, toRef } from "vue";
 
@@ -27,7 +27,7 @@ const valueView = computed(() => {
 });
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExpose>({ self, id });
 </script>
 <template>
   <component

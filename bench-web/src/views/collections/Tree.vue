@@ -35,7 +35,7 @@ import { VIEW_DEFAULT_HEADER_HEIGHT, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { type ViewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type FocusAnchor, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { useElementSize } from "@vueuse/core";
@@ -289,7 +289,7 @@ const actions: Partial<ActionMapImplementation<"space">> = {
   "space.select.all": () => canvas.select(expandedItems.value.map((item) => item.node)),
 };
 
-defineExpose<ViewExposed>({ self, id, actions, focus });
+defineExpose<ViewExpose>({ self, id, actions, focus });
 </script>
 <template>
   <div

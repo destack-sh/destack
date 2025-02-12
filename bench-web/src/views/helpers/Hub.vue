@@ -24,7 +24,7 @@ import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/u
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import Tree from "@/views/collections/Tree.vue";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import Activity from "@/views/helpers/Activity.vue";
@@ -125,7 +125,7 @@ const bodyHeight = computed(() => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT 
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: bodyRef, overlayEl: selectionOverlayRef });
 
-defineExpose<ViewExposed>({ self });
+defineExpose<ViewExpose>({ self });
 </script>
 <template>
   <div class="flex h-full w-full flex-col">

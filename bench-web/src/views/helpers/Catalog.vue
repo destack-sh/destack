@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ViewData, NodeType, ViewType, ExpressionType, MachineProperty, ResourceStatus } from "@/proto/wire";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { canvas } from "@/system/space";
 import { ref, toRef } from "vue";
 import { propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
@@ -32,7 +32,7 @@ const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(nu
 const listRefs = ref<Record<number, InstanceType<typeof List> | null>>({});
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExpose>({ self, id });
 </script>
 <template>
   <div ref="containerRef">

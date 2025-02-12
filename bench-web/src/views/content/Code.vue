@@ -8,7 +8,7 @@ import { useDropZone } from "@/ui/drag";
 import { copy, cyrb53a } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { autocompletion } from "@codemirror/autocomplete";
 import * as commands from "@codemirror/commands";
 import { python } from "@codemirror/lang-python";
@@ -182,7 +182,7 @@ const actions: Partial<ActionMapImplementation<"space" | "code">> = {
 };
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, actions });
+defineExpose<ViewExpose>({ self, id, actions });
 </script>
 <template>
   <div

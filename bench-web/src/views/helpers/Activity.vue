@@ -18,7 +18,7 @@ import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import List from "@/views/collections/List.vue";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, Ref, ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
@@ -96,7 +96,7 @@ const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(nu
 const listRefs = ref<Record<number, InstanceType<typeof List> | null>>({});
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExpose>({ self, id });
 </script>
 <template>
   <div ref="containerRef">

@@ -33,14 +33,12 @@ import { useTextPageInterface } from "@/ui/prosemirror/wiring";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import NodeReference from "@/views/builtins/NodeReference.vue";
 import PageHeader from "@/views/builtins/PageHeader.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import TextTooltip from "@/views/builtins/TextTooltip.vue";
-import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
+import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import Block from "@/views/nodes/Block.vue";
 import { useEventListener } from "@vueuse/core";
 import { computed, getCurrentInstance, nextTick, ref, shallowRef, toRef, watch, type Ref } from "vue";
 
@@ -161,8 +159,6 @@ const {
   deleteSelf: () => emit("deleteSelf"),
   plugins: [highlightPlugin, tooltipPlugin, placeholderPlugin, lineHandlePlugin],
   parentComponent: vueInstance,
-  blockComponent: Block,
-  nodeReferenceComponent: NodeReference,
   onTransaction: (view, prevState, newState) => {
     // auto deselect nodes if anything was edited by the user
     const selectionChanged = !(
@@ -353,7 +349,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData, innerAnch
 const isSelectingPage = computed(() => isSelecting());
 const canSelect = computed(() => !isSelectingPage.value && !isDraggingGlobal.value);
 
-defineExpose<ViewExposed>({ self, actions, focus });
+defineExpose<ViewExpose>({ self, actions, focus });
 </script>
 <template>
   <div class="flex w-full select-none flex-col bg-white text-gray-900" :class="[page ? '' : 'h-full']">
@@ -466,11 +462,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         </div>
 
         <!-- Padding -->
-        <div
-          class=""
-          :style="{ height: MIN_FOOTER_PADDING / 2 + 'px' }"
-          @click="focusText()"
-        />
+        <div class="" :style="{ height: MIN_FOOTER_PADDING / 2 + 'px' }" @click="focusText()" />
 
         <!-- Selection -->
         <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />

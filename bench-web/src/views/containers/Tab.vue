@@ -11,7 +11,7 @@ import { getNodeName, ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@
 import { ScrollbarWidth } from "@/ui/layout";
 import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 import Empty from "@/views/builtins/Empty.vue";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
@@ -182,7 +182,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
 };
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, actions });
+defineExpose<ViewExpose>({ self, actions });
 </script>
 <template>
   <div class="relative" :style="{ width: size.width + 'px', height: size.height + 'px' }">

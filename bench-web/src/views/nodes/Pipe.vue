@@ -10,7 +10,7 @@ import { ActionMapImplementation } from "@/ui/action";
 import { ICON_BY_PIPE_TYPE, IconInline } from "@/ui/icon";
 import { getColorHex, getRunColorHex } from "@/ui/style";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { computed, Ref, ref, toRef } from "vue";
 
@@ -65,7 +65,7 @@ const actions: Partial<ActionMapImplementation<"space" | "pipe">> = {
   },
 };
 
-defineExpose<ViewExposed>({ self, id, actions });
+defineExpose<ViewExpose>({ self, id, actions });
 </script>
 <template>
   <div v-if="pipe != null && path != null" class="group pointer-events-none z-30" data-ignore-element="self">

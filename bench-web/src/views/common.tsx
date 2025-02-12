@@ -14,7 +14,7 @@ export type ViewProps = {
 export type ViewComponent = {
   new (): ComponentInstance<any>;
   props: ViewProps;
-  exposed: ViewExposed;
+  exposed: ViewExpose;
 };
 
 export type NavigationDirection = "left" | "right" | "up" | "down" | "enter";
@@ -35,7 +35,7 @@ export type ModelValueOptions = {
   path: string[];
 };
 
-export type ViewExposed = (
+export type ViewExpose = (
   | {
       // always has an identity
       /** The view node identity of a view component */

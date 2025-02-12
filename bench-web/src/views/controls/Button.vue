@@ -3,7 +3,7 @@ import { ButtonVariant, ColorShade, NodeType, ViewData, ViewType } from "@/proto
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline } from "@/ui/icon";
 import { canvas } from "@/system/space";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 import { useSubnodeProperty } from "@/language/core/node";
 
@@ -42,7 +42,7 @@ const classByVariant: Ref<Partial<Record<ButtonVariant, string[]>>> = computed((
 }));
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, focus: () => buttonRef.value });
+defineExpose<ViewExpose>({ self, id, focus: () => buttonRef.value });
 </script>
 <template>
   <button

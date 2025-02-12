@@ -3,7 +3,7 @@ import { InlineSourceNodeData, NodeReferenceData, Orientation } from "@/proto/wi
 import { PreparedGetConnection } from "@/system/connection";
 import { PopoverInfoIn } from "@/ui/popover";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { FocusAnchor, ViewEmits, ViewExposed } from "@/views/common";
+import { FocusAnchor, ViewEmits, ViewExpose } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import { ref, Ref } from "vue";
 
@@ -29,7 +29,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
   focusIdentifier(typeof anchor == "string" ? anchor : "top");
 }
 
-defineExpose<Partial<ViewExposed> & { focusIdentifier: (anchor: FocusAnchor) => void }>({
+defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => void }>({
   focusIdentifier,
   focus,
 });

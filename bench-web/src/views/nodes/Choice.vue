@@ -5,7 +5,7 @@ import { PreparedGetConnection, useExistingConnection } from "@/system/connectio
 import { canvas } from "@/system/space";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import InlineHeader from "@/views/builtins/InlineHeader.vue";
-import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
+import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import FieldList from "@/views/objects/FieldList.vue";
 import { computed, ref, toRef } from "vue";
 
@@ -33,7 +33,7 @@ function focus(anchor: FocusAnchor | NodeReferenceData = "bottom") {
   headerRef.value?.focus?.(anchor ?? "top");
 }
 
-defineExpose<ViewExposed>({ self, id, focus });
+defineExpose<ViewExpose>({ self, id, focus });
 </script>
 <template>
   <div>

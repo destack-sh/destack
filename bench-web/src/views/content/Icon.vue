@@ -18,7 +18,7 @@ import type { PopoverInfoIn } from "@/ui/popover";
 import { ICON_INDEX, useIndexSearch, type IconItem } from "@/ui/search";
 import { getColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
-import { type ViewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type FocusAnchor, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
@@ -98,7 +98,7 @@ function focus(anchor?: "up" | "down" | "left" | "right" | FocusAnchor | NodeRef
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, focus });
+defineExpose<ViewExpose>({ self, id, focus });
 </script>
 <template>
   <button

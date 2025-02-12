@@ -4,7 +4,7 @@ import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, pkgGraph, spaceGraph } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
 import { HISTORY_STATE_KEY, HistoryState } from "@/ui/view";
-import { type ViewEmits, type ViewExposed } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, provide, Ref, toRef } from "vue";
 
@@ -66,7 +66,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   "view.history.goForward": () => history.go(1),
 };
 
-defineExpose<ViewExposed>({ self, actions });
+defineExpose<ViewExpose>({ self, actions });
 </script>
 <template>
   <div class="h-full w-full">

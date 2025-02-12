@@ -14,7 +14,7 @@ import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import { getNativeConstraintProps, TEXT_DIRECTION_BY_ALIGNMENT } from "@/ui/view";
-import { FocusAnchor, type ViewEmits, type ViewExposed } from "@/views/common";
+import { FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import { useElementSize } from "@vueuse/core";
 import { computed, Ref, ref, toRef, watch } from "vue";
 
@@ -126,7 +126,7 @@ function remove(idx: number) {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed & { select: () => void }>({
+defineExpose<ViewExpose & { select: () => void }>({
   self,
   id,
   focus: (anchor: FocusAnchor | NodeReferenceData | undefined = "right") => {

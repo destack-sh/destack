@@ -9,7 +9,7 @@ import { usePlaceholderPlugin, useTooltipPlugin } from "@/ui/prosemirror/view";
 import { useTextModelValueInterface } from "@/ui/prosemirror/wiring";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import TextTooltip from "@/views/builtins/TextTooltip.vue";
-import { NavigationDirection, type ViewEmits, type ViewExposed } from "@/views/common";
+import { NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import Block from "@/views/nodes/Block.vue";
 import { Plugin } from "prosemirror-state";
 import { getCurrentInstance, ref, toRef } from "vue";
@@ -49,8 +49,6 @@ const { focus, actions: textActions } = useTextEditor({
   navigate: (direction: NavigationDirection) => emit("navigate", direction),
   deleteSelf: () => emit("deleteSelf"),
   parentComponent: vueInstance,
-  blockComponent: Block,
-  nodeReferenceComponent: NodeReference,
   plugins,
   history: true,
 });
@@ -60,7 +58,7 @@ const actions: Partial<ActionMapImplementation<"space">> = {
 };
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, actions, focus });
+defineExpose<ViewExpose>({ self, id, actions, focus });
 </script>
 <template>
   <div
