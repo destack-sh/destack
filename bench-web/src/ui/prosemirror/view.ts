@@ -42,55 +42,8 @@ import {
 
 const PROSEMIRROR_NODE_KEY = "__pmNode";
 
-/** Mini-component for PM Node spans */
-export class SpanNodeView implements PmNodeView {
-  // nocheckin: wrap NodeReference in SpanNodeView? (instead of this custom stuff)
-  dom: HTMLElement;
-  nodePtr: NodeReferenceData;
-  iconDom: HTMLElement;
-  nameDom: HTMLElement;
-
-  constructor(pmNode: PmNode, view: EditorView) {
-    this.dom = document.createElement("span");
-    (this.dom as any).__pmView = this;
-    this.dom.classList.add("spanNode");
-    this.dom.dataset.nodeType = pmNode.attrs.nodePtr.nodeType;
-    this.dom.dataset.nodeId = pmNode.attrs.nodePtr.id;
-    this.dom.dataset.nodeCk = pmNode.attrs.nodePtr.ck;
-    this.nodePtr = {
-      ...pmNode.attrs.nodePtr,
-      nodeType: Number(pmNode.attrs.nodePtr.nodeType),
-      metatype: ObjectType.NODE_REFERENCE,
-    };
-    this.iconDom = this.dom.appendChild(document.createElement("span"));
-    this.iconDom.classList.add(
-      "icon",
-      ...(ICON_BY_NODE_TYPE[pmNode.attrs.nodePtr.nodeType as unknown as NodeType]?.faName?.split(" ") ?? [
-        "fas",
-        "fa-question",
-      ]),
-    );
-    this.nameDom = this.dom.appendChild(document.createElement("span"));
-    this.nameDom.classList.add("name");
-    this.nameDom.textContent = "???";
-
-    this.updateNode();
-  }
-
-  updateNode() {
-    const nodePtr = this.nodePtr;
-    const node = supergraph.get(nodePtr);
-    this.nameDom.textContent = (node != null ? getNodeName(node) : null) ?? "???";
-    const icon = (node != null ? getNodeIcon(node) : null) ?? DEFAULT_MISSING_ICON;
-    this.iconDom.className = icon?.faName != null ? `icon ${icon.faName}` : "icon fa fa-question";
-    if (icon.color != null) this.iconDom.style.color = getColorHex(icon.color)!;
-    else this.iconDom.style.removeProperty("color");
-    this.dom.dataset.nodeType = nodePtr.nodeType.toString();
-  }
-}
-
 /** Base Vue component renderer for PM NodeViews */
-export class VueComponentRenderer implements PmNodeView {
+export class VueComponentView implements PmNodeView {
   dom: HTMLElement;
   pmnode: PmNode;
   vnode: VNode;
@@ -105,6 +58,9 @@ export class VueComponentRenderer implements PmNodeView {
     getPos: () => number | undefined;
   }) {
     const { component, parentComponent, props, node, view, getPos } = options;
+    if (node.type.name != "block") {
+      throw new Error(`node is not 'block': ${node.type.name}`);
+    }
     this.dom = document.createElement("div");
     this.pmnode = node;
     this.vnode = createVNode(component, { ...props });
@@ -135,8 +91,34 @@ export class VueComponentRenderer implements PmNodeView {
   }
 }
 
+/** Mini-component for PM Node spans */
+export class SpanNodeView extends VueComponentView {
+  constructor(options: {
+    component: Component;
+    parentComponent: ComponentInternalInstance;
+    node: PmNode;
+    view: EditorView;
+    getPos: () => number | undefined;
+  }) {
+    const { component, parentComponent, node, view, getPos } = options;
+    if (node.type.name != "spanNode") {
+      throw new Error(`node is not 'span': ${node.type.name}`);
+    }
+    super({
+      component,
+      parentComponent,
+      props: { nodePtr: node.attrs.nodePtr, isMinimal: true },
+      node,
+      view,
+      getPos,
+    });
+  }
+
+  updateNode() {}
+}
+
 /** BlockRenderer renders a custom Block vue component for 'block' nodes */
-export class BlockRenderer extends VueComponentRenderer {
+export class LineBlockView extends VueComponentView {
   navigateOuter: (direction: NavigationDirection) => void;
   getPos: () => number | undefined; // ensure we have access to getPos
   lineHandleDom: HTMLElement;
@@ -532,10 +514,11 @@ export interface PlaceholderConfig {
 
 const DEFAULT_PLACEHOLDER_CONFIG: PlaceholderConfig = {
   placeholderByNodeType: {
-    lineListOrdered: "List item",
-    lineListUnordered: "List item",
+    lineListOrdered: "List",
+    lineListUnordered: "List",
     lineQuote: "Quote",
     lineCallout: "Callout",
+    lineCode: "Code",
     lineHeading: "Heading",
   },
   defaultPlaceholder: undefined,

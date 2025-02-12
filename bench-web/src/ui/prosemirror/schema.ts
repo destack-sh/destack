@@ -18,7 +18,7 @@ const CALLOUT_DOM: DOMOutputSpec = ["p", { class: "line callout" }, 0];
 const QUOTE_DOM: DOMOutputSpec = ["blockquote", { class: "line" }, 0];
 const LIST_UNORDERED_DOM: DOMOutputSpec = ["li", { class: "line list-unordered" }, 0];
 const LIST_ORDERED_DOM: DOMOutputSpec = ["li", { class: "line list-ordered" }, 0];
-const LINE_CODE_DOM: DOMOutputSpec = ["p", { class: "line code" }, 0];
+const LINE_CODE_DOM: DOMOutputSpec = ["code", { class: "line" }, 0];
 
 const SPAN_STRONG_DOM: DOMOutputSpec = ["strong", 0];
 const SPAN_ITALIC_DOM: DOMOutputSpec = ["em", 0];
@@ -149,7 +149,7 @@ export const PM_SCHEMA = new PmSchema({
       toDOM(node) {
         return toLineDom(node, LINE_CODE_DOM);
       },
-      parseDOM: [{ tag: "div.line.code", attrs: { type: TextLineType.CODE } }],
+      parseDOM: [{ tag: "code.line", attrs: { type: TextLineType.CODE } }],
     },
     // span
     text: {
@@ -172,7 +172,7 @@ export const PM_SCHEMA = new PmSchema({
       inline: true,
       atom: true,
       marks: "",
-      attrs: { nodePtr: {}, type: { default: TextSpanType.NODE } },
+      attrs: { nodePtr: {}, type: {} },
       // render manually, can't parse nodes
     },
     spanLink: {
