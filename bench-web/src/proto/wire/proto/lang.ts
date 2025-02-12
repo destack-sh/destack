@@ -37107,12 +37107,24 @@ export type EnumOptionInfo = {
     icon?: string;
 }
 
+export const PrimitiveTypeOptionInfo: Partial<Record<PrimitiveType, EnumOptionInfo>> = {
+  [PrimitiveType.INT16]: { id: 4, name: 'INT16', text: 'Integer', title: 'Very small integer' },
+  [PrimitiveType.INT32]: { id: 6, name: 'INT32', text: 'Integer', title: 'Small integer' },
+  [PrimitiveType.INT64]: { id: 8, name: 'INT64', text: 'Integer', title: 'Integer number' },
+  [PrimitiveType.DECIMAL]: { id: 10, name: 'DECIMAL', text: 'Decimal', title: 'Decimal number' },
+  [PrimitiveType.FLOAT32]: { id: 16, name: 'FLOAT32', text: 'Float', title: 'Small float' },
+  [PrimitiveType.FLOAT64]: { id: 17, name: 'FLOAT64', text: 'Float', title: 'Floating point number' },
+  [PrimitiveType.UUID]: { id: 21, name: 'UUID', text: 'UUID', title: 'UUID' },
+  [PrimitiveType.JSON]: { id: 22, name: 'JSON', text: 'JSON', title: 'JSON' },
+  [PrimitiveType.DATETIME]: { id: 30, name: 'DATETIME', text: 'Date & Time' },
+}
+
 export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
   [BlockType.FILE]: { id: 2200, name: 'FILE', text: 'Any File' },
-  [BlockType.PAGE]: { id: 5020, name: 'PAGE', text: 'Page of Blocks' },
-  [BlockType.CHOICE]: { id: 5030, name: 'CHOICE', text: 'Choice of Fields' },
-  [BlockType.FLOW]: { id: 5050, name: 'FLOW', text: 'Flow of Actions' },
-  [BlockType.DATABASE]: { id: 5090, name: 'DATABASE', text: 'Database of Records' },
+  [BlockType.PAGE]: { id: 5020, name: 'PAGE', text: 'Page to write' },
+  [BlockType.CHOICE]: { id: 5030, name: 'CHOICE', text: 'Choice of options' },
+  [BlockType.FLOW]: { id: 5050, name: 'FLOW', text: 'Flow to run' },
+  [BlockType.DATABASE]: { id: 5090, name: 'DATABASE', text: 'Database to store' },
   [BlockType.PARAGRAPH]: { id: 10001, name: 'PARAGRAPH', text: 'Line of rich Text' },
   [BlockType.HEADING_1]: { id: 10010, name: 'HEADING_1', text: 'Very big heading', title: 'Heading 1' },
   [BlockType.HEADING_2]: { id: 10011, name: 'HEADING_2', text: 'Big heading', title: 'Heading 2' },
@@ -37253,6 +37265,7 @@ export const ToolFilterOptionInfo: Partial<Record<ToolFilter, EnumOptionInfo>> =
 
 
 export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, EnumOptionInfo>>> = {
+  [EnumType.PRIMITIVE_TYPE]: PrimitiveTypeOptionInfo,
   [EnumType.BLOCK_TYPE]: BlockTypeOptionInfo,
   [EnumType.TEXT_LINE_TYPE]: TextLineTypeOptionInfo,
   [EnumType.TEXT_SPAN_TYPE]: TextSpanTypeOptionInfo,

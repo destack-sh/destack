@@ -464,6 +464,12 @@ export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> 
     [PrimitiveType.JSON]: "JSON",
     [PrimitiveType.DATETIME]: "Date and Time",
   },
+  [EnumType.BLOCK_TYPE]: {
+    [BlockType.HEADING_1]: "Heading 1",
+    [BlockType.HEADING_2]: "Heading 2",
+    [BlockType.HEADING_3]: "Heading 3",
+    [BlockType.HEADING_4]: "Heading 4",
+  },
   [EnumType.TYPE_FORMAT]: {
     [TypeFormat.URL]: "URL",
   },

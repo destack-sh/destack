@@ -39,16 +39,16 @@ class BlockType(BuiltinEnum):
     # resources
     FILE = 2200, "Any File"
     # source
-    PAGE = 5020, "Page of Blocks"
+    PAGE = 5020, "Page to write"
     # types
-    CHOICE = 5030, "Choice of Fields"
+    CHOICE = 5030, "Choice of options"
     # CLASS = 5031, "Class of Fields"
     # flow
-    FLOW = 5050, "Flow of Actions"
+    FLOW = 5050, "Flow to run"
     # views
     # VIEW = 5080, "Graphical Interface"
     # data
-    DATABASE = 5090, "Database of Records"
+    DATABASE = 5090, "Database to store"
     # auth
     # ROLE = 5110, "Role to assign"
     # IDENTITY = 5120, "Unique Identity"

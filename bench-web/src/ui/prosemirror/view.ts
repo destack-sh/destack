@@ -1,12 +1,8 @@
-import { supergraph } from "@/globals";
-import { toCamelName } from "@/language/core/const";
-import { NodeReferenceData, NodeType, ObjectType } from "@/proto/wire";
+import { NodeReferenceData, NodeType } from "@/proto/wire";
 import { isNodeRef } from "@/proto/wiring";
 import { startDragging } from "@/ui/drag";
-import { DEFAULT_MISSING_ICON, getNodeIcon, getNodeName, ICON_BY_NODE_TYPE } from "@/ui/icon";
-import { pushDefaultContextMenu, pushDefaultMenu } from "@/ui/popover";
+import { pushDefaultMenu } from "@/ui/popover";
 import { PM_SCHEMA } from "@/ui/prosemirror/schema";
-import { getColorHex } from "@/ui/style";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { blurDocument } from "@/utils/element";
 import { NavigationDirection, ViewExpose } from "@/views/common";
@@ -455,16 +451,7 @@ function createLineHandleDom(node: PmNode): HTMLElement {
   containerDom.className = "line-handle";
 
   // add
-  const addButton = createButton("fas fa-plus");
-  addButton.addEventListener("click", (event) => {
-    if (!isNodeRef(blockPtr)) {
-      throw new Error(`blockPtr is not a node ref from ${node.type.name}`);
-    }
-    // nocheckin: add button
-    event.stopPropagation();
-    event.preventDefault();
-  });
-  containerDom.appendChild(addButton);
+  // TODO :UX: add button for line handle
 
   // drag
   const dragButton = createButton("fas fa-grip-vertical");
@@ -490,7 +477,7 @@ function createLineHandleDom(node: PmNode): HTMLElement {
 }
 
 export function useLineHandlePlugin() {
-  function buildLineHandleDecorations(doc: any) {
+  function buildLineHandleDecorations(doc: PmNode) {
     const decorations: Decoration[] = [];
     doc.descendants((node: PmNode, pos: number) => {
       // only create line handles for text nodes (block line handles are created in the BlockRenderer)
