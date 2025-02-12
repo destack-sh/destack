@@ -471,8 +471,6 @@ export function useTextEditor(options: {
   history?: boolean;
   onTransaction?: (view: EditorView, prevState: EditorState, newState: EditorState) => void;
 }) {
-  // nocheckin: maintain selection across state changes (for undo/redo)
-  const previousSelectionByState: Record<number, EditorSelectionBookmark> = {};
   const { textRef, text, isInput, suppressEnter, suppressDrop, navigate, deleteSelf } = options;
 
   // setup
@@ -516,10 +514,10 @@ export function useTextEditor(options: {
   const lineRefsById: Ref<Record<string, HTMLElement>> = shallowRef({});
   function updateLineRefs(view: EditorView) {
     lineRefsById.value = {};
-    view.dom.querySelectorAll("[data-node-id]").forEach((dom) => {
-      const id = (dom as HTMLElement).dataset?.nodeId;
+    view.dom.querySelectorAll("[data-node-id].line, [data-node-id].line-block").forEach((lineDom) => {
+      const id = (lineDom as HTMLElement).dataset?.nodeId;
       if (id != null) {
-        lineRefsById.value[id] = dom as HTMLElement;
+        lineRefsById.value[id] = lineDom as HTMLElement;
       }
     });
     triggerRef(lineRefsById);
@@ -612,9 +610,11 @@ export function useTextEditor(options: {
   // overwrite state from modelValue if different
   watch(lines, () => {
     if (view == null) return;
+    // nocheckin: maintain/restore selection across state changes (for undo/redo and multiplayer)
     if (deepValueEquals(prevText, lines.value)) return; // already applied
     const updatedState = makeEditorState({ lines: lines.value });
     view.updateState(updatedState);
+    updateLineRefs(view);
     prevText = lines.value;
   });
 

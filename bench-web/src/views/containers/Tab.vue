@@ -74,7 +74,7 @@ const tabsRef: Ref<Record<string, HTMLElement>> = ref({});
 const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
   name: "tab.header",
   container: headerRef,
-  targets: tabsRef,
+  targetsById: tabsRef,
   kinds: ["node", "selection"],
   metatypes: [NodeType.VIEW],
   orientation: Orientation.HORIZONTAL,

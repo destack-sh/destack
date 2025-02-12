@@ -83,44 +83,31 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   <div
     v-if="block"
     ref="blockRef"
-    class="group/block relative select-none rounded transition-colors duration-150"
-    :class="[
-      isSelected ? 'bg-orange-400/20' : '',
-      isPage ? 'cursor-pointer' : '',
-      isPage && !isSelected ? 'hover:bg-gray-100' : '',
-    ]"
+    class="group/block relative select-none"
     :data-suppress-drag="isPage ? 'select' : undefined"
     data-contextmenu-items="space.navigate.open"
     :contenteditable="false"
     :draggable="false"
     @click="() => isPage && canvas.goToNode(node!)"
   >
-    <!-- Page definition -->
-    <div
+    <NodeReference
       v-if="node && block.type == BlockType.PAGE"
-      class="flex flex-row items-center"
-      :style="{
-        height: VIEW_DEFAULT_HEADER_HEIGHT + 'px',
-      }"
-    >
-      <NodeReference
-        ref="nodeRef"
-        size="large"
-        is-underline
-        is-light
-        :node="node"
-        :tx="() => connection.tx"
-        @navigate="
-          (direction: NavigationDirection) => {
-            if (direction == 'enter') {
-              canvas.goToNode(node!);
-            } else {
-              emit('navigate', direction);
-            }
+      ref="nodeRef"
+      size="large"
+      is-underline
+      is-light
+      :node="node"
+      :tx="() => connection.tx"
+      @navigate="
+        (direction: NavigationDirection) => {
+          if (direction == 'enter') {
+            canvas.goToNode(node!);
+          } else {
+            emit('navigate', direction);
           }
-        "
-      />
-    </div>
+        }
+      "
+    />
     <File
       v-else-if="block.type == BlockType.FILE"
       id="file"

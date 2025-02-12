@@ -28,7 +28,7 @@ import { computed, type Ref } from "vue";
 /** Line interface with text or block */
 export type LineInterface =
   | { type: "text"; text: TextLineData; blockPtr: NodeReferenceData | null }
-  | { type: "block"; blockPtr: NodeReferenceData };
+  | { type: "block"; blockPtr: NodeReferenceData; nodePtr: NodeReferenceData | undefined };
 
 /** Read/write source of Text */
 export type TextInterface = {
@@ -92,7 +92,7 @@ export function useTextPageInterface(options: {
         lines.push({ type: "text", text, blockPtr });
       } else {
         const blockPtr = toNodeRef(block);
-        lines.push({ type: "block", blockPtr });
+        lines.push({ type: "block", blockPtr, nodePtr: block.nodePtr });
       }
     }
     return lines;
@@ -244,7 +244,7 @@ export function mapTextToPmNode(lines: LineInterface[]): PmNode {
       }
     } else if (line.type === "block") {
       flushListGroup();
-      nodes.push(schema.node("block", { blockPtr: line.blockPtr }));
+      nodes.push(schema.node("block", { blockPtr: line.blockPtr, nodePtr: line.nodePtr }));
     } else {
       assertNever(line);
     }
@@ -269,7 +269,7 @@ export function mapPmNodeToText(node: PmNode): { lines: LineInterface[]; linesNo
   /** Convert a PmNode to a LineInterface. */
   function mapPmLineToTextLine(lineNode: PmNode): LineInterface {
     if (lineNode.type.name === "block") {
-      return { type: "block", blockPtr: lineNode.attrs.blockPtr };
+      return { type: "block", blockPtr: lineNode.attrs.blockPtr, nodePtr: lineNode.attrs.nodePtr };
     }
     const spans: TextSpanData[] = [];
     for (let spanIdx = 0; spanIdx < lineNode.childCount; spanIdx++) {

@@ -21,7 +21,7 @@ import { describeNode, isNode, isNodeRef, toNodeRef, type TypedNodeReferenceData
 import { useExistingConnection } from "@/system/connection";
 import { bench, canvas } from "@/system/space";
 import { type ActionMapImplementation } from "@/ui/action";
-import { isSelecting, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
+import { isDragging, isSelecting, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { isDraggingGlobal, ScrollbarWidth } from "@/ui/layout";
 import { useNodeListActions } from "@/ui/list";
@@ -107,7 +107,16 @@ const selectedBlockIds = computedValue(() => {
   }
   return selectedBlockIds;
 });
-const highlightPlugin = useHighlightPlugin({ selectedBlockIds });
+const draggingBlockIds = computedValue(() => {
+  const draggingBlockIds: string[] = [];
+  for (const block of blocks.value) {
+    if (isDragging(block)) {
+      draggingBlockIds.push(block.id!);
+    }
+  }
+  return draggingBlockIds;
+});
+const highlightPlugin = useHighlightPlugin({ selectedBlockIds, draggingBlockIds });
 watch(selectedBlockIds, () => {
   updatePlugin(highlightPlugin);
 });
@@ -180,7 +189,7 @@ const selectionZone = useSelectionZone({ containerEl: contentRef, overlayEl: sel
 const { activeDropZone } = useMultiDropZone({
   name: "page",
   container: contentRef,
-  targets: lineRefsById,
+  targetsById: lineRefsById,
   orientation: Orientation.VERTICAL,
   kinds: ["node", "selection", "file"],
   metatypes: [NodeType.BLOCK],
@@ -379,7 +388,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- Page header (title) -->
         <PageHeader
           ref="pageHeaderRef"
-          :contenteditable="false"
           :width="widths.block"
           :node="page"
           :connection="preparedConnection"
@@ -392,6 +400,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
             }
           "
         />
+
+        <!-- nocheckin -->
+        <!-- dragging:{{ draggingBlockIds }} -->
+        <!-- selected:{{ selectedBlockIds }} -->
 
         <!-- Text/Blocks -->
         <div
@@ -418,7 +430,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
         <!-- Padding -->
         <div
-          :contenteditable="false"
           class="transform transition-all duration-300"
           :class="!isEmpty ? 'pt-auto' : 'pt-0'"
           :style="{ height: MIN_FOOTER_PADDING / 2 + 'px' }"
@@ -427,7 +438,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
         <!-- Footer -->
         <div
-          :contenteditable="false"
           class="group/footer mx-auto flex flex-row justify-center gap-x-2.5 py-8"
           :style="{
             width: widths.block + 'px',
@@ -457,14 +467,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
         <!-- Padding -->
         <div
-          :contenteditable="false"
           class=""
           :style="{ height: MIN_FOOTER_PADDING / 2 + 'px' }"
           @click="focusText()"
         />
 
         <!-- Selection -->
-        <SelectionOverlay ref="selectionOverlayRef" :contenteditable="false" :zone="selectionZone" />
+        <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
       </div>
     </Scroll>
     <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="connection" />

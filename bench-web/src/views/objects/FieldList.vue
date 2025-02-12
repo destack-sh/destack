@@ -56,7 +56,7 @@ const { allowDrop, onDrop } = useFieldList({
 const { activeDropZone } = useMultiDropZone({
   name: "type",
   container: containerRef,
-  targets: fieldRefs,
+  targetsById: fieldRefs,
   orientation: orientation.value,
   kinds: ["node", "selection"],
   metatypes: [NodeType.BLOCK, NodeType.FIELD],
