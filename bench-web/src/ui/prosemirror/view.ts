@@ -167,6 +167,7 @@ export class LineBlockView extends VueComponentView {
     this.dom.appendChild(this.lineHandleDom);
   }
 
+  /** Navigate to a sibling node (or fall back to outer navigation) */
   navigate(direction: NavigationDirection) {
     const pos = this.getPos();
     if (pos === undefined) {
@@ -201,12 +202,12 @@ export class LineBlockView extends VueComponentView {
       } else {
         // create text line below
         this.view.dispatch(this.view.state.tr.insert(pos + 1, PM_SCHEMA.node("lineParagraph")));
-        targetPos = pos + 2;
+        targetPos = pos + 1;
       }
     }
 
     if (targetPos !== null) {
-      const targetNode = state.doc.nodeAt(targetPos);
+      const targetNode = this.view.state.doc.nodeAt(targetPos);
       if (targetNode == null) throw new Error("targetNode is null");
       blurDocument(); // remove focus from current node
       let tr: PmTransaction;
@@ -215,7 +216,7 @@ export class LineBlockView extends VueComponentView {
       } else {
         const $endPos = this.view.state.doc.resolve(targetPos);
         this.view.focus();
-        tr = this.view.state.tr.setSelection(new TextSelection($endPos));
+        tr = this.view.state.tr.setSelection(TextSelection.near($endPos));
       }
       this.view.dispatch(tr);
     } else {
