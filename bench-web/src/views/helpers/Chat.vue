@@ -333,12 +333,12 @@ function submit() {
     message: {
       type: MessageType.TEXT,
       parentPtr: benchPtr.value,
-      scopePtr: toNodeRef(scope.value),
-      text,
       channelPtr: channelPtr.value,
       threadPtr: threadPtr.value,
+      scopePtr: toNodeRef(scope.value),
       replyToPtr: replyTo.value != null ? draftReplyTo.value : undefined,
       nodesPtr: draftNodesPtr.value,
+      text,
     },
   });
 }

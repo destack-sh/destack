@@ -697,7 +697,7 @@ export function useTextEditor(options: {
     "text.edit.hardBreak": {
       action: () => {
         // insert 'hardBreak' node at cursor
-        if (view == null || toValue(suppressEnter)) return false;
+        if (view == null || toValue(suppressEnter)) return; // suppress if needed
         const { from } = view.state.selection;
         const hardBreak = PM_SCHEMA.node("spanHardBreak");
         view.dispatch(view.state.tr.insert(from, hardBreak));
