@@ -643,6 +643,12 @@ export function editGraph(
       } else {
         graph.update(node);
       }
+      // extend setPaths for overlay
+      if (options?.base != null) {
+        if ((node as PartialNode<any>).setPaths == null) {
+          (node as PartialNode<any>).setPaths = [...IMPLICIT_UPDATE_PROPERTIES_IDS.map((p) => [p.toString()])];
+        }
+      }
     } else if (edit.type == EditType.ERASE && !(options?.base && !graph.has(edit.nodePtr!))) {
       // remove
       const oldNode = graph.get(edit.nodePtr!);
@@ -674,14 +680,12 @@ export function editGraph(
         }
       }
       updatedNode = structuredClone(updatedNode); // copy
-
       // apply edit operations
       if (edit.type == EditType.UPDATE || edit.type == EditType.MOVE) {
         for (const operation of edit.operations) {
           applyEditOperation(operation, updatedNode);
         }
       }
-
       // implicit metadata
       updatedNode.updatedAt = edit.editedAt;
       updatedNode.updatedByPtr = edit.subjectPtr;
@@ -691,7 +695,6 @@ export function editGraph(
       } else if (edit.type == EditType.RESTORE) {
         updatedNode.deletedAt = undefined;
       }
-
       // extend setPaths for overlay
       if (options?.base != null) {
         if ((updatedNode as PartialNode<any>).setPaths == null) {
@@ -703,7 +706,6 @@ export function editGraph(
           }
         }
       }
-
       graph.update(updatedNode);
     }
   }

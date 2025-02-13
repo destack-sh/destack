@@ -1093,7 +1093,7 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     let mergedNode: NodeTypeMapping[T] | null = null;
     for (const layer of this.layers.value) {
       // merge node from next layer
-      const node = layer.get(key);
+      const node = layer instanceof FilterBaseNodeGraphMixin ? layer.getUnfiltered(key) : layer.get(key);
       if (node != null) {
         if (!mergedNode) mergedNode = node;
         else mergedNode = mergeNode(mergedNode, node);

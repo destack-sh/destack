@@ -202,7 +202,7 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
       (value as any)[propName] = prop.default;
     } else if (prop.isList) {
       (value as any)[propName] = [];
-    }
+    } 
   }
   value.metatype = objectType;
   return value;
