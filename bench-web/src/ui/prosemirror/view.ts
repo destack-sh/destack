@@ -126,6 +126,7 @@ export class LineBlockView extends VueComponentView {
   navigateOuter: (direction: NavigationDirection) => void;
   getPos: () => number | undefined; // ensure we have access to getPos
   lineHandleDom: HTMLElement;
+  
   constructor(options: {
     component: Component;
     node: PmNode;

@@ -652,7 +652,8 @@ export class SpaceCanvas {
       }
     }
 
-    // NOTE :Architecture: 'self'/'id' shouldn't change, right, so no need to watch in Canvas.registerView?
+    // NOTE :Architecture: 'self'/'id' shouldn't change, so no need to watch in Canvas.registerView (?)
+    // NOTE :Broken?: view componentId is incorrect inside pm-mounted view components (like a Flow in a Block on a Page)
     let componentId: string = getComponentId();
     watch(
       [self, id],

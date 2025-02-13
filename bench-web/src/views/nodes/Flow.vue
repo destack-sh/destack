@@ -44,7 +44,7 @@ import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExpose 
 import Action from "@/views/nodes/Action.vue";
 import Pipe from "@/views/nodes/Pipe.vue";
 import FieldList from "@/views/objects/FieldList.vue";
-import { useElementSize } from "@vueuse/core";
+import { MaybeElement, useElementSize } from "@vueuse/core";
 import { computed, provide, ref, toRef, type Ref } from "vue";
 
 const BACKGROUND_STYLE: "checker" | "dots" = "dots";
@@ -64,10 +64,7 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.FLOW>);
-const preparedConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
-const { graph, connection } = preparedConnection;
-
+// view
 const containerRef = ref<HTMLElement | null>(null);
 const headerRef: Ref<InstanceType<typeof InlineHeader> | null> = ref(null);
 const bodyRef: Ref<HTMLElement | null> = ref(null);
@@ -76,8 +73,12 @@ const createActionRef: Ref<HTMLButtonElement | null> = ref(null);
 const actionRefs: Ref<Record<string, InstanceType<typeof Action>>> = ref({});
 const pipeRefs: Ref<Record<string, InstanceType<typeof Pipe>>> = ref({});
 const containerSize = useElementSize(containerRef);
-const headerSize = useElementSize(headerRef);
+const headerSize = useElementSize(headerRef as Ref<MaybeElement>);
 
+// flow
+const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.FLOW>);
+const preparedConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
+const { graph, connection } = preparedConnection;
 const flowCtx = new FlowContext({
   spaceGraph: spaceGraph,
   spaceTx: () => canvas.tx().with({ category: ChangeCategory.SPACE }),
@@ -528,7 +529,7 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
 
       <!-- Overlay -->
       <div
-        v-if="flow"
+        v-if="flow && !isMinimal"
         class="pointer-events-none absolute bottom-0 left-0 flex w-full flex-row items-center justify-center"
       >
         <!-- Menu -->
@@ -544,7 +545,7 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
           <!-- Zoom -->
           <button
             class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            @click="flowCtx.zoom('out', flowCtx.centerVec!, 10)"
+            @click="() => flowCtx.zoom('out', flowCtx.centerVec!, 10)"
           >
             <i class="fas fa-minus w-5 text-center" />
           </button>
