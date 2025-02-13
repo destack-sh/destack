@@ -161,13 +161,19 @@ function apply(item: SearchItem) {
     if (props.pageContext == null || blockType >= BlockType.PARAGRAPH) {
       // morph text line directly
       const tr = view.state.tr;
-      tr.setBlockType(linePos, linePos + lineNode.nodeSize - 1, getPmLineType(textLineType), {
-        ...lineNode.attrs,
-        type: textLineType,
-      });
-      tr.delete(linePos, linePos + lineNode.nodeSize - 1);
-      tr.setSelection(TextSelection.near(tr.doc.resolve(linePos)));
-      wrapIfNeeded(tr, tr.doc.resolve(linePos), textLineType);
+      if (blockType == BlockType.DIVIDER) {
+        tr.insert(linePos - 1, PM_SCHEMA.node("lineDivider"));
+        tr.delete(linePos + 1, linePos + lineNode.nodeSize - 1);
+        tr.setSelection(TextSelection.near(tr.doc.resolve(linePos)));
+      } else {
+        tr.setBlockType(linePos, linePos + lineNode.nodeSize - 1, getPmLineType(textLineType), {
+          ...lineNode.attrs,
+          type: textLineType,
+        });
+        tr.delete(linePos, linePos + lineNode.nodeSize - 1);
+        tr.setSelection(TextSelection.near(tr.doc.resolve(linePos)));
+        wrapIfNeeded(tr, tr.doc.resolve(linePos), textLineType);
+      }
       dispatch(tr);
     } else {
       // morph block with node
@@ -189,7 +195,7 @@ function apply(item: SearchItem) {
       tx.update(block, { type: blockType, nodePtr: toNodeRef(node) });
       deleteSelf();
       if (blockType == BlockType.PAGE) {
-        canvas.goToNode(node); // immediately go to the new node
+        nextTick(() => canvas.goToNode(node)); // go to the new page
       } else {
         // NOTE :Cleanup: focus new blocks in Text properly, using the component ref is a bit hacky
         //  (ideally we would do this through the prosemirror transaction system, but we're also updating our own graph,

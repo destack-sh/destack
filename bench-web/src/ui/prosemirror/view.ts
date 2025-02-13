@@ -539,59 +539,81 @@ const DEFAULT_PLACEHOLDER_CONFIG: PlaceholderConfig = {
 /**
  * ProseMirror placeholder plugin.
  */
-export function usePlaceholderPlugin(config: Partial<PlaceholderConfig> & { alwaysShow?: boolean }) {
-  const { placeholderByNodeType, defaultPlaceholder, alwaysShow } = {
+export function usePlaceholderPlugin(
+  config: Partial<PlaceholderConfig> & { showIfUnfocused?: boolean; showIfEmpty?: string[] },
+) {
+  const {
+    placeholderByNodeType,
+    defaultPlaceholder,
+    showIfUnfocused = false,
+    showIfEmpty = ["lineHeading"],
+  } = {
     ...DEFAULT_PLACEHOLDER_CONFIG,
     ...config,
   };
 
   /** Create a placeholder widget element. */
-  function createPlaceholderWidget(text: string): HTMLElement {
+  function createPlaceholderWidget(text: string, showIfUnfocused: boolean): HTMLElement {
     const span = document.createElement("span");
     span.className = "placeholder";
-    if (!alwaysShow) {
+    if (!showIfUnfocused) {
       span.classList.add("placeholder-hidden");
     }
     span.textContent = text;
     return span;
   }
 
-  /** Create a DecorationSet with a placeholder widget for an empty textblock containing the selection. */
-  function getPlaceholderDecoration(state: EditorState): DecorationSet {
-    const { $from } = state.selection;
-    const parent = $from.parent;
+  /** Get placeholder text for a node if it should have one */
+  function getPlaceholderFor(node: PmNode, isSelected: boolean): string | null {
+    const shouldShow = isSelected || showIfEmpty.includes(node.type.name);
+    if (!shouldShow) return null;
 
-    // only show placeholder if selection is inside an empty textblock
+    // only show for empty textblocks
+    if (!node.isTextblock || node.textContent !== "") return null;
     let hasSpecialInput = false;
-    parent.descendants((node, pos) => {
-      if (node.type.name == "spanSpecialInput") {
+    node.descendants((child) => {
+      if (child.type.name === "spanSpecialInput") {
         hasSpecialInput = true;
       }
     });
-    if (!(parent.isTextblock && state.selection.empty && parent.textContent == "") || hasSpecialInput) {
-      return DecorationSet.empty;
-    }
+    if (hasSpecialInput) return null;
 
-    // figure out placeholder text
-    const placeholderText = placeholderByNodeType[parent.type.name] || defaultPlaceholder;
-    if (placeholderText == null) {
-      return DecorationSet.empty;
-    }
+    // get placeholder text
+    return placeholderByNodeType[node.type.name] || defaultPlaceholder || null;
+  }
 
-    // insert widget at the beginning of the textblock.
-    const pos = $from.start();
-    const deco = Decoration.widget(pos, () => createPlaceholderWidget(placeholderText), {
-      side: 1,
-      ignoreSelection: true,
+  /** Create a DecorationSet with placeholder widgets */
+  function getPlaceholderDecorations(state: EditorState): DecorationSet {
+    const decorations: Decoration[] = [];
+    const { $from } = state.selection;
+    const selectedParent = $from.parent;
+
+    // add decorations for nodes that should have placeholders
+    state.doc.descendants((node, pos) => {
+      const isSelected = node === selectedParent && state.selection.empty;
+      const placeholderText = getPlaceholderFor(node, isSelected);
+
+      if (placeholderText) {
+        const deco = Decoration.widget(
+          pos + 1,
+          () => createPlaceholderWidget(placeholderText, showIfUnfocused || showIfEmpty.includes(node.type.name)),
+          {
+            side: 1,
+            ignoreSelection: true,
+          },
+        );
+        decorations.push(deco);
+      }
     });
-    return DecorationSet.create(state.doc, [deco]);
+
+    return DecorationSet.create(state.doc, decorations);
   }
 
   const plugin = new Plugin({
     key: PLACEHOLDER_PLUGIN_KEY,
     props: {
       decorations(state) {
-        return getPlaceholderDecoration(state);
+        return getPlaceholderDecorations(state);
       },
     },
   });
