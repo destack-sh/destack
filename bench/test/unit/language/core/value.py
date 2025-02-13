@@ -55,7 +55,7 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
     )
 
     # coerce
-    Flow1Output = Flow1.to_type_maybe(field_types=[FieldType.OUTPUT])
+    Flow1Output = Flow1.to_type_maybe(of="value", field_types=[FieldType.OUTPUT])
     assert Flow1Output is not None
     obj = coerce_custom_object_scalar(
         {
