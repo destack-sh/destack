@@ -11082,13 +11082,29 @@ export enum BlockType {
      */
     CHOICE = 5030,
     /**
+     * @generated from protobuf enum value: BLOCK_TYPE_CLASS = 5031;
+     */
+    CLASS = 5031,
+    /**
      * @generated from protobuf enum value: BLOCK_TYPE_FLOW = 5050;
      */
     FLOW = 5050,
     /**
+     * @generated from protobuf enum value: BLOCK_TYPE_VIEW = 5080;
+     */
+    VIEW = 5080,
+    /**
      * @generated from protobuf enum value: BLOCK_TYPE_DATABASE = 5090;
      */
     DATABASE = 5090,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_ROLE = 5110;
+     */
+    ROLE = 5110,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_IDENTITY = 5120;
+     */
+    IDENTITY = 5120,
     /**
      * @generated from protobuf enum value: BLOCK_TYPE_PARAGRAPH = 10001;
      */
@@ -37123,8 +37139,12 @@ export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
   [BlockType.FILE]: { id: 2200, name: 'FILE', text: 'Any File' },
   [BlockType.PAGE]: { id: 5020, name: 'PAGE', text: 'Page to write' },
   [BlockType.CHOICE]: { id: 5030, name: 'CHOICE', text: 'Choice of options' },
+  [BlockType.CLASS]: { id: 5031, name: 'CLASS', text: 'Class of Fields' },
   [BlockType.FLOW]: { id: 5050, name: 'FLOW', text: 'Flow to run' },
+  [BlockType.VIEW]: { id: 5080, name: 'VIEW', text: 'Graphical Interface' },
   [BlockType.DATABASE]: { id: 5090, name: 'DATABASE', text: 'Database to store' },
+  [BlockType.ROLE]: { id: 5110, name: 'ROLE', text: 'Role to assign' },
+  [BlockType.IDENTITY]: { id: 5120, name: 'IDENTITY', text: 'Unique Identity' },
   [BlockType.PARAGRAPH]: { id: 10001, name: 'PARAGRAPH', text: 'Line of rich Text' },
   [BlockType.HEADING_1]: { id: 10010, name: 'HEADING_1', text: 'Very big heading', title: 'Heading 1' },
   [BlockType.HEADING_2]: { id: 10011, name: 'HEADING_2', text: 'Big heading', title: 'Heading 2' },

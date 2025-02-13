@@ -68,13 +68,9 @@ import {
   VIEW_DEFAULT_ROOT_HEADER_HEIGHT,
 } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
-import BlockHeader from "@/views/builtins/BlockHeader.vue";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import InlineHeader from "@/views/builtins/InlineHeader.vue";
-import NodeReference from "@/views/builtins/NodeReference.vue";
-import PageHeader from "@/views/builtins/PageHeader.vue";
-import RootHeader from "@/views/builtins/RootHeader.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -627,20 +623,6 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
 
       <!-- Meta -->
       <template #right="{ style }">
-        <!-- Staleness/Loading -->
-        <Transition
-          enter-active-class="transition-opacity ease-in duration-150"
-          enter-from-class="opacity-0"
-          enter-to-class="opacity-100"
-          leave-active-class="transition-all ease-out duration-150"
-          leave-from-class="opacity-100"
-          leave-to-class="opacity-0"
-        >
-          <span v-if="isStale || isConnecting" class="ml-1">
-            <i class="fas fa-circle-small animate-pulse text-gray-400" />
-          </span>
-        </Transition>
-
         <!-- Selection -->
         <div
           class="flex flex-row items-center rounded border transition-colors duration-150"
@@ -668,16 +650,6 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           </button>
         </div>
 
-        <!-- Pagination -->
-        <!-- TODO :Incomplete: Database pagination -->
-        <div
-          class="transition-opacity duration-150"
-          :class="style == 'block' ? 'opacity-0 group-hover/block:opacity-100 group-hover/header:opacity-100' : ''"
-        >
-          <span v-if="page?.total != null" class="text-gray-400">{{ page.size }} / {{ page?.total }}</span>
-        </div>
-
-        <!-- Controls -->
         <!-- Add field -->
         <button
           class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
@@ -719,6 +691,24 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           <i class="fas fa-plus mr-1.5 text-center" />
           <span class="">Record</span>
         </button>
+
+        <!-- Pagination -->
+        <!-- TODO :Incomplete: Database pagination -->
+        <div
+          class="transition-opacity duration-150"
+          :class="style == 'block' ? 'opacity-0 group-hover/block:opacity-100 group-hover/header:opacity-100' : ''"
+        >
+          <span v-if="page?.total != null" class="text-gray-400">{{ page.size }} / {{ page?.total }}</span>
+        </div>
+        <!-- Status -->
+        <div class="ml-1">
+          <!-- Loading -->
+          <i v-if="recordConnection.isConnecting.value" class="fas fa-spinner-third animate-spin text-gray-400" />
+          <i
+            v-else
+            class="fas fa-circle-small text-success-600 opacity-0 transition-colors duration-150 group-hover/block:opacity-100 group-hover/header:opacity-100"
+          />
+        </div>
       </template>
     </InlineHeader>
 
@@ -878,24 +868,6 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           </button>
         </div>
 
-        <!-- Status (if not connected or empty) -->
-        <div
-          v-if="!isConnected"
-          class="flex flex-row items-center justify-center text-center"
-          :style="{ paddingLeft: `${ROW_ACTIONS_WIDTH}px`, height: `${ROW_HEIGHT_MIN}px` }"
-        >
-          <!-- Loading -->
-          <Transition
-            enter-from-class="opacity-0"
-            enter-active-class="transition-opacity duration-200"
-            enter-to-class="opacity-100"
-            appear
-            mode="out-in"
-          >
-            <i class="fas fa-spinner-third animate-spin text-gray-400" />
-          </Transition>
-        </div>
-
         <!-- Row -->
         <div
           v-for="(record, y) in records"
@@ -1027,21 +999,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           class="flex flex-row items-center justify-center text-center"
           :style="{ paddingLeft: `${ROW_ACTIONS_WIDTH}px`, height: `${ROW_HEIGHT_MIN}px` }"
         >
-          <!-- Loading -->
-          <span v-if="recordConnection.isConnecting.value">
-            <i class="fas fa-spinner-third animate-spin text-gray-400" />
-          </span>
-          <!-- Nothing here -->
-          <button
-            v-else-if="records.length == 0"
-            class="h-full w-full text-center text-gray-400 hover:bg-gray-100"
-            @click="createRecord()"
-          >
-            <i class="fas fa-empty-set mr-1.5" />
-            <span class="">No records. Click to add.</span>
-          </button>
-          <!-- Default add -->
-          <button v-else class="h-full w-full px-3 text-left text-gray-400 hover:bg-gray-100" @click="createRecord()">
+          <button class="h-full w-full px-3 text-left text-gray-400 hover:bg-gray-100" @click="createRecord()">
             <i class="fas fa-plus mr-1.5" />
             <span class="">Record</span>
           </button>

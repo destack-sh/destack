@@ -42,16 +42,16 @@ class BlockType(BuiltinEnum):
     PAGE = 5020, "Page to write"
     # types
     CHOICE = 5030, "Choice of options"
-    # CLASS = 5031, "Class of Fields"
+    CLASS = 5031, "Class of Fields"
     # flow
     FLOW = 5050, "Flow to run"
     # views
-    # VIEW = 5080, "Graphical Interface"
+    VIEW = 5080, "Graphical Interface"
     # data
     DATABASE = 5090, "Database to store"
     # auth
-    # ROLE = 5110, "Role to assign"
-    # IDENTITY = 5120, "Unique Identity"
+    ROLE = 5110, "Role to assign"
+    IDENTITY = 5120, "Unique Identity"
 
     # text
     # NOTE: text BlockTypes should align with :TextLineTypes

@@ -1048,8 +1048,12 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BLOCK_TYPE_FILE: _ClassVar[BlockType]
     BLOCK_TYPE_PAGE: _ClassVar[BlockType]
     BLOCK_TYPE_CHOICE: _ClassVar[BlockType]
+    BLOCK_TYPE_CLASS: _ClassVar[BlockType]
     BLOCK_TYPE_FLOW: _ClassVar[BlockType]
+    BLOCK_TYPE_VIEW: _ClassVar[BlockType]
     BLOCK_TYPE_DATABASE: _ClassVar[BlockType]
+    BLOCK_TYPE_ROLE: _ClassVar[BlockType]
+    BLOCK_TYPE_IDENTITY: _ClassVar[BlockType]
     BLOCK_TYPE_PARAGRAPH: _ClassVar[BlockType]
     BLOCK_TYPE_HEADING_1: _ClassVar[BlockType]
     BLOCK_TYPE_HEADING_2: _ClassVar[BlockType]
@@ -2806,8 +2810,12 @@ BLOCK_TYPE_UNSPECIFIED: BlockType
 BLOCK_TYPE_FILE: BlockType
 BLOCK_TYPE_PAGE: BlockType
 BLOCK_TYPE_CHOICE: BlockType
+BLOCK_TYPE_CLASS: BlockType
 BLOCK_TYPE_FLOW: BlockType
+BLOCK_TYPE_VIEW: BlockType
 BLOCK_TYPE_DATABASE: BlockType
+BLOCK_TYPE_ROLE: BlockType
+BLOCK_TYPE_IDENTITY: BlockType
 BLOCK_TYPE_PARAGRAPH: BlockType
 BLOCK_TYPE_HEADING_1: BlockType
 BLOCK_TYPE_HEADING_2: BlockType

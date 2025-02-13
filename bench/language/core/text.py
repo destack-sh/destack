@@ -3,6 +3,8 @@ from uuid import UUID
 
 import regex
 
+from bench.language.core.code import Code
+
 from .const import BuiltinEnum, EnumType, StructType, enum_
 from .node import Node, NodeReference
 from .object import BuiltinObject, object_
@@ -270,7 +272,9 @@ class Text(Struct):
     from_string = plain
 
     @staticmethod
-    def code(code: str) -> "Text":
+    def code(code: str | Code) -> "Text":
+        if not isinstance(code, str):
+            code = code.to_string()
         return Text(lines=[TextLine.code(code)])
 
     @staticmethod

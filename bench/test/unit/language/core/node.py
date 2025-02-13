@@ -70,7 +70,7 @@ def test_get_set_non_existing_property(session: "Session"):
 
 def test_node_subtype_property_access(session: "Session"):
     # subtype -> regular property
-    Text1 = Block.new(BlockType.PARAGRAPH, line=TextLine.plain("Hello!"))
+    Text1 = Block.new(BlockType.PARAGRAPH, text=TextLine.plain("Hello!"))
     assert Text1.text is not None and Text1.text.spans[0].content == "Hello!"
     Text1.text = TextLine.plain("Hello, world!")
     assert Text1.text is not None and Text1.text.spans[0].content == "Hello, world!"
@@ -84,14 +84,14 @@ def test_node_subtype_property_access(session: "Session"):
 
 
 def test_node_subtype_property_reference(session: "Session"):
-    Text1 = Block.new(BlockType.PARAGRAPH, line=TextLine.plain("Hello!"))
+    Text1 = Block.new(BlockType.PARAGRAPH, text=TextLine.plain("Hello!"))
     Duplicate1 = Action.new(DuplicateAction, "BlockAction1", node=Text1)
     node_prop: Property = Duplicate1.get_property("node")
     assert node_prop.to_ref().resolve_or_error() is node_prop
 
 
 def test_node_subtype_pack_unpack(session: "Session"):
-    block = Block.new(BlockType.PARAGRAPH, line=TextLine.plain("Hello!"))
+    block = Block.new(BlockType.PARAGRAPH, text=TextLine.plain("Hello!"))
     # pack/unpack wiring
     block_data = block._to_data()
     unpacked_block = cast(
