@@ -244,7 +244,6 @@ export function useHighlightPlugin(options: { selectedBlockIds: Ref<string[]>; d
         return DecorationSet.empty;
       },
       apply(tr, oldDecos, oldState, newState) {
-        // recompute decorations based on the external highlightedBlockIds
         const decorations: Decoration[] = [];
         newState.doc.descendants((node, pos) => {
           if (node.attrs.blockPtr == null) return;

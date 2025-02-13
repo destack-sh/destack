@@ -3,7 +3,12 @@ import { type ActionImplementation, type ActionMapImplementation } from "@/ui/ac
 import { PageContext } from "@/ui/prosemirror/page";
 import { PM_SCHEMA, SpanSpecialInputType, TextMarkType } from "@/ui/prosemirror/schema";
 import { LineBlockView, SpanNodeView, VueComponentView } from "@/ui/prosemirror/view";
-import { LineInterface, mapPmNodeToText, mapTextToPmNode, TextInterface } from "@/ui/prosemirror/wiring";
+import {
+  LineInterface,
+  mapPmNodeToText,
+  mapTextToPmNode,
+  TextInterface
+} from "@/ui/prosemirror/wiring";
 import { deepValueEquals } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import TextSpecialInput from "@/views/builtins/TextSpecialInput.vue";
@@ -29,8 +34,7 @@ import {
   Plugin,
   Transaction as PmTransaction,
   Selection,
-  TextSelection,
-  type SelectionBookmark as EditorSelectionBookmark,
+  TextSelection
 } from "prosemirror-state";
 import { liftTarget } from "prosemirror-transform";
 import { EditorView } from "prosemirror-view";
@@ -536,15 +540,9 @@ export function useTextEditor(options: {
 
   // state
   const lines = computed(() => text.read());
-  function makeEditorState(stateIn: { lines: LineInterface[]; selection?: EditorSelectionBookmark }): EditorState {
-    const doc = mapTextToPmNode(stateIn.lines);
-    const selection = stateIn.selection?.resolve(doc);
-    const state = EditorState.create({
-      doc: doc,
-      schema: PM_SCHEMA,
-      selection,
-      plugins,
-    });
+  function makeEditorState(lines: LineInterface[]): EditorState {
+    const doc = mapTextToPmNode(lines);
+    const state = EditorState.create({ doc: doc, schema: PM_SCHEMA, plugins });
     return state;
   }
 
@@ -581,7 +579,7 @@ export function useTextEditor(options: {
       plugins.push(dropCursor({ width: 2, color: "#fbbf24" }));
     }
     const view = new EditorView(textRef.value, {
-      state: makeEditorState({ lines: lines.value }),
+      state: makeEditorState(lines.value),
       editable: () => toValue(isInput),
       nodeViews: {
         spanNode: (node, view, getPos) =>
@@ -666,10 +664,8 @@ export function useTextEditor(options: {
   // overwrite state from modelValue if different
   watch(lines, () => {
     if (view == null) return;
-    // nocheckin: maintain/restore selection across state changes (for undo/redo and multiplayer)
-    if (deepValueEquals(prevText, lines.value)) return; // already applied
-    const updatedState = makeEditorState({ lines: lines.value });
-    view.updateState(updatedState);
+    if (deepValueEquals(prevText, lines.value)) return; // already equal
+    text.updateView(view, prevText, lines.value);
     updateLineRefs(view);
     prevText = lines.value;
   });

@@ -176,6 +176,7 @@ mark {
   @apply transition-colors duration-150;
 }
 
+/** Placeholders */
 .pm-text .placeholder {
   @apply pointer-events-none text-gray-400;
 }
@@ -186,7 +187,7 @@ mark {
   @apply opacity-0;
 }
 
-/* Selected */
+/** Selected */
 .pm-text .line.selected,
 .pm-text .line-block.selected {
   @apply bg-orange-400/20;
@@ -198,6 +199,9 @@ mark {
   @apply bg-orange-400/20;
 }
 .pm-text p.line.callout.selected {
+  @apply bg-orange-400/20;
+}
+.pm-text .line-block.page.selected {
   @apply bg-orange-400/20;
 }
 
@@ -225,6 +229,9 @@ mark {
 }
 .pm-text code.line {
   @apply my-2 block w-full rounded bg-gray-100 px-3 py-2;
+}
+.pm-text.compact code.line {
+  @apply my-1.5 py-1.5;
 }
 
 /** Line handles */
@@ -305,7 +312,7 @@ mark {
 }
 .pm-text .span-node-view:hover,
 .pm-text .span-node-view:focus-within {
-  @apply bg-gray-100 cursor-pointer;
+  @apply cursor-pointer bg-gray-100;
 }
 
 .ProseMirror-focused {
