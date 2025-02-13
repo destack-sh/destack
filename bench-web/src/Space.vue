@@ -225,7 +225,7 @@ mark {
   @apply mr-1 pl-1.5 pr-2 text-gray-700;
 }
 .pm-text hr {
-  @apply my-2 border-gray-200 p-0 focus:outline-none focus:ring-0;
+  @apply my-1 border-gray-200 py-1 focus:outline-none focus:ring-0;
 }
 .pm-text code.line {
   @apply my-2 block w-full rounded bg-gray-100 px-3 py-2;

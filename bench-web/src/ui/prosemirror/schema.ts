@@ -14,9 +14,9 @@ const H1_DOM: DOMOutputSpec = ["h1", { class: "line" }, 0];
 const H2_DOM: DOMOutputSpec = ["h2", { class: "line" }, 0];
 const H3_DOM: DOMOutputSpec = ["h3", { class: "line" }, 0];
 const H4_DOM: DOMOutputSpec = ["h4", { class: "line" }, 0];
-const HR_DOM: DOMOutputSpec = ["hr", { clas: "line" }];
 const CALLOUT_DOM: DOMOutputSpec = ["p", { class: "line callout" }, 0];
 const QUOTE_DOM: DOMOutputSpec = ["blockquote", { class: "line" }, 0];
+const DIVIDER_DOM: DOMOutputSpec = ["hr", { clas: "line" }];
 const LIST_UNORDERED_DOM: DOMOutputSpec = ["li", { class: "line list-unordered" }, 0];
 const LIST_ORDERED_DOM: DOMOutputSpec = ["li", { class: "line list-ordered" }, 0];
 const LINE_CODE_DOM: DOMOutputSpec = ["code", { class: "line" }, 0];
@@ -135,7 +135,7 @@ export const PM_SCHEMA = new PmSchema({
       group: "line",
       attrs: { blockPtr: { default: null }, type: { default: TextLineType.DIVIDER } },
       toDOM(node) {
-        return toLineDom(node, HR_DOM);
+        return toLineDom(node, DIVIDER_DOM);
       },
       parseDOM: [{ tag: "hr" }],
     },
