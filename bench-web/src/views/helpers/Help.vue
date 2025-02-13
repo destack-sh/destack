@@ -40,13 +40,7 @@ const state = canvas.registerView(self, id);
 const nodePtr = computedValue(() => props.nodePtr ?? inspectionPtr.value);
 const { node: inspection, connection: inspectionConnection } = supergraph.getLinkRef(nodePtr);
 const isNodeRunnable = computed(() => inspection.value != null && isRunnable(inspection.value));
-const parentPtr = computed(() => {
-  if (isNode(inspection.value, NodeType.BLOCK)) {
-    return inspection.value.nodePtr;
-  } else {
-    return null;
-  }
-});
+const parentPtr = computed(() => inspection.value?.parentPtr);
 const { node: parent, connection: parentConnection } = supergraph.getLinkRef(parentPtr);
 const delegatePtr = computed(() => {
   if (isNode(inspection.value, NodeType.BLOCK)) {
@@ -65,7 +59,6 @@ const scope = computed(() => {
     return inspection.value;
   }
 });
-
 
 // run
 const containingRun: Ref<RunData | null> = computed(() => {

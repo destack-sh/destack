@@ -19,6 +19,8 @@ import { PM_SCHEMA } from "@/ui/prosemirror/schema";
 import { assertNever, groupByScalar } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
 import { Node as PmNode, type Mark as PmMark } from "prosemirror-model";
+import { EditorState } from "prosemirror-state";
+import { EditorView } from "prosemirror-view";
 import { computed, type Ref } from "vue";
 
 //
@@ -36,13 +38,15 @@ export type TextInterface = {
   read: () => LineInterface[];
   /** Writes the Lines, returning the updated Lines (if changed). */
   write: (lines: LineInterface[]) => LineInterface[];
+  /** Updates the given view. */
+  updateView: (view: EditorView, prevLines: LineInterface[], newLines: LineInterface[]) => void;
 };
 
 /** Read/write directly from TextData. */
 export function useTextModelValueInterface(options: {
   modelValue: Readonly<Ref<TextData | undefined | null>>;
   update: (text: TextData) => void;
-}) {
+}): TextInterface {
   const { modelValue, update } = options;
 
   const lines = computed(() => {
@@ -68,7 +72,13 @@ export function useTextModelValueInterface(options: {
     return lines;
   }
 
-  return { read, write };
+  function updateView(view: EditorView, prevLines: LineInterface[], newLines: LineInterface[]) {
+    const doc = mapTextToPmNode(newLines);
+    const updatedState = EditorState.create({ doc: doc, schema: PM_SCHEMA, plugins: view.state.plugins });
+    view.updateState(updatedState);
+  }
+
+  return { read, write, updateView };
 }
 
 /** Read/write Text from Blocks in a Page. */
@@ -77,21 +87,18 @@ export function useTextPageInterface(options: {
   blocks: Ref<BlockData[]>;
   graph: ReadNodeGraph;
   txFactory: () => Transaction;
-}) {
+}): TextInterface {
   const { page, blocks, graph, txFactory } = options;
-
-  const blocksById: Ref<Record<string, BlockData>> = computed(() => groupByScalar(blocks.value, (b) => b.id));
 
   // map blocks to lines
   const lines = computed(() => {
     const lines: LineInterface[] = [];
     for (const block of blocks.value) {
+      const blockPtr = toNodeRef(block);
       if (block.type >= BlockType.PARAGRAPH) {
         const text = block.text ?? emptyTextLine();
-        const blockPtr = toNodeRef(block);
         lines.push({ type: "text", text, blockPtr });
       } else {
-        const blockPtr = toNodeRef(block);
         lines.push({ type: "block", blockPtr, nodePtr: block.nodePtr });
       }
     }
@@ -102,68 +109,341 @@ export function useTextPageInterface(options: {
     return lines.value;
   }
 
-  /** Difference update the Lines with Blocks. */
   function write(lines: LineInterface[]) {
-    const lineByBlockId: Record<string, LineInterface> = {};
-    const newLines: LineInterface[] = lines.map((l) => ({ ...l }));
-    for (const line of lines) {
-      if (line.type === "text" || line.type === "block") {
-        if (line.blockPtr?.id != null) {
-          lineByBlockId[line.blockPtr.id] = line;
-        }
-      }
-    }
-
-    const tx = txFactory().with({ change: { title: "Edit", key: newChangeId() } });
-
-    // delete removed blocks
-    for (const block of blocks.value) {
-      if (lineByBlockId[block.id] == null) {
-        tx.delete(block);
-      }
-    }
-
-    // add new blocks
-    let prevBlockId: string | undefined = undefined;
-    const firstBlock = blocks.value[0];
-    for (const line of newLines) {
-      if (line.blockPtr?.id != null) {
-        prevBlockId = line.blockPtr.id;
-      } else {
-        const prevBlock = blocksById.value[prevBlockId!];
-        const block = createBlock(tx, graph, {
-          block: {
-            type: (line.type === "text" ? line.text.type + 10_000 : undefined) as any,
-            text: line.type === "text" ? line.text : undefined,
-          },
-          anchor: prevBlock != null ? "after" : "before",
-          target: prevBlock ?? firstBlock, // if we don't have a prev block, this must be before the first block
-        });
-        line.blockPtr = toNodeRef(block);
-        prevBlockId = block.id;
-      }
-    }
-
-    // update blocks
-    for (const block of blocks.value) {
-      const line = lineByBlockId[block.id];
-      if (line?.type == "text") {
-        if (!deepValueEquals(block.text, line.text)) {
-          const update: Partial<BlockData> = { text: line.text };
-          const blockType = (line.text.type + 10_000) as any;
-          if (blockType != block.type) {
-            update.type = blockType;
-          }
-          tx.update(block, update, { debounce: "long" });
-        }
-      }
-    }
-
-    return newLines;
+    return differenceUpdateBlocks(txFactory(), graph, blocks.value, lines);
   }
 
-  return { read, write };
+  function updateView(view: EditorView, prevLines: LineInterface[], newLines: LineInterface[]) {
+    differenceUpdateLines(view, prevLines, newLines);
+  }
+
+  return { read, write, updateView };
 }
+
+/** Difference update the Lines into our graph / Blocks. */
+export function differenceUpdateBlocks(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  blocks: BlockData[],
+  lines: LineInterface[],
+) {
+  const blocksById: Record<string, BlockData> = groupByScalar(blocks, (b) => b.id);
+  const lineByBlockId: Record<string, LineInterface> = {};
+  const newLines: LineInterface[] = lines.map((l) => ({ ...l }));
+  for (const line of lines) {
+    if (line.type === "text" || line.type === "block") {
+      if (line.blockPtr?.id != null) {
+        lineByBlockId[line.blockPtr.id] = line;
+      }
+    }
+  }
+
+  if (tx.change?.key == null) {
+    tx = tx.with({ change: { title: "Edit", key: newChangeId() } });
+  }
+
+  // delete removed blocks
+  for (const block of blocks) {
+    if (lineByBlockId[block.id] == null) {
+      tx.delete(block);
+    }
+  }
+
+  // add new blocks
+  let prevBlockId: string | undefined = undefined;
+  const firstBlock = blocks[0];
+  for (const line of newLines) {
+    if (line.blockPtr?.id != null) {
+      prevBlockId = line.blockPtr.id;
+    } else {
+      let prevBlock;
+      if (prevBlockId != null) {
+        prevBlock = blocksById[prevBlockId];
+        if (prevBlock == null) {
+          throw new Error(`block ${prevBlockId} not found`);
+        }
+      } else {
+        prevBlock = firstBlock;
+      }
+      const block = createBlock(tx, graph, {
+        block: {
+          type: (line.type === "text" ? line.text.type + 10_000 : undefined) as any,
+          text: line.type === "text" ? line.text : undefined,
+        },
+        anchor: prevBlock != null ? "after" : "before",
+        target: prevBlock ?? firstBlock, // if we don't have a prev block, this must be before the first block
+      });
+      line.blockPtr = toNodeRef(block);
+      prevBlockId = block.id;
+    }
+  }
+
+  // update blocks
+  for (const block of blocks) {
+    const line = lineByBlockId[block.id];
+    if (line == null) continue;
+    if (line.type == "text") {
+      if (!deepValueEquals(block.text, line.text)) {
+        const update: Partial<BlockData> = { text: line.text };
+        const blockType = (line.text.type + 10_000) as any;
+        if (blockType != block.type) {
+          update.type = blockType;
+        }
+        tx.update(block, update, { debounce: "long" });
+      }
+    } else if (line.type == "block") {
+      // blocks are only updated from the graph transaction (?)
+    } else {
+      assertNever(line);
+    }
+  }
+
+  return newLines;
+}
+
+/** Difference update the Lines in the EditorView. */
+export function differenceUpdateLines(view: EditorView, prevLines: LineInterface[], newLines: LineInterface[]) {
+  type DiffGroup = {
+    key: string;
+    isList: boolean;
+    listType?: "ordered" | "unordered";
+    lines: LineInterface[];
+    node: PmNode;
+    // For PM doc position tracking (only for nodes already in the doc)
+    from?: number;
+    to?: number;
+    // For list groups, record child nodes with positions.
+    children?: { line: LineInterface; node: PmNode; pos: number }[];
+  };
+  type DiffOp =
+    | { type: "delete"; group: DiffGroup }
+    | { type: "insert"; group: DiffGroup; pos: number }
+    | { type: "update"; oldGroup: DiffGroup; newGroup: DiffGroup };
+
+  /** Unique identifier for a line. */
+  function getLineKey(line: LineInterface): string {
+    return line.blockPtr?.id ?? "";
+  }
+
+  /** Check if two lines are content equal. */
+  function lineContentEquals(a: LineInterface, b: LineInterface): boolean {
+    if (a.type === "text" && b.type === "text") {
+      return deepValueEquals(a.text, b.text);
+    } else if (a.type === "block" && b.type === "block") {
+      return a.blockPtr?.id === b.blockPtr?.id && a.nodePtr?.id === b.nodePtr?.id;
+    } else {
+      return false;
+    }
+  }
+
+  /** Group lines as they should appear in the PM doc. */
+  function groupLines(lines: LineInterface[]): DiffGroup[] {
+    const groups: DiffGroup[] = [];
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (
+        line.type === "text" &&
+        (line.text.type === TextLineType.LIST_ORDERED || line.text.type === TextLineType.LIST_UNORDERED)
+      ) {
+        // group list items
+        const isOrdered = line.text.type === TextLineType.LIST_ORDERED;
+        const listType: "ordered" | "unordered" = isOrdered ? "ordered" : "unordered";
+        const items: LineInterface[] = [];
+        while (
+          i < lines.length &&
+          lines[i].type === "text" &&
+          ((lines[i].text.type === TextLineType.LIST_ORDERED && listType === "ordered") ||
+            (lines[i].text.type === TextLineType.LIST_UNORDERED && listType === "unordered"))
+        ) {
+          items.push(lines[i]);
+          i++;
+        }
+        const compositeKey = listType + ":" + items.map(getLineKey).join(",");
+        const listItemNodes = items.map((item) => mapLineToPmNode(item));
+        const container = PM_SCHEMA.node(listType === "ordered" ? "orderedList" : "unorderedList", {}, listItemNodes);
+        groups.push({
+          isList: true,
+          listType,
+          lines: items,
+          key: compositeKey,
+          node: container,
+        });
+      } else {
+        // 'group' non–list items individually
+        const key = getLineKey(line);
+        const node = mapLineToPmNode(line);
+        groups.push({
+          isList: false,
+          lines: [line],
+          key,
+          node,
+        });
+        i++;
+      }
+    }
+    return groups;
+  }
+
+    // Group the existing PM doc nodes.
+  function groupPmNodes(): DiffGroup[] {
+    const groups: DiffGroup[] = [];
+    const doc = view.state.doc;
+    doc.forEach((node, pos, parent) => {
+      if (!node.type.isInGroup("line")) return;
+      if (node.type.name === "orderedList" || node.type.name === "unorderedList") {
+        // group list items
+        const listType = node.type.name === "orderedList" ? "ordered" : "unordered";
+        const items: { line: LineInterface; node: PmNode; pos: number }[] = [];
+        let childPos = pos + 1;
+        node.forEach((child) => {
+          const line = mapPmNodeToLine(child);
+          items.push({ line, node: child, pos: childPos });
+          childPos += child.nodeSize;
+        });
+        const compositeKey = listType + ":" + items.map((it) => getLineKey(it.line)).join(",");
+        groups.push({
+          isList: true,
+          listType,
+          lines: items.map((it) => it.line),
+          key: compositeKey,
+          node,
+          from: pos,
+          to: pos + node.nodeSize,
+          children: items,
+        });
+      } else {
+        // 'group' non–list items individually
+        const line = mapPmNodeToLine(node);
+        const key = getLineKey(line);
+        groups.push({
+          isList: false,
+          lines: [line],
+          key,
+          node,
+          from: pos,
+          to: pos + node.nodeSize,
+        });
+      }
+    });
+    return groups;
+  }
+
+  /** Compute LCS of group keys. */
+  function computeLCS(oldKeys: string[], newKeys: string[]): Array<{ oldIndex: number; newIndex: number }> {
+    const m = oldKeys.length;
+    const n = newKeys.length;
+    const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = m - 1; i >= 0; i--) {
+      for (let j = n - 1; j >= 0; j--) {
+        if (oldKeys[i] === newKeys[j]) dp[i][j] = 1 + dp[i + 1][j + 1];
+        else dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+    const result: Array<{ oldIndex: number; newIndex: number }> = [];
+    let i = 0,
+      j = 0;
+    while (i < m && j < n) {
+      if (oldKeys[i] === newKeys[j]) {
+        result.push({ oldIndex: i, newIndex: j });
+        i++;
+        j++;
+      } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+        i++;
+      } else {
+        j++;
+      }
+    }
+    return result;
+  }
+
+  const newGroups = groupLines(newLines);
+  const oldGroups = groupPmNodes();
+
+  const oldKeys = oldGroups.map((g) => g.key);
+  const newKeys = newGroups.map((g) => g.key);
+  const lcs = computeLCS(oldKeys, newKeys);
+
+  const ops: DiffOp[] = [];
+  let oldIdx = 0,
+    newIdx = 0;
+  for (const match of lcs) {
+    while (oldIdx < match.oldIndex) {
+      ops.push({ type: "delete", group: oldGroups[oldIdx] });
+      oldIdx++;
+    }
+    while (newIdx < match.newIndex) {
+      const insertPos = oldGroups[match.oldIndex]?.from ?? view.state.doc.content.size;
+      ops.push({ type: "insert", group: newGroups[newIdx], pos: insertPos });
+      newIdx++;
+    }
+    // For matching groups, check if content differs.
+    const oldGroup = oldGroups[match.oldIndex];
+    const newGroup = newGroups[match.newIndex];
+    if (oldGroup.isList && newGroup.isList) {
+      // For list groups, do a simple check: if number of items differ or any item differs.
+      const oldItems = oldGroup.children || [];
+      const newItems = newGroup.lines.map((line) => ({ line, node: mapLineToPmNode(line) }));
+      let innerEqual = oldItems.length === newItems.length;
+      if (innerEqual) {
+        for (let k = 0; k < oldItems.length; k++) {
+          if (!lineContentEquals(oldItems[k].line, newItems[k].line)) {
+            innerEqual = false;
+            break;
+          }
+        }
+      }
+      if (!innerEqual) {
+        ops.push({ type: "update", oldGroup, newGroup });
+      }
+    } else {
+      // Non–list groups.
+      if (!lineContentEquals(oldGroup.lines[0], newGroup.lines[0])) {
+        ops.push({ type: "update", oldGroup, newGroup });
+      }
+    }
+    oldIdx++;
+    newIdx++;
+  }
+  while (oldIdx < oldGroups.length) {
+    ops.push({ type: "delete", group: oldGroups[oldIdx] });
+    oldIdx++;
+  }
+  while (newIdx < newGroups.length) {
+    const insertPos = oldGroups[oldIdx]?.from ?? view.state.doc.content.size;
+    ops.push({ type: "insert", group: newGroups[newIdx], pos: insertPos });
+    newIdx++;
+  }
+
+  // Apply diff ops in descending order of positions.
+  ops.sort((a, b) => {
+    const aPos = a.type === "insert" ? a.pos : a.type === "delete" || a.type === "update" ? a.group.from! : 0;
+    const bPos = b.type === "insert" ? b.pos : b.type === "delete" || b.type === "update" ? b.group.from! : 0;
+    return bPos - aPos;
+  });
+
+  let tr = view.state.tr;
+  for (const op of ops) {
+    if (op.type === "delete") {
+      tr = tr.delete(op.group.from!, op.group.to!);
+    } else if (op.type === "insert") {
+      tr = tr.insert(op.pos, op.group.node);
+    } else if (op.type === "update") {
+      tr = tr.replaceWith(op.oldGroup.from!, op.oldGroup.to!, op.newGroup.node);
+    } else {
+      assertNever(op);
+    }
+  }
+  if (tr.docChanged) {
+    console.log("differenceUpdateLines", {
+      oldLines: prevLines,
+      newLines: newLines,
+      ops,
+    });
+    view.dispatch(tr);
+  }
+}
+
 /** Convert a span to a PmNode */
 function mapSpanToPmNode(span: TextSpanData): PmNode {
   let node;

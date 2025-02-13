@@ -190,15 +190,15 @@ defineExpose<ViewExpose>({ self, id, actions });
     data-contextmenu-items="code.*"
     data-suppress-actions="space.move.left,space.move.right"
     data-suppress-drag="both"
-    class="code rounded hover:cursor-text"
+    class="code relative rounded hover:cursor-text"
     :class="[
       !isMinimal
         ? 'border border-gray-200 px-1 py-[4px] focus-within:border-gray-400 not-focus-within:hover:border-gray-200'
-        : 'stealth',
+        : '',
       isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
     ]"
   >
-    <!-- NOTE: codeRef must be in a stable fragment to mount the editor view -->
+    <!-- ... -->
   </div>
 </template>
 <style>
