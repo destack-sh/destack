@@ -11,28 +11,26 @@ import {
 } from "@/language/core/graph";
 import { makeNode } from "@/language/core/node";
 import {
-  BlockData,
-  BlockProperty,
   ClientData,
   ClientProperty,
   MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeType,
   OBJECT_TYPE_BY_MESSAGE_TYPE_NAME,
   ObjectType,
+  PageData,
+  PageProperty,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
-  BlockType,
   Struct,
   Timestamp,
   UserData,
   UserProperty,
   Value,
+  ViewProperty,
   type AnyNodeData,
   type AnyPropertyType,
   type AnyTypeMapping,
   type PropertyInfo,
-  PageProperty,
-  PageData,
 } from "@/proto/wire";
 import { Duration } from "@/proto/wire/google/protobuf/duration";
 import { EMPTY_SCOPE, toNodeRef } from "@/proto/wiring";
@@ -128,7 +126,7 @@ export function fabricate<T extends ObjectType>(
     let value: any;
     if (prop.referenceStruct && options?.path?.includes(prop.referenceStruct as unknown as ObjectType)) {
       // skip recursive fields
-      value = prop.isList ? [] : null;
+      value = prop.isList ? [] : undefined;
     } else if (propName == "metatype") {
       value = metatype;
     } else if (prop.isList) {
@@ -249,7 +247,7 @@ describe("node graph", () => {
 describe("layered node graph", () => {
   const base = new NodeGraph({ scope: EMPTY_SCOPE, nodeTypes: new Set([NodeType.USER, NodeType.CLIENT]) });
   const overlay = new NodeGraph({ scope: base.scope, nodeTypes: base.nodeTypes, isOverlayOf: base });
-  const graph = new LayerNodeGraph({ layers: [base], filter: PASSTHROUGH_NODE_FILTER });
+  const composite = new LayerNodeGraph({ layers: [base], filter: PASSTHROUGH_NODE_FILTER });
 
   let user1 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
   let clientA = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeRef(user1), id: "clientA" } });
@@ -258,35 +256,35 @@ describe("layered node graph", () => {
   const clientD = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeRef(user1), id: "clientD" } });
   const user2 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user2" } });
 
-  const user1Ref = graph.getRef(user1);
-  const user1ClientsRef = graph.getChildrenRef(user1, NodeType.CLIENT);
-  const clientARef = graph.getRef({ id: clientA.id });
+  const user1Ref = composite.getRef(user1);
+  const user1ClientsRef = composite.getChildrenRef(user1, NodeType.CLIENT);
+  const clientARef = composite.getRef({ id: clientA.id });
 
   test("crud", () => {
     // create base
     base.extend(user1, clientA);
-    expect(graph.get({ id: user1.id })).toEqual(user1);
-    expect(graph.get({ id: clientA.id })).toEqual(clientA);
-    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA]);
+    expect(composite.get({ id: user1.id })).toEqual(user1);
+    expect(composite.get({ id: clientA.id })).toEqual(clientA);
+    expect(composite.getChildren(user1, NodeType.CLIENT)).toEqual([clientA]);
     expect(user1ClientsRef.value).toEqual([clientA]);
 
     // add overlay
     overlay.extend(clientB);
-    graph.addLayer(overlay);
-    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB]);
+    composite.addLayer(overlay);
+    expect(composite.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB]);
     expect(user1ClientsRef.value).toEqual([clientA, clientB]);
 
     // update user
     user1 = { ...user1, name: "user1Overlay", setPaths: [[UserProperty.name.toString()]] } as UserData;
     overlay.update(user1);
-    expect(graph.get({ id: user1.id })).toEqual(user1);
+    expect(composite.get({ id: user1.id })).toEqual(user1);
     expect(user1Ref.value).toEqual(user1);
-    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB]);
+    expect(composite.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB]);
     expect(user1ClientsRef.value).toEqual([clientA, clientB]);
     // update client
     clientA = { ...clientA, title: "clientABase" } as ClientData;
     base.update(clientA);
-    expect(graph.get({ id: clientA.id })).toEqual(clientA);
+    expect(composite.get({ id: clientA.id })).toEqual(clientA);
     expect(clientARef.value).toEqual(clientA);
     clientA = {
       ...clientA,
@@ -296,37 +294,37 @@ describe("layered node graph", () => {
     // NOTE: deviceName in overlay should be ignored because it's not in setPaths.
     //  This shouldn't really happen, but it's good to have this invariant.
     overlay.update({ ...clientA, deviceName: "ignoreBecauseNotInSetPaths" });
-    expect(graph.get({ id: clientA.id })).toEqual(clientA);
+    expect(composite.get({ id: clientA.id })).toEqual(clientA);
     expect(clientARef.value).toEqual(clientA);
-    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB]);
+    expect(composite.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB]);
     expect(user1ClientsRef.value).toEqual([clientA, clientB]);
 
     // take more refs
-    const clientBRef = graph.getRef({ id: clientB.id });
-    const clientCRef = graph.getRef({ id: clientC.id });
+    const clientBRef = composite.getRef({ id: clientB.id });
+    const clientCRef = composite.getRef({ id: clientC.id });
     expect(clientBRef.value).toEqual(clientB);
     expect(clientCRef.value).toBeNull();
 
     // add clientC
     overlay.extend(clientC);
-    expect(graph.get({ id: clientC.id })).toEqual(clientC);
+    expect(composite.get({ id: clientC.id })).toEqual(clientC);
     expect(clientCRef.value).toEqual(clientC);
-    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB, clientC]);
+    expect(composite.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB, clientC]);
     expect(user1ClientsRef.value).toEqual([clientA, clientB, clientC]);
 
     // move clientA to user 2
-    const user2ClientsRef = graph.getChildrenRef(user2, NodeType.CLIENT);
+    const user2ClientsRef = composite.getChildrenRef(user2, NodeType.CLIENT);
     base.extend(user2);
     clientA = { ...clientA, parentPtr: toNodeRef(user2) } as ClientData;
     overlay.update(clientA);
-    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientB, clientC]);
-    expect(graph.getChildren(user2, NodeType.CLIENT)).toEqual([clientA]);
+    expect(composite.getChildren(user1, NodeType.CLIENT)).toEqual([clientB, clientC]);
+    expect(composite.getChildren(user2, NodeType.CLIENT)).toEqual([clientA]);
     expect(user1ClientsRef.value).toEqual([clientB, clientC]);
     expect(user2ClientsRef.value).toEqual([clientA]);
 
     // remove clientB in overlay
     overlay.remove(clientB);
-    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientC]);
+    expect(composite.getChildren(user1, NodeType.CLIENT)).toEqual([clientC]);
     expect(user1ClientsRef.value).toEqual([clientC]);
   });
 });
@@ -334,17 +332,17 @@ describe("layered node graph", () => {
 describe("proxy node graph", () => {
   const baseA = new NodeGraph({ scope: EMPTY_SCOPE, nodeTypes: new Set([NodeType.USER, NodeType.CLIENT]) });
   const baseB = new NodeGraph({ scope: EMPTY_SCOPE, nodeTypes: new Set([NodeType.USER, NodeType.CLIENT]) });
-  const graph = new ProxyNodeGraph({ filter: PASSTHROUGH_NODE_FILTER });
+  const proxy = new ProxyNodeGraph({ filter: PASSTHROUGH_NODE_FILTER });
 
   let user1 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
   const clientA = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeRef(user1), id: "clientA" } });
   const user2 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user2" } });
   const clientB = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeRef(user2), id: "clientB" } });
 
-  const user1Ref = graph.getRef(user1);
-  const user1ClientsRef = graph.getChildrenRef(user1, NodeType.CLIENT);
-  const user2Ref = graph.getRef(user2);
-  const user2ClientsRef = graph.getChildrenRef(user2, NodeType.CLIENT);
+  const user1Ref = proxy.getRef(user1);
+  const user1ClientsRef = proxy.getChildrenRef(user1, NodeType.CLIENT);
+  const user2Ref = proxy.getRef(user2);
+  const user2ClientsRef = proxy.getChildrenRef(user2, NodeType.CLIENT);
 
   test("crud", () => {
     expect(user1Ref.value).toBeNull();
@@ -355,47 +353,54 @@ describe("proxy node graph", () => {
     // create
     baseA.extend(user1, clientA);
     baseB.extend(user2, clientB);
-    graph.graph = baseA;
+    proxy.graph = baseA;
 
     // graph = baseA
-    expect(graph.get({ id: user1.id })).toEqual(user1);
-    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA]);
+    expect(proxy.get({ id: user1.id })).toEqual(user1);
+    expect(proxy.getChildren(user1, NodeType.CLIENT)).toEqual([clientA]);
     expect(user1Ref.value).toEqual(user1);
     expect(user1ClientsRef.value).toEqual([clientA]);
     expect(user2Ref.value).toBeNull();
     expect(user2ClientsRef.value).toEqual([]);
 
     // switch to baseB
-    graph.graph = baseB;
-    expect(graph.get({ id: user1.id })).toBeNull();
-    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([]);
+    proxy.graph = baseB;
+    expect(proxy.get({ id: user1.id })).toBeNull();
+    expect(proxy.getChildren(user1, NodeType.CLIENT)).toEqual([]);
     expect(user1Ref.value).toBeNull();
     expect(user1ClientsRef.value).toEqual([]);
-    expect(graph.get({ id: user2.id })).toEqual(user2);
-    expect(graph.getChildren(user2, NodeType.CLIENT)).toEqual([clientB]);
+    expect(proxy.get({ id: user2.id })).toEqual(user2);
+    expect(proxy.getChildren(user2, NodeType.CLIENT)).toEqual([clientB]);
     expect(user2Ref.value).toEqual(user2);
     expect(user2ClientsRef.value).toEqual([clientB]);
 
     // update user
-    graph.graph = baseA;
+    proxy.graph = baseA;
     user1 = { ...user1, name: "user1" } as UserData;
     baseA.update(user1);
-    expect(graph.get({ id: user1.id })).toEqual(user1);
+    expect(proxy.get({ id: user1.id })).toEqual(user1);
     expect(user1Ref.value).toEqual(user1);
-    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA]);
+    expect(proxy.getChildren(user1, NodeType.CLIENT)).toEqual([clientA]);
     expect(user1ClientsRef.value).toEqual([clientA]);
 
     // delete
-    graph.graph = baseB;
+    proxy.graph = baseB;
     baseB.remove(user2);
-    expect(graph.get({ id: user2.id })).toBeNull();
-    expect(graph.getChildren(user2, NodeType.CLIENT)).toEqual([]);
+    expect(proxy.get({ id: user2.id })).toBeNull();
+    expect(proxy.getChildren(user2, NodeType.CLIENT)).toEqual([]);
     expect(user2Ref.value).toBeNull();
     expect(user2ClientsRef.value).toEqual([]);
   });
 });
 
-function testFilteredGraph(base: NodeGraph, graph: ReadNodeGraph & { filter: Ref<NodeGraphFilter> }) {
+function markDeleted<T extends AnyNodeData>(obj: T): T {
+  return { ...obj, deletedAt: new Date().toISOString() } as T;
+}
+function markUndeleted<T extends AnyNodeData>(obj: T): T {
+  return { ...obj, deletedAt: null } as T;
+}
+
+function _baseTestFilteredGraph(base: NodeGraph, composite: ReadNodeGraph & { filter: Ref<NodeGraphFilter> }) {
   let package1 = fabricate(ObjectType.PACKAGE, { unset: ["parentPtr", "deletedAt"] });
   const space11 = fabricate(ObjectType.SPACE, {
     unset: ["deletedAt"],
@@ -418,93 +423,92 @@ function testFilteredGraph(base: NodeGraph, graph: ReadNodeGraph & { filter: Ref
     set: { parentPtr: toNodeRef(space12), id: "view121", orderKey: "a0" },
   });
 
-  const package1Ref = graph.getRef(package1);
-  const package1SpacesRef = graph.getChildrenRef(package1, NodeType.SPACE);
-  const space11Ref = graph.getRef({ id: space11.id });
-  const space11ViewsRef = graph.getChildrenRef(space11, NodeType.VIEW);
-  const view111Ref = graph.getRef({ id: view111.id });
-  const view112Ref = graph.getRef({ id: view112.id });
-  const space12Ref = graph.getRef({ id: space12.id });
-  const space12ViewsRef = graph.getChildrenRef(space12, NodeType.VIEW);
-  const view121Ref = graph.getRef({ id: view121.id });
-
-  function hide<T extends AnyNodeData>(obj: T): T {
-    return { ...obj, archivedAt: null, deletedAt: new Date().toISOString() } as T;
-  }
-  function show<T extends AnyNodeData>(obj: T): T {
-    return { ...obj, archivedAt: null, deletedAt: null } as T;
-  }
+  const package1Ref = composite.getRef(package1);
+  const package1SpacesRef = composite.getChildrenRef(package1, NodeType.SPACE);
+  const space11Ref = composite.getRef({ id: space11.id });
+  const space11ViewsRef = composite.getChildrenRef(space11, NodeType.VIEW);
+  const view111Ref = composite.getRef({ id: view111.id });
+  const view112Ref = composite.getRef({ id: view112.id });
+  const space12Ref = composite.getRef({ id: space12.id });
+  const space12ViewsRef = composite.getChildrenRef(space12, NodeType.VIEW);
+  const view121Ref = composite.getRef({ id: view121.id });
 
   test("crud", () => {
-    view111 = hide(view111);
-    space12 = hide(space12);
+    view111 = markDeleted(view111);
+    space12 = markDeleted(space12);
 
     // create
     base.extend(package1, space11, view111, view112, space12, view121);
 
     // no filter -> get all
-    graph.filter.value = PASSTHROUGH_NODE_FILTER;
-    expect(graph.get({ id: view111.id })).toEqual(view111);
+    composite.filter.value = PASSTHROUGH_NODE_FILTER;
+    expect(composite.get({ id: view111.id })).toEqual(view111);
     expect(view111Ref.value).toEqual(view111);
-    expect(graph.get({ id: space12.id })).toEqual(space12);
+    expect(composite.get({ id: space12.id })).toEqual(space12);
     expect(space12Ref.value).toEqual(space12);
-    expect(graph.get({ id: view121.id })).toEqual(view121);
+    expect(composite.get({ id: view121.id })).toEqual(view121);
     expect(view121Ref.value).toEqual(view121);
-    expect(graph.getChildren(space11, NodeType.VIEW)).toEqual([view111, view112]);
+    expect(composite.getChildren(space11, NodeType.VIEW)).toEqual([view111, view112]);
     expect(space11ViewsRef.value).toEqual([view111, view112]);
-    expect(graph.getChildren(space12, NodeType.VIEW)).toEqual([view121]);
+    expect(composite.getChildren(space12, NodeType.VIEW)).toEqual([view121]);
     expect(space12ViewsRef.value).toEqual([view121]);
 
     // enable filter -> get unfiltered
-    graph.filter.value = DEFAULT_NODE_FILTER;
-    expect(graph.get({ id: view111.id })).toBeNull();
+    composite.filter.value = DEFAULT_NODE_FILTER;
+    expect(composite.get({ id: view111.id })).toBeNull();
     expect(view111Ref.value).toBeNull();
-    expect(graph.get({ id: space12.id })).toBeNull();
+    expect(composite.get({ id: space12.id })).toBeNull();
     expect(space12Ref.value).toBeNull();
-    expect(graph.get({ id: view121.id })).toBeNull();
+    expect(composite.get({ id: view121.id })).toBeNull();
     expect(view121Ref.value).toBeNull();
-    expect(graph.getChildren(space11, NodeType.VIEW)).toEqual([view112]);
+    expect(composite.getChildren(space11, NodeType.VIEW)).toEqual([view112]);
     expect(space11ViewsRef.value).toEqual([view112]);
-    expect(graph.getChildren(space12, NodeType.VIEW)).toEqual([]);
+    expect(composite.getChildren(space12, NodeType.VIEW)).toEqual([]);
     expect(space12ViewsRef.value).toEqual([]);
 
     // show & re-hide leaf
-    view111 = show(view111);
+    view111 = markUndeleted(view111);
     base.update(view111);
-    expect(graph.get({ id: view111.id })).toEqual(view111);
+    expect(composite.get({ id: view111.id })).toEqual(view111);
     expect(view111Ref.value).toEqual(view111);
-    view111 = hide(view111);
+    view111 = markDeleted(view111);
     base.update(view111);
-    expect(graph.get({ id: view111.id })).toBeNull();
+    expect(composite.get({ id: view111.id })).toBeNull();
     expect(view111Ref.value).toBeNull();
 
     // show & re-hide parent
-    space12 = show(space12);
+    space12 = markUndeleted(space12);
     base.update(space12);
-    expect(graph.get({ id: space12.id })).toEqual(space12);
+    expect(composite.get({ id: space12.id })).toEqual(space12);
     expect(space12Ref.value).toEqual(space12);
-    expect(graph.getChildren(space12, NodeType.VIEW)).toEqual([view121]);
+    expect(composite.getChildren(space12, NodeType.VIEW)).toEqual([view121]);
     expect(space12ViewsRef.value).toEqual([view121]);
-    expect(graph.get({ id: view121.id })).toEqual(view121);
+    expect(composite.get({ id: view121.id })).toEqual(view121);
     expect(view121Ref.value).toEqual(view121);
-    space12 = hide(space12);
+    space12 = markDeleted(space12);
     base.update(space12);
-    expect(graph.get({ id: space12.id })).toBeNull();
+    expect(composite.get({ id: space12.id })).toBeNull();
     expect(space12Ref.value).toBeNull();
-    expect(graph.getChildren(space12, NodeType.VIEW)).toEqual([]);
+    expect(composite.getChildren(space12, NodeType.VIEW)).toEqual([]);
     expect(space12ViewsRef.value).toEqual([]);
-    expect(graph.get({ id: view121.id })).toBeNull();
+    expect(composite.get({ id: view121.id })).toBeNull();
     expect(view121Ref.value).toBeNull();
 
-    // hide root
-    package1 = hide(package1);
+    // hide & show root
+    package1 = markDeleted(package1);
     base.update(package1);
-    expect(graph.get({ id: package1.id })).toBeNull();
+    expect(composite.get({ id: package1.id })).toBeNull();
     expect(package1Ref.value).toBeNull();
-    expect(graph.getChildren(package1, NodeType.SPACE)).toEqual([]);
+    expect(composite.getChildren(package1, NodeType.SPACE)).toEqual([]);
     expect(package1SpacesRef.value).toEqual([]);
-    expect(graph.get({ id: space11.id })).toBeNull();
+    expect(composite.get({ id: space11.id })).toBeNull();
     expect(space11Ref.value).toBeNull();
+    package1 = markUndeleted(package1);
+    base.update(package1);
+    expect(composite.get({ id: package1.id })).toEqual(package1);
+    expect(package1Ref.value).toEqual(package1);
+    expect(composite.getChildren(package1, NodeType.SPACE)).toEqual([space11]);
+    expect(package1SpacesRef.value).toEqual([space11]);
   });
 }
 
@@ -513,14 +517,46 @@ describe("filtered proxy graph", () => {
     scope: EMPTY_SCOPE,
     nodeTypes: new Set([NodeType.PACKAGE, NodeType.SPACE, NodeType.VIEW]),
   });
-  const graph = new ProxyNodeGraph({ graph: base, filter: PASSTHROUGH_NODE_FILTER });
-  testFilteredGraph(base, graph);
+  const composite = new ProxyNodeGraph({ graph: base, filter: PASSTHROUGH_NODE_FILTER });
+  _baseTestFilteredGraph(base, composite);
 });
 describe("filtered layered graph", () => {
   const base = new NodeGraph({
     scope: EMPTY_SCOPE,
     nodeTypes: new Set([NodeType.PACKAGE, NodeType.SPACE, NodeType.VIEW]),
   });
-  const graph = new LayerNodeGraph({ layers: [base], filter: PASSTHROUGH_NODE_FILTER });
-  testFilteredGraph(base, graph);
+  const overlay = new NodeGraph({ scope: base.scope, nodeTypes: base.nodeTypes, isOverlayOf: base });
+  const composite = new LayerNodeGraph({ layers: [base, overlay], filter: PASSTHROUGH_NODE_FILTER });
+  _baseTestFilteredGraph(base, composite);
+
+  test("filtered layered crud", () => {
+    const package9 = fabricate(ObjectType.PACKAGE, { unset: ["parentPtr", "deletedAt"] });
+    const space91 = fabricate(ObjectType.SPACE, {
+      unset: ["deletedAt"],
+      set: { parentPtr: toNodeRef(package9), id: "space91", orderKey: "a0" },
+    });
+    let view911 = fabricate(ObjectType.VIEW, {
+      unset: ["deletedAt"],
+      set: { parentPtr: toNodeRef(space91), id: "view911", orderKey: "a0" },
+    });
+    base.extend(package9, space91, view911);
+    composite.filter.value = DEFAULT_NODE_FILTER;
+
+    expect(composite.get({ id: package9.id })).toBe(package9);
+    expect(composite.get({ id: space91.id })).toBe(space91);
+    expect(composite.get({ id: view911.id })).toBe(view911);
+    expect(composite.getChildren(package9, NodeType.SPACE)).toEqual([space91]);
+    expect(composite.getChildren(space91, NodeType.VIEW)).toEqual([view911]);
+
+    view911 = markDeleted(view911);
+    base.update(view911);
+    expect(composite.get({ id: view911.id })).toBeNull();
+    expect(composite.getChildren(space91, NodeType.VIEW)).toEqual([]);
+
+    view911 = { ...view911, deletedAt: undefined };
+    (view911 as any).setPaths = [[ViewProperty.deletedAt.toString()]];
+    overlay.update(view911);
+    expect(composite.get({ id: view911.id })).toEqual(view911);
+    expect(composite.getChildren(space91, NodeType.VIEW)).toEqual([view911]);
+  });
 });

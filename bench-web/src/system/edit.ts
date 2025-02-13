@@ -1,3 +1,4 @@
+import { canvas } from "@/globals";
 import { toCamelName } from "@/language/core/const";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import {
@@ -19,7 +20,6 @@ import {
   ViewData,
 } from "@/proto/wire";
 import { EMPTY_SCOPE, describeEdit } from "@/proto/wiring";
-import { canvas } from "@/globals";
 import { provideActions } from "@/ui/action";
 import { assertNever } from "@/utils/functools";
 import { log } from "@/utils/log";
@@ -59,12 +59,12 @@ class EditStack {
   undo() {
     if (this._undoIndex <= 0) return;
     // accumulate edits from same change (edits are in reverse order)
-    const edits: EditData[] = [this._editStack[this._undoIndex - 1]];
-    if (edits[0].changeKey != null) {
+    const originalEdits: EditData[] = [this._editStack[this._undoIndex - 1]];
+    if (originalEdits[0].changeKey != null) {
       for (let i = this._undoIndex - 2; i >= 0; i--) {
         const edit = this._editStack[i];
-        if (edit.changeKey != edits[0].changeKey) break;
-        edits.push(edit);
+        if (edit.changeKey != originalEdits[0].changeKey) break;
+        originalEdits.push(edit);
       }
     }
 
@@ -72,22 +72,23 @@ class EditStack {
     const change: ChangeIn = { key: newChangeId(), title: `Undo` };
     const undoEdits: EditData[] = [];
     const editedAt = Timestamp.now();
-    for (const edit of edits) {
-      const undoEdit: EditData = { ...edit, id: newEditId(), editedAt, changeKey: change.key };
-      invertEdit(edit, this._editedAtByEditId[edit.id]!, undoEdit, "undo");
+    for (const originalEdit of originalEdits) {
+      const undoEdit: EditData = { ...originalEdit, id: newEditId(), editedAt, changeKey: change.key };
+      invertEdit(originalEdit, this._editedAtByEditId[originalEdit.id]!, undoEdit, "undo");
       undoEdits.push(undoEdit);
       this._undoIndex--;
-      this._editedAtByEditId[edit.id] = editedAt;
+      this._editedAtByEditId[originalEdit.id] = editedAt;
       this._derivedEditsById[undoEdit.id] = undoEdit;
 
       // apply in same connection as original edits
-      const buffer = getTransactionBuffer(edit.scope ?? EMPTY_SCOPE);
-      const connectionId = this._connectionIdByEdit[edit.id!];
-      if (connectionId == null) throw new Error(`missing connection for ${describeEdit(edit)}`);
+      const buffer = getTransactionBuffer(originalEdit.scope ?? EMPTY_SCOPE);
+      const connectionId = this._connectionIdByEdit[originalEdit.id!];
+      if (connectionId == null) throw new Error(`missing connection for ${describeEdit(originalEdit)}`);
       buffer.tx.with({ connectionId, change }).addEdit(undoEdit);
-      buffer.tx.clearDebounce(edit.id!); // 'freeze' the original edit
+      buffer.tx.clearDebounce(originalEdit.id!); // 'freeze' the original edit
     }
-    log.trace("edit.undo", { edits, undoEdits, undoIndex: this._undoIndex });
+    console.log("edit.undo", { originalEdits, undoEdits, undoIndex: this._undoIndex });
+    log.trace("edit.undo", { originalEdits, undoEdits, undoIndex: this._undoIndex });
   }
 
   /**

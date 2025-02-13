@@ -3,12 +3,7 @@ import { type ActionImplementation, type ActionMapImplementation } from "@/ui/ac
 import { PageContext } from "@/ui/prosemirror/page";
 import { PM_SCHEMA, SpanSpecialInputType, TextMarkType } from "@/ui/prosemirror/schema";
 import { LineBlockView, SpanNodeView, VueComponentView } from "@/ui/prosemirror/view";
-import {
-  LineInterface,
-  mapPmNodeToText,
-  mapTextToPmNode,
-  TextInterface
-} from "@/ui/prosemirror/wiring";
+import { LineInterface, mapPmNodeToText, mapTextToPmNode, TextInterface } from "@/ui/prosemirror/wiring";
 import { deepValueEquals } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import TextSpecialInput from "@/views/builtins/TextSpecialInput.vue";
@@ -34,7 +29,7 @@ import {
   Plugin,
   Transaction as PmTransaction,
   Selection,
-  TextSelection
+  TextSelection,
 } from "prosemirror-state";
 import { liftTarget } from "prosemirror-transform";
 import { EditorView } from "prosemirror-view";
@@ -624,7 +619,7 @@ export function useTextEditor(options: {
         let newState = view.state.apply(tx);
         const { lines: updatedText, linesNodes, linesPos } = mapPmNodeToText(newState.doc);
         // also write the doc (if changed)
-        if (tx.docChanged) {
+        if (tx.docChanged && !tx.getMeta("_ignoreDocChanged")) {
           prevText = text.write(updatedText);
           // update the blockPtr for modified lines
           if (prevText !== updatedText) {
