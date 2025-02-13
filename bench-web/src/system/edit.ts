@@ -87,7 +87,6 @@ class EditStack {
       buffer.tx.with({ connectionId, change }).addEdit(undoEdit);
       buffer.tx.clearDebounce(originalEdit.id!); // 'freeze' the original edit
     }
-    console.log("edit.undo", { originalEdits, undoEdits, undoIndex: this._undoIndex });
     log.trace("edit.undo", { originalEdits, undoEdits, undoIndex: this._undoIndex });
   }
 

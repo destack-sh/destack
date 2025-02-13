@@ -15,12 +15,15 @@ import {
   TextSpanType,
 } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
+import { isDeveloperMode } from "@/system/client";
 import { autoWrap } from "@/ui/prosemirror/editor";
 import { PM_SCHEMA } from "@/ui/prosemirror/schema";
 import { assertNever, groupByScalar } from "@/utils/functools";
+import { IS_DEV } from "@/utils/globals";
+import { log } from "@/utils/log";
 import { deepValueEquals } from "@/utils/ref";
 import { Node as PmNode, type Mark as PmMark } from "prosemirror-model";
-import { EditorState, Transaction as PmTransaction } from "prosemirror-state";
+import { EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { computed, type Ref } from "vue";
 
@@ -116,7 +119,7 @@ export function useTextPageInterface(options: {
   }
 
   function updateView(view: EditorView, prevLines: LineInterface[], newLines: LineInterface[]) {
-    differenceUpdateLines(view, prevLines, newLines, view.dispatch);
+    differenceUpdateLines(view, prevLines, newLines);
   }
 
   return { read, write, updateView };
@@ -150,7 +153,6 @@ export function differenceUpdateBlocks(
   for (const block of blocks) {
     if (lineByBlockId[block.id] == null) {
       tx.delete(block);
-      console.log("block.delete");
     }
   }
 
@@ -193,7 +195,6 @@ export function differenceUpdateBlocks(
     if (firstBlockId == null) {
       firstBlockId = block.id;
     }
-    console.log("block.create", block.id);
   }
 
   // update blocks
@@ -208,7 +209,6 @@ export function differenceUpdateBlocks(
           update.type = blockType;
         }
         tx.update(block, update, { debounce: "long" });
-        console.log("block.update", block.id);
       }
     } else if (line.type == "block") {
       // blocks are only updated from the graph transaction (?)
@@ -282,106 +282,129 @@ function lineContentEquals(a: LineInterface, b: LineInterface): boolean {
 /**
  * Difference update Lines.
  */
-export function differenceUpdateLines(
-  view: EditorView,
-  prevLines: LineInterface[],
-  newLines: LineInterface[],
-  dispatch?: (tr: PmTransaction) => void,
-) {
+export function differenceUpdateLines(view: EditorView, prevLines: LineInterface[], newLines: LineInterface[]) {
+  // state
   const oldItems: PositionedDiffItem[] = [];
   view.state.doc.descendants((node, pos) => {
-    if (node.type.name === "orderedList" || node.type.name === "unorderedList") {
-      // skip straight into the children
-      return true;
-    }
+    if (node.type.name === "orderedList" || node.type.name === "unorderedList") return true;
     if (node.type.isInGroup("line")) {
       const line = mapPmNodeToLine(node);
       const key = getLineKey(line);
-      const item: PositionedDiffItem = { key, node, pos, line };
-      oldItems.push(item);
+      oldItems.push({ key, node, pos, line });
       return false;
     }
     return true;
   });
   const newItems: DiffItem[] = newLines.map((line) => {
     const node = mapLineToPmNode(line);
-    const item: DiffItem = { key: getLineKey(line), node, line };
-    return item;
+    const key = getLineKey(line);
+    return { key, node, line };
   });
 
+  // compute diff
   const oldKeys = oldItems.map((item) => item.key);
   const newKeys = newItems.map((item) => item.key);
   const lcsKeys = computeLCS(oldKeys, newKeys);
-
-  // diff
   const ops: DiffOp[] = [];
   let oldIndex = 0;
   let newIndex = 0;
   for (const match of lcsKeys) {
-    // delete any old items before the match
+    // delete old items
     while (oldIndex < match.oldIndex) {
       const item = oldItems[oldIndex];
-      ops.push({ type: "delete", pos: item.pos, end: item.pos + item.node.nodeSize, key: item.key });
+      ops.push({
+        type: "delete",
+        pos: item.pos,
+        end: item.pos + item.node.nodeSize,
+        key: item.key,
+      });
       oldIndex++;
     }
-    // insert any new items before the match
-    //  (ops are applied in reverse order, so invert the order here)
-    const insertPos = match.oldIndex < oldItems.length ? oldItems[match.oldIndex].pos : view.state.doc.content.size;
+    // insert new items
+    const insertPos = oldIndex < oldItems.length ? oldItems[oldIndex].pos : view.state.doc.content.size;
     for (let i = match.newIndex - 1; i >= newIndex; i--) {
       const item = newItems[i];
       ops.push({ type: "insert", pos: insertPos, node: item.node, key: item.key });
     }
     newIndex = match.newIndex;
-    // update line contents differ
-    const oldItem = oldItems[match.oldIndex];
-    const newItem = newItems[match.newIndex];
-    ops.push({
-      type: "update",
-      pos: oldItem.pos,
-      end: oldItem.pos + oldItem.node.nodeSize,
-      node: newItem.node,
-      key: newItem.key,
-    });
+    // update matching node
+    if (!lineContentEquals(oldItems[oldIndex].line, newItems[match.newIndex].line)) {
+      const oldItem = oldItems[oldIndex];
+      const newItem = newItems[match.newIndex];
+      ops.push({
+        type: "update",
+        pos: oldItem.pos,
+        end: oldItem.pos + oldItem.node.nodeSize,
+        node: newItem.node,
+        key: newItem.key,
+      });
+    }
     oldIndex++;
     newIndex++;
   }
   // delete remaining old items
   while (oldIndex < oldItems.length) {
     const item = oldItems[oldIndex];
-    ops.push({ type: "delete", pos: item.pos, end: item.pos + item.node.nodeSize, key: item.key });
+    ops.push({
+      type: "delete",
+      pos: item.pos,
+      end: item.pos + item.node.nodeSize,
+      key: item.key,
+    });
     oldIndex++;
   }
-  // insert remaining new items (again, in reverse order)
-  const insertPos = view.state.doc.content.size;
+  // insert remaining new items
+  const finalInsertPos = view.state.doc.content.size;
   for (let i = newItems.length - 1; i >= newIndex; i--) {
     const item = newItems[i];
-    ops.push({ type: "insert", pos: insertPos, node: item.node, key: item.key });
+    ops.push({ type: "insert", pos: finalInsertPos, node: item.node, key: item.key });
   }
 
-  // apply diff ops
+  // apply diff
   ops.sort((a, b) => b.pos - a.pos);
   let tr = view.state.tr;
   for (const op of ops) {
+    // map positions
+    const mappedPos = tr.mapping.map(op.pos, -1);
     if (op.type === "delete") {
-      tr = tr.deleteRange(op.pos, op.end);
+      const mappedEnd = tr.mapping.map(op.end, -1);
+      tr = tr.deleteRange(mappedPos, mappedEnd);
     } else if (op.type === "insert") {
-      tr = tr.insert(op.pos, op.node);
+      tr = tr.insert(mappedPos, op.node);
     } else if (op.type === "update") {
-      tr = tr.replaceRangeWith(op.pos, op.end, op.node);
+      const mappedEnd = tr.mapping.map(op.end, -1);
+      tr = tr.replaceRangeWith(mappedPos, mappedEnd, op.node);
+    } else {
+      assertNever(op);
     }
   }
 
   if (tr.docChanged) {
+    // auto-wrap as needed
     autoWrap(tr);
-    tr.setMeta("_ignoreDocChanged", true); // prevent recursive updates
-    console.log("differenceUpdateLines", {
-      doc: tr.doc,
-      docString: tr.doc.toString(),
-      ops,
-      prevLines,
-      newLines,
-    });
-    dispatch?.(tr);
+
+    // ensure our updated doc matches the target
+    const targetDoc = mapTextToPmNode(newLines);
+    if (!targetDoc.eq(tr.doc)) {
+      // TODO :Robustness: differenceUpdateLines should never have to fall back to full replace (ideally)
+      // fallback to full replace :c
+      if (IS_DEV || isDeveloperMode.value) {
+        log.error("differenceUpdateLines.mismatch", {
+          ops,
+          prevLines,
+          newLines,
+          docString: tr.doc.toString(),
+          targetDocString: targetDoc.toString(),
+          doc: tr.doc,
+          targetDoc,
+        });
+      }
+      const updatedState = EditorState.create({ doc: targetDoc, schema: PM_SCHEMA, plugins: view.state.plugins });
+      view.dispatch(updatedState.tr);
+    } else {
+      tr.setMeta("_ignoreDocChanged", true);
+      view.dispatch(tr);
+    }
   }
 }
 
