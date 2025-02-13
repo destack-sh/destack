@@ -788,7 +788,7 @@ export function useTextEditor(options: {
   function updatePlugin(plugin: Plugin) {
     if (view == null) return; // nothing to do
     const tr = view.state.tr;
-    tr.setMeta(plugin, { forceUpdate: Date.now() });
+    tr.setMeta(plugin, { _forceUpdate: Date.now() });
     view.dispatch(tr);
   }
 

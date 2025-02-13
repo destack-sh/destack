@@ -661,7 +661,7 @@ const SELECTION_RANK_BY_NODE_TYPE: Partial<Record<NodeType, number>> = {
   [NodeType.RECORD]: 4,
   [NodeType.ACTION]: 5,
   [NodeType.PIPE]: 6,
-  [NodeType.BLOCK]: 8,
+  [NodeType.BLOCK]: 20,
 };
 
 const SELECTION_MIN_SIZE = 5;

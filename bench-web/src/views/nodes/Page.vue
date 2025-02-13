@@ -116,7 +116,7 @@ const draggingBlockIds = computedValue(() => {
   return draggingBlockIds;
 });
 const highlightPlugin = useHighlightPlugin({ selectedBlockIds, draggingBlockIds });
-watch(selectedBlockIds, () => {
+watch([selectedBlockIds, draggingBlockIds], () => {
   updatePlugin(highlightPlugin);
 });
 
@@ -207,16 +207,16 @@ const { activeDropZone } = useMultiDropZone({
   },
   onDrop: (dragged, anchor, targetId, event) => {
     if (targetId == null) return; // need target
+    const target = graph.getOrError({ id: targetId });
+    console.log("onDrop", { dragged, anchor, targetId, target, event });
     if (dragged.kind == "file") {
       // create variable with file
       if (!dragged.files) return;
-      const target = graph.getOrError({ id: targetId });
       if (!isNode(target, NodeType.BLOCK)) throw new Error(`unexpected target node type: ${describeNode(target)}`);
       addFiles(dragged.files, anchor == "start" ? "before" : "after", target);
     } else if (dragged.kind == "node") {
       const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
       let node = graph.getOrError(dragged.node);
-      const target = graph.getOrError({ id: targetId });
       if (event.altKey) {
         // clone node before moving
         node = cloneNode(tx, graph, node, { keepProperties: true });
@@ -226,7 +226,6 @@ const { activeDropZone } = useMultiDropZone({
     } else if (dragged.kind == "selection") {
       // move nodes
       const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
-      const target = graph.getOrError({ id: targetId });
       for (let i = 0; i < dragged.nodes.length; i++) {
         let node = graph.getOrError(dragged.nodes[i]);
         if (event.altKey) {
