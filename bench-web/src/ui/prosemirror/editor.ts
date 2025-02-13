@@ -220,9 +220,9 @@ function linePrefixRule(pattern: string | RegExp, nodeType: PmNodeType, type: Te
 
 const lineDividerRule = new InputRule(/(^---$)|(^—-$)/, (state, match, start, end) => {
   const { tr } = state;
-  tr.replaceWith(start - 1, end, state.schema.nodes.lineDivider.create());
-  tr.insert(start, state.schema.nodes.lineParagraph.create());
-  tr.setSelection(TextSelection.near(tr.doc.resolve(end)));
+  tr.delete(start, end);
+  tr.insert(start - 1, PM_SCHEMA.node("lineDivider"));
+  tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
   return tr;
 });
 
@@ -617,11 +617,11 @@ export function useTextEditor(options: {
         // update the state
         const prevState = view.state;
         let newState = view.state.apply(tx);
-        const { lines: updatedText, linesNodes, linesPos } = mapPmNodeToText(newState.doc);
         // also write the doc (if changed)
+        // nocheckin: can't we just use differenceUpdateLines here?
         if (tx.docChanged && !tx.getMeta("_ignoreDocChanged")) {
+          const { lines: updatedText, linesNodes, linesPos } = mapPmNodeToText(newState.doc);
           prevText = text.write(updatedText);
-          // update the blockPtr for modified lines
           if (prevText !== updatedText) {
             let tr = newState.tr;
             for (let i = 0; i < linesNodes.length; i++) {
@@ -629,6 +629,9 @@ export function useTextEditor(options: {
               const line = prevText[i];
               if (line.blockPtr?.id !== lineNode.attrs.blockPtr?.id) {
                 tr = tr.setNodeAttribute(linesPos[i], "blockPtr", line.blockPtr);
+              }
+              if (line.type == "block" && line.nodePtr?.id !== lineNode.attrs.nodePtr?.id) {
+                tr = tr.setNodeAttribute(linesPos[i], "nodePtr", line.nodePtr);
               }
             }
             newState = newState.apply(tr);
