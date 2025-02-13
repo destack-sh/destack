@@ -196,7 +196,7 @@ export class LineBlockView extends VueComponentView {
         targetPos = getChildPos(index - 1);
       }
     } else if (direction === "down" || direction === "right" || direction == "enter") {
-      if (index < parent.childCount - 1) {
+      if (index < parent.childCount - 1 && direction != "enter") {
         // select next sibling
         targetPos = getChildPos(index + 1);
       } else {
