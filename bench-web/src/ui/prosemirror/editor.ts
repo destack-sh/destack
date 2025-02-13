@@ -1,7 +1,7 @@
 import { NodeReferenceData, TextLineType, TextSpanType } from "@/proto/wire";
 import { type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { PageContext } from "@/ui/prosemirror/page";
-import { PM_SCHEMA, SpanSpecialInputType, TextMarkType } from "@/ui/prosemirror/schema";
+import { getPmLineType, PM_SCHEMA, SpanSpecialInputType, TextMarkType } from "@/ui/prosemirror/schema";
 import { LineBlockView, SpanNodeView, VueComponentView } from "@/ui/prosemirror/view";
 import { LineInterface, mapPmNodeToText, mapTextToPmNode, TextInterface } from "@/ui/prosemirror/wiring";
 import { deepValueEquals } from "@/utils/ref";
@@ -50,9 +50,9 @@ export function autoWrap(tr: PmTransaction) {
   const { doc } = tr;
 
   //
-  // Wrap unwrapped list items 
-  // 
-  
+  // Wrap unwrapped list items
+  //
+
   const children: Array<{ node: PmNode; pos: number; end: number }> = [];
   doc.forEach((node, pos) => {
     children.push({ node, pos, end: pos + node.nodeSize });
@@ -101,7 +101,7 @@ export function autoWrap(tr: PmTransaction) {
   //
   // Merge adjacent list containers of the same type
   //
-  
+
   const newChildren: Array<{ node: PmNode; pos: number; end: number }> = [];
   tr.doc.forEach((node, pos) => {
     newChildren.push({ node, pos, end: pos + node.nodeSize });
@@ -122,7 +122,7 @@ export function autoWrap(tr: PmTransaction) {
   //
   // Remove empty list containers
   //
-  
+
   const finalChildren: Array<{ node: PmNode; pos: number; end: number }> = [];
   tr.doc.forEach((node, pos) => {
     finalChildren.push({ node, pos, end: pos + node.nodeSize });
@@ -169,26 +169,7 @@ export function morphLineNode(
   const tr = state.tr;
 
   // map target node type
-  let targetNodeType: PmNodeType;
-  switch (targetType) {
-    case TextLineType.PARAGRAPH:
-      targetNodeType = schema.nodes.lineParagraph;
-      break;
-    case TextLineType.HEADING_1:
-    case TextLineType.HEADING_2:
-    case TextLineType.HEADING_3:
-    case TextLineType.HEADING_4:
-      targetNodeType = schema.nodes.lineHeading;
-      break;
-    case TextLineType.LIST_ORDERED:
-      targetNodeType = schema.nodes.lineListOrdered;
-      break;
-    case TextLineType.LIST_UNORDERED:
-      targetNodeType = schema.nodes.lineListUnordered;
-      break;
-    default:
-      return false;
-  }
+  const targetNodeType = getPmLineType(targetType);
 
   // if already the target type, do nothing
   if ($from.parent.type === targetNodeType && $from.parent.attrs.type === targetType) {
@@ -486,12 +467,12 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
     Enter(state, dispatch, view) {
       const { $from, $to } = state.selection;
       const parentType = $from.parent.type.name;
-      if (parentType === "lineListOrdered" || parentType === "lineListUnordered") {
+      if (parentType === "lineListOrdered" || parentType === "lineListUnordered" || parentType === "lineHeading") {
         if ($from.parent.textContent.trim() === "") {
           // morph to plain paragraph
           return morphLineNode(state, $from, TextLineType.PARAGRAPH, dispatch);
         } else {
-          // otherwise, split the list item at the cursor position (keep attrs except blockPtr)
+          // otherwise, split at the cursor position (keep attrs except blockPtr)
           const tr = state.tr.split($from.pos, 1, [
             { type: $from.parent.type, attrs: { ...$from.parent.attrs, blockPtr: null } },
           ]);

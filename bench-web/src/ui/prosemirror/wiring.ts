@@ -262,7 +262,7 @@ type DiffOp =
 /** Get the unique key of a Line (for Blocks only) */
 function getLineKey(line: LineInterface): string {
   if (line.blockPtr == null) {
-    throw new Error("line has no blockPtr");
+    throw new Error(`line has no blockPtr: ${JSON.stringify(line)}`);
   }
   return line.blockPtr.id!;
 }
@@ -332,18 +332,16 @@ export function differenceUpdateLines(
       ops.push({ type: "insert", pos: insertPos, node: item.node, key: item.key });
     }
     newIndex = match.newIndex;
-    // update if contents differ
+    // update line contents differ
     const oldItem = oldItems[match.oldIndex];
     const newItem = newItems[match.newIndex];
-    if (!lineContentEquals(oldItem.line, newItem.line)) {
-      ops.push({
-        type: "update",
-        pos: oldItem.pos,
-        end: oldItem.pos + oldItem.node.nodeSize,
-        node: newItem.node,
-        key: newItem.key,
-      });
-    }
+    ops.push({
+      type: "update",
+      pos: oldItem.pos,
+      end: oldItem.pos + oldItem.node.nodeSize,
+      node: newItem.node,
+      key: newItem.key,
+    });
     oldIndex++;
     newIndex++;
   }
@@ -365,18 +363,24 @@ export function differenceUpdateLines(
   let tr = view.state.tr;
   for (const op of ops) {
     if (op.type === "delete") {
-      tr = tr.delete(op.pos, op.end);
+      tr = tr.deleteRange(op.pos, op.end);
     } else if (op.type === "insert") {
       tr = tr.insert(op.pos, op.node);
     } else if (op.type === "update") {
-      tr = tr.replaceWith(op.pos, op.end, op.node);
+      tr = tr.replaceRangeWith(op.pos, op.end, op.node);
     }
   }
 
   if (tr.docChanged) {
     autoWrap(tr);
     tr.setMeta("_ignoreDocChanged", true); // prevent recursive updates
-    console.log("differenceUpdateLines", { ops });
+    console.log("differenceUpdateLines", {
+      doc: tr.doc,
+      docString: tr.doc.toString(),
+      ops,
+      prevLines,
+      newLines,
+    });
     dispatch?.(tr);
   }
 }
