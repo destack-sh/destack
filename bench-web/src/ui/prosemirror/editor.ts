@@ -45,23 +45,96 @@ import {
   type Ref,
 } from "vue";
 
-/** Wrap a range in a list container, merging with adjacent lists of the same type if possible. */
-export function wrapInList(tr: PmTransaction, range: NodeRange, type: TextLineType) {
-  const listContainerType =
-    type === TextLineType.LIST_ORDERED ? PM_SCHEMA.nodes.orderedList : PM_SCHEMA.nodes.unorderedList;
-  const posAfter = tr.doc.resolve(range.start);
-  if (posAfter.depth < 1 || posAfter.node(posAfter.depth - 1).type !== listContainerType) {
-    const range = posAfter.blockRange();
-    if (range) {
-      tr.wrap(range, [{ type: listContainerType }]);
+/** Autowraps and unwraps any wrapable nodes. */
+export function autoWrap(tr: PmTransaction) {
+  const { doc } = tr;
+
+  //
+  // Wrap unwrapped list items 
+  // 
+  
+  const children: Array<{ node: PmNode; pos: number; end: number }> = [];
+  doc.forEach((node, pos) => {
+    children.push({ node, pos, end: pos + node.nodeSize });
+  });
+
+  // find contiguous groups of unwrapped list items (of the same kind)
+  interface UnwrappedGroup {
+    start: number;
+    end: number;
+    containerType: PmNode["type"];
+  }
+  const groups: UnwrappedGroup[] = [];
+  let i = 0;
+  while (i < children.length) {
+    const { node, pos, end } = children[i];
+    if (node.type === PM_SCHEMA.nodes.lineListOrdered || node.type === PM_SCHEMA.nodes.lineListUnordered) {
+      // determine container type based on list item type
+      const containerType =
+        node.type === PM_SCHEMA.nodes.lineListOrdered ? PM_SCHEMA.nodes.orderedList : PM_SCHEMA.nodes.unorderedList;
+      const groupStart = pos;
+      let groupEnd = end;
+      let j = i + 1;
+      while (j < children.length && children[j].node.type === node.type) {
+        groupEnd = children[j].end;
+        j++;
+      }
+      groups.push({ start: groupStart, end: groupEnd, containerType });
+      i = j;
+    } else {
+      i++;
     }
   }
-}
 
-/** Wrap a range in a container node if needed. */
-export function wrapIfNeeded(tr: PmTransaction, $start: ResolvedPos, type: TextLineType) {
-  if (type === TextLineType.LIST_ORDERED || type === TextLineType.LIST_UNORDERED) {
-    wrapInList(tr, new NodeRange($start, $start, $start.depth), type);
+  // wrap each group in its appropriate container
+  //  (in reverse order so that later changes don’t affect earlier positions)
+  for (let g = groups.length - 1; g >= 0; g--) {
+    const group = groups[g];
+    const $start = tr.doc.resolve(group.start);
+    const $end = tr.doc.resolve(group.end);
+    const range = $start.blockRange($end);
+    if (range) {
+      tr.wrap(range, [{ type: group.containerType }]);
+    }
+  }
+
+  //
+  // Merge adjacent list containers of the same type
+  //
+  
+  const newChildren: Array<{ node: PmNode; pos: number; end: number }> = [];
+  tr.doc.forEach((node, pos) => {
+    newChildren.push({ node, pos, end: pos + node.nodeSize });
+  });
+  // iterate in reverse; if two consecutive nodes are list containers of the same type, join them
+  for (let i = newChildren.length - 1; i > 0; i--) {
+    const cur = newChildren[i];
+    const prev = newChildren[i - 1];
+    if (
+      (cur.node.type === PM_SCHEMA.nodes.orderedList || cur.node.type === PM_SCHEMA.nodes.unorderedList) &&
+      cur.node.type === prev.node.type
+    ) {
+      // the join position is at the start of the current container
+      tr.join(cur.pos);
+    }
+  }
+
+  //
+  // Remove empty list containers
+  //
+  
+  const finalChildren: Array<{ node: PmNode; pos: number; end: number }> = [];
+  tr.doc.forEach((node, pos) => {
+    finalChildren.push({ node, pos, end: pos + node.nodeSize });
+  });
+  for (let i = finalChildren.length - 1; i >= 0; i--) {
+    const { node, pos } = finalChildren[i];
+    if (
+      (node.type === PM_SCHEMA.nodes.orderedList || node.type === PM_SCHEMA.nodes.unorderedList) &&
+      node.childCount === 0
+    ) {
+      tr.delete(pos, pos + node.nodeSize);
+    }
   }
 }
 
@@ -128,7 +201,7 @@ export function morphLineNode(
       ...$from.parent.attrs,
       type: targetType,
     });
-    wrapIfNeeded(tr, $from, targetType);
+    autoWrap(tr);
     // preserve horizontal offset
     const offset = $from.parentOffset;
     const $newPos = tr.doc.resolve($from.pos);
@@ -212,7 +285,7 @@ function linePrefixRule(pattern: string | RegExp, nodeType: PmNodeType, type: Te
     tr.setBlockType(start, end, nodeType, { ...block.attrs, type });
     tr.delete(start, end);
     tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
-    wrapIfNeeded(tr, $start, type);
+    autoWrap(tr);
     return tr;
   });
   return rule;

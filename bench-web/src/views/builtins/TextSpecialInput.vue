@@ -17,7 +17,7 @@ import {
 import { isNode, isNodeRef, toNodeRef } from "@/proto/wiring";
 import { IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
-import { findAncestor, wrapIfNeeded } from "@/ui/prosemirror/editor";
+import { autoWrap, findAncestor } from "@/ui/prosemirror/editor";
 import { PageContext } from "@/ui/prosemirror/page";
 import { getPmLineType, PM_SCHEMA, SpanSpecialInputType } from "@/ui/prosemirror/schema";
 import { SearchItem, useValueSearch } from "@/ui/search";
@@ -172,7 +172,7 @@ function apply(item: SearchItem) {
         });
         tr.delete(linePos, linePos + lineNode.nodeSize - 1);
         tr.setSelection(TextSelection.near(tr.doc.resolve(linePos)));
-        wrapIfNeeded(tr, tr.doc.resolve(linePos), textLineType);
+        autoWrap(tr);
       }
       dispatch(tr);
     } else {

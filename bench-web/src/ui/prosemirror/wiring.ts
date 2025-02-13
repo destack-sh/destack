@@ -15,6 +15,7 @@ import {
   TextSpanType,
 } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
+import { autoWrap } from "@/ui/prosemirror/editor";
 import { PM_SCHEMA } from "@/ui/prosemirror/schema";
 import { assertNever, groupByScalar } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
@@ -373,15 +374,7 @@ export function differenceUpdateLines(
   }
 
   if (tr.docChanged) {
-    // remove any empty orderedList/unorderedList nodes.
-    tr.doc.descendants((node, pos) => {
-      if ((node.type.name === "orderedList" || node.type.name === "unorderedList") && node.childCount === 0) {
-        tr = tr.delete(pos, pos + node.nodeSize);
-        return false;
-      }
-      return true;
-    });
-
+    autoWrap(tr);
     tr.setMeta("_ignoreDocChanged", true); // prevent recursive updates
     console.log("differenceUpdateLines", { ops });
     dispatch?.(tr);
