@@ -783,7 +783,7 @@ export class DatabaseLayout extends NodeLayout<NodeType.DATABASE> {
 export class FlowLayout extends NodeLayout<NodeType.FLOW> {
   make() {
     const commonRows: Row[] = [
-      this.rowProperty(FieldProperty.text, { title: false, props: { placeholder: "Text..." } }),
+      this.rowProperty(FlowProperty.text, { title: false, props: { placeholder: "Text..." } }),
     ];
     this.section(undefined, commonRows);
 

@@ -66,7 +66,7 @@ defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => v
     </button>
 
     <!-- Right slot -->
-    <div class="ml-auto flex flex-row items-center gap-x-2">
+    <div class="ml-auto flex flex-row items-center gap-x-2 mr-0.5">
       <slot name="right" />
     </div>
   </div>

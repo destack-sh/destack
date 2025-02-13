@@ -1,3 +1,4 @@
+import { canvas, supergraph } from "@/globals";
 import {
   FileType,
   NodeReferenceData,
@@ -9,7 +10,6 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import { contentEquals, isNode, isNodeRef, isStruct, toNodeRef } from "@/proto/wiring";
-import { canvas, supergraph } from "@/globals";
 import { makeSelection } from "@/ui/view";
 import { getElement, getElementRef } from "@/utils/element";
 import { groupByList } from "@/utils/functools";
@@ -47,7 +47,7 @@ export function _setDragImage(image: HTMLElement | null) {
 export const activeDrag: Ref<Drag | null> = shallowRef(null);
 const lastDraggedAt: Ref<DateTime | null> = shallowRef(null);
 
-export const DRAG_DISALLOWED_ELEMENTS = new Set(["input", "textarea", "contenteditable"]);
+export const DRAG_DISALLOWED_ELEMENTS = new Set(["input", "textarea"]);
 
 /** Checks whether the given node is currently being dragged */
 export function isDragging(node: AnyNodeData | NodeReferenceData) {
@@ -58,25 +58,31 @@ export function isDragging(node: AnyNodeData | NodeReferenceData) {
 }
 
 /** Checks whether the given element may be dragged. */
-export function isDragAllowed(element: HTMLElement | SVGElement | null, what: "drag" | "select"): boolean {
-  if (element == null || DRAG_DISALLOWED_ELEMENTS.has(element.tagName.toLowerCase())) return false;
+export function isDragSuppressed(
+  element: HTMLElement | SVGElement | null,
+  what: "drag" | "select",
+): HTMLElement | SVGElement | null {
+  if (element == null || DRAG_DISALLOWED_ELEMENTS.has(element.tagName.toLowerCase())) {
+    return element;
+  }
   // check for 'data-suppress-drag' attribute in containing elements
   let el: HTMLElement | SVGElement | null = element;
   while (el != null) {
     const suppress = el.getAttribute("data-suppress-drag");
     if (suppress == "both" || suppress == what) {
-      return false;
+      return el;
     }
     el = el.parentElement as HTMLElement | null;
   }
-  return true;
+  return null;
 }
 
 /** Start dragging the given thing if it's not a disallowed element (like an input). */
 export function startDraggingIfAllowed(event: DragEvent, data: AnyNodeData | NodeReferenceData): boolean {
   const trigger = event.target as HTMLElement;
-  if (!isDragAllowed(trigger, "drag")) {
-    log.trace("drag.start.disallowed", trigger);
+  const suppressed = isDragSuppressed(trigger, "drag");
+  if (suppressed != null) {
+    log.trace("drag.start.disallowed", trigger, suppressed);
     event.preventDefault();
     return false;
   } else {
@@ -585,8 +591,13 @@ export function startSelecting(zone: SelectionZone, event: MouseEvent) {
 export function startSelectingIfAllowed(zone: SelectionZone, event: MouseEvent) {
   // ignore contextmenu/right-click
   if (event.button == 2) return;
-  if (isDragAllowed(event.target as HTMLElement | SVGElement | null, "select")) {
+  const suppressed = isDragSuppressed(event.target as HTMLElement | SVGElement | null, "select");
+  if (suppressed != null) {
+    log.trace("select.start.disallowed", suppressed);
+    return false;
+  } else {
     startSelecting(zone, event);
+    return true;
   }
 }
 
@@ -643,15 +654,14 @@ function getIntersectingNodes(
 
 // rank for aggregating selections into higher rank nodes (sometimes)
 // lower ranks are more specific, higher ranks are broader
-const SELECTION_RANK_DEFAULT = 1;
+const SELECTION_RANK_DEFAULT = 10;
 const SELECTION_RANK_BY_NODE_TYPE: Partial<Record<NodeType, number>> = {
   [NodeType.FIELD]: 2,
   [NodeType.VIEW]: 3,
+  [NodeType.RECORD]: 4,
   [NodeType.ACTION]: 5,
-  [NodeType.PIPE]: 5,
-  [NodeType.RECORD]: 5,
-  [NodeType.BLOCK]: 10,
-  [NodeType.PAGE]: 10,
+  [NodeType.PIPE]: 6,
+  [NodeType.BLOCK]: 8,
 };
 
 const SELECTION_MIN_SIZE = 5;
@@ -742,7 +752,7 @@ export function updateSelecting(event: MouseEvent) {
     selection = makeSelection(selectionNodes);
   }
 
-  // update selection (if any)
+  // update selection (if any & changed)
   if (
     activeZone != null &&
     ((selection != null && canvas.selection == null) ||

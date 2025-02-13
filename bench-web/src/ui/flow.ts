@@ -7,10 +7,10 @@ import { newChangeId, type Transaction, type TransactionOptions } from "@/langua
 import {
   ActionType,
   BenchType,
-  FlowData,
   ColorShade,
   FieldData,
   FieldType,
+  FlowData,
   NodeType,
   ObjectType,
   PipeData,
@@ -28,7 +28,7 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import { describeNode, isNode, makeStruct, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { isDragAllowed } from "@/ui/drag";
+import { isDragSuppressed } from "@/ui/drag";
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
 import { addVector2, lengthVector2, subVector2, type Vector2 } from "@/ui/view";
@@ -815,7 +815,9 @@ export class FlowContext {
   /** Starts dragging a thing if it's not a disallowed element (like an input). */
   startDraggingIfAllowed(e: MouseEvent, thing: FlowThing): boolean {
     const target = e.target as HTMLElement;
-    if (!isDragAllowed(target, "drag")) {
+    const suppressed = isDragSuppressed(target, "drag");
+    if (suppressed != null) {
+      log.trace("drag.start.disallowed", target, suppressed);
       return false;
     } else {
       return this.startDragging(e, thing);
