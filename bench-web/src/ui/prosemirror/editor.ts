@@ -672,7 +672,7 @@ export function useTextEditor(options: {
         const prevState = view.state;
         let newState = view.state.apply(tx);
         // also write the doc (if changed)
-        // nocheckin: can't we just use differenceUpdateLines here?
+        // NOTE :Cleanup: can't we just use differenceUpdateLines here?
         if (tx.docChanged && !tx.getMeta("_ignoreDocChanged")) {
           const { lines: updatedText, linesNodes, linesPos } = mapPmNodeToText(newState.doc);
           prevText = text.write(updatedText);
