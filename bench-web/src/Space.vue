@@ -245,7 +245,7 @@ mark {
   @apply bg-gray-100 text-gray-700;
 }
 .pm-text .line-block > .line-handle {
-  @apply mt-2;
+  @apply mt-[7px];
 }
 .pm-text .line-block.page > .line-handle {
   @apply mt-0;
