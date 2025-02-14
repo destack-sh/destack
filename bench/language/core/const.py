@@ -28,8 +28,7 @@ from opentelemetry.util._decorator import _agnosticcontextmanager
 from bench.utils.utils import frozendict, get_from_env
 
 if TYPE_CHECKING:
-    from bench.language import Node, Session, Severity, Text, Transaction
-    from bench.language.runtime.run import RunSpan, RunSpanType
+    from bench.language import Node, RunSpan, RunSpanType, Session, Severity, Text, Transaction
     from bench.runtime.core import Runner
 
 
@@ -45,8 +44,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.12.0"
-REVISION_PENDING = -1
+VERSION = "2025.02.14.0"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -276,48 +274,45 @@ class EnumType(BuiltinEnum):
     # Global (20000-21000)
     #
 
-    # core (20000-20099)
-    ENUM_TYPE = 20001  # so meta
-    NODE_TYPE = 20002
-    STRUCT_TYPE = 20003
-    OBJECT_TYPE = 20004  # NodeType | StructType
-    BENCH_TYPE = 20005
-    NODE_MODE = 20010
-    NODE_AREA = 20012
-    PROPERTY_REFERENCE_TYPE = 20020
+    # core (20000-20049)
+    ENUM_TYPE = 20000
+    NODE_TYPE = 20001
+    STRUCT_TYPE = 20002
+    OBJECT_TYPE = 20003
+    BENCH_TYPE = 20004
+    NODE_MODE = 20005
+    NODE_AREA = 20006
+    PROPERTY_REFERENCE_TYPE = 20007
+    EDIT_OPERATION_TYPE = 20008
+    CHANGE_CATEGORY = 20009
 
-    # time (20100-20199)
-    DAY = 20100
-    MONTH = 20101
-    TIME_INTERVAL = 20102
+    # bench (20050-20099)
+    PACKAGE_TYPE = 20050
+    CLOUD = 20051
+    REGION = 20052
+    REGION_ZONE = 20053
+    REGION_AREA = 20054
+    REGION_CONTINENT = 20055
+    BENCH_STATUS = 20056
 
-    # bench (20200-20299)
-    PACKAGE_TYPE = 20200
-    CLOUD = 20210
-    REGION = 20220
-    REGION_ZONE = 20221
-    REGION_AREA = 20222
-    REGION_CONTINENT = 20223
-    BENCH_STATUS = 20230
+    # auth (20100-20149)
+    ACCESS_MODE = 20100
+    ACCESS_KIND = 20101
+    POLICY_EFFECT = 20102
+    MEMBERSHIP_TYPE = 20103
+    INVITE_TYPE = 20104
 
-    # auth (20300-20399)
-    ACCESS_MODE = 20300
-    ACCESS_KIND = 20301
-    POLICY_EFFECT = 20302
-
-    # access types (20400-20499)
-    QUERY_TYPE = 20400
-    EDIT_TYPE = 20401
-    USE_TYPE = 20402
-    ACCESS_TYPE = 20403  # ReadType | EditType | UseType
-    CHANGE_CATEGORY = 20404
-    EDIT_OPERATION_TYPE = 20405
+    # access types (20150-20199)
+    QUERY_TYPE = 20150
+    EDIT_TYPE = 20151
+    USE_TYPE = 20152
+    ACCESS_TYPE = 20153
 
     #
     # Regional (21000-22000)
     #
 
-    # resources (21000-21199)
+    # resources (21000-21049)
     RESOURCE_STATUS = 21000
     RESOURCE_OCCUPANCY = 21001
     SCALER_TYPE = 21010
@@ -325,48 +320,51 @@ class EnumType(BuiltinEnum):
     MACHINE_TYPE = 21020
     BROWSER_TYPE = 21030
     STORE_TYPE = 21040
-    CLIENT_TYPE = 21050
+    CLIENT_TYPE = 21041
 
-    # files (21200-21249)
-    FILE_RETENTION_MODE = 21200
-    FILE_KIND = 21201
-    FILE_TYPE = 21202
-    FILE_FORMAT = 21203
-    ICON_TYPE = 21210
+    # files (21050-21099)
+    FILE_RETENTION_MODE = 21050
+    FILE_KIND = 21051
+    FILE_TYPE = 21052
+    FILE_FORMAT = 21053
+    ICON_TYPE = 21054
 
-    # streams (21250-21299)
-    STREAM_TYPE = 21250
+    # streams (21100-21149)
+    STREAM_TYPE = 21100
 
-    # types (21300-21399)
-    PRIMITIVE_TYPE = 21300
-    FIELD_ZONE = 21301
-    TYPE_KIND = 21302
-    TYPE_FORMAT = 21303
-    BLOCK_TYPE = 21304
+    # type (21150-21199)
+    PRIMITIVE_TYPE = 21150
+    FIELD_ZONE = 21151
+    TYPE_KIND = 21152
+    TYPE_FORMAT = 21153
+    BLOCK_TYPE = 21154
+    DAY = 21155
+    MONTH = 21156
+    TIME_INTERVAL = 21157
 
-    # text (21400-21499)
-    TEXT_LINE_TYPE = 21400
-    TEXT_SPAN_TYPE = 21401
+    # text (21200-21249)
+    TEXT_LINE_TYPE = 21200
+    TEXT_SPAN_TYPE = 21201
 
-    # expressions (21500-21599)
-    EXPRESSION_KIND = 21500
-    EXPRESSION_OP = 21501
-    LITERAL_TYPE = 21502
-    FUNCTIONAL_TYPE = 21503
-    CONDITIONAL_TYPE = 21504
-    AGGREGATION_TYPE = 21505
-    SORT_MODE = 21506
-    SORT_TYPE = 21507
-    COMPUTED_VALUE_KIND = 21510
-    COMPUTED_VALUE_MODE = 21511
-    PATH_ELEMENT_TYPE = 21520
-    PATH_RUN_SELECTOR = 21521
+    # expressions (21250-21299)
+    EXPRESSION_KIND = 21250
+    EXPRESSION_OP = 21251
+    LITERAL_TYPE = 21252
+    FUNCTIONAL_TYPE = 21253
+    CONDITIONAL_TYPE = 21254
+    AGGREGATION_TYPE = 21255
+    SORT_MODE = 21256
+    SORT_TYPE = 21257
+    COMPUTED_VALUE_KIND = 21258
+    COMPUTED_VALUE_MODE = 21259
+    PATH_ELEMENT_TYPE = 21260
+    PATH_RUN_SELECTOR = 21261
 
     #
     # Local (22000-23000)
     #
 
-    # runtime core (22000-22099)
+    # runtime core (22000-22049)
     RUN_STATUS = 22000
     RUN_TYPE = 22001
     RUN_SPAN_TYPE = 22002
@@ -381,64 +379,68 @@ class EnumType(BuiltinEnum):
     CALL_TERMINATION_MODE = 22052
     LOG_TYPE = 22060
     SEVERITY = 22070
+
+    # error (22100-22149)
     ERROR_KIND = 22100
     ERROR_TYPE = 22101
 
-    # debugging (22200-22299)
+    # debugging (22200-22249)
     BREAKPOINT_SITE = 22200
     BREAKPOINT_ACTION = 22201
     BREAKPOINT_TARGET = 22202
     INTERRUPTION_TYPE = 22210
     INTERRUPTION_STATUS = 22211
-    INTERRUPTION_RESPONSE = 22220
+    INTERRUPTION_RESPONSE = 22212
 
-    # models (22300-22399)
-    MODEL_DEVELOPER = 22300
-    MODEL_TYPE = 22301
-    MODEL_FAMILY = 22302
-    MODEL_PROVIDER = 22303
+    # models (22250-22299)
+    MODEL_DEVELOPER = 22250
+    MODEL_TYPE = 22251
+    MODEL_FAMILY = 22252
+    MODEL_PROVIDER = 22253
 
-    # code (22400-22499)
-    CODE_TYPE = 22400
+    # code (22300-22349)
+    CODE_TYPE = 22300
 
-    # flow (22500-22599)
-    ACTION_TYPE = 22500
-    ACTION_CATEGORY = 22501
-    PORT_SIDE = 22510
-    PIPE_TYPE = 22511
-    PIPE_TRIGGER = 22512
-    TOOL_FILTER = 22520
+    # flow (22350-22399)
+    ACTION_TYPE = 22350
+    ACTION_CATEGORY = 22351
+    PORT_SIDE = 22352
+    PIPE_TYPE = 22353
+    PIPE_TRIGGER = 22354
+    TOOL_FILTER = 22355
 
-    # views (22600-22699)
-    SPACE_TYPE = 22600
-    VIEW_TYPE = 22601
-    COLOR_TYPE = 22602
-    COLOR_SHADE = 22603
-    FONT_TYPE = 22604
-    FONT_WEIGHT = 22605
-    FONT_SIZE = 22606
-    SPACING = 22607
-    ANCHOR = 22608
-    ORIENTATION = 22609
-    ALIGNMENT = 22610
-    USER_WIZARD_STAGE = 22611
-    TREE_VIEW_PRESET = 22612
-    HUB_ASPECT = 22613
-    HELP_ASPECT = 22614
-    BUTTON_VARIANT = 22615
-    PICKER_VARIANT = 22616
+    # views (22400-22449)
+    SPACE_TYPE = 22400
+    VIEW_TYPE = 22401
+    COLOR_TYPE = 22402
+    COLOR_SHADE = 22403
+    FONT_TYPE = 22404
+    FONT_WEIGHT = 22405
+    FONT_SIZE = 22406
+    SPACING = 22407
+    ANCHOR = 22408
+    ORIENTATION = 22409
+    ALIGNMENT = 22410
+    USER_WIZARD_STAGE = 22411
+    TREE_VIEW_PRESET = 22412
+    HUB_ASPECT = 22413
+    HELP_ASPECT = 22414
+    BUTTON_VARIANT = 22415
+    PICKER_VARIANT = 22416
 
-    # user (22700-22799)
-    USER_STATUS = 22700
-    ORGANIZATION_STATUS = 22710
+    # user (22450-22499)
+    USER_STATUS = 22450
+    ORGANIZATION_STATUS = 22451
 
-    # messages (22800-22899)
-    CHANNEL_TYPE = 22800
-    THREAD_TYPE = 22810
-    THREAD_STATUS = 22811
-    MESSAGE_TYPE = 22820
-    MESSAGE_STATUS = 22821
-    MESSAGE_PLATFORM = 22822
+    # messaging (22500-22549)
+    CHANNEL_TYPE = 22500
+    THREAD_TYPE = 22501
+    THREAD_STATUS = 22502
+    MESSAGE_TYPE = 22503
+    MESSAGE_STATUS = 22504
+    MESSAGE_PLATFORM = 22505
+    NOTIFICATION_TYPE = 22506
+    NOTIFICATION_STATUS = 22507
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
@@ -455,75 +457,63 @@ ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 @enum_(EnumType.NODE_TYPE)
 class NodeType(BuiltinEnum):
     #
-    # Global (1-2000)
+    # Global (1-1000)
     #
 
     # cosmos
     BENCH = 1
     HANDLE = 2
-
-    # auth
-    USER = 100
-    ORGANIZATION = 110
-    TEAM = 120
-    MEMBERSHIP = 130
-    INVITE = 140
-    CLIENT = 150
+    USER = 10
+    ORGANIZATION = 20
+    TEAM = 30
+    CLIENT = 50
     # CHALLENGE?
+
+    #
+    # Regional (1000-5000)
+    #
+
+    # resource
+    SCALER = 1000
+    STORE = 1001  # real database
+
+    # compute
+    MACHINE = 1100
+    BROWSER = 1110
+    # MODEL, ...
+    FILE = 1200
+    STREAM = 1210
+    SECRET = 1220
 
     # finance
     # BALANCE, BUDGET, TRANSFER, GRANT, INVOICE, ...
 
-    # marketplace
-    # ...?
+    # web
+    # ACCOUNT, APPLICATION, DOMAIN, EMAIL, PHONE, ...
+
+    # code?
+    # REPOSITORY, ...?
 
     #
-    # Regional (2000-4000)
-    #
-
-    # resource (static)
-    SCALER = 2000
-    STORE = 2001  # real database
-
-    # resource (dynamic)
-    MACHINE = 2100
-    BROWSER = 2110
-    # MODEL, APPLICATION, ...
-    FILE = 2200
-    STREAM = 2210
-    SECRET = 2220
-    # ACCOUNT, DOMAIN, EMAIL, PHONE, ...
-
-    # synchronization
-    # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?
-
-    #
-    # Local (5000-)
+    # Local (5000-10000)
     #
 
     # source (named, versioned, templatable)
     PACKAGE = 5000
     DEPENDENCY = 5010
-    # page
     PAGE = 5020
     BLOCK = 5021
-    # types
     CHOICE = 5030
     CLASS = 5031
     # UNION?
     FIELD = 5035  # (based)
-    # flow
     FLOW = 5050
     ACTION = 5051
     PIPE = 5052
     TRIGGER = 5053
-    # views
     VIEW = 5080
-    # data
     DATABASE = 5090
-    # messaging
     CHANNEL = 5100
-    # auth
     ROLE = 5110
     IDENTITY = 5120
     # BADGE? POLICY? (POLICY_)RULE?
@@ -532,17 +522,25 @@ class NodeType(BuiltinEnum):
     # state
     THREAD = 5501  # (timed)
     MESSAGE = 5502  # (based, timed)
-    RECORD = 5510  # (based)
     # POLL?
     # REACTION?
+    NOTIFICATION = 5540  # (timed)
+    RECORD = 5550  # (based)
+
+    # auth
+    MEMBERSHIP = 5600
+    INVITE = 5610
 
     # runtime
     SESSION = 6000  # (timed)
     RUN = 6010  # (based, timed)
     RUN_SPAN = 6011  # (timed)
     RUN_PLAN = 6012  # (timed)
-    INTERRUPTION = 6020  # (timed)
-    LOG = 6100  # (timed)
+    INTERRUPTION = 6030  # (timed)
+    LOG = 6050  # (timed)
+
+    # sync
+    # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?
 
     #
     # Misc
@@ -553,11 +551,11 @@ class NodeType(BuiltinEnum):
 
     @property
     def is_global(self) -> bool:
-        return self.id < 2000
+        return self.id < 1000
 
     @property
     def is_regional(self) -> bool:
-        return self.id >= 2000 and self.id < 5000
+        return self.id >= 1000 and self.id < 5000
 
     @property
     def is_local(self) -> bool:
@@ -581,7 +579,7 @@ class NodeType(BuiltinEnum):
 
     @property
     def is_resource(self) -> bool:
-        return self.id >= 2000 and self.id < 3000
+        return self.id >= 1000 and self.id < 2000
 
     @property
     def is_source(self) -> bool:
@@ -624,11 +622,9 @@ def _get_node_types(
 
 
 COSMOS_NODE_TYPES = _get_node_types(None, 100)
-AUTH_NODE_TYPES = _get_node_types(100, 200)
-FINANCE_NODE_TYPES = _get_node_types(200, 300)
 
-GLOBAL_NODE_TYPES = _get_node_types(None, 2000)
-REGIONAL_NODE_TYPES = _get_node_types(2000, 5000)
+GLOBAL_NODE_TYPES = _get_node_types(None, 1000)
+REGIONAL_NODE_TYPES = _get_node_types(1000, 5000)
 LOCAL_NODE_TYPES = _get_node_types(5000, None)
 AREA_BY_NODE_TYPE = {
     **dict.fromkeys(GLOBAL_NODE_TYPES, NodeArea.GLOBAL),
@@ -642,9 +638,9 @@ NODE_TYPES_BY_AREA = {
 }
 
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
-RESOURCE_NODE_TYPES = _get_node_types(2000, 3000)
-STATIC_RESOURCE_NODE_TYPES = _get_node_types(2000, 2100)
-DYNAMIC_RESOURCE_NODE_TYPES = _get_node_types(2100, 3000)
+RESOURCE_NODE_TYPES = _get_node_types(1000, 2000)
+STATIC_RESOURCE_NODE_TYPES = _get_node_types(1000, 1100)
+DYNAMIC_RESOURCE_NODE_TYPES = _get_node_types(1100, 2000)
 SOURCE_NODE_TYPES = _get_node_types(5000, 5500)
 INLINE_SOURCE_NODE_TYPES = bittuple(
     NodeType.CHANNEL,
@@ -664,7 +660,7 @@ BASED_NODE_TYPES = bittuple(  # :HasBase
 )
 PACKAGE_NODE_TYPES = _get_node_types(5000, 5500, NodeType.SKIP, NodeType.EMPTY)
 BENCH_NODE_TYPES = _get_node_types(
-    2000,
+    1000,
     10000,
     NodeType.BENCH,
     NodeType.PACKAGE,

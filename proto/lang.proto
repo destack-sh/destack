@@ -11,33 +11,32 @@ import "proto/google/type/timeofday.proto";
 
 enum EnumType {
   ENUM_TYPE_UNSPECIFIED = 0;
-  ENUM_TYPE_ENUM_TYPE = 20001;
-  ENUM_TYPE_NODE_TYPE = 20002;
-  ENUM_TYPE_STRUCT_TYPE = 20003;
-  ENUM_TYPE_OBJECT_TYPE = 20004;
-  ENUM_TYPE_BENCH_TYPE = 20005;
-  ENUM_TYPE_NODE_MODE = 20010;
-  ENUM_TYPE_NODE_AREA = 20012;
-  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 20020;
-  ENUM_TYPE_DAY = 20100;
-  ENUM_TYPE_MONTH = 20101;
-  ENUM_TYPE_TIME_INTERVAL = 20102;
-  ENUM_TYPE_PACKAGE_TYPE = 20200;
-  ENUM_TYPE_CLOUD = 20210;
-  ENUM_TYPE_REGION = 20220;
-  ENUM_TYPE_REGION_ZONE = 20221;
-  ENUM_TYPE_REGION_AREA = 20222;
-  ENUM_TYPE_REGION_CONTINENT = 20223;
-  ENUM_TYPE_BENCH_STATUS = 20230;
-  ENUM_TYPE_ACCESS_MODE = 20300;
-  ENUM_TYPE_ACCESS_KIND = 20301;
-  ENUM_TYPE_POLICY_EFFECT = 20302;
-  ENUM_TYPE_QUERY_TYPE = 20400;
-  ENUM_TYPE_EDIT_TYPE = 20401;
-  ENUM_TYPE_USE_TYPE = 20402;
-  ENUM_TYPE_ACCESS_TYPE = 20403;
-  ENUM_TYPE_CHANGE_CATEGORY = 20404;
-  ENUM_TYPE_EDIT_OPERATION_TYPE = 20405;
+  ENUM_TYPE_ENUM_TYPE = 20000;
+  ENUM_TYPE_NODE_TYPE = 20001;
+  ENUM_TYPE_STRUCT_TYPE = 20002;
+  ENUM_TYPE_OBJECT_TYPE = 20003;
+  ENUM_TYPE_BENCH_TYPE = 20004;
+  ENUM_TYPE_NODE_MODE = 20005;
+  ENUM_TYPE_NODE_AREA = 20006;
+  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 20007;
+  ENUM_TYPE_EDIT_OPERATION_TYPE = 20008;
+  ENUM_TYPE_CHANGE_CATEGORY = 20009;
+  ENUM_TYPE_PACKAGE_TYPE = 20050;
+  ENUM_TYPE_CLOUD = 20051;
+  ENUM_TYPE_REGION = 20052;
+  ENUM_TYPE_REGION_ZONE = 20053;
+  ENUM_TYPE_REGION_AREA = 20054;
+  ENUM_TYPE_REGION_CONTINENT = 20055;
+  ENUM_TYPE_BENCH_STATUS = 20056;
+  ENUM_TYPE_ACCESS_MODE = 20100;
+  ENUM_TYPE_ACCESS_KIND = 20101;
+  ENUM_TYPE_POLICY_EFFECT = 20102;
+  ENUM_TYPE_MEMBERSHIP_TYPE = 20103;
+  ENUM_TYPE_INVITE_TYPE = 20104;
+  ENUM_TYPE_QUERY_TYPE = 20150;
+  ENUM_TYPE_EDIT_TYPE = 20151;
+  ENUM_TYPE_USE_TYPE = 20152;
+  ENUM_TYPE_ACCESS_TYPE = 20153;
   ENUM_TYPE_RESOURCE_STATUS = 21000;
   ENUM_TYPE_RESOURCE_OCCUPANCY = 21001;
   ENUM_TYPE_SCALER_TYPE = 21010;
@@ -45,32 +44,35 @@ enum EnumType {
   ENUM_TYPE_MACHINE_TYPE = 21020;
   ENUM_TYPE_BROWSER_TYPE = 21030;
   ENUM_TYPE_STORE_TYPE = 21040;
-  ENUM_TYPE_CLIENT_TYPE = 21050;
-  ENUM_TYPE_FILE_RETENTION_MODE = 21200;
-  ENUM_TYPE_FILE_KIND = 21201;
-  ENUM_TYPE_FILE_TYPE = 21202;
-  ENUM_TYPE_FILE_FORMAT = 21203;
-  ENUM_TYPE_ICON_TYPE = 21210;
-  ENUM_TYPE_STREAM_TYPE = 21250;
-  ENUM_TYPE_PRIMITIVE_TYPE = 21300;
-  ENUM_TYPE_FIELD_ZONE = 21301;
-  ENUM_TYPE_TYPE_KIND = 21302;
-  ENUM_TYPE_TYPE_FORMAT = 21303;
-  ENUM_TYPE_BLOCK_TYPE = 21304;
-  ENUM_TYPE_TEXT_LINE_TYPE = 21400;
-  ENUM_TYPE_TEXT_SPAN_TYPE = 21401;
-  ENUM_TYPE_EXPRESSION_KIND = 21500;
-  ENUM_TYPE_EXPRESSION_OP = 21501;
-  ENUM_TYPE_LITERAL_TYPE = 21502;
-  ENUM_TYPE_FUNCTIONAL_TYPE = 21503;
-  ENUM_TYPE_CONDITIONAL_TYPE = 21504;
-  ENUM_TYPE_AGGREGATION_TYPE = 21505;
-  ENUM_TYPE_SORT_MODE = 21506;
-  ENUM_TYPE_SORT_TYPE = 21507;
-  ENUM_TYPE_COMPUTED_VALUE_KIND = 21510;
-  ENUM_TYPE_COMPUTED_VALUE_MODE = 21511;
-  ENUM_TYPE_PATH_ELEMENT_TYPE = 21520;
-  ENUM_TYPE_PATH_RUN_SELECTOR = 21521;
+  ENUM_TYPE_CLIENT_TYPE = 21041;
+  ENUM_TYPE_FILE_RETENTION_MODE = 21050;
+  ENUM_TYPE_FILE_KIND = 21051;
+  ENUM_TYPE_FILE_TYPE = 21052;
+  ENUM_TYPE_FILE_FORMAT = 21053;
+  ENUM_TYPE_ICON_TYPE = 21054;
+  ENUM_TYPE_STREAM_TYPE = 21100;
+  ENUM_TYPE_PRIMITIVE_TYPE = 21150;
+  ENUM_TYPE_FIELD_ZONE = 21151;
+  ENUM_TYPE_TYPE_KIND = 21152;
+  ENUM_TYPE_TYPE_FORMAT = 21153;
+  ENUM_TYPE_BLOCK_TYPE = 21154;
+  ENUM_TYPE_DAY = 21155;
+  ENUM_TYPE_MONTH = 21156;
+  ENUM_TYPE_TIME_INTERVAL = 21157;
+  ENUM_TYPE_TEXT_LINE_TYPE = 21200;
+  ENUM_TYPE_TEXT_SPAN_TYPE = 21201;
+  ENUM_TYPE_EXPRESSION_KIND = 21250;
+  ENUM_TYPE_EXPRESSION_OP = 21251;
+  ENUM_TYPE_LITERAL_TYPE = 21252;
+  ENUM_TYPE_FUNCTIONAL_TYPE = 21253;
+  ENUM_TYPE_CONDITIONAL_TYPE = 21254;
+  ENUM_TYPE_AGGREGATION_TYPE = 21255;
+  ENUM_TYPE_SORT_MODE = 21256;
+  ENUM_TYPE_SORT_TYPE = 21257;
+  ENUM_TYPE_COMPUTED_VALUE_KIND = 21258;
+  ENUM_TYPE_COMPUTED_VALUE_MODE = 21259;
+  ENUM_TYPE_PATH_ELEMENT_TYPE = 21260;
+  ENUM_TYPE_PATH_RUN_SELECTOR = 21261;
   ENUM_TYPE_RUN_STATUS = 22000;
   ENUM_TYPE_RUN_TYPE = 22001;
   ENUM_TYPE_RUN_SPAN_TYPE = 22002;
@@ -92,62 +94,62 @@ enum EnumType {
   ENUM_TYPE_BREAKPOINT_TARGET = 22202;
   ENUM_TYPE_INTERRUPTION_TYPE = 22210;
   ENUM_TYPE_INTERRUPTION_STATUS = 22211;
-  ENUM_TYPE_INTERRUPTION_RESPONSE = 22220;
-  ENUM_TYPE_MODEL_DEVELOPER = 22300;
-  ENUM_TYPE_MODEL_TYPE = 22301;
-  ENUM_TYPE_MODEL_FAMILY = 22302;
-  ENUM_TYPE_MODEL_PROVIDER = 22303;
-  ENUM_TYPE_CODE_TYPE = 22400;
-  ENUM_TYPE_ACTION_TYPE = 22500;
-  ENUM_TYPE_ACTION_CATEGORY = 22501;
-  ENUM_TYPE_PORT_SIDE = 22510;
-  ENUM_TYPE_PIPE_TYPE = 22511;
-  ENUM_TYPE_PIPE_TRIGGER = 22512;
-  ENUM_TYPE_TOOL_FILTER = 22520;
-  ENUM_TYPE_SPACE_TYPE = 22600;
-  ENUM_TYPE_VIEW_TYPE = 22601;
-  ENUM_TYPE_COLOR_TYPE = 22602;
-  ENUM_TYPE_COLOR_SHADE = 22603;
-  ENUM_TYPE_FONT_TYPE = 22604;
-  ENUM_TYPE_FONT_WEIGHT = 22605;
-  ENUM_TYPE_FONT_SIZE = 22606;
-  ENUM_TYPE_SPACING = 22607;
-  ENUM_TYPE_ANCHOR = 22608;
-  ENUM_TYPE_ORIENTATION = 22609;
-  ENUM_TYPE_ALIGNMENT = 22610;
-  ENUM_TYPE_USER_WIZARD_STAGE = 22611;
-  ENUM_TYPE_TREE_VIEW_PRESET = 22612;
-  ENUM_TYPE_HUB_ASPECT = 22613;
-  ENUM_TYPE_HELP_ASPECT = 22614;
-  ENUM_TYPE_BUTTON_VARIANT = 22615;
-  ENUM_TYPE_PICKER_VARIANT = 22616;
-  ENUM_TYPE_USER_STATUS = 22700;
-  ENUM_TYPE_ORGANIZATION_STATUS = 22710;
-  ENUM_TYPE_CHANNEL_TYPE = 22800;
-  ENUM_TYPE_THREAD_TYPE = 22810;
-  ENUM_TYPE_THREAD_STATUS = 22811;
-  ENUM_TYPE_MESSAGE_TYPE = 22820;
-  ENUM_TYPE_MESSAGE_STATUS = 22821;
-  ENUM_TYPE_MESSAGE_PLATFORM = 22822;
+  ENUM_TYPE_INTERRUPTION_RESPONSE = 22212;
+  ENUM_TYPE_MODEL_DEVELOPER = 22250;
+  ENUM_TYPE_MODEL_TYPE = 22251;
+  ENUM_TYPE_MODEL_FAMILY = 22252;
+  ENUM_TYPE_MODEL_PROVIDER = 22253;
+  ENUM_TYPE_CODE_TYPE = 22300;
+  ENUM_TYPE_ACTION_TYPE = 22350;
+  ENUM_TYPE_ACTION_CATEGORY = 22351;
+  ENUM_TYPE_PORT_SIDE = 22352;
+  ENUM_TYPE_PIPE_TYPE = 22353;
+  ENUM_TYPE_PIPE_TRIGGER = 22354;
+  ENUM_TYPE_TOOL_FILTER = 22355;
+  ENUM_TYPE_SPACE_TYPE = 22400;
+  ENUM_TYPE_VIEW_TYPE = 22401;
+  ENUM_TYPE_COLOR_TYPE = 22402;
+  ENUM_TYPE_COLOR_SHADE = 22403;
+  ENUM_TYPE_FONT_TYPE = 22404;
+  ENUM_TYPE_FONT_WEIGHT = 22405;
+  ENUM_TYPE_FONT_SIZE = 22406;
+  ENUM_TYPE_SPACING = 22407;
+  ENUM_TYPE_ANCHOR = 22408;
+  ENUM_TYPE_ORIENTATION = 22409;
+  ENUM_TYPE_ALIGNMENT = 22410;
+  ENUM_TYPE_USER_WIZARD_STAGE = 22411;
+  ENUM_TYPE_TREE_VIEW_PRESET = 22412;
+  ENUM_TYPE_HUB_ASPECT = 22413;
+  ENUM_TYPE_HELP_ASPECT = 22414;
+  ENUM_TYPE_BUTTON_VARIANT = 22415;
+  ENUM_TYPE_PICKER_VARIANT = 22416;
+  ENUM_TYPE_USER_STATUS = 22450;
+  ENUM_TYPE_ORGANIZATION_STATUS = 22451;
+  ENUM_TYPE_CHANNEL_TYPE = 22500;
+  ENUM_TYPE_THREAD_TYPE = 22501;
+  ENUM_TYPE_THREAD_STATUS = 22502;
+  ENUM_TYPE_MESSAGE_TYPE = 22503;
+  ENUM_TYPE_MESSAGE_STATUS = 22504;
+  ENUM_TYPE_MESSAGE_PLATFORM = 22505;
+  ENUM_TYPE_NOTIFICATION_TYPE = 22506;
+  ENUM_TYPE_NOTIFICATION_STATUS = 22507;
 }
 
 enum NodeType {
   NODE_TYPE_UNSPECIFIED = 0;
   NODE_TYPE_BENCH = 1;
   NODE_TYPE_HANDLE = 2;
-  NODE_TYPE_USER = 100;
-  NODE_TYPE_ORGANIZATION = 110;
-  NODE_TYPE_TEAM = 120;
-  NODE_TYPE_MEMBERSHIP = 130;
-  NODE_TYPE_INVITE = 140;
-  NODE_TYPE_CLIENT = 150;
-  NODE_TYPE_SCALER = 2000;
-  NODE_TYPE_STORE = 2001;
-  NODE_TYPE_MACHINE = 2100;
-  NODE_TYPE_BROWSER = 2110;
-  NODE_TYPE_FILE = 2200;
-  NODE_TYPE_STREAM = 2210;
-  NODE_TYPE_SECRET = 2220;
+  NODE_TYPE_USER = 10;
+  NODE_TYPE_ORGANIZATION = 20;
+  NODE_TYPE_TEAM = 30;
+  NODE_TYPE_CLIENT = 50;
+  NODE_TYPE_SCALER = 1000;
+  NODE_TYPE_STORE = 1001;
+  NODE_TYPE_MACHINE = 1100;
+  NODE_TYPE_BROWSER = 1110;
+  NODE_TYPE_FILE = 1200;
+  NODE_TYPE_STREAM = 1210;
+  NODE_TYPE_SECRET = 1220;
   NODE_TYPE_PACKAGE = 5000;
   NODE_TYPE_DEPENDENCY = 5010;
   NODE_TYPE_PAGE = 5020;
@@ -167,13 +169,16 @@ enum NodeType {
   NODE_TYPE_SPACE = 5200;
   NODE_TYPE_THREAD = 5501;
   NODE_TYPE_MESSAGE = 5502;
-  NODE_TYPE_RECORD = 5510;
+  NODE_TYPE_NOTIFICATION = 5540;
+  NODE_TYPE_RECORD = 5550;
+  NODE_TYPE_MEMBERSHIP = 5600;
+  NODE_TYPE_INVITE = 5610;
   NODE_TYPE_SESSION = 6000;
   NODE_TYPE_RUN = 6010;
   NODE_TYPE_RUN_SPAN = 6011;
   NODE_TYPE_RUN_PLAN = 6012;
-  NODE_TYPE_INTERRUPTION = 6020;
-  NODE_TYPE_LOG = 6100;
+  NODE_TYPE_INTERRUPTION = 6030;
+  NODE_TYPE_LOG = 6050;
   NODE_TYPE_SKIP = 9000;
   NODE_TYPE_EMPTY = 9999;
 }
@@ -246,19 +251,17 @@ enum ObjectType {
   OBJECT_TYPE_UNSPECIFIED = 0;
   OBJECT_TYPE_BENCH = 1;
   OBJECT_TYPE_HANDLE = 2;
-  OBJECT_TYPE_USER = 100;
-  OBJECT_TYPE_ORGANIZATION = 110;
-  OBJECT_TYPE_TEAM = 120;
-  OBJECT_TYPE_MEMBERSHIP = 130;
-  OBJECT_TYPE_INVITE = 140;
-  OBJECT_TYPE_CLIENT = 150;
-  OBJECT_TYPE_SCALER = 2000;
-  OBJECT_TYPE_STORE = 2001;
-  OBJECT_TYPE_MACHINE = 2100;
-  OBJECT_TYPE_BROWSER = 2110;
-  OBJECT_TYPE_FILE = 2200;
-  OBJECT_TYPE_STREAM = 2210;
-  OBJECT_TYPE_SECRET = 2220;
+  OBJECT_TYPE_USER = 10;
+  OBJECT_TYPE_ORGANIZATION = 20;
+  OBJECT_TYPE_TEAM = 30;
+  OBJECT_TYPE_CLIENT = 50;
+  OBJECT_TYPE_SCALER = 1000;
+  OBJECT_TYPE_STORE = 1001;
+  OBJECT_TYPE_MACHINE = 1100;
+  OBJECT_TYPE_BROWSER = 1110;
+  OBJECT_TYPE_FILE = 1200;
+  OBJECT_TYPE_STREAM = 1210;
+  OBJECT_TYPE_SECRET = 1220;
   OBJECT_TYPE_PACKAGE = 5000;
   OBJECT_TYPE_DEPENDENCY = 5010;
   OBJECT_TYPE_PAGE = 5020;
@@ -278,13 +281,16 @@ enum ObjectType {
   OBJECT_TYPE_SPACE = 5200;
   OBJECT_TYPE_THREAD = 5501;
   OBJECT_TYPE_MESSAGE = 5502;
-  OBJECT_TYPE_RECORD = 5510;
+  OBJECT_TYPE_NOTIFICATION = 5540;
+  OBJECT_TYPE_RECORD = 5550;
+  OBJECT_TYPE_MEMBERSHIP = 5600;
+  OBJECT_TYPE_INVITE = 5610;
   OBJECT_TYPE_SESSION = 6000;
   OBJECT_TYPE_RUN = 6010;
   OBJECT_TYPE_RUN_SPAN = 6011;
   OBJECT_TYPE_RUN_PLAN = 6012;
-  OBJECT_TYPE_INTERRUPTION = 6020;
-  OBJECT_TYPE_LOG = 6100;
+  OBJECT_TYPE_INTERRUPTION = 6030;
+  OBJECT_TYPE_LOG = 6050;
   OBJECT_TYPE_SKIP = 9000;
   OBJECT_TYPE_EMPTY = 9999;
   OBJECT_TYPE_CONTEXT = 10001;
@@ -353,19 +359,17 @@ enum BenchType {
   BENCH_TYPE_UNSPECIFIED = 0;
   BENCH_TYPE_BENCH = 1;
   BENCH_TYPE_HANDLE = 2;
-  BENCH_TYPE_USER = 100;
-  BENCH_TYPE_ORGANIZATION = 110;
-  BENCH_TYPE_TEAM = 120;
-  BENCH_TYPE_MEMBERSHIP = 130;
-  BENCH_TYPE_INVITE = 140;
-  BENCH_TYPE_CLIENT = 150;
-  BENCH_TYPE_SCALER = 2000;
-  BENCH_TYPE_STORE = 2001;
-  BENCH_TYPE_MACHINE = 2100;
-  BENCH_TYPE_BROWSER = 2110;
-  BENCH_TYPE_FILE = 2200;
-  BENCH_TYPE_STREAM = 2210;
-  BENCH_TYPE_SECRET = 2220;
+  BENCH_TYPE_USER = 10;
+  BENCH_TYPE_ORGANIZATION = 20;
+  BENCH_TYPE_TEAM = 30;
+  BENCH_TYPE_CLIENT = 50;
+  BENCH_TYPE_SCALER = 1000;
+  BENCH_TYPE_STORE = 1001;
+  BENCH_TYPE_MACHINE = 1100;
+  BENCH_TYPE_BROWSER = 1110;
+  BENCH_TYPE_FILE = 1200;
+  BENCH_TYPE_STREAM = 1210;
+  BENCH_TYPE_SECRET = 1220;
   BENCH_TYPE_PACKAGE = 5000;
   BENCH_TYPE_DEPENDENCY = 5010;
   BENCH_TYPE_PAGE = 5020;
@@ -385,13 +389,16 @@ enum BenchType {
   BENCH_TYPE_SPACE = 5200;
   BENCH_TYPE_THREAD = 5501;
   BENCH_TYPE_MESSAGE = 5502;
-  BENCH_TYPE_RECORD = 5510;
+  BENCH_TYPE_NOTIFICATION = 5540;
+  BENCH_TYPE_RECORD = 5550;
+  BENCH_TYPE_MEMBERSHIP = 5600;
+  BENCH_TYPE_INVITE = 5610;
   BENCH_TYPE_SESSION = 6000;
   BENCH_TYPE_RUN = 6010;
   BENCH_TYPE_RUN_SPAN = 6011;
   BENCH_TYPE_RUN_PLAN = 6012;
-  BENCH_TYPE_INTERRUPTION = 6020;
-  BENCH_TYPE_LOG = 6100;
+  BENCH_TYPE_INTERRUPTION = 6030;
+  BENCH_TYPE_LOG = 6050;
   BENCH_TYPE_SKIP = 9000;
   BENCH_TYPE_EMPTY = 9999;
   BENCH_TYPE_CONTEXT = 10001;
@@ -454,33 +461,32 @@ enum BenchType {
   BENCH_TYPE_LINE = 13208;
   BENCH_TYPE_RECTANGLE_CONSTRAINT = 13209;
   BENCH_TYPE_DOM_NODE = 13700;
-  BENCH_TYPE_ENUM_TYPE = 20001;
-  BENCH_TYPE_NODE_TYPE = 20002;
-  BENCH_TYPE_STRUCT_TYPE = 20003;
-  BENCH_TYPE_OBJECT_TYPE = 20004;
-  BENCH_TYPE_BENCH_TYPE = 20005;
-  BENCH_TYPE_NODE_MODE = 20010;
-  BENCH_TYPE_NODE_AREA = 20012;
-  BENCH_TYPE_PROPERTY_REFERENCE_TYPE = 20020;
-  BENCH_TYPE_DAY = 20100;
-  BENCH_TYPE_MONTH = 20101;
-  BENCH_TYPE_TIME_INTERVAL = 20102;
-  BENCH_TYPE_PACKAGE_TYPE = 20200;
-  BENCH_TYPE_CLOUD = 20210;
-  BENCH_TYPE_REGION = 20220;
-  BENCH_TYPE_REGION_ZONE = 20221;
-  BENCH_TYPE_REGION_AREA = 20222;
-  BENCH_TYPE_REGION_CONTINENT = 20223;
-  BENCH_TYPE_BENCH_STATUS = 20230;
-  BENCH_TYPE_ACCESS_MODE = 20300;
-  BENCH_TYPE_ACCESS_KIND = 20301;
-  BENCH_TYPE_POLICY_EFFECT = 20302;
-  BENCH_TYPE_QUERY_TYPE = 20400;
-  BENCH_TYPE_EDIT_TYPE = 20401;
-  BENCH_TYPE_USE_TYPE = 20402;
-  BENCH_TYPE_ACCESS_TYPE = 20403;
-  BENCH_TYPE_CHANGE_CATEGORY = 20404;
-  BENCH_TYPE_EDIT_OPERATION_TYPE = 20405;
+  BENCH_TYPE_ENUM_TYPE = 20000;
+  BENCH_TYPE_NODE_TYPE = 20001;
+  BENCH_TYPE_STRUCT_TYPE = 20002;
+  BENCH_TYPE_OBJECT_TYPE = 20003;
+  BENCH_TYPE_BENCH_TYPE = 20004;
+  BENCH_TYPE_NODE_MODE = 20005;
+  BENCH_TYPE_NODE_AREA = 20006;
+  BENCH_TYPE_PROPERTY_REFERENCE_TYPE = 20007;
+  BENCH_TYPE_EDIT_OPERATION_TYPE = 20008;
+  BENCH_TYPE_CHANGE_CATEGORY = 20009;
+  BENCH_TYPE_PACKAGE_TYPE = 20050;
+  BENCH_TYPE_CLOUD = 20051;
+  BENCH_TYPE_REGION = 20052;
+  BENCH_TYPE_REGION_ZONE = 20053;
+  BENCH_TYPE_REGION_AREA = 20054;
+  BENCH_TYPE_REGION_CONTINENT = 20055;
+  BENCH_TYPE_BENCH_STATUS = 20056;
+  BENCH_TYPE_ACCESS_MODE = 20100;
+  BENCH_TYPE_ACCESS_KIND = 20101;
+  BENCH_TYPE_POLICY_EFFECT = 20102;
+  BENCH_TYPE_MEMBERSHIP_TYPE = 20103;
+  BENCH_TYPE_INVITE_TYPE = 20104;
+  BENCH_TYPE_QUERY_TYPE = 20150;
+  BENCH_TYPE_EDIT_TYPE = 20151;
+  BENCH_TYPE_USE_TYPE = 20152;
+  BENCH_TYPE_ACCESS_TYPE = 20153;
   BENCH_TYPE_RESOURCE_STATUS = 21000;
   BENCH_TYPE_RESOURCE_OCCUPANCY = 21001;
   BENCH_TYPE_SCALER_TYPE = 21010;
@@ -488,32 +494,35 @@ enum BenchType {
   BENCH_TYPE_MACHINE_TYPE = 21020;
   BENCH_TYPE_BROWSER_TYPE = 21030;
   BENCH_TYPE_STORE_TYPE = 21040;
-  BENCH_TYPE_CLIENT_TYPE = 21050;
-  BENCH_TYPE_FILE_RETENTION_MODE = 21200;
-  BENCH_TYPE_FILE_KIND = 21201;
-  BENCH_TYPE_FILE_TYPE = 21202;
-  BENCH_TYPE_FILE_FORMAT = 21203;
-  BENCH_TYPE_ICON_TYPE = 21210;
-  BENCH_TYPE_STREAM_TYPE = 21250;
-  BENCH_TYPE_PRIMITIVE_TYPE = 21300;
-  BENCH_TYPE_FIELD_ZONE = 21301;
-  BENCH_TYPE_TYPE_KIND = 21302;
-  BENCH_TYPE_TYPE_FORMAT = 21303;
-  BENCH_TYPE_BLOCK_TYPE = 21304;
-  BENCH_TYPE_TEXT_LINE_TYPE = 21400;
-  BENCH_TYPE_TEXT_SPAN_TYPE = 21401;
-  BENCH_TYPE_EXPRESSION_KIND = 21500;
-  BENCH_TYPE_EXPRESSION_OP = 21501;
-  BENCH_TYPE_LITERAL_TYPE = 21502;
-  BENCH_TYPE_FUNCTIONAL_TYPE = 21503;
-  BENCH_TYPE_CONDITIONAL_TYPE = 21504;
-  BENCH_TYPE_AGGREGATION_TYPE = 21505;
-  BENCH_TYPE_SORT_MODE = 21506;
-  BENCH_TYPE_SORT_TYPE = 21507;
-  BENCH_TYPE_COMPUTED_VALUE_KIND = 21510;
-  BENCH_TYPE_COMPUTED_VALUE_MODE = 21511;
-  BENCH_TYPE_PATH_ELEMENT_TYPE = 21520;
-  BENCH_TYPE_PATH_RUN_SELECTOR = 21521;
+  BENCH_TYPE_CLIENT_TYPE = 21041;
+  BENCH_TYPE_FILE_RETENTION_MODE = 21050;
+  BENCH_TYPE_FILE_KIND = 21051;
+  BENCH_TYPE_FILE_TYPE = 21052;
+  BENCH_TYPE_FILE_FORMAT = 21053;
+  BENCH_TYPE_ICON_TYPE = 21054;
+  BENCH_TYPE_STREAM_TYPE = 21100;
+  BENCH_TYPE_PRIMITIVE_TYPE = 21150;
+  BENCH_TYPE_FIELD_ZONE = 21151;
+  BENCH_TYPE_TYPE_KIND = 21152;
+  BENCH_TYPE_TYPE_FORMAT = 21153;
+  BENCH_TYPE_BLOCK_TYPE = 21154;
+  BENCH_TYPE_DAY = 21155;
+  BENCH_TYPE_MONTH = 21156;
+  BENCH_TYPE_TIME_INTERVAL = 21157;
+  BENCH_TYPE_TEXT_LINE_TYPE = 21200;
+  BENCH_TYPE_TEXT_SPAN_TYPE = 21201;
+  BENCH_TYPE_EXPRESSION_KIND = 21250;
+  BENCH_TYPE_EXPRESSION_OP = 21251;
+  BENCH_TYPE_LITERAL_TYPE = 21252;
+  BENCH_TYPE_FUNCTIONAL_TYPE = 21253;
+  BENCH_TYPE_CONDITIONAL_TYPE = 21254;
+  BENCH_TYPE_AGGREGATION_TYPE = 21255;
+  BENCH_TYPE_SORT_MODE = 21256;
+  BENCH_TYPE_SORT_TYPE = 21257;
+  BENCH_TYPE_COMPUTED_VALUE_KIND = 21258;
+  BENCH_TYPE_COMPUTED_VALUE_MODE = 21259;
+  BENCH_TYPE_PATH_ELEMENT_TYPE = 21260;
+  BENCH_TYPE_PATH_RUN_SELECTOR = 21261;
   BENCH_TYPE_RUN_STATUS = 22000;
   BENCH_TYPE_RUN_TYPE = 22001;
   BENCH_TYPE_RUN_SPAN_TYPE = 22002;
@@ -535,43 +544,45 @@ enum BenchType {
   BENCH_TYPE_BREAKPOINT_TARGET = 22202;
   BENCH_TYPE_INTERRUPTION_TYPE = 22210;
   BENCH_TYPE_INTERRUPTION_STATUS = 22211;
-  BENCH_TYPE_INTERRUPTION_RESPONSE = 22220;
-  BENCH_TYPE_MODEL_DEVELOPER = 22300;
-  BENCH_TYPE_MODEL_TYPE = 22301;
-  BENCH_TYPE_MODEL_FAMILY = 22302;
-  BENCH_TYPE_MODEL_PROVIDER = 22303;
-  BENCH_TYPE_CODE_TYPE = 22400;
-  BENCH_TYPE_ACTION_TYPE = 22500;
-  BENCH_TYPE_ACTION_CATEGORY = 22501;
-  BENCH_TYPE_PORT_SIDE = 22510;
-  BENCH_TYPE_PIPE_TYPE = 22511;
-  BENCH_TYPE_PIPE_TRIGGER = 22512;
-  BENCH_TYPE_TOOL_FILTER = 22520;
-  BENCH_TYPE_SPACE_TYPE = 22600;
-  BENCH_TYPE_VIEW_TYPE = 22601;
-  BENCH_TYPE_COLOR_TYPE = 22602;
-  BENCH_TYPE_COLOR_SHADE = 22603;
-  BENCH_TYPE_FONT_TYPE = 22604;
-  BENCH_TYPE_FONT_WEIGHT = 22605;
-  BENCH_TYPE_FONT_SIZE = 22606;
-  BENCH_TYPE_SPACING = 22607;
-  BENCH_TYPE_ANCHOR = 22608;
-  BENCH_TYPE_ORIENTATION = 22609;
-  BENCH_TYPE_ALIGNMENT = 22610;
-  BENCH_TYPE_USER_WIZARD_STAGE = 22611;
-  BENCH_TYPE_TREE_VIEW_PRESET = 22612;
-  BENCH_TYPE_HUB_ASPECT = 22613;
-  BENCH_TYPE_HELP_ASPECT = 22614;
-  BENCH_TYPE_BUTTON_VARIANT = 22615;
-  BENCH_TYPE_PICKER_VARIANT = 22616;
-  BENCH_TYPE_USER_STATUS = 22700;
-  BENCH_TYPE_ORGANIZATION_STATUS = 22710;
-  BENCH_TYPE_CHANNEL_TYPE = 22800;
-  BENCH_TYPE_THREAD_TYPE = 22810;
-  BENCH_TYPE_THREAD_STATUS = 22811;
-  BENCH_TYPE_MESSAGE_TYPE = 22820;
-  BENCH_TYPE_MESSAGE_STATUS = 22821;
-  BENCH_TYPE_MESSAGE_PLATFORM = 22822;
+  BENCH_TYPE_INTERRUPTION_RESPONSE = 22212;
+  BENCH_TYPE_MODEL_DEVELOPER = 22250;
+  BENCH_TYPE_MODEL_TYPE = 22251;
+  BENCH_TYPE_MODEL_FAMILY = 22252;
+  BENCH_TYPE_MODEL_PROVIDER = 22253;
+  BENCH_TYPE_CODE_TYPE = 22300;
+  BENCH_TYPE_ACTION_TYPE = 22350;
+  BENCH_TYPE_ACTION_CATEGORY = 22351;
+  BENCH_TYPE_PORT_SIDE = 22352;
+  BENCH_TYPE_PIPE_TYPE = 22353;
+  BENCH_TYPE_PIPE_TRIGGER = 22354;
+  BENCH_TYPE_TOOL_FILTER = 22355;
+  BENCH_TYPE_SPACE_TYPE = 22400;
+  BENCH_TYPE_VIEW_TYPE = 22401;
+  BENCH_TYPE_COLOR_TYPE = 22402;
+  BENCH_TYPE_COLOR_SHADE = 22403;
+  BENCH_TYPE_FONT_TYPE = 22404;
+  BENCH_TYPE_FONT_WEIGHT = 22405;
+  BENCH_TYPE_FONT_SIZE = 22406;
+  BENCH_TYPE_SPACING = 22407;
+  BENCH_TYPE_ANCHOR = 22408;
+  BENCH_TYPE_ORIENTATION = 22409;
+  BENCH_TYPE_ALIGNMENT = 22410;
+  BENCH_TYPE_USER_WIZARD_STAGE = 22411;
+  BENCH_TYPE_TREE_VIEW_PRESET = 22412;
+  BENCH_TYPE_HUB_ASPECT = 22413;
+  BENCH_TYPE_HELP_ASPECT = 22414;
+  BENCH_TYPE_BUTTON_VARIANT = 22415;
+  BENCH_TYPE_PICKER_VARIANT = 22416;
+  BENCH_TYPE_USER_STATUS = 22450;
+  BENCH_TYPE_ORGANIZATION_STATUS = 22451;
+  BENCH_TYPE_CHANNEL_TYPE = 22500;
+  BENCH_TYPE_THREAD_TYPE = 22501;
+  BENCH_TYPE_THREAD_STATUS = 22502;
+  BENCH_TYPE_MESSAGE_TYPE = 22503;
+  BENCH_TYPE_MESSAGE_STATUS = 22504;
+  BENCH_TYPE_MESSAGE_PLATFORM = 22505;
+  BENCH_TYPE_NOTIFICATION_TYPE = 22506;
+  BENCH_TYPE_NOTIFICATION_STATUS = 22507;
 }
 
 enum NodeMode {
@@ -601,44 +612,18 @@ enum PropertyReferenceType {
   PROPERTY_REFERENCE_TYPE_NODE_TYPE = 6;
 }
 
-// The day of the week.
-enum Day {
-  DAY_UNSPECIFIED = 0;
-  DAY_MONDAY = 1;
-  DAY_TUESDAY = 2;
-  DAY_WEDNESDAY = 3;
-  DAY_THURSDAY = 4;
-  DAY_FRIDAY = 5;
-  DAY_SATURDAY = 6;
-  DAY_SUNDAY = 7;
+// The type of edit operation.
+enum EditOperationType {
+  EDIT_OPERATION_TYPE_UNSPECIFIED = 0;
+  EDIT_OPERATION_TYPE_SET = 1;
+  EDIT_OPERATION_TYPE_CLEAR = 2;
 }
 
-// The month of the year.
-enum Month {
-  MONTH_UNSPECIFIED = 0;
-  MONTH_JANUARY = 1;
-  MONTH_FEBRUARY = 2;
-  MONTH_MARCH = 3;
-  MONTH_APRIL = 4;
-  MONTH_MAY = 5;
-  MONTH_JUNE = 6;
-  MONTH_JULY = 7;
-  MONTH_AUGUST = 8;
-  MONTH_SEPTEMBER = 9;
-  MONTH_OCTOBER = 10;
-  MONTH_NOVEMBER = 11;
-  MONTH_DECEMBER = 12;
-}
-
-enum TimeInterval {
-  TIME_INTERVAL_UNSPECIFIED = 0;
-  TIME_INTERVAL_SECOND = 2;
-  TIME_INTERVAL_MINUTE = 3;
-  TIME_INTERVAL_HOUR = 4;
-  TIME_INTERVAL_DAY = 5;
-  TIME_INTERVAL_WEEK = 6;
-  TIME_INTERVAL_MONTH = 7;
-  TIME_INTERVAL_YEAR = 8;
+// Optional classification for edits.
+enum ChangeCategory {
+  CHANGE_CATEGORY_UNSPECIFIED = 0;
+  CHANGE_CATEGORY_SPACE = 10;
+  CHANGE_CATEGORY_RUNTIME = 20;
 }
 
 enum PackageType {
@@ -737,6 +722,24 @@ enum PolicyEffect {
   POLICY_EFFECT_DENY = 2;
 }
 
+enum MembershipType {
+  MEMBERSHIP_TYPE_UNSPECIFIED = 0;
+  MEMBERSHIP_TYPE_BENCH = 10;
+  MEMBERSHIP_TYPE_ORGANIZATION = 20;
+  MEMBERSHIP_TYPE_TEAM = 30;
+  MEMBERSHIP_TYPE_CHANNEL = 100;
+  MEMBERSHIP_TYPE_THREAD = 110;
+}
+
+enum InviteType {
+  INVITE_TYPE_UNSPECIFIED = 0;
+  INVITE_TYPE_BENCH = 10;
+  INVITE_TYPE_ORGANIZATION = 20;
+  INVITE_TYPE_TEAM = 30;
+  INVITE_TYPE_CHANNEL = 100;
+  INVITE_TYPE_THREAD = 110;
+}
+
 // Ways to read nodes.
 enum QueryType {
   QUERY_TYPE_UNSPECIFIED = 0;
@@ -788,20 +791,6 @@ enum AccessType {
   ACCESS_TYPE_KILL = 44;
   ACCESS_TYPE_SEND = 45;
   ACCESS_TYPE_RECEIVE = 46;
-}
-
-// Optional classification for edits.
-enum ChangeCategory {
-  CHANGE_CATEGORY_UNSPECIFIED = 0;
-  CHANGE_CATEGORY_SPACE = 10;
-  CHANGE_CATEGORY_RUNTIME = 20;
-}
-
-// The type of edit operation.
-enum EditOperationType {
-  EDIT_OPERATION_TYPE_UNSPECIFIED = 0;
-  EDIT_OPERATION_TYPE_SET = 1;
-  EDIT_OPERATION_TYPE_CLEAR = 2;
 }
 
 // Generalized status of a Resource in its lifecycle.
@@ -1054,7 +1043,7 @@ enum TypeFormat {
 
 enum BlockType {
   BLOCK_TYPE_UNSPECIFIED = 0;
-  BLOCK_TYPE_FILE = 2200;
+  BLOCK_TYPE_FILE = 1200;
   BLOCK_TYPE_PAGE = 5020;
   BLOCK_TYPE_CHOICE = 5030;
   BLOCK_TYPE_CLASS = 5031;
@@ -1076,6 +1065,46 @@ enum BlockType {
   BLOCK_TYPE_TABLE = 10050;
   BLOCK_TYPE_TABLE_ROW = 10051;
   BLOCK_TYPE_CODE = 10060;
+}
+
+// The day of the week.
+enum Day {
+  DAY_UNSPECIFIED = 0;
+  DAY_MONDAY = 1;
+  DAY_TUESDAY = 2;
+  DAY_WEDNESDAY = 3;
+  DAY_THURSDAY = 4;
+  DAY_FRIDAY = 5;
+  DAY_SATURDAY = 6;
+  DAY_SUNDAY = 7;
+}
+
+// The month of the year.
+enum Month {
+  MONTH_UNSPECIFIED = 0;
+  MONTH_JANUARY = 1;
+  MONTH_FEBRUARY = 2;
+  MONTH_MARCH = 3;
+  MONTH_APRIL = 4;
+  MONTH_MAY = 5;
+  MONTH_JUNE = 6;
+  MONTH_JULY = 7;
+  MONTH_AUGUST = 8;
+  MONTH_SEPTEMBER = 9;
+  MONTH_OCTOBER = 10;
+  MONTH_NOVEMBER = 11;
+  MONTH_DECEMBER = 12;
+}
+
+enum TimeInterval {
+  TIME_INTERVAL_UNSPECIFIED = 0;
+  TIME_INTERVAL_SECOND = 2;
+  TIME_INTERVAL_MINUTE = 3;
+  TIME_INTERVAL_HOUR = 4;
+  TIME_INTERVAL_DAY = 5;
+  TIME_INTERVAL_WEEK = 6;
+  TIME_INTERVAL_MONTH = 7;
+  TIME_INTERVAL_YEAR = 8;
 }
 
 enum TextLineType {
@@ -1926,6 +1955,20 @@ enum MessagePlatform {
   MESSAGE_PLATFORM_SMS = 21;
 }
 
+enum NotificationType {
+  NOTIFICATION_TYPE_UNSPECIFIED = 0;
+  NOTIFICATION_TYPE_MESSAGE = 100;
+}
+
+enum NotificationStatus {
+  NOTIFICATION_STATUS_UNSPECIFIED = 0;
+  NOTIFICATION_STATUS_SENDING = 20;
+  NOTIFICATION_STATUS_SENT = 30;
+  NOTIFICATION_STATUS_FAILED = 40;
+  NOTIFICATION_STATUS_RECEIVED = 50;
+  NOTIFICATION_STATUS_READ = 60;
+}
+
 message GraphScopeData {
   ObjectType metatype = 1;
   optional string bench_id = 30;
@@ -1949,6 +1992,17 @@ message NodeReferenceData {
   optional string bench_id = 33;
   optional string base_ck = 34;
   optional string base_bench_id = 35;
+}
+
+message CodeLineData {
+  ObjectType metatype = 1;
+  optional string content = 32;
+}
+
+message CodeData {
+  ObjectType metatype = 1;
+  optional string language = 32;
+  repeated CodeLineData lines = 35;
 }
 
 message TextSpanData {
@@ -2074,17 +2128,6 @@ message AccessData {
   AccessType verb = 32;
   NodeType node_type = 33;
   repeated PropertyReferenceData allowed_properties_ptr = 34;
-}
-
-message CodeLineData {
-  ObjectType metatype = 1;
-  optional string content = 32;
-}
-
-message CodeData {
-  ObjectType metatype = 1;
-  optional string language = 32;
-  repeated CodeLineData lines = 35;
 }
 
 message ColorData {
@@ -2528,6 +2571,64 @@ message EmptyData {
   optional google.protobuf.Value subnode_packed = 29;
 }
 
+message InviteData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  InviteType type = 30;
+  NodeReferenceData to_ptr = 40;
+  optional NodeReferenceData user_ptr = 41;
+  optional string user_email = 42;
+  bool is_owner = 43;
+}
+
+message MembershipData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  MembershipType type = 30;
+  NodeReferenceData to_ptr = 40;
+  NodeReferenceData member_ptr = 41;
+}
+
+message BenchData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional NodeReferenceData main_handle_ptr = 31;
+  string slug = 32;
+  string name = 33;
+  optional TextData text = 34;
+  optional IconData icon = 35;
+  optional NodeReferenceData owner_ptr = 36;
+  Region region = 37;
+  optional string encryption_key = 38;
+  BenchStatus status = 40;
+  optional NodeReferenceData main_store_ptr = 50;
+  optional NodeReferenceData main_package_ptr = 51;
+}
+
 message ClientData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2555,7 +2656,7 @@ message ClientData {
   optional NodeReferenceData machine_ptr = 62;
 }
 
-message InviteData {
+message HandleData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
@@ -2566,25 +2667,7 @@ message InviteData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
   optional google.protobuf.Value subnode_packed = 29;
-  optional NodeReferenceData user_ptr = 40;
-  optional string user_email = 41;
-  bool is_owner = 42;
-}
-
-message MembershipData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData organization_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  NodeReferenceData user_ptr = 40;
-  bool is_owner = 41;
+  string slug = 30;
 }
 
 message OrganizationData {
@@ -2611,6 +2694,7 @@ message TeamData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData team_ptr = 5;
   optional NodeReferenceData organization_ptr = 6;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
@@ -2648,44 +2732,6 @@ message UserData {
   optional bytes password_hash = 52;
   optional google.protobuf.Timestamp last_logged_in_at = 70;
   bool is_staff = 90;
-}
-
-message BenchData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional NodeReferenceData main_handle_ptr = 31;
-  string slug = 32;
-  string name = 33;
-  optional TextData text = 34;
-  optional IconData icon = 35;
-  optional NodeReferenceData owner_ptr = 36;
-  Region region = 37;
-  optional string encryption_key = 38;
-  BenchStatus status = 40;
-  optional NodeReferenceData main_store_ptr = 50;
-  optional NodeReferenceData main_package_ptr = 51;
-}
-
-message HandleData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  string slug = 30;
 }
 
 message BrowserData {
@@ -3891,7 +3937,6 @@ message ScheduleTriggerData {
 message MessageTriggerData {
   optional NodeReferenceData channel_ptr = 100;
   optional NodeReferenceData thread_ptr = 101;
-  optional NodeReferenceData clazz_ptr = 102;
   optional NodeReferenceData reply_to_ptr = 103;
 }
 
@@ -3927,6 +3972,31 @@ message MessageData {
   optional NodeReferenceData spawned_thread_ptr = 62;
 }
 
+message NotificationData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  NotificationType type = 30;
+  optional NodeReferenceData channel_ptr = 32;
+  optional NodeReferenceData thread_ptr = 33;
+  NotificationStatus status = 40;
+  optional google.protobuf.Timestamp failed_at = 42;
+  optional google.protobuf.Timestamp sent_at = 43;
+  optional google.protobuf.Timestamp received_at = 44;
+  optional google.protobuf.Timestamp read_at = 45;
+  optional string title = 50;
+  optional TextData text = 51;
+  repeated NodeReferenceData nodes_ptr = 53;
+  optional NodeReferenceData message_ptr = 54;
+}
+
 message RecordData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3960,6 +4030,7 @@ message ThreadData {
   ThreadType type = 30;
   optional NodeReferenceData channel_ptr = 32;
   optional NodeReferenceData scope_ptr = 35;
+  optional NodeReferenceData owned_by_ptr = 36;
   optional NodeReferenceData run_ptr = 37;
   ThreadStatus status = 40;
   optional google.protobuf.Timestamp closed_at = 45;
@@ -3993,44 +4064,45 @@ message SomeNodeData {
     UserData user = 3;
     OrganizationData organization = 4;
     TeamData team = 5;
-    MembershipData membership = 6;
-    InviteData invite = 7;
-    ClientData client = 8;
-    ScalerData scaler = 9;
-    StoreData store = 10;
-    MachineData machine = 11;
-    BrowserData browser = 12;
-    FileData file = 13;
-    StreamData stream = 14;
-    SecretData secret = 15;
-    PackageData package = 16;
-    DependencyData dependency = 17;
-    PageData page = 18;
-    BlockData block = 19;
-    ChoiceData choice = 20;
-    ClassData class = 21;
-    FieldData field = 22;
-    FlowData flow = 23;
-    ActionData action = 24;
-    PipeData pipe = 25;
-    TriggerData trigger = 26;
-    ViewData view = 27;
-    DatabaseData database = 28;
-    ChannelData channel = 29;
-    RoleData role = 30;
-    IdentityData identity = 31;
-    SpaceData space = 32;
-    ThreadData thread = 33;
-    MessageData message = 34;
-    RecordData record = 35;
-    SessionData session = 36;
-    RunData run = 37;
-    RunSpanData run_span = 38;
-    RunPlanData run_plan = 39;
-    InterruptionData interruption = 40;
-    LogData log = 41;
-    SkipData skip = 42;
-    EmptyData empty = 43;
+    ClientData client = 6;
+    ScalerData scaler = 7;
+    StoreData store = 8;
+    MachineData machine = 9;
+    BrowserData browser = 10;
+    FileData file = 11;
+    StreamData stream = 12;
+    SecretData secret = 13;
+    PackageData package = 14;
+    DependencyData dependency = 15;
+    PageData page = 16;
+    BlockData block = 17;
+    ChoiceData choice = 18;
+    ClassData class = 19;
+    FieldData field = 20;
+    FlowData flow = 21;
+    ActionData action = 22;
+    PipeData pipe = 23;
+    TriggerData trigger = 24;
+    ViewData view = 25;
+    DatabaseData database = 26;
+    ChannelData channel = 27;
+    RoleData role = 28;
+    IdentityData identity = 29;
+    SpaceData space = 30;
+    ThreadData thread = 31;
+    MessageData message = 32;
+    NotificationData notification = 33;
+    RecordData record = 34;
+    MembershipData membership = 35;
+    InviteData invite = 36;
+    SessionData session = 37;
+    RunData run = 38;
+    RunSpanData run_span = 39;
+    RunPlanData run_plan = 40;
+    InterruptionData interruption = 41;
+    LogData log = 42;
+    SkipData skip = 43;
+    EmptyData empty = 44;
   };
 }
 

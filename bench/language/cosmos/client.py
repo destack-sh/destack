@@ -56,11 +56,9 @@ class Client(Node[ClientData]):
     seen_at: Optional[datetime] = p_system(51, default=None)
     logged_in_at: Optional[datetime] = p_system(52, default=None)
 
-    space: Optional["Space"] = p_system(
-        60, array=False, require=False, references=NodeType.SPACE, fk=True
-    )
+    space: Optional["Space"] = p_system(60, array=False, require=False, references=NodeType.SPACE)
     machine: Optional["Machine"] = p_system(
-        62, array=False, require=False, references=NodeType.MACHINE, fk=True
+        62, array=False, require=False, references=NodeType.MACHINE
     )
 
     @property

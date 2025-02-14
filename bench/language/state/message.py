@@ -87,7 +87,6 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         array=False,
         same_bench=True,
         references=NodeType.THREAD,
-        description="The Message thread.",
     )
     scope: Union["InlineSourceNode", "Package"] = p_regular(
         35, require=False, references=(NodeType.PAGE, NodeType.PACKAGE)

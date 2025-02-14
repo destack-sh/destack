@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2025.02.04. Edit as needed.
+# This migration was automatically generated on 2025.02.14. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2025.02.04.4"
+VERSION = "2025.02.14.0"
 HAS_GLOBAL = True
 HAS_REGIONAL = True
 HAS_LOCAL = True
@@ -14,9 +14,9 @@ HAS_LOCAL = True
 
 
 async def upgrade_global(cur: psycopg.AsyncCursor):
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
 
     # bench_migration
     await cur.execute(
@@ -151,6 +151,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_team" (
         "id" uuid NOT NULL PRIMARY KEY,
         "parent_id" uuid,
+        "parent_type" smallint,
+        "team_id" uuid,
         "organization_id" uuid,
         "created_at" timestamp NOT NULL,
         "created_by_id" uuid,
@@ -166,56 +168,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "name" varchar NOT NULL,
         "text" jsonb,
         "icon" jsonb
-    )
-    """
-    )
-
-    # bench_membership
-    await cur.execute(
-        """
-    CREATE TABLE "bench_membership" (
-        "id" uuid NOT NULL PRIMARY KEY,
-        "parent_id" uuid,
-        "parent_type" smallint,
-        "bench_id" uuid,
-        "organization_id" uuid,
-        "created_at" timestamp NOT NULL,
-        "created_by_id" uuid,
-        "created_by_ck" uuid,
-        "created_by_type" smallint,
-        "updated_at" timestamp NOT NULL,
-        "updated_by_id" uuid,
-        "updated_by_ck" uuid,
-        "updated_by_type" smallint,
-        "deleted_at" timestamp,
-        "subnode_packed" jsonb,
-        "user_id" uuid NOT NULL,
-        "is_owner" boolean NOT NULL DEFAULT false
-    )
-    """
-    )
-
-    # bench_invite
-    await cur.execute(
-        """
-    CREATE TABLE "bench_invite" (
-        "id" uuid NOT NULL PRIMARY KEY,
-        "parent_id" uuid,
-        "parent_type" smallint,
-        "bench_id" uuid,
-        "created_at" timestamp NOT NULL,
-        "created_by_id" uuid,
-        "created_by_ck" uuid,
-        "created_by_type" smallint,
-        "updated_at" timestamp NOT NULL,
-        "updated_by_id" uuid,
-        "updated_by_ck" uuid,
-        "updated_by_type" smallint,
-        "deleted_at" timestamp,
-        "subnode_packed" jsonb,
-        "user_id" uuid,
-        "user_email" varchar,
-        "is_owner" boolean NOT NULL DEFAULT false
     )
     """
     )
@@ -329,16 +281,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         'ALTER TABLE "bench_team" ADD CONSTRAINT "bench_team_bench_idx_slug" UNIQUE USING INDEX bench_team_bench_idx_slug'
     )
 
-    # bench_membership
-    await cur.execute(
-        'CREATE INDEX "bench_membership_bench_idx_parent_id" ON bench_membership USING BTREE (parent_id) INCLUDE (id)'
-    )
-
-    # bench_invite
-    await cur.execute(
-        'CREATE INDEX "bench_invite_bench_idx_parent_id" ON bench_invite USING BTREE (parent_id) INCLUDE (id)'
-    )
-
     # bench_client
     await cur.execute(
         'CREATE UNIQUE INDEX "bench_client_bench_idx_access_token" ON bench_client USING BTREE (access_token)'
@@ -361,9 +303,9 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_regional(cur: psycopg.AsyncCursor):
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
 
     # bench_migration
     await cur.execute(
@@ -747,10 +689,10 @@ async def downgrade_regional(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_local(cur: psycopg.AsyncCursor):
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
 
     # bench_migration
     await cur.execute(
@@ -875,7 +817,10 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "name" varchar NOT NULL,
         "order_key" varchar NOT NULL DEFAULT 'a0'::character varying,
         "icon" jsonb,
-        "text" jsonb
+        "text" jsonb,
+        "block_id" uuid,
+        "block_ck" uuid,
+        "block_bench_id" uuid
     )
     """
     )
@@ -888,6 +833,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "parent_id" uuid,
         "parent_ck" uuid,
+        "parent_type" smallint,
         "bench_id" uuid NOT NULL,
         "package_id" uuid,
         "package_ck" uuid,
@@ -946,12 +892,11 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "computed_values" jsonb[],
         "subnode_packed" jsonb,
         "name" varchar NOT NULL,
-        "order_key" varchar NOT NULL DEFAULT 'a0'::character varying,
         "icon" jsonb,
         "text" jsonb,
-        "block_id" uuid NOT NULL,
-        "block_ck" uuid NOT NULL,
-        "block_bench_id" uuid NOT NULL
+        "block_id" uuid,
+        "block_ck" uuid,
+        "block_bench_id" uuid
     )
     """
     )
@@ -984,12 +929,11 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "computed_values" jsonb[],
         "subnode_packed" jsonb,
         "name" varchar NOT NULL,
-        "order_key" varchar NOT NULL DEFAULT 'a0'::character varying,
         "icon" jsonb,
         "text" jsonb,
-        "block_id" uuid NOT NULL,
-        "block_ck" uuid NOT NULL,
-        "block_bench_id" uuid NOT NULL
+        "block_id" uuid,
+        "block_ck" uuid,
+        "block_bench_id" uuid
     )
     """
     )
@@ -1079,12 +1023,12 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "computed_values" jsonb[],
         "subnode_packed" jsonb,
         "name" varchar NOT NULL,
-        "order_key" varchar NOT NULL DEFAULT 'a0'::character varying,
         "icon" jsonb,
         "text" jsonb,
-        "block_id" uuid NOT NULL,
-        "block_ck" uuid NOT NULL,
-        "block_bench_id" uuid NOT NULL
+        "block_id" uuid,
+        "block_ck" uuid,
+        "block_bench_id" uuid,
+        "run_options" jsonb
     )
     """
     )
@@ -1268,10 +1212,14 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "subnode_packed" jsonb,
         "type" integer NOT NULL,
         "name" varchar NOT NULL,
-        "title" varchar,
         "order_key" varchar NOT NULL DEFAULT 'a0'::character varying,
         "icon" jsonb,
+        "text" jsonb,
+        "block_id" uuid,
+        "block_ck" uuid,
+        "block_bench_id" uuid,
         "subviews_packed" jsonb,
+        "title" varchar,
         "value_type" jsonb,
         "node_id" uuid,
         "node_ck" uuid,
@@ -1327,12 +1275,11 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "computed_values" jsonb[],
         "subnode_packed" jsonb,
         "name" varchar NOT NULL,
-        "order_key" varchar NOT NULL DEFAULT 'a0'::character varying,
         "icon" jsonb,
         "text" jsonb,
-        "block_id" uuid NOT NULL,
-        "block_ck" uuid NOT NULL,
-        "block_bench_id" uuid NOT NULL
+        "block_id" uuid,
+        "block_ck" uuid,
+        "block_bench_id" uuid
     )
     """
     )
@@ -1369,7 +1316,10 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "name" varchar NOT NULL,
         "order_key" varchar NOT NULL DEFAULT 'a0'::character varying,
         "icon" jsonb,
-        "text" jsonb
+        "text" jsonb,
+        "block_id" uuid,
+        "block_ck" uuid,
+        "block_bench_id" uuid
     )
     """
     )
@@ -1402,12 +1352,11 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "computed_values" jsonb[],
         "subnode_packed" jsonb,
         "name" varchar NOT NULL,
-        "order_key" varchar NOT NULL DEFAULT 'a0'::character varying,
         "icon" jsonb,
         "text" jsonb,
-        "block_id" uuid NOT NULL,
-        "block_ck" uuid NOT NULL,
-        "block_bench_id" uuid NOT NULL
+        "block_id" uuid,
+        "block_ck" uuid,
+        "block_bench_id" uuid
     )
     """
     )
@@ -1440,12 +1389,11 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "computed_values" jsonb[],
         "subnode_packed" jsonb,
         "name" varchar NOT NULL,
-        "order_key" varchar NOT NULL DEFAULT 'a0'::character varying,
         "icon" jsonb,
         "text" jsonb,
-        "block_id" uuid NOT NULL,
-        "block_ck" uuid NOT NULL,
-        "block_bench_id" uuid NOT NULL
+        "block_id" uuid,
+        "block_ck" uuid,
+        "block_bench_id" uuid
     )
     """
     )
@@ -1515,6 +1463,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_thread" (
         "id" uuid NOT NULL PRIMARY KEY,
         "parent_id" uuid,
+        "parent_type" smallint,
         "bench_id" uuid NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_by_id" uuid,
@@ -1532,14 +1481,23 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "scope_id" uuid,
         "scope_ck" uuid,
         "scope_type" smallint,
+        "scope_bench_id" uuid,
+        "owned_by_id" uuid,
+        "owned_by_ck" uuid,
+        "owned_by_type" smallint,
+        "owned_by_bench_id" uuid,
+        "owned_by_base_ck" uuid,
+        "owned_by_base_bench_id" uuid,
         "run_id" uuid,
         "run_bench_id" uuid,
         "run_base_ck" uuid,
         "run_base_bench_id" uuid,
-        "status" smallint NOT NULL DEFAULT 1,
+        "status" smallint NOT NULL DEFAULT 10,
         "closed_at" timestamp,
         "title" varchar,
-        "text" jsonb
+        "text" jsonb,
+        "created_from_id" uuid,
+        "created_from_base_ck" uuid
     )
     """
     )
@@ -1550,7 +1508,6 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_message" (
         "id" uuid NOT NULL PRIMARY KEY,
         "parent_id" uuid,
-        "parent_type" smallint,
         "bench_id" uuid NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_by_id" uuid,
@@ -1565,10 +1522,15 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "type" smallint NOT NULL DEFAULT 1,
         "platform" smallint NOT NULL DEFAULT 1,
         "channel_id" uuid,
-        "channel_base_ck" uuid,
-        "class__id" uuid,
-        "class__ck" uuid,
-        "class__bench_id" uuid,
+        "channel_ck" uuid,
+        "thread_id" uuid,
+        "scope_id" uuid,
+        "scope_ck" uuid,
+        "scope_type" smallint,
+        "scope_bench_id" uuid,
+        "clazz_id" uuid,
+        "clazz_ck" uuid,
+        "clazz_bench_id" uuid,
         "status" smallint NOT NULL DEFAULT 30,
         "failed_at" timestamp,
         "sent_at" timestamp,
@@ -1590,7 +1552,113 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "reply_to_id" uuid,
         "reply_to_bench_id" uuid,
         "reply_to_base_ck" uuid,
-        "reply_to_base_bench_id" uuid
+        "reply_to_base_bench_id" uuid,
+        "forwarded_from_id" uuid,
+        "forwarded_from_bench_id" uuid,
+        "forwarded_from_base_ck" uuid,
+        "forwarded_from_base_bench_id" uuid,
+        "spawned_thread_id" uuid,
+        "spawned_thread_base_ck" uuid
+    )
+    """
+    )
+
+    # bench_notification
+    await cur.execute(
+        """
+    CREATE TABLE "bench_notification" (
+        "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid,
+        "bench_id" uuid NOT NULL,
+        "created_at" timestamp NOT NULL,
+        "created_by_id" uuid,
+        "created_by_ck" uuid,
+        "created_by_type" smallint,
+        "updated_at" timestamp NOT NULL,
+        "updated_by_id" uuid,
+        "updated_by_ck" uuid,
+        "updated_by_type" smallint,
+        "deleted_at" timestamp,
+        "subnode_packed" jsonb,
+        "type" smallint NOT NULL,
+        "channel_id" uuid,
+        "channel_ck" uuid,
+        "thread_id" uuid,
+        "status" smallint NOT NULL DEFAULT 30,
+        "failed_at" timestamp,
+        "sent_at" timestamp,
+        "received_at" timestamp,
+        "read_at" timestamp,
+        "title" varchar,
+        "text" jsonb,
+        "nodes_id" uuid[],
+        "nodes_ck" uuid[],
+        "nodes_type" smallint[],
+        "nodes_bench_id" uuid[],
+        "nodes_base_ck" uuid[],
+        "nodes_base_bench_id" uuid[],
+        "message_id" uuid,
+        "message_bench_id" uuid,
+        "message_base_ck" uuid,
+        "message_base_bench_id" uuid
+    )
+    """
+    )
+
+    # bench_membership
+    await cur.execute(
+        """
+    CREATE TABLE "bench_membership" (
+        "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid,
+        "parent_type" smallint,
+        "bench_id" uuid,
+        "created_at" timestamp NOT NULL,
+        "created_by_id" uuid,
+        "created_by_ck" uuid,
+        "created_by_type" smallint,
+        "updated_at" timestamp NOT NULL,
+        "updated_by_id" uuid,
+        "updated_by_ck" uuid,
+        "updated_by_type" smallint,
+        "deleted_at" timestamp,
+        "subnode_packed" jsonb,
+        "type" smallint NOT NULL,
+        "to_id" uuid NOT NULL,
+        "to_ck" uuid NOT NULL,
+        "to_type" smallint NOT NULL,
+        "to_bench_id" uuid NOT NULL,
+        "member_id" uuid NOT NULL
+    )
+    """
+    )
+
+    # bench_invite
+    await cur.execute(
+        """
+    CREATE TABLE "bench_invite" (
+        "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid,
+        "parent_type" smallint,
+        "bench_id" uuid,
+        "created_at" timestamp NOT NULL,
+        "created_by_id" uuid,
+        "created_by_ck" uuid,
+        "created_by_type" smallint,
+        "updated_at" timestamp NOT NULL,
+        "updated_by_id" uuid,
+        "updated_by_ck" uuid,
+        "updated_by_type" smallint,
+        "deleted_at" timestamp,
+        "subnode_packed" jsonb,
+        "type" smallint NOT NULL,
+        "to_id" uuid NOT NULL,
+        "to_ck" uuid NOT NULL,
+        "to_type" smallint NOT NULL,
+        "to_bench_id" uuid NOT NULL,
+        "user_id" uuid,
+        "user_email" varchar,
+        "is_owner" boolean NOT NULL DEFAULT false
     )
     """
     )
@@ -2016,6 +2084,24 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     )
     await cur.execute(
         'CREATE INDEX "bench_message_bench_idx_parent_id" ON bench_message USING BTREE (parent_id) INCLUDE (id)'
+    )
+
+    # bench_notification
+    await cur.execute(
+        'CREATE INDEX "bench_notification_bench_idx_created_at" ON bench_notification USING BTREE (created_at)'
+    )
+    await cur.execute(
+        'CREATE INDEX "bench_notification_bench_idx_parent_id" ON bench_notification USING BTREE (parent_id) INCLUDE (id)'
+    )
+
+    # bench_membership
+    await cur.execute(
+        'CREATE INDEX "bench_membership_bench_idx_parent_id" ON bench_membership USING BTREE (parent_id) INCLUDE (id)'
+    )
+
+    # bench_invite
+    await cur.execute(
+        'CREATE INDEX "bench_invite_bench_idx_parent_id" ON bench_invite USING BTREE (parent_id) INCLUDE (id)'
     )
 
     # bench_session

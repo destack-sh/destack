@@ -37,7 +37,7 @@ _type = type
 class BlockType(BuiltinEnum):
     # NOTE: see NodeType
     # resources
-    FILE = 2200, "Any File"
+    FILE = 1200, "Any File"
     # source
     PAGE = 5020, "Page to write"
     # types
