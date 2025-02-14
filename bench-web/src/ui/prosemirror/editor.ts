@@ -310,10 +310,8 @@ function getMarkerRegex(marker: string): RegExp {
   const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const char = marker[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   let regex: RegExp;
-  if (marker.length == 1) {
-    regex = new RegExp(`(?:^|[^*])${escapedMarker}(?!${char})(.+?)${escapedMarker}(?!${char})$`);
-  } else if (marker.length == 2) {
-    regex = new RegExp(`(?:^|[^*])${escapedMarker}(?!${char})(.+?)${escapedMarker}(?!${char})$`);
+  if (marker.length === 1 || marker.length === 2) {
+    regex = new RegExp(`(?<!${char})${escapedMarker}(?!${char})(.+?)${escapedMarker}(?!${char})$`);
   } else {
     throw new Error(`unsupported marker: ${marker}`);
   }
@@ -348,7 +346,6 @@ const PM_INPUT_RULES: InputRule[] = [
   replacementRule(/!=/, "≠"),
   replacementRule(/\(tm\)/, "™"),
   replacementRule(/\(r\)/, "®"),
-  replacementRule(/<3/, "❤️"),
   replacementRule(/<=>/, "⇔"),
   replacementRule(/<=/, "≤"),
   replacementRule(/>=/, "≥"),
