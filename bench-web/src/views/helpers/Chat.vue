@@ -593,7 +593,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
                   v-for="action in MESSAGE_CONTEXT_ACTIONS.map(getAction)"
                   :key="action.id"
                   v-tooltip="{ small: true, title: action.title, group: 'message' }"
-                  class="rounded px-1.5 py-0.5 transition-colors duration-150 enabled:cursor-pointer enabled:text-gray-700 enabled:hover:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-400"
+                  class="cursor-pointer rounded px-1.5 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
                   :disabled="!isActionEnabled(action, { nodes: [message] })"
                   @click.stop.prevent="fireAction(action, { nodes: [message] })"
                 >

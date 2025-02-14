@@ -467,7 +467,6 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
           summarize: {
             key: "connection.error",
             info: [{ op, error: error as RpcError }],
-            title: (infos) => `Connection ${retry ? "lost" : "failed"}`,
             text: (infos) => {
               // distinct errors
               const errors = new Set(

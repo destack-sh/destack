@@ -127,6 +127,7 @@ class GraphLock:
     We can probably optimize this by only locking some tighter critical sections
      if we rollback somehow on failure. Maybe we can even 'cache' apply some edits only in memory.
     We'll also eventually need to thread/shard the Host (maybe lock only on overlapping edits?).
+    See :ConcurrentHost.
     """
 
     def __init__(self) -> None:

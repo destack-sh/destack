@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.14.1"
+VERSION = "2025.02.14.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1042,10 +1042,10 @@ TRIGGER_TABLE = Table(
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("effect", PrimitiveType.INT16),
-        Column("scope_id", PrimitiveType.UUID),
-        Column("scope_ck", PrimitiveType.UUID),
-        Column("scope_type", PrimitiveType.INT16),
-        Column("scope_bench_id", PrimitiveType.UUID),
+        Column("scope_id", PrimitiveType.UUID, is_nullable=True),
+        Column("scope_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("scope_type", PrimitiveType.INT16, is_nullable=True),
+        Column("scope_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),

@@ -2250,13 +2250,6 @@ message TypeData {
   bool is_secret = 62;
 }
 
-message ClientOriginData {
-  ObjectType metatype = 1;
-  ClientType type = 30;
-  optional string id = 31;
-  optional string nonce = 32;
-}
-
 message DomNodeData {
   ObjectType metatype = 1;
   string id = 30;
@@ -2286,6 +2279,13 @@ message FileInfoData {
 
 message MachineImageData {
   ObjectType metatype = 1;
+}
+
+message ClientOriginData {
+  ObjectType metatype = 1;
+  ClientType type = 30;
+  optional string id = 31;
+  optional string nonce = 32;
 }
 
 message CallData {
@@ -2605,135 +2605,6 @@ message MembershipData {
   NodeReferenceData member_ptr = 41;
 }
 
-message BenchData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional NodeReferenceData main_handle_ptr = 31;
-  string slug = 32;
-  string name = 33;
-  optional TextData text = 34;
-  optional IconData icon = 35;
-  optional NodeReferenceData owner_ptr = 36;
-  Region region = 37;
-  optional string encryption_key = 38;
-  BenchStatus status = 40;
-  optional NodeReferenceData main_store_ptr = 50;
-  optional NodeReferenceData main_package_ptr = 51;
-}
-
-message ClientData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData user_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  ClientType type = 30;
-  string name = 32;
-  optional string device_type = 40;
-  optional string device_name = 41;
-  optional string operating_system = 42;
-  optional string browser_name = 43;
-  optional string browser_version = 44;
-  optional string place_id = 45;
-  optional string access_token = 50;
-  optional google.protobuf.Timestamp seen_at = 51;
-  optional google.protobuf.Timestamp logged_in_at = 52;
-  optional NodeReferenceData space_ptr = 60;
-  optional NodeReferenceData machine_ptr = 62;
-}
-
-message HandleData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  string slug = 30;
-}
-
-message OrganizationData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional string slug = 32;
-  string name = 33;
-  optional TextData text = 34;
-  optional IconData icon = 35;
-  Region region = 37;
-  OrganizationStatus status = 38;
-  optional NodeReferenceData main_bench_ptr = 40;
-  optional NodeReferenceData main_handle_ptr = 41;
-}
-
-message TeamData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData team_ptr = 5;
-  optional NodeReferenceData organization_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional string slug = 32;
-  string name = 33;
-  optional TextData text = 34;
-  optional IconData icon = 35;
-  optional NodeReferenceData main_bench_ptr = 40;
-}
-
-message UserData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional string slug = 31;
-  string name = 32;
-  optional IconData icon = 33;
-  optional TextData text = 34;
-  Region region = 35;
-  UserStatus status = 36;
-  optional NodeReferenceData main_bench_ptr = 40;
-  optional NodeReferenceData main_handle_ptr = 41;
-  optional string email = 50;
-  optional bytes password_salt = 51;
-  optional bytes password_hash = 52;
-  optional google.protobuf.Timestamp last_logged_in_at = 70;
-  bool is_staff = 90;
-}
-
 message BrowserData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2976,6 +2847,135 @@ message StreamData {
   optional google.protobuf.Timestamp suspended_at = 43;
   optional google.protobuf.Timestamp decommissioned_at = 44;
   optional google.protobuf.Timestamp active_at = 45;
+}
+
+message BenchData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional NodeReferenceData main_handle_ptr = 31;
+  string slug = 32;
+  string name = 33;
+  optional TextData text = 34;
+  optional IconData icon = 35;
+  optional NodeReferenceData owner_ptr = 36;
+  Region region = 37;
+  optional string encryption_key = 38;
+  BenchStatus status = 40;
+  optional NodeReferenceData main_store_ptr = 50;
+  optional NodeReferenceData main_package_ptr = 51;
+}
+
+message ClientData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData user_ptr = 7;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  ClientType type = 30;
+  string name = 32;
+  optional string device_type = 40;
+  optional string device_name = 41;
+  optional string operating_system = 42;
+  optional string browser_name = 43;
+  optional string browser_version = 44;
+  optional string place_id = 45;
+  optional string access_token = 50;
+  optional google.protobuf.Timestamp seen_at = 51;
+  optional google.protobuf.Timestamp logged_in_at = 52;
+  optional NodeReferenceData space_ptr = 60;
+  optional NodeReferenceData machine_ptr = 62;
+}
+
+message HandleData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  string slug = 30;
+}
+
+message OrganizationData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional string slug = 32;
+  string name = 33;
+  optional TextData text = 34;
+  optional IconData icon = 35;
+  Region region = 37;
+  OrganizationStatus status = 38;
+  optional NodeReferenceData main_bench_ptr = 40;
+  optional NodeReferenceData main_handle_ptr = 41;
+}
+
+message TeamData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData team_ptr = 5;
+  optional NodeReferenceData organization_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional string slug = 32;
+  string name = 33;
+  optional TextData text = 34;
+  optional IconData icon = 35;
+  optional NodeReferenceData main_bench_ptr = 40;
+}
+
+message UserData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional string slug = 31;
+  string name = 32;
+  optional IconData icon = 33;
+  optional TextData text = 34;
+  Region region = 35;
+  UserStatus status = 36;
+  optional NodeReferenceData main_bench_ptr = 40;
+  optional NodeReferenceData main_handle_ptr = 41;
+  optional string email = 50;
+  optional bytes password_salt = 51;
+  optional bytes password_hash = 52;
+  optional google.protobuf.Timestamp last_logged_in_at = 70;
+  bool is_staff = 90;
 }
 
 message InterruptionData {
@@ -3920,7 +3920,7 @@ message TriggerData {
   string name = 32;
   optional TextData text = 33;
   TriggerEffect effect = 34;
-  NodeReferenceData scope_ptr = 35;
+  optional NodeReferenceData scope_ptr = 35;
   optional NodeReferenceData run_ptr = 36;
   optional NodeReferenceData interruption_ptr = 37;
   TriggerStatus status = 40;

@@ -351,8 +351,6 @@ export const ICON_BY_TEXT_LINE_TYPE: Partial<Record<TextLineType, IconData>> = _
   [TextLineType.TABLE_ROW]: "fas fa-table-rows",
   // code
   [TextLineType.CODE]: "fas fa-code",
-  [TextLineType.EQUATION]: "fas fa-sigma",
-  [TextLineType.DIAGRAM]: "fas fa-diagram-project",
 });
 
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({

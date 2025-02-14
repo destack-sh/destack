@@ -8,6 +8,7 @@ from bench.language.core import (
     NodeType,
     SourceNode,
     StructType,
+    Text,
     enum_,
     node_,
     p_node_parent,
@@ -29,7 +30,6 @@ if TYPE_CHECKING:
         Package,
         Page,
         Run,
-        Text,
         Thread,
     )
 
@@ -72,14 +72,13 @@ class Trigger(SourceNode[TriggerData]):
     # meta
     type: TriggerType = p_system(30, require=True)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
-    text: Optional["Text"] = p_regular(33, require=False, struct=StructType.TEXT)
+    text: Optional[Text] = p_regular(33, require=False, struct=StructType.TEXT)
     effect: TriggerEffect = p_regular(34, require=True)
-    scope: Union["Page", "Package"] = p_regular(
+    scope: Union["Page", "Package", None] = p_regular(
         35,
-        require=True,
+        require=False,
         array=False,
         references=(NodeType.PAGE, NodeType.PACKAGE),
-        description="The source Node this Trigger is scoped to.",
     )
     run: Optional["Run"] = p_regular(
         36,
@@ -93,7 +92,6 @@ class Trigger(SourceNode[TriggerData]):
         require=False,
         array=False,
         references=NodeType.INTERRUPTION,
-        description="The interruption this Trigger is for.",
     )
 
     # status
@@ -106,6 +104,19 @@ class Trigger(SourceNode[TriggerData]):
     @property
     def container(self) -> "Node | None":
         return self.scope
+
+    @staticmethod
+    def on_message(
+        name: str,
+        text: Text | None = None,
+        *,
+        effect: TriggerEffect = TriggerEffect.START_RUN,
+        scope: Union["Page", "Package", None] = None,
+    ) -> "Trigger":
+        trigger = Trigger(
+            type=TriggerType.MESSAGE, name=name, text=text, effect=effect, scope=scope
+        )
+        return trigger
 
 
 @subnode_(TriggerType.SCHEDULE)
@@ -130,5 +141,3 @@ class MessageTrigger(Trigger):
         references=NodeType.MESSAGE,
         description="The Message this Trigger is replying to.",
     )
-    # to: roles, identities, users, teams, ...
-    # condition, edit, ...?
