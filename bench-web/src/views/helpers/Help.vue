@@ -1,25 +1,25 @@
 <script lang="ts" setup>
-import { getBaseFromNode, toCamelName } from "@/language/core/const";
+import { toCamelName } from "@/language/core/const";
 import { useSubnodeProperty } from "@/language/core/node";
 import { isRunnable } from "@/language/runtime/run";
 import { BlockType, HelpAspect, NodeType, Orientation, RunData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, TypedNodeReferenceData } from "@/proto/wiring";
-import { supergraph } from "@/system/connection";
 import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/runtime/runtime";
+import { supergraph } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
+import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { IconInline, makeIcon } from "@/ui/icon";
-import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
+import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import SomeObject from "@/views/objects/Object.vue";
-import Run from "@/views/nodes/Run.vue";
-import { computed, nextTick, ref, Ref, toRef } from "vue";
-import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import Chat from "@/views/helpers/Chat.vue";
+import Run from "@/views/nodes/Run.vue";
+import SomeObject from "@/views/objects/Object.vue";
+import { computed, nextTick, ref, Ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
