@@ -4,6 +4,7 @@ from uuid import UUID
 
 import structlog
 
+from bench.language import Interruption
 from bench.language.core import (
     TITLE_CONSTRAINT,
     BuiltinEnum,
@@ -16,6 +17,7 @@ from bench.language.core import (
     NodeType,
     StateNode,
     StructType,
+    Text,
     TypeBase,
     enum_,
     p_internal,
@@ -26,11 +28,10 @@ from bench.language.core import (
     p_value_runtime,
     timed_node_,
 )
-from bench.language.runtime.interruption import Interruption
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Channel, Class, NodeReference, Package, Text, Thread
+    from bench.language import Bench, Channel, Class, NodeReference, Package, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -177,3 +178,24 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     def value_type(self) -> "TypeBase | None":
         class_ = self.clazz
         return class_.to_type() if class_ is not None else None
+
+    @staticmethod
+    def new(
+        title: str | None = None,
+        text: Text | None = None,
+        *,
+        platform: MessagePlatform = MessagePlatform.BENCH,
+        bench: Optional["Bench"] = None,
+        channel: Optional["Channel"] = None,
+        thread: Optional["Thread"] = None,
+    ) -> "Message":
+        message = Message(
+            parent=bench,
+            type=MessageType.TEXT,
+            platform=platform,
+            title=title,
+            text=text,
+            channel=channel,
+            thread=thread,
+        )
+        return message

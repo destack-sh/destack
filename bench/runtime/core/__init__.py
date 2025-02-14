@@ -28,6 +28,7 @@ from .runner import (
     RunnerInterruptedEvent,
     RunnerOutputEvent,
     create_run_from_node,
+    make_run_from_node,
     make_runner,
     restore_runner,
 )
@@ -67,6 +68,7 @@ __all__ = [
     "Runtime",
     "RuntimeError",
     "create_run_from_node",
+    "make_run_from_node",
     "make_runner",
     "restore_runner",
 ]

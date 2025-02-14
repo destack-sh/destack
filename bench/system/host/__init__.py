@@ -1,8 +1,8 @@
-from bench.system.host.core import Commit, DeferredHostPlugin, HostPlugin
-from bench.system.host.database import DatabasePlugin, HostSqlContext
-from bench.system.host.host import HostService
-from bench.system.host.log import LogPlugin
-from bench.system.host.router import HostRouterService
+from .core import Commit, DeferredHostPlugin, HostPlugin
+from .database import DatabasePlugin, HostSqlContext
+from .host import HostService
+from .router import HostRouterService
+from .trigger import MessageTriggerPlugin, ScheduleTriggerPlugin
 
 __all__ = [
     "Commit",
@@ -12,5 +12,6 @@ __all__ = [
     "HostRouterService",
     "HostService",
     "HostSqlContext",
-    "LogPlugin",
+    "MessageTriggerPlugin",
+    "ScheduleTriggerPlugin",
 ]

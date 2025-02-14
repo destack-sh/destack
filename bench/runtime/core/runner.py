@@ -594,7 +594,7 @@ def _get_runnable_containers(
     return page, flow, action, pipe, typ
 
 
-def create_run_from_node(
+def make_run_from_node(
     node: "RunnableNode",
     *,
     isolate: bool = True,
@@ -605,7 +605,7 @@ def create_run_from_node(
     parent: "Run | Bench | None" = None,
     session: "Session | None" = None,
 ) -> "Run":
-    """Creates a Run from a runnable Node."""
+    """Creates a Run from a runnable Node without adding it to the session."""
     from bench.language import coerce_custom_object_scalar
 
     # context
@@ -662,6 +662,33 @@ def create_run_from_node(
         options.set_default(BASE_RUN_OPTIONS_BY_KIND[typ], copy=False)
     run.options = options
 
+    return run
+
+
+def create_run_from_node(
+    node: "RunnableNode",
+    *,
+    isolate: bool = True,
+    variables: Any | None = None,
+    inputs: Any | None = None,
+    options: RunOptions | None = None,
+    mode: NodeMode | None = None,
+    parent: "Run | Bench | None" = None,
+    session: "Session | None" = None,
+) -> "Run":
+    """Creates a Run from a runnable Node and adds it to the session."""
+    run = make_run_from_node(
+        node,
+        isolate=isolate,
+        variables=variables,
+        inputs=inputs,
+        options=options,
+        mode=mode,
+        parent=parent,
+        session=session,
+    )
+    if session is None:
+        session = active_session()
     session._create(run)
     return run
 

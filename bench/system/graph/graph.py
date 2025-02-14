@@ -297,7 +297,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         data_graph: NodeDataGraph,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
-    ) -> Sequence[EditData]:
+    ) -> None:
         return await self.on_commit_prepare(
             session=session,
             graph=graph,
@@ -315,9 +315,9 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         context: HasContext | None,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
-    ) -> Sequence[EditData]:
-        """Extend a commit. Returns any new edits."""
-        return []  # do nothing by default
+    ) -> None:
+        """Extend a commit."""
+        pass  # do nothing by default
 
     async def _on_commit_hook(
         self,
@@ -326,7 +326,6 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         data_graph: NodeDataGraph,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
-        new_edits: Sequence[EditData],
     ) -> None:
         assert session._local_epoch is not None, f"no system epoch in {session!r}"
         self._local_epoch = session._local_epoch
@@ -336,7 +335,6 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             data_graph=data_graph,
             edits=edits,
             cascaded_edits=cascaded_edits,
-            new_edits=new_edits,
         )
 
     async def on_commit(
@@ -346,7 +344,6 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         data_graph: NodeDataGraph,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
-        new_edits: Sequence[EditData],
     ):
         """Handle an accepted commit."""
         self.connector.on_commit(
@@ -374,7 +371,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         context: HasContext,
         edits: Sequence[EditData],
     ) -> tuple[Sequence[EditData], Sequence[EditData]]:
-        """Commits some edits."""
+        """Commit some Edits."""
 
         # pre-validate/prepare edits
         include_deleted = any(e.type == EditType.RESTORE for e in edits)

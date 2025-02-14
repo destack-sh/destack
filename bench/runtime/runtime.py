@@ -88,7 +88,7 @@ class RuntimeThreadHandle:
         return self._client
 
     async def start(self) -> None:
-        """Starts a new thread."""
+        """Starts a new RuntimeThread."""
 
         # start thread
         if self.mode == RuntimeThreadMode.LOCAL:
@@ -105,6 +105,7 @@ class RuntimeThreadHandle:
                 machine_id=self.service._machine_id,
                 oracle=self.service.oracle,
                 mode=self.service._mode,
+                on_error=self.service.on_error,
             )
             self._client = self._thread
             await self._thread.start()

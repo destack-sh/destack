@@ -1164,9 +1164,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         if child_prop is not None:
             child_list = getattr(self, child_prop.name)
             child_list.append(child, move=move)
-        elif isinstance(child, HasNodeBase):
-            base = child.base
-            assert base is not None, f"no base for {child!r}"
+        elif isinstance(child, HasNodeBase) and (base := child.base) is not None:
             child_prop = base.get_child_property(child.metatype)
             if child_prop is not None:
                 child_list = getattr(base, child_prop.name)

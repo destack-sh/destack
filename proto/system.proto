@@ -57,8 +57,6 @@ message WatchGetResponse {
   repeated SomeNodeData added_nodes = 3;
   // Nodes removed from the result set.
   repeated NodeReferenceData removed_nodes_ptr = 4;
-  // Current epoch.
-  uint64 epoch = 10;
 }
 
 message SearchNodesRequest {
@@ -93,8 +91,6 @@ message SearchNodesResponse {
   repeated SomeNodeData nodes = 2;
   // Total number of nodes in the result set.
   optional int32 total = 5;
-  // Current epoch.
-  uint64 epoch = 10;
   // Token to watch updates.
   string connection_token = 11;
 }

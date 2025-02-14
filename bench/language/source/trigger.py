@@ -15,7 +15,7 @@ from bench.language.core import (
     p_regular,
     p_system,
 )
-from bench.language.core.node import subnode_
+from bench.language.core.node import generate_node_name, subnode_
 from bench.pb2.lang_pb2 import TriggerData
 
 from .schedule import Schedule
@@ -106,13 +106,30 @@ class Trigger(SourceNode[TriggerData]):
         return self.scope
 
     @staticmethod
-    def on_message(
-        name: str,
+    def on_schedule(
+        name: str | None = None,
         text: Text | None = None,
         *,
         effect: TriggerEffect = TriggerEffect.START_RUN,
         scope: Union["Page", "Package", None] = None,
     ) -> "Trigger":
+        if name is None:
+            name = generate_node_name(NodeType.TRIGGER, TriggerType.SCHEDULE, siblings=())
+        trigger = Trigger(
+            type=TriggerType.SCHEDULE, name=name, text=text, effect=effect, scope=scope
+        )
+        return trigger
+
+    @staticmethod
+    def on_message(
+        name: str | None = None,
+        text: Text | None = None,
+        *,
+        effect: TriggerEffect = TriggerEffect.START_RUN,
+        scope: Union["Page", "Package", None] = None,
+    ) -> "Trigger":
+        if name is None:
+            name = generate_node_name(NodeType.TRIGGER, TriggerType.MESSAGE, siblings=())
         trigger = Trigger(
             type=TriggerType.MESSAGE, name=name, text=text, effect=effect, scope=scope
         )

@@ -107,6 +107,7 @@ class Runtime:
         thread: "RuntimeThread | None" = None,
         static_glbls: Mapping[str, Any] | None = None,
         dynamic_glbls: Mapping[str, Any] | None = None,
+        on_error: Callable[[BaseException], None] | None = None,
     ):
         from bench.runtime.browser.playwright import PlaywrightClient
         from bench.runtime.code.context import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
@@ -124,7 +125,7 @@ class Runtime:
         self.combined_glbls = {**self.static_glbls, **self.dynamic_glbls}
         self.thread = thread
         self.playwright = PlaywrightClient()
-
+        self.on_error = on_error
         assert session._runtime is None, f"{session!r} already in runtime {session._runtime!r}"
         self.session._runtime = self
         self._active_runner: ContextVar[Runner | None] = ContextVar("active_runner")
@@ -864,6 +865,8 @@ class Runtime:
                     run.error = Error.from_exception(ErrorKind.INTERNAL, e)
                 self.session.commit_optimistic()
                 logger.error("runtime.run.internal_error", run=run, exc_info=e, span="current")
+                if self.on_error is not None:
+                    self.on_error(e)
                 if not return_error:
                     raise
             finally:

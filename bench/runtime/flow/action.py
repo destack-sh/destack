@@ -38,6 +38,7 @@ from bench.language import (
     NodeType,
     PipeType,
     PressAction,
+    ReceiveAction,
     RunnableNode,
     RunOptions,
     RunSpanType,
@@ -471,19 +472,25 @@ class DeleteActionRunner(StaticActionRunner[DeleteAction]):
 #
 
 
-class YieldActionRunner(StaticActionRunner):
-    @override
-    async def run_static(self) -> None:
-        interruption = self._trap_interruption(InterruptionType.YIELD)
-        self.outputs = interruption.outputs
-
-
 class WaitActionRunner(StaticActionRunner[WaitAction]):
     @override
     async def run_static(self) -> None:
         # NOTE: obviously WaitStep should be Interruption/Trigger-driven
         if self.action.delay is not None:
             await asyncio.sleep(self.action.delay.total_seconds())
+
+
+class ReceiveActionRunner(StaticActionRunner[ReceiveAction]):
+    @override
+    async def run_static(self) -> None:
+        pass  # nothing to do?
+
+
+class YieldActionRunner(StaticActionRunner):
+    @override
+    async def run_static(self) -> None:
+        interruption = self._trap_interruption(InterruptionType.YIELD)
+        self.outputs = interruption.outputs
 
 
 #
@@ -686,8 +693,9 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner[Any]]] = {
     ActionType.UPDATE: UpdateActionRunner,
     ActionType.DELETE: DeleteActionRunner,
     # async
-    ActionType.YIELD: YieldActionRunner,
     ActionType.WAIT: WaitActionRunner,
+    ActionType.YIELD: YieldActionRunner,
+    ActionType.RECEIVE: ReceiveActionRunner,
     # application
     ActionType.LOOK: LookActionRunner,
     ActionType.CLICK: ClickActionRunner,
