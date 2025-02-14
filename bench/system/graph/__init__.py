@@ -8,8 +8,8 @@ from bench.system.graph.connection import (
 )
 from bench.system.graph.graph import (
     CommitArea,
-    GraphIoServiceBase,
     GraphLock,
+    GraphServiceBase,
     extract_commit_area,
     validate_edit,
 )
@@ -28,8 +28,8 @@ __all__ = [
     "ConnectionIndex",
     "ConnectionSubscription",
     "GetConnection",
-    "GraphIoServiceBase",
     "GraphLock",
+    "GraphServiceBase",
     "PostgresAggregateConnection",
     "PostgresConnector",
     "PostgresEngine",

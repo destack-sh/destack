@@ -177,8 +177,8 @@ message CommitTransactionResponse {
   uint64 epoch = 3;
 }
 
-// Common service definition for global and bench-local :GraphIO
-service GraphIO {
+// Common service definition for global and bench-local :Graph
+service Graph {
   // Get nodes (of the same root type) in this graph. 
   rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
   // Receive any relevant node edits for a get query.
@@ -304,7 +304,7 @@ service Supervisor {
   option (kind) = PUBLIC; // :ServiceKind
 
   //
-  // Global IO for non-source nodes outside Benches :GraphIO
+  // Global IO for non-source nodes outside Benches :Graph
   //
 
   rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
@@ -383,7 +383,7 @@ service Host {
   option (kind) = PUBLIC; // :ServiceKind
   
   //
-  // General IO for nodes in this Bench (only) :GraphIO
+  // General IO for nodes in this Bench (only) :Graph
   //
 
   rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);

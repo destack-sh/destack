@@ -3414,9 +3414,9 @@ class DownloadFilesResponse_DownloadHandle$Type extends MessageType<DownloadFile
  */
 export const DownloadFilesResponse_DownloadHandle = new DownloadFilesResponse_DownloadHandle$Type();
 /**
- * @generated ServiceType for protobuf service symbolx.bench.GraphIO
+ * @generated ServiceType for protobuf service symbolx.bench.Graph
  */
-export const GraphIO = new ServiceType("symbolx.bench.GraphIO", [
+export const Graph = new ServiceType("symbolx.bench.Graph", [
     { name: "GetNodes", options: {}, I: GetNodesRequest, O: GetNodesResponse },
     { name: "WatchGet", serverStreaming: true, options: {}, I: WatchGetRequest, O: WatchGetResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },

@@ -59,7 +59,7 @@ from bench.system.core import (
     pg_engine_from_store,
     purge_client_caches,
 )
-from bench.system.graph import GraphIoServiceBase
+from bench.system.graph import GraphServiceBase
 from bench.utils.func import generate_access_token, generate_salt, to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
@@ -75,7 +75,7 @@ USE_WAITLIST = get_from_env(
 SUPERVISOR_NODE_TYPES = USER_NODE_TYPES | bittuple(NodeType.BENCH)
 
 
-class SupervisorService(GraphIoServiceBase, SupervisorBase):
+class SupervisorService(GraphServiceBase, SupervisorBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
     name = "supervisor"
 
@@ -89,7 +89,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         host_map: HostMap,
         on_error: Callable[[Exception], None] | None = None,
     ):
-        GraphIoServiceBase.__init__(
+        GraphServiceBase.__init__(
             self,
             id=id,
             bench_id=None,

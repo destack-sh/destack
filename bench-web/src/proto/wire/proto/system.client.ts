@@ -23,7 +23,7 @@ import type { SignupUserResponse } from "./system";
 import type { SignupUserRequest } from "./system";
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
-import { GraphIO } from "./system";
+import { Graph } from "./system";
 import type { CommitTransactionResponse } from "./system";
 import type { CommitTransactionRequest } from "./system";
 import type { WatchAggregateResponse } from "./system";
@@ -43,11 +43,11 @@ import type { GetNodesRequest } from "./system";
 import type { UnaryCall } from "@protobuf-ts/runtime-rpc";
 import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
 /**
- * Common service definition for global and bench-local :GraphIO
+ * Common service definition for global and bench-local :Graph
  *
- * @generated from protobuf service symbolx.bench.GraphIO
+ * @generated from protobuf service symbolx.bench.Graph
  */
-export interface IGraphIOClient {
+export interface IGraphClient {
     /**
      * Get nodes (of the same root type) in this graph.
      *
@@ -92,14 +92,14 @@ export interface IGraphIOClient {
     commitTransaction(input: CommitTransactionRequest, options?: OperationOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse>;
 }
 /**
- * Common service definition for global and bench-local :GraphIO
+ * Common service definition for global and bench-local :Graph
  *
- * @generated from protobuf service symbolx.bench.GraphIO
+ * @generated from protobuf service symbolx.bench.Graph
  */
-export class GraphIOClient implements IGraphIOClient, ServiceInfo {
-    typeName = GraphIO.typeName;
-    methods = GraphIO.methods;
-    options = GraphIO.options;
+export class GraphClient implements IGraphClient, ServiceInfo {
+    typeName = Graph.typeName;
+    methods = Graph.methods;
+    options = Graph.options;
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
@@ -173,7 +173,7 @@ export class GraphIOClient implements IGraphIOClient, ServiceInfo {
  */
 export interface ISupervisorClient {
     // 
-    // Global IO for non-source nodes outside Benches :GraphIO
+    // Global IO for non-source nodes outside Benches :Graph
     // 
 
     /**
@@ -261,7 +261,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
     constructor(private readonly _transport: RpcTransport) {
     }
     // 
-    // Global IO for non-source nodes outside Benches :GraphIO
+    // Global IO for non-source nodes outside Benches :Graph
     // 
 
     /**
@@ -383,7 +383,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
  */
 export interface IHostClient {
     // 
-    // General IO for nodes in this Bench (only) :GraphIO
+    // General IO for nodes in this Bench (only) :Graph
     // 
 
     /**
@@ -443,7 +443,7 @@ export class HostClient implements IHostClient, ServiceInfo {
     constructor(private readonly _transport: RpcTransport) {
     }
     // 
-    // General IO for nodes in this Bench (only) :GraphIO
+    // General IO for nodes in this Bench (only) :Graph
     // 
 
     /**

@@ -22,7 +22,7 @@ from . import lang_pb2
 from . import system_pb2
 
 
-class GraphIOBase(abc.ABC):
+class GraphBase(abc.ABC):
     @abc.abstractmethod
     async def get_nodes(
         self, request: "system_pb2.GetNodesRequest", headers: Mapping
@@ -67,43 +67,43 @@ class GraphIOBase(abc.ABC):
 
     def __mapping__(self) -> typing.Dict[str, grpclib.const.Handler]:
         return {
-            "/symbolx.bench.GraphIO/GetNodes": grpclib.const.Handler(
+            "/symbolx.bench.Graph/GetNodes": grpclib.const.Handler(
                 self.get_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.GetNodesRequest,
                 system_pb2.GetNodesResponse,
             ),
-            "/symbolx.bench.GraphIO/WatchGet": grpclib.const.Handler(
+            "/symbolx.bench.Graph/WatchGet": grpclib.const.Handler(
                 self.watch_get,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 system_pb2.WatchGetRequest,
                 system_pb2.WatchGetResponse,
             ),
-            "/symbolx.bench.GraphIO/SearchNodes": grpclib.const.Handler(
+            "/symbolx.bench.Graph/SearchNodes": grpclib.const.Handler(
                 self.search_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.SearchNodesRequest,
                 system_pb2.SearchNodesResponse,
             ),
-            "/symbolx.bench.GraphIO/WatchSearch": grpclib.const.Handler(
+            "/symbolx.bench.Graph/WatchSearch": grpclib.const.Handler(
                 self.watch_search,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 system_pb2.WatchSearchRequest,
                 system_pb2.WatchSearchResponse,
             ),
-            "/symbolx.bench.GraphIO/AggregateNodes": grpclib.const.Handler(
+            "/symbolx.bench.Graph/AggregateNodes": grpclib.const.Handler(
                 self.aggregate_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.AggregateNodesRequest,
                 system_pb2.AggregateNodesResponse,
             ),
-            "/symbolx.bench.GraphIO/WatchAggregate": grpclib.const.Handler(
+            "/symbolx.bench.Graph/WatchAggregate": grpclib.const.Handler(
                 self.watch_aggregate,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 system_pb2.WatchAggregateRequest,
                 system_pb2.WatchAggregateResponse,
             ),
-            "/symbolx.bench.GraphIO/CommitTransaction": grpclib.const.Handler(
+            "/symbolx.bench.Graph/CommitTransaction": grpclib.const.Handler(
                 self.commit_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.CommitTransactionRequest,
@@ -112,47 +112,47 @@ class GraphIOBase(abc.ABC):
         }
 
 
-class GraphIOClient:
+class GraphClient:
     def __init__(self, channel: grpclib.client.Channel) -> None:
         self.get_nodes = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.GraphIO/GetNodes",
+            "/symbolx.bench.Graph/GetNodes",
             system_pb2.GetNodesRequest,
             system_pb2.GetNodesResponse,
         )
         self.watch_get = grpclib.client.UnaryStreamMethod(
             channel,
-            "/symbolx.bench.GraphIO/WatchGet",
+            "/symbolx.bench.Graph/WatchGet",
             system_pb2.WatchGetRequest,
             system_pb2.WatchGetResponse,
         )
         self.search_nodes = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.GraphIO/SearchNodes",
+            "/symbolx.bench.Graph/SearchNodes",
             system_pb2.SearchNodesRequest,
             system_pb2.SearchNodesResponse,
         )
         self.watch_search = grpclib.client.UnaryStreamMethod(
             channel,
-            "/symbolx.bench.GraphIO/WatchSearch",
+            "/symbolx.bench.Graph/WatchSearch",
             system_pb2.WatchSearchRequest,
             system_pb2.WatchSearchResponse,
         )
         self.aggregate_nodes = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.GraphIO/AggregateNodes",
+            "/symbolx.bench.Graph/AggregateNodes",
             system_pb2.AggregateNodesRequest,
             system_pb2.AggregateNodesResponse,
         )
         self.watch_aggregate = grpclib.client.UnaryStreamMethod(
             channel,
-            "/symbolx.bench.GraphIO/WatchAggregate",
+            "/symbolx.bench.Graph/WatchAggregate",
             system_pb2.WatchAggregateRequest,
             system_pb2.WatchAggregateResponse,
         )
         self.commit_transaction = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.GraphIO/CommitTransaction",
+            "/symbolx.bench.Graph/CommitTransaction",
             system_pb2.CommitTransactionRequest,
             system_pb2.CommitTransactionResponse,
         )

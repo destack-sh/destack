@@ -25,7 +25,7 @@ from bench.language.core import (
 )
 from bench.pb2.common_pb2 import RpcMetadata
 from bench.pb2.lang_pb2 import EditData, ExpressionData, GraphScopeData
-from bench.pb2.system_grpc import GraphIOClient, HostClient, SupervisorClient
+from bench.pb2.system_grpc import GraphClient, HostClient, SupervisorClient
 from bench.pb2.system_pb2 import WatchGetRequest, WatchSearchRequest
 from bench.utils.tenacity import RETRY_GRPC, RETRY_GRPC_FOREVER, RetryOptions
 
@@ -67,7 +67,7 @@ class RemoteEngine(Engine["RemoteConnector"]):
         name: str,
         scope: GraphScopeData,
         node_types: bittuple[NodeType],
-        remote: GraphIOClient | HostClient | SupervisorClient,
+        remote: GraphClient | HostClient | SupervisorClient,
         rpc_metadata: RpcMetadata,
         write_retry: RetryOptions = RETRY_GRPC,
     ):

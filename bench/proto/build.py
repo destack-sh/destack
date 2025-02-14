@@ -98,7 +98,7 @@ def _build_proto_schema() -> str:
     return proto.to_proto_source()
 
 
-_PUBLIC_SERVICES = ("GraphIo", "Supervisor", "Host")  # :ServiceKind
+_PUBLIC_SERVICES = ("Graph", "Supervisor", "Host")  # :ServiceKind
 
 
 def _render_js_value(value: Any) -> str:

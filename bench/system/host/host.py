@@ -77,7 +77,7 @@ from bench.system.core import (
     pg_engine_from_store,
 )
 from bench.system.graph import (
-    GraphIoServiceBase,
+    GraphServiceBase,
     PostgresEngine,
     extract_commit_area,
     validate_edit,
@@ -114,7 +114,7 @@ PACKAGE_QUERY = (
 )
 
 
-class HostService(GraphIoServiceBase, HostBase):
+class HostService(GraphServiceBase, HostBase):
     """
     Host for a Bench, providing the OS-level functionality (lifecycle, resources, scheduling, etc.).
     There is only one Host per Bench. Clients interact with the Bench exclusively via its Host.
@@ -133,7 +133,7 @@ class HostService(GraphIoServiceBase, HostBase):
         oracle: Oracle,
         on_error: Callable[[BaseException], None] | None = None,
     ):
-        GraphIoServiceBase.__init__(
+        GraphServiceBase.__init__(
             self,
             id=id,
             bench_id=bench_id,
