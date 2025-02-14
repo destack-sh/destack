@@ -42,6 +42,9 @@ const PROSEMIRROR_NODE_KEY = "__pmNode";
 /** Base Vue component renderer for PM NodeViews */
 export class VueComponentView implements PmNodeView {
   dom: HTMLElement;
+  component: Component;
+  parentComponent: ComponentInternalInstance;
+  props: Record<string, any>;
   pmnode: PmNode;
   vnode: VNode;
   view: EditorView;
@@ -56,16 +59,29 @@ export class VueComponentView implements PmNodeView {
     getPos: () => number | undefined;
   }) {
     const { style, component, parentComponent, props, node, view, getPos } = options;
+    this.component = component;
+    this.parentComponent = parentComponent;
+    this.props = props;
     this.dom = document.createElement("div");
     if (style == "inline") {
       this.dom.style.display = "inline-block";
     }
     this.pmnode = node;
-    this.vnode = createVNode(component, { ...props });
-    this.vnode.appContext = parentComponent.appContext;
-    (this.vnode as any).parent = parentComponent;
-    (this.vnode as any)[PROSEMIRROR_NODE_KEY] = node;
+    this.vnode = this.createVNode();
     this.view = view;
+    render(this.vnode, this.dom);
+  }
+
+  createVNode() {
+    const vnode = createVNode(this.component, { ...this.props });
+    vnode.appContext = this.parentComponent.appContext;
+    (vnode as any).parent = this.parentComponent;
+    (vnode as any)[PROSEMIRROR_NODE_KEY] = this.pmnode;
+    return vnode;
+  }
+
+  render() {
+    this.vnode = this.createVNode();
     render(this.vnode, this.dom);
   }
 
@@ -124,9 +140,11 @@ export class SpanNodeView extends VueComponentView {
 /** BlockRenderer renders a custom Block vue component for 'block' nodes */
 export class LineBlockView extends VueComponentView {
   navigateOuter: (direction: NavigationDirection) => void;
+  blockPtr: NodeReferenceData;
+  nodePtr: NodeReferenceData | undefined;
   getPos: () => number | undefined; // ensure we have access to getPos
   lineHandleDom: HTMLElement;
-  
+
   constructor(options: {
     component: Component;
     node: PmNode;
@@ -154,18 +172,38 @@ export class LineBlockView extends VueComponentView {
     this.navigateOuter = navigate;
     this.getPos = getPos;
 
-    // meta
-    this.dom.classList.add("line-block");
-    const nodeType = node.attrs.nodePtr.nodeType;
-    const nodeTypeName = NodeType[nodeType].toLowerCase();
-    this.dom.classList.add(nodeTypeName);
-    this.dom.dataset.nodeType = node.attrs.nodePtr.nodeType;
-    this.dom.dataset.nodeId = node.attrs.nodePtr.id;
-    this.dom.dataset.nodeCk = node.attrs.nodePtr.ck;
-
-    // create line handle inside the block
+    // view
+    this.blockPtr = node.attrs.blockPtr;
+    this.nodePtr = node.attrs.nodePtr;
+    this.setupView(this.blockPtr, this.nodePtr);
     this.lineHandleDom = createLineHandleDom(node);
     this.dom.appendChild(this.lineHandleDom);
+  }
+
+  setupView(blockPtr: NodeReferenceData, nodePtr: NodeReferenceData | undefined) {
+    this.dom.classList.remove(...this.dom.classList);
+    this.dom.classList.add("line-block");
+    const nodeType = nodePtr?.nodeType;
+    if (nodeType != null) {
+      const nodeTypeName = NodeType[nodeType].toLowerCase();
+      this.dom.classList.add(nodeTypeName);
+    }
+    this.dom.dataset.nodeType = this.blockPtr.nodeType.toString();
+    this.dom.dataset.nodeId = blockPtr.id;
+    this.dom.dataset.nodeCk = blockPtr.ck;
+  }
+
+  /** Update the view when the node changes */
+  update(node: PmNode, decorations: readonly Decoration[]): boolean {
+    if (this.blockPtr?.id != node.attrs.blockPtr.id || this.nodePtr?.id != node.attrs.nodePtr.id) {
+      // re-init
+      this.blockPtr = node.attrs.blockPtr;
+      this.nodePtr = node.attrs.nodePtr;
+      this.props = { ...this.props, id: this.blockPtr.id, nodePtr: this.blockPtr };
+      this.setupView(this.blockPtr, this.nodePtr);
+      this.render();
+    }
+    return true;
   }
 
   /** Navigate to a sibling node (or fall back to outer navigation) */

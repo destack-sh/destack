@@ -255,9 +255,9 @@ type DiffItem = {
 };
 type PositionedDiffItem = DiffItem & { pos: number };
 type DiffOp =
-  | { type: "delete"; pos: number; end: number; key: string }
-  | { type: "insert"; pos: number; node: PmNode; key: string }
-  | { type: "update"; pos: number; end: number; node: PmNode; key: string };
+  | { type: "delete"; pos: number; end: number }
+  | { type: "insert"; pos: number; node: PmNode }
+  | { type: "update"; pos: number; end: number; node: PmNode };
 
 /** Get the unique key of a Line (for Blocks only) */
 function getLineKey(line: LineInterface): string {
@@ -316,7 +316,6 @@ export function differenceUpdateLines(view: EditorView, prevLines: LineInterface
         type: "delete",
         pos: item.pos,
         end: item.pos + item.node.nodeSize,
-        key: item.key,
       });
       oldIndex++;
     }
@@ -324,7 +323,7 @@ export function differenceUpdateLines(view: EditorView, prevLines: LineInterface
     const insertPos = oldIndex < oldItems.length ? oldItems[oldIndex].pos : view.state.doc.content.size;
     for (let i = match.newIndex - 1; i >= newIndex; i--) {
       const item = newItems[i];
-      ops.push({ type: "insert", pos: insertPos, node: item.node, key: item.key });
+      ops.push({ type: "insert", pos: insertPos, node: item.node });
     }
     newIndex = match.newIndex;
     // update matching node
@@ -336,7 +335,6 @@ export function differenceUpdateLines(view: EditorView, prevLines: LineInterface
         pos: oldItem.pos,
         end: oldItem.pos + oldItem.node.nodeSize,
         node: newItem.node,
-        key: newItem.key,
       });
     }
     oldIndex++;
@@ -349,7 +347,6 @@ export function differenceUpdateLines(view: EditorView, prevLines: LineInterface
       type: "delete",
       pos: item.pos,
       end: item.pos + item.node.nodeSize,
-      key: item.key,
     });
     oldIndex++;
   }
@@ -357,14 +354,13 @@ export function differenceUpdateLines(view: EditorView, prevLines: LineInterface
   const finalInsertPos = view.state.doc.content.size;
   for (let i = newItems.length - 1; i >= newIndex; i--) {
     const item = newItems[i];
-    ops.push({ type: "insert", pos: finalInsertPos, node: item.node, key: item.key });
+    ops.push({ type: "insert", pos: finalInsertPos, node: item.node });
   }
 
   // apply diff
   ops.sort((a, b) => b.pos - a.pos);
   let tr = view.state.tr;
   for (const op of ops) {
-    // map positions
     const mappedPos = tr.mapping.map(op.pos, -1);
     if (op.type === "delete") {
       const mappedEnd = tr.mapping.map(op.end, -1);
@@ -382,12 +378,10 @@ export function differenceUpdateLines(view: EditorView, prevLines: LineInterface
   if (tr.docChanged) {
     // auto-wrap as needed
     autoWrap(tr);
-
     // ensure our updated doc matches the target
     const targetDoc = mapTextToPmNode(newLines);
     if (!targetDoc.eq(tr.doc)) {
       // TODO :Robustness: differenceUpdateLines should never have to fall back to full replace (ideally)
-      // fallback to full replace :c
       if (IS_DEV || isDeveloperMode.value) {
         log.error("differenceUpdateLines.mismatch", {
           ops,

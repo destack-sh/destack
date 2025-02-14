@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/core/const";
+import { isInlineSourceNode, toCamelName } from "@/language/core/const";
 import { isDescendantOf } from "@/language/core/graph";
 import { cloneNode, moveNode, NodeIn } from "@/language/core/node";
 import { STANDARD_TEXT_LINE_TYPES } from "@/language/core/text";
@@ -207,13 +207,18 @@ const { activeDropZone } = useMultiDropZone({
   },
   onDrop: (dragged, anchor, targetId, event) => {
     if (targetId == null) return; // need target
-    const target = graph.getOrError({ id: targetId });
-    console.log("onDrop", { dragged, anchor, targetId, target, event });
+    // unwrap into blocks
+    let targetNode = graph.getOrError({ id: targetId });
+    if (isInlineSourceNode(targetNode) && targetNode.blockPtr != null) {
+      targetNode = graph.getOrError(targetNode.blockPtr);
+    }
+
     if (dragged.kind == "file") {
       // create variable with file
       if (!dragged.files) return;
-      if (!isNode(target, NodeType.BLOCK)) throw new Error(`unexpected target node type: ${describeNode(target)}`);
-      addFiles(dragged.files, anchor == "start" ? "before" : "after", target);
+      if (!isNode(targetNode, NodeType.BLOCK))
+        throw new Error(`unexpected target node type: ${describeNode(targetNode)}`);
+      addFiles(dragged.files, anchor == "start" ? "before" : "after", targetNode);
     } else if (dragged.kind == "node") {
       const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
       let node = graph.getOrError(dragged.node);
@@ -222,7 +227,7 @@ const { activeDropZone } = useMultiDropZone({
         node = cloneNode(tx, graph, node, { keepProperties: true });
       }
       // move node
-      moveNode(tx, graph, node, { anchor, target });
+      moveNode(tx, graph, node, { anchor, target: targetNode });
     } else if (dragged.kind == "selection") {
       // move nodes
       const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
@@ -234,7 +239,7 @@ const { activeDropZone } = useMultiDropZone({
         }
         moveNode(tx, graph, node, {
           anchor: i == 0 ? anchor : "after",
-          target: i == 0 ? target : graph.getOrError(dragged.nodes[i - 1]),
+          target: i == 0 ? targetNode : graph.getOrError(dragged.nodes[i - 1]),
         });
       }
     }

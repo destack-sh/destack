@@ -45,7 +45,7 @@ export function describeScope(scope: GraphScopeData): string {
   return `[${scopeParts.join(", ")}]`;
 }
 
-/** Short string representation of the node (pointer) */
+/** Short string representation of the node/pointer */
 export function describeNode(node: {
   metatype?: NodeType | ObjectType | any | null;
   parentPtr?: NodeReferenceData | null;

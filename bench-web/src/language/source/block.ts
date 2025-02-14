@@ -139,6 +139,13 @@ export function unwrapBlockDefinition(block: BlockData): InlineSourceNodeData | 
   return node;
 }
 
+/** Unwrap an InlineSourceNode into its Block. */
+export function unwrapInlineSourceNode(node: InlineSourceNodeData): BlockData | undefined {
+  if (node.blockPtr == null) return undefined;
+  const block = supergraph.getOrError(node.blockPtr);
+  return block as BlockData;
+}
+
 /** Get the Type for a Block. Unwraps to the type for the inner node (if any). */
 export function blockToTypeMaybe(
   block: BlockData,
