@@ -12,7 +12,7 @@ from bench.language.core import (
 )
 from bench.pb2 import SecretData
 
-from .resource import DynamicResource
+from ..core.resource import DynamicResource
 
 if TYPE_CHECKING:
     from bench.language import Bench, Type

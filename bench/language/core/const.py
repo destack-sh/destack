@@ -44,7 +44,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.14.0"
+VERSION = "2025.02.14.1"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -473,11 +473,9 @@ class NodeType(BuiltinEnum):
     # Regional (1000-5000)
     #
 
-    # resource
+    # compute
     SCALER = 1000
     STORE = 1001  # real database
-
-    # compute
     MACHINE = 1100
     BROWSER = 1110
     # MODEL, ...

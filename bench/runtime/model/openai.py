@@ -4,7 +4,7 @@ import openai
 from openai.types import chat as openai_chat_types
 
 from bench.language import Code, ModelType, RunOptions
-from bench.language.resource.file import FileType, download_file_batch
+from bench.language.compute.file import FileType, download_file_batch
 from bench.runtime.core import NotSupportedError
 from bench.utils.utils import get_from_env
 

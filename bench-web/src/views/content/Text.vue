@@ -10,6 +10,7 @@ import TextTooltip from "@/views/builtins/TextTooltip.vue";
 import { NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import { Plugin } from "prosemirror-state";
 import { getCurrentInstance, ref, toRef } from "vue";
+
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;

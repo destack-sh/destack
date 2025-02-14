@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.14.0"
+VERSION = "2025.02.14.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -907,6 +907,12 @@ FLOW_TABLE = Table(
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_options", PrimitiveType.JSON, is_nullable=True),
+        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("roles_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1231,6 +1237,7 @@ ROLE_TABLE = Table(
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("color", PrimitiveType.INT16, is_nullable=True, default="41"),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1267,6 +1274,7 @@ IDENTITY_TABLE = Table(
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("color", PrimitiveType.INT16, is_nullable=True, default="41"),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

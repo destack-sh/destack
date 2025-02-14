@@ -56,7 +56,7 @@ from bench.utils.func import group_by
 from bench.utils.string import humanize_bytes
 from bench.utils.utils import get_from_env
 
-from .resource import DynamicResource
+from ..core.resource import DynamicResource
 
 if TYPE_CHECKING:
     from magika import Magika

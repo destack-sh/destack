@@ -550,6 +550,10 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
             toaster.success({
               title: "Reconnected",
               text: `Connection restored.`,
+              summarize: {
+                key: "connection.reconnected",
+                info: [{ op: `${this.kind}:${this.meta.name}` }],
+              },
               override: `connection:${this.meta.id}`,
             });
             retryCount = 0;
