@@ -3,30 +3,28 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Self, TypeVar
 from uuid import UUID
 
-from bench.language.core import (
-    NAME_CONSTRAINT,
-    OWNER_TYPES,
+from bench.pb2 import AnyNodeData
+
+from .const import (
     REGION,
-    TITLE_CONSTRAINT,
-    BenchNode,
     BuiltinEnum,
     EnumType,
-    HasTrace,
-    Node,
     NodeType,
-    Owner,
     Region,
     StructType,
     active_session,
     bittuple,
     enum_,
-    node_component_,
+)
+from .node import BenchNode, HasTrace, Node, node_component_
+from .object import OWNER_TYPES, Owner
+from .property import (
     p_internal,
     p_node_parent,
     p_regular,
     p_system,
 )
-from bench.pb2 import AnyNodeData
+from .validation import NAME_CONSTRAINT, TITLE_CONSTRAINT
 
 if TYPE_CHECKING:
     from bench.language import (

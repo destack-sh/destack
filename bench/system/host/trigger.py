@@ -19,7 +19,7 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
 
     @override
     async def start(self) -> None:
-        # fetch active triggers (from runtime, source is already loaded)
+        # NOTE :Incomplete: fetch active triggers (from runtime, source is already loaded)
         ...
 
     @override

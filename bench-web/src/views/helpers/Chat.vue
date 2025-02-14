@@ -672,7 +672,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           <i class="fas fa-spinner-third animate-spin text-gray-400" />
         </span>
         <!-- Empty -->
-        <span v-else class="text-gray-400">No Messages here yet</span>
+        <span v-else class="text-gray-400">Nothing here yet</span>
       </div>
 
       <!-- Selection -->

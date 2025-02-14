@@ -12,7 +12,7 @@ from bench.language.core import (
 )
 from bench.pb2 import StoreData
 
-from .resource import StaticResource
+from ..core.resource import StaticResource
 
 # pyright: reportIncompatibleVariableOverride=false
 

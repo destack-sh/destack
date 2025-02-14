@@ -5623,6 +5623,14 @@ export interface FlowData {
      * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 40;
      */
     runOptions?: RunOptionsData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 41;
+     */
+    identityPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 42;
+     */
+    rolesPtr: NodeReferenceData[];
 }
 /**
  * @generated from protobuf message symbolx.bench.IdentityData
@@ -5708,6 +5716,10 @@ export interface IdentityData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 36;
      */
     blockPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ColorType color = 40;
+     */
+    color?: ColorType;
 }
 /**
  * @generated from protobuf message symbolx.bench.PackageData
@@ -6456,6 +6468,10 @@ export interface RoleData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 36;
      */
     blockPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ColorType color = 40;
+     */
+    color?: ColorType;
 }
 /**
  * @generated from protobuf message symbolx.bench.SpaceData
@@ -28112,7 +28128,9 @@ class FlowData$Type extends MessageType$<FlowData> {
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "text", kind: "message", T: () => TextData },
             { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "run_options", kind: "message", T: () => RunOptionsData }
+            { no: 40, name: "run_options", kind: "message", T: () => RunOptionsData },
+            { no: 41, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 42, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<FlowData>): FlowData {
@@ -28123,6 +28141,7 @@ class FlowData$Type extends MessageType$<FlowData> {
         message.mode = 0;
         message.computedValues = [];
         message.name = "";
+        message.rolesPtr = [];
         if (value !== undefined)
             reflectionMergePartial<FlowData>(this, message, value);
         return message;
@@ -28194,6 +28213,12 @@ class FlowData$Type extends MessageType$<FlowData> {
                     break;
                 case /* optional symbolx.bench.RunOptionsData run_options */ 40:
                     message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 41:
+                    message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 42:
+                    message.rolesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -28270,6 +28295,12 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* optional symbolx.bench.RunOptionsData run_options = 40; */
         if (message.runOptions)
             RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData identity_ptr = 41; */
+        if (message.identityPtr)
+            NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData roles_ptr = 42; */
+        for (let i = 0; i < message.rolesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28303,7 +28334,8 @@ class IdentityData$Type extends MessageType$<IdentityData> {
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<IdentityData>): IdentityData {
@@ -28383,6 +28415,9 @@ class IdentityData$Type extends MessageType$<IdentityData> {
                 case /* optional symbolx.bench.NodeReferenceData block_ptr */ 36:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
+                case /* optional symbolx.bench.ColorType color */ 40:
+                    message.color = reader.int32();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -28455,6 +28490,9 @@ class IdentityData$Type extends MessageType$<IdentityData> {
         /* optional symbolx.bench.NodeReferenceData block_ptr = 36; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ColorType color = 40; */
+        if (message.color !== undefined)
+            writer.tag(40, WireType.Varint).int32(message.color);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30172,7 +30210,8 @@ class RoleData$Type extends MessageType$<RoleData> {
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<RoleData>): RoleData {
@@ -30252,6 +30291,9 @@ class RoleData$Type extends MessageType$<RoleData> {
                 case /* optional symbolx.bench.NodeReferenceData block_ptr */ 36:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
+                case /* optional symbolx.bench.ColorType color */ 40:
+                    message.color = reader.int32();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -30324,6 +30366,9 @@ class RoleData$Type extends MessageType$<RoleData> {
         /* optional symbolx.bench.NodeReferenceData block_ptr = 36; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ColorType color = 40; */
+        if (message.color !== undefined)
+            writer.tag(40, WireType.Varint).int32(message.color);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -33734,6 +33779,8 @@ export enum FlowProperty {
   text = 35,
   blockPtr = 36,
   runOptions = 40,
+  identityPtr = 41,
+  rolesPtr = 42,
 }
 
 export enum ActionProperty {
@@ -33943,6 +33990,7 @@ export enum RoleProperty {
   icon = 34,
   text = 35,
   blockPtr = 36,
+  color = 40,
 }
 
 export enum IdentityProperty {
@@ -33966,6 +34014,7 @@ export enum IdentityProperty {
   icon = 34,
   text = 35,
   blockPtr = 36,
+  color = 40,
 }
 
 export enum SpaceProperty {
@@ -36122,6 +36171,8 @@ export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.text]: { id: 35, name: 'text', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [FlowProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.runOptions]: { id: 40, name: 'run_options', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
+  [FlowProperty.identityPtr]: { id: 41, name: 'identity_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.IDENTITY], referenceStruct: StructType.NODE_REFERENCE },
+  [FlowProperty.rolesPtr]: { id: 42, name: 'roles_ptr', component: ObjectType.FLOW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ROLE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -36324,6 +36375,7 @@ export const RoleDataInfo: Record<RoleProperty, PropertyInfo> = {
   [RoleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.ROLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [RoleProperty.text]: { id: 35, name: 'text', component: ObjectType.ROLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [RoleProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.ROLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [RoleProperty.color]: { id: 40, name: 'color', component: ObjectType.ROLE, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 41, isRuntime: true, isWired: true, isStored: true },
 }
 export const IdentityDataInfo: Record<IdentityProperty, PropertyInfo> = {
   [IdentityProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.IDENTITY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -36346,6 +36398,7 @@ export const IdentityDataInfo: Record<IdentityProperty, PropertyInfo> = {
   [IdentityProperty.icon]: { id: 34, name: 'icon', component: ObjectType.IDENTITY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [IdentityProperty.text]: { id: 35, name: 'text', component: ObjectType.IDENTITY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [IdentityProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.IDENTITY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [IdentityProperty.color]: { id: 40, name: 'color', component: ObjectType.IDENTITY, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 41, isRuntime: true, isWired: true, isStored: true },
 }
 export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SPACE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

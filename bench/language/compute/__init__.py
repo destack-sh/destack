@@ -25,7 +25,6 @@ from .file import (
     upload_file_batch,
 )
 from .machine import Machine, MachineImage, MachineType
-from .resource import DynamicResource, Resource, ResourceOccupancy, ResourceStatus, StaticResource
 from .scaler import Scaler, ScalerStrategy, ScalerType
 from .secret import Secret
 from .store import Store
@@ -42,7 +41,6 @@ __all__ = [
     "Browser",
     "BrowserType",
     "DomNode",
-    "DynamicResource",
     "File",
     "FileBase",
     "FileFormat",
@@ -53,14 +51,10 @@ __all__ = [
     "Machine",
     "MachineImage",
     "MachineType",
-    "Resource",
-    "ResourceOccupancy",
-    "ResourceStatus",
     "Scaler",
     "ScalerStrategy",
     "ScalerType",
     "Secret",
-    "StaticResource",
     "Store",
     "Stream",
     "detect_file_format",

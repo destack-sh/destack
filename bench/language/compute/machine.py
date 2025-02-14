@@ -19,7 +19,7 @@ from bench.language.core import (
 )
 from bench.pb2.lang_pb2 import MachineData
 
-from .resource import DynamicResource
+from ..core.resource import DynamicResource
 
 if TYPE_CHECKING:
     from bench.language import Client

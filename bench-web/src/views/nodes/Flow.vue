@@ -307,6 +307,8 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
     >
       <!-- Signature -->
       <template #left="{ style }">
+        <!-- Identity/Roles -->
+        <!-- ... -->
         <!-- Inputs -->
         <FieldList
           v-if="style == 'page'"

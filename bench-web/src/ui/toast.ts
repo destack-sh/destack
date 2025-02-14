@@ -17,9 +17,9 @@ export type ToastAction = {
 export type ToastSummaryInfo<T> = {
   key: string;
   info: T[];
-  title: (infos: T[]) => string;
-  text: (infos: T[]) => string;
-}
+  title?: (infos: T[]) => string;
+  text?: (infos: T[]) => string;
+};
 
 // how long toasts remain alive for animations after they expire
 const ZOMBIE_TOAST_DURATION = 1000; // ms
@@ -95,8 +95,12 @@ export class Toaster {
       const existing = this.toasts.value.find((t) => t.summarize?.key == toast.summarize?.key);
       if (existing != null) {
         existing.summarize!.info.push(...toast.summarize.info);
-        existing.title = toast.summarize.title(existing.summarize!.info);
-        existing.text = toast.summarize.text(existing.summarize!.info);
+        if (toast.summarize.title) {
+          existing.title = toast.summarize.title(existing.summarize!.info);
+        }
+        if (toast.summarize.text) {
+          existing.text = toast.summarize.text(existing.summarize!.info);
+        }
         return;
       }
     }

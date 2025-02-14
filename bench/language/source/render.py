@@ -30,6 +30,7 @@ from bench.language.core import (
     PrimitiveType,
     Property,
     PropertyReference,
+    Resource,
     ScalarValue,
     SomeValue,
     SourceNode,
@@ -50,7 +51,6 @@ from bench.language.core import (
     reverse_type_scalar,
 )
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
-from bench.language.resource import Resource
 from bench.language.runtime import (
     Call,
     CallExecutionMode,

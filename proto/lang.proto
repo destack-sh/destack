@@ -3613,6 +3613,8 @@ message FlowData {
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
   optional RunOptionsData run_options = 40;
+  optional NodeReferenceData identity_ptr = 41;
+  repeated NodeReferenceData roles_ptr = 42;
 }
 
 message IdentityData {
@@ -3636,6 +3638,7 @@ message IdentityData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
+  optional ColorType color = 40;
 }
 
 message PackageData {
@@ -3864,6 +3867,7 @@ message RoleData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
+  optional ColorType color = 40;
 }
 
 message SpaceData {

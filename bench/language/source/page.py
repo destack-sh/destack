@@ -27,6 +27,8 @@ class Page(InlineSourceNode[BlockData]):
 
     order_key: str = p_internal(33, default=INTEGER_ZERO)
 
+    # identity, roles, ...?
+
     pages: LocalNodeList["Page"] = p_node_children(NodeType.PAGE)
     blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)

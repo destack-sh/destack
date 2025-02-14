@@ -1,4 +1,5 @@
 from .auth import *  # noqa: F403
+from .compute import *  # noqa: F403
 from .connection import *  # noqa: F403
 from .core import *  # noqa: F403
 from .cosmos import *  # noqa: F403
@@ -27,7 +28,6 @@ from .registry import (
     SUBNODE_CLASSES,  # noqa: F401
     _complete_bench_setup,
 )
-from .resource import *  # noqa: F403
 from .runtime import *  # noqa: F403
 from .source import *  # noqa: F403
 from .state import *  # noqa: F403

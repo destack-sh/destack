@@ -11,7 +11,7 @@ from bench.language.core import (
 )
 from bench.pb2.lang_pb2 import ScalerData
 
-from .resource import StaticResource
+from ..core.resource import StaticResource
 
 # pyright: reportIncompatibleVariableOverride=false
 

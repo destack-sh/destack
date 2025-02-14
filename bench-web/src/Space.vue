@@ -172,7 +172,7 @@ mark {
 }
 .pm-text.pm-compact .line,
 .pm-text.pm-compact .line-block.page {
-  @apply py-[2px];
+  @apply px-0 py-[1px];
 }
 .pm-text.pm-small .line,
 .pm-text.pm-small .line-block.page {
