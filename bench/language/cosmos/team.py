@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
@@ -27,8 +27,10 @@ class Team(Node[TeamData]):
     A Team of Users.
     """
 
-    parent: "Organization" = p_node_parent(4, NodeType.ORGANIZATION)
-    # parent: Organization|Team for nesting?
+    parent: Union["Organization", "Team", None] = p_node_parent(
+        4, NodeType.ORGANIZATION, NodeType.TEAM
+    )
+    team: Optional["Team"] = p_node_ancestor(5, NodeType.TEAM, require=False, store=True, wire=True)
     organization: "Organization | None" = p_node_ancestor(
         6, NodeType.ORGANIZATION, require=False, store=True, wire=True
     )

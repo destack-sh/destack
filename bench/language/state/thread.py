@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
+    OWNER_TYPES,
     TITLE_CONSTRAINT,
     BuiltinEnum,
     EnumType,
@@ -9,6 +10,7 @@ from bench.language.core import (
     InlineSourceNode,
     Node,
     NodeType,
+    Owner,
     StateNode,
     StructType,
     Text,
@@ -46,7 +48,7 @@ class Thread(HasTimeIdentity, StateNode[ThreadData]):
     """
 
     # meta
-    parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH)
+    parent: Union["Bench", "Thread", None] = p_node_parent(4, NodeType.BENCH, NodeType.THREAD)
     type: ThreadType = p_regular(30, require=True, default=ThreadType.SOURCE)
     channel: "Channel | None" = p_system(
         32,
@@ -59,6 +61,7 @@ class Thread(HasTimeIdentity, StateNode[ThreadData]):
     scope: Union["InlineSourceNode", "Package"] = p_regular(
         35, require=False, references=(NodeType.PAGE, NodeType.PACKAGE)
     )
+    owned_by: Optional[Owner] = p_system(36, require=False, array=False, references=OWNER_TYPES)
     run: Optional["Run"] = p_regular(
         37,
         require=False,
@@ -82,7 +85,10 @@ class Thread(HasTimeIdentity, StateNode[ThreadData]):
 
     @property
     def container(self) -> "Node | None":
-        if (channel := self.channel) is not None:
+        parent = self.parent
+        if isinstance(parent, Thread):
+            return parent
+        elif (channel := self.channel) is not None:
             return channel
         else:
-            return self.parent
+            return parent

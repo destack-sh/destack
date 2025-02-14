@@ -41,7 +41,7 @@ const run = computed(() => {
   if (nodePtr.value != null && runtime.focusedRun != null && runtime.focusedRunTree.hasBase(nodePtr.value)) {
     return runtime.focusedRun;
   } else {
-    return null;
+    return null; 
   }
 });
 const runBasePtr = computed(() => (run.value != null ? getBaseFromNode(run.value) : nodePtr.value));
