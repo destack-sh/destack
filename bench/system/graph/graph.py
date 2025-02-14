@@ -70,7 +70,7 @@ from bench.proto import (
     EditData,
     GetNodesRequest,
     GetNodesResponse,
-    GraphIOBase,
+    GraphBase,
     GraphScopeData,
     Network,
     NodeReferenceData,
@@ -170,7 +170,7 @@ class GraphLock:
                 await self._locks[node_type].release_write()
 
 
-class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
+class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
     """Common base for global & Bench-local graph I/O operations."""
 
     def __init__(
