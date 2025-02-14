@@ -352,8 +352,6 @@ class Transaction:
     def _add_pending_edits(self, edits: Sequence[EditData]):
         """Adds full edits to the transaction directly."""
         self._pending_edits.extend(edits)
-        if self.session._local_epoch is not None:
-            self._track_edits(edits)
 
     def _track_edits(self, edits: Sequence[EditData]):
         """Tracks edits in our logical clock (local epoch)."""

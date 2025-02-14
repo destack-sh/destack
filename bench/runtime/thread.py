@@ -1,6 +1,6 @@
 import asyncio
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Collection, Mapping, cast, override
+from typing import TYPE_CHECKING, Any, Callable, Collection, Mapping, cast, override
 from uuid import UUID
 
 import structlog
@@ -161,6 +161,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         client_access_token: str,
         machine_id: UUID | None,
         mode: "RuntimeThreadMode",
+        on_error: Callable[[BaseException], None] | None = None,
     ):
         super().__init__(
             id=id,
@@ -223,6 +224,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             thread=self,
             static_glbls=STATIC_CODE_GLOBALS,
             dynamic_glbls=DYNAMIC_CODE_GLOBALS,
+            on_error=self.on_error,
         )
         asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
         logger.info("runtime_thread.start", process=self, bench=self._bench)

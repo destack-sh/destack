@@ -92,6 +92,7 @@ from bench.utils.utils import get_from_env
 from .core import HostPlugin, unpack_commit
 from .database import DatabasePlugin
 from .run import RunPlugin
+from .trigger import MessageTriggerPlugin, ScheduleTriggerPlugin
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -365,7 +366,7 @@ class HostService(GraphServiceBase, HostBase):
             # load packages
             self._main_package = await PACKAGE_QUERY.get(self._bench.main_package_ptr, mode="both")
 
-            # cleanup
+            # cleanup (discard temporary session)
             tmp_bench.connection.detach()
             del tmp_bench
             self._bench._untrack_rec()
@@ -407,7 +408,7 @@ class HostService(GraphServiceBase, HostBase):
                 include_deleted=False,
             ),
             MemoryEngine(
-                name="inmemory-package",
+                name="inmemory-main-package",
                 scope=self._scope,
                 node_types=SOURCE_NODE_TYPES,
                 graph=self._main_package._data_graph,
@@ -442,12 +443,12 @@ class HostService(GraphServiceBase, HostBase):
         self._provisioners = tuple(get_provisioners(self, self._bench))
         self._plugins = (
             database_plugin,
-            # LogPlugin(self, self._bench), # NOTE :Broken: re-enable LogPlugin
             *self._provisioners,
+            ScheduleTriggerPlugin(self, self._bench),
+            MessageTriggerPlugin(self, self._bench),
             RunPlugin(self, self._bench),
         )
         await asyncio.gather(*(plugin.start() for plugin in self._plugins))
-        # wait for plugins to finish processing any commits (and to error early)
         await asyncio.gather(*(plugin.wait_idle(timeout=10) for plugin in self._plugins))
         logger.info(
             "host.start",
@@ -577,11 +578,11 @@ class HostService(GraphServiceBase, HostBase):
         context: HasContext | None,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
-    ) -> Sequence[EditData]:
+    ) -> None:
         assert self._bench is not None, f"bench not loaded in {self!r}"
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
-        # optimistically apply commit (to in-memory unpacked only)
+        # optimistically apply commit (to in-memory unpacked only) :ConcurrentHost
         self._update_loaded_graphs(edits=edits, cascaded_edits=cascaded_edits, scope="unpacked")
         # replace copied source nodes in the temporary 'graph' with our loaded originals
         #  (this ensure that we have all the descendants for source nodes loaded)
@@ -591,7 +592,6 @@ class HostService(GraphServiceBase, HostBase):
                 graph.update(original_node)
 
         # run plugins
-        new_edits: list[EditData] = []
         commit = unpack_commit(
             session=session,
             graph=graph,
@@ -602,11 +602,7 @@ class HostService(GraphServiceBase, HostBase):
         )
         for plugin in self._plugins:
             if plugin.watch_types is None or commit.edited_types & plugin.watch_types:
-                plugin_new_edits = await plugin.on_commit_prepare(session, commit)
-                if plugin_new_edits:
-                    new_edits.extend(plugin_new_edits)
-
-        return new_edits
+                await plugin.on_commit_prepare(session, commit)
 
     @override
     @tracer.start_as_current_span("host.on_commit")
@@ -617,9 +613,8 @@ class HostService(GraphServiceBase, HostBase):
         data_graph: NodeDataGraph,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
-        new_edits: Sequence[EditData],
     ):
-        await super().on_commit(session, graph, data_graph, edits, cascaded_edits, new_edits)
+        await super().on_commit(session, graph, data_graph, edits, cascaded_edits)
 
         assert self._session is not None, f"session not ready in {self!r}"
         assert self._bench is not None, f"bench not loaded in {self!r}"
@@ -627,7 +622,6 @@ class HostService(GraphServiceBase, HostBase):
 
         # apply edits to loaded data graphs (see on_commit_prepare above for optimistic counterpart)
         self._update_loaded_graphs(edits=edits, cascaded_edits=cascaded_edits, scope="data")
-        self._update_loaded_graphs(edits=new_edits, cascaded_edits=(), scope="both")
 
         # run plugins on commit (in main session)
         async with self._session.active():

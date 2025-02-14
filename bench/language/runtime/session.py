@@ -110,14 +110,13 @@ class _CommitEvent:
 
 CommitPrepareHook = Callable[
     ["Session", NodeGraph, NodeDataGraph, Sequence["EditData"], Sequence["EditData"]],
-    Awaitable[Sequence[EditData]],
+    Awaitable[None],
 ]
 CommitHook = Callable[
     [
         "Session",
         NodeGraph,
         NodeDataGraph,
-        Sequence["EditData"],
         Sequence["EditData"],
         Sequence["EditData"],
     ],
@@ -129,8 +128,7 @@ CommitFailedHook = Callable[["Session", BaseException], Awaitable[None]]
 @timed_node_(NodeType.SESSION)
 class Session(RuntimeNode[SessionData]):
     """
-    A managed Session for interacting with and running a Bench in a Client.
-    Once closed, a Session (like a Run) is effectively immutable.
+    A managed Session for interacting with and running a Bench.
     """
 
     parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH, is_system=True)
@@ -739,6 +737,14 @@ class Session(RuntimeNode[SessionData]):
     async def _do_commit(
         self, *, data_graph: NodeDataGraph | None = None
     ) -> tuple[list[EditData], list[EditData]]:
+        """Attempt to commit pending edits."""
+
+        # TODO :Architecture :Cleanup: revamp Session handling across internal, system and remote
+        #  It feels quite clumsy and mixes concerns (why are we talking about DatabasePlugin here?);
+        #   and in general, we should probably pull apart system and runtime Sessions somehow
+        #  Maybe Session should remain a Node (that we track for real), but the Session logic
+        #   could go elsewhere, or we move it into Transaction, or something else.
+
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
 
@@ -750,24 +756,18 @@ class Session(RuntimeNode[SessionData]):
                 assert self._tx is not None, f"no active transaction in {self!r}"
                 # prepare commit
                 if self._on_commit_prepare is not None:
-                    # NOTE :Architecture: we exclude state nodes from preflush before commit prepare
+                    # NOTE :Architecture: we exclude Records from preflush in commit prepare
                     #  because our DatabasePlugin needs to update schemas before touching any Records.
-                    self._preflush(exclude=(NodeType.RECORD,))
+                    excluded_node_types = (NodeType.RECORD,)
+                    self._preflush(exclude=excluded_node_types)
                     edits, cascaded_edits = await self._tx.flush(
-                        filter=lambda e: not NodeType(e.node_ptr.node_type).is_state
+                        filter=lambda e: NodeType(e.node_ptr.node_type) not in excluded_node_types
                     )
                     graph = self._make_pending_graph()
                     pending_graphs.append(graph)
                     if data_graph is None:
                         data_graph = self._make_pending_data_graph()
-                    new_edits: Sequence[EditData] = await self._on_commit_prepare(
-                        self, graph, data_graph, edits, cascaded_edits
-                    )
-                    if new_edits:
-                        self._tx._track_edits(new_edits)
-                        self._tx._add_pending_edits(new_edits)
-                else:
-                    new_edits = []
+                    await self._on_commit_prepare(self, graph, data_graph, edits, cascaded_edits)
 
                 # do commit
                 self._preflush()
@@ -780,7 +780,7 @@ class Session(RuntimeNode[SessionData]):
                 pending_graphs.append(graph)
                 if data_graph is None:
                     data_graph = self._make_pending_data_graph()
-                await self._on_commit(self, graph, data_graph, edits, cascaded_edits, new_edits)
+                await self._on_commit(self, graph, data_graph, edits, cascaded_edits)
                 self._pending_nodes_by_id = {}
 
             log.debug("session.commit")
@@ -820,7 +820,7 @@ class Session(RuntimeNode[SessionData]):
 
     @tracer.start_as_current_span("session.commit.schedule")
     def commit_optimistic(self):
-        """Commit optimistically, while being explicitly *not* async. See commit."""
+        """Commit optimistically without waiting for the next background commit."""
         # schedule a new commit
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
