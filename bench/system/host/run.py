@@ -136,7 +136,7 @@ class RunPlugin(HostPlugin[Run]):
                 kind=ErrorKind.RUNTIME,
                 type=ErrorType.RUNTIME_UNAVAILABLE,
                 title="Failed to queue run",
-                text=Text.from_markdown("Could not reach any applicable Machine."),
+                text=Text.from_markdown("Could not reach any available Machine."),
             )
             async with self.host.session(commit=True):  # :StaleNodes
                 run.status = RunStatus.ABORTED if run.started_at else RunStatus.CANCELLED

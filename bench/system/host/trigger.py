@@ -2,9 +2,8 @@ from typing import Sequence, override
 
 from bench.language import Message, NodeType, Session, Trigger, bittuple
 from bench.proto import EditData
-from bench.system.host.core import Commit
 
-from .core import HostPlugin
+from .core import Commit, HostPlugin
 
 
 class ScheduleTriggerPlugin(HostPlugin[Trigger]):
