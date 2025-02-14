@@ -18,6 +18,7 @@ const props = defineProps<
     placeholder?: string;
     suppressEnter?: boolean;
     suppressDrop?: boolean;
+    isSmall?: boolean;
   } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "isInput" | "isMinimal">>
 >();
 const emit = defineEmits<ViewEmits>();
@@ -60,11 +61,12 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
 <template>
   <div
     ref="textRef"
-    class="pm-text compact relative rounded hover:cursor-text"
+    class="pm-text pm-compact relative rounded hover:cursor-text"
     :class="[
       !isMinimal
         ? 'border border-gray-200 px-2 py-0.5 focus-within:border-gray-400 not-focus-within:hover:border-gray-200'
-        : 'stealth',
+        : '',
+      isSmall ? 'pm-small' : '',
     ]"
     data-suppress-actions="space.move.left,space.move.right,space.history.undo,space.history.redo"
     data-suppress-drag="both"

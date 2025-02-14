@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     from bench.language import (
         Action,
         Channel,
-        Class,
         Interruption,
         Message,
         Node,
@@ -123,13 +122,6 @@ class MessageTrigger(Trigger):
     )
     thread: Optional["Thread"] = p_regular(
         101, require=False, array=False, references=NodeType.THREAD
-    )
-    clazz: Optional["Class"] = p_regular(
-        102,
-        require=False,
-        array=False,
-        references=NodeType.CLASS,
-        description="The Message type.",
     )
     reply_to: Optional["Message"] = p_regular(
         103,

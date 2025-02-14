@@ -736,8 +736,8 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
                 ref="inputRef"
                 is-input
                 is-minimal
-                suppress-enter
                 placeholder="Message..."
+                suppress-enter
                 suppress-drop
                 :model-value="draftText"
                 @update:model-value="

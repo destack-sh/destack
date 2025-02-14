@@ -157,6 +157,9 @@ mark {
   @apply text-gray-900;
   line-height: 1.65;
 }
+.pm-text.pm-small {
+  @apply text-sm;
+}
 .pm-text strong {
   @apply font-semibold;
 }
@@ -167,9 +170,13 @@ mark {
 .pm-text .line-block.page {
   @apply relative px-0.5 py-[3px] text-base transition-colors duration-150;
 }
-.pm-text.compact .line,
-.pm-text.compact .line-block.page {
+.pm-text.pm-compact .line,
+.pm-text.pm-compact .line-block.page {
   @apply py-[2px];
+}
+.pm-text.pm-small .line,
+.pm-text.pm-small .line-block.page {
+  @apply text-sm;
 }
 .pm-text .line,
 .pm-text .line-block {
@@ -230,7 +237,7 @@ mark {
 .pm-text code.line {
   @apply my-2 block w-full rounded bg-gray-100 px-3 py-2;
 }
-.pm-text.compact code.line {
+.pm-text.pm-compact code.line {
   @apply my-1.5 py-1.5;
 }
 

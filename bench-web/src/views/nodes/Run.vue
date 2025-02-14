@@ -18,9 +18,7 @@ import { ModelValueOptions, type ViewEmits, type ViewExpose } from "@/views/comm
 import SomeObject from "@/views/objects/Object.vue";
 import { computed, toRef, type Ref } from "vue";
 
-const HEADER_HEIGHT = 32;
 const SECTION_HEADER_HEIGHT = 32;
-const ROW_HEIGHT = 28;
 
 const props = defineProps<
   {

@@ -4,8 +4,6 @@ from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
 
-# NOTE :Test: reorganize 'runtime' simulation tests (and maybe reorganize all tests?)
-
 
 @simulated_runtime(runtimes=True)
 async def test_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
@@ -20,7 +18,7 @@ async def test_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     assert run.status == RunStatus.COMPLETED
 
 
-@simulated_runtime()
+@simulated_runtime(runtimes=True)
 async def test_run_flow_from_message(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Run from a Message in a Flow."""
     Flow1 = Flow.new("Flow1")
