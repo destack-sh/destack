@@ -4,7 +4,6 @@ import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/languag
 import { cloneNode, moveNode, useSubnodeProperty } from "@/language/core/node";
 import { newChangeId } from "@/language/runtime/transaction";
 import { createBlock } from "@/language/source/block";
-import { createPage } from "@/language/source/page";
 import {
   BlockType,
   CHILD_NODE_TYPES,
@@ -35,7 +34,7 @@ import { VIEW_DEFAULT_HEADER_HEIGHT, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
-import { type ViewEmits, type FocusAnchor, type ViewExpose } from "@/views/common";
+import { type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { useElementSize } from "@vueuse/core";
@@ -65,11 +64,11 @@ const state = canvas.registerView(self, id);
 const preset = useSubnodeProperty(NodeType.VIEW, ViewType.TREE, toRef(props, "subnodePacked"), "preset");
 const nodeTypes = computed(() => {
   if (preset.value == TreeViewPreset.PAGES) {
-    return [NodeType.PAGE];
+    return INLINE_SOURCE_NODE_TYPES;
   } else if (preset.value == TreeViewPreset.CHANNELS) {
     return [NodeType.CHANNEL];
   } else if (preset.value == TreeViewPreset.OUTLINE) {
-    return [...INLINE_SOURCE_NODE_TYPES];
+    return INLINE_SOURCE_NODE_TYPES;
   } else {
     return [];
   }

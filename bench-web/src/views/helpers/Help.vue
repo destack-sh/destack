@@ -117,7 +117,7 @@ defineExpose<ViewExpose>({ self });
         height: `${BAR_HEADER_HEIGHT}px`,
       }"
     >
-      <!-- Node -->
+      <!-- Node (path) -->
       <NodeReference v-if="scope" :node="scope" :tx="() => inspectionConnection!.tx" size="regular" is-input />
       <span v-else class="text-gray-400">Nothing</span>
       <!-- Run status -->

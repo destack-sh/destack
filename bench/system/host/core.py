@@ -25,11 +25,11 @@ from bench.language import (
     NodeGraph,
     NodeSuperGraph,
     NodeType,
+    Package,
     Session,
+    bittuple,
 )
-from bench.language.core import bittuple
-from bench.proto import EditData, wiring
-from bench.proto.network import Network
+from bench.proto import EditData, Network, wiring
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
 
@@ -206,9 +206,16 @@ def unpack_commit(
 
 
 class HostPlugin[T: Node]:
-    """A plugin into the Host operating system of a Bench."""
+    """
+    A plugin into the Host operating system of a Bench.
+    TODO :Architecture :Performance!: revisit HostPlugins for Package/transaction isolation
+     Maybe this could work a bit like in ProseMirror where (some) state is isolated outside
+     of the individual plugins - that would also make it easier to reset on error.
+     We probably also want to load in/out Packages at some point (?)
+     Also consider plugins that affect 'external' state like the DatabasePlugin.
+     Host needs to be more 'multithreaded' in general, see :ConcurrentHost.
+    """
 
-    """The type of nodes to subscribe to for edits."""
     watch_types: ClassVar[bittuple[NodeType] | None] = None
 
     def __init__(self, host: "HostService", bench: "Bench"):
@@ -243,6 +250,10 @@ class HostPlugin[T: Node]:
     @property
     def network(self) -> Network:
         return self.host.network
+
+    @property
+    def main_package(self) -> Package:
+        return self.host.main_package
 
     #
     # Lifecycle
