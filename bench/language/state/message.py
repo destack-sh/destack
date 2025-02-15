@@ -4,7 +4,6 @@ from uuid import UUID
 
 import structlog
 
-from bench.language import Interruption
 from bench.language.core import (
     TITLE_CONSTRAINT,
     BuiltinEnum,
@@ -31,7 +30,16 @@ from bench.language.core import (
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Channel, Class, NodeReference, Package, Thread
+    from bench.language import (
+        Bench,
+        Channel,
+        Class,
+        Interruption,
+        NodeReference,
+        Package,
+        Run,
+        Thread,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,8 +48,8 @@ logger = structlog.get_logger(__name__)
 
 @enum_(EnumType.MESSAGE_TYPE)
 class MessageType(BuiltinEnum):
-    TEXT = 1
-    CLASS = 2
+    TEXT = 1, "Standard Message"
+    THREAD = 2, "Begin a Thread"
     # RUN, INTERRUPTION, ...
     # for inspiration also see https://discord.com/developers/docs/resources/message
 
@@ -92,16 +100,31 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     scope: Union["InlineSourceNode", "Package"] = p_regular(
         35, require=False, references=(NodeType.PAGE, NodeType.PACKAGE)
     )
-    clazz: Optional["Class"] = p_internal(
+    run: Optional["Run"] = p_regular(
         36,
+        require=False,
+        array=False,
+        references=NodeType.RUN,
+        description="The Run this Message is scoped to.",
+    )
+    clazz: Optional["Class"] = p_internal(
+        37,
         require=False,
         array=False,
         references=NodeType.CLASS,
         description="The Message class.",
     )
     if TYPE_CHECKING:
+        channel_id: Optional[UUID] = None
+        channel_ptr: Optional[NodeReference] = None
+        thread_id: Optional[UUID] = None
+        thread_ptr: Optional[NodeReference] = None
         scope_id: Optional[UUID] = None
         scope_ptr: Optional[NodeReference] = None
+        run_id: Optional[UUID] = None
+        run_ptr: Optional[NodeReference] = None
+        clazz_id: Optional[UUID] = None
+        clazz_ptr: Optional[NodeReference] = None
 
     # status
     status: MessageStatus = p_internal(40, default=MessageStatus.SENT)
@@ -137,6 +160,13 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         same_bench=True,
         description="The Thread that was created from this Message.",
     )
+    if TYPE_CHECKING:
+        reply_to_id: Optional[UUID] = None
+        reply_to_ptr: Optional[NodeReference] = None
+        forwarded_from_id: Optional[UUID] = None
+        forwarded_from_ptr: Optional[NodeReference] = None
+        spawned_thread_id: Optional[UUID] = None
+        spawned_thread_ptr: Optional[NodeReference] = None
     # roles, identities, users, teams, ...
 
     # flags

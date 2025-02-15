@@ -236,7 +236,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if type(run) is Run or run == "track":
             # Runner = Run
             if run == "track":
-                page, flow, action, pipe, typ = _get_runnable_containers(node)
+                page, flow, action, pipe, typ = _get_runnable_container(node)
                 tracked_run = Run(
                     parent=parent_run or self.runtime.bench,
                     type=typ,
@@ -565,9 +565,9 @@ RUN_TYPE_BY_NODE_TYPE: dict[NodeType, RunType] = {
 }
 
 
-def _get_runnable_containers(
+def _get_runnable_container(
     node: "RunnableNode",
-) -> tuple[Page | None, Flow | None, Action | None, Pipe | None, RunType]:
+) -> tuple[Page, Flow | None, Action | None, Pipe | None, RunType]:
     """Gets the containing ancestor Page, Flow, Action, Pipe, and RunKind for a RunnableNode."""
     page: Page | None = None
     flow: Flow | None = None
@@ -581,15 +581,18 @@ def _get_runnable_containers(
     elif isinstance(node, Action):
         action = node
         flow = node.flow
-        page = flow.parent if flow is not None else None
+        page = flow.parent if flow is not None else node.page
         typ = RunType.ACTION
     elif isinstance(node, Pipe):
         pipe = node
         flow = node.flow
-        page = flow.parent if flow is not None else None
+        page = flow.parent if flow is not None else node.page
         typ = RunType.PIPE
     else:
         assert_never(node)
+
+    if page is None:
+        raise RuntimeError(f"no page for {node!r}")
 
     return page, flow, action, pipe, typ
 
@@ -611,7 +614,7 @@ def make_run_from_node(
     # context
     if session is None:
         session = active_session()
-    page, flow, action, pipe, typ = _get_runnable_containers(node)
+    page, flow, action, pipe, typ = _get_runnable_container(node)
 
     # graph
     parent = parent or node.bench

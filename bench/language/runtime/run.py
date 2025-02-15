@@ -150,7 +150,7 @@ class RunOptions(Struct):
 @timed_node_(NodeType.RUN, index=((IndexIn(columns=("trigger_id", "trigger_key"))),))
 class Run(RuntimeNode[RunData], HasNodeBase):
     """
-    Run a Block, Action or some lambda (Code) in a Session.
+    Run something somewhere, somehow.
     """
 
     # meta
@@ -162,12 +162,53 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     if TYPE_CHECKING:
         root_ptr: Optional[NodeReference] = None
         root_id: Optional[UUID] = None
-    page: Optional["Page"] = p_internal(32, require=False, array=False, references=NodeType.PAGE)
-    flow: Optional["Flow"] = p_internal(33, require=False, array=False, references=NodeType.FLOW)
-    action: Optional["Action"] = p_internal(
-        34, require=False, array=False, references=NodeType.ACTION
+    # owned_by?
+    incoming: list["Run"] = p_internal(
+        35, require=False, array=True, references=NodeType.RUN, same_bench=True
     )
-    pipe: Optional["Pipe"] = p_internal(35, require=False, array=False, references=NodeType.PIPE)
+    options: "RunOptions" = p_internal(39, require=True, array=False, struct=StructType.RUN_OPTIONS)
+
+    # status
+    status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)
+    attempt: int | None = p_internal(41)
+    duration: Optional[timedelta] = p_internal(
+        42,
+        default=None,
+        description="Duration from first attempt start to last attempt termination.",
+    )
+    scheduled_at: Optional[datetime] = p_system(43, default=None)
+    started_at: Optional[datetime] = p_internal(44, default=None)
+    stopped_at: Optional[datetime] = p_internal(45, default=None)
+    interrupted_at: Optional[datetime] = p_internal(46, default=None)
+    paused_at: Optional[datetime] = p_internal(47, default=None)
+    resumed_at: Optional[datetime] = p_internal(48, default=None)
+    terminated_at: Optional[datetime] = p_internal(49, default=None)
+    error: Optional["Error"] = p_internal(
+        50, default=None, require=False, array=False, struct=StructType.ERROR
+    )
+    interruption: Optional["Interruption"] = p_internal(
+        51, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
+    )
+
+    # flow
+    page: "Page" = p_internal(60, require=True, array=False, references=NodeType.PAGE)
+    flow: Optional["Flow"] = p_internal(
+        61, require=False, array=False, references=NodeType.FLOW, same_bench=True
+    )
+    action: Optional["Action"] = p_internal(
+        62, require=False, array=False, references=NodeType.ACTION, same_bench=True
+    )
+    pipe: Optional["Pipe"] = p_internal(
+        63, require=False, array=False, references=NodeType.PIPE, same_bench=True
+    )
+    plan: Optional["RunPlan"] = p_internal(
+        64, require=False, array=False, references=NodeType.RUN_PLAN, same_bench=True
+    )
+    plan_step: int | None = p_internal(65)
+    trigger: Optional["Trigger"] = p_regular(
+        66, require=False, array=False, references=NodeType.TRIGGER, same_bench=True
+    )
+    trigger_key: Optional[str] = p_internal(67, require=False, default=None)
     if TYPE_CHECKING:
         page_ptr: Optional[NodeReference] = None
         page_id: Optional[UUID] = None
@@ -181,47 +222,9 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         pipe_ptr: Optional[NodeReference] = None
         pipe_id: Optional[UUID] = None
         pipe_ck: Optional[UUID] = None
-    options: "RunOptions" = p_internal(39, require=True, array=False, struct=StructType.RUN_OPTIONS)
-
-    # flow
-    incoming: list["Run"] = p_internal(
-        40, require=False, array=True, references=NodeType.RUN, same_bench=True
-    )
-    plan: Optional["RunPlan"] = p_internal(
-        41, require=False, array=False, references=NodeType.RUN_PLAN, same_bench=True
-    )
-    plan_step: int | None = p_internal(42)
-    trigger: Optional["Trigger"] = p_regular(
-        43, require=False, array=False, references=NodeType.TRIGGER, same_bench=True
-    )
-    if TYPE_CHECKING:
         incoming_ptr: tuple["NodeReference", ...] = ()
         trigger_ptr: Optional[NodeReference] = None
         trigger_id: Optional[UUID] = None
-    trigger_key: Optional[str] = p_internal(44, require=False, default=None)
-
-    # status
-    status: RunStatus = p_internal(50, default=RunStatus.SCHEDULED)
-    attempt: int | None = p_internal(51)
-    duration: Optional[timedelta] = p_internal(
-        52,
-        default=None,
-        description="Duration from first attempt start to last attempt termination.",
-    )
-    # cached_duration, active_duration, ...?
-    scheduled_at: Optional[datetime] = p_system(55, default=None)
-    started_at: Optional[datetime] = p_internal(56, default=None)
-    stopped_at: Optional[datetime] = p_internal(57, default=None)
-    interrupted_at: Optional[datetime] = p_internal(58, default=None)
-    paused_at: Optional[datetime] = p_internal(59, default=None)
-    resumed_at: Optional[datetime] = p_internal(60, default=None)
-    terminated_at: Optional[datetime] = p_internal(61, default=None)
-    error: Optional["Error"] = p_internal(
-        62, default=None, require=False, array=False, struct=StructType.ERROR
-    )
-    interruption: Optional["Interruption"] = p_internal(
-        63, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
-    )
 
     # content
     variables_packed: Any = p_value_packed(70)
@@ -239,6 +242,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     title: str | None = p_regular(74, default=None)
     text: Optional["Text"] = p_regular(75, default=None, struct=StructType.TEXT)
     code: Optional["Code"] = p_regular(76, default=None, struct=StructType.CODE)
+
     # ...HasContext[90-99]
 
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)

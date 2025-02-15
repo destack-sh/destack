@@ -51,9 +51,9 @@ from bench.language import (
     is_node_type,
     is_value,
     isolated_graph,
-    link_nodes,
     on_invalid_raise,
     run_span,
+    synchronize_nodes,
     to_type_scalar,
 )
 from bench.language.core.const import ReferenceKind, TypeKind
@@ -296,7 +296,7 @@ class Runtime:
         try:
             # subscribe
             stale_nodes = [node for node in nodes if not node._is_live]
-            links = await link_nodes(stale_nodes)
+            links = await synchronize_nodes(stale_nodes)
             for link in links:
                 subs.append(link.on_update(_check))
             for node in nodes:
@@ -362,7 +362,7 @@ class Runtime:
         resources: Sequence[Resource | Type | TypeIn],
     ) -> list[Resource]:
         """Get or create the available Resources for the given Runner."""
-        # TODO :Incomplete: reuse resources across (unrelated) Runs?
+        # TODO :Incomplete: reuse resources across (unrelated) Runs? :ExclusiveOwnership
         resource_types = [to_type_scalar(t) for t in resources if not isinstance(t, Resource)]
         resources_to_acquire: list[Resource] = [r for r in resources if isinstance(r, Resource)]
         for resource_type in resource_types:
@@ -475,7 +475,7 @@ class Runtime:
          (should we only load top level references? Text mentions? expand Messages into Threads?
            entire Run trees? this seems related to the context/projection stuff in model instruct)
         NOTE :Robustness: isn't there a race condition in checking & loading Nodes across Runners?
-         (and what if a Node only exists temporarily, loaded by a different concurrent Run?)
+         (and what if a Node is loaded only because it's loaded by a different concurrent Run?)
         """
 
         # gather inputs, variables & outputs
@@ -519,7 +519,7 @@ class Runtime:
             return
 
         # load missing nodes
-        missing_links = await link_nodes(missing_nodes_ptr)
+        missing_links = await synchronize_nodes(missing_nodes_ptr)
         logger.debug("runtime.load_run.missing", nodes=missing_nodes_ptr, links=missing_links)
 
     @tracer.start_as_current_span("runtime.prepare")

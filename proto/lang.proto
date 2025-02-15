@@ -1934,7 +1934,7 @@ enum ThreadStatus {
 enum MessageType {
   MESSAGE_TYPE_UNSPECIFIED = 0;
   MESSAGE_TYPE_TEXT = 1;
-  MESSAGE_TYPE_CLASS = 2;
+  MESSAGE_TYPE_THREAD = 2;
 }
 
 enum MessageStatus {
@@ -3086,28 +3086,28 @@ message RunData {
   optional google.protobuf.Value subnode_packed = 29;
   RunType type = 30;
   optional NodeReferenceData root_ptr = 31;
-  optional NodeReferenceData page_ptr = 32;
-  optional NodeReferenceData flow_ptr = 33;
-  optional NodeReferenceData action_ptr = 34;
-  optional NodeReferenceData pipe_ptr = 35;
+  repeated NodeReferenceData incoming_ptr = 35;
   RunOptionsData options = 39;
-  repeated NodeReferenceData incoming_ptr = 40;
-  optional NodeReferenceData plan_ptr = 41;
-  optional int32 plan_step = 42;
-  optional NodeReferenceData trigger_ptr = 43;
-  optional string trigger_key = 44;
-  RunStatus status = 50;
-  optional int32 attempt = 51;
-  optional google.protobuf.Duration duration = 52;
-  optional google.protobuf.Timestamp scheduled_at = 55;
-  optional google.protobuf.Timestamp started_at = 56;
-  optional google.protobuf.Timestamp stopped_at = 57;
-  optional google.protobuf.Timestamp interrupted_at = 58;
-  optional google.protobuf.Timestamp paused_at = 59;
-  optional google.protobuf.Timestamp resumed_at = 60;
-  optional google.protobuf.Timestamp terminated_at = 61;
-  optional ErrorData error = 62;
-  optional NodeReferenceData interruption_ptr = 63;
+  RunStatus status = 40;
+  optional int32 attempt = 41;
+  optional google.protobuf.Duration duration = 42;
+  optional google.protobuf.Timestamp scheduled_at = 43;
+  optional google.protobuf.Timestamp started_at = 44;
+  optional google.protobuf.Timestamp stopped_at = 45;
+  optional google.protobuf.Timestamp interrupted_at = 46;
+  optional google.protobuf.Timestamp paused_at = 47;
+  optional google.protobuf.Timestamp resumed_at = 48;
+  optional google.protobuf.Timestamp terminated_at = 49;
+  optional ErrorData error = 50;
+  optional NodeReferenceData interruption_ptr = 51;
+  NodeReferenceData page_ptr = 60;
+  optional NodeReferenceData flow_ptr = 61;
+  optional NodeReferenceData action_ptr = 62;
+  optional NodeReferenceData pipe_ptr = 63;
+  optional NodeReferenceData plan_ptr = 64;
+  optional int32 plan_step = 65;
+  optional NodeReferenceData trigger_ptr = 66;
+  optional string trigger_key = 67;
   optional google.protobuf.Value variables_packed = 70;
   optional google.protobuf.Value inputs_packed = 71;
   optional google.protobuf.Value outputs_packed = 72;
@@ -3930,18 +3930,17 @@ message TriggerData {
   optional google.protobuf.Timestamp closed_at = 45;
 }
 
-// A Trigger is an event-driven condition that affects the runtime.
+// A Trigger is an event-driven condition that, once met, affects the runtime.
 // Depending on its type and scope, it causes some effect (like starting a Run or interrupting a Task).
 message ScheduleTriggerData {
   optional ScheduleData schedule = 100;
 }
 
-// A Trigger is an event-driven condition that affects the runtime.
+// A Trigger is an event-driven condition that, once met, affects the runtime.
 // Depending on its type and scope, it causes some effect (like starting a Run or interrupting a Task).
 message MessageTriggerData {
   optional NodeReferenceData channel_ptr = 100;
   optional NodeReferenceData thread_ptr = 101;
-  optional NodeReferenceData reply_to_ptr = 103;
 }
 
 message MessageData {
@@ -3960,7 +3959,8 @@ message MessageData {
   optional NodeReferenceData channel_ptr = 32;
   optional NodeReferenceData thread_ptr = 33;
   optional NodeReferenceData scope_ptr = 35;
-  optional NodeReferenceData clazz_ptr = 36;
+  optional NodeReferenceData run_ptr = 36;
+  optional NodeReferenceData clazz_ptr = 37;
   MessageStatus status = 40;
   optional google.protobuf.Timestamp failed_at = 42;
   optional google.protobuf.Timestamp sent_at = 43;
