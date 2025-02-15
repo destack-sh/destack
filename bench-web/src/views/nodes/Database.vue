@@ -593,6 +593,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
       :is-root="isRoot"
       :is-inline="isInline"
       :is-minimal="isMinimal"
+      is-compact
       :focus="props.focus"
       :width="rowWidth"
       @navigate="(direction: NavigationDirection) => navigateFromHeader(direction)"
