@@ -713,14 +713,17 @@ class SendAction(Action):
     is_blocking: bool | None = p_regular(
         130, default=False, field_type=FieldType.INPUT, description="Whether to wait for a reply."
     )
-    message: Optional["Message"] = p_regular(
+    message_out: Optional["Message"] = p_regular(
         200, require=False, array=False, references=NodeType.MESSAGE, field_type=FieldType.OUTPUT
     )
 
 
 @subnode_(ActionType.RECEIVE)
 class ReceiveAction(Action):
-    message: Optional["Message"] = p_regular(
+    message_in: Optional["Message"] = p_regular(
+        100, require=False, array=False, references=NodeType.MESSAGE, field_type=FieldType.INPUT
+    )
+    message_out: Optional["Message"] = p_regular(
         200, require=False, array=False, references=NodeType.MESSAGE, field_type=FieldType.OUTPUT
     )
 

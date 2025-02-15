@@ -25,7 +25,7 @@ from bench.language import (
     isolated_graph,
 )
 from bench.proto import RunRequest, RuntimeClient
-from bench.system.host.core import Commit, HostPlugin
+from bench.system.host import Commit, HostPlugin
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
 
 if TYPE_CHECKING:
@@ -36,7 +36,7 @@ tracer = trace.get_tracer(__name__)
 
 
 @dataclass(slots=True)
-class _RunHandle:
+class RunHandle:
     run: Run
     retry: RetryState
     retry_at: datetime | None = None
@@ -56,7 +56,7 @@ class RunPlugin(HostPlugin[Run]):
     def __init__(self, host: "HostService", bench: Bench, retry: RetryOptions = RETRY_GRPC):
         super().__init__(host, bench)
         self._retry = retry
-        self._run_queue: asyncio.Queue[_RunHandle] = asyncio.Queue()
+        self._run_queue: asyncio.Queue[RunHandle] = asyncio.Queue()
 
     def __str__(self):
         return f"queue={self._run_queue.qsize()}"
@@ -67,10 +67,10 @@ class RunPlugin(HostPlugin[Run]):
         #  (like Runs 'stuck' on dead or since restarted Machines)
         self.tasks.start_queue(self._run_queue, self._process_run, skip_errors=True)
 
-    def _queue_run(self, run: Run) -> _RunHandle:
+    def _queue_run(self, run: Run) -> RunHandle:
         """Queues a Run."""
         # queue new operation
-        pending_op = _RunHandle(run=run, retry=self._retry.new(self.host.oracle))
+        pending_op = RunHandle(run=run, retry=self._retry.new(self.host.oracle))
         self._run_queue.put_nowait(pending_op)
         logger.trace("run_plugin.queue", host=self, run=run)
         return pending_op
@@ -92,7 +92,7 @@ class RunPlugin(HostPlugin[Run]):
 
     @tracer.start_as_current_span("run_plugin.process_run")
     @isolated_graph()
-    async def _process_run(self, op: _RunHandle) -> None:
+    async def _process_run(self, op: RunHandle) -> None:
         """Push Runs to relevant Machines."""
         op.retry.on_attempt()
         run = op.run

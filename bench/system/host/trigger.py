@@ -1,4 +1,4 @@
-from typing import Sequence, cast, override
+from typing import Any, Sequence, cast, override
 from uuid import UUID
 
 from bench.language import (
@@ -61,7 +61,7 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                 del self._active_triggers_by_id[trigger.id]
 
         # collect fired triggers
-        fired_triggers: list[tuple[Run | None, str, Trigger]] = []
+        fired_triggers: list[tuple[Run | None, dict[str, Any], str, Trigger]] = []
         for message in commit.added:
             if not isinstance(message, Message):
                 continue
@@ -69,15 +69,16 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                 if trigger.type == TriggerType.MESSAGE and message_trigger_matches(
                     cast(MessageTrigger, trigger), message
                 ):
-                    fired_triggers.append((message.run, str(message.id), trigger))
+                    inputs = {"message_in": message}
+                    fired_triggers.append((message.run, inputs, str(message.id), trigger))
 
         # fire triggers
-        for _, trigger_key, trigger in fired_triggers:
+        for _, inputs, trigger_key, trigger in fired_triggers:
             target = trigger.parent
             if not isinstance(target, Action):
                 # for :RunRouting we need to scope/route the Run properly
                 raise NotImplementedError(f"trigger {trigger!r} has unsupported target: {target!r}")
-            run = make_run_from_node(target)
+            run = make_run_from_node(target, inputs=inputs)
             run.trigger = trigger
             run.trigger_key = trigger_key
             session._create(run)

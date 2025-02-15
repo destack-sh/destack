@@ -3302,12 +3302,13 @@ message WaitActionData {
 message SendActionData {
   optional google.protobuf.Value message_in_packed = 121;
   optional bool is_blocking = 130;
-  optional NodeReferenceData message_ptr = 200;
+  optional NodeReferenceData message_out_ptr = 200;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ReceiveActionData {
-  optional NodeReferenceData message_ptr = 200;
+  optional NodeReferenceData message_in_ptr = 100;
+  optional NodeReferenceData message_out_ptr = 200;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.

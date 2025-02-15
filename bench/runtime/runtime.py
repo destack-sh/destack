@@ -352,12 +352,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         if self._is_stopping:
             raise grpclib.GRPCError(grpclib.Status.ABORTED, "Runtime is stopping")
 
-        # NOTE :UX: mark run as queued as we queue it for a thread
-        #  (without having a race condition because of optimistic commits on both sides;
-        #   i.e. never commit the 'mark as queued' after it already ran and mess up the status;
-        #   we can probably work this sort of transition into the next auth system)
-
-        # process it (queue and run)
+        # process it
         run_ptr = wiring.unpack_builtin_object_validate(
             request.run_ptr, supergraph=None, expect=NodeReference
         )

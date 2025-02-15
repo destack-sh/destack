@@ -5951,20 +5951,22 @@ class WaitActionData(_message.Message):
     def __init__(self, delay: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class SendActionData(_message.Message):
-    __slots__ = ("message_in_packed", "is_blocking", "message_ptr")
+    __slots__ = ("message_in_packed", "is_blocking", "message_out_ptr")
     MESSAGE_IN_PACKED_FIELD_NUMBER: _ClassVar[int]
     IS_BLOCKING_FIELD_NUMBER: _ClassVar[int]
-    MESSAGE_PTR_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_OUT_PTR_FIELD_NUMBER: _ClassVar[int]
     message_in_packed: _struct_pb2.Value
     is_blocking: bool
-    message_ptr: NodeReferenceData
-    def __init__(self, message_in_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., is_blocking: bool = ..., message_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    message_out_ptr: NodeReferenceData
+    def __init__(self, message_in_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., is_blocking: bool = ..., message_out_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class ReceiveActionData(_message.Message):
-    __slots__ = ("message_ptr",)
-    MESSAGE_PTR_FIELD_NUMBER: _ClassVar[int]
-    message_ptr: NodeReferenceData
-    def __init__(self, message_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    __slots__ = ("message_in_ptr", "message_out_ptr")
+    MESSAGE_IN_PTR_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_OUT_PTR_FIELD_NUMBER: _ClassVar[int]
+    message_in_ptr: NodeReferenceData
+    message_out_ptr: NodeReferenceData
+    def __init__(self, message_in_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., message_out_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class YieldActionData(_message.Message):
     __slots__ = ()

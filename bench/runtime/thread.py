@@ -39,7 +39,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class _RunHandle:
+class RunHandle:
     """A handle for a Run in a RuntimeThread."""
 
     def __init__(
@@ -176,13 +176,14 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             client_access_token=client_access_token,
             machine_id=machine_id,
             mode=mode,
+            on_error=on_error,
         )
         self.id = id
         self._mode = mode
         self._runtime: Runtime | None = None
         self._lock_by_run: dict[UUID, asyncio.Lock] = {}  # locks for each Run
-        self._managed_runs: dict[UUID, _RunHandle] = {}  # Runs this Thread is responsible for
-        self._active_runs: dict[UUID, _RunHandle] = {}  # Runs currently active in this Thread
+        self._managed_runs: dict[UUID, RunHandle] = {}  # Runs this Thread is responsible for
+        self._active_runs: dict[UUID, RunHandle] = {}  # Runs currently active in this Thread
 
     def __str__(self):
         bench_str = repr(self.bench) if self._bench else self._bench_id
@@ -245,7 +246,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                 await run.task
             run.close()
 
-    async def _load_run(self, run_ptr: NodeReference) -> _RunHandle:
+    async def _load_run(self, run_ptr: NodeReference) -> RunHandle:
         """Load the Run for execution."""
         assert run_ptr.id is not None, f"missing id for {run_ptr!r}"
         assert self._session is not None, f"no session for {self!r}"
@@ -271,7 +272,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                     assert run.bench_id == self._bench_id, f"{run!r} is not in {self!r}"
                     assert run.root_ptr is None, f"{run!r} is not a root Run"
                     assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
-                    handle = _RunHandle(run, run._connection, lock, self)
+                    handle = RunHandle(run, run._connection, lock, self)
                     self._managed_runs[run_ptr.id] = handle
                     run._connection.on_update(handle.on_update)
             else:
@@ -279,7 +280,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                 handle = self._managed_runs[run_ptr.id]
         return handle
 
-    async def _do_run(self, handle: _RunHandle) -> None:
+    async def _do_run(self, handle: RunHandle) -> None:
         """Process a Run (once) until termination/interruption."""
         assert self._session is not None, f"no session for {self!r}"
         assert self._runtime is not None, f"no runtime for {self!r}"
