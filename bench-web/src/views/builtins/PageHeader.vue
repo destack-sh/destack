@@ -11,6 +11,7 @@ const props = defineProps<{
   node: InlineSourceNodeData;
   connection: PreparedGetConnection;
   width?: number;
+  isCompact?: boolean;
   isInput?: boolean;
 }>();
 const { graph, connection } = props.connection;
@@ -40,7 +41,8 @@ defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => v
     <!-- ... -->
     <!-- Main header -->
     <div
-      class="group/title mx-auto items-center rounded pb-3 pt-4"
+      class="group/title mx-auto pt-4"
+      :class="isCompact ? 'pb-2' : 'pb-4'"
       :style="{
         width: props.width != null ? props.width + 'px' : undefined,
       }"
@@ -70,7 +72,7 @@ defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => v
       <NodeReference
         ref="nameRef"
         class="px-0.5"
-        :orientation="Orientation.VERTICAL"
+        :orientation="isCompact ? Orientation.HORIZONTAL : Orientation.VERTICAL"
         :hide-icon="node.icon == null"
         size="title"
         :node="node"
@@ -78,8 +80,16 @@ defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => v
         :tx="() => connection.tx"
         @navigate="(direction) => emits('navigate', direction)"
       />
-      <!-- Header "footer" -->
-      <slot name="footer" />
+    </div>
+    <!-- Header "footer" -->
+    <div
+      v-if="$slots.body != null"
+      class="mx-auto py-1"
+      :style="{
+        width: props.width != null ? props.width + 'px' : undefined,
+      }"
+    >
+      <slot name="body" />
     </div>
   </div>
 </template>

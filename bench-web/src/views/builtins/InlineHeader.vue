@@ -16,6 +16,7 @@ const props = defineProps<{
   isRoot?: boolean;
   isInline?: boolean;
   isMinimal?: boolean;
+  isCompact?: boolean;
   focus?: SelectionData | undefined;
   width?: number;
 }>();
@@ -59,13 +60,14 @@ defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => v
         :width="width"
         :node="node"
         :connection="preparedConnection"
+        :is-compact="isCompact"
         is-input
         @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
       >
         <template #meta>
           <slot name="meta" :style="style" />
         </template>
-        <template #footer>
+        <template #body>
           <div class="flex flex-row flex-wrap">
             <div class="flex flex-row items-center gap-x-2">
               <slot name="left" :style="style" />

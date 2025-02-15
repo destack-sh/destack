@@ -107,7 +107,7 @@ defineExpose({
   <div
     v-if="node != null"
     class=""
-    :class="[orientation == Orientation.VERTICAL ? ['flex flex-col', verticalClass] : ['flex flex-row items-center']]"
+    :class="[orientation == Orientation.VERTICAL ? ['flex flex-col', verticalClass] : ['flex flex-row items-baseline']]"
     :data-node-id="node.id"
     :data-node-ck="(node as any).ck"
     :data-node-type="node.metatype"
@@ -147,36 +147,38 @@ defineExpose({
       aria-hidden
     />
     <!-- Identifier -->
-    <NativeInput
-      v-if="isInput"
-      id="identifier"
-      ref="identifierRef"
-      class="flex-shrink-0 rounded text-gray-900"
-      :style="{ maxWidth: `${identifierWidthMax}px` }"
-      :class="identifierClass"
-      :placeholder="nodeTypeName"
-      is-input
-      :value-type="identifierKind == 'name' ? NAME_TYPE : TITLE_TYPE"
-      is-minimal
-      :model-value="identifier"
-      @update:model-value="
-        (newValue) => getTx().update(node!, { [identifierKind!]: newValue as string }, { debounce: 'long' })
-      "
-      @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
-    />
-    <span
-      v-else
-      class="truncate"
-      :class="[
-        IS_IN_ALT_MODE ? 'underline decoration-gray-300 underline-offset-3 hover:decoration-gray-400' : '',
-        identifierClass,
-      ]"
-      :style="{ maxWidth: `${identifierWidthMax}px` }"
-    >
-      {{ identifier }}
-    </span>
-    <!-- Metadata -->
-    <NodeMetadata v-if="!isMinimal" :size="size" :node="node" :is-light="isLight" :class="metadataClass" />
+    <div class="flex flex-row items-baseline">
+      <NativeInput
+        v-if="isInput"
+        id="identifier"
+        ref="identifierRef"
+        class="flex-shrink-0 rounded text-gray-900"
+        :style="{ maxWidth: `${identifierWidthMax}px` }"
+        :class="identifierClass"
+        :placeholder="nodeTypeName"
+        is-input
+        :value-type="identifierKind == 'name' ? NAME_TYPE : TITLE_TYPE"
+        is-minimal
+        :model-value="identifier"
+        @update:model-value="
+          (newValue) => getTx().update(node!, { [identifierKind!]: newValue as string }, { debounce: 'long' })
+        "
+        @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+      />
+      <span
+        v-else
+        class="truncate"
+        :class="[
+          IS_IN_ALT_MODE ? 'underline decoration-gray-300 underline-offset-3 hover:decoration-gray-400' : '',
+          identifierClass,
+        ]"
+        :style="{ maxWidth: `${identifierWidthMax}px` }"
+      >
+        {{ identifier }}
+      </span>
+      <!-- Metadata -->
+      <NodeMetadata v-if="!isMinimal" :size="size" :node="node" :is-light="isLight" :class="metadataClass" />
+    </div>
   </div>
   <div
     v-else
