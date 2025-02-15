@@ -54,6 +54,7 @@ from bench.language import (
     UpdateAction,
     ValidationError,
     WaitAction,
+    YieldAction,
     code,
     coerce_custom_object_scalar,
     make_node_from_partial,
@@ -475,7 +476,7 @@ class DeleteActionRunner(StaticActionRunner[DeleteAction]):
 class WaitActionRunner(StaticActionRunner[WaitAction]):
     @override
     async def run_static(self) -> None:
-        # NOTE: obviously WaitStep should be Interruption/Trigger-driven
+        # NOTE :Incomplete: obviously WaitStep should be Interruption/Trigger-driven
         if self.action.delay is not None:
             await asyncio.sleep(self.action.delay.total_seconds())
 
@@ -486,7 +487,7 @@ class ReceiveActionRunner(StaticActionRunner[ReceiveAction]):
         pass  # nothing to do?
 
 
-class YieldActionRunner(StaticActionRunner):
+class YieldActionRunner(StaticActionRunner[YieldAction]):
     @override
     async def run_static(self) -> None:
         interruption = self._trap_interruption(InterruptionType.YIELD)
@@ -525,7 +526,7 @@ class ApplicationActionRunner[A: Action = Action](StaticActionRunner[A]):
 class LookActionRunner(ApplicationActionRunner[LookAction]):
     @override
     async def run_static(self) -> None:
-        # TODO :Performance: obviously LookAction could be a lot more efficient
+        # NOTE :Performance: obviously LookAction could be a lot more efficient
         #  (defer uploads, ensure extension script is preloaded, ...)
         browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)

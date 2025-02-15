@@ -100,7 +100,7 @@ class NodeLink:
             await self._connection.wait_closed()
 
 
-async def link_nodes(nodes: Sequence[Node | NodeReference]) -> Sequence[NodeLink]:
+async def synchronize_nodes(nodes: Sequence[Node | NodeReference]) -> Sequence[NodeLink]:
     """Link given Nodes to live Connections."""
     if not nodes:
         return []

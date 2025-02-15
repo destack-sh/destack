@@ -6,7 +6,7 @@ from bench.test.unit.conftest import simulated_runtime
 
 
 @simulated_runtime(runtimes=True)
-async def test_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
+async def test_run_watch(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Run and wait for it to execute in another Runtime."""
     Page1 = runtime.page()
     Flow1 = Flow.new("Flow1")

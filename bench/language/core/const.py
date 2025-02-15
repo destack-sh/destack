@@ -44,7 +44,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.14.2"
+VERSION = "2025.02.15.1"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -476,9 +476,11 @@ class NodeType(BuiltinEnum):
     # compute
     SCALER = 1000
     STORE = 1001  # real database
+    # CACHE?
     MACHINE = 1100
     BROWSER = 1110
     # MODEL, ...
+    # data?
     FILE = 1200
     STREAM = 1210
     SECRET = 1220
@@ -487,12 +489,13 @@ class NodeType(BuiltinEnum):
     # BALANCE, BUDGET, TRANSFER, GRANT, INVOICE, ...
 
     # web
-    # ACCOUNT, APPLICATION, DOMAIN, EMAIL, PHONE, ...
+    # ACCOUNT, APPLICATION, DOMAIN, EMAIL, ...
 
-    # code?
-    # REPOSITORY, ...?
+    # world?
+    # PHONE, ADDRESS, ...
 
-    # data/integrations?
+    # data/integrations/code?
+    # REPOSITORY: REST/GraphQl/SQL/... schema & API, ...?
     # ...
 
     #

@@ -25,7 +25,6 @@ if TYPE_CHECKING:
         Action,
         Channel,
         Interruption,
-        Message,
         Node,
         Package,
         Page,
@@ -49,6 +48,10 @@ class TriggerStatus(BuiltinEnum):
     OPEN = 10
     CLOSED = 20
 
+    @property
+    def is_open(self) -> bool:
+        return self.id >= 10 and self.id < 20
+
 
 @enum_(EnumType.TRIGGER_EFFECT)
 class TriggerEffect(BuiltinEnum):
@@ -63,7 +66,7 @@ class TriggerEffect(BuiltinEnum):
 @node_(NodeType.TRIGGER, has_subtypes=True)
 class Trigger(SourceNode[TriggerData]):
     """
-    A Trigger is an event-driven condition that affects the runtime.
+    A Trigger is an event-driven condition that, once met, affects the runtime.
     Depending on its type and scope, it causes some effect (like starting a Run or interrupting a Task).
     """
 
@@ -104,6 +107,10 @@ class Trigger(SourceNode[TriggerData]):
     @property
     def container(self) -> "Node | None":
         return self.scope
+
+    @property
+    def is_open(self) -> bool:
+        return self.status.is_open
 
     @staticmethod
     def on_schedule(
@@ -150,11 +157,4 @@ class MessageTrigger(Trigger):
     )
     thread: Optional["Thread"] = p_regular(
         101, require=False, array=False, references=NodeType.THREAD
-    )
-    reply_to: Optional["Message"] = p_regular(
-        103,
-        require=False,
-        array=False,
-        references=NodeType.MESSAGE,
-        description="The Message this Trigger is replying to.",
     )

@@ -44,7 +44,12 @@ class _RunHandle:
 
 
 class RunPlugin(HostPlugin[Run]):
-    """Process Runs in appropriate Runtimes."""
+    """
+    Process Runs in appropriate Runtimes.
+    NOTE :Architecture: turn push-based Run->Runtime into pull from Runtime?
+     (Would need a way to take exclusive ownership of a Run.. this feels related to
+      general taking exclusive ownership of Resources? :ExclusiveOwnership)
+    """
 
     watch_types = bittuple(NodeType.RUN)
 
@@ -95,6 +100,7 @@ class RunPlugin(HostPlugin[Run]):
 
         # select machines to process run on
         # NOTE :Performance: maybe not re-load available Machines in RunPlugin every time?
+        #  also consider :RunRouting for existing Runs (and for runtime Triggers)
         available_machines = (
             await Machine.where(
                 Machine.get_property("parent").eq(self.bench)

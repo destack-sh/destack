@@ -97,8 +97,15 @@ EDIT_SUBJECT_TYPES = (
     NodeType.RUN,
 )
 
-Owner = Union["User", "Organization", "Flow", "Action", "Run"]
-OWNER_TYPES = (NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.RUN)
+Owner = Union["User", "Organization", "Flow", "Action", "Run", "Machine"]
+OWNER_TYPES = (
+    NodeType.USER,
+    NodeType.ORGANIZATION,
+    NodeType.FLOW,
+    NodeType.ACTION,
+    NodeType.RUN,
+    NodeType.MACHINE,
+)
 
 
 class _SetupStage(IntEnum):

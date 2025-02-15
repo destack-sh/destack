@@ -37,7 +37,7 @@ from .engine import (
     WritableConnector,
     scope_includes,
 )
-from .link import NodeLink, link_nodes
+from .link import NodeLink, synchronize_nodes
 from .memory import MemoryConnector, MemoryEngine, MemoryGetConnection
 from .remote import (
     RemoteAggregateConnection,
@@ -99,7 +99,7 @@ __all__ = [
     "WritableConnector",
     "capture",
     "isolated_graph",
-    "link_nodes",
     "scope_includes",
+    "synchronize_nodes",
     "uncapture",
 ]
