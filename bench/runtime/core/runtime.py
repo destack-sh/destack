@@ -467,10 +467,10 @@ class Runtime:
                 if started_at is not None:
                     span.duration = terminated_at - started_at
 
-    @tracer.start_as_current_span("runtime.load")
-    async def _load_run(self, runner: Runner):
+    @tracer.start_as_current_span("runtime.prefetch_context")
+    async def _prefetch_context(self, runner: Runner):
         """
-        Load remote Nodes required for the given Runner.
+        Load remote Nodes that are (probably) required for the given Runner.
         NOTE :Architecture: unclear which remote Nodes to load for Runs and how
          (should we only load top level references? Text mentions? expand Messages into Threads?
            entire Run trees? this seems related to the context/projection stuff in model instruct)
@@ -742,7 +742,7 @@ class Runtime:
                 if runner.tracked_span is not None:
                     await self._run_span(runner)
                 elif runner.tracked_run is not None:
-                    await self._load_run(runner)
+                    await self._prefetch_context(runner)
                     if runner.status < RunStatus.RUNNING:
                         await self._prepare_run(runner)
                     await self._run_run(runner)
