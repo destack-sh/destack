@@ -33,6 +33,7 @@ import {
   StateNodeData,
   StaticResourceNodeData,
   StructType,
+  TextLineType,
   TypeBaseNodeData,
   TypeFormat,
   ViewDataInfo,
@@ -474,6 +475,12 @@ export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> 
     [BlockType.HEADING_2]: "Heading 2",
     [BlockType.HEADING_3]: "Heading 3",
     [BlockType.HEADING_4]: "Heading 4",
+  },
+  [EnumType.TEXT_LINE_TYPE]: {
+    [TextLineType.HEADING_1]: "Heading 1",
+    [TextLineType.HEADING_2]: "Heading 2",
+    [TextLineType.HEADING_3]: "Heading 3",
+    [TextLineType.HEADING_4]: "Heading 4",
   },
   [EnumType.TYPE_FORMAT]: {
     [TypeFormat.URL]: "URL",
