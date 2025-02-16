@@ -242,7 +242,7 @@ useFloating({
 defineExpose<Partial<ViewExpose>>({ focus });
 </script>
 <template>
-  <div class="relative inline rounded bg-gray-100 px-0.5 py-0.5" @focusout="$nextTick(closeSelf)">
+  <div class="relative inline rounded bg-gray-100 px-0.5 py-1.5" @focusout="$nextTick(closeSelf)">
     <!-- Input container -->
     <div ref="inputContainerRef" class="inline">
       <!-- Type -->
