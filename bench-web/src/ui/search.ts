@@ -49,13 +49,17 @@ import {
 import { benchGraph, pkgGraph } from "@/system/space";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, isActionEnabled, type Action } from "@/ui/action";
 import {
+  AVAILABLE_EMOJI_ICONS,
   AVAILABLE_FA_ICONS,
   DEFAULT_ENUM_ICON,
   DEFAULT_MISSING_ICON,
+  EmojiIcon,
+  emojiIcon,
+  fontAwesomeIcon,
   getNodeIcon,
   getNodeName,
   ICON_BY_TYPE_KIND,
-  type IconMetadata,
+  type FontAwesomeIcon,
 } from "@/ui/icon";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount, useDebounce } from "@vueuse/core";
@@ -96,7 +100,7 @@ export type TypeItem = TypeIdentity & {
   path?: string;
   pathToIndex?: string;
 };
-export type IconItem = IconMetadata & { itemId: string; metatype: "icon"; icon?: IconData; alias?: string };
+export type IconItem = { id: string; title: string; itemId: string; metatype: "icon"; icon: IconData; alias?: string };
 export type SearchItem = (NodeItem | ActionItem | EnumOptionItem | TypeItem | IconItem) & {
   itemId: string; // per index
   title: string;
@@ -221,7 +225,7 @@ export function useIndexSearch<T extends SearchItem>(search: {
         searchStrings.push(candidate.pathToIndex ?? candidate.path);
         searchStringMap.set(searchStrings.length - 1, { candidate, key: "path" });
       }
-      //  alias if exists
+      // alias if exists
       if (candidate.alias) {
         searchStrings.push(candidate.alias);
         searchStringMap.set(searchStrings.length - 1, { candidate, key: "alias" });
@@ -287,7 +291,7 @@ export function useIndexSearch<T extends SearchItem>(search: {
   // refresh candidates on index change
   subs.push(
     watch(
-      () => (search.isEnabled == null || toValue(search.isEnabled)) || toValue(search.indices),
+      () => search.isEnabled == null || [toValue(search.isEnabled), toValue(search.indices)],
       () => {
         updateCandidates();
         updateResults();
@@ -971,20 +975,32 @@ export const TYPE_INDEX = typeIndex({ id: "type", graph: pkgGraph, skipDepth: 2 
 // Icon index
 //
 
-function itemFromIcon(value: IconMetadata): IconItem {
-  return { ...value, metatype: "icon", itemId: `icon-${value.id}`, alias: value.aliases?.join(HIDDEN_SEPARATOR) };
+function itemFromIcon(value: FontAwesomeIcon | EmojiIcon): IconItem {
+  const icon = "faName" in value ? fontAwesomeIcon(value) : emojiIcon(value);
+  return {
+    ...value,
+    metatype: "icon",
+    itemId: `icon-${value.id}`,
+    icon: icon,
+    alias: value.aliases?.join(HIDDEN_SEPARATOR),
+  };
 }
 const AVAILABLE_FA_ICONS_ITEMS: IconItem[] = AVAILABLE_FA_ICONS.map(itemFromIcon);
+const AVAILABLE_EMOJI_ICONS_ITEMS: IconItem[] = AVAILABLE_EMOJI_ICONS.map(itemFromIcon);
+
 /*
  * Search available icons.
  */
-export function iconIndex(id: string = "icon"): SearchIndex<IconItem> {
+export function iconIndex(id: string, items: IconItem[]): SearchIndex<IconItem> {
   const index: SearchIndex<IconItem> = {
     id,
     getItemFromValue: itemFromIcon,
     getValueFromItem: (candiate: IconItem) => candiate,
-    candidates: () => AVAILABLE_FA_ICONS_ITEMS,
+    candidates: () => items,
   };
   return markRaw(index);
 }
-export const ICON_INDEX = iconIndex();
+
+export const FONT_AWESOME_ICON_INDEX = iconIndex("icon-fa", AVAILABLE_FA_ICONS_ITEMS);
+export const EMOJI_ICON_INDEX = iconIndex("icon-emoji", AVAILABLE_EMOJI_ICONS_ITEMS);
+export const ICON_INDEX = iconIndex("icon", [...AVAILABLE_FA_ICONS_ITEMS, ...AVAILABLE_EMOJI_ICONS_ITEMS]);
