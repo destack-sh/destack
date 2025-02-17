@@ -299,7 +299,7 @@ export function getPmSpanType(type: TextSpanType) {
     return PM_SCHEMA.nodes.text;
   } else if (type === TextSpanType.HARD_BREAK) {
     return PM_SCHEMA.nodes.spanHardBreak;
-  } else if (type === TextSpanType.NODE) {
+  } else if (type === TextSpanType.MENTION) {
     return PM_SCHEMA.nodes.spanNode;
   } else if (type === TextSpanType.LINK) {
     return PM_SCHEMA.nodes.spanLink;

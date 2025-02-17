@@ -410,7 +410,7 @@ function mapSpanToPmNode(span: TextSpanData): PmNode {
   } else {
     if (span.type === TextSpanType.HARD_BREAK) {
       node = PM_SCHEMA.node("spanHardBreak", {});
-    } else if (span.type === TextSpanType.NODE) {
+    } else if (span.type === TextSpanType.MENTION) {
       node = PM_SCHEMA.node("spanNode", { type: span.type, nodePtr: span.nodePtr });
     } else if (span.type === TextSpanType.LINK) {
       node = PM_SCHEMA.node("spanLink", { type: span.type, content: span.content, href: span.url });
@@ -439,7 +439,7 @@ function mapPmNodeToSpan(spanNode: PmNode): TextSpanData | null {
   } else if (spanNode.type.name === "text") {
     span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.TEXT, content: spanNode.text };
   } else if (spanNode.type.name === "spanNode") {
-    span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.NODE, nodePtr: spanNode.attrs.nodePtr };
+    span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.MENTION, nodePtr: spanNode.attrs.nodePtr };
   } else if (spanNode.type.name === "spanLink") {
     span = {
       metatype: ObjectType.TEXT_SPAN,

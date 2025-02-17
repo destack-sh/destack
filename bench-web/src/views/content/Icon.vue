@@ -162,7 +162,7 @@ defineExpose<ViewExpose>({ self, id, focus });
     <div ref="headerRef" class="flex w-full flex-col gap-y-0.5 border-b border-gray-200 px-2 py-2">
       <!-- Select -->
       <div class="flex flex-row gap-x-1.5 py-1">
-        <!-- FontAwesome -->
+        <!-- Change Icon type -->
         <button
           v-for="{ type, title } in [
             {
@@ -177,7 +177,7 @@ defineExpose<ViewExpose>({ self, id, focus });
           :key="type"
           class="rounded px-1.5 py-0.5 font-medium transition-colors duration-150 enabled:hover:bg-gray-100"
           :class="[type == iconType ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-700']"
-          @click="iconType = type"
+          @click.stop.prevent="((iconType = type), queryRef?.focus())"
         >
           <span>{{ title }}</span>
         </button>

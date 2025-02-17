@@ -191,12 +191,12 @@ export const AvatarInline: FunctionalComponent<
     }
   }
   let baseClasses = `rounded-full text-center inline-flex items-center justify-center ${sizeClasses}`;
-  if (backgroundColorHex == null) {
-    baseClasses += " bg-gray-100 border border-gray-200";
-  }
 
   if (props.faName) {
     // font awesome
+    if (backgroundColorHex == null) {
+      baseClasses += " bg-gray-400 border border-gray-200";
+    }
     return (
       <div class={baseClasses} style={{ backgroundColor: backgroundColorHex }}>
         <i class={`${props.faName} text-white`} />
@@ -204,6 +204,9 @@ export const AvatarInline: FunctionalComponent<
     );
   } else if (props.emoji) {
     // emoji
+    if (backgroundColorHex == null) {
+      baseClasses += " bg-gray-200 border border-gray-200";
+    }
     return (
       <div class={baseClasses} style={{ backgroundColor: backgroundColorHex }}>
         {props.emoji}

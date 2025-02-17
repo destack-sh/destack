@@ -212,7 +212,7 @@ function apply(item: SearchItem) {
     if (!isNodeRef(nodePtr)) throw new Error("nodePtr is not a node ref");
     const tr = view.state.tr;
     tr.delete(pos, pos + props.node.nodeSize);
-    tr.insert(pos, PM_SCHEMA.node("spanNode", { type: TextSpanType.NODE, nodePtr }));
+    tr.insert(pos, PM_SCHEMA.node("spanNode", { type: TextSpanType.MENTION, nodePtr }));
     tr.insertText(" ", pos + 1, pos + 1);
     view.dispatch(tr);
   }
