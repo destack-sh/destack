@@ -71,7 +71,7 @@ defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => v
       <!-- Title -->
       <NodeReference
         ref="nameRef"
-        class="px-0.5"
+        class="w-full px-0.5"
         :orientation="isCompact ? Orientation.HORIZONTAL : Orientation.VERTICAL"
         :hide-icon="node.icon == null"
         size="title"
@@ -79,6 +79,7 @@ defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => v
         is-input
         :tx="() => connection.tx"
         @navigate="(direction) => emits('navigate', direction)"
+        @click.stop.prevent="nameRef?.focusIdentifier('right')"
       />
     </div>
     <!-- Header "footer" -->
