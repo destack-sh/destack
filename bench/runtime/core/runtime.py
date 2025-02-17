@@ -10,6 +10,7 @@ from opentelemetry import baggage, context, trace
 
 from bench.language import (
     DEFAULT_CHECK_OPTIONS,
+    DEFAULT_WAIT_TIMEOUT,
     NODE_CLASS_BY_TYPE,
     RUN_STATUS_BY_INTERRUPTION_TYPE,
     RUNTIME_NODE_TYPES,
@@ -35,6 +36,7 @@ from bench.language import (
     PathElementType,
     PathError,
     PathOptions,
+    ReferenceKind,
     Resource,
     ResourceStatus,
     Run,
@@ -44,10 +46,12 @@ from bench.language import (
     Session,
     Type,
     TypeIn,
+    TypeKind,
     ValidationError,
     check_value,
     coerce_value,
     evaluate_path,
+    get_custom_object_properties,
     is_node_type,
     is_value,
     isolated_graph,
@@ -56,8 +60,7 @@ from bench.language import (
     synchronize_nodes,
     to_type_scalar,
 )
-from bench.language.core.const import ReferenceKind, TypeKind
-from bench.language.core.value import get_custom_object_properties
+from bench.language.core.const import DEFAULT_RESOURCE_TIMEOUT
 from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
 from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
@@ -80,9 +83,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-DEFAULT_WAIT_TIMEOUT = timedelta(seconds=30)
-DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=30)
 
 
 class Runtime:
@@ -268,7 +268,7 @@ class Runtime:
         self,
         nodes: Sequence[Node],
         condition: Callable[[], bool],
-        timeout: timedelta = DEFAULT_WAIT_TIMEOUT,
+        timeout: timedelta | None = None,
     ):
         """
         Wait for the given nodes to reach a certain state.
@@ -276,6 +276,8 @@ class Runtime:
         """
         if condition():
             return  # already good
+        if timeout is None:
+            timeout = DEFAULT_WAIT_TIMEOUT
 
         # ensure nodes are in global graph
         assert not any(node.is_deleted for node in nodes), f"cannot watch deleted: {nodes!r}"
@@ -339,9 +341,7 @@ class Runtime:
             parent = parent.parent
         return None
 
-    def _create_resource(
-        self, resource_type: Type, title: str | None = None, **kwargs: Any
-    ) -> Resource:
+    def _create_resource(self, resource_type: Type, **kwargs: Any) -> Resource:
         """Create a new Resource of the given type."""
         # get class
         node_type = resource_type.bench_type

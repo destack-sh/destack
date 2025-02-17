@@ -85,7 +85,7 @@ class ServiceBase(abc.ABC):
         on_error: Callable[[BaseException], None] | None = None,
     ):
         self.id = id
-        self.logger = logger
+        self.logger = logger.bind(service=self)
         self.tracer = tracer
         self.network = network
         self.tasks = TaskManager(owner=self, logger=logger, oracle=oracle)

@@ -1,4 +1,4 @@
-from bench.language import Action, ActionType, Flow, Message, PipeType, RunStatus, Trigger
+from bench.language import Action, ActionType, Flow, Message, PipeType, Run, RunStatus, Trigger
 from bench.runtime import create_run_from_node
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
@@ -33,6 +33,4 @@ async def test_run_flow_from_message(simulation: Simulation, runtime: RuntimeLam
     runtime.bench.append(Message1)
     await runtime.commit()
 
-    # nocheckin: await Flow run somehow
-    #  (and it must be the Flow, not the ReceiveAction)
-    # await ...
+    Run1 = await Run.get_run_of(Receive1)

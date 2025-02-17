@@ -56,6 +56,9 @@ EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: dict[Any, Any] = frozendict()
 
+DEFAULT_WAIT_TIMEOUT = timedelta(seconds=30)
+DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=30)
+
 
 def new_struct_id() -> int:
     id = secrets.randbits(31)

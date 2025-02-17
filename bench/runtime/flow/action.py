@@ -487,7 +487,9 @@ class ReceiveActionRunner(StaticActionRunner[ReceiveAction]):
         assert self.output_type is not None, f"no output type for {self!r}"
 
         if (message_in := self.action.message_in) is not None:
-            self.outputs = coerce_custom_object_scalar({"message": message_in}, self.output_type)
+            self.outputs = coerce_custom_object_scalar(
+                {"message_out": message_in}, self.output_type
+            )
         else:
             raise RunImpossibleError("no message received")
 

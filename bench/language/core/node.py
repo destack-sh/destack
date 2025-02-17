@@ -1,7 +1,7 @@
 import abc
 import functools
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import chain
 from typing import (
     TYPE_CHECKING,
@@ -1218,10 +1218,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             self._supergraph.remove_graph(self._graph)
             uncapture(self._graph)
 
-    async def wait_until(self, condition: Callable[[Self], bool]):
+    async def wait_until(self, condition: Callable[[Self], bool], timeout: timedelta | None = None):
         """Wait until the given condition is true."""
         runtime = active_session().runtime
-        await runtime.wait_for(nodes=[self], condition=lambda: condition(self))
+        await runtime.wait_for(nodes=[self], condition=lambda: condition(self), timeout=timeout)
 
     @classmethod
     def get_child_property_or_error(cls, node_type: NodeType) -> Property:
