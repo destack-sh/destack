@@ -261,7 +261,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         self._run_semaphore = asyncio.BoundedSemaphore(max_threads * max_concurrency_per_thread)
         self._threads: list[RuntimeThreadHandle] = []
         self._active_runs: list[RunHandle] = []
-        self._is_stopping = False
+        self._is_stop_requested = False
 
     def __str__(self):
         return f"{self._client_id} on {self._bench_id}"
@@ -297,7 +297,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
 
     def stop(self):
         super().stop()
-        self._is_stopping = True
+        self._is_stop_requested = True
         for thread in self._threads:
             thread.stop()
 
@@ -349,7 +349,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         set_baggage(bench_id=self._bench_id, client_id=self._client_id, run_id=request.run_ptr.id)
 
         # refuse if stopping
-        if self._is_stopping:
+        if self._is_stop_requested:
             raise grpclib.GRPCError(grpclib.Status.ABORTED, "Runtime is stopping")
 
         # process it

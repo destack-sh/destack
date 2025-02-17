@@ -500,9 +500,8 @@ class SearchConnection[ConnectorT: Connector, T: Node](
         update: WatchSearchUpdateData,
         unpack_update: bool,
     ) -> WatchSearchUpdate | None:
+        from bench.language import edit_data_graph, edit_graph
         from bench.proto import wiring
-
-        from ..runtime.transaction import edit_data_graph, edit_graph
 
         # :ConnectionUpdateOrdering
         assert result_data is not None, f"{self!r} does not work without packed result"

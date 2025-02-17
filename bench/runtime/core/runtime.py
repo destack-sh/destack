@@ -131,6 +131,7 @@ class Runtime:
         self._active_runner: ContextVar[Runner | None] = ContextVar("active_runner")
         self._active_runners_by_id: dict[UUID, Runner] = {}
         self._active_root_runners: list[Runner] = []
+        self._is_stop_requested: bool = False
 
     def __str__(self):
         return f"{len(self._active_runners_by_id)} active, {self.session!r}"
@@ -160,7 +161,7 @@ class Runtime:
         """Stop the Runtime."""
         # TODO :Robustness!: handle Runtime stop better? pause existing Runs?
         #  (maybe auto-interrupt all active Runners so we can transfer them to a new Runtime?)
-        pass
+        self._is_stop_requested = True
 
     async def wait_stopped(self):
         """Wait for the Runtime to stop (all active Runs to stop + commit)."""
@@ -171,6 +172,7 @@ class Runtime:
                 *(runner.task for runner in active_runners if runner.task), return_exceptions=True
             )
         await self.session.commit()
+        await self.session.close()
 
     def _evaluate_computed_value(self, runner: Runner, computed_value: ComputedValue):
         """Evaluates the ComputedValue in/to the Run/Runner."""
@@ -834,6 +836,15 @@ class Runtime:
         runner.outer_task = asyncio.create_task(self._wrap_run_runner(runner))
         return runner
 
+    def _try_mark_failed(self, run: Run, kind: ErrorKind, error: BaseException):
+        """Mark a Run as failed (but ignore if we can't, perhaps because the Session is closing)."""
+        try:
+            if run.status != RunStatus.FAILED:
+                run.status = RunStatus.FAILED
+                run.error = Error.from_exception(kind, error)
+        except BaseException as e:
+            logger.error("runtime.mark_failed.error", run=run, exc_info=e)
+
     async def run(
         self,
         run: Run,
@@ -843,6 +854,8 @@ class Runtime:
     ) -> Runner | None:
         """Start or resume a top-level Run in this Runtime until termination/interruption."""
         runner = None
+        if self._is_stop_requested:
+            raise RuntimeError(f"{self!r} was stopped")
         async with isolated_graph(), self.session.active():
             try:
                 runner = restore_runner(runtime=self, run=run)
@@ -852,18 +865,14 @@ class Runtime:
                 pass  # already handled, not a top-level error
             except (BenchError, ValueError, TypeError) as e:
                 # re-raised inner user error
-                if run.status != RunStatus.FAILED:
-                    run.status = RunStatus.FAILED
-                    run.error = Error.from_exception(ErrorKind.RUNTIME, e)
+                self._try_mark_failed(run, ErrorKind.RUNTIME, e)
                 self.session.commit_optimistic()
                 logger.info("runtime.run.error", run=run, exc_info=e, span="current")
                 if not return_error:
                     raise
             except BaseException as e:
                 # some unexpected internal error
-                if run.status != RunStatus.FAILED:
-                    run.status = RunStatus.FAILED
-                    run.error = Error.from_exception(ErrorKind.INTERNAL, e)
+                self._try_mark_failed(run, ErrorKind.INTERNAL, e)
                 self.session.commit_optimistic()
                 logger.error("runtime.run.internal_error", run=run, exc_info=e, span="current")
                 if self.on_error is not None:
@@ -890,6 +899,8 @@ class Runtime:
 
     def resume_run(self, *runs: Run):
         """Resume interrupted Runs. Does *not* mark the Run or close open Interruptions."""
+        if self._is_stop_requested:
+            raise RuntimeError(f"{self!r} was stopped")
         runs_by_parent_id: dict[UUID | None, list[Run]] = group_by(
             runs, key=lambda run: run.parent_id
         )

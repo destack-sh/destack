@@ -363,7 +363,8 @@ class Session(RuntimeNode[SessionData]):
 
     def _on_connection_end(self, connection: Connection):
         """Called when a connection ends."""
-        self._connections.remove(connection)
+        if connection in self._connections:
+            self._connections.remove(connection)
 
     async def open(self, *, _set_in_context: bool = True):
         """Opens the session for regular business. Activates context (by default)."""

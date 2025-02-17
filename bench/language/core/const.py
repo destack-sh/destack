@@ -25,6 +25,7 @@ from more_itertools import first
 from opentelemetry.trace import Tracer
 from opentelemetry.util._decorator import _agnosticcontextmanager
 
+from bench.utils.env import IS_TEST
 from bench.utils.utils import frozendict, get_from_env
 
 if TYPE_CHECKING:
@@ -56,8 +57,12 @@ EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: dict[Any, Any] = frozendict()
 
-DEFAULT_WAIT_TIMEOUT = timedelta(seconds=30)
-DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=30)
+if not IS_TEST:
+    DEFAULT_WAIT_TIMEOUT = timedelta(seconds=30)
+    DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=30)
+else:
+    DEFAULT_WAIT_TIMEOUT = timedelta(seconds=5)
+    DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=5)
 
 
 def new_struct_id() -> int:
