@@ -541,8 +541,6 @@ class SearchConnection[ConnectorT: Connector, T: Node](
 
         # apply
         edit_data_graph(result_data.graph, update.edits, include_deleted=self.query.include_deleted)
-        for node_data in update.added_nodes:
-            result_data.graph.add(node_data)
         if result is not None:
             edit_graph(
                 graph=result.graph,
