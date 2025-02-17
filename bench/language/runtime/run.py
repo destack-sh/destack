@@ -466,7 +466,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         if where is None:
             where = Run.get_property("status").gte(RunStatus.QUEUED)
         elif isinstance(where, Collection):
-            where = Run.get_property("status").in_(where)
+            where = Run.get_property("status").in_(*where)
 
         if isinstance(node, Action):
             base_query = Run.get_property("action").eq(node)
