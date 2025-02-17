@@ -376,12 +376,11 @@ class Simulation:
             self.tasks.close()
             for runtime in self.runtimes_by_name.values():
                 await runtime.close()
-            await self.supervisor.close()
             for host in self.hosts_by_name.values():
                 await host.close()
+            await self.supervisor.close()
             await self.tasks.wait_closed()
             self.terminated_at = REAL_ORACLE.utc()
-
             # raise for any? errors
             if self.errors:
                 if len(self.errors) == 1:

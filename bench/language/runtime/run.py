@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Union, assert_never, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, Sequence, Union, assert_never, cast
 from uuid import UUID
 
 from bench.language.core import (
@@ -456,10 +456,17 @@ class Run(RuntimeNode[RunData], HasNodeBase):
 
     @staticmethod
     async def get_run_of(
-        node: "RunnableNode", where: Optional[Expression] = None, timeout: timedelta | None = None
+        node: "RunnableNode",
+        where: Optional[Expression] | Collection[RunStatus] = None,
+        timeout: timedelta | None = None,
     ) -> "Run":
         """Get the Run of a Node (waiting if necessary)."""
         from bench.language import Action, Flow, Pipe
+
+        if where is None:
+            where = Run.get_property("status").gte(RunStatus.QUEUED)
+        elif isinstance(where, Collection):
+            where = Run.get_property("status").in_(where)
 
         if isinstance(node, Action):
             base_query = Run.get_property("action").eq(node)
@@ -479,6 +486,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
             await connection.wait_closed()
             return connection.result.roots[0]
 
+        # subscribe to only that Run
         await connection.wait_until(lambda: len(connection.result.roots) > 0, timeout=timeout)
         connection.close()
         await connection.wait_closed()

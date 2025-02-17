@@ -26,6 +26,7 @@ from .const import (
     SortMode,
     SortType,
     StructType,
+    TypeKind,
     enum_,
 )
 from .node import Node, NodeReference, TypeBaseNode
@@ -686,6 +687,8 @@ def type_supports_expression(typ: "TypeBase", op: ExpressionType) -> bool:
             or op in ExpressionTypes.EXACT
             or op in ExpressionTypes.SET
         ):
+            return True
+        if typ.kind == TypeKind.ENUM and op in ExpressionTypes.RANGE:
             return True
         if typ.primitive_type is not None:
             if typ.primitive_type.is_numeric and op in ExpressionTypes.RANGE:
