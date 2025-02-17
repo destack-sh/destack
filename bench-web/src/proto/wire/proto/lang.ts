@@ -11489,9 +11489,13 @@ export enum TextSpanType {
      */
     LINK = 11,
     /**
-     * @generated from protobuf enum value: TEXT_SPAN_TYPE_EQUATION = 21;
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_CITATION = 12;
      */
-    EQUATION = 21
+    CITATION = 12,
+    /**
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_EQUATION = 20;
+     */
+    EQUATION = 20
 }
 /**
  * @generated from protobuf enum symbolx.bench.ExpressionKind
@@ -37843,7 +37847,8 @@ export const TextSpanTypeOptionInfo: Partial<Record<TextSpanType, EnumOptionInfo
   [TextSpanType.HARD_BREAK]: { id: 2, name: 'HARD_BREAK', text: 'Hard break' },
   [TextSpanType.MENTION]: { id: 10, name: 'MENTION', text: 'Reference to a Node' },
   [TextSpanType.LINK]: { id: 11, name: 'LINK', text: 'Hyperlink' },
-  [TextSpanType.EQUATION]: { id: 21, name: 'EQUATION', text: 'TeX equation' },
+  [TextSpanType.CITATION]: { id: 12, name: 'CITATION', text: 'Citation' },
+  [TextSpanType.EQUATION]: { id: 20, name: 'EQUATION', text: 'TeX equation' },
 }
 
 export const PathElementTypeOptionInfo: Partial<Record<PathElementType, EnumOptionInfo>> = {

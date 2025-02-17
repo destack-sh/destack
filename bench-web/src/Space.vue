@@ -194,6 +194,22 @@ mark {
   @apply opacity-0;
 }
 
+/** Links */
+.pm-text a {
+  @apply cursor-pointer text-gray-400 underline decoration-gray-300 underline-offset-2 transition-colors duration-150;
+}
+.pm-text a:hover {
+  @apply text-primary-700 decoration-primary-700;
+}
+
+/** Citations */
+.pm-text a.citation {
+  @apply rounded-full bg-gray-100 px-1 py-0.5 no-underline;
+}
+.pm-text a.citation:hover {
+  @apply bg-primary-100 text-primary-700;
+}
+
 /** Selected */
 .pm-text .line.selected,
 .pm-text .line-block.selected {

@@ -119,7 +119,7 @@ export class SpanNodeView extends VueComponentView {
     getPos: () => number | undefined;
   }) {
     const { component, parentComponent, node, view, getPos } = options;
-    if (node.type.name != "spanNode") {
+    if (node.type.name != "spanMention") {
       throw new Error(`node is not 'span': ${node.type.name}`);
     }
     super({

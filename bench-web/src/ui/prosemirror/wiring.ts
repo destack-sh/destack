@@ -403,22 +403,30 @@ export function differenceUpdateLines(view: EditorView, prevLines: LineInterface
 }
 
 /** Convert a span to a PmNode */
-function mapSpanToPmNode(span: TextSpanData): PmNode {
+function mapSpanToPmNode(span: TextSpanData): PmNode | null {
   let node;
   if (span.type === TextSpanType.TEXT || span.type === TextSpanType.UNSPECIFIED) {
     node = PM_SCHEMA.text(span.content ?? "");
-  } else {
-    if (span.type === TextSpanType.HARD_BREAK) {
-      node = PM_SCHEMA.node("spanHardBreak", {});
-    } else if (span.type === TextSpanType.MENTION) {
-      node = PM_SCHEMA.node("spanNode", { type: span.type, nodePtr: span.nodePtr });
-    } else if (span.type === TextSpanType.LINK) {
-      node = PM_SCHEMA.node("spanLink", { type: span.type, content: span.content, href: span.url });
-    } else if (span.type === TextSpanType.EQUATION) {
-      node = PM_SCHEMA.node("spanEquation", { type: span.type, content: span.content });
-    } else {
-      throw new Error(`unexpected span type: ${span.type}`);
+  } else if (span.type === TextSpanType.HARD_BREAK) {
+    node = PM_SCHEMA.node("spanHardBreak", {});
+  } else if (span.type === TextSpanType.MENTION) {
+    node = PM_SCHEMA.node("spanMention", { type: span.type, nodePtr: span.nodePtr });
+  } else if (span.type === TextSpanType.LINK) {
+    const content = span.content ?? span.url;
+    if (content == null || content.length === 0) {
+      return null;
     }
+    node = PM_SCHEMA.node("spanLink", { type: span.type, url: span.url ?? "" }, PM_SCHEMA.text(content));
+  } else if (span.type === TextSpanType.CITATION) {
+    const content = span.content ?? span.url;
+    if (content == null || content.length === 0) {
+      return null;
+    }
+    node = PM_SCHEMA.node("spanCitation", { type: span.type, url: span.url ?? "" }, PM_SCHEMA.text(content));
+  } else if (span.type === TextSpanType.EQUATION) {
+    node = PM_SCHEMA.node("spanEquation", { type: span.type, content: span.content });
+  } else {
+    assertNever(span.type);
   }
 
   // marks
@@ -432,30 +440,37 @@ function mapSpanToPmNode(span: TextSpanData): PmNode {
 }
 
 /** Convert a PmNode to a span */
-function mapPmNodeToSpan(spanNode: PmNode): TextSpanData | null {
+function mapPmNodeToSpan(spanMention: PmNode): TextSpanData | null {
   let span: TextSpanData;
-  if (spanNode.type.name === "spanHardBreak") {
+  if (spanMention.type.name === "spanHardBreak") {
     span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.HARD_BREAK };
-  } else if (spanNode.type.name === "text") {
-    span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.TEXT, content: spanNode.text };
-  } else if (spanNode.type.name === "spanNode") {
-    span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.MENTION, nodePtr: spanNode.attrs.nodePtr };
-  } else if (spanNode.type.name === "spanLink") {
+  } else if (spanMention.type.name === "text") {
+    span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.TEXT, content: spanMention.text };
+  } else if (spanMention.type.name === "spanMention") {
+    span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.MENTION, nodePtr: spanMention.attrs.nodePtr };
+  } else if (spanMention.type.name === "spanLink") {
     span = {
       metatype: ObjectType.TEXT_SPAN,
       type: TextSpanType.LINK,
-      url: spanNode.attrs.href,
-      content: spanNode.text,
+      url: spanMention.attrs.url == null || spanMention.attrs.url.length === 0 ? undefined : spanMention.attrs.url,
+      content: spanMention.textContent,
     };
-  } else if (spanNode.type.name === "spanEquation") {
-    span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.EQUATION, content: spanNode.text };
-  } else if (spanNode.type.name === "spanSpecialInput") {
+  } else if (spanMention.type.name === "spanCitation") {
+    span = {
+      metatype: ObjectType.TEXT_SPAN,
+      type: TextSpanType.CITATION,
+      url: spanMention.attrs.url == null || spanMention.attrs.url.length === 0 ? undefined : spanMention.attrs.url,
+      content: spanMention.textContent,
+    };
+  } else if (spanMention.type.name === "spanEquation") {
+    span = { metatype: ObjectType.TEXT_SPAN, type: TextSpanType.EQUATION, content: spanMention.text };
+  } else if (spanMention.type.name === "spanSpecialInput") {
     return null; // ignore temporary input spans
   } else {
-    throw new Error(`unexpected span node type: ${spanNode.type.name}`);
+    throw new Error(`unexpected span node type: ${spanMention.type.name}`);
   }
 
-  for (const mark of spanNode.marks) {
+  for (const mark of spanMention.marks) {
     if (mark.type.name === "bold") {
       span.isBold = true;
     } else if (mark.type.name === "italic") {
@@ -479,25 +494,29 @@ function mapLineToPmNode(line: LineInterface): PmNode {
     return PM_SCHEMA.node("block", { blockPtr: line.blockPtr, nodePtr: line.nodePtr });
   }
 
-  const spanNodes = line.text.spans.map(mapSpanToPmNode);
+  const spans: PmNode[] = [];
+  for (const span of line.text.spans) {
+    const pmSpan = mapSpanToPmNode(span);
+    if (pmSpan) spans.push(pmSpan);
+  }
   const attrs = { type: line.text.type, blockPtr: line.blockPtr };
 
   if (line.text.type === TextLineType.LIST_ORDERED || line.text.type === TextLineType.LIST_UNORDERED) {
     const isOrdered = line.text.type === TextLineType.LIST_ORDERED;
     const nodeType = isOrdered ? "lineListOrdered" : "lineListUnordered";
-    return PM_SCHEMA.node(nodeType, attrs, spanNodes);
+    return PM_SCHEMA.node(nodeType, attrs, spans);
   } else if (line.text.type >= TextLineType.HEADING_1 && line.text.type <= TextLineType.HEADING_4) {
-    return PM_SCHEMA.node("lineHeading", attrs, spanNodes);
+    return PM_SCHEMA.node("lineHeading", attrs, spans);
   } else if (line.text.type === TextLineType.PARAGRAPH) {
-    return PM_SCHEMA.node("lineParagraph", attrs, spanNodes);
+    return PM_SCHEMA.node("lineParagraph", attrs, spans);
   } else if (line.text.type === TextLineType.DIVIDER) {
-    return PM_SCHEMA.node("lineDivider", attrs, spanNodes);
+    return PM_SCHEMA.node("lineDivider", attrs, spans);
   } else if (line.text.type === TextLineType.QUOTE) {
-    return PM_SCHEMA.node("lineQuote", attrs, spanNodes);
+    return PM_SCHEMA.node("lineQuote", attrs, spans);
   } else if (line.text.type === TextLineType.CALLOUT) {
-    return PM_SCHEMA.node("lineCallout", attrs, spanNodes);
+    return PM_SCHEMA.node("lineCallout", attrs, spans);
   } else if (line.text.type === TextLineType.CODE) {
-    return PM_SCHEMA.node("lineCode", attrs, spanNodes);
+    return PM_SCHEMA.node("lineCode", attrs, spans);
   } else {
     throw new Error(`unexpected line type: ${line.text.type}`);
   }
@@ -511,8 +530,8 @@ function mapPmNodeToLine(lineNode: PmNode): LineInterface {
 
   const spans: TextSpanData[] = [];
   for (let spanIdx = 0; spanIdx < lineNode.childCount; spanIdx++) {
-    const spanNode = lineNode.child(spanIdx);
-    const span = mapPmNodeToSpan(spanNode);
+    const spanMention = lineNode.child(spanIdx);
+    const span = mapPmNodeToSpan(spanMention);
     if (span) spans.push(span);
   }
 
