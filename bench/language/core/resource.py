@@ -1,5 +1,5 @@
 import abc
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Optional, Self, TypeVar
 from uuid import UUID
 
@@ -140,13 +140,15 @@ class Resource[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC):
         assert self.status.is_extant, f"{self!r} does not exist"
         self.decommissioned_at = self.active_session._oracle.utc()
 
-    async def wait_until_status(self, status: ResourceStatus):
+    async def wait_until_status(
+        self, status: ResourceStatus, timeout: timedelta | None = None
+    ) -> None:
         """Wait until this Resource reaches the given status."""
-        await self.wait_until(lambda r: r.status == status)
+        await self.wait_until(lambda r: r.status == status, timeout=timeout)
 
-    async def wait_until_ready(self) -> None:
+    async def wait_until_ready(self, timeout: timedelta | None = None) -> None:
         """Wait until this Resource is ready."""
-        await self.wait_until(lambda r: r.status == ResourceStatus.UP)
+        await self.wait_until(lambda r: r.status == ResourceStatus.UP, timeout=timeout)
 
 
 @node_component_()

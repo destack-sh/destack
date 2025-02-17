@@ -1,13 +1,14 @@
 import abc
 import asyncio
 import contextlib
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Self, cast, final, override
 from uuid import UUID
 
 import structlog
 from opentelemetry import trace
 
-from bench.language.core import EditType, Node, patch_graph
+from bench.language.core import DEFAULT_WAIT_TIMEOUT, EditType, Node, patch_graph
 from bench.pb2 import AnyNodeData, GraphScopeData
 from bench.utils.task import create_task
 from bench.utils.tenacity import RetryOptions
@@ -135,6 +136,36 @@ class Connection[
         assert self.is_live, f"{self!r} is not live"
         self._update_subscribers.append(callback)
         return lambda: self._update_subscribers.remove(callback)
+
+    @final
+    async def wait_until(
+        self, condition: Callable[[], bool], timeout: timedelta | None = None
+    ) -> None:
+        """Wait until the condition is met for this Connection."""
+        assert self.is_live, f"{self!r} is not live"
+        if condition():
+            return
+        if timeout is None:
+            timeout = DEFAULT_WAIT_TIMEOUT
+
+        log = self.log.bind(condition=condition, timeout=timeout)
+        complete_signal = asyncio.Event()
+
+        def _check():
+            if condition():
+                complete_signal.set()
+
+        unsub = self.on_update(lambda _, __: _check())
+        try:
+            _check()
+            log.trace("connection.wait_until")
+            await asyncio.wait_for(complete_signal.wait(), timeout=timeout.total_seconds())
+            log.debug("connection.wait_until.complete")
+        except BaseException as e:
+            log.error("connection.wait_until.error", exc_info=e)
+            raise
+        finally:
+            unsub()
 
     @final
     async def connect(self) -> None:

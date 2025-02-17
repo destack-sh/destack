@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Union, assert_never, cast
 from uuid import UUID
 
 from bench.language.core import (
@@ -7,8 +7,10 @@ from bench.language.core import (
     BuiltinEnum,
     CustomObject,
     EnumType,
+    Expression,
     FieldType,
     HasNodeBase,
+    IndexIn,
     LocalNodeList,
     Node,
     NodeType,
@@ -32,7 +34,6 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.language.core.node import IndexIn
 from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.tenacity import RetryOptions
 
@@ -445,10 +446,42 @@ class Run(RuntimeNode[RunData], HasNodeBase):
 
     cancel = abort = stop
 
-    async def wait_until_status(self, status: RunStatus):
+    async def wait_until_status(self, status: RunStatus, timeout: timedelta | None = None):
         """Wait until this Run reaches the given status."""
-        await self.wait_until(lambda self: self.status == status)
+        await self.wait_until(lambda self: self.status == status, timeout=timeout)
 
-    async def wait_until_terminated(self):
+    async def wait_until_terminated(self, timeout: timedelta | None = None):
         """Wait until this Run is terminated."""
-        await self.wait_until(lambda self: self.status.is_terminal)
+        await self.wait_until(lambda self: self.status.is_terminal, timeout=timeout)
+
+    @staticmethod
+    async def get_run_of(
+        node: "RunnableNode", where: Optional[Expression] = None, timeout: timedelta | None = None
+    ) -> "Run":
+        """Get the Run of a Node (waiting if necessary)."""
+        from bench.language import Action, Flow, Pipe
+
+        if isinstance(node, Action):
+            base_query = Run.get_property("action").eq(node)
+        elif isinstance(node, Pipe):
+            base_query = Run.get_property("pipe").eq(node)
+        elif isinstance(node, Flow):
+            base_query = Run.get_property("flow").eq(node)
+        else:
+            assert_never(node)
+
+        query = Run.order_by(Run.get_property("created_at").desc()).limit(1)
+        query = query.where(where & base_query) if where is not None else query.where(base_query)
+        _, connection = await query.search_connection(live=True)
+
+        if connection.result.roots:
+            connection.close()
+            await connection.wait_closed()
+            return connection.result.roots[0]
+
+        await connection.wait_until(lambda: len(connection.result.roots) > 0, timeout=timeout)
+        connection.close()
+        await connection.wait_closed()
+        run = connection.result.roots[0]
+        run = await Run.get(run.to_ref(), live=True)
+        return run
