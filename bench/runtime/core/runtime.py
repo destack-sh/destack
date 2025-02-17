@@ -475,7 +475,8 @@ class Runtime:
          (should we only load top level references? Text mentions? expand Messages into Threads?
            entire Run trees? this seems related to the context/projection stuff in model instruct)
         NOTE :Robustness: isn't there a race condition in checking & loading Nodes across Runners?
-         (and what if a Node is loaded only because it's loaded by a different concurrent Run?)
+         (and what if a Node is loaded only because it's loaded by a different concurrent Run?,
+          but then that Run completes, so we unload it again while the other dependent Run runs?)
         """
 
         # gather inputs, variables & outputs

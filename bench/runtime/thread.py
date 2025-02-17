@@ -285,6 +285,10 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         assert self._session is not None, f"no session for {self!r}"
         assert self._runtime is not None, f"no runtime for {self!r}"
 
+        # nocheckin: lift RunHandle into current Run if ... trigger says so? it's an action..?
+        #  We need to turn Action Runs into Flow Runs.. somewhere
+        #  Also we need to resume/continue Runs from Triggers .. somehow
+
         self._set_baggage()
         with tracer.start_as_current_span("thread.run"):
             # process run

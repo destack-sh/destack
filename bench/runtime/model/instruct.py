@@ -42,10 +42,10 @@ from .prompt import (
     PromptFile,
     PromptNodes,
     PromptPart,
+    PromptPlan,
     PromptRegion,
     PromptRun,
     PromptRunAttempt,
-    PromptRunPlan,
     PromptSeparator,
     PromptText,
     prompt_region,
@@ -382,7 +382,7 @@ def make_chat_prompt(
         projection.collect_node(r, depth=offset)
     # plan
     if (plan := runner.plan) is not None:
-        plan_part = PromptRunPlan(title="Current Run Plan", weight=10, plan=plan, run=run)
+        plan_part = PromptPlan(title="Current Run Plan", weight=10, plan=plan, run=run)
         plan_region = prompt_region(plan_part, title="Run Plan", weight=10)
         run_items.append(plan_region)
     # attempts

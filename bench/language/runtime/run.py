@@ -56,8 +56,8 @@ if TYPE_CHECKING:
         NodeReference,
         Page,
         Pipe,
+        Plan,
         RunnableNode,
-        RunPlan,
         RunSpan,
         TextOptions,
         Trigger,
@@ -201,8 +201,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     pipe: Optional["Pipe"] = p_internal(
         63, require=False, array=False, references=NodeType.PIPE, same_bench=True
     )
-    plan: Optional["RunPlan"] = p_internal(
-        64, require=False, array=False, references=NodeType.RUN_PLAN, same_bench=True
+    plan: Optional["Plan"] = p_internal(
+        64, require=False, array=False, references=NodeType.PLAN, same_bench=True
     )
     plan_step: int | None = p_internal(65)
     trigger: Optional["Trigger"] = p_regular(

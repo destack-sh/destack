@@ -20,10 +20,10 @@ from bench.language import (
     Interruption,
     Pipe,
     PipeType,
+    Plan,
     Run,
     RunnableNode,
     RunOptions,
-    RunPlan,
     RunSpanType,
     RunStatus,
     RunType,
@@ -162,7 +162,7 @@ class FlowRunner[N: Flow | Action = Flow](Runner[N], ABC):
         node: Action | Pipe,
         *,
         incoming: Sequence[Run],
-        plan: RunPlan | None = None,
+        plan: Plan | None = None,
         plan_step: int | None = None,
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
@@ -303,11 +303,11 @@ class FlowRunner[N: Flow | Action = Flow](Runner[N], ABC):
         # tick own plans (on success only)
         if is_completed:
             call_plans: Sequence[CallPlan] = getattr(runner.outputs, "plans", None) or ()
-            run_plans: list[RunPlan] = []
+            run_plans: list[Plan] = []
             for plan in call_plans:
                 if not plan.calls:
                     continue
-                run_plan = RunPlan.new(run, plan, status=RunStatus.RUNNING)
+                run_plan = Plan.from_call(run, plan, status=RunStatus.RUNNING)
                 run_plans.append(run_plan)
                 self.runtime._set_context(run_plan)
             self.session._create(*run_plans)
