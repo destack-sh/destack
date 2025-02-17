@@ -190,6 +190,7 @@ export function differenceUpdateBlocks(
       anchor,
       target,
     });
+    blocksById[block.id] = block;
     line.blockPtr = toNodeRef(block);
     prevBlockId = block.id;
     if (firstBlockId == null) {
