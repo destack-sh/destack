@@ -165,7 +165,6 @@ export function morphLineNode(
   targetType: TextLineType,
   dispatch?: (tr: PmTransaction) => void,
 ): boolean {
-  const schema = state.schema;
   const tr = state.tr;
 
   // map target node type
@@ -272,6 +271,7 @@ function linePrefixRule(pattern: string | RegExp, nodeType: PmNodeType, type: Te
   return rule;
 }
 
+/** Create a line divider from --- or —- syntax */
 const lineDividerRule = new InputRule(/(^---$)|(^—-$)/, (state, match, start, end) => {
   const { tr } = state;
   tr.delete(start, end);
@@ -318,9 +318,7 @@ function getMarkerRegex(marker: string): RegExp {
   return regex;
 }
 
-/**
- * Create an input rule that transforms text wrapped in markers into text with a given mark.
- */
+/** Create an input rule that transforms text wrapped in markers into text with a given mark. */
 function markerRule(marker: string, markType: PmMarkType) {
   const regex = getMarkerRegex(marker);
   const rule = new InputRule(regex, (state, match, start, end) => {
@@ -333,6 +331,54 @@ function markerRule(marker: string, markType: PmMarkType) {
   });
   return rule;
 }
+
+/** Create a link span from plain URL syntax */
+const URL_PATTERN = /(?:(?:https?:\/\/))?(?:www\.)?(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?::\d{1,5})?(?:\/\S*)?\s+$/;
+const urlLinkRule = new InputRule(URL_PATTERN, (state, match, start, end) => {
+  const { tr } = state;
+  // only apply if there isn't already a link here
+  let hasLink = false;
+  tr.doc.nodesBetween(start, end, (node, pos) => {
+    if (node.type.name === "spanLink" || node.type.name === "spanCitation") {
+      hasLink = true;
+    }
+  });
+  if (hasLink) return null;
+
+  let [url] = match;
+  url = url.trim();
+  const node = PM_SCHEMA.nodes.spanLink.create({ url }, PM_SCHEMA.text(url));
+  tr.replaceWith(start, end, [node, PM_SCHEMA.text(" ")]);
+  tr.setSelection(TextSelection.near(tr.doc.resolve(start + node.nodeSize + 1)));
+  return tr;
+});
+
+/** Create a link span from [content](url) syntax */
+const mdLinkRule = new InputRule(/\[(.+?)\]\((.+?)\)$/, (state, match, start, end) => {
+  const { tr } = state;
+  let [, text, url = ""] = match;
+  text = text.trim();
+  url = url.trim();
+  if (text.length === 0) return null;
+  const node = PM_SCHEMA.nodes.spanLink.create({ url }, PM_SCHEMA.text(text));
+  tr.replaceWith(start, end, [node, PM_SCHEMA.text(" ")]);
+  tr.setSelection(TextSelection.near(tr.doc.resolve(start + node.nodeSize + 1)));
+  return tr;
+});
+
+/** Create a citation span from [^content] or [^content](url) syntax */
+const mdCitationRule = new InputRule(/\[\^(.+?)\](?:\((.+?)\))?\s+$/, (state, match, start, end) => {
+  const { tr } = state;
+  let [, text, url = ""] = match;
+  text = text.trim();
+  url = url.trim();
+  if (text.length === 0) return null;
+  const node = PM_SCHEMA.nodes.spanCitation.create({ url }, PM_SCHEMA.text(text));
+  tr.replaceWith(start, end, [node, PM_SCHEMA.text(" ")]);
+  const newPos = tr.mapping.map(end);
+  tr.setSelection(TextSelection.near(tr.doc.resolve(newPos)));
+  return tr;
+});
 
 const UNORDERED_LIST_CHARS = ["-", "\\*", "•"];
 const PM_INPUT_RULES: InputRule[] = [
@@ -360,6 +406,10 @@ const PM_INPUT_RULES: InputRule[] = [
   markerRule("~", PM_SCHEMA.marks.strikethrough),
   markerRule("~~", PM_SCHEMA.marks.strikethrough),
   markerRule("`", PM_SCHEMA.marks.code),
+  // link and citation rules
+  mdLinkRule,
+  urlLinkRule,
+  mdCitationRule,
   // line rules
   linePrefixRule("# ", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_1),
   linePrefixRule("## ", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_2),
@@ -628,7 +678,7 @@ export function useTextEditor(options: {
       state: makeEditorState(lines.value),
       editable: () => toValue(isInput),
       nodeViews: {
-        spanNode: (node, view, getPos) =>
+        spanMention: (node, view, getPos) =>
           new SpanNodeView({
             component: NodeReference,
             parentComponent: options.parentComponent,

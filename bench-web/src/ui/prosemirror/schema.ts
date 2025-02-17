@@ -38,6 +38,7 @@ function toLineDom(node: PmNode, spec: readonly [string, ...any[]]): DOMOutputSp
     attrs["data-node-ck"] = node.attrs.blockPtr.ck;
     attrs["data-node-type"] = node.attrs.blockPtr.nodeType;
   }
+  attrs["data-suppress-drag"] = "select"; // we don't want node selection within text lines
   return [tag, attrs, ...rest];
 }
 
@@ -167,7 +168,7 @@ export const PM_SCHEMA = new PmSchema({
       },
       parseDOM: [{ tag: "br" }],
     },
-    spanNode: {
+    spanMention: {
       group: "span",
       draggable: true,
       inline: true,
@@ -181,15 +182,33 @@ export const PM_SCHEMA = new PmSchema({
       content: "text*",
       inline: true,
       marks: "",
-      attrs: { href: {} },
+      attrs: { url: {} },
       toDOM(node) {
-        return ["a", { href: node.attrs.href }, 0];
+        return ["a", { href: node.attrs.url, target: "_blank" }, 0];
       },
       parseDOM: [
         {
           tag: "a",
           getAttrs(dom) {
-            return { href: (dom as HTMLAnchorElement).href };
+            return { url: (dom as HTMLAnchorElement).href };
+          },
+        },
+      ],
+    },
+    spanCitation: {
+      group: "span",
+      content: "text*",
+      inline: true,
+      marks: "",
+      attrs: { url: {} },
+      toDOM(node) {
+        return toLineDom(node, ["a", { href: node.attrs.url, class: "citation", target: "_blank" }, 0]);
+      },
+      parseDOM: [
+        {
+          tag: "a.citation",
+          getAttrs(dom) {
+            return { url: (dom as HTMLAnchorElement).href };
           },
         },
       ],
@@ -300,11 +319,13 @@ export function getPmSpanType(type: TextSpanType) {
   } else if (type === TextSpanType.HARD_BREAK) {
     return PM_SCHEMA.nodes.spanHardBreak;
   } else if (type === TextSpanType.MENTION) {
-    return PM_SCHEMA.nodes.spanNode;
+    return PM_SCHEMA.nodes.spanMention;
   } else if (type === TextSpanType.LINK) {
     return PM_SCHEMA.nodes.spanLink;
   } else if (type === TextSpanType.EQUATION) {
     return PM_SCHEMA.nodes.spanEquation;
+  } else if (type === TextSpanType.CITATION) {
+    return PM_SCHEMA.nodes.spanCitation;
   } else {
     assertNever(type);
   }
