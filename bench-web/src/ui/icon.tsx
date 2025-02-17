@@ -44,11 +44,8 @@ import {
   TextLineType,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
-// fa-icons is generated with:
-// curl https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/metadata/icons.json
-//  | jq 'to_entries | map(select(.value.free | index("s@olid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, aliases: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
-//  > fa-icons.json
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
+import _AVAILABLE_EMOJI_ICONS from "@/assets/emoji-icons.json";
 import { BASED_NODE_TYPES, getBaseFromNode } from "@/language/core/const";
 import type { TypeIdentity } from "@/language/core/type";
 import { unpackSubnodeProperty } from "@/language/core/node";
@@ -58,7 +55,16 @@ import { supergraph } from "@/globals";
 import { getColorHex, makeColor } from "@/ui/style";
 import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 
-export type IconMetadata = {
+/**
+ * FontAwesome icons
+ *
+ * fa-icons is generated with:
+ * curl https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/metadata/icons.json
+ * | jq 'to_entries | map(select(.value.free | index("solid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, aliases: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
+ * > src/assets/fa-icons.json
+ */
+
+export type FontAwesomeIcon = {
   id: string;
   title: string;
   unicode: string;
@@ -66,21 +72,44 @@ export type IconMetadata = {
   family: "fas" | "fab";
   faName: string;
 };
-export function metadataToIcon(metadata: IconMetadata, color: ColorData | undefined): IconData {
+export function fontAwesomeIcon(data: FontAwesomeIcon, color?: ColorData | undefined): IconData {
   return {
     metatype: ObjectType.ICON,
     type: IconType.FONT_AWESOME,
-    faName: `${metadata.family} fa-${metadata.id}`,
+    faName: `${data.family} fa-${data.id}`,
     color,
   };
 }
-
-export const AVAILABLE_FA_ICONS: IconMetadata[] = _AVAILABLE_FA_ICONS.map((i) => ({
+export const AVAILABLE_FA_ICONS: FontAwesomeIcon[] = _AVAILABLE_FA_ICONS.map((i) => ({
   ...i,
   faName: `${i.family} fa-${i.id}`,
-})) as IconMetadata[];
-export const AVAILABLE_ICONS_BY_ID: Record<string, IconMetadata> = Object.fromEntries(
-  AVAILABLE_FA_ICONS.map((i) => [i.id, i]),
+})) as FontAwesomeIcon[];
+
+/**
+ * Emoji icons
+ * curl https://raw.githubusercontent.com/muan/unicode-emoji-json/main/data-by-emoji.json \
+ * | jq 'to_entries | map({ id: .key, title: .value.name, emoji: .key })' \
+ * > src/assets/emoji-icons.json
+ */
+
+export type EmojiIcon = {
+  id: string;
+  title: string;
+  emoji: string;
+  aliases?: string[];
+};
+export function emojiIcon(data: EmojiIcon, color?: ColorData | undefined): IconData {
+  return {
+    metatype: ObjectType.ICON,
+    type: IconType.EMOJI,
+    emoji: data.emoji,
+    color,
+  };
+}
+export const AVAILABLE_EMOJI_ICONS: EmojiIcon[] = _AVAILABLE_EMOJI_ICONS;
+
+export const AVAILABLE_ICONS_BY_ID: Record<string, FontAwesomeIcon | EmojiIcon> = Object.fromEntries(
+  [...AVAILABLE_FA_ICONS, ...AVAILABLE_EMOJI_ICONS].map((i) => [i.id, i]),
 );
 type IconInlineProps = Pick<IconData, "emoji" | "faName" | "vscName"> & {
   color?: ColorType | ColorData;
@@ -121,43 +150,62 @@ IconInline.props = ["emoji", "faName", "vscName", "color", "fallbackColor", "sha
 export const AvatarInline: FunctionalComponent<
   IconInlineProps & { size?: "regular" | "medium" | "large" | "title" }
 > = (props) => {
-  let colorHex;
+  let backgroundColorHex;
   if (props.forceColor == "inherit") {
-    colorHex = undefined;
+    backgroundColorHex = undefined;
   } else if (props.color != null) {
-    colorHex = getColorHex(props.color, props.shade);
+    backgroundColorHex = getColorHex(props.color, props.shade);
   } else if (props.forceColor != null) {
-    colorHex = getColorHex(props.forceColor, props.shade);
+    backgroundColorHex = getColorHex(props.forceColor, props.shade);
   } else if (props.fallbackColor != null) {
-    colorHex = getColorHex(props.fallbackColor, props.shade);
+    backgroundColorHex = getColorHex(props.fallbackColor, props.shade);
   } else {
-    colorHex = getColorHex(ColorType.GRAY, props.shade ?? ColorShade.S400);
+    backgroundColorHex = undefined;
   }
 
   let sizeClasses;
   if (props.size === "medium") {
-    sizeClasses = "w-9 h-9 text-lg";
+    if (props.faName) {
+      sizeClasses = "w-9 h-9 text-lg";
+    } else {
+      sizeClasses = "w-9 h-9 text-xl";
+    }
   } else if (props.size === "large") {
-    sizeClasses = "w-10 h-10 text-lg";
+    if (props.faName) {
+      sizeClasses = "w-10 h-10 text-lg";
+    } else {
+      sizeClasses = "w-10 h-10 text-3xl";
+    }
   } else if (props.size === "title") {
-    sizeClasses = "w-12 h-12 text-xl";
+    if (props.faName) {
+      sizeClasses = "w-12 h-12 text-xl";
+    } else {
+      sizeClasses = "w-12 h-12 text-4xl";
+    }
   } else {
     // regular
-    sizeClasses = "w-6 h-6 text-sm";
+    if (props.faName) {
+      sizeClasses = "w-6 h-6 text-sm";
+    } else {
+      sizeClasses = "w-6 h-6 text-md";
+    }
   }
-  const baseClasses = `rounded-full text-center inline-flex items-center justify-center ${sizeClasses}`;
+  let baseClasses = `rounded-full text-center inline-flex items-center justify-center ${sizeClasses}`;
+  if (backgroundColorHex == null) {
+    baseClasses += " bg-gray-100 border border-gray-200";
+  }
 
   if (props.faName) {
     // font awesome
     return (
-      <div class={baseClasses} style={{ backgroundColor: colorHex }}>
+      <div class={baseClasses} style={{ backgroundColor: backgroundColorHex }}>
         <i class={`${props.faName} text-white`} />
       </div>
     );
   } else if (props.emoji) {
     // emoji
     return (
-      <div class={baseClasses} style={{ backgroundColor: colorHex }}>
+      <div class={baseClasses} style={{ backgroundColor: backgroundColorHex }}>
         {props.emoji}
       </div>
     );
@@ -167,7 +215,7 @@ export const AvatarInline: FunctionalComponent<
       return <span class="text-danger-500">?icon: {JSON.stringify(props)}</span>;
     } else {
       return (
-        <div class={baseClasses} style={{ backgroundColor: colorHex }}>
+        <div class={baseClasses} style={{ backgroundColor: backgroundColorHex }}>
           <span class="text-white">???</span>
         </div>
       );
@@ -176,10 +224,12 @@ export const AvatarInline: FunctionalComponent<
 };
 AvatarInline.props = ["emoji", "faName", "vscName", "color", "fallbackColor", "shade", "ignoreColor", "size"];
 
-export function getIconMetadata(icon: IconData): IconMetadata | undefined {
+export function getIconMetadata(icon: IconData): FontAwesomeIcon | EmojiIcon | undefined {
   if (icon.type == IconType.FONT_AWESOME) {
     const id = icon.faName!.split(" ")[1].slice(3);
     return AVAILABLE_ICONS_BY_ID[id];
+  } else if (icon.type == IconType.EMOJI) {
+    return AVAILABLE_ICONS_BY_ID[icon.emoji!];
   } else {
     return undefined;
   }

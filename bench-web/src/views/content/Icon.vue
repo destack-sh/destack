@@ -4,6 +4,7 @@ import {
   ColorShade,
   ColorType,
   IconData,
+  IconType,
   NodeReferenceData,
   NodeType,
   Orientation,
@@ -12,13 +13,13 @@ import {
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import { getIconMetadata, IconInline, makeIcon, metadataToIcon, type IconMetadata } from "@/ui/icon";
+import { getIconMetadata, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
-import { ICON_INDEX, useIndexSearch, type IconItem } from "@/ui/search";
+import { EMOJI_ICON_INDEX, FONT_AWESOME_ICON_INDEX, SearchIndex, useIndexSearch, type IconItem } from "@/ui/search";
 import { getColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
-import { type ViewEmits, type FocusAnchor, type ViewExpose } from "@/views/common";
+import { type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
@@ -36,9 +37,9 @@ const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 
+// state
+const iconType: Ref<IconType> = ref(IconType.EMOJI);
 const query: Ref<string> = ref("");
-const queryRef: Ref<HTMLInputElement | null> = ref(null);
-const columnHeaderRef: Ref<HTMLDivElement | null> = ref(null);
 const activeResultId: Ref<string | null> = ref(null);
 const color: Ref<ColorData | null> = ref(props.modelValue?.color ?? null);
 const effectiveColorType = computed(() => color.value?.type ?? ColorType.GRAY);
@@ -46,10 +47,24 @@ const effectiveColorHex = computed(() => {
   if (effectiveColorType.value == ColorType.GRAY) return getColorHex(ColorType.GRAY, ColorShade.S700);
   else return getColorHex(effectiveColorType.value, ColorShade.S500);
 });
+
+// view
 const resultsRefs: Ref<Record<string, HTMLElement | null>> = ref({});
+const queryRef: Ref<HTMLInputElement | null> = ref(null);
+const headerRef: Ref<HTMLDivElement | null> = ref(null);
+
+const indices: Ref<Record<string, SearchIndex<IconItem>>> = computed(() => {
+  const indices: Record<string, SearchIndex<IconItem>> = {};
+  if (iconType.value == IconType.FONT_AWESOME) {
+    indices["icon-fa"] = FONT_AWESOME_ICON_INDEX;
+  } else if (iconType.value == IconType.EMOJI) {
+    indices["icon-emoji"] = EMOJI_ICON_INDEX;
+  }
+  return indices;
+});
 const { results, resultsTotal } = useIndexSearch<IconItem>({
   query,
-  indices: computed(() => ({ icon: ICON_INDEX })),
+  indices,
   isEnabled: computed(() => props.isInline),
   options: { outOfOrder: 0, highlight: false, maxResults: MAX_ROWS * ITEMS_PER_ROW },
 });
@@ -61,8 +76,20 @@ watch(results, () => {
   }
 });
 
-function fire(item: IconMetadata) {
-  const icon = metadataToIcon(item, color.value ?? undefined);
+function isSelected(item: IconItem) {
+  if (item.icon == null) {
+    return false;
+  } else if (item.icon.faName != null) {
+    return item.icon.faName == props.modelValue?.faName;
+  } else if (item.icon.emoji != null) {
+    return item.icon.emoji == props.modelValue?.emoji;
+  } else {
+    return false;
+  }
+}
+
+function fire(item: IconItem) {
+  const icon = { ...item.icon, color: color.value ?? undefined };
   apply(icon);
 }
 function apply(icon: IconData | undefined) {
@@ -132,47 +159,72 @@ defineExpose<ViewExpose>({ self, id, focus });
   <div v-else-if="isInline" :style="{ width: DEFAULT_WIDTH + 'px' }">
     <!-- Inline Combobox -->
     <!-- Header -->
-    <div ref="columnHeaderRef" class="flex w-full flex-row items-center border-b border-gray-200 px-4 py-1.5">
-      <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-magnifying-glass' })" class="mr-2 w-5" />
-      <!-- Query -->
-      <input
-        ref="queryRef"
-        v-model="query"
-        type="text"
-        class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
-        :placeholder="`Search Icons...`"
-        @keydown.enter.stop.prevent="activeResultId != null && fire(results.find((r) => r.id === activeResultId)!)"
-        @keydown.up.stop.prevent="focus('up')"
-        @keydown.down.stop.prevent="focus('down')"
-        @keydown.left.stop.prevent="focus('left')"
-        @keydown.right.stop.prevent="focus('right')"
-      />
-      <!-- Clear -->
-      <i
-        v-if="modelValue != null && !valueType?.isRequired"
-        role="button"
-        class="fas fa-xmark mr-2 text-gray-400 hover:text-gray-700"
-        @click.stop="apply(undefined)"
-      />
-      <!-- Color -->
-      <button
-        v-tooltip="{ title: 'Change color', small: true }"
-        v-menu="
-          (): PopoverInfoIn => ({
-            kind: 'view',
-            component: ViewType.COLOR,
-            placement: 'top',
-            reference: columnHeaderRef!,
-            props: { modelValue: color, isInput: true },
-            // NOTE :UX: not sure whether changing Color in Icon picker should instantly apply to current icon
-            onApply: (value) => (color = value),
-          })
-        "
-        :disabled="isDisabled || !isInput"
-        class="rounded px-0.5 enabled:hover:bg-gray-100"
-      >
-        <i class="fas fa-circle small" :style="{ color: effectiveColorHex }" />
-      </button>
+    <div ref="headerRef" class="flex w-full flex-col gap-y-0.5 border-b border-gray-200 px-2 py-2">
+      <!-- Select -->
+      <div class="flex flex-row gap-x-1.5 py-1">
+        <!-- FontAwesome -->
+        <button
+          v-for="{ type, title } in [
+            {
+              type: IconType.EMOJI,
+              title: 'Emoji',
+            },
+            {
+              type: IconType.FONT_AWESOME,
+              title: 'Icon',
+            },
+          ]"
+          :key="type"
+          class="rounded px-1.5 py-0.5 font-medium transition-colors duration-150 enabled:hover:bg-gray-100"
+          :class="[type == iconType ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-700']"
+          @click="iconType = type"
+        >
+          <span>{{ title }}</span>
+        </button>
+        <!-- Remove -->
+        <button
+          v-if="modelValue != null"
+          class="ml-auto rounded px-1.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+          @click="apply(undefined)"
+        >
+          <span>Remove</span>
+        </button>
+      </div>
+      <!-- Input -->
+      <div class="flex flex-row items-center rounded bg-gray-100 px-1.5 py-1">
+        <!-- Query -->
+        <input
+          ref="queryRef"
+          v-model="query"
+          type="text"
+          class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
+          :placeholder="`Search ${iconType == IconType.EMOJI ? 'Emojis' : 'Icons'}...`"
+          @keydown.enter.stop.prevent="activeResultId != null && fire(results.find((r) => r.id === activeResultId)!)"
+          @keydown.up.stop.prevent="focus('up')"
+          @keydown.down.stop.prevent="focus('down')"
+          @keydown.left.stop.prevent="focus('left')"
+          @keydown.right.stop.prevent="focus('right')"
+        />
+        <!-- Color -->
+        <button
+          v-tooltip="{ title: 'Change color', small: true }"
+          v-menu="
+            (): PopoverInfoIn => ({
+              kind: 'view',
+              component: ViewType.COLOR,
+              placement: 'top',
+              reference: headerRef!,
+              props: { modelValue: color, isInput: true },
+              // NOTE :UX: not sure whether changing Color in Icon picker should instantly apply to current icon
+              onApply: (value) => (color = value),
+            })
+          "
+          :disabled="isDisabled || !isInput"
+          class="rounded px-0.5 enabled:hover:bg-gray-100"
+        >
+          <i class="fas fa-circle small" :style="{ color: effectiveColorHex }" />
+        </button>
+      </div>
     </div>
     <!-- Body -->
     <Scroll
@@ -202,13 +254,14 @@ defineExpose<ViewExpose>({ self, id, focus });
                 small: true,
               } as TooltipInfo
             "
-            class="select-none rounded border border-transparent py-1.5 hover:cursor-pointer hover:border-gray-200 hover:bg-gray-100 data-[active=true]:border-gray-200 data-[active=true]:bg-gray-100"
-            :class="item.faName"
+            class="select-none rounded border border-transparent hover:cursor-pointer hover:border-gray-200 hover:bg-gray-100 data-[active=true]:border-gray-200 data-[active=true]:bg-gray-100"
+            :class="item.icon?.faName != null ? 'py-1 text-sm ' + item.icon.faName : 'text-xl'"
             role="menuitem"
-            :data-selected="item.faName == modelValue?.faName"
+            :data-selected="isSelected(item)"
             :data-active="item.id === activeResultId"
             @click.stop.prevent="fire(item)"
             @keydown.enter.stop.prevent="fire(item)"
+            v-html="item.icon?.emoji"
           />
         </template>
       </ul>
