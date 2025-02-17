@@ -2,17 +2,20 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
+    BuiltinEnum,
+    EnumType,
     NodeType,
     RunStatus,
     RuntimeNode,
     StructType,
     Text,
+    enum_,
     p_internal,
     p_node_parent,
     p_regular,
     timed_node_,
 )
-from bench.pb2.lang_pb2 import RunPlanData
+from bench.pb2 import PlanData
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -30,14 +33,18 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@timed_node_(NodeType.RUN_PLAN)
-class RunPlan(RuntimeNode[RunPlanData]):
-    """A RunPlan is a plan for a sequence of Runs."""
+@enum_(EnumType.PLAN_TYPE)
+class PlanType(BuiltinEnum):
+    CALL = 1, "Run"
 
-    # NOTE :Architecture: maybe RunPlan should be just Plan?
+
+@timed_node_(NodeType.PLAN)
+class Plan(RuntimeNode[PlanData]):
+    """A Plan for a sequence of Runs."""
 
     # meta
     parent: Union["Run", None] = p_node_parent(4, NodeType.RUN)
+    type: PlanType = p_regular(30)
     execution: "CallExecutionMode" = p_internal(31)
     on_terminate: "CallTerminationMode" = p_internal(33)
     on_error: "CallFailureMode" = p_internal(34)
@@ -71,13 +78,14 @@ class RunPlan(RuntimeNode[RunPlanData]):
         self.status = RunStatus.FAILED
 
     @staticmethod
-    def new(
+    def from_call(
         run: "Run",
         call_plan: "CallPlan",
         status: RunStatus = RunStatus.SCHEDULED,
-    ) -> "RunPlan":
-        return RunPlan(
+    ) -> "Plan":
+        return Plan(
             parent=run,
+            type=PlanType.CALL,
             status=status,
             started_by=run,
             execution=call_plan.execution,

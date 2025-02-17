@@ -37,12 +37,12 @@ from bench.language import (
     NodeType,
     Page,
     Pipe,
+    Plan,
     Resource,
     ResourceStatus,
     Run,
     RunnableNode,
     RunOptions,
-    RunPlan,
     RunSpan,
     RunSpanType,
     RunStatus,
@@ -396,7 +396,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             parent = parent.parent
 
     @property
-    def plan(self) -> RunPlan | None:
+    def plan(self) -> Plan | None:
         if (run := self.tracked_run) is not None or (run := self.closest_tracked_run) is not None:
             return run.plan
         else:

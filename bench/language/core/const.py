@@ -44,7 +44,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.15.1"
+VERSION = "2025.02.17.1"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -368,12 +368,13 @@ class EnumType(BuiltinEnum):
     RUN_STATUS = 22000
     RUN_TYPE = 22001
     RUN_SPAN_TYPE = 22002
-    SESSION_STATUS = 22010
-    TRIGGER_TYPE = 22020
-    TRIGGER_EFFECT = 22021
-    TRIGGER_STATUS = 22022
-    CACHE_MODE = 22030
-    SCHEDULE_FREQUENCY = 22040
+    PLAN_TYPE = 220010
+    SESSION_STATUS = 22020
+    TRIGGER_TYPE = 22030
+    TRIGGER_EFFECT = 22031
+    TRIGGER_STATUS = 22032
+    CACHE_MODE = 22040
+    SCHEDULE_FREQUENCY = 22041
     CALL_EXECUTION_MODE = 22050
     CALL_FAILURE_MODE = 22051
     CALL_TERMINATION_MODE = 22052
@@ -539,9 +540,9 @@ class NodeType(BuiltinEnum):
     SESSION = 6000  # (timed)
     RUN = 6010  # (based, timed)
     RUN_SPAN = 6011  # (timed)
-    RUN_PLAN = 6012  # (timed)
-    INTERRUPTION = 6030  # (timed)
-    LOG = 6050  # (timed)
+    INTERRUPTION = 6020  # (timed)
+    LOG = 6030  # (timed)
+    PLAN = 6040  # (timed)
 
     # sync
     # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?

@@ -10,9 +10,9 @@ from bench.language import (
     File,
     HasContext,
     Node,
+    Plan,
     Renderer,
     Run,
-    RunPlan,
     RunSpan,
     RunSpanType,
 )
@@ -172,10 +172,10 @@ class PromptRunAttempt(PromptCompound):
 
 
 @dataclass
-class PromptRunPlan(PromptCompound):
-    """A RunPlan. Expands to RunPlan variables, inputs and outputs."""
+class PromptPlan(PromptCompound):
+    """A Plan. Expands to Plan variables, inputs and outputs."""
 
-    plan: RunPlan
+    plan: Plan
     run: Run
 
     @override
