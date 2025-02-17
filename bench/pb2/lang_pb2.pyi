@@ -1121,7 +1121,7 @@ class TextSpanType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TEXT_SPAN_TYPE_UNSPECIFIED: _ClassVar[TextSpanType]
     TEXT_SPAN_TYPE_TEXT: _ClassVar[TextSpanType]
     TEXT_SPAN_TYPE_HARD_BREAK: _ClassVar[TextSpanType]
-    TEXT_SPAN_TYPE_NODE: _ClassVar[TextSpanType]
+    TEXT_SPAN_TYPE_MENTION: _ClassVar[TextSpanType]
     TEXT_SPAN_TYPE_LINK: _ClassVar[TextSpanType]
     TEXT_SPAN_TYPE_EQUATION: _ClassVar[TextSpanType]
 
@@ -2921,7 +2921,7 @@ TEXT_LINE_TYPE_CODE: TextLineType
 TEXT_SPAN_TYPE_UNSPECIFIED: TextSpanType
 TEXT_SPAN_TYPE_TEXT: TextSpanType
 TEXT_SPAN_TYPE_HARD_BREAK: TextSpanType
-TEXT_SPAN_TYPE_NODE: TextSpanType
+TEXT_SPAN_TYPE_MENTION: TextSpanType
 TEXT_SPAN_TYPE_LINK: TextSpanType
 TEXT_SPAN_TYPE_EQUATION: TextSpanType
 EXPRESSION_KIND_UNSPECIFIED: ExpressionKind

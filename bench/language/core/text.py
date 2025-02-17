@@ -56,15 +56,18 @@ class TextLineType(BuiltinEnum):  # :TextLineType
     TABLE_ROW = 51, "Table row"
     # code
     CODE = 60, "Code block"
+    # reference
+    # LINK, EMBED, ...
 
 
 @enum_(EnumType.TEXT_SPAN_TYPE)
 class TextSpanType(BuiltinEnum):
     TEXT = 1, "Formatted text"
     HARD_BREAK = 2, "Hard break"
-    NODE = 10, "Reference to a Node"
+    MENTION = 10, "Reference to a Node"
     LINK = 11, "Hyperlink"
-    EQUATION = 21, "TeX equation"
+    CITATION = 12, "Citation"
+    EQUATION = 20, "TeX equation"
 
 
 @struct_(StructType.TEXT_SPAN)
@@ -81,16 +84,7 @@ class TextSpan(TextOptionsBase, Struct):
     url: Optional[str] = p_regular(35, default=None)
 
     def __content_str__(self) -> str:
-        flags_parts = []
-        for prop in TextOptionsBase.__declared_properties__.values():
-            value = getattr(self, prop.name)
-            if value is not None:
-                flags_parts.append(prop.name)
-        flags_str = ", ".join(flags_parts)
-        if flags_str:
-            return f"{self.content} [{flags_str}]"
-        else:
-            return self.content or ""
+        return _render_inline((self,))
 
     @staticmethod
     def hard_break() -> "TextSpan":
@@ -100,7 +94,7 @@ class TextSpan(TextOptionsBase, Struct):
     def new(
         type: TextSpanType,
         content: str | Node | None = None,
-        href: str | None = None,
+        url: str | None = None,
         is_bold: bool | None = None,
         is_italic: bool | None = None,
         is_strikethrough: bool | None = None,
@@ -118,7 +112,7 @@ class TextSpan(TextOptionsBase, Struct):
             type=type,
             content=content,
             node=node,
-            url=href,
+            url=url,
             is_bold=is_bold,
             is_italic=is_italic,
             is_strikethrough=is_strikethrough,
@@ -160,6 +154,9 @@ class TextLine(TextOptionsBase, Struct):
     content: Optional[str] = p_regular(34, default=None)
     table: Optional[TextTable] = p_regular(35, default=None, struct=StructType.TEXT_TABLE)
     cells: list[TextCell] = p_regular(36, array=True, struct=StructType.TEXT_CELL)
+
+    def __content_str__(self) -> str:
+        return _render_line(self)
 
     def __contains__(self, item: str) -> bool:
         if (content := self.content) and item in content:
@@ -312,7 +309,9 @@ def _parse_color(color: str) -> "ColorType":
         ) from e
 
 
-_marker_pattern = regex.compile(r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\*|\[[a-zA-Z]+\]|\[\/[a-zA-Z]+\])")
+_marker_pattern = regex.compile(
+    r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\*|\[\^[a-zA-Z0-9]+\]|\[[a-zA-Z]+\]|\[\/[a-zA-Z]+\])"
+)
 
 
 def _parse_inline_raw(
@@ -354,8 +353,29 @@ def _parse_inline_raw(
             content = "".join(sp.content or "" for sp in merged)
             spans.append(TextSpan(type=TextSpanType.EQUATION, content=content, **base))
             continue
-        # opening marker: could be a link or a color marker
+        # opening marker: could be a citation, link, or a color marker
         if marker.startswith("[") and marker.endswith("]") and not marker.startswith("[/"):
+            if marker.startswith("[^"):
+                # Handle citation markers
+                citation_content = marker[2:-1]
+                if pos < len(text) and text[pos] == "(":
+                    end_paren = text.find(")", pos)
+                    if end_paren == -1:
+                        spans.append(TextSpan(content=marker, **base))
+                        continue
+                    url = text[pos + 1 : end_paren]
+                    pos = end_paren + 1
+                    spans.append(
+                        TextSpan(
+                            type=TextSpanType.CITATION, content=citation_content, url=url, **base
+                        )
+                    )
+                    continue
+                else:
+                    spans.append(
+                        TextSpan(type=TextSpanType.CITATION, content=citation_content, **base)
+                    )
+                    continue
             if pos < len(text) and text[pos] == "(":
                 end_paren = text.find(")", pos)
                 if end_paren == -1:
@@ -616,6 +636,20 @@ MARKER_CLOSE = {
 }
 
 
+def _get_span_options(span: TextSpan) -> Sequence[str]:
+    """
+    Get the options for a span.
+    """
+    if span.type in (
+        TextSpanType.EQUATION,
+        TextSpanType.LINK,
+        TextSpanType.CITATION,
+        TextSpanType.HARD_BREAK,
+    ):
+        return ()
+    return tuple(flag for flag in MARKER_ORDER if getattr(span, flag))
+
+
 def _render_color(color: "ColorType") -> str:
     """
     Render a ColorType as a string.
@@ -623,9 +657,59 @@ def _render_color(color: "ColorType") -> str:
     return color.name.lower()
 
 
+def _render_inline_raw(spans: Sequence[TextSpan]) -> str:
+    """
+    Render a list of TextSpan objects with inline markdown formatting.
+    This function computes formatting state transitions between spans so that
+    nested formatting markers (e.g. *…~~…~~…*) are rendered correctly.
+    """
+
+    result = []
+    current_state: Sequence[str] = ()
+    for span in spans:
+        if span.type == TextSpanType.CITATION:
+            for flag in reversed(current_state):
+                result.append(MARKER_CLOSE[flag])
+            if span.url:
+                result.append(f"[^{span.content}]({span.url})")
+            else:
+                result.append(f"[^{span.content}]")
+            current_state = ()
+        elif span.type == TextSpanType.LINK:
+            for flag in reversed(current_state):
+                result.append(MARKER_CLOSE[flag])
+            result.append(f"[{span.content}]({span.url})")
+            current_state = ()
+        elif span.type == TextSpanType.EQUATION:
+            for flag in reversed(current_state):
+                result.append(MARKER_CLOSE[flag])
+            result.append(f"$${span.content}$$")
+            current_state = ()
+        elif span.type == TextSpanType.HARD_BREAK:
+            for flag in reversed(current_state):
+                result.append(MARKER_CLOSE[flag])
+            result.append("<br>")
+            current_state = ()
+        else:
+            new_state = _get_span_options(span)
+            min_len = min(len(new_state), len(current_state))
+            common = 0
+            while common < min_len and current_state[common] == new_state[common]:
+                common += 1
+            for flag in reversed(current_state[common:]):
+                result.append(MARKER_CLOSE[flag])
+            for flag in new_state[common:]:
+                result.append(MARKER_OPEN[flag])
+            result.append(span.content or "")
+            current_state = new_state
+    for flag in reversed(current_state):
+        result.append(MARKER_CLOSE[flag])
+    return "".join(result)
+
+
 def _render_inline(spans: Sequence[TextSpan]) -> str:
     """
-    Group consecutive spans with the same color so that the outer color marker is rendered once.
+    Group consecutive spans with the same color so that the outer color marker is rendered only once.
     """
     grouped: list[tuple[ColorType | None, list[TextSpan]]] = []
     current_color = None
@@ -642,60 +726,12 @@ def _render_inline(spans: Sequence[TextSpan]) -> str:
         grouped.append((current_color, current_group))
     parts = []
     for color, group in grouped:
-        inner = _render_formatted_spans(group)
+        inner = _render_inline_raw(group)
         if color:
             parts.append(f"[{_render_color(color)}]{inner}[/{_render_color(color)}]")
         else:
             parts.append(inner)
     return "".join(parts)
-
-
-def _render_formatted_spans(spans: Sequence[TextSpan]) -> str:
-    """
-    Render a list of TextSpan objects with inline markdown formatting.
-    This function computes formatting state transitions between spans so that
-    nested formatting markers (e.g. *…~~…~~…*) are rendered correctly.
-    """
-
-    def _get_options(span: TextSpan) -> Sequence[str]:
-        # for inline code, equation, link, and hard break, do not apply additional formatting markers.
-        if span.type in (TextSpanType.EQUATION, TextSpanType.LINK, TextSpanType.HARD_BREAK):
-            return ()
-        return tuple(flag for flag in MARKER_ORDER if getattr(span, flag))
-
-    result = []
-    current_state: Sequence[str] = ()
-    for span in spans:
-        if span.type == TextSpanType.LINK:
-            for flag in reversed(current_state):
-                result.append(MARKER_CLOSE[flag])
-            result.append(f"[{span.content}]({span.url})")
-            current_state = ()
-        elif span.type == TextSpanType.EQUATION:
-            for flag in reversed(current_state):
-                result.append(MARKER_CLOSE[flag])
-            result.append(f"$${span.content}$$")
-            current_state = ()
-        elif span.type == TextSpanType.HARD_BREAK:
-            for flag in reversed(current_state):
-                result.append(MARKER_CLOSE[flag])
-            result.append("<br>")
-            current_state = ()
-        else:
-            new_state = _get_options(span)
-            min_len = min(len(new_state), len(current_state))
-            common = 0
-            while common < min_len and current_state[common] == new_state[common]:
-                common += 1
-            for flag in reversed(current_state[common:]):
-                result.append(MARKER_CLOSE[flag])
-            for flag in new_state[common:]:
-                result.append(MARKER_OPEN[flag])
-            result.append(span.content or "")
-            current_state = new_state
-    for flag in reversed(current_state):
-        result.append(MARKER_CLOSE[flag])
-    return "".join(result)
 
 
 def _render_table(table: TextTable) -> str:
@@ -730,40 +766,42 @@ def _render_table(table: TextTable) -> str:
     return "\n".join(rows_md)
 
 
+def _render_line(line: TextLine) -> str:
+    """
+    Render a single TextLine as markdown.
+    """
+    if line.type == TextLineType.DIVIDER:
+        return "---"
+    elif line.type == TextLineType.CODE:
+        return "```\n" + (line.content or "") + "\n```"
+    elif line.type == TextLineType.TABLE and line.table:
+        return _render_table(line.table)
+    else:
+        prefix = ""
+        if line.type == TextLineType.HEADING_1:
+            prefix = "# "
+        elif line.type == TextLineType.HEADING_2:
+            prefix = "## "
+        elif line.type == TextLineType.HEADING_3:
+            prefix = "### "
+        elif line.type == TextLineType.HEADING_4:
+            prefix = "#### "
+        elif line.type == TextLineType.CALLOUT:
+            prefix = "! "
+        elif line.type == TextLineType.QUOTE:
+            prefix = "> "
+        elif line.type == TextLineType.LIST_UNORDERED:
+            prefix = "- "
+        elif line.type == TextLineType.LIST_ORDERED:
+            prefix = "1. "
+        content = _render_inline(line.spans)
+        if line.color:
+            content = f"[{_render_color(line.color)}]{content}[/{_render_color(line.color)}]"
+        return prefix + content
+
+
 def text_to_markdown(text_obj: Text) -> str:
     """
     Render a Text object as markdown.
     """
-    md_lines = []
-    for line in text_obj.lines:
-        if line.type == TextLineType.DIVIDER:
-            md_lines.append("---")
-        elif line.type == TextLineType.CODE:
-            md_lines.append("```")  # noqa: FURB113
-            md_lines.append(line.content or "")
-            md_lines.append("```")
-        elif line.type == TextLineType.TABLE and line.table:
-            md_lines.append(_render_table(line.table))
-        else:
-            prefix = ""
-            if line.type == TextLineType.HEADING_1:
-                prefix = "# "
-            elif line.type == TextLineType.HEADING_2:
-                prefix = "## "
-            elif line.type == TextLineType.HEADING_3:
-                prefix = "### "
-            elif line.type == TextLineType.HEADING_4:
-                prefix = "#### "
-            elif line.type == TextLineType.CALLOUT:
-                prefix = "! "
-            elif line.type == TextLineType.QUOTE:
-                prefix = "> "
-            elif line.type == TextLineType.LIST_UNORDERED:
-                prefix = "- "
-            elif line.type == TextLineType.LIST_ORDERED:
-                prefix = "1. "
-            content = _render_inline(line.spans)
-            if line.color:
-                content = f"[{_render_color(line.color)}]{content}[/{_render_color(line.color)}]"
-            md_lines.append(prefix + content)
-    return "\n".join(md_lines)
+    return "\n".join(_render_line(line) for line in text_obj.lines)

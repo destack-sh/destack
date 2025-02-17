@@ -1,7 +1,13 @@
 import pytest
 
-from bench.language import TextLineType, markdown_to_text, text_to_markdown
-from bench.language.core.text import TextLine, TextSpan, TextSpanType
+from bench.language import (
+    TextLine,
+    TextLineType,
+    TextSpan,
+    TextSpanType,
+    markdown_to_text,
+    text_to_markdown,
+)
 
 
 def test_text_prefix():
@@ -22,6 +28,19 @@ def test_text_prefix():
     assert text.lines[4] == TextLine.list_bullet("list item")
     assert text.lines[5] == TextLine.list_numbered("numbered item")
     assert text.lines[6] == TextLine.divider()
+
+
+def test_text_citation():
+    md = """\
+This is a deferred citation[^1] and an inline citation[^Symbol25](www.symbol.com).
+"""
+    text = markdown_to_text(md)
+    assert text.lines[0].spans[0] == TextSpan.new(TextSpanType.TEXT, "This is a deferred citation")
+    assert text.lines[0].spans[1] == TextSpan.new(TextSpanType.CITATION, "1")
+    assert text.lines[0].spans[2] == TextSpan.new(TextSpanType.TEXT, " and an inline citation")
+    assert text.lines[0].spans[3] == TextSpan.new(
+        TextSpanType.CITATION, "Symbol25", url="www.symbol.com"
+    )
 
 
 def test_text_code():
@@ -46,11 +65,11 @@ def test_text_span_link():
 [link](https://example.com) and [another](https://test.com/path?q=123#fragment)"""
     text = markdown_to_text(md)
     assert text.lines[0].spans[0] == TextSpan.new(
-        TextSpanType.LINK, content="link", href="https://example.com"
+        TextSpanType.LINK, content="link", url="https://example.com"
     )
     assert text.lines[0].spans[1] == TextSpan.new(TextSpanType.TEXT, " and ")
     assert text.lines[0].spans[2] == TextSpan.new(
-        TextSpanType.LINK, content="another", href="https://test.com/path?q=123#fragment"
+        TextSpanType.LINK, content="another", url="https://test.com/path?q=123#fragment"
     )
 
 
@@ -117,7 +136,7 @@ Here is my $$E = mc^2$$ equation, check out [this link](https://example.com) and
 This is a paragraph with **bold** and *italic* formatting""",
         """\
 Normal text with `inline code` and ~~strikethrough~~.
-> This is a blockquote with <u>underlined text</u>
+> This is a blockquote with <u>underlined text</u>[^2]
 ! Important callout message""",
         """\
 ```
