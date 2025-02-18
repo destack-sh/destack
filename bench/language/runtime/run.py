@@ -407,18 +407,18 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         assert self._session is not None, f"{self!r} has no session"
         self.paused_at = self._session._oracle.utc()
 
-    def resume(self):
+    def resume(self, _trigger_runtime: bool = True):
         """Mark this Run as resumed."""
         assert self._session is not None, f"{self!r} has no session"
         self.resumed_at = self._session._oracle.utc()
-        if (runtime := self.runtime) is not None:
+        if (runtime := self.runtime) is not None and _trigger_runtime:
             runtime.resume_run(self)
 
-    def stop(self):
+    def stop(self, _trigger_runtime: bool = True):
         """Mark this Run as stopped."""
         assert self._session is not None, f"{self!r} has no session"
         self.stopped_at = self._session._oracle.utc()
-        if (runtime := self.runtime) is not None:
+        if (runtime := self.runtime) is not None and _trigger_runtime:
             runtime.stop_run(self)
 
     def _mark_terminated(self):

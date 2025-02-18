@@ -86,7 +86,8 @@ def attach_node[N: "Node"](node: N, parent: "Node", graph: "NodeGraph", move: bo
         moved = node._move_to_graph(graph)
         if len(old_graph) == 0:
             # clean up old graph
-            graph.supergraph.remove_graph(old_graph)
+            if graph in graph.supergraph._graphs:
+                graph.supergraph.remove_graph(old_graph)
             uncapture(old_graph)
     else:
         moved = (node,)  # already in the graph

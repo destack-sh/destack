@@ -41,6 +41,20 @@ async def test_run_flow_empty(simulation: Simulation, runtime: RuntimeLambdaWork
 
 
 @simulated_runtime()
+async def test_run_flow_lifted_from_action(simulation: Simulation, runtime: RuntimeLambdaWorkload):
+    """Run a Flow lifted from an Action."""
+    Flow1 = Flow.new("Flow1")
+    Action1 = Action.new(ActionType.START, "Action1")
+    Flow1.actions.append(Action1)
+    runtime.page().append(Flow1)
+    await runtime.commit()
+
+    runner = await runtime.run_in_runtime(Action1)
+    assert runner.tracked_run and runner.tracked_run.runnable == Flow1
+    assert runner.tracked_run.runs[0].runnable == Action1
+
+
+@simulated_runtime()
 async def test_run_flow_spurious(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Flow with Actions that go nowhere."""
     Flow1 = Flow.new("Flow1")
@@ -1052,7 +1066,7 @@ async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLam
     assert runner.tracked_run.interrupted_at and runner.tracked_run.interruption
 
     # handle interruption
-    runner.tracked_run.interruption.complete()
+    runner.tracked_run.interruption.complete(_trigger_runtime=False)
 
     # resume run (after handling Interruption)
     runner = await runtime.run_in_runtime(runner.tracked_run)
@@ -1076,7 +1090,7 @@ async def test_run_flow_yield_cancelled(simulation: Simulation, runtime: Runtime
     assert runner.status == RunStatus.YIELDED
     assert runner.tracked_run
     assert runner.tracked_run.interruption
-    runner.tracked_run.interruption.cancel()
+    runner.tracked_run.interruption.cancel(_trigger_runtime=False)
     runner = await runtime.run_in_runtime(runner.tracked_run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.INTERRUPTION_CANCELLED
@@ -1178,6 +1192,6 @@ async def test_run_flow_pause_resume(simulation: Simulation, runtime: RuntimeLam
         assert runner.status == RunStatus.PAUSED
 
     # resume
-    runner.tracked_run.resume()
+    runner.tracked_run.resume(_trigger_runtime=False)
     _ = await runtime.runtime.run_runner(runner)
     assert runner.status == RunStatus.COMPLETED
