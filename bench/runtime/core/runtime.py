@@ -151,8 +151,8 @@ class Runtime:
 
     def stop(self):
         """Stop the Runtime."""
-        # TODO :Robustness!: handle Runtime stop better? pause existing Runs?
-        #  (maybe auto-interrupt all active Runners so we can transfer them to a new Runtime?)
+        # TODO :Robustness: handle Runtime stop better? pause existing Runs?
+        #  (maybe auto-interrupt all active Runners so we can transfer them? :HibernateRuns)
         self._is_stop_requested = True
 
     async def wait_stopped(self):
@@ -902,7 +902,7 @@ class Runtime:
         )
         for parent_id, child_runs in runs_by_parent_id.items():
             if parent_id is None:
-                continue  # can't resume top-level Run
+                continue  # top-level Run has no parent Runner to resume it in
             parent_runner = self._active_runners_by_id.get(parent_id)
             if parent_runner is not None:
                 parent_runner.resume(child_runs)

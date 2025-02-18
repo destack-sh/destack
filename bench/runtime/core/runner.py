@@ -554,7 +554,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if self.task is not None:
             self.task.cancel()
         if self.tracked_run is not None and not self.is_active:
-            self.tracked_run._mark_stopped()
+            self.tracked_run._mark_terminated()
             self.status = self.tracked_run.status
 
 

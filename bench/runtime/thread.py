@@ -69,7 +69,7 @@ class RunHandle:
             return  # nothing to run anymore
         if self.task is None or self.task.done():
             # start 'fresh'
-            self.task = asyncio.create_task(self.thread._do_run(self))
+            self.task = asyncio.create_task(self.thread._run(self))
         else:
             # resume active
             self.runtime.resume_run(*runs_to_resume)
@@ -105,13 +105,13 @@ class RunHandle:
             self.run(runs_to_resume=runs_to_resume)
 
     def pause(self, run: Run):
-        """Pause a Run."""
+        """Pause a Run in this Run."""
         # nothing to do? (pause is trapped automatically if active)
         assert run.paused_at is not None, f"{run!r} is not paused"
         self.log.debug("run.pause", run=run)
 
     def stop(self, run: Run):
-        """Stop a Run."""
+        """Stop a Run in this Run."""
         if self.is_active:
             # kill active Run
             self.runtime.stop_run(run)
@@ -122,7 +122,7 @@ class RunHandle:
             ):
                 node = cast(Run, node)
                 if not node.status.is_terminal:
-                    node._mark_stopped()
+                    node._mark_terminated()
                     self.runtime.close_run(run, resume=False)
             if run.id == self.root.id:
                 self.close()
@@ -268,7 +268,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                 with tracer.start_as_current_span("thread.load"):
                     async with self._session.active(readonly=True):
                         run = await Run.include_descendants(
-                            NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION
+                            NodeType.RUN, NodeType.RUN_SPAN, NodeType.PLAN, NodeType.INTERRUPTION
                         ).get(run_ptr, live=True)
                         run._graph.add_types(*RUNTIME_NODE_TYPES)
                     assert run.bench_id == self._bench_id, f"{run!r} is not in {self!r}"
@@ -282,8 +282,8 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                 handle = self._managed_runs[run_ptr.id]
         return handle
 
-    async def _do_run(self, handle: RunHandle) -> None:
-        """Process a Run (once) until termination/interruption."""
+    async def _run(self, handle: RunHandle) -> None:
+        """Process a Run (once) until it stops (terminates/interrupts)."""
         assert self._session is not None, f"no session for {self!r}"
         assert self._runtime is not None, f"no runtime for {self!r}"
 
@@ -307,20 +307,20 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
     def pause_run(self, run: Run):
         """Pause a Run."""
         handle = self._managed_runs.get(run.root_id or run.id)
-        assert handle is not None, f"no handle for {run!r} in {self!r}"
+        assert handle is not None, f"no {run!r} in {self!r}"
         handle.pause(run)
 
     def resume_run(self, run: Run):
         """Resume a Run."""
         handle = self._managed_runs.get(run.root_id or run.id)
-        assert handle is not None, f"no handle for {run!r} in {self!r}"
+        assert handle is not None, f"no {run!r} in {self!r}"
         handle.run()
         self.runtime.resume_run(run)
 
     def stop_run(self, run: Run):
         """Stop a Run."""
         handle = self._managed_runs.get(run.root_id or run.id)
-        assert handle is not None, f"no handle for {run!r} in {self!r}"
+        assert handle is not None, f"no {run!r} in {self!r}"
         handle.stop(run)
 
     @override
