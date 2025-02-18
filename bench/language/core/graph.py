@@ -100,7 +100,6 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
     def add_types(self, *node_types: NodeType):
         """Adds more node types to the graph"""
-        # NOTE :Architecture: manually tracking which types go in which graph seems unwieldy
         self.node_types |= bittuple(*node_types)
 
     def get(self, node_key: K) -> Optional[V]:

@@ -1,4 +1,4 @@
-from bench.language import Action, ActionType, Flow, Message, PipeType, Run, RunStatus, Trigger
+from bench.language import Action, ActionType, Flow, Message, Run, RunStatus, Trigger
 from bench.language.core.const import TERMINAL_RUN_STATUSES
 from bench.runtime import create_run_from_node
 from bench.test.simulation.core import Simulation
@@ -21,14 +21,11 @@ async def test_run_in_runtime(simulation: Simulation, runtime: RuntimeLambdaWork
 
 @simulated_runtime(runtimes=True)
 async def test_run_flow_from_message(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Create a Run from a Message in a Flow."""
+    """Create a Run from a Message in a Flow. Should be lifted into a Flow Run."""
     Flow1 = Flow.new("Flow1")
     Receive1 = Action.new(ActionType.RECEIVE, "Receive1", triggers=[Trigger.on_message()])
-    Respond1 = Action.new(ActionType.SEND, "Respond1")
     Complete1 = Action.new(ActionType.COMPLETE, "Complete1")
-    Flow1.extend(Receive1, Respond1, Complete1)
-    Receive1.connect(PipeType.CALL, Respond1)
-    Respond1.connect(PipeType.CALL, Complete1)
+    Flow1.extend(Receive1, Complete1)
     runtime.page().append(Flow1)
     await runtime.commit()
 

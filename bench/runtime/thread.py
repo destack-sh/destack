@@ -143,6 +143,8 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
     """
     A 'thread' for executing Runs in a Runtime in some Session. Runs may be paused, resumed and killed.
     A RuntimeThread may reside in any logical thread or process (incl. main), depending on context.
+    TODO :Incomplete: 'hibernate'/release Runs away from this RuntimeThread/Machine after some time
+     (to make space for other Runs if a Run is interrupted & inactive for a while) :HibernateRuns
     """
 
     kind = ServiceKind.INTERNAL
@@ -259,9 +261,9 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             lock = asyncio.Lock()
             self._lock_by_run[run_ptr.id] = lock
 
+        # actually load the Run (synchronized)
         async with lock:
             if run_ptr.id not in self._managed_runs:
-                # actually load the Run
                 self._set_baggage()
                 with tracer.start_as_current_span("thread.load"):
                     async with self._session.active(readonly=True):
@@ -287,14 +289,14 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
 
         # nocheckin: lift RunHandle into current Run if ... trigger says so? it's an action..?
         #  We need to turn Action Runs into Flow Runs.. somewhere
-        #  Also we need to resume/continue Runs from Triggers .. somehow
+        #  Also we need to resume & replace Runs from Triggers .. somehow
 
+        # process run
         self._set_baggage()
         with tracer.start_as_current_span("thread.run"):
-            # process run
             self._active_runs[handle.root.id] = handle
             try:
-                await self._runtime.run(handle.root, return_error=True, optimistic=True)
+                await self._runtime.run(handle.root, return_error=True)
                 logger.info("runtime_thread.run", process=self, run=handle.root, span="current")
                 # done, close handle
                 if handle.root.status.is_terminal:
@@ -323,9 +325,8 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
 
     @override
     async def run(self, request: RunRequest, headers: Mapping) -> RunResponse:
-        # TODO :Robustness: Run.created_epoch may be ahead of our own epoch if the sync takes longer to
-        #  arrive than the request from the scheduler (both from our Host). This means the caller/user
-        #  may expect a different current state than we actually have (so we may be behind).
+        # NOTE :Robustness: Runs may be out of sync with our state because they're pushed separately
+        #  (this should be fixed when we switch to :PullRuns instead of pushing in RunPlugin)
         run_ptr = wiring.unpack_builtin_object_validate(
             request.run_ptr, supergraph=None, expect=NodeReference
         )

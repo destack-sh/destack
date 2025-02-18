@@ -39,8 +39,7 @@ import {
   isActionEnabled,
   MESSAGE_CONTEXT_ACTIONS,
 } from "@/ui/action";
-import { useSingleDropZone } from "@/ui/drag";
-import { isSelecting, startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
+import { isSelecting, startSelectingIfAllowed, useSelectionZone, useSingleDropZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
@@ -331,7 +330,7 @@ function submit() {
   if (isTextEmpty(text)) return; // don't create empty messages
   createMessage(connection.tx, graph, {
     message: {
-      type: MessageType.TEXT,
+      type: replyTo.value != null ? MessageType.REPLY : MessageType.REGULAR,
       parentPtr: benchPtr.value,
       channelPtr: channelPtr.value,
       threadPtr: threadPtr.value,

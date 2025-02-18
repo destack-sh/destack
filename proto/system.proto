@@ -178,6 +178,8 @@ message CommitTransactionResponse {
 }
 
 // Common service definition for global and bench-local :Graph
+// TODO :Architecture: Graph interface should just be Query + Watch + Commit :RichGraph
+//  (and maybe some special methods for :ExclusiveOwnership acquisition/release (of Runs/Resources?)
 service Graph {
   // Get nodes (of the same root type) in this graph. 
   rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);

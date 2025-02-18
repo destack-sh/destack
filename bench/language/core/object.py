@@ -193,7 +193,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
 
     # NOTE :Performance :Architecture: we can't really use slots for our builtin objects
-    #  (as it stands today, __slots__ always uses class-level descriptors, but we also
+    #  (as of Python 3.13, __slots__ always uses class-level descriptors, but we also
     #   want to use class level attributes for our own properties, like Block.type, ...
     #   - neglecting this conflict causes fun errors like 'X is a read-only attribute')
 

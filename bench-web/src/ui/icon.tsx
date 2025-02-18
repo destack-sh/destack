@@ -205,7 +205,7 @@ export const AvatarInline: FunctionalComponent<
   } else if (props.emoji) {
     // emoji
     if (backgroundColorHex == null) {
-      baseClasses += " bg-gray-200 border border-gray-200";
+      baseClasses += " bg-blue-300 border border-blue-200";
     }
     return (
       <div class={baseClasses} style={{ backgroundColor: backgroundColorHex }}>
