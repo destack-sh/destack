@@ -851,8 +851,16 @@ class _IntoQuery:
     def exists(self: Any) -> "Expression":
         return _to_conditional(ConditionalType.EXISTS, self)
 
+    @_require_expression_op(ConditionalType.EXISTS)
+    def is_not_none(self: Any) -> "Expression":
+        return _to_conditional(ConditionalType.EXISTS, self)
+
     @_require_expression_op(ConditionalType.NOT_EXISTS)
     def not_exists(self: Any) -> "Expression":
+        return _to_conditional(ConditionalType.NOT_EXISTS, self)
+
+    @_require_expression_op(ConditionalType.NOT_EXISTS)
+    def is_none(self: Any) -> "Expression":
         return _to_conditional(ConditionalType.NOT_EXISTS, self)
 
     # knn

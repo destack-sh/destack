@@ -710,6 +710,7 @@ def create_run_from_node(
     node: "RunnableNode",
     *,
     isolate: bool = True,
+    status: RunStatus | None = None,
     variables: Any | None = None,
     inputs: Any | None = None,
     options: RunOptions | None = None,
@@ -732,6 +733,8 @@ def create_run_from_node(
     )
     if session is None:
         session = active_session()
+    if status is not None:
+        run.status = status
     session._create(run)
     return run
 
