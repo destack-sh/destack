@@ -125,7 +125,7 @@ class RunPlugin(HostPlugin[Run]):
                 runtime = RuntimeClient(
                     await self.network.get_channel(machine.connection_uri, source_id=self.host.id)
                 )
-                request = RunRequest(run_ptr=run._to_ref_data(), is_blocking=False)
+                request = RunRequest(run_ptr=run._to_ref_data())
                 _ = await runtime.run(request)
                 log.debug("run_plugin.run", machine=machine, span="current")
                 return  # success

@@ -24,7 +24,7 @@ from . import common_pb2 as common__pb2
 from . import lang_pb2 as lang__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rruntime.proto\x12\rsymbolx.bench\x1a\x0c\x63ommon.proto\x1a\nlang.proto\"T\n\nRunRequest\x12\x31\n\x07run_ptr\x18\x01 \x01(\x0b\x32 .symbolx.bench.NodeReferenceData\x12\x13\n\x0bis_blocking\x18\x02 \x01(\x08\"\r\n\x0bRunResponse2M\n\x07Runtime\x12<\n\x03Run\x12\x19.symbolx.bench.RunRequest\x1a\x1a.symbolx.bench.RunResponse\x1a\x04\x80\xb5\x18\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rruntime.proto\x12\rsymbolx.bench\x1a\x0c\x63ommon.proto\x1a\nlang.proto\"?\n\nRunRequest\x12\x31\n\x07run_ptr\x18\x01 \x01(\x0b\x32 .symbolx.bench.NodeReferenceData\"\r\n\x0bRunResponse2M\n\x07Runtime\x12<\n\x03Run\x12\x19.symbolx.bench.RunRequest\x1a\x1a.symbolx.bench.RunResponse\x1a\x04\x80\xb5\x18\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,9 +34,9 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_RUNTIME']._loaded_options = None
   _globals['_RUNTIME']._serialized_options = b'\200\265\030\001'
   _globals['_RUNREQUEST']._serialized_start=58
-  _globals['_RUNREQUEST']._serialized_end=142
-  _globals['_RUNRESPONSE']._serialized_start=144
-  _globals['_RUNRESPONSE']._serialized_end=157
-  _globals['_RUNTIME']._serialized_start=159
-  _globals['_RUNTIME']._serialized_end=236
+  _globals['_RUNREQUEST']._serialized_end=121
+  _globals['_RUNRESPONSE']._serialized_start=123
+  _globals['_RUNRESPONSE']._serialized_end=136
+  _globals['_RUNTIME']._serialized_start=138
+  _globals['_RUNTIME']._serialized_end=215
 # @@protoc_insertion_point(module_scope)

@@ -367,11 +367,11 @@ export interface AggregateNodesRequest {
      */
     nodeType: NodeType;
     /**
-     * The relevant block (if any).
+     * The relevant base type (if any).
      *
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 3;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_type_ptr = 3;
      */
-    blockPtr?: NodeReferenceData;
+    baseTypePtr?: NodeReferenceData;
     /**
      * Filter for the aggregation.
      *
@@ -1636,7 +1636,7 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         super("symbolx.bench.AggregateNodesRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 3, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 3, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 4, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 5, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 6, name: "aggregation", kind: "message", T: () => ExpressionData },
@@ -1662,8 +1662,8 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
                 case /* symbolx.bench.NodeType node_type */ 2:
                     message.nodeType = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 3:
-                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
+                case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 3:
+                    message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
                     break;
                 case /* optional symbolx.bench.ExpressionData filter */ 4:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
@@ -1695,9 +1695,9 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         /* symbolx.bench.NodeType node_type = 2; */
         if (message.nodeType !== 0)
             writer.tag(2, WireType.Varint).int32(message.nodeType);
-        /* optional symbolx.bench.NodeReferenceData block_ptr = 3; */
-        if (message.blockPtr)
-            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData base_type_ptr = 3; */
+        if (message.baseTypePtr)
+            NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ExpressionData filter = 4; */
         if (message.filter)
             ExpressionData.internalBinaryWrite(message.filter, writer.tag(4, WireType.LengthDelimited).fork(), options).join();

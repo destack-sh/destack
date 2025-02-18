@@ -324,7 +324,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                     lambda: run.thread and asyncio.create_task(run.thread.healthcheck()),
                 )
                 # and run 'blocking'
-                request = RunRequest(run_ptr=run.run_ptr._to_data(), is_blocking=True)
+                request = RunRequest(run_ptr=run.run_ptr._to_data())
                 if isinstance(run.thread.client, RuntimeBase):
                     _ = await run.thread.client.run(request, {})
                 elif isinstance(run.thread.client, RuntimeClient):
@@ -358,7 +358,4 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         )
         managed_run = RunHandle(service=self, run_ptr=run_ptr, run=None)
         managed_run.task = asyncio.create_task(self._do_run(managed_run))
-        if request.is_blocking:
-            await managed_run.task
-
         return RunResponse()
