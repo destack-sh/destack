@@ -71,7 +71,6 @@ from bench.runtime.core import (
     Runner,
     Runtime,
     make_runner,
-    restore_runner,
 )
 from bench.runtime.core.error import IncapableError, RefusedError
 from bench.runtime.model.chat import get_chat_model_runner_cls
@@ -315,7 +314,7 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
         for run in self.tracked_run.runs:
             # try to resume interrupted Run
             if run.status.is_interrupted and run.runnable == node:
-                return restore_runner(self.runtime, run)
+                return self.runtime.restore_runner(run)
         else:
             # make new Runner
             runner = make_runner(

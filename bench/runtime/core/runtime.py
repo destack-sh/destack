@@ -918,6 +918,14 @@ class Runtime:
         if to_resume:
             self.resume_run(*to_resume)
 
+    def restore_runner(self, run: Run) -> Runner:
+        """Restore a Runner from a Run."""
+        if (runner := self._owned_runners_by_id.get(run.id)) is not None:
+            return runner
+        else:
+            runner = restore_runner(runtime=self, run=run)
+            return runner
+
     async def run(
         self,
         run: Run | NodeReference,
@@ -939,7 +947,7 @@ class Runtime:
             if isinstance(run, NodeReference):
                 runner, run = await self._load_runner(run)
             else:
-                runner = restore_runner(runtime=self, run=run)
+                runner = self.restore_runner(run)
 
         async with isolated_graph(), self.session.active():
             try:
