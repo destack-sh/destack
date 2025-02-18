@@ -406,25 +406,23 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         """Mark this Run as paused."""
         assert self._session is not None, f"{self!r} has no session"
         self.paused_at = self._session._oracle.utc()
-        if (thread := self.thread) is not None:
-            thread.pause_run(self)
 
     def resume(self):
         """Mark this Run as resumed."""
         assert self._session is not None, f"{self!r} has no session"
         self.resumed_at = self._session._oracle.utc()
-        if (thread := self.thread) is not None:
-            thread.resume_run(self)
+        if (runtime := self.runtime) is not None:
+            runtime.resume_run(self)
 
     def stop(self):
         """Mark this Run as stopped."""
         assert self._session is not None, f"{self!r} has no session"
         self.stopped_at = self._session._oracle.utc()
-        if (thread := self.thread) is not None:
-            thread.stop_run(self)
+        if (runtime := self.runtime) is not None:
+            runtime.stop_run(self)
 
     def _mark_terminated(self):
-        """Mark this Run as terminated."""
+        """Mark this Run as stopped."""
         assert self._session is not None, f"{self!r} has no session"
         if self.status.is_terminal:
             return  # already terminated

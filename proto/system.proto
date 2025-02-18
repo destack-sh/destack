@@ -128,8 +128,8 @@ message AggregateNodesRequest {
   GraphScopeData scope = 1;
   // The type of node to aggregate.
   NodeType node_type = 2;
-  // The relevant block (if any).
-  optional NodeReferenceData block_ptr = 3;
+  // The relevant base type (if any).
+  optional NodeReferenceData base_type_ptr = 3;
   // Filter for the aggregation.
   optional ExpressionData filter = 4;
   // Sort order for the aggregation.
@@ -178,7 +178,7 @@ message CommitTransactionResponse {
 }
 
 // Common service definition for global and bench-local :Graph
-// TODO :Architecture: Graph interface should just be Query + Watch + Commit :RichGraph
+// TODO :Architecture: Graph interface should just be Query + Subscribe + Commit :RichGraph
 //  (and maybe some special methods for :ExclusiveOwnership acquisition/release (of Runs/Resources?)
 service Graph {
   // Get nodes (of the same root type) in this graph. 

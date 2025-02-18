@@ -1,23 +1,11 @@
 import asyncio
-from itertools import chain
-from typing import TYPE_CHECKING, Any, Callable, Collection, Mapping, cast, override
+from typing import TYPE_CHECKING, Any, Callable, Mapping, override
 from uuid import UUID
 
 import structlog
 from opentelemetry import trace
 
-from bench.language import (
-    NONCE,
-    ClientType,
-    GetConnection,
-    Interruption,
-    InterruptionType,
-    NodeReference,
-    NodeType,
-    Run,
-    WatchGetUpdate,
-)
-from bench.language.core.const import RUNTIME_NODE_TYPES
+from bench.language import NONCE, ClientType, NodeReference
 from bench.pb2 import (
     RunRequest,
     RunResponse,
@@ -27,7 +15,7 @@ from bench.pb2 import (
 from bench.pb2.system_grpc import SupervisorClient
 from bench.proto import Network, wiring
 from bench.runtime.base import RuntimeServiceBase
-from bench.runtime.code.context import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
+from bench.runtime.code import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
 from bench.runtime.core import RedisCache, Runtime
 from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
@@ -37,106 +25,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-
-class RunHandle:
-    """A handle for a Run in a RuntimeThread."""
-
-    def __init__(
-        self, root: Run, connection: GetConnection, lock: asyncio.Lock, thread: "RuntimeThread"
-    ) -> None:
-        self.root = root
-        self.connection = connection
-        self.lock = lock
-        self.thread = thread
-        self.runtime = thread.runtime
-        self.task: asyncio.Task | None = None
-        self.log = logger.bind(root=root, thread=thread)
-
-    def __str__(self):
-        return f"{self.root} in {self.thread} [{'active' if self.is_active else 'inactive'}]"
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self!s}>"
-
-    @property
-    def is_active(self) -> bool:
-        return self.root.id in self.thread._active_runs
-
-    def run(self, runs_to_resume: Collection[Run] = ()) -> None:
-        """Runs the handle if it should be running but isn't."""
-        if self.root.status.is_terminal:
-            return  # nothing to run anymore
-        if self.task is None or self.task.done():
-            # start 'fresh'
-            self.task = asyncio.create_task(self.thread._run(self))
-        else:
-            # resume active
-            self.runtime.resume_run(*runs_to_resume)
-            logger.debug("thread.run.resume", runs=runs_to_resume)
-
-    def on_update(self, connection: GetConnection, update: WatchGetUpdate):
-        """React to updates on Runs/Interruptions."""
-        runs_to_resume: set[Run] = set()
-        for node in update.updated.values():
-            # react to Run/Interruption updates in Runtime
-            if isinstance(node, Run):
-                if node.status.is_terminal:
-                    continue  # nothing to do anymore
-                if node.stopped_at:
-                    self.stop(node)
-                elif node.paused_at and (not node.resumed_at or node.paused_at > node.resumed_at):
-                    self.pause(node)
-                elif node.resumed_at and (not node.paused_at or node.resumed_at > node.paused_at):
-                    # close open Interruption, resume affected Runs
-                    interruption = node.interruption
-                    if (
-                        interruption
-                        and interruption.type == InterruptionType.PAUSE
-                        and not interruption.status.is_closed
-                    ):
-                        interruption.complete(_trigger_runtime=False)
-                    runs_to_resume.add(node)
-                    runs_to_resume.update(node.ancestors)
-            elif isinstance(node, Interruption):
-                if node.status.is_closed:
-                    runs_to_resume.update(self.runtime.get_interrupted_runs(self.root._graph, node))
-        if runs_to_resume:
-            self.run(runs_to_resume=runs_to_resume)
-
-    def pause(self, run: Run):
-        """Pause a Run in this Run."""
-        # nothing to do? (pause is trapped automatically if active)
-        assert run.paused_at is not None, f"{run!r} is not paused"
-        self.log.debug("run.pause", run=run)
-
-    def stop(self, run: Run):
-        """Stop a Run in this Run."""
-        if self.is_active:
-            # kill active Run
-            self.runtime.stop_run(run)
-        else:
-            # mark inner Runs/Interrupts as killed
-            for node in chain(
-                (run,), run._graph.iter_descendants(run, NodeType.RUN, recursive=True)
-            ):
-                node = cast(Run, node)
-                if not node.status.is_terminal:
-                    node._mark_terminated()
-                    self.runtime.close_run(run, resume=False)
-            if run.id == self.root.id:
-                self.close()
-            else:
-                self.run()  # not active, start running again
-            self.runtime.session.commit_optimistic()
-        self.log.debug("run.stop", run=run)
-
-    def close(self):
-        """Close this RunHandle."""
-        self.connection.close(release=True)
-        if self.root.id in self.thread._managed_runs:
-            del self.thread._managed_runs[self.root.id]
-        self.log.trace("run.close", run=self.root)
 
 
 class RuntimeThread(RuntimeServiceBase, RuntimeBase):
@@ -183,9 +71,6 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         self.id = id
         self._mode = mode
         self._runtime: Runtime | None = None
-        self._lock_by_run: dict[UUID, asyncio.Lock] = {}  # locks for each Run
-        self._managed_runs: dict[UUID, RunHandle] = {}  # Runs this Thread is responsible for
-        self._active_runs: dict[UUID, RunHandle] = {}  # Runs currently active in this Thread
 
     def __str__(self):
         bench_str = repr(self.bench) if self._bench else self._bench_id
@@ -243,85 +128,6 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         if self._runtime is not None:
             await self._runtime.wait_stopped()
         await super().wait_stopped()
-        for run in tuple(self._managed_runs.values()):
-            if run.task is not None:
-                await run.task
-            run.close()
-
-    async def _load_run(self, run_ptr: NodeReference) -> RunHandle:
-        """Load the Run for execution."""
-        assert run_ptr.id is not None, f"missing id for {run_ptr!r}"
-        assert self._session is not None, f"no session for {self!r}"
-        assert self._main_package is not None, f"no main package for {self!r}"
-
-        # synchronize access so we don't load the same Run twice in case of overlapping requests
-        if run_ptr.id in self._lock_by_run:
-            lock = self._lock_by_run[run_ptr.id]
-        else:
-            lock = asyncio.Lock()
-            self._lock_by_run[run_ptr.id] = lock
-
-        # actually load the Run (synchronized)
-        async with lock:
-            if run_ptr.id not in self._managed_runs:
-                self._set_baggage()
-                with tracer.start_as_current_span("thread.load"):
-                    async with self._session.active(readonly=True):
-                        run = await Run.include_descendants(
-                            NodeType.RUN, NodeType.RUN_SPAN, NodeType.PLAN, NodeType.INTERRUPTION
-                        ).get(run_ptr, live=True)
-                        run._graph.add_types(*RUNTIME_NODE_TYPES)
-                    assert run.bench_id == self._bench_id, f"{run!r} is not in {self!r}"
-                    assert run.root_ptr is None, f"{run!r} is not a root Run"
-                    assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
-                    handle = RunHandle(run, run._connection, lock, self)
-                    self._managed_runs[run_ptr.id] = handle
-                    run._connection.on_update(handle.on_update)
-            else:
-                # already loaded
-                handle = self._managed_runs[run_ptr.id]
-        return handle
-
-    async def _run(self, handle: RunHandle) -> None:
-        """Process a Run (once) until it stops (terminates/interrupts)."""
-        assert self._session is not None, f"no session for {self!r}"
-        assert self._runtime is not None, f"no runtime for {self!r}"
-
-        # nocheckin: lift RunHandle into current Run if ... trigger says so? it's an action..?
-        #  We need to turn Action Runs into Flow Runs.. somewhere
-        #  Also we need to resume & replace Runs from Triggers .. somehow
-
-        # process run
-        self._set_baggage()
-        with tracer.start_as_current_span("thread.run"):
-            self._active_runs[handle.root.id] = handle
-            try:
-                await self._runtime.run(handle.root, return_error=True)
-                logger.info("runtime_thread.run", process=self, run=handle.root, span="current")
-                # done, close handle
-                if handle.root.status.is_terminal:
-                    handle.close()
-            finally:
-                del self._active_runs[handle.root.id]
-
-    def pause_run(self, run: Run):
-        """Pause a Run."""
-        handle = self._managed_runs.get(run.root_id or run.id)
-        assert handle is not None, f"no {run!r} in {self!r}"
-        handle.pause(run)
-
-    def resume_run(self, run: Run):
-        """Resume a Run."""
-        handle = self._managed_runs.get(run.root_id or run.id)
-        assert handle is not None, f"no {run!r} in {self!r}"
-        handle.run()
-        self.runtime.resume_run(run)
-
-    def stop_run(self, run: Run):
-        """Stop a Run."""
-        handle = self._managed_runs.get(run.root_id or run.id)
-        assert handle is not None, f"no {run!r} in {self!r}"
-        handle.stop(run)
 
     @override
     async def run(self, request: RunRequest, headers: Mapping) -> RunResponse:
@@ -330,8 +136,6 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         run_ptr = wiring.unpack_builtin_object_validate(
             request.run_ptr, supergraph=None, expect=NodeReference
         )
-        handle = await self._load_run(run_ptr)
-        handle.run()
-        if request.is_blocking and handle.task is not None:
-            await handle.task
+        self._set_baggage()
+        self.tasks.run(self.runtime.run(run_ptr))
         return RunResponse()

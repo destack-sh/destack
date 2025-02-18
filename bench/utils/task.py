@@ -75,6 +75,7 @@ class TaskManager:
             raise
 
     def run(self, coro: Coroutine, task_id: str | None = None) -> None:
+        """Run a coroutine asynchronously (once)."""
         task_id = self._make_task_id(task_id, coro.__name__)
         task = asyncio.create_task(
             coro=self._run_task(coro, self._logger, task_id, self._owner), name=task_id

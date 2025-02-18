@@ -18,6 +18,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
+    RUNTIME_NODE_TYPES,
     Action,
     Bench,
     Breakpoint,
@@ -27,12 +28,14 @@ from bench.language import (
     CustomObject,
     Error,
     Flow,
+    GetConnection,
     HasContext,
     Interruption,
     InterruptionStatus,
     InterruptionType,
     Log,
     Node,
+    NodeGraph,
     NodeMode,
     NodeType,
     Page,
@@ -54,8 +57,6 @@ from bench.language import (
     active_session,
     get_tracing_context,
 )
-from bench.language.core.const import RUNTIME_NODE_TYPES
-from bench.language.core.graph import NodeGraph
 
 from .error import InterruptionCancelledError, RunImpossibleError
 from .options import BASE_RUN_OPTIONS_BY_KIND
@@ -145,6 +146,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     """
 
     __slots__ = (
+        "connection",
         "context",
         "error",
         "hooks",
@@ -293,12 +295,14 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             self.tracked = self.tracked_span
         self.id = self.tracked.id
 
-        # context
+        # runtime
         if self.context is None:
             self.context = self.tracked
-
-        # hooks
+        self.connection: GetConnection | None = None
         self.hooks: list[Callable[[RunnerEvent], None]] = []
+        if self.id in self.runtime._owned_runners_by_id:
+            raise RuntimeError(f"runner {self!r} already exists in {self.runtime!r}")
+        self.runtime._owned_runners_by_id[self.id] = self
 
     def __str__(self):
         str_parts: list[str] = [
@@ -540,8 +544,8 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         """
         ...
 
-    def resume(self, runs: Sequence[Run]):  # noqa: B027
-        """Resume inner Runs."""
+    def run_inner(self, runs: Sequence[Run]):  # noqa: B027
+        """Start or resume inner Runs."""
         pass
 
     def stop(self):
@@ -556,6 +560,12 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if self.tracked_run is not None and not self.is_active:
             self.tracked_run._mark_terminated()
             self.status = self.tracked_run.status
+
+    def close(self):
+        """Close this Runner/Run."""
+        if self.connection is not None:
+            self.connection.close(release=True)
+        self.runtime._owned_runners_by_id.pop(self.id, None)
 
 
 RUN_TYPE_BY_NODE_TYPE: dict[NodeType, RunType] = {
