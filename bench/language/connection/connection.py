@@ -523,7 +523,20 @@ class SearchConnection[ConnectorT: Connector, T: Node](
             node_data = result_data.graph.get(cast(str, node_ptr.id))
             assert node_data is not None, f"missing node for update: {node_ptr!r}"
             result_data.graph.remove(node_data)
+
         if result is not None:  # and update unpacked result
+            added: dict[UUID, Node] = {}
+            updated: dict[UUID, Node] = {}
+            removed: dict[UUID, Node] = {}
+
+            # collect pre-edit nodes (for remove)
+            for edit in new_edits:
+                if edit.type in (EditType.DELETE, EditType.ERASE):
+                    node = result.graph.get(UUID(edit.node_ptr.id))
+                    assert node is not None, f"missing node for edit: {edit!r}"
+                    removed[node.id] = node
+
+            # add new nodes
             for node_data in update.added_nodes:
                 node = wiring.unpack_builtin_object(
                     node_data,
@@ -534,14 +547,19 @@ class SearchConnection[ConnectorT: Connector, T: Node](
                     graph=result.graph,
                 )
                 result.graph.add(node)
+                added[node.id] = node
+
+            # remove nodes
             for node_ptr in update.removed_nodes_ptr:
                 node = result.graph.get(UUID(cast(str, node_ptr.id)))
                 assert node is not None, f"missing node for update: {node!r}"
                 result.graph.remove(node)
+                removed[node.id] = node
 
-        # apply
-        edit_data_graph(result_data.graph, update.edits, include_deleted=self.query.include_deleted)
-        if result is not None:
+            # apply edits
+            edit_data_graph(
+                result_data.graph, update.edits, include_deleted=self.query.include_deleted
+            )
             edit_graph(
                 graph=result.graph,
                 supergraph=self.session._supergraph,
@@ -550,21 +568,48 @@ class SearchConnection[ConnectorT: Connector, T: Node](
                 validate=False,
             )
 
-        # update 'roots' list
-        result_data.roots_ptr = update.roots_ptr
-        new_roots_data: list[AnyNodeData] = []
-        for root_ptr in result_data.roots_ptr:
-            root = result_data.graph.get(cast(str, root_ptr.id))
-            assert root is not None, f"missing root for update: {root_ptr!r}"
-            new_roots_data.append(root)
-        result_data.roots = new_roots_data
-        if result is not None:  # and update unpacked result
+            # collect post-edit nodes (for add/update)
+            for edit in new_edits:
+                if edit.type in (EditType.CREATE, EditType.UPDATE, EditType.MOVE):
+                    node = result.graph.get(UUID(edit.node_ptr.id))
+                    assert node is not None, f"missing node for edit: {edit!r}"
+                    if edit.type == EditType.CREATE:
+                        added[node.id] = node
+                    else:
+                        updated[node.id] = node
+
+            # update 'roots' list
+            result_data.roots_ptr = update.roots_ptr
+            new_roots_data: list[AnyNodeData] = []
+            for root_ptr in result_data.roots_ptr:
+                root = result_data.graph.get(cast(str, root_ptr.id))
+                assert root is not None, f"missing root for update: {root_ptr!r}"
+                new_roots_data.append(root)
+            result_data.roots = new_roots_data
+
             new_roots: list[Node] = []
             for root_data in result_data.roots_ptr:
                 root = result.graph.get(UUID(root_data.id))
                 assert root is not None, f"missing root for update: {root_data!r}"
                 new_roots.append(root)
             result.roots = new_roots
+
+            if unpack_update:
+                return WatchSearchUpdate(added=added, updated=updated, removed=removed)
+        else:
+            # just apply edits to result_data
+            edit_data_graph(
+                result_data.graph, update.edits, include_deleted=self.query.include_deleted
+            )
+
+            # update roots list
+            result_data.roots_ptr = update.roots_ptr
+            new_roots_data: list[AnyNodeData] = []
+            for root_ptr in result_data.roots_ptr:
+                root = result_data.graph.get(cast(str, root_ptr.id))
+                assert root is not None, f"missing root for update: {root_ptr!r}"
+                new_roots_data.append(root)
+            result_data.roots = new_roots_data
 
 
 class AggregateConnection[ConnectorT: Connector](

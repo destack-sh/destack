@@ -473,7 +473,11 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         elif isinstance(node, Pipe):
             base_query = Run.get_property("pipe").eq(node)
         elif isinstance(node, Flow):
-            base_query = Run.get_property("flow").eq(node)
+            base_query = (
+                Run.get_property("flow").eq(node)
+                & Run.get_property("action").is_none()
+                & Run.get_property("pipe").is_none()
+            )
         else:
             assert_never(node)
 

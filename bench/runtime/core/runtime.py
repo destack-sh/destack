@@ -975,10 +975,13 @@ class Runtime:
                 if trigger_effect == TriggerEffect.START_RUN:
                     # lift into new flow
                     self.session.commit_optimistic()
-                    outer_run = create_run_from_node(flow, parent=run.parent, graph=run._graph)
+                    outer_run = create_run_from_node(
+                        flow, parent=run.parent, status=RunStatus.QUEUED, graph=run._graph
+                    )
                     run.move(to=outer_run)
                     runner.close(resume=False)
                     await self.session.commit()  # wait for Run to actually exist
+                    logger.debug("runtime.run.lift", inner_run=run, outer_run=outer_run)
                     runner, run = await self._load_runner(outer_run)
                 else:
                     raise NotImplementedError(f"unsupported trigger {trigger_effect!r} for {run!r}")
