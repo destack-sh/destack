@@ -34,7 +34,6 @@ def make_pg_session(
         root_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
         supergraph = NodeSuperGraph(name="Global", root_ptr=root_ptr)
     session = Session(
-        _is_readonly=False,
         _default_scope=EMPTY_SCOPE_DATA,
         _engines=(simulation.global_pg_engine, simulation.regional_pg_engine),
         _oracle=simulation.oracle,
@@ -83,7 +82,6 @@ async def make_remote_session(
         root_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, ck=bench_id)
         supergraph = NodeSuperGraph(name="Remote", root_ptr=root_ptr)
     session = Session(
-        _is_readonly=False,
         _default_scope=GraphScope(bench_id=bench_id)._to_data(),
         _engines=engines,
         _origin=client.to_origin(nonce=nonce),

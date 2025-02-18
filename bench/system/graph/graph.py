@@ -266,7 +266,6 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         """Gets a new session for processing a single request."""
         return Session(
             parent=self.request_session_parent,
-            _is_readonly=readonly,
             _default_scope=self._scope,
             _engines=engines if engines is not None else self.get_engines(),
             _local_epoch=self._local_epoch,

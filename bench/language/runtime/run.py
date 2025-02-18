@@ -229,6 +229,8 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         incoming_ptr: tuple["NodeReference", ...] = ()
         trigger_ptr: Optional[NodeReference] = None
         trigger_id: Optional[UUID] = None
+        trigger_run_ptr: Optional[NodeReference] = None
+        trigger_run_id: Optional[UUID] = None
 
     # content
     variables_packed: Any = p_value_packed(70)

@@ -736,95 +736,101 @@ class Runtime:
         if runner.parent is None:
             self._active_root_runners.append(runner)
         self._active_runners_by_id[runner.id] = runner
-        span = runner.tracked
-        self._set_context(span)
-        context.attach(baggage.set_baggage("run_id", str(span.id)))
 
-        # mark started
-        if span.started_at is None:
-            span.started_at = self.oracle.utc()
-        span.status = RunStatus.RUNNING
-        self.session.commit_optimistic()
+        async with self.session.active():
+            span = runner.tracked
+            self._set_context(span)
+            context.attach(baggage.set_baggage("run_id", str(span.id)))
 
-        # actually attempt Run
-        try:
-            assert (
-                runner.parent is None or not runner.parent.status.is_terminal
-            ), f"parent {runner.parent!r} was terminated"
-            if runner.tracked_span is not None:
-                await self._run_span(runner)
-            elif runner.tracked_run is not None:
-                await self._prefetch_context(runner)
-                if runner.status < RunStatus.RUNNING:
-                    await self._prepare_run(runner)
-                await self._run_run(runner)
-            else:
-                raise RuntimeError(f"missing tracked for {runner!r}")
-        except Interrupted as e:
-            if not runner.status.is_interrupted:
-                # interruption not handled in attempt loop (probably from a breakpoint)
-                last_attempt = runner.current_attempt
-                interrupted_at = (
-                    last_attempt.interrupted_at if last_attempt is not None else self.oracle.utc()
-                )
-                runner.status = RUN_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
-                span.interrupted_at = interrupted_at
-            else:
-                span.interrupted_at = self.oracle.utc()
-            span.interruption = e.interruption
-            raise
-        except BaseException:
-            raise
-        finally:
-            # update span from runner
-            if span.error is not runner.error:
-                span.error = runner.error
-            if span.status != runner.status:
-                span.status = runner.status
-            if type(span) is Run:
-                if span.variables is not runner.variables:
-                    span.variables = runner.variables
-                if span.inputs is not runner.inputs:
-                    span.inputs = runner.inputs
-                if span.outputs is not runner.outputs:
-                    span.outputs = runner.outputs
-            if runner.status.is_terminal:
-                # update terminal status
-                last_attempt = runner.current_attempt
-                if last_attempt is not None:
-                    # made an attempt
-                    span.terminated_at = last_attempt.terminated_at
-                    if last_attempt.duration is not None:
-                        span.duration = last_attempt.duration
-                elif span.terminated_at is not None:
-                    # didn't make an attempt, but we have a terminated_at
-                    span.duration = span.terminated_at - span.started_at  # type: ignore
-                else:
-                    # didn't make an attempt
-                    span.terminated_at = self.oracle.utc()
-                    span.duration = span.terminated_at - span.started_at  # type: ignore
-                # close any remaining (directly) contained open Interruptions
-                runner.close(resume=not runner.is_root)
-
-            # commit intermediate session edits
+            # mark started
+            if span.started_at is None:
+                span.started_at = self.oracle.utc()
+            span.status = RunStatus.RUNNING
             self.session.commit_optimistic()
 
-            # notify
-            self._active_runners_by_id.pop(runner.id, None)
-            if runner.parent is None:
-                self._active_root_runners.remove(runner)
-            if runner.status.is_interrupted:
-                assert runner.interruption is not None, f"missing interruption for {runner!r}"
-                runner.fire_event(RunnerInterruptedEvent(runner, interruption=runner.interruption))
-            elif runner.status == RunStatus.COMPLETED:
-                runner.fire_event(RunnerCompletedEvent(runner, outputs=runner.outputs))
-            elif runner.status == RunStatus.FAILED:
-                assert runner.error is not None, f"missing error for {runner!r}"
-                runner.fire_event(RunnerFailedEvent(runner, error=runner.error))
-            elif runner.status == RunStatus.ABORTED:
-                runner.fire_event(RunnerAbortedEvent(runner))
-            elif runner.status == RunStatus.CANCELLED:
-                runner.fire_event(RunnerCancelledEvent(runner))
+            # actually attempt Run
+            try:
+                assert (
+                    runner.parent is None or not runner.parent.status.is_terminal
+                ), f"parent {runner.parent!r} was terminated"
+                if runner.tracked_span is not None:
+                    await self._run_span(runner)
+                elif runner.tracked_run is not None:
+                    await self._prefetch_context(runner)
+                    if runner.status < RunStatus.RUNNING:
+                        await self._prepare_run(runner)
+                    await self._run_run(runner)
+                else:
+                    raise RuntimeError(f"missing tracked for {runner!r}")
+            except Interrupted as e:
+                if not runner.status.is_interrupted:
+                    # interruption not handled in attempt loop (probably from a breakpoint)
+                    last_attempt = runner.current_attempt
+                    interrupted_at = (
+                        last_attempt.interrupted_at
+                        if last_attempt is not None
+                        else self.oracle.utc()
+                    )
+                    runner.status = RUN_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
+                    span.interrupted_at = interrupted_at
+                else:
+                    span.interrupted_at = self.oracle.utc()
+                span.interruption = e.interruption
+                raise
+            except BaseException:
+                raise
+            finally:
+                # update span from runner
+                if span.error is not runner.error:
+                    span.error = runner.error
+                if span.status != runner.status:
+                    span.status = runner.status
+                if type(span) is Run:
+                    if span.variables is not runner.variables:
+                        span.variables = runner.variables
+                    if span.inputs is not runner.inputs:
+                        span.inputs = runner.inputs
+                    if span.outputs is not runner.outputs:
+                        span.outputs = runner.outputs
+                if runner.status.is_terminal:
+                    # update terminal status
+                    last_attempt = runner.current_attempt
+                    if last_attempt is not None:
+                        # made an attempt
+                        span.terminated_at = last_attempt.terminated_at
+                        if last_attempt.duration is not None:
+                            span.duration = last_attempt.duration
+                    elif span.terminated_at is not None:
+                        # didn't make an attempt, but we have a terminated_at
+                        span.duration = span.terminated_at - span.started_at  # type: ignore
+                    else:
+                        # didn't make an attempt
+                        span.terminated_at = self.oracle.utc()
+                        span.duration = span.terminated_at - span.started_at  # type: ignore
+                    # close any remaining (directly) contained open Interruptions
+                    runner.close(resume=not runner.is_root)
+
+                # commit intermediate session edits
+                self.session.commit_optimistic()
+
+                # notify
+                self._active_runners_by_id.pop(runner.id, None)
+                if runner.parent is None:
+                    self._active_root_runners.remove(runner)
+                if runner.status.is_interrupted:
+                    assert runner.interruption is not None, f"missing interruption for {runner!r}"
+                    runner.fire_event(
+                        RunnerInterruptedEvent(runner, interruption=runner.interruption)
+                    )
+                elif runner.status == RunStatus.COMPLETED:
+                    runner.fire_event(RunnerCompletedEvent(runner, outputs=runner.outputs))
+                elif runner.status == RunStatus.FAILED:
+                    assert runner.error is not None, f"missing error for {runner!r}"
+                    runner.fire_event(RunnerFailedEvent(runner, error=runner.error))
+                elif runner.status == RunStatus.ABORTED:
+                    runner.fire_event(RunnerAbortedEvent(runner))
+                elif runner.status == RunStatus.CANCELLED:
+                    runner.fire_event(RunnerCancelledEvent(runner))
 
     async def _wrap_run_runner(self, runner: Runner):
         """Run the runner at the top-level, handling any exceptions."""
@@ -884,7 +890,7 @@ class Runtime:
         async with lock:
             if run_ptr.id not in self._owned_runners_by_id:
                 with tracer.start_as_current_span("thread.load"):
-                    async with self.session.active(readonly=True):
+                    async with self.session.active():
                         run = await Run.include_descendants(
                             NodeType.RUN, NodeType.RUN_SPAN, NodeType.PLAN, NodeType.INTERRUPTION
                         ).get(run_ptr, live=True)

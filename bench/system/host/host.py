@@ -237,7 +237,7 @@ class HostService(GraphServiceBase, HostBase):
             graph_lock_ctx = self._graph_lock.read("all")
         else:
             graph_lock_ctx = self._graph_lock.write("all")
-        async with graph_lock_ctx, self._session.active(readonly=readonly):
+        async with graph_lock_ctx, self._session.active():
             self._session._local_epoch = self._local_epoch
             yield self._session
             if commit:
@@ -424,7 +424,6 @@ class HostService(GraphServiceBase, HostBase):
         # we open one Session for the entire lifecycle of the Host
         self._session = Session(
             parent=self._bench,
-            _is_readonly=False,
             _default_scope=self.scope,
             _engines=self._engines,
             _on_commit_prepare=self._on_commit_prepare_hook,
@@ -746,7 +745,7 @@ class HostService(GraphServiceBase, HostBase):
         s3_client = get_s3_client_for_presigning(request.environment)
 
         # get files
-        async with self.session(readonly=True):
+        async with self.session():
             files_refs = [
                 unpack_builtin_object_validate(ref, supergraph=None, expect=NodeReference)
                 for ref in request.files

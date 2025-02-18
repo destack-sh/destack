@@ -126,10 +126,10 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         return self._main_package
 
     @asynccontextmanager
-    async def session(self, *, readonly: bool = False):
+    async def session(self):
         """Gets exclusive query and edit access to the main session."""
         assert self._session is not None, f"no session for {self!r}"
-        async with self._tx_lock, self._session.active(readonly=readonly):
+        async with self._tx_lock, self._session.active():
             yield self._session
 
     @override
@@ -162,7 +162,6 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
 
         # setup session
         self._session = Session(
-            _is_readonly=False,
             _default_scope=GraphScope(bench_id=self._bench_id)._to_data(),
             _engines=self._engines,
             _supervisor=self._supervisor,
@@ -173,7 +172,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         await self._session.open(_set_in_context=False)
 
         # connect to host
-        async with self.session(readonly=True):
+        async with self.session():
             # get bench
             self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
             self._session.parent = self._bench

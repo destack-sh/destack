@@ -105,7 +105,6 @@ async def shell(
         ),
     )
     session = Session(
-        _is_readonly=False,
         _default_scope=GraphScope(bench_id=bench_node.id)._to_data(),
         _engines=remote_engines,
         _supervisor=supervisor,
