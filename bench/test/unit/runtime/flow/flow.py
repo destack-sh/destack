@@ -1146,7 +1146,7 @@ async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambd
         run = runner.tracked_run
 
         # handle interruption
-        runner.interruption.complete()
+        runner.interruption.complete(_trigger_runtime=False)  # manual
 
     # run up to completion
     runner = await runtime.run_in_runtime(run)

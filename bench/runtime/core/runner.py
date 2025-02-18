@@ -412,7 +412,8 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
 
     def on_event(self, handler: Callable[[RunnerEvent], None]):
         """Subscribe to a Runner event."""
-        self.hooks.append(handler)
+        if handler not in self.hooks:
+            self.hooks.append(handler)
 
     def fire_event(self, event: RunnerEvent):
         """Fire a Runner event."""

@@ -42,7 +42,6 @@ from bench.runtime.core import (
     RunnerInterruptedEvent,
     Runtime,
     make_runner,
-    restore_runner,
 )
 
 from .action import ActionRunner
@@ -189,13 +188,13 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         run.incoming_ptr = tuple(run.to_ref() for run in incoming)
         logger.debug("flow.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
-        runner.on_event(lambda event: self._events.put_nowait(event))
+        runner.on_event(self._events.put_nowait)
         self.runtime.run_runner_soon(runner)
         return run
 
     def _resume(self, run: Run | Runner) -> Run:
         """Resume a Run in this Flow."""
-        runner = run if isinstance(run, Runner) else restore_runner(self.runtime, run)
+        runner = run if isinstance(run, Runner) else self.runtime.restore_runner(run)
         if runner in self._interrupted_runners:
             self._interrupted_runners.remove(runner)
         assert isinstance(runner, (ActionRunner, PipeRunner)), f"unexpected {runner!r}"
@@ -203,7 +202,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.resume", flow=self.node, node=runner.node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
-        runner.on_event(lambda event: self._events.put_nowait(event))
+        runner.on_event(self._events.put_nowait)
         self.runtime.run_runner_soon(runner)
         return runner.tracked_run
 
@@ -212,17 +211,19 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         runner = event.runner
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
-        self._active_runners_by_id.pop(runner.id)
         logger.trace("flow.event", flow=self.node, node=runner.node, runner=runner)
         if isinstance(event, RunnerInterruptedEvent):
+            self._active_runners_by_id.pop(runner.id)
             self._interrupted_runners.append(runner)
         elif isinstance(event, RunnerCompletedEvent):
+            self._active_runners_by_id.pop(runner.id)
             if not self._is_stopping:
                 if isinstance(runner.node, Action):
                     self._tick_action(cast(ActionRunner, runner), runner.node, event)
                 elif isinstance(runner.node, Pipe):
                     self._tick_pipe(cast(PipeRunner, runner), runner.node, event)
         elif isinstance(event, RunnerFailedEvent):
+            self._active_runners_by_id.pop(runner.id)
             if not self._is_stopping:
                 assert runner.error is not None, f"missing error for {runner!r}"
                 if isinstance(runner.node, Action):
