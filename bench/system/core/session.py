@@ -125,6 +125,5 @@ def global_session(
         _local_epoch=epoch,
         _supergraph=supergraph,
         _oracle=oracle,
-        _is_readonly=readonly,
         _split_read=split_read,
     )

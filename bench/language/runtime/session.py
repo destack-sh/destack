@@ -146,7 +146,6 @@ class Session(RuntimeNode[SessionData]):
     _origin: ClientOriginData | None = p_runtime(default=None)
     _subject: EditSubject | None = p_runtime(default=None)
     _context_data: ContextData | None = p_runtime(default=None)
-    _is_readonly: bool = p_runtime(default=False)
     _is_suspended: bool = p_runtime(default=False)
 
     # connections
@@ -188,8 +187,6 @@ class Session(RuntimeNode[SessionData]):
             status_strs.append("open")
         else:
             status_strs.append("pending")
-        if self._is_readonly:
-            status_strs.append("readonly")
         if self._is_suspended:
             status_strs.append("suspended")
         if self.duration is not None:
@@ -375,7 +372,7 @@ class Session(RuntimeNode[SessionData]):
         self.opened_at = self._oracle.utc()
         self._session = self
         async with self._tx_lock:
-            self._tx = Transaction(id=UUIDT(), session=self, is_readonly=self._is_readonly)
+            self._tx = Transaction(id=UUIDT(), session=self)
 
         # set context
         if self.parent is not None:
@@ -494,9 +491,7 @@ class Session(RuntimeNode[SessionData]):
     def _create(self, *nodes: Node):
         """Creates a new Node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
-        assert (
-            not self._is_readonly and not self._is_suspended
-        ), f"cannot edit {nodes!r} in {self!r}"
+        assert not self._is_suspended, f"cannot edit {nodes!r} in {self!r}"
         for node in nodes:
             if node.is_attached:  # ignore detached create (is created on attach)
                 self._pending_nodes_by_id[node.id] = node
@@ -505,9 +500,7 @@ class Session(RuntimeNode[SessionData]):
     def _upsert(self, *nodes: Node):
         """Creates or updates a Node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction in {self!r}"
-        assert (
-            not self._is_readonly and not self._is_suspended
-        ), f"cannot edit {nodes!r} in {self!r}"
+        assert not self._is_suspended, f"cannot edit {nodes!r} in {self!r}"
         now = self._oracle.utc()
         for node in nodes:
             assert node.is_attached, f"cannot upsert detached node {node!r}"
@@ -521,7 +514,7 @@ class Session(RuntimeNode[SessionData]):
     ):
         """Updates an existing Node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
-        assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
+        assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
         if node.is_attached:  # ignore detached updates
             self._pending_nodes_by_id[node.id] = node
             self._tx.record_edit_event(EditType.UPDATE, node, operation=operation)
@@ -529,7 +522,7 @@ class Session(RuntimeNode[SessionData]):
     def _move(self, node: Node, old_parent: Node, new_parent: Node):
         """Moves a Node to a new parent. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
-        assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
+        assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
         if node.is_attached:
             from bench.language import pack_value
             from bench.proto import pack_proto_json
@@ -554,9 +547,7 @@ class Session(RuntimeNode[SessionData]):
     def _delete(self, *nodes: Node, _now: datetime | None = None):
         """Deletes a Node. The operation *is* applied directly."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
-        assert (
-            not self._is_readonly and not self._is_suspended
-        ), f"cannot edit {nodes!r} in {self!r}"
+        assert not self._is_suspended, f"cannot edit {nodes!r} in {self!r}"
 
         for node in nodes:
             assert node.is_attached, f"cannot delete detached node {node!r}"
@@ -572,9 +563,7 @@ class Session(RuntimeNode[SessionData]):
     def _restore(self, *nodes: Node, _now: datetime | None = None):
         """Restores a deleted Node. The operation *is* applied directly."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
-        assert (
-            not self._is_readonly and not self._is_suspended
-        ), f"cannot edit {nodes!r} in {self!r}"
+        assert not self._is_suspended, f"cannot edit {nodes!r} in {self!r}"
 
         for node in nodes:
             assert node.is_attached, f"cannot restore detached node {node!r}"
@@ -587,9 +576,7 @@ class Session(RuntimeNode[SessionData]):
     def _erase(self, *nodes: Node):
         """Erases a Node. The operation *is* applied directly."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
-        assert (
-            not self._is_readonly and not self._is_suspended
-        ), f"cannot edit {nodes!r} in {self!r}"
+        assert not self._is_suspended, f"cannot edit {nodes!r} in {self!r}"
 
         for node in nodes:
             assert node.is_attached, f"cannot erase detached node {node!r}"
@@ -615,12 +602,10 @@ class Session(RuntimeNode[SessionData]):
         self._is_suspended = False
 
     @asynccontextmanager
-    async def active(self, readonly: bool = False):
+    async def active(self):
         """Activate this session in context (as active i.e. not suspended)."""
-        was_readonly = self._is_readonly
         was_suspended = self._is_suspended
         was_active = self._active_session_tokens is not None
-        self._is_readonly = readonly
         self.unsuspend()
         active_session_token = ACTIVE_SESSION.set(self)
         self._active_session_tokens.append(active_session_token)
@@ -633,7 +618,6 @@ class Session(RuntimeNode[SessionData]):
                 with suppress(ValueError):  # ignore error from bad token
                     ACTIVE_SESSION.reset(active_session_token)
                 self._active_session_tokens.remove(active_session_token)
-            self._is_readonly = was_readonly
 
     async def _run_commit_loop(self):
         """Commits pending edits (on request) while the session is open."""

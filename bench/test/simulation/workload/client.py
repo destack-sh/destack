@@ -54,7 +54,7 @@ class ClientWorkload[SpecT: ClientWorkloadSpec](Workload[SpecT], abc.ABC):
         self.supergraph = self.session._supergraph
 
         await self.session.open(_set_in_context=False)
-        async with self.session.active(readonly=False):
+        async with self.session.active():
             self.bench = await Bench.get(id=self.bench_id, live=True)
             self.session.parent = self.bench  # patch in the session parent
             self.main_package = await (
@@ -74,7 +74,7 @@ class ClientWorkload[SpecT: ClientWorkloadSpec](Workload[SpecT], abc.ABC):
     @override
     @final
     async def run_once(self):
-        async with self.session.active(readonly=False):
+        async with self.session.active():
             await self.run_once_in_session()
             await self.session.commit()
 
