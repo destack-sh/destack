@@ -24,7 +24,6 @@ from bench.language import (
     Run,
     RunnableNode,
     RunOptions,
-    RunSpanType,
     RunStatus,
     RunType,
     Text,
@@ -67,8 +66,8 @@ class TickPipeResult(NamedTuple):
     is_handled: bool
 
 
-class FlowRunner[N: Flow | Action = Flow](Runner[N], ABC):
-    """Runs a Flow or sub-Flow (within an Action)."""
+class FlowRunner[N: Flow = Flow](Runner[N], ABC):
+    """Runs a Flow or sub-Flow."""
 
     runner_type: ClassVar[RunType] = RunType.FLOW
 
@@ -84,7 +83,6 @@ class FlowRunner[N: Flow | Action = Flow](Runner[N], ABC):
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
-        span_type: RunSpanType | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
@@ -105,9 +103,10 @@ class FlowRunner[N: Flow | Action = Flow](Runner[N], ABC):
     def _abort(self):
         """Abort any contained Actions (and any relevant Interrupts)."""
         logger.debug("flow.abort", flow=self.node, runner=self)
-
         for runner in self.runners:
-            if isinstance(runner.node, Action) and runner.node.type.is_boundary:
+            if (
+                isinstance(runner.node, Action) and runner.node.type.is_boundary
+            ) or runner.is_stopped:
                 continue  # ignore boundary Actions
             runner.stop()
             if runner.tracked_run is not None:
@@ -123,7 +122,7 @@ class FlowRunner[N: Flow | Action = Flow](Runner[N], ABC):
             self._stop_result = coerce_custom_object_scalar(outputs, self.output_type)
         else:
             self._stop_result = "completed"
-        self._abort()  # cancel all active actions
+        self._abort()
         logger.debug("flow.complete", flow=self.node, runner=self, outputs=outputs)
 
     def _fail(self, error: Error) -> None:
@@ -132,7 +131,7 @@ class FlowRunner[N: Flow | Action = Flow](Runner[N], ABC):
             logger.debug("flow.fail.skip", flow=self.node, runner=self, error=error)
             return  # already done
         self._stop_result = error
-        self._abort()  # cancel all active actions
+        self._abort()
         logger.debug("flow.fail", flow=self.node, runner=self, error=error)
 
     @property
@@ -169,7 +168,7 @@ class FlowRunner[N: Flow | Action = Flow](Runner[N], ABC):
         title: str | None = None,
         text: Text | None = None,
     ) -> Run:
-        """Run a Action or Pipe in this Flow."""
+        """Run an Action or Pipe in this Flow."""
         runner = make_runner(
             runtime=self.runtime,
             node=node,
@@ -348,16 +347,19 @@ class FlowRunner[N: Flow | Action = Flow](Runner[N], ABC):
         next_action = pipe.target
         if next_action is None or next_action.is_deleted:
             return TickPipeResult(new_runs=(), is_handled=False)
-        next_run = self._start(
-            next_action,
-            incoming=(runner.tracked_run,),
-            plan=plan,
-            plan_step=plan_step,
-            variables=call.value if call is not None else None,
-            inputs=call.value if call is not None else None,
-            title=call.title if call is not None else None,
-            text=call.text if call is not None else None,
-        )
+        if call is not None:
+            next_run = self._start(
+                next_action,
+                incoming=(runner.tracked_run,),
+                plan=plan,
+                plan_step=plan_step,
+                variables=call.value,
+                inputs=call.value,
+                title=call.title,
+                text=call.text,
+            )
+        else:
+            next_run = self._start(next_action, incoming=(runner.tracked_run,))
         return TickPipeResult(new_runs=(next_run,), is_handled=True)
 
     @override

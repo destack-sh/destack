@@ -181,7 +181,6 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             assert self._client, f"{self._bench!r} has no client {self._client_id}"
             if self._machine_id:
                 self._machine = await Machine.get(id=self._machine_id)
-
             # get package
             self._main_package = await PACKAGE_QUERY.get(self._bench.main_package_ptr, live=True)
 
