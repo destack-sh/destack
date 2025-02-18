@@ -64,6 +64,8 @@ from bench.language import (
     synchronize_nodes,
     to_type_scalar,
 )
+from bench.language.core.const import RunType
+from bench.language.source.trigger import TriggerEffect
 from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
 from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
@@ -77,6 +79,7 @@ from .runner import (
     RunnerCompletedEvent,
     RunnerFailedEvent,
     RunnerInterruptedEvent,
+    create_run_from_node,
     restore_runner,
 )
 
@@ -542,10 +545,10 @@ class Runtime:
         if isinstance(runner.node, Action):
             if runner.variables is not None and runner.node.variables_packed is not None:
                 runner.variables.set_default(runner.node.variables, _skip_validate=True)
-            assert runner.inputs is not None, f"missing inputs in {runner!r}"
-            runner.inputs.set_default(runner.node, _skip_validate=True)
-            if runner.node.inputs_packed is not None:
-                runner.inputs.set_default(runner.node.inputs, _skip_validate=True)
+            if runner.inputs is not None:
+                runner.inputs.set_default(runner.node, _skip_validate=True)
+                if runner.node.inputs_packed is not None:
+                    runner.inputs.set_default(runner.node.inputs, _skip_validate=True)
         # apply computed values
         if runner.tracked_run is not None:  # (only in tracked runs)
             try:
@@ -801,8 +804,7 @@ class Runtime:
                     span.terminated_at = self.oracle.utc()
                     span.duration = span.terminated_at - span.started_at  # type: ignore
                 # close any remaining (directly) contained open Interruptions
-                if type(span) is Run:
-                    self.on_terminated(span)
+                runner.close(resume=not runner.is_root)
 
             # commit intermediate session edits
             self.session.commit_optimistic()
@@ -851,9 +853,21 @@ class Runtime:
     # Orchestration
     #
 
-    async def _load_runner(self, run_ptr: NodeReference) -> tuple[Runner, Run]:
+    def restore_runner(self, run: Run) -> Runner:
+        """Restore a Runner from a Run."""
+        if (runner := self._owned_runners_by_id.get(run.id)) is not None:
+            return runner
+        else:
+            runner = restore_runner(runtime=self, run=run)
+            return runner
+
+    @tracer.start_as_current_span("runtime.load_runner")
+    async def _load_runner(self, run_ptr: Run | NodeReference) -> tuple[Runner, Run]:
         """Load the Run to be owned in this Runtime."""
+        if not isinstance(run_ptr, NodeReference):
+            run_ptr = run_ptr.to_ref()
         assert run_ptr.id is not None, f"missing id for {run_ptr!r}"
+        trace.get_current_span().set_attribute("run_id", str(run_ptr.id))
         if run_ptr.id in self._owned_runners_by_id:
             runner = self._owned_runners_by_id[run_ptr.id]
             assert runner.tracked_run is not None, f"missing tracked run for {runner!r}"
@@ -878,6 +892,7 @@ class Runtime:
                     assert run.root_ptr is None, f"{run!r} is not a root Run"
                     assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
                     runner = restore_runner(runtime=self, run=run)
+                    runner.connection = run._connection
                     self._owned_runners_by_id[run_ptr.id] = runner
                     run._connection.on_update(
                         lambda _, update: self._on_external_update(runner, update)
@@ -918,14 +933,6 @@ class Runtime:
         if to_resume:
             self.resume_run(*to_resume)
 
-    def restore_runner(self, run: Run) -> Runner:
-        """Restore a Runner from a Run."""
-        if (runner := self._owned_runners_by_id.get(run.id)) is not None:
-            return runner
-        else:
-            runner = restore_runner(runtime=self, run=run)
-            return runner
-
     async def run(
         self,
         run: Run | NodeReference,
@@ -933,47 +940,66 @@ class Runtime:
         return_error: bool = False,
     ) -> Runner | None:
         """
-        Run a Run in this Runtime. The Runtime will assume ownership of the Run.
+        Run a top-level Run in this Runtime. This Runtime will assume ownership of the Run.
         Automatically lifts the Run into a higher or existing Run if needed.
         """
         if self._is_stop_requested:
             raise RuntimeError(f"{self!r} was stopped")
 
-        # nocheckin: lift RunHandle into current Run if ... trigger says so? it's an action..?
-        #  We need to turn Action Runs into Flow Runs.. somewhere
-        #  Also we need to resume & replace Runs from Triggers .. somehow
-
         async with self.session.active():
+            # get runner
             if isinstance(run, NodeReference):
                 runner, run = await self._load_runner(run)
             else:
                 runner = self.restore_runner(run)
 
-        async with isolated_graph(), self.session.active():
-            try:
-                await self.run_runner(runner)
-                logger.info("runtime.run", run=run, runner=runner, span="current")
-            except (Interrupted, asyncio.CancelledError):
-                pass  # already handled, not a top-level error
-            except (BenchError, ValueError, TypeError) as e:
-                # re-raised inner user error
-                self._try_mark_failed(run, ErrorKind.RUNTIME, e)
-                self.session.commit_optimistic()
-                logger.info("runtime.run.error", run=run, exc_info=e, span="current")
-                if not return_error:
-                    raise
-            except BaseException as e:
-                # some unexpected internal error
-                self._try_mark_failed(run, ErrorKind.INTERNAL, e)
-                self.session.commit_optimistic()
-                logger.error("runtime.run.internal_error", run=run, exc_info=e, span="current")
-                if self.on_error is not None:
-                    self.on_error(e)
-                if not return_error:
-                    raise
-            finally:
-                if runner.status.is_terminal:
-                    runner.close()
+            # lift run into existing / higher flow
+            if (
+                run.type == RunType.ACTION
+                and run.parent_type == NodeType.BENCH
+                and (action := run.action) is not None
+                and (flow := action.flow) is not None
+            ):
+                # lift into flow
+                trigger_effect = (
+                    trigger.effect
+                    if (trigger := run.trigger) is not None
+                    else TriggerEffect.START_RUN
+                )
+                if trigger_effect == TriggerEffect.START_RUN:
+                    # lift into new flow
+                    self.session.commit_optimistic()
+                    outer_run = create_run_from_node(flow, parent=run.parent, graph=run._graph)
+                    run.move(to=outer_run)
+                    runner.close(resume=False)
+                    await self.session.commit()  # wait for Run to actually exist
+                    runner, run = await self._load_runner(outer_run)
+                else:
+                    raise NotImplementedError(f"unsupported trigger {trigger_effect!r} for {run!r}")
+
+            # actually run
+            async with isolated_graph():
+                try:
+                    await self.run_runner(runner)
+                    logger.info("runtime.run", run=run, runner=runner, span="current")
+                except (Interrupted, asyncio.CancelledError):
+                    pass  # already handled, not a top-level error
+                except (BenchError, ValueError, TypeError) as e:
+                    # re-raised inner user error
+                    self._try_mark_failed(run, ErrorKind.RUNTIME, e)
+                    self.session.commit_optimistic()
+                    logger.info("runtime.run.error", run=run, exc_info=e, span="current")
+                    if not return_error:
+                        raise
+                except BaseException as e:
+                    # some unexpected internal error
+                    self._try_mark_failed(run, ErrorKind.INTERNAL, e)
+                    self.session.commit_optimistic()
+                    logger.error("runtime.run.internal_error", run=run, exc_info=e, span="current")
+                    if self.on_error is not None:
+                        self.on_error(e)
+                    if not return_error:
+                        raise
         return runner
 
     def get_interrupted_runs(self, graph: NodeGraph, *interruptions: Interruption) -> list[Run]:
@@ -991,6 +1017,7 @@ class Runtime:
 
     def resume_run(self, *runs: Run):
         """Resume interrupted Runs. Does *not* mark the Run or close open Interruptions."""
+        # nocheckin: resume top-level Run by calling run_runner again?
         if self._is_stop_requested:
             raise RuntimeError(f"{self!r} was stopped")
         runs_by_parent_id: dict[UUID | None, list[Run]] = group_by(
@@ -1011,23 +1038,5 @@ class Runtime:
         for runner in reversed(list(root_runner.walk())):
             if not runner.status.is_terminal:
                 runner.stop()
-                if runner.tracked_run is not None:
-                    self.on_terminated(runner.tracked_run, resume=not runner.is_root)
+                runner.close(resume=not runner.is_root)
                 logger.debug("runtime.run.stop", runner=runner)
-
-    def on_terminated(self, span: Run | RunSpan, resume: bool = True):
-        """Close the Interruptions in a Run."""
-        # nocheckin: also close Plans (?)
-        closed_interruptions: list[Interruption] | None = None
-        for interruption in span._graph.iter_descendants(span, NodeType.INTERRUPTION):
-            interruption = cast(Interruption, interruption)
-            if interruption.status.is_open:
-                interruption.cancel(_trigger_runtime=False)
-                if closed_interruptions is None:
-                    closed_interruptions = []
-                closed_interruptions.append(interruption)
-
-        # trigger resume for Interruptions (if we can still run, i.e. not at root)
-        if resume and span.parent_ptr is not None and closed_interruptions:
-            runs_to_resume = self.get_interrupted_runs(span._graph, *closed_interruptions)
-            self.resume_run(*runs_to_resume)

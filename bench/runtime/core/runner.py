@@ -410,9 +410,14 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     # Hooks
     #
 
-    def on_event(self, handler: Callable[[RunnerEvent], None]):
+    def on_event(self, handler: Callable[[RunnerEvent], None], upsert: bool = False):
         """Subscribe to a Runner event."""
-        if handler not in self.hooks:
+        if upsert:
+            if handler not in self.hooks:
+                self.hooks.append(handler)
+        else:
+            if handler in self.hooks:
+                raise RuntimeError(f"handler {handler!r} already subscribed to {self!r}")
             self.hooks.append(handler)
 
     def fire_event(self, event: RunnerEvent):
@@ -545,7 +550,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         """
         ...
 
-    def run_inner(self, runs: Sequence[Run]):  # noqa: B027
+    def run_inner(self, inner_runs: Sequence[Run]):  # noqa: B027
         """Start or resume inner Runs."""
         pass
 
@@ -562,9 +567,27 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             self.tracked_run._mark_terminated()
             self.status = self.tracked_run.status
 
-    def close(self):
+    def close(self, resume: bool = True):
         """Close this Runner/Run."""
-        if self.connection is not None:
+        closed_interruptions: list[Interruption] | None = None
+        for interruption in self.tracked._graph.iter_descendants(
+            self.tracked, NodeType.INTERRUPTION
+        ):
+            interruption = cast(Interruption, interruption)
+            if interruption.status.is_open:
+                interruption.cancel(_trigger_runtime=False)
+                if closed_interruptions is None:
+                    closed_interruptions = []
+                closed_interruptions.append(interruption)
+
+        # trigger resume for Interruptions (if we can still run, i.e. not at root)
+        if resume and self.tracked_run is not None and closed_interruptions:
+            runs_to_resume = self.runtime.get_interrupted_runs(
+                self.tracked_run._graph, *closed_interruptions
+            )
+            self.runtime.resume_run(*runs_to_resume)
+
+        if self.connection is not None and self.connection.is_open:
             self.connection.close(release=True)
         self.runtime._owned_runners_by_id.pop(self.id, None)
 
@@ -618,6 +641,7 @@ def make_run_from_node(
     mode: NodeMode | None = None,
     parent: "Run | Bench | None" = None,
     session: "Session | None" = None,
+    graph: NodeGraph | None = None,
 ) -> "Run":
     """Creates a Run from a runnable Node without adding it to the session."""
     from bench.language import coerce_custom_object_scalar
@@ -630,12 +654,15 @@ def make_run_from_node(
     # graph
     parent = parent or node.bench
     assert parent is not None, f"no parent for {node!r}"
-    if isolate:  # new graph for isolated run
-        graph = NodeGraph(
-            scope=parent._graph.scope, node_types=RUNTIME_NODE_TYPES, supergraph=session._supergraph
-        )
-    else:
-        graph = parent._graph
+    if graph is None:
+        if isolate:  # new graph for isolated run
+            graph = NodeGraph(
+                scope=parent._graph.scope,
+                node_types=RUNTIME_NODE_TYPES,
+                supergraph=session._supergraph,
+            )
+        else:
+            graph = parent._graph
 
     # build run
     tracing = get_tracing_context()
@@ -689,6 +716,7 @@ def create_run_from_node(
     mode: NodeMode | None = None,
     parent: "Run | Bench | None" = None,
     session: "Session | None" = None,
+    graph: NodeGraph | None = None,
 ) -> "Run":
     """Creates a Run from a runnable Node and adds it to the session."""
     run = make_run_from_node(
@@ -700,6 +728,7 @@ def create_run_from_node(
         mode=mode,
         parent=parent,
         session=session,
+        graph=graph,
     )
     if session is None:
         session = active_session()

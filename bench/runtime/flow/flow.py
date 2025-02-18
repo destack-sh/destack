@@ -108,8 +108,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             ) or runner.is_stopped:
                 continue  # ignore boundary Actions
             runner.stop()
-            if runner.tracked_run is not None:
-                self.runtime.on_terminated(runner.tracked_run, resume=not self.is_root)
+            runner.close(resume=not self.is_root)
 
     def _complete(self, outputs: CustomObject | None) -> None:
         """Complete this Flow, aborting all active Actions."""
@@ -202,7 +201,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.resume", flow=self.node, node=runner.node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
-        runner.on_event(self._events.put_nowait)
+        runner.on_event(self._events.put_nowait, upsert=True)
         self.runtime.run_runner_soon(runner)
         return runner.tracked_run
 
@@ -379,7 +378,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             # resume from interrupted
             # NOTE :Performance: technically we only need to resume Runs with updated Interrupts?
             for run in runs:
-                if run.status.is_interrupted:
+                if run.status < RunStatus.RUNNING or run.status.is_interrupted:
                     self._resume(run)
 
         # stop immediately if no progress is possible
@@ -408,11 +407,11 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             assert_never(self._stop_result)
 
     @override
-    def run_inner(self, runs: Sequence[Run]) -> None:
+    def run_inner(self, inner_runs: Sequence[Run]) -> None:
         interrupted_runners_by_id: dict[UUID, Runner] = {
             runner.id: runner for runner in self._interrupted_runners
         }
-        for run in runs:
+        for run in inner_runs:
             runner = interrupted_runners_by_id.get(run.id)
             if runner is not None:
                 self._resume(runner)

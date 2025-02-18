@@ -7,6 +7,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
+    IS_IN_USER_CODE,
     Aliasing,
     Code,
     CodeType,
@@ -26,7 +27,6 @@ from bench.language import (
     render,
     upload_file,
 )
-from bench.language.core.const import IS_IN_USER_CODE
 from bench.runtime.core import CodeInvalidError, RunIn, Runner, Runtime
 
 from .capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_RUN, LogSink, capture_logs
