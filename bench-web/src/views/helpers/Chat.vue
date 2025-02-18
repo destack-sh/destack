@@ -353,6 +353,16 @@ function clearDraft() {
   );
 }
 
+function startReplying(message: MessageData) {
+  state.update(
+    { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { draftReplyToPtr: toNodeRef(message) } },
+    { debounce: "tick" },
+  );
+  nextTick(() => {
+    inputRef.value?.focus?.();
+  });
+}
+
 function stopReplying() {
   state.update(
     { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { draftReplyToPtr: undefined } },
@@ -419,13 +429,7 @@ const actions: Partial<ActionMapImplementation<"chat">> = {
     },
     action: (action, ctx) => {
       const { nodes: messages } = getNodesForAction(action, ctx, [NodeType.MESSAGE]);
-      state.update(
-        { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { draftReplyToPtr: toNodeRef(messages[0]) } },
-        { debounce: "tick" },
-      );
-      nextTick(() => {
-        inputRef.value?.focus?.();
-      });
+      startReplying(messages[0]);
     },
   },
   "chat.message.edit": {
@@ -507,6 +511,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           :data-node-type="message.metatype"
           data-contextmenu-items="chat.message*"
           data-ignore-element="self"
+          @dblclick="startReplying(message)"
         >
           <!-- New date (line with date in middle) -->
           <div v-if="isNewDate" class="relative mb-2 flex items-center">
