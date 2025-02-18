@@ -3991,6 +3991,10 @@ export interface RunData {
      */
     triggerKey?: string;
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData trigger_run_ptr = 68;
+     */
+    triggerRunPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: optional google.protobuf.Value variables_packed = 70;
      */
     variablesPacked?: JsonValue;
@@ -12240,6 +12244,10 @@ export enum TriggerEffect {
      */
     CONTINUE_RUN = 2,
     /**
+     * @generated from protobuf enum value: TRIGGER_EFFECT_REPLACE_RUN = 3;
+     */
+    REPLACE_RUN = 3,
+    /**
      * @generated from protobuf enum value: TRIGGER_EFFECT_CANCEL_INTERRUPTION = 20;
      */
     CANCEL_INTERRUPTION = 20,
@@ -14215,13 +14223,29 @@ export enum MessageType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_TEXT = 1;
+     * @generated from protobuf enum value: MESSAGE_TYPE_REGULAR = 1;
      */
-    TEXT = 1,
+    REGULAR = 1,
     /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_THREAD = 2;
+     * @generated from protobuf enum value: MESSAGE_TYPE_REPLY = 2;
      */
-    THREAD = 2
+    REPLY = 2,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_FORWARDED = 3;
+     */
+    FORWARDED = 3,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_THREAD = 10;
+     */
+    THREAD = 10,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_RUN = 20;
+     */
+    RUN = 20,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_INTERRUPTION = 21;
+     */
+    INTERRUPTION = 21
 }
 /**
  * @generated from protobuf enum symbolx.bench.MessageStatus
@@ -24063,6 +24087,7 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 65, name: "plan_step", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 66, name: "trigger_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 67, name: "trigger_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 68, name: "trigger_run_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 70, name: "variables_packed", kind: "message", T: () => Value },
             { no: 71, name: "inputs_packed", kind: "message", T: () => Value },
             { no: 72, name: "outputs_packed", kind: "message", T: () => Value },
@@ -24198,6 +24223,9 @@ class RunData$Type extends MessageType$<RunData> {
                     break;
                 case /* optional string trigger_key */ 67:
                     message.triggerKey = reader.string();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData trigger_run_ptr */ 68:
+                    message.triggerRunPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.triggerRunPtr);
                     break;
                 case /* optional google.protobuf.Value variables_packed */ 70:
                     message.variablesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
@@ -24352,6 +24380,9 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional string trigger_key = 67; */
         if (message.triggerKey !== undefined)
             writer.tag(67, WireType.LengthDelimited).string(message.triggerKey);
+        /* optional symbolx.bench.NodeReferenceData trigger_run_ptr = 68; */
+        if (message.triggerRunPtr)
+            NodeReferenceData.internalBinaryWrite(message.triggerRunPtr, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value variables_packed = 70; */
         if (message.variablesPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(70, WireType.LengthDelimited).fork(), options).join();
@@ -34290,6 +34321,7 @@ export enum RunProperty {
   planStep = 65,
   triggerPtr = 66,
   triggerKey = 67,
+  triggerRunPtr = 68,
   variablesPacked = 70,
   inputsPacked = 71,
   outputsPacked = 72,
@@ -36667,6 +36699,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.planStep]: { id: 65, name: 'plan_step', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.triggerPtr]: { id: 66, name: 'trigger_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.triggerKey]: { id: 67, name: 'trigger_key', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.triggerRunPtr]: { id: 68, name: 'trigger_run_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.variablesPacked]: { id: 70, name: 'variables_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.inputsPacked]: { id: 71, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.outputsPacked]: { id: 72, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -37873,6 +37906,7 @@ export const PlanTypeOptionInfo: Partial<Record<PlanType, EnumOptionInfo>> = {
 export const TriggerEffectOptionInfo: Partial<Record<TriggerEffect, EnumOptionInfo>> = {
   [TriggerEffect.START_RUN]: { id: 1, name: 'START_RUN', text: 'Start a new Run' },
   [TriggerEffect.CONTINUE_RUN]: { id: 2, name: 'CONTINUE_RUN', text: 'Continue an existing or start a new Run' },
+  [TriggerEffect.REPLACE_RUN]: { id: 3, name: 'REPLACE_RUN', text: 'Abort and restart (part of) the current Run' },
   [TriggerEffect.CANCEL_INTERRUPTION]: { id: 20, name: 'CANCEL_INTERRUPTION', text: 'Cancel an Interruption' },
   [TriggerEffect.COMPLETE_INTERRUPTION]: { id: 21, name: 'COMPLETE_INTERRUPTION', text: 'Complete an Interruption' },
 }
@@ -37955,8 +37989,12 @@ export const ToolFilterOptionInfo: Partial<Record<ToolFilter, EnumOptionInfo>> =
 }
 
 export const MessageTypeOptionInfo: Partial<Record<MessageType, EnumOptionInfo>> = {
-  [MessageType.TEXT]: { id: 1, name: 'TEXT', text: 'Standard Message' },
-  [MessageType.THREAD]: { id: 2, name: 'THREAD', text: 'Begin a Thread' },
+  [MessageType.REGULAR]: { id: 1, name: 'REGULAR', text: 'Standard Message' },
+  [MessageType.REPLY]: { id: 2, name: 'REPLY', text: 'Reply to another Message' },
+  [MessageType.FORWARDED]: { id: 3, name: 'FORWARDED', text: 'Forwarded Message' },
+  [MessageType.THREAD]: { id: 10, name: 'THREAD', text: 'Begin a Thread' },
+  [MessageType.RUN]: { id: 20, name: 'RUN', text: 'Begin a Run' },
+  [MessageType.INTERRUPTION]: { id: 21, name: 'INTERRUPTION', text: 'Interrupt a Run' },
 }
 
 

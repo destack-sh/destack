@@ -87,15 +87,7 @@ tracer = trace.get_tracer(__name__)
 
 class Runtime:
     """
-    The runtime for executing Runs.
-    One top-level Run/Runner is processed at a time.
-    Inner runs may run in parallel in some cases.
-    A Runtime is exclusively associated with one Session.
-
-    NOTE :Robustness :Architecture: separate transactions for session and other edits?
-    NOTE :Incomplete: respect RunOptions.max_concurrency,...
-    NOTE :Architecture: Run started/terminated/... epochs are relative to session
-        (meaning if we make local edits during a Run, the terminated_epoch is still the same)
+    The runtime for executing Runs. A Runtime is tied exclusively to one Session.
     """
 
     def __init__(
@@ -831,7 +823,7 @@ class Runtime:
         except Exception as e:
             logger.error("runtime.run_runner.error", runner=runner, exc_info=e)
 
-    def schedule_runner(self, runner: Runner) -> Runner:
+    def run_soon(self, runner: Runner) -> Runner:
         """Schedule a Runner to run asynchronously."""
         runner.outer_task = asyncio.create_task(self._wrap_run_runner(runner))
         return runner
@@ -850,9 +842,16 @@ class Runtime:
         run: Run,
         *,
         return_error: bool = False,
-        optimistic: bool = False,
     ) -> Runner | None:
-        """Start or resume a top-level Run in this Runtime until termination/interruption."""
+        """
+        Start or resume a top-level Run in this Runtime until it stops (terminates/interrupts).
+
+        """
+
+        # nocheckin: lift RunHandle into current Run if ... trigger says so? it's an action..?
+        #  We need to turn Action Runs into Flow Runs.. somewhere
+        #  Also we need to resume & replace Runs from Triggers .. somehow
+
         runner = None
         if self._is_stop_requested:
             raise RuntimeError(f"{self!r} was stopped")
@@ -879,9 +878,6 @@ class Runtime:
                     self.on_error(e)
                 if not return_error:
                     raise
-            finally:
-                if not optimistic:
-                    await self.session.commit()
         return runner
 
     def get_interrupted_runs(self, graph: NodeGraph, *interruptions: Interruption) -> list[Run]:
@@ -925,6 +921,7 @@ class Runtime:
 
     def close_run(self, span: Run | RunSpan, resume: bool = True):
         """Close the Interruptions in a Run."""
+        # nocheckin: also close Plans (?)
         closed_interruptions: list[Interruption] | None = None
         for interruption in span._graph.iter_descendants(span, NodeType.INTERRUPTION):
             interruption = cast(Interruption, interruption)

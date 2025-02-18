@@ -59,7 +59,7 @@ tracer = trace.get_tracer(__name__)
 
 #
 # Access checking
-# TODO :Performance :Architecture: overhaul Access/Policies/Roles/etc.
+# TODO :Performance :Architecture: overhaul Access/Policies/Roles/etc. :RichGraph
 #  This was created in a much earlier time and we need to overhaul it badly.
 #  It should be clearer where you can allow/deny certain access, and how that may be nested.
 #  For instance: can I allow access to a child node whose parent is denied? How do the paths work?
@@ -470,10 +470,10 @@ def _register_system_policies():
             .deny(AccessKind.EDIT)
             .object(node_types=(NodeType.HANDLE,)),
             PolicyRule(
-                name="CannotMoveRuntimeNodes",
-                text=Text.plain("Cannot move Runtime Nodes"),
+                name="CannotRemoveRuntimeNodes",
+                text=Text.plain("Cannot remove Runtime Nodes"),
             )
-            .deny(EditType.MOVE, EditType.DELETE, EditType.ERASE)
+            .deny(EditType.DELETE, EditType.ERASE)
             .object(node_types=RUNTIME_NODE_TYPES.tuple),
         ),
         Policy(name="OwnerAccess").append(

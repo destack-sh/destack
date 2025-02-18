@@ -117,10 +117,10 @@ def test_partial_node_message(session: Session, package: Package) -> None:
 def test_partial_node_message_extraneous_property(session: Session, package: Package) -> None:
     """Create, update, pack/unpack a partial Message node with extraneous kwargs (should error)."""
     message_type = Class.new("MyMessage", Field.member("Field1", int))
-    _ = Message.partial(type=MessageType.TEXT, clazz=message_type, Field1=42)
+    _ = Message.partial(type=MessageType.REGULAR, clazz=message_type, Field1=42)
     with pytest.raises(ValueError):
         _ = Message.partial(
-            type=MessageType.TEXT, block=message_type, Field1=42, my_extraneous_something="value"
+            type=MessageType.REGULAR, block=message_type, Field1=42, my_extraneous_something="value"
         )
 
 

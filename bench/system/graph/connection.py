@@ -200,7 +200,7 @@ class ConnectionSubscription[UpdateT: Any]:
         self.connection.unsubscribe(self)
 
 
-# TODO :Security!: apply policies to connection subscriptions
+# TODO :Security!: apply policies to connection subscriptions :RichGraph
 #  (need some per-connection-type subscription info?)
 
 
@@ -405,13 +405,13 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
         assert self._result_data is not None, f"no result for {self!r}"
         assert self._result_roots_ids is not None, f"no result for {self!r}"
 
-        # NOTE :Incomplete: support ancestors/descendants/joins in (live) search connection
+        # NOTE :Incomplete: support ancestors/descendants/joins in (live) search connection :RichGraph
         #  This seems tricky because we'll have to re-query somehow when a new root is added
         #   (we don't have its ancestors/descendants ready anywhere),
         #  and because we need to somehow split roots from descendants/ancestors if they
         #  are the same type (like when querying Runs with some filter and their descendants).
         # Also I think this doesn't support moves correctly (doesn't prune/add ancestors).
-        # NOTE :Architecture :Broken: we need to stablize :ConnectionUpdateOrdering to handle all cases
+        # NOTE :Architecture :Broken: we need to robustify :ConnectionUpdateOrdering :RichGraph
         #  (sometimes we need added_nodes before edits, sometimes, after, sometimes both -
         #   so we really need to put all required changes in a common order somehow)
 

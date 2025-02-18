@@ -191,7 +191,7 @@ class FlowRunner[N: Flow | Action = Flow](Runner[N], ABC):
         logger.debug("flow.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
         runner.on_event(lambda event: self._events.put_nowait(event))
-        self.runtime.schedule_runner(runner)
+        self.runtime.run_soon(runner)
         return run
 
     def _resume(self, run: Run | Runner) -> Run:
@@ -205,7 +205,7 @@ class FlowRunner[N: Flow | Action = Flow](Runner[N], ABC):
         logger.debug("flow.resume", flow=self.node, node=runner.node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
         runner.on_event(lambda event: self._events.put_nowait(event))
-        self.runtime.schedule_runner(runner)
+        self.runtime.run_soon(runner)
         return runner.tracked_run
 
     def _process_event(self, event: RunnerEvent) -> None:

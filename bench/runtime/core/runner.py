@@ -111,7 +111,7 @@ class RunnerOutputEvent:
 
 @dataclass(slots=True)
 class RunnerInterruptedEvent:
-    """Runner yielded."""
+    """Runner was interrupted."""
 
     runner: "Runner"
     interruption: Interruption

@@ -1353,6 +1353,7 @@ enum TriggerEffect {
   TRIGGER_EFFECT_UNSPECIFIED = 0;
   TRIGGER_EFFECT_START_RUN = 1;
   TRIGGER_EFFECT_CONTINUE_RUN = 2;
+  TRIGGER_EFFECT_REPLACE_RUN = 3;
   TRIGGER_EFFECT_CANCEL_INTERRUPTION = 20;
   TRIGGER_EFFECT_COMPLETE_INTERRUPTION = 21;
 }
@@ -1941,8 +1942,12 @@ enum ThreadStatus {
 
 enum MessageType {
   MESSAGE_TYPE_UNSPECIFIED = 0;
-  MESSAGE_TYPE_TEXT = 1;
-  MESSAGE_TYPE_THREAD = 2;
+  MESSAGE_TYPE_REGULAR = 1;
+  MESSAGE_TYPE_REPLY = 2;
+  MESSAGE_TYPE_FORWARDED = 3;
+  MESSAGE_TYPE_THREAD = 10;
+  MESSAGE_TYPE_RUN = 20;
+  MESSAGE_TYPE_INTERRUPTION = 21;
 }
 
 enum MessageStatus {
@@ -3117,6 +3122,7 @@ message RunData {
   optional int32 plan_step = 65;
   optional NodeReferenceData trigger_ptr = 66;
   optional string trigger_key = 67;
+  optional NodeReferenceData trigger_run_ptr = 68;
   optional google.protobuf.Value variables_packed = 70;
   optional google.protobuf.Value inputs_packed = 71;
   optional google.protobuf.Value outputs_packed = 72;

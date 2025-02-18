@@ -17,6 +17,9 @@ from bench.runtime import make_run_from_node
 
 from .core import Commit, HostPlugin
 
+# NOTE :Incomplete: consider runtime Triggers (i.e., those not in source)
+# NOTE :Architecture: how will Triggers work with hibernated Runs? :HibernateRuns
+
 
 class ScheduleTriggerPlugin(HostPlugin[Trigger]):
     """Process ScheduleTriggers."""
@@ -26,8 +29,6 @@ class ScheduleTriggerPlugin(HostPlugin[Trigger]):
 
 class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
     """Process MessageTriggers."""
-
-    # NOTE :Incomplete: consider runtime Triggers (i.e., those not in source) and :RunRouting
 
     watch_types = bittuple(NodeType.TRIGGER, NodeType.MESSAGE)
 
@@ -73,14 +74,18 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                     fired_triggers.append((message.run, inputs, str(message.id), trigger))
 
         # fire triggers
-        for _, inputs, trigger_key, trigger in fired_triggers:
+        for trigger_run, inputs, trigger_key, trigger in fired_triggers:
             target = trigger.parent
+            if isinstance(target, Run):
+                target = target.runnable
             if not isinstance(target, Action):
-                # for :RunRouting we need to scope/route the Run properly
-                raise NotImplementedError(f"trigger {trigger!r} has unsupported target: {target!r}")
+                raise RuntimeError(f"trigger {trigger!r} has unsupported target: {target!r}")
             run = make_run_from_node(target, inputs=inputs)
             run.trigger = trigger
             run.trigger_key = trigger_key
+            run.trigger_run = trigger_run
+            if trigger_run is not None:
+                run.machine = trigger_run.machine
             session._create(run)
 
     @override

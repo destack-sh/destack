@@ -48,9 +48,12 @@ logger = structlog.get_logger(__name__)
 
 @enum_(EnumType.MESSAGE_TYPE)
 class MessageType(BuiltinEnum):
-    TEXT = 1, "Standard Message"
-    THREAD = 2, "Begin a Thread"
-    # RUN, INTERRUPTION, ...
+    REGULAR = 1, "Standard Message"
+    REPLY = 2, "Reply to another Message"
+    FORWARDED = 3, "Forwarded Message"
+    THREAD = 10, "Begin a Thread"
+    RUN = 20, "Begin a Run"
+    INTERRUPTION = 21, "Interrupt a Run"
     # for inspiration also see https://discord.com/developers/docs/resources/message
 
 
@@ -81,7 +84,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
 
     # meta
     parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH)
-    type: MessageType = p_regular(30, require=True, default=MessageType.TEXT)
+    type: MessageType = p_regular(30, require=True, default=MessageType.REGULAR)
     platform: MessagePlatform = p_regular(31, require=True, default=MessagePlatform.BENCH)
     channel: Optional["Channel"] = p_system(
         32,
@@ -169,9 +172,6 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         spawned_thread_ptr: Optional[NodeReference] = None
     # roles, identities, users, teams, ...
 
-    # flags
-    # is_pinned, is_highlighted, ...
-
     def __content_str__(self) -> str:
         if self.title:
             return self.title
@@ -221,7 +221,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     ) -> "Message":
         message = Message(
             parent=bench,
-            type=MessageType.TEXT,
+            type=MessageType.REGULAR,
             platform=platform,
             title=title,
             text=text,

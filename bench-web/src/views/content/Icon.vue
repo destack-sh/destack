@@ -207,6 +207,7 @@ defineExpose<ViewExpose>({ self, id, focus });
         />
         <!-- Color -->
         <button
+          v-if="iconType != IconType.EMOJI"
           v-tooltip="{ title: 'Change color', small: true }"
           v-menu="
             (): PopoverInfoIn => ({

@@ -50,6 +50,7 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
                 session=self.session,
             )
         runner = await self.runtime.run(run, return_error=return_error)
+        await self.session.commit()
         assert runner is not None, f"no runner for {run!r}"
         return runner
 

@@ -176,7 +176,7 @@ def test_render_partial_object(session: Session, package: Package):
         Field.member("Field3", bool),
     )
     PatialMessage1 = Message.partial(
-        MessageType.TEXT, clazz=MessageType1, Field1=17, Field2="hello!"
+        MessageType.REGULAR, clazz=MessageType1, Field1=17, Field2="hello!"
     )
     return {
         "PartialPage1": PartialPage1,

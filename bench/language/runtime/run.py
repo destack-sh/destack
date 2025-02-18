@@ -210,6 +210,9 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         66, require=False, array=False, references=NodeType.TRIGGER, same_bench=True
     )
     trigger_key: Optional[str] = p_internal(67, require=False, default=None)
+    trigger_run: Optional["Run"] = p_regular(
+        68, require=False, array=False, references=NodeType.RUN, same_bench=True
+    )
     if TYPE_CHECKING:
         page_ptr: Optional[NodeReference] = None
         page_id: Optional[UUID] = None

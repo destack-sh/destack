@@ -242,7 +242,7 @@ def origin_matches(origin: ClientOriginData, other: ClientOriginData) -> bool:
     return origin.id == other.id and origin.nonce == other.nonce
 
 
-# NOTE :Architecture :Cleanup: the whole Engine/Connector/Connection system seems convoluted
+# NOTE :Architecture :Cleanup: the whole Engine/Connector/Connection system seems weird :RichGraph
 
 
 class Engine[C: "Connector"](abc.ABC):
