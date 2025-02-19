@@ -1,3 +1,5 @@
+import asyncio
+
 from bench.language import (
     TERMINAL_RUN_STATUSES,
     Action,
@@ -5,9 +7,11 @@ from bench.language import (
     Channel,
     Flow,
     Message,
+    PipeType,
     Run,
     RunStatus,
     Trigger,
+    code,
 )
 from bench.runtime import create_run_from_node
 from bench.test.simulation.core import Simulation
@@ -47,3 +51,33 @@ async def test_run_flow_start_run_from_message(
 
     Run1 = await Run.get_run_of(Flow1, where=TERMINAL_RUN_STATUSES)
     assert Run1.status == RunStatus.COMPLETED
+
+
+@simulated_runtime(runtimes=True)
+async def test_run_flow_pause_resume_in_runtime(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
+    """Run a long async Flow and pause it, then resume it."""
+    Flow1 = Flow.new("Flow1")
+    Start = Action.new(ActionType.START, "Start")
+    Action1 = Action.new(ActionType.CODE, "Action1", code=code("await sleep(1)"))
+    Complete = Action.new(ActionType.COMPLETE, "Complete")
+    Flow1.actions.extend(Start, Action1, Complete)
+    Start.connect(PipeType.CALL, Action1)
+    Action1.connect(PipeType.CALL, Complete)
+    runtime.page().append(Flow1)
+    await runtime.commit()
+
+    async def pause_run(run: Run):
+        run.pause()
+        await runtime.session.commit()
+
+    # run, pause, then resume
+    run = create_run_from_node(Flow1)
+    await runtime.commit()
+    asyncio.get_event_loop().call_later(0.2, pause_run, run)
+    await run.wait_until_status(RunStatus.PAUSED)
+    run.resume()
+    await runtime.commit()
+    await run.wait_until_status(RunStatus.COMPLETED)
+    assert run.status == RunStatus.COMPLETED

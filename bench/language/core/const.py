@@ -549,6 +549,7 @@ class NodeType(BuiltinEnum):
     SESSION = 6000  # (timed)
     RUN = 6010  # (based, timed)
     RUN_SPAN = 6011  # (timed)
+    # RUN_GROUP, RUN_QUEUE, ...?
     INTERRUPTION = 6020  # (timed)
     LOG = 6030  # (timed)
     PLAN = 6040  # (timed)
