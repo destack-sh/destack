@@ -34,7 +34,7 @@ from .const import (
     is_node_type,
     is_struct_type,
 )
-from .node import TYPE_BASE_NODE_TYPES, Node, NodeReference, TypeBaseNode
+from .node import TYPE_BASE_NODE_TYPES, FieldBaseNode, Node, NodeReference, TypeBaseNode
 from .object import (
     BuiltinObject,
     get_tk_b64_from_ck,
@@ -361,7 +361,7 @@ class TypeBase(BuiltinObject):
         elif self.kind == TypeKind.BASED_NODE:
             if self.bench_type == NodeType.FIELD:
                 assert self.base_type is not None, f"missing base type for {self!r}"
-                field = self.base_type.fields.get(*args, **kwargs)
+                field = cast(FieldBaseNode, self.base_type).fields.get(*args, **kwargs)
                 if field is None:
                     raise ValueError(f"no field {args!r} in {self.base_type!r}")
                 return field
@@ -426,10 +426,8 @@ class TypeBase(BuiltinObject):
 
     @property
     def _base_fields(self) -> Sequence["Field"]:
-        if self.base_type_ptr is not None:
-            base_type = self.base_type
-            assert base_type is not None, f"missing base type {self!r}"
-            return base_type.fields
+        if (base_type := self.base_type) is not None and base_type.metatype != NodeType.CHOICE:
+            return cast(FieldBaseNode, base_type).fields
         else:
             return ()
 

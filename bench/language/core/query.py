@@ -33,7 +33,7 @@ from .const import (
     active_session,
 )
 from .expression import Expression, coerce_conditional
-from .node import NODE_CLASS_BY_TYPE, Node, NodeReference, TypeBaseNode
+from .node import NODE_CLASS_BY_TYPE, FieldBaseNode, Node, NodeReference, TypeBaseNode
 from .property import Property, p_regular
 from .struct import Struct, struct_
 
@@ -446,8 +446,8 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         clone = self.clone()
         clone._select = self._clone_select()
         clone._select.select_all_properties = True
-        if self._base_type is not None:
-            clone._select.select_fields = list(self._base_type.fields)
+        if self._base_type is not None and self._base_type.metatype != NodeType.CHOICE:
+            clone._select.select_fields = list(cast(FieldBaseNode, self._base_type).fields)
         else:
             clone._select.select_fields = []
         return clone

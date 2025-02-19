@@ -12,6 +12,7 @@ from bench.language import (
     Field,
     Flow,
     ModelFamily,
+    Option,
     Package,
     PackageType,
     PathElementType,
@@ -174,7 +175,7 @@ def mock_package_populated(session: Session):
     action2112_t_st = flow211.actions.append(Action.new(ActionType.START, "Action2112 TÖST"))  # noqa: F841
     choice212 = Choice.new(
         "Choice212",
-        fields=[Field.option("Option2121"), Field.option("Option2122"), Field.option("Option2123")],
+        fields=[Option.new("Option2121"), Option.new("Option2122"), Option.new("Option2123")],
     )
     page21.append(choice212)
 

@@ -67,6 +67,7 @@ from .clazz import Class
 from .database import Database
 from .field import Field
 from .flow import Flow
+from .option import Option
 from .page import Page
 from .pipe import Pipe
 from .view import View
@@ -83,7 +84,7 @@ class RenderOptions:
     scope: Node
     aliasing: "Aliasing"
     node_types: Collection[NodeType] = NODE_TYPES_SET
-    inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER)
+    inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.OPTION, NodeType.TRIGGER)
     use_code_paths: bool = True
     implicit_partials: bool = False
     # formatting
@@ -780,11 +781,11 @@ class ChoiceRenderer(SourceNodeRenderer[Choice]):
         rendered_kwargs: dict[str, str],
     ) -> str:
         # inline name and fields (like Choice.new(name, *fields))
-        fields_refs = [renderer.render_builtin_object(field) for field in obj.fields]
-        rendered_kwargs.pop("fields", None)
+        options_refs = [renderer.render_builtin_object(option) for option in obj.options]
+        rendered_kwargs.pop("options", None)
         args = (
             rendered_kwargs.pop("name"),
-            *fields_refs,
+            *options_refs,
             renderer._render_kwargs(**rendered_kwargs) or None,
         )
         return f"Choice.new({renderer._render_args(*args)})"
@@ -862,9 +863,6 @@ class FieldRenderer(SourceNodeRenderer[Field]):
     ) -> str:
         # remap back to type in if possible
         type_in, rendered_kwargs = _deconstruct_type_in(renderer, obj, rendered_kwargs)
-        # kind=literal is implicit if option
-        if obj.type == FieldType.OPTION:
-            rendered_kwargs.pop("kind")
         # is_required=True is implicit if variable
         if obj.type == FieldType.VARIABLE and obj.is_required is True:
             rendered_kwargs.pop("is_required", None)
@@ -882,6 +880,24 @@ class FieldRenderer(SourceNodeRenderer[Field]):
                 rendered_kwargs.pop("name"), renderer._render_kwargs(**rendered_kwargs) or None
             )
         return f"Field.{constructor_name}({field_args})"
+
+
+@_renderer(NodeType.OPTION)
+class OptionRenderer(SourceNodeRenderer[Option]):
+    @override
+    def _render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: Option,
+        kwargs: dict[Property, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        # inline name only for now
+        args = (
+            rendered_kwargs.pop("name"),
+            renderer._render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"Option.new({renderer._render_args(*args)})"
 
 
 #

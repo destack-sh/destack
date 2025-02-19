@@ -310,8 +310,6 @@ def map_database_to_table(database: Database, old_table: Table | None) -> Table:
             primitive_type = PrimitiveType.INT16
         elif field.kind == TypeKind.BASED_NODE:
             primitive_type = PrimitiveType.JSON
-        elif field.kind == TypeKind.UNION:
-            continue  # not stored directly
         else:
             raise TypeError(f"cannot store field in {database!r}: {field!r}")
 

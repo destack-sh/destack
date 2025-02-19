@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.19.1"
+VERSION = "2025.02.19.4"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -520,6 +520,7 @@ class NodeType(BuiltinEnum):
     CLASS = 5031
     # UNION?
     FIELD = 5035  # (based)
+    OPTION = 5036  # (based)
     FLOW = 5050
     ACTION = 5051
     PIPE = 5052
@@ -669,7 +670,12 @@ INLINE_SOURCE_NODE_TYPES = bittuple(
 STATE_NODE_TYPES = _get_node_types(5500, 6000)
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6500)
 BASED_NODE_TYPES = bittuple(  # :HasBase
-    NodeType.FIELD, NodeType.RUN, NodeType.INTERRUPTION, NodeType.MESSAGE, NodeType.RECORD
+    NodeType.FIELD,
+    NodeType.OPTION,
+    NodeType.RUN,
+    NodeType.INTERRUPTION,
+    NodeType.MESSAGE,
+    NodeType.RECORD,
 )
 PACKAGE_NODE_TYPES = _get_node_types(5000, 5500, NodeType.SKIP, NodeType.EMPTY)
 BENCH_NODE_TYPES = _get_node_types(
@@ -1281,8 +1287,6 @@ class TypeKind(BuiltinEnum):
     BASED_NODE = 5
     CUSTOM_OBJECT = 6
     PARTIAL_OBJECT = 7
-    LITERAL = 8  # nocheckin: Field.option -> Option?
-    UNION = 9
 
 
 @enum_(EnumType.FIELD_ZONE)
@@ -1293,7 +1297,6 @@ class FieldType(BuiltinEnum):
     MEMBER = 2
     INPUT = 3
     OUTPUT = 4
-    OPTION = 5
 
 
 @enum_(EnumType.TIME_INTERVAL)

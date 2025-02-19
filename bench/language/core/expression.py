@@ -29,7 +29,7 @@ from .const import (
     TypeKind,
     enum_,
 )
-from .node import Node, NodeReference, TypeBaseNode
+from .node import FieldBaseNode, Node, NodeReference, TypeBaseNode
 from .object import Property, PropertyReference
 from .path import PathIn, to_path
 from .property import p_regular, p_value_packed, p_value_runtime
@@ -357,7 +357,7 @@ def coerce_conditional(
         target: Field | Property | None = None
         if prop := node_cls.__properties__.get(key):
             target = prop
-        elif base_type is not None and (field := base_type.fields.get(key)):
+        elif base_type is not None and (field := cast(FieldBaseNode, base_type).fields.get(key)):
             target = field
         if target is None:
             raise TypeError(f"{node_cls!r} has no attribute {key!r} in {base_type!r}")
@@ -427,7 +427,9 @@ def coerce_sort(
             target = None
             if prop := node_cls.__properties__.get(field_key):
                 target = prop
-            elif base_type is not None and (field := base_type.fields.get(field_key)):
+            elif base_type is not None and (
+                field := cast(FieldBaseNode, base_type).fields.get(field_key)
+            ):
                 target = field
             if target is None:
                 raise AttributeError(f"{node_cls!r} has no attribute {item!r} in {base_type!r}")

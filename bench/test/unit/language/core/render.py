@@ -6,6 +6,7 @@ from uuid import UUID
 
 from bench.language import (
     Action,
+    ActionCategory,
     ActionType,
     Aliasing,
     Block,
@@ -19,10 +20,12 @@ from bench.language import (
     ComputedValueMode,
     CustomObject,
     Field,
+    Flow,
     Message,
     MessageType,
     Node,
     NodeReference,
+    Option,
     Package,
     Page,
     PathElementType,
@@ -32,19 +35,18 @@ from bench.language import (
     RenderOptions,
     Run,
     Session,
+    ToolSelection,
     call,
     call_none,
     call_parallel,
     call_serial,
+    code,
     constraint,
+    format_code,
     path,
     render_expression,
     to_type,
 )
-from bench.language.core import code
-from bench.language.core.code import format_code
-from bench.language.source.action import ActionCategory, ToolSelection
-from bench.language.source.flow import Flow
 from bench.runtime.code import BUILTIN_GLOBALS, STATIC_CODE_GLOBALS
 
 
@@ -195,7 +197,7 @@ def test_render_bad_names(session: Session, package: Package):
 @_render_test
 def test_render_choice_block(session: Session, package: Package):
     ShapeType = Choice.new(
-        "ShapeType", Field.option("Circle"), Field.option("Square"), Field.option("Triangle")
+        "ShapeType", Option.new("Circle"), Option.new("Square"), Option.new("Triangle")
     )
     return {"ShapeType": ShapeType}
 
@@ -203,7 +205,7 @@ def test_render_choice_block(session: Session, package: Package):
 @_render_test
 def test_render_message_block(session: Session, package: Package):
     ShapeType = Choice.new(
-        "ShapeType", Field.option("Circle"), Field.option("Square"), Field.option("Triangle")
+        "ShapeType", Option.new("Circle"), Option.new("Square"), Option.new("Triangle")
     )
     Shape = Class.new("Shape", Field.member("kind", ShapeType), Field.member("is_cool", bool))
     return {"ShapeType": ShapeType, "Shape": Shape}
@@ -335,12 +337,14 @@ def test_render_simple_choice_option_ref(session: Session, package: Package):
     Page1 = package.pages.create(name="Page")
     Choice1 = Choice.new(
         "Choice1",
-        Field.option("Option1"),
-        Field.option("Option2"),
-        Field.option("Option3"),
+        Option.new("Option1"),
+        Option.new("Option2"),
+        Option.new("Option3"),
     )
     Page1.append(Choice1)
     rendered_option = render_expression(
-        Choice1.fields.Option2, options=RenderOptions(scope=Page1, aliasing=Aliasing()), as_ref=True
+        Choice1.options.Option2,
+        options=RenderOptions(scope=Page1, aliasing=Aliasing()),
+        as_ref=True,
     )
-    assert rendered_option == "Choice1.fields.Option2"
+    assert rendered_option == "Choice1.options.Option2"

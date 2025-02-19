@@ -111,7 +111,7 @@ class Block(SourceNode[BlockData]):
 
     # content
     text: Optional["TextLine"] = p_regular(
-        40, default=None, require=False, array=False, struct=StructType.TEXT
+        40, default=None, require=False, array=False, struct=StructType.TEXT_LINE
     )
     node: Optional["InlineSourceNode"] = p_regular(
         41, references="any", default=None, require=False, array=False, baseless=True

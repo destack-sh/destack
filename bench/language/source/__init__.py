@@ -1,6 +1,7 @@
 from .action import (
     DYNAMIC_ACTION_TYPES,
     Action,
+    ActionCategory,
     ActionType,
     ChangeAction,
     ClickAction,
@@ -41,9 +42,10 @@ from .choice import Choice
 from .clazz import Class
 from .database import Database
 from .dependency import Dependency
-from .field import Field, InputField, MemberField, OptionField, OutputField, VariableField
+from .field import Field
 from .flow import Flow
 from .identity import Identity
+from .option import Option
 from .package import Package, PackageType
 from .page import Page
 from .pipe import Pipe, PipeType, PortSide
@@ -94,6 +96,7 @@ __all__ = [
     "NODE_BLOCK_TYPES",
     "TEXT_BLOCK_TYPES",
     "Action",
+    "ActionCategory",
     "ActionType",
     "Aliasing",
     "Alignment",
@@ -128,15 +131,12 @@ __all__ = [
     "GoToUrlAction",
     "HasApplicationContext",
     "Identity",
-    "InputField",
     "Line",
     "LookAction",
-    "MemberField",
     "MessageTrigger",
     "Offset",
-    "OptionField",
+    "Option",
     "Orientation",
-    "OutputField",
     "Package",
     "PackageType",
     "Page",
@@ -173,7 +173,6 @@ __all__ = [
     "TriggerType",
     "TypeAction",
     "UpdateAction",
-    "VariableField",
     "Vector2",
     "Vector3",
     "Vector4",

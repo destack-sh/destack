@@ -1647,15 +1647,11 @@ class RuntimeNode[NodeDataT: AnyNodeData](
 
 
 RunnableNode = Union["Flow", "Action", "Pipe"]
-TypeBaseNode = Union["Flow", "Action", "Class", "Choice", "Database"]
 RUNNABLE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.PIPE)
-TYPE_BASE_NODE_TYPES = (
-    NodeType.FLOW,
-    NodeType.ACTION,
-    NodeType.CLASS,
-    NodeType.CHOICE,
-    NodeType.DATABASE,
-)
+FieldBaseNode = Union["Flow", "Action", "Class", "Database"]
+FIELD_BASE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.CLASS, NodeType.DATABASE)
+TypeBaseNode = Union[FieldBaseNode, "Choice"]
+TYPE_BASE_NODE_TYPES = (*FIELD_BASE_NODE_TYPES, NodeType.CHOICE)
 
 
 @node_component_()

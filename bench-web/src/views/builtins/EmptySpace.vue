@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { UserStatus } from "@/proto/wire";
-import { assignSpaceInPackage, bench, canvas, space } from "@/system/space";
+import { assignSpaceInPackage, bench, canvas, pkg, space } from "@/system/space";
 import { user } from "@/system/user";
 import { fireActionById } from "@/ui/action";
 import { makeIcon } from "@/ui/icon";
@@ -45,7 +45,7 @@ import Button from "@/views/controls/Button.vue";
         name="CreateSpace"
         :icon="makeIcon('fas fa-plus')"
         title="Create Space"
-        @click="() => assignSpaceInPackage()"
+        @click="() => pkg && assignSpaceInPackage(pkg)"
       />
       <Button
         v-else

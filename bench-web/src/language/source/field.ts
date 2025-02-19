@@ -1,28 +1,23 @@
 import { isInlineSourceNode, RUNNABLE_NODE_TYPES, TYPE_NODE_TYPES } from "@/language/core/const";
 import type { ReadNodeGraph } from "@/language/core/graph";
-import { cloneNode, makeNodeName, moveNode } from "@/language/core/node";
+import { cloneNode, moveNode } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
 import { getTypeName, nodeToType, TypeIdentity } from "@/language/core/type";
 import { newChangeId, type Transaction } from "@/language/runtime/transaction";
 import {
   ActionData,
   BenchType,
-  BlockData,
-  BlockType,
-  ColorType,
   FieldData,
   FieldType,
   InlineSourceNodeData,
   NodeReferenceData,
   NodeType,
   ObjectType,
-  TypeKind,
+  TypeKind
 } from "@/proto/wire";
-import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, toNodeRef } from "@/proto/wiring";
 import { DragContent, MultiAnchor } from "@/ui/drag";
-import { getNodeIcon, makeIcon } from "@/ui/icon";
-import { getRandomColorType } from "@/ui/style";
-import { assertNever } from "@/utils/functools";
+import { getNodeIcon } from "@/ui/icon";
 import { Ref } from "vue";
 
 /** Create a Field relative to some Field-containing node. */
@@ -52,10 +47,7 @@ export function createField(
     orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
     // figure out field kind based on block type
     const nodeAsType = nodeToType(target, "instance");
-    if (isNode(nodeAsType, NodeType.CHOICE)) {
-      type = FieldType.OPTION;
-      kind = TypeKind.LITERAL;
-    } else if (TYPE_NODE_TYPES.includes(target.metatype as unknown as NodeType)) {
+    if (TYPE_NODE_TYPES.includes(target.metatype as unknown as NodeType)) {
       type = FieldType.MEMBER;
     } else if (RUNNABLE_NODE_TYPES.includes(target.metatype as unknown as NodeType)) {
       type = FieldType.INPUT;
@@ -85,7 +77,7 @@ export function createField(
   }
 
   // type
-  if (type != FieldType.OPTION && fieldIn?.kind == null) {
+  if (fieldIn?.kind == null) {
     // default to Text if no type given
     fieldIn = { ...fieldIn, kind: TypeKind.STRUCT, benchType: BenchType.TEXT };
   } else if (kind != null) {
@@ -97,7 +89,7 @@ export function createField(
   let name: string;
   if (fieldIn?.name != null) {
     name = fieldIn.name;
-  } else if (type != FieldType.OPTION) {
+  } else {
     // make name unique (bumping number if needed)
     name = getTypeName(fieldIn!);
     const siblings = graph.getChildren(parentPtr, NodeType.FIELD);
@@ -105,22 +97,14 @@ export function createField(
     while (siblings.some((s) => s.name == name)) {
       name = `${name}${i++}`;
     }
-  } else {
-    name = makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr, type: type });
   }
 
   // assign color icon if it's an option :FieldIcon
   if (fieldIn?.icon == null) {
-    if (type == FieldType.OPTION) {
-      const occupiedColors = siblings.map((f) => f.icon?.color?.type ?? ColorType.GRAY);
-      const colorType = getRandomColorType({ except: occupiedColors });
-      fieldIn = { ...fieldIn, icon: makeIcon({ faName: "fas fa-circle-small", color: colorType }) };
-    } else {
-      fieldIn = {
-        ...fieldIn,
-        icon: getNodeIcon({ metatype: ObjectType.FIELD, ...fieldIn }, { defaultToUndefined: true }),
-      };
-    }
+    fieldIn = {
+      ...fieldIn,
+      icon: getNodeIcon({ metatype: ObjectType.FIELD, ...fieldIn }, { defaultToUndefined: true }),
+    };
   }
 
   const field = tx.create({
@@ -199,7 +183,7 @@ export function useFieldList(options: {
     if (dragged.kind != "node" && dragged.kind != "selection") return false;
     return dragged.nodes.every((node) => {
       node = graph.getOrError(node);
-      if (isNode(node, NodeType.FIELD) && (node.type == FieldType.OPTION) == (fieldType.value == FieldType.OPTION)) {
+      if (isNode(node, NodeType.FIELD)) {
         return true;
       } else if (isInlineSourceNode(node) && TYPE_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
         return true;
