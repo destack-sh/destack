@@ -49,16 +49,6 @@ defineExpose<ViewExpose>({ self, id, focus });
       :is-minimal="isMinimal"
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
     />
-    <FieldList
-      v-if="choice"
-      :id="choice.id"
-      :field-type="FieldType.OPTION"
-      :prepared-connection="preparedConnection"
-      :node-ptr="choicePtr"
-      class="px-1 py-1.5"
-      :style="{
-        minHeight: VIEW_DEFAULT_HEADER_HEIGHT + 'px',
-      }"
-    />
+    <!-- TODO :Incomplete: Choice view -->
   </div>
 </template>

@@ -311,6 +311,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.CHOICE]: "fas fa-circle-chevron-down",
   [NodeType.CLASS]: "fas fa-shapes",
   [NodeType.FIELD]: "fas fa-triangle",
+  [NodeType.OPTION]: "far fa-square-check",
   [NodeType.FLOW]: "fas fa-diagram-project",
   [NodeType.ACTION]: "fas fa-step-forward",
   [NodeType.PIPE]: "fas fa-pipe-section",
@@ -640,8 +641,6 @@ export const ICON_BY_TYPE_KIND: Partial<Record<TypeKind, IconData>> = _makeIcons
   [TypeKind.BASED_NODE]: "fas fa-circle-nodes",
   [TypeKind.ENUM]: "fas fa-list-ul",
   [TypeKind.CUSTOM_OBJECT]: "fas fa-shapes",
-  [TypeKind.LITERAL]: "fas fa-circle-dot",
-  [TypeKind.UNION]: "fas fa-circle-dot",
 });
 
 export const ICON_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, IconData>> = _makeIcons({
@@ -707,7 +706,6 @@ export const ICON_BY_FIELD_TYPE: Partial<Record<FieldType, IconData>> = _makeIco
   [FieldType.MEMBER]: "fas fa-objects-column",
   [FieldType.INPUT]: "fas fa-arrow-down-right",
   [FieldType.OUTPUT]: "fas fa-arrow-up-right",
-  [FieldType.OPTION]: "fas fa-circle-small",
 });
 
 export const ICON_BY_SEVERITY: Record<Severity, IconData> = {
@@ -863,9 +861,7 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
 
 /** Resolves the icon for a type :FieldIcon */
 export function getTypeIcon(node: Partial<FieldData> | TypeIdentity): IconData | undefined {
-  if ((node as FieldData).type == FieldType.OPTION) {
-    return ICON_BY_FIELD_TYPE[FieldType.OPTION];
-  } else if (node.primitiveType != null) {
+  if (node.primitiveType != null) {
     if (node.format != null) {
       const icon = ICON_BY_TYPE_FORMAT[node.format];
       if (icon != null) return icon;

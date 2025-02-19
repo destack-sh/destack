@@ -11,6 +11,7 @@ from bench.language import (
     ActionType,
     Block,
     BuiltinObject,
+    Channel,
     Class,
     Code,
     CreateAction,
@@ -80,6 +81,7 @@ def test_partial_node_message(session: Session, package: Package) -> None:
         Field.member("Field3", bool),
         Field.member("Field4", datetime),
     )
+    Channel1 = Channel.new("Channel1")
     typ = Type(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.MESSAGE, base_type=message_type)
     obj = CustomObject.new({}, typ)
 
@@ -89,17 +91,18 @@ def test_partial_node_message(session: Session, package: Package) -> None:
     assert obj.clazz is None
     assert obj.Field1 is None
     assert obj.Field4 is None
-
+    assert obj.channel is None
     # set/get values on value and properties
     obj.Field1 = 42
     obj.title = "My New Message"
     obj.clazz = message_type
     obj.Field4 = datetime(2024, 1, 1, tzinfo=pytz.utc)
+    obj.channel = Channel1
     assert obj.Field1 == 42
     assert obj.clazz == message_type
     assert obj.title == "My New Message"
     assert obj.Field4 == datetime(2024, 1, 1, tzinfo=pytz.utc)
-
+    assert obj.channel == Channel1
     # pack/unpack
     obj_packed = pack_custom_object(obj, typ)
     obj_unpacked = unpack_custom_object(obj_packed, typ, supergraph=session._supergraph)
@@ -171,8 +174,8 @@ def test_partial_node_generic(session: Session, package: Package) -> None:
 
     # set metatype, then set properties for Field
     obj.metatype = NodeType.FIELD
-    obj.type = FieldType.OPTION
-    obj.kind = TypeKind.LITERAL
+    obj.type = FieldType.INPUT
+    obj.kind = TypeKind.PRIMITIVE
     obj.name = "Option1"
     assert obj.name == "Option1"
 

@@ -158,6 +158,7 @@ enum NodeType {
   NODE_TYPE_CHOICE = 5030;
   NODE_TYPE_CLASS = 5031;
   NODE_TYPE_FIELD = 5035;
+  NODE_TYPE_OPTION = 5036;
   NODE_TYPE_FLOW = 5050;
   NODE_TYPE_ACTION = 5051;
   NODE_TYPE_PIPE = 5052;
@@ -270,6 +271,7 @@ enum ObjectType {
   OBJECT_TYPE_CHOICE = 5030;
   OBJECT_TYPE_CLASS = 5031;
   OBJECT_TYPE_FIELD = 5035;
+  OBJECT_TYPE_OPTION = 5036;
   OBJECT_TYPE_FLOW = 5050;
   OBJECT_TYPE_ACTION = 5051;
   OBJECT_TYPE_PIPE = 5052;
@@ -378,6 +380,7 @@ enum BenchType {
   BENCH_TYPE_CHOICE = 5030;
   BENCH_TYPE_CLASS = 5031;
   BENCH_TYPE_FIELD = 5035;
+  BENCH_TYPE_OPTION = 5036;
   BENCH_TYPE_FLOW = 5050;
   BENCH_TYPE_ACTION = 5051;
   BENCH_TYPE_PIPE = 5052;
@@ -1016,7 +1019,6 @@ enum FieldType {
   FIELD_TYPE_MEMBER = 2;
   FIELD_TYPE_INPUT = 3;
   FIELD_TYPE_OUTPUT = 4;
-  FIELD_TYPE_OPTION = 5;
 }
 
 // The 'kind' of a Type.
@@ -1029,8 +1031,6 @@ enum TypeKind {
   TYPE_KIND_BASED_NODE = 5;
   TYPE_KIND_CUSTOM_OBJECT = 6;
   TYPE_KIND_PARTIAL_OBJECT = 7;
-  TYPE_KIND_LITERAL = 8;
-  TYPE_KIND_UNION = 9;
 }
 
 // The fine-grained format of some Type.
@@ -3590,26 +3590,6 @@ message FieldData {
   bool is_secret = 62;
 }
 
-// An input field.
-message InputFieldData {
-}
-
-// An output field.
-message OutputFieldData {
-}
-
-// A member field.
-message MemberFieldData {
-}
-
-// A variable field.
-message VariableFieldData {
-}
-
-// An option field.
-message OptionFieldData {
-}
-
 message FlowData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3660,6 +3640,29 @@ message IdentityData {
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
   optional ColorType color = 40;
+}
+
+message OptionData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  optional NodeReferenceData template_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
+  optional google.protobuf.Value subnode_packed = 29;
+  string name = 31;
+  string order_key = 32;
+  optional TextData text = 33;
+  optional IconData icon = 34;
 }
 
 message PackageData {
@@ -4110,30 +4113,31 @@ message SomeNodeData {
     ChoiceData choice = 18;
     ClassData class = 19;
     FieldData field = 20;
-    FlowData flow = 21;
-    ActionData action = 22;
-    PipeData pipe = 23;
-    TriggerData trigger = 24;
-    ViewData view = 25;
-    DatabaseData database = 26;
-    ChannelData channel = 27;
-    RoleData role = 28;
-    IdentityData identity = 29;
-    SpaceData space = 30;
-    ThreadData thread = 31;
-    MessageData message = 32;
-    NotificationData notification = 33;
-    RecordData record = 34;
-    MembershipData membership = 35;
-    InviteData invite = 36;
-    SessionData session = 37;
-    RunData run = 38;
-    RunSpanData run_span = 39;
-    InterruptionData interruption = 40;
-    LogData log = 41;
-    PlanData plan = 42;
-    SkipData skip = 43;
-    EmptyData empty = 44;
+    OptionData option = 21;
+    FlowData flow = 22;
+    ActionData action = 23;
+    PipeData pipe = 24;
+    TriggerData trigger = 25;
+    ViewData view = 26;
+    DatabaseData database = 27;
+    ChannelData channel = 28;
+    RoleData role = 29;
+    IdentityData identity = 30;
+    SpaceData space = 31;
+    ThreadData thread = 32;
+    MessageData message = 33;
+    NotificationData notification = 34;
+    RecordData record = 35;
+    MembershipData membership = 36;
+    InviteData invite = 37;
+    SessionData session = 38;
+    RunData run = 39;
+    RunSpanData run_span = 40;
+    InterruptionData interruption = 41;
+    LogData log = 42;
+    PlanData plan = 43;
+    SkipData skip = 44;
+    EmptyData empty = 45;
   };
 }
 

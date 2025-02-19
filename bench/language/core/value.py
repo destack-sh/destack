@@ -515,8 +515,8 @@ def value_equals(
                 ):
                     return False  # unequal list
             return True
-    elif typ.kind == TypeKind.ENUM or typ.kind == TypeKind.LITERAL:
-        # compare enums/literaly directly
+    elif typ.kind == TypeKind.ENUM:
+        # compare enums directly
         return self_value == other_value
     elif (
         typ.kind == TypeKind.NODE
@@ -1167,12 +1167,7 @@ def coerce_value_scalar(
         if as_packed:
             value = cast("Node", value).to_ref()
         return value
-    elif (
-        typ.kind == TypeKind.CUSTOM_OBJECT
-        or typ.kind == TypeKind.PARTIAL_OBJECT
-        or typ.kind == TypeKind.LITERAL
-        or typ.kind == TypeKind.UNION
-    ):
+    elif typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
         raise RuntimeError(f"cannot coerce {typ!r} to scalar")
     else:
         assert_never(typ.kind)

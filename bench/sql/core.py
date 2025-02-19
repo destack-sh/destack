@@ -562,7 +562,7 @@ class Table(TableObject):
             column = self._columns_by_field.get(key)
             if column is None:
                 context_fields = [*self._columns_by_field.keys()]
-                source_fields = key.parent.fields.tolist() if key.parent else []
+                source_fields = key.parent.fields.tolist() if key.parent else ()
                 raise KeyError(
                     f"no column for field {key!r} in {self!r} (context={context_fields}, tracked={source_fields})"
                 )

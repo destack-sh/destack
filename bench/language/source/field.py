@@ -3,8 +3,9 @@ from typing import Any, Optional, Union, cast
 from uuid import UUID
 
 from bench.language.core import (
+    FIELD_BASE_NODE_TYPES,
     NAME_CONSTRAINT,
-    TYPE_BASE_NODE_TYPES,
+    FieldBaseNode,
     FieldType,
     HasNodeBase,
     Node,
@@ -13,11 +14,9 @@ from bench.language.core import (
     SourceNode,
     StructType,
     TypeBase,
-    TypeBaseNode,
     TypeConstraint,
     TypeConstraintIn,
     TypeIn,
-    TypeKind,
     _IntoQuery,
     encode_storage_key,
     node_,
@@ -25,7 +24,6 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
     p_runtime,
-    subnode_,
     to_type,
     to_type_scalar,
 )
@@ -42,10 +40,10 @@ if typing.TYPE_CHECKING:
 @node_(NodeType.FIELD, has_subtypes=True)
 class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _IntoQuery):
     """
-    A custom attribute of some value, the user-defined counterpart to Properties in builtin objects.
+    A custom attribute of some value, the user-defined counterpart to Properties in BuiltinObjects.
     """
 
-    parent: Union[TypeBaseNode, None] = p_node_parent(4, *TYPE_BASE_NODE_TYPES)
+    parent: Union[FieldBaseNode, None] = p_node_parent(4, *FIELD_BASE_NODE_TYPES)
     type: FieldType = p_internal(30, default=FieldType.VARIABLE)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(32, default=INTEGER_ZERO)
@@ -60,10 +58,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _IntoQuery):
     _introspected_from: Optional[Property] = p_runtime(default=None)
 
     def __content_str__(self) -> str:
-        if self.type == FieldType.OPTION:
-            return ""  # nothing to show
-        else:
-            return TypeBase.__content_str__(self)
+        return TypeBase.__content_str__(self)
 
     def __eq__(self, other):  # type: ignore
         return _IntoQuery.__eq__(self, other)  # override to avoid recursion
@@ -120,10 +115,6 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _IntoQuery):
         return field
 
     @staticmethod
-    def option(name: str, **kwargs) -> "Field":
-        return Field(kind=TypeKind.LITERAL, type=FieldType.OPTION, name=name, **kwargs)
-
-    @staticmethod
     def variable(
         name: str,
         typ: TypeIn,
@@ -159,43 +150,3 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _IntoQuery):
         **kwargs,
     ) -> "Field":
         return Field.new(name, typ, type=FieldType.OUTPUT, constraint=constraint, **kwargs)
-
-
-@subnode_(FieldType.INPUT)
-class InputField(Field):
-    """An input field."""
-
-    # generation_options, ...?
-    pass
-
-
-@subnode_(FieldType.OUTPUT)
-class OutputField(Field):
-    """An output field."""
-
-    # generation_options, ...?
-    pass
-
-
-@subnode_(FieldType.MEMBER)
-class MemberField(Field):
-    """A member field."""
-
-    # member-only flags
-    # is_stored/is_computed, is_indexed, is_unique, ...
-    # resource_options, ...?
-    pass
-
-
-@subnode_(FieldType.VARIABLE)
-class VariableField(Field):
-    """A variable field."""
-
-    pass
-
-
-@subnode_(FieldType.OPTION)
-class OptionField(Field):
-    """An option field."""
-
-    pass

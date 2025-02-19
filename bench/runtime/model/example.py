@@ -31,6 +31,7 @@ from bench.language import (
     NodeSuperGraph,
     NodeType,
     NullEngine,
+    Option,
     Package,
     PackageType,
     PathElementType,
@@ -50,7 +51,6 @@ from bench.language import (
     format_code,
     text,
 )
-from bench.language.source.action import ToolFilter
 from bench.runtime.core import Runner
 from bench.utils.oracle import REAL_ORACLE
 
@@ -225,11 +225,11 @@ def basic_field_reference(package: Package):
     """How to reference a Field or any other Node."""
     Sentiment = Choice.new(
         "Sentiment",
-        fields=[
-            Field.option("Happy"),
-            Field.option("Sad"),
-            Field.option("Angry"),
-            Field.option("Neutral"),
+        options=[
+            Option.new("Happy"),
+            Option.new("Sad"),
+            Option.new("Angry"),
+            Option.new("Neutral"),
         ],
     )
     Action1 = Action.new(
@@ -239,7 +239,7 @@ def basic_field_reference(package: Package):
     )
     # Input
     {"Text": "Feeling pretty good today."}
-    return [Sentiment, Action1], (Action1, {"Sentiment": Sentiment.fields.Happy})
+    return [Sentiment, Action1], (Action1, {"Sentiment": Sentiment.options.Happy})
 
 
 #

@@ -15,24 +15,24 @@ from bench.language.core import (
 from bench.pb2.lang_pb2 import ChoiceData
 
 if TYPE_CHECKING:
-    from bench.language import Field, Page
+    from bench.language import Option, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.CHOICE, passthrough_get=("fields",))
+@node_(NodeType.CHOICE, passthrough_get=("options",))
 class Choice(InlineSourceNode[ChoiceData]):
-    """A Choice of Fields."""
+    """A Choice of Options."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
 
-    fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
+    options: LocalNodeList["Option"] = p_node_children(NodeType.OPTION)
 
     def __content_str__(self):
         return ""
 
     def to_type_maybe(self, of: Literal["instance", "value"] = "instance") -> "TypeBase | None":
-        return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.FIELD)
+        return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.OPTION)
 
     def to_type(self) -> "TypeBase":
         typ = self.to_type_maybe()
@@ -45,8 +45,8 @@ class Choice(InlineSourceNode[ChoiceData]):
         return self.to_type()
 
     @staticmethod
-    def new(name: str, *fields: "Field", **kwargs) -> "Choice":
+    def new(name: str, *options: "Option", **kwargs) -> "Choice":
         choice = Choice(name=name, **kwargs)
-        for field in fields:
-            choice.fields.append(field)
+        for option in options:
+            choice.options.append(option)
         return choice

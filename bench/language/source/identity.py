@@ -22,4 +22,4 @@ class Identity(InlineSourceNode[IdentityData]):
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
 
-    color: ColorType | None = p_regular(40, default=ColorType.BLUE)
+    color: ColorType | None = p_regular(40)

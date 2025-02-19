@@ -17,6 +17,7 @@ from bench.language import (
     DESCENDANT_NODE_TYPES,
     ENUM_CLASS_BY_TYPE,
     ENUM_TYPES,
+    FIELD_BASE_NODE_TYPES,
     FILE_FORMAT_BY_EXTENSION,
     FILE_FORMAT_BY_MIME_TYPE,
     NODE_CLASS_BY_TYPE,
@@ -27,6 +28,7 @@ from bench.language import (
     STRUCT_CLASSES,
     STRUCT_TYPES,
     SUBNODE_CLASSES,
+    TYPE_BASE_NODE_TYPES,
     TYPE_CONSTRAINT_BY_FORMAT,
     UNSET,
     VERSION,
@@ -45,7 +47,6 @@ from bench.language import (
     TypeConstraintIn,
     TypeFormat,
 )
-from bench.language.core.node import TYPE_BASE_NODE_TYPES
 from bench.utils.string import Casing, to_casing
 
 from .engine import generate_proto_schema
@@ -235,6 +236,7 @@ StaticResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE
 SourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, SourceNode)])}]
 InlineSourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineSourceNode)])}]
 TypeBaseNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TYPE_BASE_NODE_TYPES])}]
+FieldBaseNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in FIELD_BASE_NODE_TYPES])}]
 StateNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, StateNode)])}]
 RuntimeNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, RuntimeNode)])}]
 """)
@@ -766,6 +768,7 @@ export type ResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE
 export type SourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, SourceNode))}
 export type InlineSourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineSourceNode))}
 export type TypeBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TYPE_BASE_NODE_TYPES)}
+export type FieldBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in FIELD_BASE_NODE_TYPES)}
 export type StateNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, StateNode))}
 export type RuntimeNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, RuntimeNode))}
 export type StaticResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, StaticResource))}

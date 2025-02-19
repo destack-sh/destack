@@ -32,6 +32,7 @@ from bench.language import (
     AccessError,
     Bench,
     Context,
+    Database,
     EditType,
     Engine,
     EngineUnavailableError,
@@ -386,7 +387,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     database = self.resolve_request_base(base_ck) if base_ck else None
                     select = (
                         SelectOptions(select_fields=list(database.fields))
-                        if database is not None
+                        if isinstance(database, Database)
                         else None
                     )
                     query = Query(

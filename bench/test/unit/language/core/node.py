@@ -26,14 +26,16 @@ from bench.language import (
     Message,
     NodeReference,
     NodeType,
+    Option,
     Package,
     PackageType,
     Page,
     Property,
     Session,
     Text,
+    TextLine,
 )
-from bench.language.core.text import TextLine
+from bench.language.source.channel import Channel
 from bench.proto import unpack_builtin_object
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
@@ -150,7 +152,9 @@ def test_node_pointers_consistency(session: "Session"):
     # based pointers
     class_a_1 = Class.new("Class1")
     page_a_1.append(class_a_1)
-    message_a = Message(parent=bench_a, clazz=class_a_1)
+    channel_a = Channel.new("Channel1")
+    page_a_1.append(channel_a)
+    message_a = Message(parent=bench_a, clazz=class_a_1, channel=channel_a)
     assert message_a.bench_id == bench_a.id
     assert message_a.to_ref().equals(
         NodeReference(
@@ -171,7 +175,9 @@ def test_node_pointers_consistency(session: "Session"):
     assert page_b.bench_id == bench_b.id
     class_b_1 = Class.new("Class1")
     page_b.append(class_b_1)
-    message_b = Message(parent=bench_b, clazz=class_b_1)
+    channel_b = Channel.new("Channel1")
+    page_b.append(channel_b)
+    message_b = Message(parent=bench_b, clazz=class_b_1, channel=channel_b)
     assert message_b.bench_id == bench_b.id
     assert message_b.to_ref().equals(
         NodeReference(
@@ -204,7 +210,7 @@ async def test_add_detached_subtree(simulation: Simulation, runtime: RuntimeLamb
     choice = Choice.new("Letter")
     for i in range(0, 26):
         letter = chr(65 + i)
-        choice.fields.append(Field.option(letter))
+        choice.options.append(Option.new(letter))
     runtime.page().append(choice)
     await runtime.commit()
 
@@ -215,21 +221,21 @@ async def test_clone_subtree(simulation: Simulation, runtime: RuntimeLambdaWorkl
     choice = Choice.new("Letter")
     for i in range(0, 26):
         letter = chr(65 + i)
-        choice.fields.append(Field.option(letter))
+        choice.options.append(Option.new(letter))
     runtime.page().append(choice)
     await runtime.commit()
 
     choice_clone = choice.clone()
     assert choice_clone.equals(choice)
-    for field, field_clone in zip(choice.fields, choice_clone.fields):
-        assert field_clone.equals(field)
+    for option, option_clone in zip(choice.options, choice_clone.options):
+        assert option_clone.equals(option)
     await runtime.commit()
 
 
 @simulated_runtime()
 async def test_clone_consistency(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Clone consistency test with references."""
-    choice = Choice.new("Letter", fields=[Field.option("A"), Field.option("B")])
+    choice = Choice.new("Letter", options=[Option.new("A"), Option.new("B")])
     flow = Flow.new("Flow")
     action = Action.new(
         ActionType.CODE,
@@ -259,7 +265,7 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
     """Move Nodes between parents (within a Package)."""
     Page1 = runtime.page("Page1")
     Page2 = runtime.page("Page2")
-    Block1 = Page1.append(Choice.new("Block1", fields=[Field.option("A"), Field.option("B")]))
+    Block1 = Page1.append(Choice.new("Block1", options=[Option.new("A"), Option.new("B")]))
     Block2 = Page1.append(
         Flow.new("Block2", fields=[Field.input("Text", Text), Field.output("Choice", Block1)])
     )

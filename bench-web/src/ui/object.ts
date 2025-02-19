@@ -681,7 +681,6 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     }
     fields = fields.filter((field) => {
       if (valueType.baseFieldTypes != null && !valueType.baseFieldTypes.includes(field.type)) return false;
-      if (field.type == FieldType.OPTION) return false;
       return true;
     });
 
@@ -757,9 +756,9 @@ export class ChoiceLayout extends NodeLayout<NodeType.CHOICE> {
 
     // schema
     if (!this.isPartial) {
-      this.section("Options", [{ type: "fields-list", fieldType: FieldType.OPTION }], {
-        actions: [this.actionAddField(FieldType.OPTION)],
-      });
+      // this.section("Options", [{ type: "fields-list", fieldType: FieldType.OPTION }], {
+      //   actions: [this.actionAddField(FieldType.OPTION)],
+      // });
     }
   }
 }
@@ -820,110 +819,106 @@ export class FieldLayout extends NodeLayout<NodeType.FIELD> {
       this.rowProperty(FieldProperty.text, { title: false, props: { placeholder: "Text..." } }),
     ];
     this.section(undefined, commonRows);
-    if (node.type == FieldType.OPTION) {
-      // color?
-    } else {
-      commonRows.push(
-        this.rowType({
-          extendWrite: (newType) => {
-            // also update field name if type changes
-            const name = getTypeName(newType);
-            return name != null ? { name } : {};
+    commonRows.push(
+      this.rowType({
+        extendWrite: (newType) => {
+          // also update field name if type changes
+          const name = getTypeName(newType);
+          return name != null ? { name } : {};
+        },
+      }),
+    );
+
+    // default value
+    if ((!this.isPartial && this.subtype == FieldType.VARIABLE) || this.subtype == FieldType.MEMBER) {
+      const defaultView = getViewForType(node as FieldData, { forcePickerDropdown: true });
+      if (defaultView?.type != null) {
+        commonRows.push({
+          type: "view",
+          title: "Default",
+          isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(defaultView.type!),
+          viewType: defaultView.type,
+          viewProps: { ...defaultView, isInput: true },
+          read() {
+            if (node.defaultPacked == null) return null;
+            const defaultUnpacked = unpackValue(node.defaultPacked, node as FieldData, { wrapScalar: true });
+            return defaultUnpacked;
           },
-        }),
+          write: (newValue) => {
+            this.update(
+              { defaultPacked: packValue(newValue, node as FieldData, { wrapScalar: true }) },
+              getTransactionOptionsForType(node as FieldData),
+            );
+          },
+        });
+      }
+    }
+
+    const constraintRows: Row[] = [];
+    // list
+    if (node.isList || node.primitiveType == PrimitiveType.STRING) {
+      constraintRows.push(
+        this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.minLength], { title: "Minimum Length" }),
       );
-
-      // default value
-      if ((!this.isPartial && this.subtype == FieldType.VARIABLE) || this.subtype == FieldType.MEMBER) {
-        const defaultView = getViewForType(node as FieldData, { forcePickerDropdown: true });
-        if (defaultView?.type != null) {
-          commonRows.push({
-            type: "view",
-            title: "Default",
-            isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(defaultView.type!),
-            viewType: defaultView.type,
-            viewProps: { ...defaultView, isInput: true },
-            read() {
-              if (node.defaultPacked == null) return null;
-              const defaultUnpacked = unpackValue(node.defaultPacked, node as FieldData, { wrapScalar: true });
-              return defaultUnpacked;
-            },
-            write: (newValue) => {
-              this.update(
-                { defaultPacked: packValue(newValue, node as FieldData, { wrapScalar: true }) },
-                getTransactionOptionsForType(node as FieldData),
-              );
-            },
-          });
-        }
-      }
-
-      const constraintRows: Row[] = [];
-      // list
-      if (node.isList || node.primitiveType == PrimitiveType.STRING) {
+      constraintRows.push(
+        this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxLength], { title: "Maximum Length" }),
+      );
+    }
+    // stringy
+    if (node.primitiveType == PrimitiveType.STRING) {
+      constraintRows.push(
+        this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.startsWith], { title: "Prefix" }),
+      );
+      constraintRows.push(
+        this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.endsWith], { title: "Suffix" }),
+      );
+      constraintRows.push(
+        this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.regex], { title: "Regex" }),
+      );
+    }
+    // number
+    if (this.kind == "node" && typeIsNumeric(node as FieldData)) {
+      constraintRows.push(
+        this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.minValue], { title: "Minimum" }),
+      );
+      constraintRows.push(
+        this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxValue], { title: "Maximum" }),
+      );
+      constraintRows.push(
+        this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.stepValue], { title: "Step" }),
+      );
+    }
+    // node
+    if (isNodeType(node.benchType) && SOURCE_NODE_TYPES.includes(node.benchType)) {
+      const nodeProperties = PROPERTY_INFOS_BY_TYPE[node.benchType as unknown as NodeType];
+      const nodePropertiesEnum = PROPERTY_ENUM_BY_TYPE[node.benchType as unknown as NodeType];
+      const subtypeProperty = nodeProperties[(nodePropertiesEnum as any)?.["type"]!];
+      if (subtypeProperty?.enumType != null) {
         constraintRows.push(
-          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.minLength], { title: "Minimum Length" }),
-        );
-        constraintRows.push(
-          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxLength], { title: "Maximum Length" }),
-        );
-      }
-      // stringy
-      if (node.primitiveType == PrimitiveType.STRING) {
-        constraintRows.push(
-          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.startsWith], { title: "Prefix" }),
-        );
-        constraintRows.push(
-          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.endsWith], { title: "Suffix" }),
-        );
-        constraintRows.push(
-          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.regex], { title: "Regex" }),
-        );
-      }
-      // number
-      if (this.kind == "node" && typeIsNumeric(node as FieldData)) {
-        constraintRows.push(
-          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.minValue], { title: "Minimum" }),
-        );
-        constraintRows.push(
-          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxValue], { title: "Maximum" }),
-        );
-        constraintRows.push(
-          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.stepValue], { title: "Step" }),
-        );
-      }
-      // node
-      if (isNodeType(node.benchType) && SOURCE_NODE_TYPES.includes(node.benchType)) {
-        const nodeProperties = PROPERTY_INFOS_BY_TYPE[node.benchType as unknown as NodeType];
-        const nodePropertiesEnum = PROPERTY_ENUM_BY_TYPE[node.benchType as unknown as NodeType];
-        const subtypeProperty = nodeProperties[(nodePropertiesEnum as any)?.["type"]!];
-        if (subtypeProperty?.enumType != null) {
-          constraintRows.push(
-            this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeSubtypes], {
-              title: `${toCamelName(BenchType, node.benchType)} Type`,
-              props: {
-                valueType: makeType({
-                  kind: TypeKind.ENUM,
-                  benchType: subtypeProperty.enumType as unknown as BenchType,
-                  isList: true,
-                }),
-              },
-            }),
-          );
-        }
-        constraintRows.push(
-          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeScopePtr], {
-            title: "Scope",
+          this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeSubtypes], {
+            title: `${toCamelName(BenchType, node.benchType)} Type`,
             props: {
-              valueType: makeType({ kind: TypeKind.NODE, benchType: BenchType.BLOCK, isList: true }),
+              valueType: makeType({
+                kind: TypeKind.ENUM,
+                benchType: subtypeProperty.enumType as unknown as BenchType,
+                isList: true,
+              }),
             },
           }),
         );
       }
+      constraintRows.push(
+        this.rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeScopePtr], {
+          title: "Scope",
+          props: {
+            valueType: makeType({ kind: TypeKind.NODE, benchType: BenchType.BLOCK, isList: true }),
+          },
+        }),
+      );
+    }
 
-      if (constraintRows.length > 0) {
-        this.section("Constraint", constraintRows, { isDefaultCollapsed: true });
-      }
+    if (constraintRows.length > 0) {
+      this.section("Constraint", constraintRows, { isDefaultCollapsed: true });
     }
   }
 }
@@ -1288,7 +1283,6 @@ export class CustomLayout extends BaseObjectLayout {
   make() {
     const fields = this.delegateFields.filter((field) => {
       if (this.valueType.baseFieldTypes != null && !this.valueType.baseFieldTypes.includes(field.type)) return false;
-      if (field.type == FieldType.OPTION) return false;
       return true;
     });
     this.section(undefined, [
@@ -1570,40 +1564,31 @@ export function onAddFieldAction(
   txFactory: () => Transaction,
   options?: { dontFocus?: boolean },
 ) {
-  if (fieldType == FieldType.OPTION) {
-    const field = createField(txFactory(), graph, {
-      anchor: "inside",
-      target: parent!,
-      field: { type: fieldType },
-    });
-    canvas.inspect({ node: field });
-  } else {
-    const button = (e.target as HTMLElement).closest("button")!;
-    pushPopover({
-      kind: "view",
-      trigger: button,
-      reference: button,
-      title: `Add ${toCamelName(FieldType, fieldType)}`,
-      component: ViewType.PICKER,
-      placement: "bottom-left",
-      offset: "referenceWidth",
-      props: {
-        valueType: makeType({ benchType: BenchType.TYPE }),
-        subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
-      },
-      onApply: (typeInfo: TypeIdentity) => {
-        if (fieldType == FieldType.VARIABLE) {
-          typeInfo = { ...typeInfo, isRequired: true }; // variables are required by default
-        }
-        const field = createField(txFactory(), graph, {
-          anchor: "inside",
-          target: parent,
-          field: { ...typeInfo, icon: undefined, type: fieldType },
-        });
-        if (!options?.dontFocus) {
-          canvas.inspect({ node: field });
-        }
-      },
-    });
-  }
+  const button = (e.target as HTMLElement).closest("button")!;
+  pushPopover({
+    kind: "view",
+    trigger: button,
+    reference: button,
+    title: `Add ${toCamelName(FieldType, fieldType)}`,
+    component: ViewType.PICKER,
+    placement: "bottom-left",
+    offset: "referenceWidth",
+    props: {
+      valueType: makeType({ benchType: BenchType.TYPE }),
+      subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
+    },
+    onApply: (typeInfo: TypeIdentity) => {
+      if (fieldType == FieldType.VARIABLE) {
+        typeInfo = { ...typeInfo, isRequired: true }; // variables are required by default
+      }
+      const field = createField(txFactory(), graph, {
+        anchor: "inside",
+        target: parent,
+        field: { ...typeInfo, icon: undefined, type: fieldType },
+      });
+      if (!options?.dontFocus) {
+        canvas.inspect({ node: field });
+      }
+    },
+  });
 }

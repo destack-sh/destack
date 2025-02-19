@@ -22,7 +22,7 @@ TEST_TYPE_IDENTITIES: tuple[tuple[Type, str], ...] = (
     (Type(kind=TypeKind.NODE, bench_type=NodeType.USER, is_list=True), "N"),
     (Type(kind=TypeKind.BASED_NODE, bench_type=NodeType.FIELD, is_list=True), "N"),
     (Type(kind=TypeKind.STRUCT, bench_type=StructType.TEXT), "sg7C"),
-    (Type(kind=TypeKind.ENUM, bench_type=EnumType.OBJECT_TYPE, is_secret=True), "!ek4E"),
+    (Type(kind=TypeKind.ENUM, bench_type=EnumType.OBJECT_TYPE, is_secret=True), "!ej4E"),
     (
         Type(
             kind=TypeKind.CUSTOM_OBJECT,

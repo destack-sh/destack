@@ -153,9 +153,11 @@ from .graph import (
 from .icon import Icon, IconIn, IconType, reverse_icon, to_icon
 from .list import LocalNodeList, NodeList, RemoteNodeList, ValueList
 from .node import (
+    FIELD_BASE_NODE_TYPES,
     RUNNABLE_NODE_TYPES,
     TYPE_BASE_NODE_TYPES,
     BenchNode,
+    FieldBaseNode,
     HasContext,
     HasNodeBase,
     HasTimeIdentity,
@@ -352,6 +354,7 @@ __all__ = [
     "EMPTY_SET",
     "ENUM_TYPES",
     "ENUM_TYPES_SET",
+    "FIELD_BASE_NODE_TYPES",
     "GLOBAL_NODE_TYPES",
     "INLINE_SOURCE_NODE_TYPES",
     "INTERRUPTED_RUN_STATUSES",
@@ -437,6 +440,7 @@ __all__ = [
     "ErrorKind",
     "Expression",
     "ExpressionTypes",
+    "FieldBaseNode",
     "FieldType",
     "GraphConsistencyError",
     "GraphError",

@@ -872,7 +872,7 @@ export function typeIndex(idx: {
 
   function typeItemFromIntrinsic(enumType: EnumType, option: EnumOption): TypeItem {
     const item: TypeItem = {
-      kind: TypeKind.LITERAL,
+      kind: TypeKind.ENUM,
       id: `${enumType}-${option.id}`,
       title: option.title,
       icon: option.icon,

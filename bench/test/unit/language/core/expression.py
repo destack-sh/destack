@@ -2,9 +2,11 @@ from bench.language import (
     Action,
     ActionType,
     Choice,
+    Database,
     Expression,
     Field,
     Flow,
+    Option,
     Package,
     Run,
     S,
@@ -14,7 +16,6 @@ from bench.language import (
     code,
     evaluate_conditional,
 )
-from bench.language.source.database import Database
 from bench.runtime.core import create_run_from_node
 
 # NOTE :Test: generate expressions to test with hypothesis
@@ -94,10 +95,10 @@ def test_evaluate_sort_property_stringy(session: Session):
 def test_evaluate_conditional_field(session: Session, package: Package):
     Choice1 = Choice.new(
         "Choice1",
-        Field.option("Option1"),
-        Field.option("Option2"),
-        Field.option("Option3"),
-        Field.option("Option4"),
+        Option.new("Option1"),
+        Option.new("Option2"),
+        Option.new("Option3"),
+        Option.new("Option4"),
     )
     Database1 = Database.new(
         "Database1",
@@ -105,9 +106,9 @@ def test_evaluate_conditional_field(session: Session, package: Package):
         Field.member("Name", str),
         Field.member("Choice", Choice1),
     )
-    Record1 = Database1.records.create(Rating=1, Name="Alice", Choice=Choice1.fields.Option1)
-    Record2 = Database1.records.create(Rating=2, Name="Bob", Choice=Choice1.fields.Option2)
-    Record3 = Database1.records.create(Rating=3, Name="Charlie", Choice=Choice1.fields.Option3)
+    Record1 = Database1.records.create(Rating=1, Name="Alice", Choice=Choice1.options.Option1)
+    Record2 = Database1.records.create(Rating=2, Name="Bob", Choice=Choice1.options.Option2)
+    Record3 = Database1.records.create(Rating=3, Name="Charlie", Choice=Choice1.options.Option3)
 
     # basic number
     cond = Database1.fields.Rating.is_equal(1)
@@ -122,7 +123,7 @@ def test_evaluate_conditional_field(session: Session, package: Package):
     assert evaluate_conditional(cond, Record3) is False
 
     # basic node
-    cond = Database1.fields.Choice.is_equal(Choice1.fields.Option1)
+    cond = Database1.fields.Choice.is_equal(Choice1.options.Option1)
     assert evaluate_conditional(cond, Record1) is True
     assert evaluate_conditional(cond, Record2) is False
     assert evaluate_conditional(cond, Record3) is False
