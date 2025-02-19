@@ -7,12 +7,7 @@ import regex
 from .const import BenchError, NodeType, TypeFormat
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Node,
-        Property,
-        TypeBase,
-        TypeConstraint,
-    )
+    from bench.language import Node, Property, TypeBase, TypeConstraint
 
     from .value import SomeValue
 

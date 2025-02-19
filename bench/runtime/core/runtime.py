@@ -958,6 +958,7 @@ class Runtime:
                 runner, run = await self._load_runner(run)
             else:
                 runner = self.restore_runner(run)
+            inner_runner = runner
 
             # lift run into existing / higher flow
             if (
@@ -1009,7 +1010,17 @@ class Runtime:
                         self.on_error(e)
                     if not return_error:
                         raise
-        return runner
+
+        # get inner runner from actual runner (may have been lifted)
+        if inner_runner is not runner:
+            for r in runner.root.walk():
+                if r.node.id == inner_runner.node.id:
+                    inner_runner = r
+                    break
+            else:
+                raise RuntimeError(f"missing lifted inner runner for {runner!r}")
+
+        return inner_runner
 
     def get_interrupted_runs(self, graph: NodeGraph, *interruptions: Interruption) -> list[Run]:
         """Gets all Runs that were directly interrupted by the given Interruptions."""

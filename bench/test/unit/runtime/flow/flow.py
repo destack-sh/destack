@@ -50,8 +50,9 @@ async def test_run_flow_lifted_from_action(simulation: Simulation, runtime: Runt
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Action1)
-    assert runner.tracked_run and runner.tracked_run.runnable == Flow1
-    assert runner.tracked_run.runs[0].runnable == Action1
+    assert runner.parent is not None
+    assert runner.parent.tracked_run and runner.parent.tracked_run.runnable == Flow1
+    assert runner.parent.tracked_run.runs[0].runnable == Action1
 
 
 @simulated_runtime()
@@ -918,6 +919,7 @@ async def test_run_flow_call_plan(simulation: Simulation, runtime: RuntimeLambda
     Plan1.connect(PipeType.SELECT, Code4)
     Plan1.connect(PipeType.SELECT, Complete)
     Plan1.connect(PipeType.SELECT, Fail)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     # Plan: Code1 + Code1, Code2 + Code2
