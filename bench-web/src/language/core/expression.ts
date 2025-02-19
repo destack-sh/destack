@@ -32,12 +32,16 @@ export function makeExpression(
     valuePacked = options.valuePacked;
   }
 
-  return {
+  const expression: ExpressionData = {
     metatype: ObjectType.EXPRESSION,
     clauses: [],
     ...options,
     valuePacked,
   };
+  if ("value" in expression) {
+    delete expression.value;
+  }
+  return expression;
 }
 
 export function makeSort(
@@ -100,7 +104,7 @@ export function useComputedValues(options: {
       ...(value ?? existing ?? {}),
       metatype: ObjectType.COMPUTED_VALUE,
       kind: ComputedValueKind.PATH,
-      mode: (value?.mode ?? existing?.mode) ?? ComputedValueMode.ALWAYS,
+      mode: value?.mode ?? existing?.mode ?? ComputedValueMode.ALWAYS,
       targetPath: path,
       isActive: true,
     };

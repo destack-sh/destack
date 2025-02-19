@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/core/const";
 import { packSubnode, useSubnodeProperty } from "@/language/core/node";
-import { createChannel } from "@/language/source/channel";
 import { createPage } from "@/language/source/page";
 import { HubAspect, NodeType, Orientation, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
@@ -20,7 +19,7 @@ import { fireActionById } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, ICON_BY_HUB_ASPECT, ICON_BY_NODE_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
-import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import Tree from "@/views/collections/Tree.vue";
@@ -204,14 +203,14 @@ defineExpose<ViewExpose>({ self });
         }"
       >
         <div v-if="aspect == HubAspect.BENCH">
-          <!-- Pages -->
+          <!-- Package -->
           <div
             class="group/header mx-4 flex flex-row items-center pt-1.5"
             :style="{
               height: `${HEADER_HEIGHT}px`,
             }"
           >
-            <span class="font-medium">Pages</span>
+            <span class="font-medium">Package</span>
             <!-- Create -->
             <button
               v-if="pkg != null"
@@ -231,44 +230,9 @@ defineExpose<ViewExpose>({ self });
             id="pages"
             class=""
             :node-ptr="props.nodePtr"
-            :subnode-packed="packSubnode(NodeType.VIEW, ViewType.TREE, { preset: TreeViewPreset.PAGES })"
+            :subnode-packed="packSubnode(NodeType.VIEW, ViewType.TREE, { preset: TreeViewPreset.PACKAGE })"
             size-is-dynamic
             v-bind="state.getChildState('scroll.pages')"
-          />
-          <!-- Channels -->
-          <div
-            class="group/header mx-4 flex flex-row items-center pt-1.5"
-            :style="{
-              height: `${HEADER_HEIGHT}px`,
-            }"
-          >
-            <span class="font-medium">Channels</span>
-            <!-- Create -->
-            <button
-              v-if="pkg != null"
-              class="ml-auto rounded px-1.5 py-0.5 text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-200 hover:text-gray-700 group-hover/header:opacity-100"
-              @click.stop="
-                () => {
-                  if (pkg == null) return;
-                  const channel = createChannel(pkgConnection.tx, pkgGraph, {
-                    anchor: 'inside',
-                    target: pkg,
-                    channel: {},
-                  });
-                  canvas.goToNode(channel);
-                }
-              "
-            >
-              <i class="fas fa-plus" />
-            </button>
-          </div>
-          <Tree
-            id="channels"
-            class=""
-            :node-ptr="props.nodePtr"
-            :subnode-packed="packSubnode(NodeType.VIEW, ViewType.TREE, { preset: TreeViewPreset.CHANNELS })"
-            size-is-dynamic
-            v-bind="state.getChildState('scroll.channels')"
           />
         </div>
         <!-- Activity -->

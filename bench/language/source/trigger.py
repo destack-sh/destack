@@ -2,21 +2,24 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
+    INLINE_SOURCE_NODE_TYPES,
     NAME_CONSTRAINT,
     BuiltinEnum,
     EnumType,
+    InlineSourceNode,
     NodeType,
     SourceNode,
     StructType,
     Text,
     enum_,
+    generate_node_name,
     node_,
     p_node_parent,
     p_regular,
     p_system,
+    subnode_,
 )
-from bench.language.core.node import generate_node_name, subnode_
-from bench.pb2.lang_pb2 import TriggerData
+from bench.pb2 import TriggerData
 
 from .schedule import Schedule
 
@@ -57,11 +60,10 @@ class TriggerStatus(BuiltinEnum):
 class TriggerEffect(BuiltinEnum):
     # run
     START_RUN = 1, "Start a new Run"
-    CONTINUE_RUN = 2, "Continue an existing or start a new Run"
+    ENSURE_RUN = 2, "Continue an existing or start a new Run"
     REPLACE_RUN = 3, "Abort and restart (part of) the current Run"
     # interruption
-    CANCEL_INTERRUPTION = 20, "Cancel an Interruption"
-    COMPLETE_INTERRUPTION = 21, "Complete an Interruption"
+    # CANCEL_INTERRUPTION, COMPLETE_INTERRUPTION, ...?
 
 
 @node_(NodeType.TRIGGER, has_subtypes=True)
@@ -78,21 +80,28 @@ class Trigger(SourceNode[TriggerData]):
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     text: Optional[Text] = p_regular(33, require=False, struct=StructType.TEXT)
     effect: TriggerEffect = p_regular(34, require=True)
-    scope: Union["Page", "Package", None] = p_regular(
+    scope: Union["InlineSourceNode", "Package", None] = p_regular(
         35,
         require=False,
         array=False,
-        references=(NodeType.PAGE, NodeType.PACKAGE),
+        references=(*INLINE_SOURCE_NODE_TYPES, NodeType.PACKAGE),
+    )
+    run_root: Optional["Run"] = p_regular(
+        36,
+        require=False,
+        array=False,
+        references=NodeType.RUN,
+        description="The root Run this Trigger is scoped to.",
     )
     run: Optional["Run"] = p_regular(
-        36,
+        37,
         require=False,
         array=False,
         references=NodeType.RUN,
         description="The Run this Trigger is scoped to.",
     )
     interruption: Optional["Interruption"] = p_regular(
-        37,
+        38,
         require=False,
         array=False,
         references=NodeType.INTERRUPTION,

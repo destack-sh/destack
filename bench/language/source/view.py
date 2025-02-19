@@ -27,7 +27,7 @@ from bench.pb2 import ViewData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Channel, Expression, Message, Page, Space, Text, Thread, Type
+    from bench.language import Expression, Message, Page, Space, Text, Type
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -52,6 +52,8 @@ class ViewType(BuiltinEnum):
     TRIGGER = 5053
     VIEW = 5080
     DATABASE = 5090
+    CHANNEL = 5100
+    THREAD = 5501
     RUN = 6010
 
     # objects (10000-20000)
@@ -515,11 +517,8 @@ class ChatView(View):
     draft_reply_to: Optional["Message"] = p_regular(
         102, require=False, array=False, references=NodeType.MESSAGE
     )
-    channel: Optional["Channel"] = p_regular(
-        110, require=False, array=False, references=NodeType.CHANNEL
-    )
-    thread: Optional["Thread"] = p_regular(
-        111, require=False, array=False, references=NodeType.THREAD
+    scope: Optional["InlineSourceNode"] = p_regular(
+        110, require=False, array=False, references="any"
     )
 
 
@@ -569,8 +568,7 @@ class ListView(View):
 
 @enum_(EnumType.TREE_VIEW_PRESET)
 class TreeViewPreset(BuiltinEnum):
-    PAGES = 1
-    CHANNELS = 2
+    PACKAGE = 1
     OUTLINE = 3
 
 

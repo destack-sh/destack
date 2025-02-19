@@ -63,10 +63,8 @@ const state = canvas.registerView(self, id);
 
 const preset = useSubnodeProperty(NodeType.VIEW, ViewType.TREE, toRef(props, "subnodePacked"), "preset");
 const nodeTypes = computed(() => {
-  if (preset.value == TreeViewPreset.PAGES) {
+  if (preset.value == TreeViewPreset.PACKAGE) {
     return INLINE_SOURCE_NODE_TYPES;
-  } else if (preset.value == TreeViewPreset.CHANNELS) {
-    return [NodeType.CHANNEL];
   } else if (preset.value == TreeViewPreset.OUTLINE) {
     return INLINE_SOURCE_NODE_TYPES;
   } else {
@@ -76,7 +74,7 @@ const nodeTypes = computed(() => {
 const rootPtr = computedValue(() => {
   if (props.nodePtr != null) {
     return props.nodePtr;
-  } else if (preset.value == TreeViewPreset.PAGES || preset.value == TreeViewPreset.CHANNELS) {
+  } else if (preset.value == TreeViewPreset.PACKAGE) {
     return packagePtr.value;
   } else if (preset.value == TreeViewPreset.OUTLINE) {
     return inspectionBasePtr.value;
@@ -85,8 +83,8 @@ const rootPtr = computedValue(() => {
   }
 });
 const focusPtr = computedValue(() => {
-  if (preset.value == TreeViewPreset.PAGES || preset.value == TreeViewPreset.CHANNELS) {
-    return inspectionBasePtr.value;
+  if (preset.value == TreeViewPreset.PACKAGE) {
+    return packagePtr.value;
   } else if (preset.value == TreeViewPreset.OUTLINE) {
     return inspectionPtr.value;
   } else {

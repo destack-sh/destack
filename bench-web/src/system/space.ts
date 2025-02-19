@@ -1,8 +1,11 @@
+import { setCanvas, setSpace, supergraph } from "@/globals";
 import { SOURCE_NODE_TYPES, STATIC_RESOURCE_NODE_TYPES } from "@/language/core/const";
 import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/language/core/graph";
 import { getHostClient } from "@/proto/services";
-import { BenchData, ChangeCategory, NodeType, SpaceType } from "@/proto/wire";
+import { BenchData, ChangeCategory, NodeType, PackageData, SpaceType } from "@/proto/wire";
 import {
+  describeNode,
+  isNode,
   makeScope,
   nodeReference,
   toNodeRef,
@@ -13,7 +16,6 @@ import {
 } from "@/proto/wiring";
 import local, { BENCH_SCOPE, LOCAL_SPACE_ID, PACKAGE_SCOPE, spaceGraphLocal, spacePtr } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
-import { setCanvas, setSpace } from "@/globals";
 import { createDesktopDefaultSpace, SpaceCanvas } from "@/ui/space";
 import { toaster } from "@/ui/toast";
 import { log } from "@/utils/log";
@@ -103,9 +105,7 @@ watch(
 );
 
 /** Sets (and creates if needed) a space in the current Package */
-export async function assignSpaceInPackage() {
-  if (pkg.value == null) throw new Error(`package not loaded`);
-
+export async function assignSpaceInPackage(pkg: PackageData) {
   const spaceInPkg = pkgGraph.get(spacePtr.value);
   if (spaceInPkg != null) {
     // current space is already good
@@ -126,8 +126,8 @@ export async function assignSpaceInPackage() {
     const space = pkgConnection.tx.create({
       metatype: NodeType.SPACE,
       type: SpaceType.DESKTOP, // should derive this later :HeterogenousClients
-      parentPtr: toNodeRef(pkg.value),
-      packagePtr: toNodeRef(pkg.value),
+      parentPtr: toNodeRef(pkg),
+      packagePtr: toNodeRef(pkg),
       name: "MySpace",
       orderKey: "a0",
     });
@@ -155,15 +155,19 @@ export async function goToBench(go: {
   const graph = new NodeGraph({ scope, nodeTypes: new Set([NodeType.PACKAGE]) });
   graph.extend(...nodes.map(unwrapSomeNode));
   const bench = graph.roots[0] as BenchData;
-  const pkg = go.pkg ?? bench.mainPackagePtr!;
+  const packagePtr = go.pkg ?? bench.mainPackagePtr!;
   local.setBench({
-    pkg: typeNodeReference(NodeType.PACKAGE, pkg),
+    pkg: typeNodeReference(NodeType.PACKAGE, packagePtr),
     space: typeNodeReferenceMaybe(NodeType.SPACE, go.space),
   });
 
   // figure out space once package is loaded
-  await pkgConnection.waitForResult((result) => result?.graph.get({ id: pkg.id }) != null);
-  await assignSpaceInPackage();
+  await pkgConnection.waitForResult((result) => result?.graph.get({ id: packagePtr.id }) != null);
+  const pkg = supergraph.get(packagePtr);
+  if (!isNode(pkg, NodeType.PACKAGE)) {
+    throw new Error(`could not load package: ${describeNode(packagePtr)}`);
+  }
+  await assignSpaceInPackage(pkg);
   nextTick(() => {
     try {
       canvas.restoreComponentFocus();

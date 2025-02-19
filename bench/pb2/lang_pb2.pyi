@@ -1344,10 +1344,8 @@ class TriggerEffect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TRIGGER_EFFECT_UNSPECIFIED: _ClassVar[TriggerEffect]
     TRIGGER_EFFECT_START_RUN: _ClassVar[TriggerEffect]
-    TRIGGER_EFFECT_CONTINUE_RUN: _ClassVar[TriggerEffect]
+    TRIGGER_EFFECT_ENSURE_RUN: _ClassVar[TriggerEffect]
     TRIGGER_EFFECT_REPLACE_RUN: _ClassVar[TriggerEffect]
-    TRIGGER_EFFECT_CANCEL_INTERRUPTION: _ClassVar[TriggerEffect]
-    TRIGGER_EFFECT_COMPLETE_INTERRUPTION: _ClassVar[TriggerEffect]
 
 class TriggerStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1635,6 +1633,8 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_TRIGGER: _ClassVar[ViewType]
     VIEW_TYPE_VIEW: _ClassVar[ViewType]
     VIEW_TYPE_DATABASE: _ClassVar[ViewType]
+    VIEW_TYPE_CHANNEL: _ClassVar[ViewType]
+    VIEW_TYPE_THREAD: _ClassVar[ViewType]
     VIEW_TYPE_RUN: _ClassVar[ViewType]
     VIEW_TYPE_OBJECT: _ClassVar[ViewType]
     VIEW_TYPE_TYPE: _ClassVar[ViewType]
@@ -1852,8 +1852,7 @@ class UserWizardViewStage(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class TreeViewPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TREE_VIEW_PRESET_UNSPECIFIED: _ClassVar[TreeViewPreset]
-    TREE_VIEW_PRESET_PAGES: _ClassVar[TreeViewPreset]
-    TREE_VIEW_PRESET_CHANNELS: _ClassVar[TreeViewPreset]
+    TREE_VIEW_PRESET_PACKAGE: _ClassVar[TreeViewPreset]
     TREE_VIEW_PRESET_OUTLINE: _ClassVar[TreeViewPreset]
 
 class HubAspect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -3094,10 +3093,8 @@ TRIGGER_TYPE_SCHEDULE: TriggerType
 TRIGGER_TYPE_MESSAGE: TriggerType
 TRIGGER_EFFECT_UNSPECIFIED: TriggerEffect
 TRIGGER_EFFECT_START_RUN: TriggerEffect
-TRIGGER_EFFECT_CONTINUE_RUN: TriggerEffect
+TRIGGER_EFFECT_ENSURE_RUN: TriggerEffect
 TRIGGER_EFFECT_REPLACE_RUN: TriggerEffect
-TRIGGER_EFFECT_CANCEL_INTERRUPTION: TriggerEffect
-TRIGGER_EFFECT_COMPLETE_INTERRUPTION: TriggerEffect
 TRIGGER_STATUS_UNSPECIFIED: TriggerStatus
 TRIGGER_STATUS_INACTIVE: TriggerStatus
 TRIGGER_STATUS_OPEN: TriggerStatus
@@ -3298,6 +3295,8 @@ VIEW_TYPE_PIPE: ViewType
 VIEW_TYPE_TRIGGER: ViewType
 VIEW_TYPE_VIEW: ViewType
 VIEW_TYPE_DATABASE: ViewType
+VIEW_TYPE_CHANNEL: ViewType
+VIEW_TYPE_THREAD: ViewType
 VIEW_TYPE_RUN: ViewType
 VIEW_TYPE_OBJECT: ViewType
 VIEW_TYPE_TYPE: ViewType
@@ -3482,8 +3481,7 @@ USER_WIZARD_VIEW_STAGE_UNSPECIFIED: UserWizardViewStage
 USER_WIZARD_VIEW_STAGE_SIGN_UP: UserWizardViewStage
 USER_WIZARD_VIEW_STAGE_LOG_IN: UserWizardViewStage
 TREE_VIEW_PRESET_UNSPECIFIED: TreeViewPreset
-TREE_VIEW_PRESET_PAGES: TreeViewPreset
-TREE_VIEW_PRESET_CHANNELS: TreeViewPreset
+TREE_VIEW_PRESET_PACKAGE: TreeViewPreset
 TREE_VIEW_PRESET_OUTLINE: TreeViewPreset
 HUB_ASPECT_UNSPECIFIED: HubAspect
 HUB_ASPECT_BENCH: HubAspect
@@ -6856,18 +6854,16 @@ class UserWizardViewData(_message.Message):
     def __init__(self, stage: _Optional[_Union[UserWizardViewStage, str]] = ...) -> None: ...
 
 class ChatViewData(_message.Message):
-    __slots__ = ("draft_text", "draft_nodes_ptr", "draft_reply_to_ptr", "channel_ptr", "thread_ptr")
+    __slots__ = ("draft_text", "draft_nodes_ptr", "draft_reply_to_ptr", "scope_ptr")
     DRAFT_TEXT_FIELD_NUMBER: _ClassVar[int]
     DRAFT_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
     DRAFT_REPLY_TO_PTR_FIELD_NUMBER: _ClassVar[int]
-    CHANNEL_PTR_FIELD_NUMBER: _ClassVar[int]
-    THREAD_PTR_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_PTR_FIELD_NUMBER: _ClassVar[int]
     draft_text: TextData
     draft_nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     draft_reply_to_ptr: NodeReferenceData
-    channel_ptr: NodeReferenceData
-    thread_ptr: NodeReferenceData
-    def __init__(self, draft_text: _Optional[_Union[TextData, _Mapping]] = ..., draft_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., draft_reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., channel_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    scope_ptr: NodeReferenceData
+    def __init__(self, draft_text: _Optional[_Union[TextData, _Mapping]] = ..., draft_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., draft_reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., scope_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class HubViewData(_message.Message):
     __slots__ = ("aspect",)
@@ -7038,7 +7034,7 @@ class SpaceData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., computed_values: _Optional[_Iterable[_Union[ComputedValueData, _Mapping]]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[SpaceType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., order_key: _Optional[str] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., focus: _Optional[_Union[SelectionData, _Mapping]] = ..., selection: _Optional[_Union[SelectionData, _Mapping]] = ..., inspection_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class TriggerData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "template_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_at", "mode", "computed_values", "subnode_packed", "type", "name", "text", "effect", "scope_ptr", "run_ptr", "interruption_ptr", "status", "processed_at", "processed_count", "processed_key", "closed_at")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "template_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_at", "mode", "computed_values", "subnode_packed", "type", "name", "text", "effect", "scope_ptr", "run_root_ptr", "run_ptr", "interruption_ptr", "status", "processed_at", "processed_count", "processed_key", "closed_at")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -7060,6 +7056,7 @@ class TriggerData(_message.Message):
     TEXT_FIELD_NUMBER: _ClassVar[int]
     EFFECT_FIELD_NUMBER: _ClassVar[int]
     SCOPE_PTR_FIELD_NUMBER: _ClassVar[int]
+    RUN_ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_PTR_FIELD_NUMBER: _ClassVar[int]
     INTERRUPTION_PTR_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -7088,6 +7085,7 @@ class TriggerData(_message.Message):
     text: TextData
     effect: TriggerEffect
     scope_ptr: NodeReferenceData
+    run_root_ptr: NodeReferenceData
     run_ptr: NodeReferenceData
     interruption_ptr: NodeReferenceData
     status: TriggerStatus
@@ -7095,7 +7093,7 @@ class TriggerData(_message.Message):
     processed_count: int
     processed_key: str
     closed_at: _timestamp_pb2.Timestamp
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., computed_values: _Optional[_Iterable[_Union[ComputedValueData, _Mapping]]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[TriggerType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., effect: _Optional[_Union[TriggerEffect, str]] = ..., scope_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[TriggerStatus, str]] = ..., processed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., processed_count: _Optional[int] = ..., processed_key: _Optional[str] = ..., closed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., computed_values: _Optional[_Iterable[_Union[ComputedValueData, _Mapping]]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[TriggerType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., effect: _Optional[_Union[TriggerEffect, str]] = ..., scope_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[TriggerStatus, str]] = ..., processed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., processed_count: _Optional[int] = ..., processed_key: _Optional[str] = ..., closed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ScheduleTriggerData(_message.Message):
     __slots__ = ("schedule",)
