@@ -6,12 +6,10 @@ from bench.language.core import (
     Node,
     NodeType,
     node_,
-    p_internal,
     p_node_children,
     p_node_parent,
 )
 from bench.pb2 import BlockData
-from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import Block, Channel, Field, Package
@@ -23,9 +21,8 @@ if TYPE_CHECKING:
 class Page(InlineSourceNode[BlockData]):
     """A Page of Blocks."""
 
+    # meta
     parent: Union["Page", "Package", None] = p_node_parent(4, NodeType.PAGE, NodeType.PACKAGE)
-
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
 
     # identity, roles, ...?
 
