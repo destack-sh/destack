@@ -1353,10 +1353,8 @@ enum TriggerType {
 enum TriggerEffect {
   TRIGGER_EFFECT_UNSPECIFIED = 0;
   TRIGGER_EFFECT_START_RUN = 1;
-  TRIGGER_EFFECT_CONTINUE_RUN = 2;
+  TRIGGER_EFFECT_ENSURE_RUN = 2;
   TRIGGER_EFFECT_REPLACE_RUN = 3;
-  TRIGGER_EFFECT_CANCEL_INTERRUPTION = 20;
-  TRIGGER_EFFECT_COMPLETE_INTERRUPTION = 21;
 }
 
 enum TriggerStatus {
@@ -1650,6 +1648,8 @@ enum ViewType {
   VIEW_TYPE_TRIGGER = 5053;
   VIEW_TYPE_VIEW = 5080;
   VIEW_TYPE_DATABASE = 5090;
+  VIEW_TYPE_CHANNEL = 5100;
+  VIEW_TYPE_THREAD = 5501;
   VIEW_TYPE_RUN = 6010;
   VIEW_TYPE_OBJECT = 10000;
   VIEW_TYPE_TYPE = 10001;
@@ -1874,8 +1874,7 @@ enum UserWizardViewStage {
 
 enum TreeViewPreset {
   TREE_VIEW_PRESET_UNSPECIFIED = 0;
-  TREE_VIEW_PRESET_PAGES = 1;
-  TREE_VIEW_PRESET_CHANNELS = 2;
+  TREE_VIEW_PRESET_PACKAGE = 1;
   TREE_VIEW_PRESET_OUTLINE = 3;
 }
 
@@ -3815,8 +3814,7 @@ message ChatViewData {
   optional TextData draft_text = 100;
   repeated NodeReferenceData draft_nodes_ptr = 101;
   optional NodeReferenceData draft_reply_to_ptr = 102;
-  optional NodeReferenceData channel_ptr = 110;
-  optional NodeReferenceData thread_ptr = 111;
+  optional NodeReferenceData scope_ptr = 110;
 }
 
 // A View is a graphical interface in a Bench.
@@ -3945,8 +3943,9 @@ message TriggerData {
   optional TextData text = 33;
   TriggerEffect effect = 34;
   optional NodeReferenceData scope_ptr = 35;
-  optional NodeReferenceData run_ptr = 36;
-  optional NodeReferenceData interruption_ptr = 37;
+  optional NodeReferenceData run_root_ptr = 36;
+  optional NodeReferenceData run_ptr = 37;
+  optional NodeReferenceData interruption_ptr = 38;
   TriggerStatus status = 40;
   optional google.protobuf.Timestamp processed_at = 41;
   int32 processed_count = 42;

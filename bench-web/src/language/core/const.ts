@@ -198,6 +198,7 @@ export const INLINE_SOURCE_NODE_TYPES = [
   NodeType.ROLE,
   NodeType.IDENTITY,
 ];
+INLINE_SOURCE_NODE_TYPES.sort()
 export const STATE_NODE_TYPES = NODE_TYPES.filter(isStateNodeType);
 export const RUNTIME_NODE_TYPES = NODE_TYPES.filter(isRuntimeNodeType);
 export const TIMED_NODE_TYPES = [NodeType.MESSAGE, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG];

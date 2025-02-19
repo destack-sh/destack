@@ -6293,13 +6293,9 @@ export interface ChatViewData {
      */
     draftReplyToPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData channel_ptr = 110;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scope_ptr = 110;
      */
-    channelPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 111;
-     */
-    threadPtr?: NodeReferenceData;
+    scopePtr?: NodeReferenceData;
 }
 /**
  * A View is a graphical interface in a Bench.
@@ -6711,11 +6707,15 @@ export interface TriggerData {
      */
     scopePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_root_ptr = 36;
+     */
+    runRootPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 37;
      */
     runPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 38;
      */
     interruptionPtr?: NodeReferenceData;
     /**
@@ -12288,21 +12288,13 @@ export enum TriggerEffect {
      */
     START_RUN = 1,
     /**
-     * @generated from protobuf enum value: TRIGGER_EFFECT_CONTINUE_RUN = 2;
+     * @generated from protobuf enum value: TRIGGER_EFFECT_ENSURE_RUN = 2;
      */
-    CONTINUE_RUN = 2,
+    ENSURE_RUN = 2,
     /**
      * @generated from protobuf enum value: TRIGGER_EFFECT_REPLACE_RUN = 3;
      */
-    REPLACE_RUN = 3,
-    /**
-     * @generated from protobuf enum value: TRIGGER_EFFECT_CANCEL_INTERRUPTION = 20;
-     */
-    CANCEL_INTERRUPTION = 20,
-    /**
-     * @generated from protobuf enum value: TRIGGER_EFFECT_COMPLETE_INTERRUPTION = 21;
-     */
-    COMPLETE_INTERRUPTION = 21
+    REPLACE_RUN = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.TriggerStatus
@@ -13260,6 +13252,14 @@ export enum ViewType {
      */
     DATABASE = 5090,
     /**
+     * @generated from protobuf enum value: VIEW_TYPE_CHANNEL = 5100;
+     */
+    CHANNEL = 5100,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_THREAD = 5501;
+     */
+    THREAD = 5501,
+    /**
      * @generated from protobuf enum value: VIEW_TYPE_RUN = 6010;
      */
     RUN = 6010,
@@ -14065,13 +14065,9 @@ export enum TreeViewPreset {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: TREE_VIEW_PRESET_PAGES = 1;
+     * @generated from protobuf enum value: TREE_VIEW_PRESET_PACKAGE = 1;
      */
-    PAGES = 1,
-    /**
-     * @generated from protobuf enum value: TREE_VIEW_PRESET_CHANNELS = 2;
-     */
-    CHANNELS = 2,
+    PACKAGE = 1,
     /**
      * @generated from protobuf enum value: TREE_VIEW_PRESET_OUTLINE = 3;
      */
@@ -29841,8 +29837,7 @@ class ChatViewData$Type extends MessageType$<ChatViewData> {
             { no: 100, name: "draft_text", kind: "message", T: () => TextData },
             { no: 101, name: "draft_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 102, name: "draft_reply_to_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 110, name: "channel_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 111, name: "thread_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 110, name: "scope_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ChatViewData>): ChatViewData {
@@ -29866,11 +29861,8 @@ class ChatViewData$Type extends MessageType$<ChatViewData> {
                 case /* optional symbolx.bench.NodeReferenceData draft_reply_to_ptr */ 102:
                     message.draftReplyToPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.draftReplyToPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData channel_ptr */ 110:
-                    message.channelPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.channelPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 111:
-                    message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
+                case /* optional symbolx.bench.NodeReferenceData scope_ptr */ 110:
+                    message.scopePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scopePtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -29893,12 +29885,9 @@ class ChatViewData$Type extends MessageType$<ChatViewData> {
         /* optional symbolx.bench.NodeReferenceData draft_reply_to_ptr = 102; */
         if (message.draftReplyToPtr)
             NodeReferenceData.internalBinaryWrite(message.draftReplyToPtr, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData channel_ptr = 110; */
-        if (message.channelPtr)
-            NodeReferenceData.internalBinaryWrite(message.channelPtr, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 111; */
-        if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData scope_ptr = 110; */
+        if (message.scopePtr)
+            NodeReferenceData.internalBinaryWrite(message.scopePtr, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30815,8 +30804,9 @@ class TriggerData$Type extends MessageType$<TriggerData> {
             { no: 33, name: "text", kind: "message", T: () => TextData },
             { no: 34, name: "effect", kind: "enum", T: () => ["symbolx.bench.TriggerEffect", TriggerEffect, "TRIGGER_EFFECT_"] },
             { no: 35, name: "scope_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 36, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "run_root_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 38, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.TriggerStatus", TriggerStatus, "TRIGGER_STATUS_"] },
             { no: 41, name: "processed_at", kind: "message", T: () => Timestamp },
             { no: 42, name: "processed_count", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
@@ -30908,10 +30898,13 @@ class TriggerData$Type extends MessageType$<TriggerData> {
                 case /* optional symbolx.bench.NodeReferenceData scope_ptr */ 35:
                     message.scopePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scopePtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData run_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData run_root_ptr */ 36:
+                    message.runRootPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runRootPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData run_ptr */ 37:
                     message.runPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 38:
                     message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
                     break;
                 case /* symbolx.bench.TriggerStatus status */ 40:
@@ -31004,12 +30997,15 @@ class TriggerData$Type extends MessageType$<TriggerData> {
         /* optional symbolx.bench.NodeReferenceData scope_ptr = 35; */
         if (message.scopePtr)
             NodeReferenceData.internalBinaryWrite(message.scopePtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData run_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData run_root_ptr = 36; */
+        if (message.runRootPtr)
+            NodeReferenceData.internalBinaryWrite(message.runRootPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData run_ptr = 37; */
         if (message.runPtr)
-            NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 38; */
         if (message.interruptionPtr)
-            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.TriggerStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
@@ -34083,8 +34079,9 @@ export enum TriggerProperty {
   text = 33,
   effect = 34,
   scopePtr = 35,
-  runPtr = 36,
-  interruptionPtr = 37,
+  runRootPtr = 36,
+  runPtr = 37,
+  interruptionPtr = 38,
   status = 40,
   processedAt = 41,
   processedCount = 42,
@@ -34854,8 +34851,7 @@ export enum ChatViewProperty {
   draftText = 100,
   draftNodesPtr = 101,
   draftReplyToPtr = 102,
-  channelPtr = 110,
-  threadPtr = 111,
+  scopePtr = 110,
 }
 
 export enum HubViewProperty {
@@ -36485,9 +36481,10 @@ export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.name]: { id: 32, name: 'name', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.text]: { id: 33, name: 'text', component: ObjectType.TRIGGER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [TriggerProperty.effect]: { id: 34, name: 'effect', component: ObjectType.TRIGGER, enumType: EnumType.TRIGGER_EFFECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.scopePtr]: { id: 35, name: 'scope_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [TriggerProperty.runPtr]: { id: 36, name: 'run_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [TriggerProperty.interruptionPtr]: { id: 37, name: 'interruption_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.scopePtr]: { id: 35, name: 'scope_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CHANNEL, NodeType.CHOICE, NodeType.CLASS, NodeType.DATABASE, NodeType.FLOW, NodeType.IDENTITY, NodeType.PAGE, NodeType.ROLE, NodeType.VIEW, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.runRootPtr]: { id: 36, name: 'run_root_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.runPtr]: { id: 37, name: 'run_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.interruptionPtr]: { id: 38, name: 'interruption_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerProperty.status]: { id: 40, name: 'status', component: ObjectType.TRIGGER, enumType: EnumType.TRIGGER_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.processedAt]: { id: 41, name: 'processed_at', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.processedCount]: { id: 42, name: 'processed_count', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -37194,8 +37191,7 @@ export const ChatViewDataInfo: Record<ChatViewProperty, PropertyInfo> = {
   [ChatViewProperty.draftText]: { id: 100, name: 'draft_text', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ChatViewProperty.draftNodesPtr]: { id: 101, name: 'draft_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [ChatViewProperty.draftReplyToPtr]: { id: 102, name: 'draft_reply_to_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [ChatViewProperty.channelPtr]: { id: 110, name: 'channel_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
-  [ChatViewProperty.threadPtr]: { id: 111, name: 'thread_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [ChatViewProperty.scopePtr]: { id: 110, name: 'scope_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
 export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
   [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 20205, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -38059,10 +38055,8 @@ export const PlanTypeOptionInfo: Partial<Record<PlanType, EnumOptionInfo>> = {
 
 export const TriggerEffectOptionInfo: Partial<Record<TriggerEffect, EnumOptionInfo>> = {
   [TriggerEffect.START_RUN]: { id: 1, name: 'START_RUN', text: 'Start a new Run' },
-  [TriggerEffect.CONTINUE_RUN]: { id: 2, name: 'CONTINUE_RUN', text: 'Continue an existing or start a new Run' },
+  [TriggerEffect.ENSURE_RUN]: { id: 2, name: 'ENSURE_RUN', text: 'Continue an existing or start a new Run' },
   [TriggerEffect.REPLACE_RUN]: { id: 3, name: 'REPLACE_RUN', text: 'Abort and restart (part of) the current Run' },
-  [TriggerEffect.CANCEL_INTERRUPTION]: { id: 20, name: 'CANCEL_INTERRUPTION', text: 'Cancel an Interruption' },
-  [TriggerEffect.COMPLETE_INTERRUPTION]: { id: 21, name: 'COMPLETE_INTERRUPTION', text: 'Complete an Interruption' },
 }
 
 export const CallExecutionModeOptionInfo: Partial<Record<CallExecutionMode, EnumOptionInfo>> = {

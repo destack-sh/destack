@@ -1021,22 +1021,18 @@ export class SpaceCanvas {
 
     // open chat
     else if (isNode(node, NodeType.MESSAGE) || isNode(node, NodeType.THREAD) || isNode(node, NodeType.CHANNEL)) {
-      let scopePtr: NodeReferenceData | undefined;
       let inspectPtr: NodeReferenceData | undefined;
       let threadPtr: NodeReferenceData | undefined;
-      let channelPtr: NodeReferenceData | undefined;
+      let channelPtr: NodeReferenceData;
       if (isNode(node, NodeType.MESSAGE)) {
-        scopePtr = node.scopePtr;
         inspectPtr = nodePtr;
         threadPtr = node.threadPtr;
-        channelPtr = node.channelPtr;
+        channelPtr = node.channelPtr!;
       } else if (isNode(node, NodeType.THREAD)) {
-        scopePtr = node.scopePtr;
         inspectPtr = nodePtr;
         threadPtr = nodePtr;
-        channelPtr = node.channelPtr;
+        channelPtr = node.channelPtr!;
       } else if (isNode(node, NodeType.CHANNEL)) {
-        scopePtr = undefined;
         inspectPtr = nodePtr;
         threadPtr = undefined;
         channelPtr = nodePtr;
@@ -1044,16 +1040,8 @@ export class SpaceCanvas {
         assertNever(node);
       }
       const view = this.addView(
-        { type: ViewType.CHAT, nodePtr: scopePtr, subnode: { threadPtr, channelPtr } },
-        {
-          ifPresent: "upsertAndFocus",
-          filter: (v) => {
-            if (v.type != ViewType.CHAT) return false;
-            const subnode = unpackSubnode(NodeType.VIEW, ViewType.CHAT, v.subnodePacked);
-            return subnode.threadPtr?.id == threadPtr?.id && subnode.channelPtr?.id == channelPtr?.id;
-          },
-          ...options,
-        },
+        { type: ViewType.THREAD, nodePtr: threadPtr ?? channelPtr },
+        { ifPresent: "upsertAndFocus", ...options },
       );
       this.inspect({ node: inspectPtr, view });
     }

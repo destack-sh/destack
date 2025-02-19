@@ -1,26 +1,23 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
-import { getBaseFromNode, isInlineSourceNode } from "@/language/core/const";
 import { EditSubject, makeAndConditional, makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
 import { emptyText, getTextLine, isTextEmpty, trimText } from "@/language/core/text";
 import { INLINE_FILE_TYPES, uploadFile } from "@/language/resource/file";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
+  Alignment,
   AnyNodeData,
-  DatabaseData,
   ExpressionData,
   ExpressionType,
   FileData,
   IconData,
-  InlineSourceNodeData,
   MessageData,
   MessageProperty,
   MessageType,
   NodeReferenceData,
   NodeType,
   Orientation,
-  PackageData,
   RectangleData,
   TextData,
   ViewData,
@@ -29,7 +26,7 @@ import {
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { BENCH_SCOPE, benchPtr } from "@/system/client";
 import { SearchConnectionParams, useSearchConnection } from "@/system/connection";
-import { bench, benchConnection, canvas, pkg, pkgGraph } from "@/system/space";
+import { bench, benchConnection, canvas, pkgGraph } from "@/system/space";
 import { user } from "@/system/user";
 import {
   ActionMapImplementation,
@@ -64,7 +61,9 @@ const props = defineProps<
     id: string;
     size?: Partial<Pick<RectangleData, "width" | "height">>;
     isRoot?: boolean;
-  } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focus" | "selection" | "subnodePacked">>
+  } & Partial<
+    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focus" | "selection" | "alignment" | "subnodePacked">
+  >
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
@@ -73,29 +72,24 @@ const state = canvas.registerView(self, id);
 const subnodePacked = toRef(props, "subnodePacked");
 
 // node
-const channelPtr = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "channelPtr");
-const threadPtr = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "threadPtr");
-const channel = supergraph.getRef(channelPtr);
-const thread = supergraph.getRef(threadPtr);
+const scopePtr = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "scopePtr");
+const scope = supergraph.getRef(scopePtr);
 const nodePtr = computedValue(() => props.nodePtr);
 const node = supergraph.getRef(nodePtr) as Ref<AnyNodeData>;
-const basePtr = computed(() => (node.value != null ? getBaseFromNode(node.value) : null));
-const base = pkgGraph.getRef(basePtr);
-const nodeAncestors = pkgGraph.getAncestorsRef(nodePtr);
-const scope: Ref<InlineSourceNodeData | PackageData | null> = computed(() => {
-  if (isInlineSourceNode(node.value) || isNode(node.value, NodeType.PACKAGE)) {
-    return node.value;
-  } else if (isNode(node.value, NodeType.RECORD)) {
-    return base.value as DatabaseData;
-  } else {
-    const scope = nodeAncestors.value.find((a) => isInlineSourceNode(a) || isNode(a, NodeType.PACKAGE));
-    if (scope != null) {
-      return scope;
-    }
+const channelPtr = computed(() => {
+  if (isNode(node.value, NodeType.CHANNEL)) {
+    return nodePtr.value;
+  } else if (isNode(node.value, NodeType.THREAD)) {
+    return node.value.channelPtr!;
   }
-  return pkg.value;
+  return null;
 });
-const scopePtr = computed(() => (scope.value != null ? toNodeRef(scope.value) : null));
+const threadPtr = computed(() => {
+  if (isNode(node.value, NodeType.THREAD)) {
+    return nodePtr.value;
+  }
+  return null;
+});
 
 //
 // Messages
@@ -117,12 +111,7 @@ const filter = computed(() => {
       }),
     );
   } else {
-    filters.push(
-      makeExpression({
-        type: ExpressionType.NOT_EXISTS,
-        propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.channelPtr),
-      }),
-    );
+    // channel must exist
   }
   // thread
   if (threadPtr.value != null) {
@@ -142,12 +131,19 @@ const filter = computed(() => {
     );
   }
   // scope
-  if (channelPtr.value == null && threadPtr.value == null) {
+  if (scopePtr.value != null) {
     filters.push(
       makeExpression({
         type: ExpressionType.EQUALS,
         propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.scopePtr),
         value: scopePtr.value,
+      }),
+    );
+  } else {
+    filters.push(
+      makeExpression({
+        type: ExpressionType.NOT_EXISTS,
+        propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.scopePtr),
       }),
     );
   }
@@ -167,7 +163,7 @@ const {
       scope: BENCH_SCOPE.value,
       nodeType: NodeType.MESSAGE,
       count: true,
-      isEnabled: scopePtr.value != null,
+      isEnabled: channelPtr.value != null,
       sort: [DEFAULT_SORT],
       filter: filter.value,
     }),
@@ -221,7 +217,7 @@ const messageViews = computed(() => {
     let isNewDate;
     if (i == 0) {
       isNewGroup = true;
-      isNewDate = false;
+      isNewDate = true;
     } else {
       const previousDt = tsToDt(messages.value[i - 1].createdAt!);
       const currentDt = tsToDt(message.createdAt!);
@@ -283,11 +279,16 @@ const draftFiles = computed(() => draftNodes.value.filter((n) => isNode(n, NodeT
 
 const inputContainerRef = ref<HTMLInputElement | null>(null);
 const inputRef = ref<InstanceType<typeof Text> | null>(null);
-const inputSize = useElementSize(inputContainerRef);
+const inputContainerSize = useElementSize(inputContainerRef);
 const containerRef = ref<HTMLDivElement | null>(null);
 const bodyScrollRef = ref<InstanceType<typeof Scroll> | null>(null);
 const editingTextRefs = ref<InstanceType<typeof Text>[] | null>(null); // there can only be one but it's inside a v-for (so it has to be an array)
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
+const bodyHeight = computed(() => {
+  return props.size?.height != null
+    ? props.size.height - inputContainerSize.height.value - (props.isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0)
+    : undefined;
+});
 
 const currentAuthor = user;
 const editingText = ref<TextData | null>(null);
@@ -325,7 +326,7 @@ function submitEdit() {
 function submit() {
   // create message
   if (benchPtr.value == null) throw new Error("no bench");
-  if (scope.value == null) throw new Error("no scope");
+  if (channelPtr.value == null) throw new Error("no channel");
   const text = trimText(draftText.value ?? emptyText());
   if (isTextEmpty(text)) return; // don't create empty messages
   createMessage(connection.tx, graph, {
@@ -333,8 +334,8 @@ function submit() {
       type: replyTo.value != null ? MessageType.REPLY : MessageType.REGULAR,
       parentPtr: benchPtr.value,
       channelPtr: channelPtr.value,
-      threadPtr: threadPtr.value,
-      scopePtr: toNodeRef(scope.value),
+      threadPtr: threadPtr.value ?? undefined,
+      scopePtr: scopePtr.value ?? undefined,
       replyToPtr: replyTo.value != null ? draftReplyTo.value : undefined,
       nodesPtr: draftNodesPtr.value,
       text,
@@ -449,15 +450,9 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
 <template>
   <div ref="containerRef" class="relative">
     <!-- Root header -->
-    <RootHeader
-      v-if="isRoot"
-      :self="self"
-      :node-ptr="threadPtr ?? channelPtr"
-      :focus="$props.focus"
-      :graph="pkgGraph"
-    />
+    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="$props.focus" :graph="pkgGraph" />
 
-    <!-- Drop zone -->
+    <!-- Drop zone (overlay) -->
     <div
       v-if="dropZone.activeDropZone.value"
       class="pointer-events-none absolute z-40 flex h-full w-full items-center justify-center bg-gray-400/40"
@@ -477,16 +472,20 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
       class="relative"
       :orientation="Orientation.VERTICAL"
       stick-to-end
-      :size="{
-        height:
-          size?.height != null
-            ? size.height - inputSize.height.value - (isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0)
-            : undefined,
-      }"
+      :size="{ height: bodyHeight }"
       @mousedown="(e: MouseEvent) => startSelectingIfAllowed(selectionZone, e)"
     >
       <!-- Messages -->
-      <ul class="relative mb-3 mt-2 flex flex-col">
+      <ul
+        class="relative mb-4 mt-2 flex flex-col"
+        :class="[props.alignment == Alignment.END ? 'justify-end' : '']"
+        :style="{ minHeight: bodyHeight != null ? (bodyHeight - 32) + 'px' : undefined }"
+      >
+        <!-- (Inline) Header -->
+        <div v-if="$slots.header && node" class="mx-5 mb-2">
+          <slot name="header" />
+        </div>
+
         <!-- Message -->
         <li
           v-for="{
@@ -663,20 +662,17 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
         </li>
       </ul>
 
-      <!-- Empty -->
+      <!-- Loading -->
       <div
-        v-if="messages.length == 0"
+        v-if="messages.length == 0 && !isConnected"
         class="mx-1.5 flex w-full flex-row items-center justify-center px-2.5"
         :style="{
           height: MESSAGE_HEIGHT_MIN + 'px',
         }"
       >
-        <!-- Loading -->
-        <span v-if="!isConnected || isStale" class="">
+        <span class="">
           <i class="fas fa-spinner-third animate-spin text-gray-400" />
         </span>
-        <!-- Empty -->
-        <span v-else class="text-gray-400">Nothing here yet</span>
       </div>
 
       <!-- Selection -->
@@ -790,7 +786,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
         </div>
       </div>
       <!-- Spacing -->
-      <div class="h-4" />
+      <div class="h-2" />
     </div>
   </div>
 </template>

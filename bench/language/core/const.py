@@ -1281,7 +1281,7 @@ class TypeKind(BuiltinEnum):
     BASED_NODE = 5
     CUSTOM_OBJECT = 6
     PARTIAL_OBJECT = 7
-    LITERAL = 8
+    LITERAL = 8  # nocheckin: Field.option -> Option?
     UNION = 9
 
 

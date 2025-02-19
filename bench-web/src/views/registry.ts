@@ -24,6 +24,8 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.RUN]: () => import("@/views/nodes/Run.vue"),
   [ViewType.DATABASE]: () => import("@/views/nodes/Database.vue"),
   [ViewType.FLOW]: () => import("@/views/nodes/Flow.vue"),
+  [ViewType.THREAD]: () => import("@/views/nodes/Thread.vue"),
+  [ViewType.CHANNEL]: () => import("@/views/nodes/Thread.vue"), // shared with Thread
   // structs
   [ViewType.TYPE]: () => import("@/views/objects/Type.vue"),
   [ViewType.OBJECT]: () => import("@/views/objects/Object.vue"),

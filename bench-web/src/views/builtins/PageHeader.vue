@@ -15,7 +15,7 @@ const props = defineProps<{
   isInput?: boolean;
 }>();
 const { graph, connection } = props.connection;
-const emits = defineEmits<ViewEmits>();
+const emit = defineEmits<ViewEmits>();
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 
 function focusIdentifier(anchor: FocusAnchor) {
@@ -41,8 +41,8 @@ defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => v
     <!-- ... -->
     <!-- Main header -->
     <div
-      class="group/title mx-auto pt-4"
-      :class="isCompact ? 'pb-2' : 'pb-4'"
+      class="group/title pt-4"
+      :class="[isCompact ? 'pb-2' : 'pb-4', props.width != null ? 'mx-auto' : '']"
       :style="{
         width: props.width != null ? props.width + 'px' : undefined,
       }"
@@ -78,7 +78,7 @@ defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => v
         :node="node"
         is-input
         :tx="() => connection.tx"
-        @navigate="(direction) => emits('navigate', direction)"
+        @navigate="(direction) => emit('navigate', direction)"
         @click.stop.prevent="nameRef?.focusIdentifier('right')"
       />
     </div>
