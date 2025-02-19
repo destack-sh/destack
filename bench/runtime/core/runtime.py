@@ -912,6 +912,7 @@ class Runtime:
 
     def _on_external_update(self, runner: Runner, update: WatchGetUpdate):
         """React to updates on Runtime nodes from outside this Runtime."""
+        print("on_external_update", runner, update)
         to_resume: set[Run] = set()
         for node in update.updated.values():
             # react to Run/Interruption updates in Runtime

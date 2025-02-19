@@ -623,13 +623,12 @@ def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
             node._do_set(prop.name, new_prop_value, track=True)
 
     # apply value
-    if node.__value_runtime_properties__:
-        for field in partial_node._type._base_fields:
-            value_prop = node.get_value_property(field.type, "runtime")
-            value = getattr(node, value_prop.name)
-            assert (
-                type(value) is CustomObject
-            ), f"unexpected {value!r} for {value_prop!r} in {node!r}"
+    for value_runtime_prop in node.__value_runtime_properties__.values():
+        value = getattr(node, value_runtime_prop.name)
+        assert (
+            type(value) is CustomObject
+        ), f"unexpected {value!r} for {value_runtime_prop!r} in {node!r}"
+        for field in value._type._base_fields:
             new_field_value = partial_node._do_get(field)
             if new_field_value is not None:
                 value._do_set(field, new_field_value, track=True, validate=False)
