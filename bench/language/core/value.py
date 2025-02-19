@@ -327,6 +327,9 @@ class CustomObject(Mapping[str, Any]):
                 new_value = pack_custom_object(new_value, new_value._type)
             if type(old_value) is CustomObject:
                 old_value = pack_custom_object(old_value, old_value._type)
+            if type(key) is Property and key.is_value_runtime:
+                assert type(key.value_packed_ptr) is Property, f"bad value_packed_ptr for {key!r}"
+                key = key.value_packed_ptr
 
             # trace
             _trace_edit_operation(self, key, new_value=new_value, old_value=old_value, subtype=None)

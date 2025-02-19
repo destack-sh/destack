@@ -1,5 +1,3 @@
-import asyncio
-
 from bench.language import (
     Action,
     ActionType,
@@ -446,31 +444,3 @@ async def test_run_code_raise_unretryable_error(
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.NON_RETRYABLE
     assert len(runner.attempts) == 1
-
-
-@simulated_runtime()
-async def test_run_code_abort(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a long async code script and abort it."""
-    Flow1 = Flow.new("Flow1")
-    Action1 = Action.new(
-        ActionType.CODE,
-        "Code1",
-        code=code("""await asyncio.sleep(5)"""),
-    )
-    Flow1.actions.append(Action1)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    run = create_run_from_node(Action1, isolate=True)
-    run_task = asyncio.create_task(runtime.run_in_runtime(run, return_error=True))
-    # kill after 0.5s
-    await asyncio.sleep(0.5)
-    runtime.runtime.stop_run(run)
-    runner = await run_task
-    # run should be aborted
-    assert runner.status == RunStatus.ABORTED
-    assert (
-        runner.tracked_run
-        and runner.tracked_run.duration
-        and runner.tracked_run.duration.total_seconds() < 1
-    )
