@@ -318,6 +318,7 @@ async def test_run_code_output_scalar(simulation: Simulation, runtime: RuntimeLa
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
     )
     Flow1.actions.append(Function)
+    runtime.page().append(Flow1)
     await runtime.commit()
 
     # run with good return value

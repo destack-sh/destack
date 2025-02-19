@@ -342,6 +342,13 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         return self.parent is None
 
     @property
+    def root(self) -> "Runner":
+        root = self
+        while root.parent is not None:
+            root = root.parent
+        return root
+
+    @property
     def closest_tracked_run(self) -> Run | None:
         runner = self
         while runner is not None:
