@@ -5,6 +5,7 @@ from uuid import UUID
 import structlog
 
 from bench.language.core import (
+    INLINE_SOURCE_NODE_TYPES,
     TITLE_CONSTRAINT,
     BuiltinEnum,
     EnumType,
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
         NodeReference,
         Package,
         Run,
+        Selection,
         Thread,
     )
 
@@ -51,10 +53,10 @@ class MessageType(BuiltinEnum):
     REGULAR = 1, "Standard Message"
     REPLY = 2, "Reply to another Message"
     FORWARDED = 3, "Forwarded Message"
-    THREAD = 10, "Begin a Thread"
-    RUN = 20, "Begin a Run"
-    INTERRUPTION = 21, "Interrupt a Run"
-    # for inspiration also see https://discord.com/developers/docs/resources/message
+    THREAD = 100, "Begin a Thread"
+    RUN = 110, "Begin a Run"
+    INTERRUPTION = 120, "Interrupt a Run"
+    # also see https://discord.com/developers/docs/resources/message
 
 
 @enum_(EnumType.MESSAGE_PLATFORM)
@@ -86,9 +88,9 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH)
     type: MessageType = p_regular(30, require=True, default=MessageType.REGULAR)
     platform: MessagePlatform = p_regular(31, require=True, default=MessagePlatform.BENCH)
-    channel: Optional["Channel"] = p_system(
+    channel: "Channel" = p_system(
         32,
-        require=False,
+        require=True,
         array=False,
         same_bench=True,
         references=NodeType.CHANNEL,
@@ -101,21 +103,22 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         references=NodeType.THREAD,
     )
     scope: Union["InlineSourceNode", "Package"] = p_regular(
-        35, require=False, references=(NodeType.PAGE, NodeType.PACKAGE)
+        35, require=False, references=(*INLINE_SOURCE_NODE_TYPES, NodeType.PACKAGE)
     )
-    run: Optional["Run"] = p_regular(
+    run_root: Optional["Run"] = p_regular(
         36,
         require=False,
         array=False,
         references=NodeType.RUN,
-        description="The Run this Message is scoped to.",
+        same_bench=True,
+        description="The root Run this Message/Thread is scoped to.",
     )
-    clazz: Optional["Class"] = p_internal(
+    run: Optional["Run"] = p_regular(
         37,
         require=False,
         array=False,
-        references=NodeType.CLASS,
-        description="The Message class.",
+        references=NodeType.RUN,
+        description="The Run this Message/Thread is scoped to.",
     )
     if TYPE_CHECKING:
         channel_id: Optional[UUID] = None
@@ -126,8 +129,6 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         scope_ptr: Optional[NodeReference] = None
         run_id: Optional[UUID] = None
         run_ptr: Optional[NodeReference] = None
-        clazz_id: Optional[UUID] = None
-        clazz_ptr: Optional[NodeReference] = None
 
     # status
     status: MessageStatus = p_internal(40, default=MessageStatus.SENT)
@@ -136,41 +137,69 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     received_at: Optional[datetime] = p_system(44, default=None)
     read_at: Optional[datetime] = p_system(45, default=None)
 
-    # content
-    title: Optional[str] = p_regular(50, require=False, default=None, constraint=TITLE_CONSTRAINT)
-    text: Optional["Text"] = p_regular(51, require=False, default=None, struct=StructType.TEXT)
-    value_packed: Any = p_value_packed(52)
-    value: Any = p_value_runtime(
-        52, type=FieldType.MEMBER, typ=lambda self: cast("Message", self).value_type
-    )
-    nodes: list["Node"] = p_regular(53, array=True, require=False, references="any")
-    interruption: Optional["Interruption"] = p_regular(
-        55, require=False, array=False, references=NodeType.INTERRUPTION
-    )
-
     # routing
     reply_to: Optional["Message"] = p_regular(
-        60, require=False, array=False, references=NodeType.MESSAGE
+        50, require=False, array=False, references=NodeType.MESSAGE
     )
     forwarded_from: Optional["Message"] = p_regular(
-        61, require=False, array=False, references=NodeType.MESSAGE
+        51, require=False, array=False, references=NodeType.MESSAGE
     )
-    spawned_thread: Optional["Message"] = p_regular(
-        62,
+    if TYPE_CHECKING:
+        reply_to_ptr: Optional[NodeReference] = None
+        reply_to_id: Optional[UUID] = None
+        forwarded_from_ptr: Optional[NodeReference] = None
+        forwarded_from_id: Optional[UUID] = None
+    # roles, identities, users, teams, ...?
+
+    # content
+    title: Optional[str] = p_regular(60, require=False, default=None, constraint=TITLE_CONSTRAINT)
+    text: Optional["Text"] = p_regular(61, require=False, default=None, struct=StructType.TEXT)
+    value_packed: Any = p_value_packed(62)
+    value: Any = p_value_runtime(
+        62, type=FieldType.MEMBER, typ=lambda self: cast("Message", self).value_type
+    )
+    clazz: Optional["Class"] = p_internal(
+        63,
         require=False,
         array=False,
-        references=NodeType.MESSAGE,
+        references=NodeType.CLASS,
+        description="The Message class.",
+    )
+    nodes: list["Node"] = p_regular(64, array=True, require=False, references="any")
+    selection: Optional["Selection"] = p_regular(
+        65, require=False, array=False, struct=StructType.SELECTION
+    )
+    created_interruption: Optional["Interruption"] = p_regular(
+        70,
+        require=False,
+        array=False,
+        references=NodeType.INTERRUPTION,
+        description="The Interruption this Message was for.",
+    )
+    created_run: Optional["Run"] = p_regular(
+        71,
+        require=False,
+        array=False,
+        references=NodeType.RUN,
+        description="The Run this Message was created for.",
+    )
+    created_thread: Optional["Thread"] = p_regular(
+        72,
+        require=False,
+        array=False,
+        references=NodeType.THREAD,
         same_bench=True,
         description="The Thread that was created from this Message.",
     )
     if TYPE_CHECKING:
-        reply_to_id: Optional[UUID] = None
-        reply_to_ptr: Optional[NodeReference] = None
-        forwarded_from_id: Optional[UUID] = None
-        forwarded_from_ptr: Optional[NodeReference] = None
-        spawned_thread_id: Optional[UUID] = None
+        clazz_ptr: Optional[NodeReference] = None
+        clazz_id: Optional[UUID] = None
+        interruption_ptr: Optional[NodeReference] = None
+        interruption_id: Optional[UUID] = None
+        run_ptr: Optional[NodeReference] = None
+        run_id: Optional[UUID] = None
         spawned_thread_ptr: Optional[NodeReference] = None
-    # roles, identities, users, teams, ...
+        spawned_thread_id: Optional[UUID] = None
 
     def __content_str__(self) -> str:
         if self.title:
@@ -214,13 +243,14 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         title: str | None = None,
         text: Text | None = None,
         *,
+        channel: "Channel",
+        thread: Optional["Thread"] = None,
         platform: MessagePlatform = MessagePlatform.BENCH,
         bench: Optional["Bench"] = None,
-        channel: Optional["Channel"] = None,
-        thread: Optional["Thread"] = None,
     ) -> "Message":
+        parent = channel.bench if bench is None else bench
         message = Message(
-            parent=bench,
+            parent=parent,
             type=MessageType.REGULAR,
             platform=platform,
             title=title,

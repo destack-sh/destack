@@ -36,20 +36,14 @@ _type = type
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(BuiltinEnum):
     # NOTE: see NodeType
-    # resources
     FILE = 1200, "Any File"
-    # source
     PAGE = 5020, "Page to write"
-    # types
     CHOICE = 5030, "Choice of options"
     CLASS = 5031, "Class of Fields"
-    # flow
     FLOW = 5050, "Flow to run"
-    # views
     VIEW = 5080, "Graphical Interface"
-    # data
     DATABASE = 5090, "Database to store"
-    # auth
+    CHANNEL = 5100, "Channel to send"
     ROLE = 5110, "Role to assign"
     IDENTITY = 5120, "Unique Identity"
 

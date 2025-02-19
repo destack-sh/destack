@@ -37,6 +37,7 @@ from bench.language.registry import (
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.env import IS_DEV
+from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import dualmethod, stable_hash
 from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
@@ -1574,6 +1575,7 @@ class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
 
     # content
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+    order_key: str = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.ICON
     )

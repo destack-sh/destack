@@ -50,45 +50,51 @@ class Thread(HasTimeIdentity, StateNode[ThreadData]):
     # meta
     parent: Union["Bench", "Thread", None] = p_node_parent(4, NodeType.BENCH, NodeType.THREAD)
     type: ThreadType = p_regular(30, require=True, default=ThreadType.SOURCE)
-    channel: "Channel | None" = p_system(
+    channel: "Channel" = p_system(
         32,
-        require=False,
-        store=True,
-        wire=True,
+        require=True,
+        array=False,
         same_bench=True,
         references=NodeType.CHANNEL,
     )
     scope: Union["InlineSourceNode", "Package"] = p_regular(
         35, require=False, references=(NodeType.PAGE, NodeType.PACKAGE)
     )
-    owned_by: Optional[Owner] = p_system(36, require=False, array=False, references=OWNER_TYPES)
+    run_root: Optional["Run"] = p_regular(
+        36,
+        require=False,
+        array=False,
+        same_bench=True,
+        references=NodeType.RUN,
+        description="The root Run this Thread is scoped to.",
+    )
     run: Optional["Run"] = p_regular(
         37,
         require=False,
         array=False,
+        same_bench=True,
         references=NodeType.RUN,
-        description="The Run this Message is scoped to.",
+        description="The Run this Thread is scoped to.",
     )
+    owned_by: Optional[Owner] = p_system(38, require=False, array=False, references=OWNER_TYPES)
 
     # status
     status: ThreadStatus = p_internal(40, default=ThreadStatus.OPEN)
     closed_at: Optional[datetime] = p_internal(45, default=None)
 
-    # content
-    title: Optional[str] = p_regular(50, require=False, default=None, constraint=TITLE_CONSTRAINT)
-    text: Optional["Text"] = p_regular(51, require=False, default=None, struct=StructType.TEXT)
-
     # routing
     created_from: Optional["Message"] = p_regular(
-        60, require=False, array=False, references=NodeType.MESSAGE, same_bench=True
+        50, require=False, array=False, references=NodeType.MESSAGE, same_bench=True
     )
+
+    # content
+    title: Optional[str] = p_regular(60, require=False, default=None, constraint=TITLE_CONSTRAINT)
+    text: Optional["Text"] = p_regular(61, require=False, default=None, struct=StructType.TEXT)
 
     @property
     def container(self) -> "Node | None":
         parent = self.parent
         if isinstance(parent, Thread):
             return parent
-        elif (channel := self.channel) is not None:
-            return channel
         else:
-            return parent
+            return self.channel

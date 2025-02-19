@@ -6,13 +6,11 @@ from bench.language.core import (
     InlineSourceNode,
     NodeType,
     enum_,
-    p_internal,
     p_node_parent,
     p_regular,
     timed_node_,
 )
 from bench.pb2 import ChannelData
-from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import Package, Page
@@ -36,4 +34,7 @@ class Channel(InlineSourceNode[ChannelData]):
     # meta
     parent: Union["Page", "Package", None] = p_node_parent(4, NodeType.PAGE, NodeType.PACKAGE)
     type: ChannelType = p_regular(30, require=True, default=ChannelType.TEXT)
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
+
+    @staticmethod
+    def new(name: str, *, type: ChannelType = ChannelType.TEXT) -> "Channel":
+        return Channel(name=name, type=type)

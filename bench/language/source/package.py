@@ -41,6 +41,7 @@ class PackageType(BuiltinEnum):
 class Package(SourceNode[PackageData]):
     """A Package is an isolated segment of a Bench."""
 
+    # meta
     parent: "Bench | None" = p_node_parent(4, NodeType.BENCH)
     type: PackageType = p_regular(30, require=True)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
@@ -51,6 +52,10 @@ class Package(SourceNode[PackageData]):
 
     base: Optional["Package"] = p_system(
         40, require=False, array=False, references=NodeType.PACKAGE, fk=True, same_bench=True
+    )
+
+    default_channel: Optional["Channel"] = p_regular(
+        50, require=False, array=False, references=NodeType.CHANNEL, same_bench=True
     )
 
     pages: LocalNodeList["Page"] = p_node_children(NodeType.PAGE)

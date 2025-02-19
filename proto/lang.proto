@@ -1052,6 +1052,7 @@ enum BlockType {
   BLOCK_TYPE_FLOW = 5050;
   BLOCK_TYPE_VIEW = 5080;
   BLOCK_TYPE_DATABASE = 5090;
+  BLOCK_TYPE_CHANNEL = 5100;
   BLOCK_TYPE_ROLE = 5110;
   BLOCK_TYPE_IDENTITY = 5120;
   BLOCK_TYPE_PARAGRAPH = 10001;
@@ -1945,9 +1946,9 @@ enum MessageType {
   MESSAGE_TYPE_REGULAR = 1;
   MESSAGE_TYPE_REPLY = 2;
   MESSAGE_TYPE_FORWARDED = 3;
-  MESSAGE_TYPE_THREAD = 10;
-  MESSAGE_TYPE_RUN = 20;
-  MESSAGE_TYPE_INTERRUPTION = 21;
+  MESSAGE_TYPE_THREAD = 100;
+  MESSAGE_TYPE_RUN = 110;
+  MESSAGE_TYPE_INTERRUPTION = 120;
 }
 
 enum MessageStatus {
@@ -3477,6 +3478,7 @@ message ChoiceData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
+  string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
@@ -3500,6 +3502,7 @@ message ClassData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
+  string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
@@ -3523,6 +3526,7 @@ message DatabaseData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
+  string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
@@ -3625,6 +3629,7 @@ message FlowData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
+  string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
@@ -3651,6 +3656,7 @@ message IdentityData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
+  string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
@@ -3681,6 +3687,7 @@ message PackageData {
   optional IconData icon = 35;
   optional NodeReferenceData owned_by_ptr = 36;
   optional NodeReferenceData base_ptr = 40;
+  optional NodeReferenceData default_channel_ptr = 50;
 }
 
 message PageData {
@@ -3880,6 +3887,7 @@ message RoleData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
+  string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
@@ -3972,24 +3980,27 @@ message MessageData {
   optional google.protobuf.Value subnode_packed = 29;
   MessageType type = 30;
   MessagePlatform platform = 31;
-  optional NodeReferenceData channel_ptr = 32;
+  NodeReferenceData channel_ptr = 32;
   optional NodeReferenceData thread_ptr = 33;
   optional NodeReferenceData scope_ptr = 35;
-  optional NodeReferenceData run_ptr = 36;
-  optional NodeReferenceData clazz_ptr = 37;
+  optional NodeReferenceData run_root_ptr = 36;
+  optional NodeReferenceData run_ptr = 37;
   MessageStatus status = 40;
   optional google.protobuf.Timestamp failed_at = 42;
   optional google.protobuf.Timestamp sent_at = 43;
   optional google.protobuf.Timestamp received_at = 44;
   optional google.protobuf.Timestamp read_at = 45;
-  optional string title = 50;
-  optional TextData text = 51;
-  optional google.protobuf.Value value_packed = 52;
-  repeated NodeReferenceData nodes_ptr = 53;
-  optional NodeReferenceData interruption_ptr = 55;
-  optional NodeReferenceData reply_to_ptr = 60;
-  optional NodeReferenceData forwarded_from_ptr = 61;
-  optional NodeReferenceData spawned_thread_ptr = 62;
+  optional NodeReferenceData reply_to_ptr = 50;
+  optional NodeReferenceData forwarded_from_ptr = 51;
+  optional string title = 60;
+  optional TextData text = 61;
+  optional google.protobuf.Value value_packed = 62;
+  optional NodeReferenceData clazz_ptr = 63;
+  repeated NodeReferenceData nodes_ptr = 64;
+  optional SelectionData selection = 65;
+  optional NodeReferenceData created_interruption_ptr = 70;
+  optional NodeReferenceData created_run_ptr = 71;
+  optional NodeReferenceData created_thread_ptr = 72;
 }
 
 message NotificationData {
@@ -4048,15 +4059,16 @@ message ThreadData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional google.protobuf.Value subnode_packed = 29;
   ThreadType type = 30;
-  optional NodeReferenceData channel_ptr = 32;
+  NodeReferenceData channel_ptr = 32;
   optional NodeReferenceData scope_ptr = 35;
-  optional NodeReferenceData owned_by_ptr = 36;
+  optional NodeReferenceData run_root_ptr = 36;
   optional NodeReferenceData run_ptr = 37;
+  optional NodeReferenceData owned_by_ptr = 38;
   ThreadStatus status = 40;
   optional google.protobuf.Timestamp closed_at = 45;
-  optional string title = 50;
-  optional TextData text = 51;
-  optional NodeReferenceData created_from_ptr = 60;
+  optional NodeReferenceData created_from_ptr = 50;
+  optional string title = 60;
+  optional TextData text = 61;
 }
 
 enum BuiltinEnum {
