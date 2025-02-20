@@ -83,11 +83,7 @@ class RunPlugin(HostPlugin[Run]):
                 self._queue_run(run)
         for run in commit.updated:
             # resume active runs (at root)
-            if (
-                run.resumed_at is not None
-                and run.interrupted_at is not None
-                and run.resumed_at > run.interrupted_at
-            ):
+            if run.status.is_interrupted and run.should_resume:
                 self._queue_run(run.root or run)
 
     @tracer.start_as_current_span("run_plugin.process_run")

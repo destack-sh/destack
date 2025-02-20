@@ -142,9 +142,8 @@ class GraphLock:
             node_types = NODE_TYPES
         node_types = sorted(node_types)  # for consistent lock order
 
-        with tracer.start_as_current_span("graph.lock.read"):
-            for node_type in node_types:
-                await self._locks[node_type].acquire_read()
+        for node_type in node_types:
+            await self._locks[node_type].acquire_read()
 
         try:
             yield
@@ -160,9 +159,8 @@ class GraphLock:
             node_types = NODE_TYPES
         node_types = sorted(node_types)  # for consistent lock order
 
-        with tracer.start_as_current_span("graph.lock.write"):
-            for node_type in node_types:
-                await self._locks[node_type].acquire_write()
+        for node_type in node_types:
+            await self._locks[node_type].acquire_write()
 
         try:
             yield
@@ -381,7 +379,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         ) as session:
             # read the affected nodes into a single graph for evaluation
             data_graph = NodeDataGraph(scope=self._scope, node_types=NODE_TYPES)
-            with self.tracer.start_as_current_span("graph.commit.read"):
+            with self.tracer.start_as_current_span(f"{self.name}.commit.read"):
                 for (base_ck, node_type), node_references in area.scopes_by_base_and_type.items():
                     node_type = wiring.unpack_enum(NodeType, node_type)
                     database = self.resolve_request_base(base_ck) if base_ck else None
@@ -409,10 +407,10 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     for node_data in connection.result_data.graph.nodes:
                         if node_data.id not in data_graph:
                             data_graph.add(node_data)
-                self.logger.trace("graph.commit.read", graph=data_graph)
+                self.logger.trace(f"{self.name}.commit.read", graph=data_graph)
 
             # check access
-            with self.tracer.start_as_current_span("graph.commit.check_access"):
+            with self.tracer.start_as_current_span(f"{self.name}.commit.check_access"):
                 matrix = generate_access_matrix(subject, data_graph, supergraph=session._supergraph)
                 decision, accesses = evaluate_edit(matrix, data_graph, edits)
                 if decision != PolicyEffect.ALLOW:
@@ -481,7 +479,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     break
                 except BaseException as e:
                     self.logger.error(
-                        "graph.commit.error", subject=subject, exc_info=e, span="current"
+                        f"{self.name}.commit.error", subject=subject, exc_info=e, span="current"
                     )
                     if not retry.on_error(e):
                         raise
@@ -489,8 +487,8 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             else:
                 raise retry.to_error("commit")
 
-        self.logger.info(
-            "graph.commit",
+        self.logger.trace(
+            f"{self.name}.commit",
             subject=subject,
             request_edits=len(request.edits),
             epoch=self._local_epoch,
@@ -509,7 +507,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         subject = await self.get_request_subject(request, metadata)
         async with self.new_request_session(supergraph=subject._supergraph) as session:
             # build the query
-            with self.tracer.start_as_current_span("graph.get.parse"):
+            with self.tracer.start_as_current_span(f"{self.name}.get.parse"):
                 roots = [
                     wiring.unpack_builtin_object_validate(r, supergraph=None, expect=NodeReference)
                     for r in request.roots
@@ -556,7 +554,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                 adapted_query = self._adapt_read_query(subject, query)
 
             # get nodes
-            with self.tracer.start_as_current_span("graph.get.read") as span:
+            with self.tracer.start_as_current_span(f"{self.name}.get.read") as span:
                 async with self._graph_lock.read(query):
                     connection = await self.connector.connect(
                         query=adapted_query,
@@ -577,7 +575,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
 
         # check access & prune result
-        with self.tracer.start_as_current_span("graph.get.check_access"):
+        with self.tracer.start_as_current_span(f"{self.name}.get.check_access"):
             matrix = generate_access_matrix(subject, result.graph, supergraph=session._supergraph)
             decision, accesses, adapted_nodes = evaluate_and_adapt_read(
                 matrix,
@@ -590,7 +588,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                 raise AccessError(accesses)
 
         self.logger.info(
-            "graph.get",
+            f"{self.name}.get",
             subject=subject,
             query=query,
             connection=connection,
@@ -620,7 +618,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         )
         try:
             self.logger.info(
-                "graph.watch_get",
+                f"{self.name}.watch_get",
                 subject=subject,
                 subscription=subscription,
                 connection=subscription.connection,
@@ -650,7 +648,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         subject = await self.get_request_subject(request, metadata)
         async with self.new_request_session(supergraph=subject._supergraph) as session:
             # build the query
-            with self.tracer.start_as_current_span("graph.search.parse"):
+            with self.tracer.start_as_current_span(f"{self.name}.search.parse"):
                 if request.base_type_ptr.metatype:
                     base_type_ptr = wiring.unpack_builtin_object(
                         request.base_type_ptr, supergraph=None, expect=NodeReference
@@ -694,7 +692,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                 adapted_query = self._adapt_read_query(subject, query)
 
             # read the nodes
-            with self.tracer.start_as_current_span("graph.search.read") as span:
+            with self.tracer.start_as_current_span(f"{self.name}.search.read") as span:
                 async with self._graph_lock.read(query):
                     connection = await self.connector.connect(
                         query=adapted_query,
@@ -708,7 +706,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     )
 
         # check access & prune result
-        with self.tracer.start_as_current_span("graph.search.check_access"):
+        with self.tracer.start_as_current_span(f"{self.name}.search.check_access"):
             matrix = generate_access_matrix(subject, result.graph, supergraph=session._supergraph)
             decision, accesses, adapted_nodes = evaluate_and_adapt_read(
                 matrix,
@@ -721,7 +719,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                 raise AccessError(accesses)
 
         self.logger.info(
-            "graph.search",
+            f"{self.name}.search",
             subject=subject,
             query=query,
             connection=connection,
@@ -753,7 +751,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         )
         try:
             self.logger.info(
-                "graph.watch_search",
+                f"{self.name}.watch_search",
                 subject=subject,
                 subscription=subscription,
                 connection=subscription.connection,
@@ -784,7 +782,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         metadata = wiring.unpack_rpc_headers(headers)
         subject = await self.get_request_subject(request, metadata)
         async with self.new_request_session(supergraph=subject._supergraph) as session:
-            with self.tracer.start_as_current_span("graph.aggregate.parse"):
+            with self.tracer.start_as_current_span(f"{self.name}.aggregate.parse"):
                 filter = wiring.unpack_builtin_object_validate_maybe(
                     request.filter, supergraph=session._supergraph, expect=Expression
                 )
@@ -799,7 +797,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                 )
                 adapted_query = self._adapt_read_query(subject, query)
 
-            with self.tracer.start_as_current_span("graph.aggregate.read") as span:
+            with self.tracer.start_as_current_span(f"{self.name}.aggregate.read") as span:
                 async with self._graph_lock.read(query):
                     connection = await self.connector.connect(
                         query=adapted_query,
@@ -814,7 +812,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         # TODO :Security!: check aggregation access
 
         self.logger.debug(
-            "graph.aggregate", subject=subject, epoch=self._local_epoch, span="current"
+            f"{self.name}.aggregate", subject=subject, epoch=self._local_epoch, span="current"
         )
         return AggregateNodesResponse(
             aggregation=connection.result.aggregation,
@@ -839,7 +837,6 @@ class CommitArea(NamedTuple):
     graph_scopes: tuple[GraphScopeData, ...]
 
 
-@tracer.start_as_current_span(name="graph.extract_commit_area")
 def extract_commit_area(edits: Sequence[EditData], base_graph: NodeDataGraph | None) -> CommitArea:
     """
     Gets the specific nodes (scopes) and related snodes that are edited. :NodeEditScope

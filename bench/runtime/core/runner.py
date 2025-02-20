@@ -363,14 +363,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             return False
         runner = self
         while runner is not None:
-            if (
-                runner.tracked_run is not None
-                and runner.tracked_run.paused_at
-                and (
-                    not runner.tracked_run.resumed_at
-                    or runner.tracked_run.resumed_at < runner.tracked_run.paused_at
-                )
-            ):
+            if runner.tracked_run is not None and runner.tracked_run.should_pause:
                 return True
             runner = runner.parent
         return False

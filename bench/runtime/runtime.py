@@ -305,17 +305,17 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         await super().wait_stopped()
         await asyncio.gather(*(t.wait_stopped() for t in self._threads), return_exceptions=True)
 
-    @tracer.start_as_current_span("runtime.run")
+    @tracer.start_as_current_span("runtime_service.run")
     async def _do_run(self, run: RunHandle):
         run.started_at = self.oracle.utc()
         self._active_runs.append(run)
         try:
             # acquire thread
-            with tracer.start_as_current_span("runtime.acquire_thread"):
+            with tracer.start_as_current_span("runtime_service.acquire_thread"):
                 await self._run_semaphore.acquire()
                 run.thread = min(self._threads, key=lambda t: len(t._active_runs))
                 run.thread._active_runs.append(run)
-                logger.trace("runtime.acquire_thread", runtime=self, thread=run.thread)
+                logger.trace("runtime_service.acquire_thread", runtime=self, thread=run.thread)
             # run in thread
             try:
                 # schedule extra healthcheck to ensure consistent termination
@@ -332,14 +332,21 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                 else:
                     assert_never(run.thread.client)
                 extra_healthcheck.cancel()  # no longer needed
-                logger.info("runtime.run", thread=run.thread, run=run.run_ptr, span="current")
+                logger.info(
+                    "runtime_service.run",
+                    thread=run.thread,
+                    run=run.run_ptr,
+                    span="current",
+                )
             except Exception as e:
-                logger.error("runtime.run.error", thread=run.thread, run=run.run_ptr, exc_info=e)
+                logger.error(
+                    "runtime_service.run.error", thread=run.thread, run=run.run_ptr, exc_info=e
+                )
                 raise
             finally:
                 self._run_semaphore.release()
                 run.thread._active_runs.remove(run)
-                logger.trace("runtime.release_thread", runtime=self, thread=run.thread)
+                logger.trace("runtime_service.release_thread", runtime=self, thread=run.thread)
         finally:
             self._active_runs.remove(run)
 

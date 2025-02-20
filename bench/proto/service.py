@@ -205,7 +205,7 @@ class ServiceBase(abc.ABC):
                             await stream.send_message(response)
                     else:
                         raise RuntimeError(f"unsuported cardinality {handler.cardinality}")
-                    log.info(rpc_name, span="current")
+                    log.trace(rpc_name, span="current")
                 except GRPCError as e:
                     # pass through GRPC errors
                     log.error(f"{rpc_name}.error", exc_info=e, span="current")

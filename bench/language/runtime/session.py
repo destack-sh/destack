@@ -768,7 +768,7 @@ class Session(RuntimeNode[SessionData]):
                 await self._on_commit(self, graph, data_graph, edits, cascaded_edits)
                 self._pending_nodes_by_id = {}
 
-            log.debug("session.commit")
+            log.trace("session.commit")
             return edits, cascaded_edits
         except BaseException as e:
             if self._on_commit_failed is not None:

@@ -101,7 +101,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
 
     def _abort(self):
         """Abort any contained Actions (and any relevant Interrupts)."""
-        logger.debug("flow.abort", flow=self.node, runner=self)
+        logger.trace("flow.abort", flow=self.node, runner=self)
         for runner in self.runners:
             if (
                 isinstance(runner.node, Action) and runner.node.type.is_boundary
@@ -331,7 +331,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         for pipe in uncalled_call_pipes:
             self._start(pipe, incoming=(run,))
 
-        logger.debug("flow.tick", flow=self.node, node=runner.node, runner=runner)
+        logger.trace("flow.tick", flow=self.node, node=runner.node, runner=runner)
         return TickActionResult(new_runs=new_runs, is_handled=len(new_runs) > 0 or handled_fail)
 
     def _tick_pipe(self, runner: PipeRunner, pipe: Pipe, event: RunnerEvent) -> TickPipeResult:

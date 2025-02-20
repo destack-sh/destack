@@ -277,7 +277,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
 
     @property
     def ancestors(self):
-        parent = self
+        parent = self.parent
         while isinstance(parent, Run):
             yield parent
             parent = parent.parent
@@ -413,15 +413,38 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         """Mark this Run as resumed."""
         assert self._session is not None, f"{self!r} has no session"
         self.resumed_at = self._session._oracle.utc()
-        if (runtime := self.runtime) is not None and _trigger_runtime:
+        if (
+            (runtime := self.runtime) is not None
+            and self.session_id == runtime.session_id
+            and _trigger_runtime
+        ):
             runtime.resume_run(self)
 
     def stop(self, _trigger_runtime: bool = True):
         """Mark this Run as stopped."""
         assert self._session is not None, f"{self!r} has no session"
         self.stopped_at = self._session._oracle.utc()
-        if (runtime := self.runtime) is not None and _trigger_runtime:
+        if (
+            (runtime := self.runtime) is not None
+            and self.session_id == runtime.session_id
+            and _trigger_runtime
+        ):
             runtime.stop_run(self)
+
+    @property
+    def should_pause(self) -> bool:
+        return not (self.status.is_terminal or self.stopped_at is not None) and (
+            self.paused_at is not None
+            and (self.resumed_at is None or self.paused_at > self.resumed_at)
+        )
+
+    @property
+    def should_resume(self) -> bool:
+        return not (self.status.is_terminal or self.stopped_at is not None) and (
+            self.resumed_at is not None
+            and (self.paused_at is None or self.paused_at < self.resumed_at)
+            and (self.interrupted_at is None or self.interrupted_at < self.resumed_at)
+        )
 
     def _mark_terminated(self):
         """Mark this Run as stopped."""
@@ -446,9 +469,9 @@ class Run(RuntimeNode[RunData], HasNodeBase):
 
     cancel = abort = stop
 
-    async def wait_until_status(self, status: RunStatus, timeout: timedelta | None = None):
+    async def wait_until_status(self, *status: RunStatus, timeout: timedelta | None = None):
         """Wait until this Run reaches the given status."""
-        await self.wait_until(lambda self: self.status == status, timeout=timeout)
+        await self.wait_until(lambda self: self.status in status, timeout=timeout)
 
     async def wait_until_terminated(self, timeout: timedelta | None = None):
         """Wait until this Run is terminated."""

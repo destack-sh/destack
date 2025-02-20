@@ -16,6 +16,7 @@ from bench.language import (
     RUN_STATUS_BY_INTERRUPTION_TYPE,
     RUNTIME_NODE_TYPES,
     Action,
+    Bench,
     BenchError,
     BreakpointSite,
     BuiltinObject,
@@ -116,6 +117,7 @@ class Runtime:
         self.session = session
         self.session._graph.add_types(*RUNTIME_NODE_TYPES)
         self.session_ptr = session.to_ref()
+        self.session_id = session.id
         self.bench = session.bench
         self.cache = cache
         self.oracle = oracle
@@ -447,7 +449,7 @@ class Runtime:
                         invalid=on_invalid_raise,
                     )
             span.status = RunStatus.COMPLETED
-            log.debug("runtime.attempt.completed", attempt=span, span="current")
+            log.trace("runtime.attempt.completed", attempt=span, span="current")
         except asyncio.CancelledError as e:
             # cancelled
             span.status = RunStatus.ABORTED
@@ -692,6 +694,7 @@ class Runtime:
                 else:
                     # no attempts, shouldn't actually get here if RetryOptions.max_attempts > 0
                     raise NonRetryableError(title="retry exhausted")
+            logger.debug("runtime.run_run.completed", runtime=self, runner=runner, span="current")
         finally:
             # reset active run
             self._active_runner.reset(active_runner_token)
@@ -733,104 +736,101 @@ class Runtime:
     @tracer.start_as_current_span("runtime.run")
     async def run_runner(self, runner: Runner[Any]):
         """Runs a Runner, retrying automatically and updating the tracked Run along the way."""
+        if runner.status.is_terminal:
+            return  # already terminated
         if runner.parent is None:
             self._active_root_runners.append(runner)
         self._active_runners_by_id[runner.id] = runner
 
-        async with self.session.active():
-            span = runner.tracked
-            self._set_context(span)
-            context.attach(baggage.set_baggage("run_id", str(span.id)))
+        span = runner.tracked
+        self._set_context(span)
+        context.attach(baggage.set_baggage("run_id", str(span.id)))
 
-            # mark started
-            if span.started_at is None:
-                span.started_at = self.oracle.utc()
-            span.status = RunStatus.RUNNING
+        # mark started
+        if span.started_at is None:
+            span.started_at = self.oracle.utc()
+        span.status = RunStatus.RUNNING
+        self.session.commit_optimistic()
+
+        # actually attempt Run
+        try:
+            assert (
+                runner.parent is None or not runner.parent.status.is_terminal
+            ), f"parent {runner.parent!r} was terminated"
+            if runner.tracked_span is not None:
+                await self._run_span(runner)
+            elif runner.tracked_run is not None:
+                await self._prefetch_context(runner)
+                if runner.status < RunStatus.RUNNING:
+                    await self._prepare_run(runner)
+                await self._run_run(runner)
+            else:
+                raise RuntimeError(f"missing tracked for {runner!r}")
+        except Interrupted as e:
+            if not runner.status.is_interrupted:
+                # interruption not handled in attempt loop (probably from a breakpoint)
+                last_attempt = runner.current_attempt
+                interrupted_at = (
+                    last_attempt.interrupted_at if last_attempt is not None else self.oracle.utc()
+                )
+                runner.status = RUN_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
+                span.interrupted_at = interrupted_at
+            else:
+                span.interrupted_at = self.oracle.utc()
+            span.interruption = e.interruption
+            raise
+        except BaseException:
+            raise
+        finally:
+            # update span from runner
+            if span.error is not runner.error:
+                span.error = runner.error
+            if span.status != runner.status:
+                span.status = runner.status
+            if type(span) is Run:
+                if span.variables is not runner.variables:
+                    span.variables = runner.variables
+                if span.inputs is not runner.inputs:
+                    span.inputs = runner.inputs
+                if span.outputs is not runner.outputs:
+                    span.outputs = runner.outputs
+            if runner.status.is_terminal:
+                # update terminal status
+                last_attempt = runner.current_attempt
+                if last_attempt is not None:
+                    # made an attempt
+                    span.terminated_at = last_attempt.terminated_at
+                    if last_attempt.duration is not None:
+                        span.duration = last_attempt.duration
+                elif span.terminated_at is not None:
+                    # didn't make an attempt, but we have a terminated_at
+                    span.duration = span.terminated_at - span.started_at  # type: ignore
+                else:
+                    # didn't make an attempt
+                    span.terminated_at = self.oracle.utc()
+                    span.duration = span.terminated_at - span.started_at  # type: ignore
+                # close any remaining (directly) contained open Interruptions
+                runner.close(resume=not runner.is_root)
+
+            # commit intermediate session edits
             self.session.commit_optimistic()
 
-            # actually attempt Run
-            try:
-                assert (
-                    runner.parent is None or not runner.parent.status.is_terminal
-                ), f"parent {runner.parent!r} was terminated"
-                if runner.tracked_span is not None:
-                    await self._run_span(runner)
-                elif runner.tracked_run is not None:
-                    await self._prefetch_context(runner)
-                    if runner.status < RunStatus.RUNNING:
-                        await self._prepare_run(runner)
-                    await self._run_run(runner)
-                else:
-                    raise RuntimeError(f"missing tracked for {runner!r}")
-            except Interrupted as e:
-                if not runner.status.is_interrupted:
-                    # interruption not handled in attempt loop (probably from a breakpoint)
-                    last_attempt = runner.current_attempt
-                    interrupted_at = (
-                        last_attempt.interrupted_at
-                        if last_attempt is not None
-                        else self.oracle.utc()
-                    )
-                    runner.status = RUN_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
-                    span.interrupted_at = interrupted_at
-                else:
-                    span.interrupted_at = self.oracle.utc()
-                span.interruption = e.interruption
-                raise
-            except BaseException:
-                raise
-            finally:
-                # update span from runner
-                if span.error is not runner.error:
-                    span.error = runner.error
-                if span.status != runner.status:
-                    span.status = runner.status
-                if type(span) is Run:
-                    if span.variables is not runner.variables:
-                        span.variables = runner.variables
-                    if span.inputs is not runner.inputs:
-                        span.inputs = runner.inputs
-                    if span.outputs is not runner.outputs:
-                        span.outputs = runner.outputs
-                if runner.status.is_terminal:
-                    # update terminal status
-                    last_attempt = runner.current_attempt
-                    if last_attempt is not None:
-                        # made an attempt
-                        span.terminated_at = last_attempt.terminated_at
-                        if last_attempt.duration is not None:
-                            span.duration = last_attempt.duration
-                    elif span.terminated_at is not None:
-                        # didn't make an attempt, but we have a terminated_at
-                        span.duration = span.terminated_at - span.started_at  # type: ignore
-                    else:
-                        # didn't make an attempt
-                        span.terminated_at = self.oracle.utc()
-                        span.duration = span.terminated_at - span.started_at  # type: ignore
-                    # close any remaining (directly) contained open Interruptions
-                    runner.close(resume=not runner.is_root)
-
-                # commit intermediate session edits
-                self.session.commit_optimistic()
-
-                # notify
-                self._active_runners_by_id.pop(runner.id, None)
-                if runner.parent is None:
-                    self._active_root_runners.remove(runner)
-                if runner.status.is_interrupted:
-                    assert runner.interruption is not None, f"missing interruption for {runner!r}"
-                    runner.fire_event(
-                        RunnerInterruptedEvent(runner, interruption=runner.interruption)
-                    )
-                elif runner.status == RunStatus.COMPLETED:
-                    runner.fire_event(RunnerCompletedEvent(runner, outputs=runner.outputs))
-                elif runner.status == RunStatus.FAILED:
-                    assert runner.error is not None, f"missing error for {runner!r}"
-                    runner.fire_event(RunnerFailedEvent(runner, error=runner.error))
-                elif runner.status == RunStatus.ABORTED:
-                    runner.fire_event(RunnerAbortedEvent(runner))
-                elif runner.status == RunStatus.CANCELLED:
-                    runner.fire_event(RunnerCancelledEvent(runner))
+            # notify
+            self._active_runners_by_id.pop(runner.id, None)
+            if runner.parent is None:
+                self._active_root_runners.remove(runner)
+            if runner.status.is_interrupted:
+                assert runner.interruption is not None, f"missing interruption for {runner!r}"
+                runner.fire_event(RunnerInterruptedEvent(runner, interruption=runner.interruption))
+            elif runner.status == RunStatus.COMPLETED:
+                runner.fire_event(RunnerCompletedEvent(runner, outputs=runner.outputs))
+            elif runner.status == RunStatus.FAILED:
+                assert runner.error is not None, f"missing error for {runner!r}"
+                runner.fire_event(RunnerFailedEvent(runner, error=runner.error))
+            elif runner.status == RunStatus.ABORTED:
+                runner.fire_event(RunnerAbortedEvent(runner))
+            elif runner.status == RunStatus.CANCELLED:
+                runner.fire_event(RunnerCancelledEvent(runner))
 
     async def _wrap_run_runner(self, runner: Runner):
         """Run the runner at the top-level, handling any exceptions."""
@@ -874,71 +874,59 @@ class Runtime:
             run_ptr = run_ptr.to_ref()
         assert run_ptr.id is not None, f"missing id for {run_ptr!r}"
         trace.get_current_span().set_attribute("run_id", str(run_ptr.id))
+
+        # already loaded
         if run_ptr.id in self._owned_runners_by_id:
             runner = self._owned_runners_by_id[run_ptr.id]
             assert runner.tracked_run is not None, f"missing tracked run for {runner!r}"
             return runner, runner.tracked_run
 
-        # synchronize access so we don't load the same Run twice in case of overlapping requests
-        if run_ptr.id in self._locks_by_id:
-            lock = self._locks_by_id[run_ptr.id]
-        else:
-            lock = asyncio.Lock()
-            self._locks_by_id[run_ptr.id] = lock
+        # load run
+        run = await Run.include_descendants(
+            NodeType.RUN, NodeType.RUN_SPAN, NodeType.PLAN, NodeType.INTERRUPTION
+        ).get(run_ptr, live=True)
+        run._graph.add_types(*RUNTIME_NODE_TYPES)
+        assert run.root_ptr is None, f"{run!r} is not a root Run"
+        assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
 
-        # actually load the Run (synchronized)
-        async with lock:
-            if run_ptr.id not in self._owned_runners_by_id:
-                with tracer.start_as_current_span("thread.load"):
-                    async with self.session.active():
-                        run = await Run.include_descendants(
-                            NodeType.RUN, NodeType.RUN_SPAN, NodeType.PLAN, NodeType.INTERRUPTION
-                        ).get(run_ptr, live=True)
-                        run._graph.add_types(*RUNTIME_NODE_TYPES)
-                    assert run.root_ptr is None, f"{run!r} is not a root Run"
-                    assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
-                    runner = restore_runner(runtime=self, run=run)
-                    runner.connection = run._connection
-                    self._owned_runners_by_id[run_ptr.id] = runner
-                    run._connection.on_update(
-                        lambda _, update: self._on_external_update(runner, update)
-                    )
-                return runner, run
-            else:
-                # already loaded
-                runner = self._owned_runners_by_id[run_ptr.id]
-                assert runner.tracked_run is not None, f"missing tracked run for {runner!r}"
-                return runner, runner.tracked_run
+        # runner
+        runner = restore_runner(runtime=self, run=run)
+        runner.connection = run._connection
+        self._owned_runners_by_id[run_ptr.id] = runner
+        run._connection.on_update(lambda _, update: self._on_update(runner, update))
+        return runner, run
 
-    def _on_external_update(self, runner: Runner, update: WatchGetUpdate):
+    def _on_run_update(self, runner: Runner, run: Run):
+        """React to updates on a Run from outside this Runtime."""
+        if run.status.is_terminal:
+            return  # nothing to do anymore
+        elif run.stopped_at:
+            self.stop_run(run)
+        elif run.paused_at and (not run.resumed_at or run.paused_at > run.resumed_at):
+            pass  # nothing to do (pause is trapped automatically)
+        elif run.resumed_at and (not run.paused_at or run.resumed_at > run.paused_at):
+            # close open Interruption, resume affected Runs
+            interruption = run.interruption
+            if (
+                interruption
+                and interruption.type == InterruptionType.PAUSE
+                and not interruption.status.is_closed
+            ):
+                interruption.complete(_trigger_runtime=False)
+            self.resume_run(run, *run.ancestors)
+
+    def _on_interrupt_update(self, runner: Runner, interruption: Interruption):
+        """React to updates on an Interruption from outside this Runtime."""
+        if interruption.status.is_closed:
+            self.resume_run(*self.get_interrupted_runs(self.session._graph, interruption))
+
+    def _on_update(self, runner: Runner, update: WatchGetUpdate):
         """React to updates on Runtime nodes from outside this Runtime."""
-        print("on_external_update", runner, update)
-        to_resume: set[Run] = set()
         for node in update.updated.values():
-            # react to Run/Interruption updates in Runtime
             if isinstance(node, Run):
-                if node.status.is_terminal:
-                    continue  # nothing to do anymore
-                if node.stopped_at:
-                    self.stop_run(node)
-                elif node.paused_at and (not node.resumed_at or node.paused_at > node.resumed_at):
-                    pass  # nothing to do (pause is trapped automatically)
-                elif node.resumed_at and (not node.paused_at or node.resumed_at > node.paused_at):
-                    # close open Interruption, resume affected Runs
-                    interruption = node.interruption
-                    if (
-                        interruption
-                        and interruption.type == InterruptionType.PAUSE
-                        and not interruption.status.is_closed
-                    ):
-                        interruption.complete(_trigger_runtime=False)
-                    to_resume.add(node)
-                    to_resume.update(node.ancestors)
+                self._on_run_update(runner, node)
             elif isinstance(node, Interruption):
-                if node.status.is_closed:
-                    to_resume.update(self.get_interrupted_runs(self.session._graph, node))
-        if to_resume:
-            self.resume_run(*to_resume)
+                self._on_interrupt_update(runner, node)
 
     async def run(
         self,
@@ -950,15 +938,28 @@ class Runtime:
         Run a top-level Run in this Runtime. This Runtime will assume ownership of the Run.
         Automatically lifts the Run into a higher or existing Run if needed.
         """
+        assert run.id is not None, f"missing id for {run!r}"
         if self._is_stop_requested:
             raise RuntimeError(f"{self!r} was stopped")
 
+        # synchronize
+        if run.id in self._locks_by_id:
+            run_lock = self._locks_by_id[run.id]
+        else:
+            run_lock = asyncio.Lock()
+            self._locks_by_id[run.id] = run_lock
+
         async with self.session.active():
-            # get runner
-            if isinstance(run, NodeReference):
-                runner, run = await self._load_runner(run)
-            else:
-                runner = self.restore_runner(run)
+            # get runner (exclusively)
+            async with run_lock:
+                if run.id in self._active_runners_by_id:
+                    # already have this runner as active, bail
+                    return self._active_runners_by_id[run.id]
+                elif isinstance(run, NodeReference):
+                    # may already be owned but not currently active
+                    runner, run = await self._load_runner(run)
+                else:
+                    runner = self.restore_runner(run)
             inner_runner = runner
 
             # lift run into existing / higher flow
@@ -1019,7 +1020,7 @@ class Runtime:
                     inner_runner = r
                     break
             else:
-                raise RuntimeError(f"missing lifted inner runner for {runner!r}")
+                raise RuntimeError(f"missing lifted inner {inner_runner!r} in {runner!r}")
 
         return inner_runner
 
@@ -1038,18 +1039,35 @@ class Runtime:
 
     def resume_run(self, *runs: Run):
         """Resume interrupted Runs. Does *not* mark the Run or close open Interruptions."""
-        # nocheckin: resume top-level Run by calling run_runner again?
         if self._is_stop_requested:
             raise RuntimeError(f"{self!r} was stopped")
-        runs_by_parent_id: dict[UUID | None, list[Run]] = group_by(
-            runs, key=lambda run: run.parent_id
+        runs_by_parent: dict[Run | Bench | None, list[Run]] = group_by(
+            runs, key=lambda run: run.parent
         )
-        for parent_id, child_runs in runs_by_parent_id.items():
-            if parent_id is None:
-                continue  # top-level Run has no parent Runner to resume it in
-            parent_runner = self._owned_runners_by_id.get(parent_id)
-            if parent_runner is not None:
-                parent_runner.run_inner(child_runs)
+        for parent, child_runs in runs_by_parent.items():
+            assert parent is not None, f"missing parent for {child_runs!r}"
+            if isinstance(parent, Bench):
+                # resume root runs
+                for root_run in child_runs:
+                    runner = self.restore_runner(root_run)
+                    logger.debug("runtime.resume_run", run=root_run, runner=runner)
+                    self.run_runner_soon(runner)
+            elif isinstance(parent, Run):
+                # resume child runs within their parent
+                parent_runner = self._active_runners_by_id.get(parent.id)
+                if parent_runner is not None and parent_runner:
+                    parent_runner.run_inner(child_runs)
+                    logger.debug(
+                        "runtime.resume_run",
+                        run=parent,
+                        runner=parent_runner,
+                        inner_runs=child_runs,
+                    )
+                else:
+                    root_run = parent.root or parent
+                    root_runner = self.restore_runner(root_run)
+                    logger.debug("runtime.resume_run.inner", run=parent, runner=root_runner)
+                    self.run_runner_soon(root_runner)
 
     def stop_run(self, run: Run):
         """Kill a Run that is currently active in this Runtime (and any inside it)."""
@@ -1058,6 +1076,6 @@ class Runtime:
             raise RuntimeError(f"no active runner for {run!r} in {self!r}")
         for runner in reversed(list(root_runner.walk())):
             if not runner.status.is_terminal:
+                logger.debug("runtime.stop_run", runner=runner)
                 runner.stop()
                 runner.close(resume=not runner.is_root)
-                logger.debug("runtime.run.stop", runner=runner)

@@ -1412,7 +1412,7 @@ class NodeSubtypeStub[NodeT: Node]:
 
 @object_()
 class HasContext(BuiltinObject):
-    """Context for a Node sonewhere."""
+    """Context for a Node."""
 
     # NOTE :Security: session context properties are p_internal (not p_system) so we can update
     #   them in all Clients. But this also means Users could mess with them if they really want to.
