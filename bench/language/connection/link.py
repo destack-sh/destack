@@ -51,9 +51,7 @@ class NodeLink:
     def is_active(self) -> bool:
         """Whether the link is still active."""
         return (
-            self._connection is not None
-            and self._connection.is_live
-            and not self._connection.is_open
+            self._connection is not None and self._connection.is_live and self._connection.is_open
         )
 
     def on_update(self, sub: Callable[[], None]):
@@ -63,6 +61,7 @@ class NodeLink:
 
     def _apply_update(self, update: WatchGetUpdate):
         """'Apply' the updates from a live connection to our graphs (patching nodes in place)."""
+        logger.trace("link.apply_update", link=self, update=update)
         touched_our_nodes = False
         for live_node in update.updated.values():
             our_node = self.nodes_by_id.get(live_node.id)
@@ -90,6 +89,7 @@ class NodeLink:
 
     def close(self):
         """Close the link (and associated connection)."""
+        logger.trace("link.close", link=self)
         if self._connection is not None:
             self._connection.close()
             self._connection.detach()

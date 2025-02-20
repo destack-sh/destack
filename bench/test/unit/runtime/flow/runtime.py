@@ -20,7 +20,7 @@ from bench.test.unit.conftest import simulated_runtime
 
 
 @simulated_runtime(runtimes=True)
-async def test_run_in_runtime(simulation: Simulation, runtime: RuntimeLambdaWorkload):
+async def test_start_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Run and wait for it to execute in another Runtime."""
     Page1 = runtime.page()
     Flow1 = Flow.new("Flow1")
@@ -33,9 +33,7 @@ async def test_run_in_runtime(simulation: Simulation, runtime: RuntimeLambdaWork
 
 
 @simulated_runtime(runtimes=True)
-async def test_run_flow_start_run_from_message(
-    simulation: Simulation, runtime: RuntimeLambdaWorkload
-):
+async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Run from a Message in a Flow. Should be lifted into a Flow Run."""
     Channel1 = Channel.new("General")
     Flow1 = Flow.new("Flow1")
@@ -54,9 +52,7 @@ async def test_run_flow_start_run_from_message(
 
 
 @simulated_runtime(runtimes=True)
-async def test_run_flow_pause_resume_in_runtime(
-    simulation: Simulation, runtime: RuntimeLambdaWorkload
-):
+async def test_pause_resume_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a long async Flow and pause it, then resume it."""
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
@@ -75,9 +71,10 @@ async def test_run_flow_pause_resume_in_runtime(
     # run, pause, then resume
     run = create_run_from_node(Flow1)
     await runtime.commit()
-    asyncio.get_event_loop().call_later(0.2, pause_run, run)
-    await run.wait_until_status(RunStatus.PAUSED)
+    asyncio.get_event_loop().call_later(0.5, lambda: asyncio.create_task(pause_run(run)))
+    await run.wait_until_status(RunStatus.PAUSED, *TERMINAL_RUN_STATUSES)
+    assert run.status == RunStatus.PAUSED
     run.resume()
     await runtime.commit()
-    await run.wait_until_status(RunStatus.COMPLETED)
+    await run.wait_until_terminated()
     assert run.status == RunStatus.COMPLETED

@@ -169,6 +169,14 @@ const {
     }),
   ),
 );
+// nocheckin: Message pagination
+//  (keep two sets of connections to concatenate and swap back and forth (like paging in and out)?;
+//  look at how Discord does it, they unload the newer/older messages as you scroll in a Minecraft-chunk-like way)
+
+//
+// Views
+//
+
 const remoteAuthorsPtr: Ref<NodeReferenceData[]> = computed(() => {
   const authorsPtrById: Record<string, NodeReferenceData> = {};
   for (const message of messages.value) {
@@ -479,7 +487,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
       <ul
         class="relative mb-4 mt-2 flex flex-col"
         :class="[props.alignment == Alignment.END ? 'justify-end' : '']"
-        :style="{ minHeight: bodyHeight != null ? (bodyHeight - 32) + 'px' : undefined }"
+        :style="{ minHeight: bodyHeight != null ? bodyHeight - 32 + 'px' : undefined }"
       >
         <!-- (Inline) Header -->
         <div v-if="$slots.header && node" class="mx-5 mb-2">
