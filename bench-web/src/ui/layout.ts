@@ -274,6 +274,7 @@ export function useScrollArea(area: {
   isThumbScrolling: Ref<boolean>;
   isNativeScrolling: Ref<boolean>;
   isOverflown: Ref<boolean>;
+  isAtStart: Ref<boolean>;
   isAtEnd: Ref<boolean>;
   scroll: ReturnType<typeof useScroll>;
   containerSize: ReturnType<typeof useElementSize>;
@@ -358,6 +359,13 @@ export function useScrollArea(area: {
   });
   watch(isThumbScrolling, () => (_isDraggingGlobal.value = isThumbScrolling.value));
 
+  const isAtStart = computed(() => {
+    if (area.container.value == null) return false;
+    const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
+    const scrollPos = isHorizontal ? scroll.x.value : scroll.y.value;
+    return scrollPos <= 0;
+  });
+
   const isAtEnd = computed(() => {
     if (area.container.value == null) return false;
     const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
@@ -374,6 +382,7 @@ export function useScrollArea(area: {
     isThumbScrolling,
     isNativeScrolling: scroll.isScrolling,
     isOverflown,
+    isAtStart,
     isAtEnd,
     scroll,
     containerSize,

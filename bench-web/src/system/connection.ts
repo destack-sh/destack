@@ -31,6 +31,7 @@ import {
   NodeType,
   ObjectType,
   SelectOptionsData,
+  Timestamp,
   type GraphScopeData,
   type NodeTypeMapping,
 } from "@/proto/wire";
@@ -1295,8 +1296,6 @@ export function useGetConnection<T extends NodeType>(
 
 /**
  * Searches for nodes of the given type in the relevant subgraph, fetching/caching automatically.
- * If live, will also ensure that 1) edits for the result nodes are watched and 2) the search itself is watched.
- * TODO :Incomplete: paginate (across) search connections
  */
 export function useSearchConnection<T extends NodeType>(
   metaIn: ConnectionMetadataIn,
@@ -1340,13 +1339,29 @@ export function useSearchConnection<T extends NodeType>(
 }
 
 /**
- * Aggregates nodes of the given type in the relevant subgraph, fetching/caching automatically.
- * NOTE :Incomplete: live aggregation
- */
-export function useAggregateConnection(
-  params: MaybeRef<AggregateConnectionParams>,
-): AggregateConnectionResult & { connection: ConnectionBase<"aggregate", NodeType> } {
-  throw new Error("aggregate not yet implemented");
+ * Searches for nodes over two 'chunks' (pages) of results at a time for smooth scrolling (top and bottom).
+ * We assume sort by createdAt descending.
+ * */
+export function useChunkedSearchConnection<T extends NodeType>(
+  metaIn: ConnectionMetadataIn,
+  params: MaybeRef<Omit<SearchConnectionParams<T>, "first" | "skip" | "sort">>,
+  options: {
+    nodeType: T;
+    chunkSize: number;
+  },
+): SearchConnectionResult<T> & {
+  roots: Ref<NodeTypeMapping[T][]>;
+  mainConnection: Connection<"search", T>;
+  otherConnection: Connection<"search", T>;
+  isConnected: Ref<boolean>;
+  isAtStart: Ref<boolean>;
+  isAtEnd: Ref<boolean>;
+  scroll(side: "top" | "bottom"): void;
+} {
+  type Side = "top" | "bottom";
+  const mainSide = ref<Side>("bottom");
+  const otherSide = computed(() => (mainSide.value === "top" ? "bottom" : "top"));
+  const lastCursors: Ref<Timestamp[]> = ref([]);
 }
 
 //
