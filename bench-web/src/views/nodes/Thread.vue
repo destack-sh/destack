@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
+import { toCamelName } from "@/language/core/const";
 import { Alignment, NodeType, Orientation, RectangleData, ViewData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, pkgGraph } from "@/system/space";
@@ -70,7 +71,7 @@ defineExpose<ViewExpose>({ self, id });
           class="mt-1.5 px-0.5"
           is-minimal
           is-input
-          placeholder="Text..."
+          :placeholder="toCamelName(NodeType, nodePtr!.nodeType) + ' text...'"
           @update:model-value="(modelValue) => connection!.tx.update(node!, { text: modelValue }, { debounce: 'long' })"
         />
       </template>

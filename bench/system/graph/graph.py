@@ -487,7 +487,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             else:
                 raise retry.to_error("commit")
 
-        self.logger.trace(
+        self.logger.info(
             f"{self.name}.commit",
             subject=subject,
             request_edits=len(request.edits),
@@ -811,7 +811,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
 
         # TODO :Security!: check aggregation access
 
-        self.logger.debug(
+        self.logger.info(
             f"{self.name}.aggregate", subject=subject, epoch=self._local_epoch, span="current"
         )
         return AggregateNodesResponse(

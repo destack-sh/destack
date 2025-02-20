@@ -25,7 +25,7 @@ import {
 } from "@/proto/wire";
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { BENCH_SCOPE, benchPtr } from "@/system/client";
-import { SearchConnectionParams, useSearchConnection } from "@/system/connection";
+import { SearchConnectionParams, useChunkedSearchConnection } from "@/system/connection";
 import { bench, benchConnection, canvas, pkgGraph } from "@/system/space";
 import { user } from "@/system/user";
 import {
@@ -36,13 +36,12 @@ import {
   isActionEnabled,
   MESSAGE_CONTEXT_ACTIONS,
 } from "@/ui/action";
-import { isSelecting, startSelectingIfAllowed, useSelectionZone, useSingleDropZone } from "@/ui/drag";
+import { useSingleDropZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, tsToDt } from "@/utils/time";
 import RootHeader from "@/views/builtins/RootHeader.vue";
-import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
@@ -51,6 +50,8 @@ import { useElementSize, useEventListener } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, nextTick, Ref, ref, toRef } from "vue";
 
+const LOADING_SKELETON_COUNT = 3;
+const CHUNK_SIZE = 50;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MESSAGE_HEIGHT_MIN = 28;
 const MESSAGE_MAX_TIME_DELTA_SECONDS = 5 * 60; // 5 minutes
@@ -95,10 +96,6 @@ const threadPtr = computed(() => {
 // Messages
 //
 
-const DEFAULT_SORT = makeExpression({
-  type: ExpressionType.ASCENDING,
-  propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.createdAt),
-});
 const filter = computed(() => {
   const filters: ExpressionData[] = [];
   // channel
@@ -131,32 +128,31 @@ const filter = computed(() => {
     );
   }
   // scope
-  if (scopePtr.value != null) {
-    filters.push(
-      makeExpression({
-        type: ExpressionType.EQUALS,
-        propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.scopePtr),
-        value: scopePtr.value,
-      }),
-    );
-  } else {
-    filters.push(
-      makeExpression({
-        type: ExpressionType.NOT_EXISTS,
-        propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.scopePtr),
-      }),
-    );
-  }
+  // nocheckin: use Threads for scoping?
+  // if (scopePtr.value != null) {
+  //   filters.push(
+  //     makeExpression({
+  //       type: ExpressionType.EQUALS,
+  //       propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.scopePtr),
+  //       value: scopePtr.value,
+  //     }),
+  //   );
+  // } else {
+  //   filters.push(
+  //     makeExpression({
+  //       type: ExpressionType.NOT_EXISTS,
+  //       propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.scopePtr),
+  //     }),
+  //   );
+  // }
   return makeAndConditional(filters);
 });
 const {
   roots: messages,
-  connection,
-  graph,
-  isStale,
-  isConnecting,
-  isConnected,
-} = useSearchConnection(
+  mainConnection,
+  isAtStart,
+  isAtEnd,
+} = useChunkedSearchConnection(
   { name: "chat", live: true },
   computed(
     (): SearchConnectionParams<NodeType.MESSAGE> => ({
@@ -164,19 +160,24 @@ const {
       nodeType: NodeType.MESSAGE,
       count: true,
       isEnabled: channelPtr.value != null,
-      sort: [DEFAULT_SORT],
       filter: filter.value,
     }),
   ),
+  { nodeType: NodeType.MESSAGE, chunkSize: CHUNK_SIZE },
 );
-// nocheckin: Message pagination
-//  (keep two sets of connections to concatenate and swap back and forth (like paging in and out)?;
-//  look at how Discord does it, they unload the newer/older messages as you scroll in a Minecraft-chunk-like way)
 
 //
 // Views
 //
 
+const messagesInOrder = computed(() => {
+  const messagesInOrder = messages.value.slice().sort((a, b) => {
+    if (a.createdAt == null || b.createdAt == null) return 0;
+    else if (a.createdAt.seconds == b.createdAt.seconds) return a.createdAt.nanos - b.createdAt.nanos;
+    else return Number(a.createdAt.seconds - b.createdAt.seconds);
+  });
+  return messagesInOrder;
+});
 const remoteAuthorsPtr: Ref<NodeReferenceData[]> = computed(() => {
   const authorsPtrById: Record<string, NodeReferenceData> = {};
   for (const message of messages.value) {
@@ -214,8 +215,8 @@ type MessageView = {
 const messageViews = computed(() => {
   const views: MessageView[] = [];
   const viewsById: Record<string, MessageView> = {};
-  for (let i = 0; i < messages.value.length; i++) {
-    const message = messages.value[i];
+  for (let i = 0; i < messagesInOrder.value.length; i++) {
+    const message = messagesInOrder.value[i];
     const filesPtr = message.nodesPtr.filter((n) => n.nodeType == NodeType.FILE);
     const authorPtr = getMessageAuthorPtr(message);
     const author = authorPtr != null ? (remoteAuthorsById.value[authorPtr.id!] ?? supergraph.get(authorPtr)) : null;
@@ -227,11 +228,11 @@ const messageViews = computed(() => {
       isNewGroup = true;
       isNewDate = true;
     } else {
-      const previousDt = tsToDt(messages.value[i - 1].createdAt!);
+      const previousDt = tsToDt(messagesInOrder.value[i - 1].createdAt!);
       const currentDt = tsToDt(message.createdAt!);
       isNewGroup =
-        message.createdByPtr?.id != messages.value[i - 1]?.createdByPtr?.id ||
-        Math.abs(Number(messages.value[i - 1].createdAt!.seconds) - Number(message.createdAt!.seconds)) >
+        message.createdByPtr?.id != messagesInOrder.value[i - 1]?.createdByPtr?.id ||
+        Math.abs(Number(messagesInOrder.value[i - 1].createdAt!.seconds) - Number(message.createdAt!.seconds)) >
           MESSAGE_MAX_TIME_DELTA_SECONDS;
       isNewDate = previousDt.day != currentDt.day;
     }
@@ -291,7 +292,6 @@ const inputContainerSize = useElementSize(inputContainerRef);
 const containerRef = ref<HTMLDivElement | null>(null);
 const bodyScrollRef = ref<InstanceType<typeof Scroll> | null>(null);
 const editingTextRefs = ref<InstanceType<typeof Text>[] | null>(null); // there can only be one but it's inside a v-for (so it has to be an array)
-const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const bodyHeight = computed(() => {
   return props.size?.height != null
     ? props.size.height - inputContainerSize.height.value - (props.isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0)
@@ -301,10 +301,6 @@ const bodyHeight = computed(() => {
 const currentAuthor = user;
 const editingText = ref<TextData | null>(null);
 const editingPtr = ref<NodeReferenceData | null>(null);
-
-// selecting
-const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
-const isSelectingChat = computed(() => isSelecting());
 
 function focus() {
   inputRef.value?.focus?.();
@@ -328,6 +324,7 @@ function submitEdit() {
   if (message == null) throw new Error("message not found");
   const text = trimText(editingText.value ?? emptyText());
   if (isTextEmpty(text)) return; // don't create empty messages
+  const { connection } = supergraph.getLinkOrError(toNodeRef(message));
   connection.tx.update(message, { text });
 }
 
@@ -337,7 +334,7 @@ function submit() {
   if (channelPtr.value == null) throw new Error("no channel");
   const text = trimText(draftText.value ?? emptyText());
   if (isTextEmpty(text)) return; // don't create empty messages
-  createMessage(connection.tx, graph, {
+  createMessage(mainConnection.tx, pkgGraph, {
     message: {
       type: replyTo.value != null ? MessageType.REPLY : MessageType.REGULAR,
       parentPtr: benchPtr.value,
@@ -481,7 +478,6 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
       :orientation="Orientation.VERTICAL"
       stick-to-end
       :size="{ height: bodyHeight }"
-      @mousedown="(e: MouseEvent) => startSelectingIfAllowed(selectionZone, e)"
     >
       <!-- Messages -->
       <ul
@@ -489,8 +485,25 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
         :class="[props.alignment == Alignment.END ? 'justify-end' : '']"
         :style="{ minHeight: bodyHeight != null ? bodyHeight - 32 + 'px' : undefined }"
       >
-        <!-- (Inline) Header -->
-        <div v-if="$slots.header && node" class="mx-5 mb-2">
+        <!-- Top placeholder -->
+        <div
+          v-for="i in LOADING_SKELETON_COUNT"
+          v-if="!isAtStart"
+          :key="i"
+          class="mx-5 mb-2 mt-3 flex animate-pulse flex-row"
+        >
+          <!-- Loading -->
+          <div :style="{ width: MESSAGE_SIDE_WIDTH + 'px' }" class="flex flex-col items-center">
+            <div class="h-8 w-8 rounded-full bg-gray-100"></div>
+          </div>
+          <div class="flex flex-1 flex-col gap-y-2">
+            <div class="h-2 w-20 rounded bg-gray-100" />
+            <div class="h-5 rounded bg-gray-100" />
+          </div>
+        </div>
+
+        <!-- Beginning of Chat -->
+        <div v-if="isAtStart && $slots.header" class="mx-5 mb-2">
           <slot name="header" />
         </div>
 
@@ -668,23 +681,23 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
             </div>
           </div>
         </li>
+
+        <!-- Loading down 'skeleton' -->
+        <div
+          v-for="i in LOADING_SKELETON_COUNT"
+          v-if="!isAtEnd"
+          :key="i"
+          class="mx-5 mb-1 mt-4 flex animate-pulse flex-row"
+        >
+          <div :style="{ width: MESSAGE_SIDE_WIDTH + 'px' }" class="flex flex-col items-center">
+            <div class="h-8 w-8 rounded-full bg-gray-100"></div>
+          </div>
+          <div class="flex flex-1 flex-col gap-y-2">
+            <div class="h-2 w-24 rounded bg-gray-100" />
+            <div class="h-5 rounded bg-gray-100" />
+          </div>
+        </div>
       </ul>
-
-      <!-- Loading -->
-      <div
-        v-if="messages.length == 0 && !isConnected"
-        class="mx-1.5 flex w-full flex-row items-center justify-center px-2.5"
-        :style="{
-          height: MESSAGE_HEIGHT_MIN + 'px',
-        }"
-      >
-        <span class="">
-          <i class="fas fa-spinner-third animate-spin text-gray-400" />
-        </span>
-      </div>
-
-      <!-- Selection -->
-      <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
     </Scroll>
 
     <!-- Input -->
