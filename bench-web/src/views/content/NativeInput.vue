@@ -132,10 +132,14 @@ defineExpose<ViewExpose & { select: () => void }>({
   focus: (anchor: FocusAnchor | NodeReferenceData | undefined = "right") => {
     if (anchor == "left") {
       inputRef.value?.focus();
-      inputRef.value?.setSelectionRange(0, 0);
+      if (inputType.value != "number") {
+        inputRef.value?.setSelectionRange(0, 0);
+      }
     } else {
       inputRef.value?.focus();
-      inputRef.value?.setSelectionRange(inputRef.value?.value?.length ?? 0, inputRef.value?.value?.length ?? 0);
+      if (inputType.value != "number") {
+        inputRef.value?.setSelectionRange(inputRef.value?.value?.length ?? 0, inputRef.value?.value?.length ?? 0);
+      }
     }
   },
   select: () => {
