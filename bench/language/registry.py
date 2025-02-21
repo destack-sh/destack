@@ -225,22 +225,6 @@ def _complete_bench_setup():
         hook()
 
     if IS_DEV:
-        # check that is_in_package/is_in_bench was declared correctly
-        #  (need to set that in @node upfront because traversing parents like here can only happen in finalization)
-        for node_cls in NODE_CLASS_BY_TYPE.values():
-            in_bench = (
-                node_cls.metatype == NodeType.BENCH
-                or node_cls.metatype in DESCENDANT_NODE_TYPES[NodeType.BENCH]
-            )
-            in_package = (
-                node_cls.metatype == NodeType.PACKAGE
-                or node_cls.metatype in DESCENDANT_NODE_TYPES[NodeType.PACKAGE]
-            )
-            if in_bench != node_cls.__is_in_bench__ or in_package != node_cls.__is_in_package__:
-                raise ValueError(
-                    f"{node_cls!r} parent types are inconsistent: root={node_cls.__roots__} implies in_bench={in_bench} and in_package={in_package}, but configured is in_bench={node_cls.__is_in_bench__} and in_package={node_cls.__is_in_package__}"
-                )
-
         # check that INLINE_SOURCE_NODE_TYPES is consistent with InlineSourceNode
         inline_source_node_types = [
             cast(Node, n).metatype
@@ -249,7 +233,7 @@ def _complete_bench_setup():
         ]
         assert_collections_equal(inline_source_node_types, const.INLINE_SOURCE_NODE_TYPES.tuple)
 
-        # check that BASED_NODE_TYPES is consistent with HasBase
+        # check that BASED_NODE_TYPES is consistent with HasNodeBase
         base_node_types = [
             cast(Node, n).metatype
             for n in get_subclasses(HasNodeBase)

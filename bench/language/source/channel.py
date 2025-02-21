@@ -5,15 +5,17 @@ from bench.language.core import (
     EnumType,
     InlineSourceNode,
     NodeType,
+    RemoteNodeList,
     enum_,
+    p_node_children,
     p_node_parent,
     p_regular,
     timed_node_,
 )
-from bench.pb2 import ChannelData
+from bench.pb2 import ChannelData, MessageData
 
 if TYPE_CHECKING:
-    from bench.language import Package, Page
+    from bench.language import Message, Package, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -34,6 +36,10 @@ class Channel(InlineSourceNode[ChannelData]):
     # meta
     parent: Union["Page", "Package", None] = p_node_parent(4, NodeType.PAGE, NodeType.PACKAGE)
     type: ChannelType = p_regular(30, require=True, default=ChannelType.TEXT)
+
+    messages: RemoteNodeList["Message", MessageData] = p_node_children(
+        NodeType.MESSAGE, list=RemoteNodeList
+    )
 
     @staticmethod
     def new(name: str, *, type: ChannelType = ChannelType.TEXT) -> "Channel":

@@ -186,16 +186,20 @@ const bottomPlaceholderVisible = useElementVisibility(bottomPlaceholderRef);
 
 // auto scroll up/down
 const now = getNow(TimeUpdateInterval.SECOND);
-const lastAutoscrollAt: Ref<DateTime | null> = ref(null);
+const lastAutoscrollAt: Ref<DateTime> = ref(now.value);
 watchEffect(() => {
   const millisecondsSinceLastAutoscroll =
     lastAutoscrollAt.value != null ? now.value.diff(lastAutoscrollAt.value, "milliseconds").milliseconds : Infinity;
-  if (isConnected.value && millisecondsSinceLastAutoscroll >= MIN_AUTOSCROLL_INTERVAL_MILLISECONDS) {
-    if (topPlaceholderVisible.value && !isAtStart.value) {
-      // go("up"); // nocheckin
+  if (
+    isConnected.value &&
+    messages.value.length > 0 &&
+    millisecondsSinceLastAutoscroll >= MIN_AUTOSCROLL_INTERVAL_MILLISECONDS
+  ) {
+    if ((topPlaceholderVisible.value || bodyScrollRef.value?.isCloseToStart) && !isAtStart.value) {
+      go("up"); 
       lastAutoscrollAt.value = DateTime.now();
-    } else if (bottomPlaceholderVisible.value && !isAtEnd.value) {
-      // go("down");
+    } else if ((bottomPlaceholderVisible.value || bodyScrollRef.value?.isCloseToEnd) && !isAtEnd.value) {
+      go("down");
       lastAutoscrollAt.value = DateTime.now();
     }
   }
@@ -382,7 +386,7 @@ function submit() {
   createMessage(txFactory(), pkgGraph, {
     message: {
       type: replyTo.value != null ? MessageType.REPLY : MessageType.REGULAR,
-      parentPtr: benchPtr.value,
+      parentPtr: threadPtr.value ?? channelPtr.value,
       channelPtr: channelPtr.value,
       threadPtr: threadPtr.value ?? undefined,
       scopePtr: scopePtr.value ?? undefined,

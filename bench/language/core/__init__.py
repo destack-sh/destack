@@ -151,7 +151,7 @@ from .graph import (
     NodeSuperGraph,
 )
 from .icon import Icon, IconIn, IconType, reverse_icon, to_icon
-from .list import LocalNodeList, NodeList, RemoteNodeList, ValueList
+from .list import LocalNodeList, NodeList, RecordNodeList, RemoteNodeList, ValueList
 from .node import (
     FIELD_BASE_NODE_TYPES,
     RUNNABLE_NODE_TYPES,
@@ -493,6 +493,7 @@ __all__ = [
     "PropertyReferenceType",
     "Query",
     "QueryType",
+    "RecordNodeList",
     "ReferenceKind",
     "Region",
     "RegionArea",

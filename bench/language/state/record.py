@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, cast, final
+from typing import TYPE_CHECKING, Any, Optional, Union, cast, final
 
 import structlog
 
@@ -12,6 +12,7 @@ from bench.language.core import (
     TypeBase,
     node_,
     p_internal,
+    p_node_parent,
     p_regular,
     p_system,
     p_value_packed,
@@ -36,9 +37,11 @@ logger = structlog.get_logger(__name__)
 )
 class Record(StateNode[RecordData], HasNodeBase):
     """
-    A Record from a Database. May reference other Records (except for :ManyToManyRecords).
+    A Record from a Database.
     """
 
+    # meta
+    parent: Union["Database", "Record", None] = p_node_parent(4, NodeType.DATABASE, NodeType.RECORD)
     # type: RecordType?
     name: Optional[str] = p_regular(32, default=None)
     order_key: str | None = p_internal(33, default=INTEGER_ZERO)
