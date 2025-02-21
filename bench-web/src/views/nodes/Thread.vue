@@ -51,7 +51,8 @@ defineExpose<ViewExpose>({ self, id });
       }"
       v-bind="state.getChildState('chat')"
     >
-      <template v-if="node" v-slot:header>
+      <!-- Beginning -->
+      <template v-if="node" v-slot:beginning>
         <!-- Title -->
         <NodeReference
           ref="nameRef"
@@ -64,16 +65,10 @@ defineExpose<ViewExpose>({ self, id });
           @navigate="(direction) => emit('navigate', direction)"
           @click.stop.prevent="nameRef?.focusIdentifier('right')"
         />
-        <!-- Text -->
-        <Text
-          id="text"
-          :model-value="(node as any).text"
-          class="mt-1.5 px-0.5"
-          is-minimal
-          is-input
-          :placeholder="toCamelName(NodeType, nodePtr!.nodeType) + ' text...'"
-          @update:model-value="(modelValue) => connection!.tx.update(node!, { text: modelValue }, { debounce: 'long' })"
-        />
+        <!-- Beginning -->
+        <div class="mt-1.5 text-base text-gray-400 px-0.5">
+          <span>This is the beginning of the {{ toCamelName(NodeType, nodePtr!.nodeType) }}.</span>
+        </div>
       </template>
     </Chat>
   </div>

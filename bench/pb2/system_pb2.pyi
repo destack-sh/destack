@@ -83,7 +83,7 @@ class WatchGetResponse(_message.Message):
     def __init__(self, edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., added_nodes: _Optional[_Iterable[_Union[_lang_pb2.SomeNodeData, _Mapping]]] = ..., removed_nodes_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., epoch: _Optional[int] = ...) -> None: ...
 
 class SearchNodesRequest(_message.Message):
-    __slots__ = ("scope", "node_type", "base_type_ptr", "filter", "sort", "ancestor_types", "descendant_types", "first", "skip", "count", "select", "no_cache")
+    __slots__ = ("scope", "node_type", "base_type_ptr", "filter", "sort", "ancestor_types", "descendant_types", "first", "count", "select", "no_cache")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
     BASE_TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -92,7 +92,6 @@ class SearchNodesRequest(_message.Message):
     ANCESTOR_TYPES_FIELD_NUMBER: _ClassVar[int]
     DESCENDANT_TYPES_FIELD_NUMBER: _ClassVar[int]
     FIRST_FIELD_NUMBER: _ClassVar[int]
-    SKIP_FIELD_NUMBER: _ClassVar[int]
     COUNT_FIELD_NUMBER: _ClassVar[int]
     SELECT_FIELD_NUMBER: _ClassVar[int]
     NO_CACHE_FIELD_NUMBER: _ClassVar[int]
@@ -104,11 +103,10 @@ class SearchNodesRequest(_message.Message):
     ancestor_types: _containers.RepeatedScalarFieldContainer[_lang_pb2.NodeType]
     descendant_types: _containers.RepeatedScalarFieldContainer[_lang_pb2.NodeType]
     first: int
-    skip: int
     count: bool
     select: _lang_pb2.SelectOptionsData
     no_cache: bool
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., node_type: _Optional[_Union[_lang_pb2.NodeType, str]] = ..., base_type_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., filter: _Optional[_Union[_lang_pb2.ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[_lang_pb2.ExpressionData, _Mapping]]] = ..., ancestor_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., first: _Optional[int] = ..., skip: _Optional[int] = ..., count: bool = ..., select: _Optional[_Union[_lang_pb2.SelectOptionsData, _Mapping]] = ..., no_cache: bool = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., node_type: _Optional[_Union[_lang_pb2.NodeType, str]] = ..., base_type_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., filter: _Optional[_Union[_lang_pb2.ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[_lang_pb2.ExpressionData, _Mapping]]] = ..., ancestor_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., first: _Optional[int] = ..., count: bool = ..., select: _Optional[_Union[_lang_pb2.SelectOptionsData, _Mapping]] = ..., no_cache: bool = ...) -> None: ...
 
 class SearchNodesResponse(_message.Message):
     __slots__ = ("roots_ptr", "nodes", "total", "epoch", "connection_token")

@@ -25,7 +25,7 @@ import {
 } from "@/proto/wire";
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { BENCH_SCOPE, benchPtr } from "@/system/client";
-import { SearchConnectionParams, useChunkedSearchConnection } from "@/system/connection";
+import { SearchConnectionParams, useInfiniteSearchConnection } from "@/system/connection";
 import { bench, benchConnection, canvas, pkgGraph } from "@/system/space";
 import { user } from "@/system/user";
 import {
@@ -149,10 +149,20 @@ const filter = computed(() => {
 });
 const {
   roots: messages,
-  mainConnection,
+  txFactory,
   isAtStart,
   isAtEnd,
-} = useChunkedSearchConnection(
+  topSide,
+  bottomSide,
+  main,
+  mainEnabled,
+  mainCursor,
+  other,
+  otherEnabled,
+  otherCursor,
+  cursorStack,
+  go,
+} = useInfiniteSearchConnection(
   { name: "chat", live: true },
   computed(
     (): SearchConnectionParams<NodeType.MESSAGE> => ({
@@ -334,7 +344,7 @@ function submit() {
   if (channelPtr.value == null) throw new Error("no channel");
   const text = trimText(draftText.value ?? emptyText());
   if (isTextEmpty(text)) return; // don't create empty messages
-  createMessage(mainConnection.tx, pkgGraph, {
+  createMessage(txFactory(), pkgGraph, {
     message: {
       type: replyTo.value != null ? MessageType.REPLY : MessageType.REGULAR,
       parentPtr: benchPtr.value,
@@ -471,12 +481,13 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
     </div>
 
     <!-- Body -->
+    <!-- nocheckin: Scroll should stick-to-end -->
     <Scroll
       id="scroll"
       ref="bodyScrollRef"
       class="relative"
       :orientation="Orientation.VERTICAL"
-      stick-to-end
+      :stick-to-end="false"
       :size="{ height: bodyHeight }"
     >
       <!-- Messages -->
@@ -492,19 +503,18 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           :key="i"
           class="mx-5 mb-2 mt-3 flex animate-pulse flex-row"
         >
-          <!-- Loading -->
           <div :style="{ width: MESSAGE_SIDE_WIDTH + 'px' }" class="flex flex-col items-center">
             <div class="h-8 w-8 rounded-full bg-gray-100"></div>
           </div>
-          <div class="flex flex-1 flex-col gap-y-2">
-            <div class="h-2 w-20 rounded bg-gray-100" />
-            <div class="h-5 rounded bg-gray-100" />
+          <div class="flex flex-1 flex-col">
+            <div class="mb-1.5 h-2 w-20 rounded bg-gray-100" />
+            <div v-for="j in Math.max(1, i % 3)" :key="j" class="my-[3px] h-[20px] rounded bg-gray-100" />
           </div>
         </div>
 
         <!-- Beginning of Chat -->
-        <div v-if="isAtStart && $slots.header" class="mx-5 mb-2">
-          <slot name="header" />
+        <div v-if="isAtStart && $slots.beginning" class="mx-5 mb-2">
+          <slot name="beginning" />
         </div>
 
         <!-- Message -->
@@ -687,14 +697,14 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           v-for="i in LOADING_SKELETON_COUNT"
           v-if="!isAtEnd"
           :key="i"
-          class="mx-5 mb-1 mt-4 flex animate-pulse flex-row"
+          class="mx-5 mb-2 mt-3 flex animate-pulse flex-row"
         >
           <div :style="{ width: MESSAGE_SIDE_WIDTH + 'px' }" class="flex flex-col items-center">
             <div class="h-8 w-8 rounded-full bg-gray-100"></div>
           </div>
-          <div class="flex flex-1 flex-col gap-y-2">
-            <div class="h-2 w-24 rounded bg-gray-100" />
-            <div class="h-5 rounded bg-gray-100" />
+          <div class="flex flex-1 flex-col">
+            <div class="mb-1.5 h-2 w-20 rounded bg-gray-100" />
+            <div v-for="j in Math.max(1, i % 3)" :key="j" class="my-[3px] h-[20px] rounded bg-gray-100" />
           </div>
         </div>
       </ul>
@@ -702,6 +712,58 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
 
     <!-- Input -->
     <div ref="inputContainerRef" class="mx-5" @mousedown="inputRef?.focus?.('right')">
+      <!-- nocheckin: debug info -->
+      <div class="flex flex-col gap-x-2 border bg-blue-100 px-2 py-1">
+        <div class="flex flex-row gap-x-2">
+          <span
+            >topSide:<span class="text-primary-700">{{ topSide }}</span></span
+          >
+          <span
+            >bottomSide:<span class="text-primary-700">{{ bottomSide }}</span></span
+          >
+          <span
+            >isAtStart:<span class="text-primary-700">{{ isAtStart }}</span></span
+          >
+          <span
+            >isAtEnd:<span class="text-primary-700">{{ isAtEnd }}</span></span
+          >
+          <button @click="go('up')">go up</button>
+          <button @click="go('down')">go down</button>
+        </div>
+        <div v-if="mainEnabled" class="flex flex-row gap-x-2">
+          <span
+            >main.size:<span class="text-primary-700">{{ main.page.value.size }}</span></span
+          >
+          <span
+            >main.total:<span class="text-primary-700">{{ main.page.value.total }}</span></span
+          >
+          <span
+            >main.cursor:<span class="text-primary-700">{{
+              mainCursor != null ? tsToDt(mainCursor).toISO() : "null"
+            }}</span></span
+          >
+        </div>
+        <div v-if="otherEnabled" class="flex flex-row gap-x-2">
+          <span
+            >other.size:<span class="text-primary-700">{{ other.page.value.size }}</span></span
+          >
+          <span
+            >other.total:<span class="text-primary-700">{{ other.page.value.total }}</span></span
+          >
+          <span
+            >other.cursor:<span class="text-primary-700">{{
+              otherCursor != null ? tsToDt(otherCursor).toISO() : "null"
+            }}</span></span
+          >
+        </div>
+        <div class="flex flex-row flex-wrap gap-x-2">
+          cursorStack:
+          <span v-for="cursor in cursorStack">
+            {{ cursor != null ? tsToDt(cursor).toISO() : "null" }}
+          </span>
+        </div>
+      </div>
+
       <!-- Replying to -->
       <div
         v-if="replyTo != null"

@@ -564,7 +564,12 @@ export const NON_DUPLICATABLE_NODE_TYPES = [
   ...RESOURCE_NODE_TYPES,
   ...COSMOS_NODE_TYPES,
 ];
-export const NON_DELETABLE_NODE_TYPES = [...RUNTIME_NODE_TYPES, ...RESOURCE_NODE_TYPES, ...COSMOS_NODE_TYPES];
+export const NON_DELETABLE_NODE_TYPES = [
+  NodeType.MESSAGE,
+  ...RUNTIME_NODE_TYPES,
+  ...RESOURCE_NODE_TYPES,
+  ...COSMOS_NODE_TYPES,
+];
 
 export const SCALAR_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.rename"];
 export const NODE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.duplicate", "space.edit.delete"];

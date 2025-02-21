@@ -77,8 +77,6 @@ message SearchNodesRequest {
   repeated NodeType descendant_types = 11;
   // Limit result set.
   optional int32 first = 20;
-  // Paginate result set.
-  optional int32 skip = 21;
   // Whether to get the total count.
   optional bool count = 22;
   // Which properties/fields to select.
