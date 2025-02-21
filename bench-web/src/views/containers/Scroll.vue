@@ -67,19 +67,29 @@ const sizeStyles = computed(() => {
 watch(
   () => [props.stickToEnd, horizontalScrollArea.innerSize.width.value, verticalScrollArea.innerSize.height.value],
   () => {
-    if (props.stickToEnd) scrollToEnd();
+    if (props.stickToEnd) {
+      scrollToEnd();
+    }
   },
   { immediate: true },
 );
 
 // show scrolling instantly, fade out once inactive
-const isSomeScrolling = computed(
-  () =>
-    horizontalScrollArea.isThumbScrolling.value ||
-    horizontalScrollArea.isNativeScrolling.value ||
-    verticalScrollArea.isThumbScrolling.value ||
-    verticalScrollArea.isNativeScrolling.value,
-);
+const isSomeScrolling = computed(() => {
+  if (
+    (props.orientation == null || props.orientation == Orientation.HORIZONTAL) &&
+    (horizontalScrollArea.isThumbScrolling.value || horizontalScrollArea.isNativeScrolling.value)
+  ) {
+    return true;
+  } else if (
+    (props.orientation == null || props.orientation == Orientation.VERTICAL) &&
+    (verticalScrollArea.isThumbScrolling.value || verticalScrollArea.isNativeScrolling.value)
+  ) {
+    return true;
+  } else {
+    return false;
+  }
+});
 const showScrolling = ref(false);
 watch([isSomeScrolling], () => {
   if (isSomeScrolling.value) {
@@ -97,7 +107,10 @@ canvas.registerView(self, id);
 defineExpose<
   ViewExpose & {
     isScrolling: Ref<boolean>;
+    isAtStart: Ref<boolean>;
+    isCloseToStart: Ref<boolean>;
     isAtEnd: Ref<boolean>;
+    isCloseToEnd: Ref<boolean>;
     isHorizontalOverflown: Ref<boolean>;
     isVerticalOverflown: Ref<boolean>;
     isOverflown: Ref<boolean>;
@@ -107,7 +120,32 @@ defineExpose<
   self,
   id,
   isScrolling: isSomeScrolling,
-  isAtEnd: computed(() => horizontalScrollArea.isAtEnd.value && verticalScrollArea.isAtEnd.value),
+  isAtStart: computed(
+    () =>
+      ((props.orientation == null || props.orientation == Orientation.HORIZONTAL) &&
+        horizontalScrollArea.isAtStart.value) ||
+      ((props.orientation == null || props.orientation == Orientation.VERTICAL) && verticalScrollArea.isAtStart.value),
+  ),
+  isCloseToStart: computed(
+    () =>
+      ((props.orientation == null || props.orientation == Orientation.HORIZONTAL) &&
+        horizontalScrollArea.isCloseToStart.value) ||
+      ((props.orientation == null || props.orientation == Orientation.VERTICAL) &&
+        verticalScrollArea.isCloseToStart.value),
+  ),
+  isAtEnd: computed(
+    () =>
+      ((props.orientation == null || props.orientation == Orientation.HORIZONTAL) &&
+        horizontalScrollArea.isAtEnd.value) ||
+      ((props.orientation == null || props.orientation == Orientation.VERTICAL) && verticalScrollArea.isAtEnd.value),
+  ),
+  isCloseToEnd: computed(
+    () =>
+      ((props.orientation == null || props.orientation == Orientation.HORIZONTAL) &&
+        horizontalScrollArea.isCloseToEnd.value) ||
+      ((props.orientation == null || props.orientation == Orientation.VERTICAL) &&
+        verticalScrollArea.isCloseToEnd.value),
+  ),
   isHorizontalOverflown: horizontalScrollArea.isOverflown,
   isVerticalOverflown: verticalScrollArea.isOverflown,
   isOverflown: computed(() => horizontalScrollArea.isOverflown.value || verticalScrollArea.isOverflown.value),
@@ -119,7 +157,7 @@ defineExpose<
     <!-- Scroll area -->
     <div
       ref="containerRef"
-      class="scrollbar-none overscroll-auto relative"
+      class="scrollbar-none relative overscroll-auto"
       :class="[
         orientation == Orientation.HORIZONTAL ? 'overflow-y-hidden overflow-x-scroll' : '',
         orientation == Orientation.VERTICAL ? 'overflow-x-hidden overflow-y-scroll' : '',

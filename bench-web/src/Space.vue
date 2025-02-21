@@ -303,17 +303,29 @@ mark {
   @apply mb-2 mt-4 text-2xl font-bold;
   line-height: 1.2;
 }
+.pm-text.pm-compact h1.line {
+  @apply mb-1 mt-2;
+}
 .pm-text h2.line {
   @apply mb-1.5 mt-2.5 text-xl font-bold;
   line-height: 1.4;
+}
+.pm-text.pm-compact h2.line {
+  @apply mb-0.5 mt-1.5;
 }
 .pm-text h3.line {
   @apply mb-0.5 mt-1.5 text-lg font-bold;
   line-height: 1.5;
 }
+.pm-text.pm-compact h3.line {
+  @apply mb-0 mt-1;
+}
 .pm-text h4.line {
   @apply mb-0.5 mt-1.5 text-base font-medium;
   line-height: 1.5;
+}
+.pm-text.pm-compact h4.line {
+  @apply mb-0 mt-0.5;
 }
 
 /* Lists */

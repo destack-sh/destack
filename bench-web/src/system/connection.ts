@@ -1352,6 +1352,7 @@ export function useInfiniteSearchConnection<T extends NodeType>(
   options: {
     nodeType: T;
     chunkSize: number;
+    onAdded?: () => void;
   },
 ) {
   type Side = "main" | "other";
