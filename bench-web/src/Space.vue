@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
-import { NodeType, Orientation, ViewType } from "@/proto/wire";
+import { NodeType, ObjectType, Orientation, ViewType } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
 import { bench, inspectionPtr, spaceConnection, spaceGraph } from "@/system/space";
@@ -37,8 +37,11 @@ watch(
   [bench, inspectedNode],
   () => {
     const benchPostfix = bench.value == null ? "Bench" : bench.value?.slug;
-    const nodeTitle =
-      (inspectedNode.value as any)?.slug ?? (inspectedNode.value as any)?.name ?? (inspectedNode.value as any)?.title;
+    const node = inspectedNode.value;
+    let nodeTitle = (node as any)?.slug ?? (node as any)?.name ?? (node as any)?.title;
+    if (node?.metatype == ObjectType.CHANNEL) {
+      nodeTitle = `#${nodeTitle}`;
+    }
     browserTitle.value = nodeTitle ? `${nodeTitle} | @${benchPostfix}` : `@${benchPostfix}`;
   },
   { immediate: true },

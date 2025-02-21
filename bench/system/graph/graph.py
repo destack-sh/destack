@@ -686,7 +686,6 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     ancestor_types=ancestor_types,
                     descendant_types=descendant_types,
                     first=request.first or None,
-                    skip=request.skip or None,
                     select=select,
                 )
                 adapted_query = self._adapt_read_query(subject, query)

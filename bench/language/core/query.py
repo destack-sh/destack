@@ -227,7 +227,6 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         "_node_type",
         "_roots",
         "_select",
-        "_skip",
         "_sort",
         "_type",
     )
@@ -269,7 +268,6 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         self._select = select
         self._include_deleted = include_deleted
         self._first = first
-        self._skip = skip
 
     def __str__(self):
         content_parts = []
@@ -316,7 +314,6 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             self._select._stable_hash() if self._select is not None else None,
             self._include_deleted,
             self._first,
-            self._skip,
         )
 
     @property
@@ -356,7 +353,6 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             select=self._select.clone() if self._select is not None else None,
             include_deleted=self._include_deleted,
             first=self._first,
-            skip=self._skip,
         )
 
     def _clone_select(self) -> "SelectOptions":
@@ -408,12 +404,6 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         return clone
 
     limit = first
-
-    def skip(self, count: int) -> "Query[NodeT, NodeDataT]":
-        """Skips the first N results."""
-        clone = self.clone()
-        clone._skip = count
-        return clone
 
     def aggregate(self, aggregation: "Expression") -> "Query[NodeT, NodeDataT]":
         """Aggregates the query results."""
@@ -483,17 +473,6 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
     #
     # Read
     #
-
-    def __getitem__(self, item: slice) -> Union["Query[NodeT, NodeDataT]", NodeT]:  # type: ignore
-        if isinstance(item, slice):
-            if item.stop is None:
-                return self.skip(item.start or 0)
-            elif item.start is not None:
-                return self.skip(item.start).first(item.stop - item.start)
-            else:
-                return self.first(item.stop)
-        else:
-            raise TypeError(f"expected slice into {self!r}, got {type(item)}: {item}")
 
     async def __aiter__(self):
         return iter(await self.search())

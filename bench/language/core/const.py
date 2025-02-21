@@ -485,6 +485,7 @@ class NodeType(BuiltinEnum):
     # compute
     SCALER = 1000
     STORE = 1001  # real database
+    # RESOURCE_CLAIM?
     # CACHE?
     MACHINE = 1100
     BROWSER = 1110

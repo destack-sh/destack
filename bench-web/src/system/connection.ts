@@ -1,4 +1,6 @@
+import { setAutoloader, setSupergraph } from "@/globals";
 import { SOURCE_NODE_TYPES } from "@/language/core/const";
+import { makeAndConditional, makeExpression } from "@/language/core/expression";
 import {
   DEFAULT_NODE_FILTER,
   LayerNodeGraph,
@@ -26,7 +28,9 @@ import {
 import {
   AggregationResultData,
   EditData,
+  EmptyProperty,
   ExpressionData,
+  ExpressionType,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -42,14 +46,14 @@ import {
   describeNode,
   makeDefaultObject,
   makeScope,
+  propertyReference,
   unwrapSomeNode,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { NodeAutoloader } from "@/system/autoload";
 import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
-import { setAutoloader, setSupergraph } from "@/globals";
 import { toaster } from "@/ui/toast";
-import { AsyncEvent } from "@/utils/functools";
+import { AsyncEvent, assertNever } from "@/utils/functools";
 import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
@@ -63,6 +67,7 @@ import {
   ref,
   shallowRef,
   toRef,
+  toValue,
   triggerRef,
   watch,
   type MaybeRef,
@@ -142,7 +147,6 @@ export type SearchConnectionParams<T extends NodeType> = {
   ancestorTypes?: NodeType[];
   descendantTypes?: NodeType[];
   first?: number;
-  skip?: number;
   count?: boolean;
   select?: Partial<SelectOptionsData>;
 };
@@ -1340,28 +1344,156 @@ export function useSearchConnection<T extends NodeType>(
 
 /**
  * Searches for nodes over two 'chunks' (pages) of results at a time for smooth scrolling (top and bottom).
- * We assume sort by createdAt descending.
+ * We assume sort by one, going from bottom to top (latest at the bottom, earliest at the top).
  * */
-export function useChunkedSearchConnection<T extends NodeType>(
+export function useInfiniteSearchConnection<T extends NodeType>(
   metaIn: ConnectionMetadataIn,
-  params: MaybeRef<Omit<SearchConnectionParams<T>, "first" | "skip" | "sort">>,
+  params: MaybeRef<Omit<SearchConnectionParams<T>, "first" | "sort">>,
   options: {
     nodeType: T;
     chunkSize: number;
   },
-): SearchConnectionResult<T> & {
-  roots: Ref<NodeTypeMapping[T][]>;
-  mainConnection: Connection<"search", T>;
-  otherConnection: Connection<"search", T>;
-  isConnected: Ref<boolean>;
-  isAtStart: Ref<boolean>;
-  isAtEnd: Ref<boolean>;
-  scroll(side: "top" | "bottom"): void;
-} {
-  type Side = "top" | "bottom";
-  const mainSide = ref<Side>("bottom");
-  const otherSide = computed(() => (mainSide.value === "top" ? "bottom" : "top"));
-  const lastCursors: Ref<Timestamp[]> = ref([]);
+) {
+  type Side = "main" | "other";
+  const topSide: Ref<Side> = ref("main");
+  const bottomSide: Ref<Side> = ref("main");
+  const cursorStack: Ref<(Timestamp | null)[]> = ref([]);
+  const mainEnabled: Ref<boolean> = ref(true);
+  const mainCursor: Ref<Timestamp | null> = ref(null);
+  const otherEnabled: Ref<boolean> = ref(false);
+  const otherCursor: Ref<Timestamp | null> = ref(null);
+  const sort = makeExpression({
+    type: ExpressionType.DESCENDING,
+    propertyPtr: propertyReference(options.nodeType, EmptyProperty.createdAt),
+  });
+
+  function makeSearchParams(isEnabled: boolean, cursor: Timestamp | null) {
+    const paramsValue = toValue(params);
+    const combinedParams: SearchConnectionParams<T> = {
+      ...paramsValue,
+      first: options.chunkSize,
+      isEnabled: isEnabled,
+      sort: [sort],
+    };
+    if (cursor != null) {
+      const cursorFilter = makeExpression({
+        type: ExpressionType.LESS_THAN,
+        value: cursor,
+        propertyPtr: propertyReference(options.nodeType, EmptyProperty.createdAt),
+      });
+      combinedParams.filter =
+        combinedParams.filter != null ? makeAndConditional([combinedParams.filter, cursorFilter]) : cursorFilter;
+    }
+    return combinedParams;
+  }
+  const main = useSearchConnection(
+    metaIn,
+    computed(() => makeSearchParams(mainEnabled.value, mainCursor.value)),
+  );
+  const other = useSearchConnection(
+    metaIn,
+    computed(() => makeSearchParams(otherEnabled.value, otherCursor.value)),
+  );
+
+  function getTop() {
+    if (topSide.value == "main") {
+      return main;
+    } else if (topSide.value == "other") {
+      return other;
+    } else {
+      assertNever(topSide.value);
+    }
+  }
+
+  function getBottom() {
+    if (bottomSide.value == "main") {
+      return main;
+    } else if (bottomSide.value == "other") {
+      return other;
+    } else {
+      assertNever(bottomSide.value);
+    }
+  }
+
+  // deduplicate and sort roots from both chunks
+  const roots: Ref<NodeTypeMapping[T][]> = computed(() => {
+    const rootsById: Record<string, NodeTypeMapping[T]> = {};
+    for (const root of main.roots.value) {
+      rootsById[root.id] = root;
+    }
+    for (const root of other.roots.value) {
+      rootsById[root.id] = root;
+    }
+    return Object.values(rootsById).sort((a, b) => {
+      if (a.createdAt == null || b.createdAt == null) return 0;
+      else if (a.createdAt.seconds == b.createdAt.seconds) return a.createdAt.nanos - b.createdAt.nanos;
+      else return Number(a.createdAt.seconds - b.createdAt.seconds);
+    });
+  });
+
+  const isAtStart: Ref<boolean> = computed(() => {
+    const top = getTop();
+    return top.page.value.total! <= top.page.value.size;
+  });
+  const isAtEnd: Ref<boolean> = computed(() => {
+    return cursorStack.value.length <= 1; // two chunks, so if we have one cursor, one of them is at the end
+  });
+
+  function go(direction: "up" | "down"): void {
+    // can't go if we're loading
+    if ((mainEnabled.value && !main.isConnected.value) || (otherEnabled.value && !other.isConnected.value)) {
+      return;
+    }
+
+    if (direction == "up") {
+      // move bottom to top, swap sides
+      const nextCursor = roots.value[0].createdAt!;
+      if (topSide.value == "main") {
+        cursorStack.value.push(otherCursor.value);
+        otherCursor.value = nextCursor;
+        otherEnabled.value = true;
+        topSide.value = "other";
+        bottomSide.value = "main";
+      } else if (topSide.value == "other") {
+        cursorStack.value.push(mainCursor.value);
+        mainCursor.value = nextCursor;
+        mainEnabled.value = true;
+        topSide.value = "main";
+        bottomSide.value = "other";
+      }
+    } else if (direction == "down") {
+      const nextCursor = cursorStack.value.pop() ?? null;
+      if (bottomSide.value == "main") {
+        otherCursor.value = nextCursor;
+        otherEnabled.value = true;
+        bottomSide.value = "other";
+        topSide.value = "main";
+      } else if (bottomSide.value == "other") {
+        mainCursor.value = nextCursor;
+        mainEnabled.value = true;
+        bottomSide.value = "main";
+        topSide.value = "other";
+      }
+    }
+  }
+
+  return {
+    roots,
+    txFactory: () => main.connection.tx,
+    isConnected: computed(() => main.isConnected.value),
+    isAtStart,
+    isAtEnd,
+    topSide,
+    bottomSide,
+    main,
+    mainEnabled,
+    mainCursor,
+    other,
+    otherEnabled,
+    otherCursor,
+    cursorStack,
+    go,
+  };
 }
 
 //

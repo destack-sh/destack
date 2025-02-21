@@ -959,7 +959,6 @@ async def pg_graph_select(
         where=where,
         order_by=order_by,
         first=query._first,
-        skip=query._skip,
     )
     nodes_data = [
         _pg_unpack_node_data_row(

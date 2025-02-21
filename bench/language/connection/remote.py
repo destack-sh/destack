@@ -256,8 +256,6 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteConnector, T]):
         )
         if query._first:
             request.first = query._first
-        if query._skip:
-            request.skip = query._skip
         try:
             response = await self.connector.engine.remote.search_nodes(
                 request, metadata=engine.rpc_headers

@@ -224,12 +224,6 @@ export interface SearchNodesRequest {
      */
     first?: number;
     /**
-     * Paginate result set.
-     *
-     * @generated from protobuf field: optional int32 skip = 21;
-     */
-    skip?: number;
-    /**
      * Whether to get the total count.
      *
      * @generated from protobuf field: optional bool count = 22;
@@ -1265,7 +1259,6 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
             { no: 10, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 11, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 20, name: "first", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 21, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 22, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 23, name: "select", kind: "message", T: () => SelectOptionsData },
             { no: 30, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
@@ -1317,9 +1310,6 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                     break;
                 case /* optional int32 first */ 20:
                     message.first = reader.int32();
-                    break;
-                case /* optional int32 skip */ 21:
-                    message.skip = reader.int32();
                     break;
                 case /* optional bool count */ 22:
                     message.count = reader.bool();
@@ -1374,9 +1364,6 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* optional int32 first = 20; */
         if (message.first !== undefined)
             writer.tag(20, WireType.Varint).int32(message.first);
-        /* optional int32 skip = 21; */
-        if (message.skip !== undefined)
-            writer.tag(21, WireType.Varint).int32(message.skip);
         /* optional bool count = 22; */
         if (message.count !== undefined)
             writer.tag(22, WireType.Varint).bool(message.count);
