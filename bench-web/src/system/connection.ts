@@ -1439,14 +1439,17 @@ export function useInfiniteSearchConnection<T extends NodeType>(
     return cursorStack.value.length <= 1; // two chunks, so if we have one cursor, one of them is at the end
   });
 
-  function go(direction: "up" | "down"): void {
+  function go(direction: "up" | "down"): boolean {
     // can't go if we're loading
     if ((mainEnabled.value && !main.isConnected.value) || (otherEnabled.value && !other.isConnected.value)) {
-      return;
+      return false;
     }
 
     if (direction == "up") {
       // move bottom to top, swap sides
+      if (isAtStart.value) {
+        return false;
+      }
       const nextCursor = roots.value[0].createdAt!;
       if (topSide.value == "main") {
         cursorStack.value.push(otherCursor.value);
@@ -1462,6 +1465,9 @@ export function useInfiniteSearchConnection<T extends NodeType>(
         bottomSide.value = "other";
       }
     } else if (direction == "down") {
+      if (isAtEnd.value) {
+        return false;
+      }
       const nextCursor = cursorStack.value.pop() ?? null;
       if (bottomSide.value == "main") {
         otherCursor.value = nextCursor;
@@ -1475,6 +1481,7 @@ export function useInfiniteSearchConnection<T extends NodeType>(
         topSide.value = "other";
       }
     }
+    return true;
   }
 
   return {
