@@ -262,11 +262,11 @@ function getColumnPadding(
 ): { paddingTop: number; paddingBottom: number } {
   // calibrated against ROW_HEIGHT to ensure all types look center-aligned at the default height
   if (viewType == ViewType.TOGGLE) {
-    return { paddingTop: 7, paddingBottom: 0 };
+    return { paddingTop: 5, paddingBottom: 0 };
   } else if (viewType == ViewType.TEXT) {
-    return { paddingTop: 5, paddingBottom: 2 };
+    return { paddingTop: 3, paddingBottom: 2 };
   } else {
-    return { paddingTop: 5, paddingBottom: 5 };
+    return { paddingTop: 3, paddingBottom: 3 };
   }
 }
 
