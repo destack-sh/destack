@@ -275,11 +275,14 @@ export function useScrollArea(area: {
   isNativeScrolling: Ref<boolean>;
   isOverflown: Ref<boolean>;
   isAtStart: Ref<boolean>;
+  isCloseToStart: Ref<boolean>;
   isAtEnd: Ref<boolean>;
+  isCloseToEnd: Ref<boolean>;
   scroll: ReturnType<typeof useScroll>;
   containerSize: ReturnType<typeof useElementSize>;
   innerSize: ReturnType<typeof useElementSize>;
 } {
+  const CLOSE_THRESHOLD = 0.4; // % of container size
   const orientationRef = toRef(area.orientation) as Ref<Orientation>;
   const trackWidthRef = toRef(area.trackWidth) as Ref<ScrollbarWidth>;
   const scroll = useScroll(area.container);
@@ -359,20 +362,46 @@ export function useScrollArea(area: {
   });
   watch(isThumbScrolling, () => (_isDraggingGlobal.value = isThumbScrolling.value));
 
-  const isAtStart = computed(() => {
-    if (area.container.value == null) return false;
+  function getStartPosition() {
+    if (area.container.value == null) return null;
     const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
     const scrollPos = isHorizontal ? scroll.x.value : scroll.y.value;
-    return scrollPos <= 0;
-  });
+    const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
+    return { scrollPos, clientSize };
+  }
 
-  const isAtEnd = computed(() => {
-    if (area.container.value == null) return false;
+  function getEndPosition() {
+    if (area.container.value == null) return null;
     const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
     const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
     const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
     const scrollPos = isHorizontal ? scroll.x.value : scroll.y.value;
-    return scrollPos + clientSize >= scrollSize - 1;
+    return { scrollPos, clientSize, scrollSize };
+  }
+
+  const isAtStart = computed(() => {
+    const pos = getStartPosition();
+    if (!pos) return false;
+    return pos.scrollPos <= 0;
+  });
+
+  const isCloseToStart = computed(() => {
+    const pos = getStartPosition();
+    if (!pos) return false;
+    return pos.scrollPos <= pos.clientSize * CLOSE_THRESHOLD;
+  });
+
+  const isAtEnd = computed(() => {
+    const pos = getEndPosition();
+    if (!pos) return false;
+    return pos.scrollPos + pos.clientSize >= pos.scrollSize - 1;
+  });
+
+  const isCloseToEnd = computed(() => {
+    const pos = getEndPosition();
+    if (!pos) return false;
+    const remainingScroll = pos.scrollSize - (pos.scrollPos + pos.clientSize);
+    return remainingScroll <= pos.clientSize * CLOSE_THRESHOLD;
   });
 
   return {
@@ -383,7 +412,9 @@ export function useScrollArea(area: {
     isNativeScrolling: scroll.isScrolling,
     isOverflown,
     isAtStart,
+    isCloseToStart,
     isAtEnd,
+    isCloseToEnd,
     scroll,
     containerSize,
     innerSize,

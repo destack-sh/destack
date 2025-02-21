@@ -48,11 +48,11 @@ import File from "@/views/content/File.vue";
 import Text from "@/views/content/Text.vue";
 import { useElementSize, useElementVisibility, useEventListener } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, nextTick, Ref, ref, toRef, watchEffect } from "vue";
+import { computed, nextTick, Ref, ref, toRef, watch, watchEffect } from "vue";
 
 const LOADING_SKELETON_COUNT = 3;
 const CHUNK_SIZE = 80;
-const MIN_AUTOSCROLL_INTERVAL_SECONDS = 1;
+const MIN_AUTOSCROLL_INTERVAL_MILLISECONDS = 500;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MESSAGE_HEIGHT_MIN = 28;
 const MESSAGE_MAX_TIME_DELTA_SECONDS = 5 * 60; // 5 minutes
@@ -167,7 +167,17 @@ const {
       filter: filter.value,
     }),
   ),
-  { nodeType: NodeType.MESSAGE, chunkSize: CHUNK_SIZE },
+  {
+    nodeType: NodeType.MESSAGE,
+    chunkSize: CHUNK_SIZE,
+    onAdded: () => {
+      // auto-scroll to end if we're at the end
+      if (isAtEnd.value) {
+        stickToEnd.value = true;
+        bodyScrollRef.value?.scrollToEnd();
+      }
+    },
+  },
 );
 const topPlaceholderRef = ref<InstanceType<typeof HTMLDivElement> | null>(null);
 const bottomPlaceholderRef = ref<InstanceType<typeof HTMLDivElement> | null>(null);
@@ -178,14 +188,14 @@ const bottomPlaceholderVisible = useElementVisibility(bottomPlaceholderRef);
 const now = getNow(TimeUpdateInterval.SECOND);
 const lastAutoscrollAt: Ref<DateTime | null> = ref(null);
 watchEffect(() => {
-  const secondsSinceLastAutoscroll =
-    lastAutoscrollAt.value != null ? now.value.diff(lastAutoscrollAt.value, "seconds").seconds : Infinity;
-  if (isConnected.value && secondsSinceLastAutoscroll >= MIN_AUTOSCROLL_INTERVAL_SECONDS) {
+  const millisecondsSinceLastAutoscroll =
+    lastAutoscrollAt.value != null ? now.value.diff(lastAutoscrollAt.value, "milliseconds").milliseconds : Infinity;
+  if (isConnected.value && millisecondsSinceLastAutoscroll >= MIN_AUTOSCROLL_INTERVAL_MILLISECONDS) {
     if (topPlaceholderVisible.value && !isAtStart.value) {
-      go("up");
+      // go("up"); // nocheckin
       lastAutoscrollAt.value = DateTime.now();
     } else if (bottomPlaceholderVisible.value && !isAtEnd.value) {
-      go("down");
+      // go("down");
       lastAutoscrollAt.value = DateTime.now();
     }
   }
@@ -315,13 +325,29 @@ const bodyHeight = computed(() => {
     : undefined;
 });
 
+// automatically stick to end whenever we're at the end
+const stickToEnd: Ref<boolean> = ref(true);
+watchEffect(() => {
+  if (bodyScrollRef.value?.isScrolling) {
+    stickToEnd.value = false;
+  } else if (bodyScrollRef.value?.isAtEnd) {
+    stickToEnd.value = true;
+  }
+});
+watch(messages, (newMessages, oldMessages) => {
+  if (oldMessages.length > 0 && isConnected.value && bodyScrollRef.value?.isCloseToEnd) {
+    stickToEnd.value = true;
+    nextTick(() => {
+      bodyScrollRef.value?.scrollToEnd();
+    });
+  }
+});
+
+// editing
+
 const currentAuthor = user;
 const editingText = ref<TextData | null>(null);
 const editingPtr = ref<NodeReferenceData | null>(null);
-
-function focus() {
-  inputRef.value?.focus?.();
-}
 
 function startEdit(message: MessageData) {
   editingPtr.value = toNodeRef(message);
@@ -345,6 +371,8 @@ function submitEdit() {
   connection.tx.update(message, { text });
 }
 
+// draft
+
 function submit() {
   // create message
   if (benchPtr.value == null) throw new Error("no bench");
@@ -363,6 +391,8 @@ function submit() {
       text,
     },
   });
+  stickToEnd.value = true;
+  bodyScrollRef.value?.scrollToEnd();
 }
 
 function clearDraft() {
@@ -467,6 +497,10 @@ const actions: Partial<ActionMapImplementation<"chat">> = {
   },
 };
 
+function focus() {
+  inputRef.value?.focus?.();
+}
+
 defineExpose<ViewExpose>({ self, id, actions, focus });
 </script>
 <template>
@@ -488,13 +522,12 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
     </div>
 
     <!-- Body -->
-    <!-- nocheckin: Scroll should stick-to-end -->
     <Scroll
       id="scroll"
       ref="bodyScrollRef"
       class="relative"
       :orientation="Orientation.VERTICAL"
-      :stick-to-end="false"
+      :stick-to-end="stickToEnd"
       :size="{ height: bodyHeight }"
     >
       <!-- Messages -->
@@ -521,7 +554,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
         </div>
 
         <!-- Beginning of Chat -->
-        <div v-if="isAtStart && $slots.beginning" class="mx-5 mb-2">
+        <div v-if="isAtStart && $slots.beginning != null" class="mx-5 mb-2">
           <slot name="beginning" />
         </div>
 
