@@ -40,22 +40,24 @@ import { useSingleDropZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
-import { formatAbsoluteDate, tsToDt } from "@/utils/time";
+import { formatAbsoluteDate, getNow, TimeUpdateInterval, tsToDt } from "@/utils/time";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
 import Text from "@/views/content/Text.vue";
-import { useElementSize, useEventListener } from "@vueuse/core";
+import { useElementSize, useElementVisibility, useEventListener } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, nextTick, Ref, ref, toRef } from "vue";
+import { computed, nextTick, Ref, ref, toRef, watchEffect } from "vue";
 
 const LOADING_SKELETON_COUNT = 3;
-const CHUNK_SIZE = 50;
+const CHUNK_SIZE = 80;
+const MIN_AUTOSCROLL_INTERVAL_SECONDS = 1;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MESSAGE_HEIGHT_MIN = 28;
 const MESSAGE_MAX_TIME_DELTA_SECONDS = 5 * 60; // 5 minutes
 const MESSAGE_SIDE_WIDTH = 52;
+
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
@@ -128,7 +130,7 @@ const filter = computed(() => {
     );
   }
   // scope
-  // nocheckin: use Threads for scoping?
+  // nocheckin: use Threads for scoping
   // if (scopePtr.value != null) {
   //   filters.push(
   //     makeExpression({
@@ -152,15 +154,7 @@ const {
   txFactory,
   isAtStart,
   isAtEnd,
-  topSide,
-  bottomSide,
-  main,
-  mainEnabled,
-  mainCursor,
-  other,
-  otherEnabled,
-  otherCursor,
-  cursorStack,
+  isConnected,
   go,
 } = useInfiniteSearchConnection(
   { name: "chat", live: true },
@@ -175,19 +169,32 @@ const {
   ),
   { nodeType: NodeType.MESSAGE, chunkSize: CHUNK_SIZE },
 );
+const topPlaceholderRef = ref<InstanceType<typeof HTMLDivElement> | null>(null);
+const bottomPlaceholderRef = ref<InstanceType<typeof HTMLDivElement> | null>(null);
+const topPlaceholderVisible = useElementVisibility(topPlaceholderRef);
+const bottomPlaceholderVisible = useElementVisibility(bottomPlaceholderRef);
+
+// auto scroll up/down
+const now = getNow(TimeUpdateInterval.SECOND);
+const lastAutoscrollAt: Ref<DateTime | null> = ref(null);
+watchEffect(() => {
+  const secondsSinceLastAutoscroll =
+    lastAutoscrollAt.value != null ? now.value.diff(lastAutoscrollAt.value, "seconds").seconds : Infinity;
+  if (isConnected.value && secondsSinceLastAutoscroll >= MIN_AUTOSCROLL_INTERVAL_SECONDS) {
+    if (topPlaceholderVisible.value && !isAtStart.value) {
+      go("up");
+      lastAutoscrollAt.value = DateTime.now();
+    } else if (bottomPlaceholderVisible.value && !isAtEnd.value) {
+      go("down");
+      lastAutoscrollAt.value = DateTime.now();
+    }
+  }
+});
 
 //
 // Views
 //
 
-const messagesInOrder = computed(() => {
-  const messagesInOrder = messages.value.slice().sort((a, b) => {
-    if (a.createdAt == null || b.createdAt == null) return 0;
-    else if (a.createdAt.seconds == b.createdAt.seconds) return a.createdAt.nanos - b.createdAt.nanos;
-    else return Number(a.createdAt.seconds - b.createdAt.seconds);
-  });
-  return messagesInOrder;
-});
 const remoteAuthorsPtr: Ref<NodeReferenceData[]> = computed(() => {
   const authorsPtrById: Record<string, NodeReferenceData> = {};
   for (const message of messages.value) {
@@ -225,8 +232,8 @@ type MessageView = {
 const messageViews = computed(() => {
   const views: MessageView[] = [];
   const viewsById: Record<string, MessageView> = {};
-  for (let i = 0; i < messagesInOrder.value.length; i++) {
-    const message = messagesInOrder.value[i];
+  for (let i = 0; i < messages.value.length; i++) {
+    const message = messages.value[i];
     const filesPtr = message.nodesPtr.filter((n) => n.nodeType == NodeType.FILE);
     const authorPtr = getMessageAuthorPtr(message);
     const author = authorPtr != null ? (remoteAuthorsById.value[authorPtr.id!] ?? supergraph.get(authorPtr)) : null;
@@ -238,11 +245,11 @@ const messageViews = computed(() => {
       isNewGroup = true;
       isNewDate = true;
     } else {
-      const previousDt = tsToDt(messagesInOrder.value[i - 1].createdAt!);
+      const previousDt = tsToDt(messages.value[i - 1].createdAt!);
       const currentDt = tsToDt(message.createdAt!);
       isNewGroup =
-        message.createdByPtr?.id != messagesInOrder.value[i - 1]?.createdByPtr?.id ||
-        Math.abs(Number(messagesInOrder.value[i - 1].createdAt!.seconds) - Number(message.createdAt!.seconds)) >
+        message.createdByPtr?.id != messages.value[i - 1]?.createdByPtr?.id ||
+        Math.abs(Number(messages.value[i - 1].createdAt!.seconds) - Number(message.createdAt!.seconds)) >
           MESSAGE_MAX_TIME_DELTA_SECONDS;
       isNewDate = previousDt.day != currentDt.day;
     }
@@ -500,6 +507,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
         <div
           v-for="i in LOADING_SKELETON_COUNT"
           v-if="!isAtStart"
+          ref="topPlaceholderRef"
           :key="i"
           class="mx-5 mb-2 mt-3 flex animate-pulse flex-row"
         >
@@ -696,6 +704,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
         <div
           v-for="i in LOADING_SKELETON_COUNT"
           v-if="!isAtEnd"
+          ref="bottomPlaceholderRef"
           :key="i"
           class="mx-5 mb-2 mt-3 flex animate-pulse flex-row"
         >
@@ -712,58 +721,6 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
 
     <!-- Input -->
     <div ref="inputContainerRef" class="mx-5" @mousedown="inputRef?.focus?.('right')">
-      <!-- nocheckin: debug info -->
-      <div class="flex flex-col gap-x-2 border bg-blue-100 px-2 py-1">
-        <div class="flex flex-row gap-x-2">
-          <span
-            >topSide:<span class="text-primary-700">{{ topSide }}</span></span
-          >
-          <span
-            >bottomSide:<span class="text-primary-700">{{ bottomSide }}</span></span
-          >
-          <span
-            >isAtStart:<span class="text-primary-700">{{ isAtStart }}</span></span
-          >
-          <span
-            >isAtEnd:<span class="text-primary-700">{{ isAtEnd }}</span></span
-          >
-          <button @click="go('up')">go up</button>
-          <button @click="go('down')">go down</button>
-        </div>
-        <div v-if="mainEnabled" class="flex flex-row gap-x-2">
-          <span
-            >main.size:<span class="text-primary-700">{{ main.page.value.size }}</span></span
-          >
-          <span
-            >main.total:<span class="text-primary-700">{{ main.page.value.total }}</span></span
-          >
-          <span
-            >main.cursor:<span class="text-primary-700">{{
-              mainCursor != null ? tsToDt(mainCursor).toISO() : "null"
-            }}</span></span
-          >
-        </div>
-        <div v-if="otherEnabled" class="flex flex-row gap-x-2">
-          <span
-            >other.size:<span class="text-primary-700">{{ other.page.value.size }}</span></span
-          >
-          <span
-            >other.total:<span class="text-primary-700">{{ other.page.value.total }}</span></span
-          >
-          <span
-            >other.cursor:<span class="text-primary-700">{{
-              otherCursor != null ? tsToDt(otherCursor).toISO() : "null"
-            }}</span></span
-          >
-        </div>
-        <div class="flex flex-row flex-wrap gap-x-2">
-          cursorStack:
-          <span v-for="cursor in cursorStack">
-            {{ cursor != null ? tsToDt(cursor).toISO() : "null" }}
-          </span>
-        </div>
-      </div>
-
       <!-- Replying to -->
       <div
         v-if="replyTo != null"
