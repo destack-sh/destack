@@ -21,6 +21,7 @@ from bench.language.core import (
     TypeBase,
     enum_,
     p_internal,
+    p_node_ancestor,
     p_node_parent,
     p_regular,
     p_system,
@@ -32,7 +33,6 @@ from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
     from bench.language import (
-        Bench,
         Channel,
         Class,
         Interruption,
@@ -85,22 +85,24 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     """
 
     # meta
-    parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH)
+    parent: Union["Channel", "Thread", None] = p_node_parent(4, NodeType.CHANNEL, NodeType.THREAD)
     type: MessageType = p_regular(30, require=True, default=MessageType.REGULAR)
     platform: MessagePlatform = p_regular(31, require=True, default=MessagePlatform.BENCH)
-    channel: "Channel" = p_system(
+    channel: "Channel" = p_node_ancestor(
         32,
+        NodeType.CHANNEL,
         require=True,
-        array=False,
-        same_bench=True,
-        references=NodeType.CHANNEL,
+        store=True,
+        wire=True,
+        is_bench_implicit=True,
     )
-    thread: Optional["Thread"] = p_regular(
+    thread: Optional["Thread"] = p_node_ancestor(
         33,
+        NodeType.THREAD,
         require=False,
-        array=False,
-        same_bench=True,
-        references=NodeType.THREAD,
+        store=True,
+        wire=True,
+        is_bench_implicit=True,
     )
     scope: Union["InlineSourceNode", "Package"] = p_regular(
         35, require=False, references=(*INLINE_SOURCE_NODE_TYPES, NodeType.PACKAGE)
@@ -243,19 +245,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         title: str | None = None,
         text: Text | None = None,
         *,
-        channel: "Channel",
-        thread: Optional["Thread"] = None,
         platform: MessagePlatform = MessagePlatform.BENCH,
-        bench: Optional["Bench"] = None,
     ) -> "Message":
-        parent = channel.bench if bench is None else bench
-        message = Message(
-            parent=parent,
-            type=MessageType.REGULAR,
-            platform=platform,
-            title=title,
-            text=text,
-            channel=channel,
-            thread=thread,
-        )
+        message = Message(type=MessageType.REGULAR, platform=platform, title=title, text=text)
         return message

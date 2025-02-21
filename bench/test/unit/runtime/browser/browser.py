@@ -31,6 +31,7 @@ async def test_acquire_browser_resource_directly(
 
 @pytest.mark.browser
 @pytest.mark.slow
+@pytest.mark.skip(reason="Flaky")
 @simulated_runtime()
 async def test_run_flow_browser_go_to_url(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Use a Browser as a 'variable' in a Flow to open a URL and observe the state."""

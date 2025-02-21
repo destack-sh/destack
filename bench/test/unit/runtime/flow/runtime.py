@@ -43,8 +43,8 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
     runtime.page().extend(Channel1, Flow1)
     await runtime.commit()
 
-    Message1 = Message.new(title="Hello, world!", channel=Channel1)
-    runtime.bench.append(Message1)
+    Message1 = Message.new(title="Hello, world!")
+    Channel1.messages.append(Message1)
     await runtime.commit()
 
     Run1 = await Run.get_run_of(Flow1, where=TERMINAL_RUN_STATUSES)

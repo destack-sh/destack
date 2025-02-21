@@ -16,15 +16,18 @@ from bench.language.core import (
     Text,
     enum_,
     p_internal,
+    p_node_children,
     p_node_parent,
     p_regular,
     p_system,
     timed_node_,
 )
+from bench.language.core.list import RemoteNodeList
 from bench.pb2 import ThreadData
+from bench.pb2.lang_pb2 import MessageData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Channel, Message, Package, Run
+    from bench.language import Channel, Message, Package, Run
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -48,7 +51,7 @@ class Thread(HasTimeIdentity, StateNode[ThreadData]):
     """
 
     # meta
-    parent: Union["Bench", "Thread", None] = p_node_parent(4, NodeType.BENCH, NodeType.THREAD)
+    parent: Union["Channel", "Thread", None] = p_node_parent(4, NodeType.CHANNEL, NodeType.THREAD)
     type: ThreadType = p_regular(30, require=True, default=ThreadType.SOURCE)
     channel: "Channel" = p_system(
         32,
@@ -90,6 +93,10 @@ class Thread(HasTimeIdentity, StateNode[ThreadData]):
     # content
     title: Optional[str] = p_regular(60, require=False, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(61, require=False, default=None, struct=StructType.TEXT)
+
+    messages: RemoteNodeList["Message", MessageData] = p_node_children(
+        NodeType.MESSAGE, list=RemoteNodeList
+    )
 
     @property
     def container(self) -> "Node | None":

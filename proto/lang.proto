@@ -3982,7 +3982,7 @@ message MessageData {
   optional google.protobuf.Value subnode_packed = 29;
   MessageType type = 30;
   MessagePlatform platform = 31;
-  NodeReferenceData channel_ptr = 32;
+  optional NodeReferenceData channel_ptr = 32;
   optional NodeReferenceData thread_ptr = 33;
   optional NodeReferenceData scope_ptr = 35;
   optional NodeReferenceData run_root_ptr = 36;

@@ -71,7 +71,6 @@ class DatabasePlugin(HostPlugin[Database | Field]):
 
     def _init_context_from_databases(self) -> None:
         """Initialize the SQL context from the current package."""
-        # NOTE :Incomplete: handle :ManyToManyRecords
         for database in self.package._graph.nodes_of_type(Database):
             old_table = self.context.custom_tables_by_database.get(database)
             new_table = map_database_to_table(database, old_table=old_table)

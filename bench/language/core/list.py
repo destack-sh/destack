@@ -17,6 +17,7 @@ from uuid import UUID
 from more_itertools import first
 
 from bench.language.registry import NODE_CLASS_BY_TYPE
+from bench.pb2.lang_pb2 import RecordData
 from bench.utils.fractional import get_key_bounds, get_order_key
 
 from .const import NodeType, QueryType, SortType, active_session
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
         NodeReference,
         Property,
         Query,
+        Record,
         SourceNode,
         Struct,
     )
@@ -344,7 +346,6 @@ class LocalNodeList[V: Node](NodeList[V], Sequence[V]):
 class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     """
     A NodeList backed by a Connection to a (remote) graph.
-    NOTE: RemoteNodeList only works for Records in a Database right now
     """
 
     def __str__(self):
@@ -372,8 +373,6 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
 
     @override
     def create(self, **kwargs) -> V:
-        if "database" not in kwargs:
-            kwargs["database"] = self._node
         parent = self._get_parent()
         graph = self._get_child_graph(parent)
         node = self._child_node_cls(**kwargs, parent=parent)
@@ -385,8 +384,6 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
         parent = self._get_parent()
         graph = self._get_child_graph(parent)
         attach_node(node, parent=parent, graph=graph, move=move)
-        if getattr(node, "database_id") != self._node.id:
-            node._do_set("database", self._node)
         return node
 
     @override
@@ -395,8 +392,6 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
         graph = self._get_child_graph(parent)
         for node in nodes:
             attach_node(node, parent=parent, graph=graph, move=move)
-            if getattr(node, "database_id") != self._node.id:
-                node._do_set("database", self._node)
 
     #
     # Querying
@@ -411,7 +406,7 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
             type=QueryType.SEARCH,
             node_type=self._child_node_type,
             base_type=self._node,
-            # sort by created_at by default
+            # sort by created_at by default (earliest first)
             sort=[Expression(type=SortType.ASCENDING, property=created_at)],
             # select all fields by default
             select=SelectOptions(select_fields=list(self._node.fields)),
@@ -474,6 +469,44 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
 
     async def exists(self, filter: Optional["Expression"] = None, **kwargs) -> bool:
         return await self._query().exists(filter, **kwargs)
+
+
+class RecordNodeList(RemoteNodeList["Record", RecordData]):
+    """
+    A RemoteNodeList that is backed by a Database.
+    Automatically sets 'database' as needed.
+    """
+
+    @override
+    def create(self, **kwargs) -> "Record":
+        from bench.language import Database, Record
+
+        if "database" not in kwargs:
+            kwargs["database"] = self._node
+        parent = self._get_parent()
+        assert isinstance(parent, Database), f"cannot create Record in: {parent!r}"
+        graph = self._get_child_graph(parent)
+        node = Record(**kwargs, parent=parent)
+        attach_node(node, parent=parent, graph=graph, move=False)
+        return node
+
+    @override
+    def append(self, node: "Record", move: bool = False) -> "Record":
+        parent = self._get_parent()
+        graph = self._get_child_graph(parent)
+        attach_node(node, parent=parent, graph=graph, move=move)
+        if getattr(node, "database_id") != self._node.id:
+            node._do_set("database", self._node)
+        return node
+
+    @override
+    def extend(self, *nodes: "Record", move: bool = False) -> None:
+        parent = self._get_parent()
+        graph = self._get_child_graph(parent)
+        for node in nodes:
+            attach_node(node, parent=parent, graph=graph, move=move)
+            if getattr(node, "database_id") != self._node.id:
+                node._do_set("database", self._node)
 
 
 ValueParentT = TypeVar("ValueParentT", bound=Union["CustomObject", "Struct", "Node"])

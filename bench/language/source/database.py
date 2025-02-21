@@ -5,16 +5,16 @@ from bench.language.core import (
     InlineSourceNode,
     LocalNodeList,
     NodeType,
-    RemoteNodeList,
+    RecordNodeList,
     TypeBase,
     TypeKind,
     node_,
     p_node_children,
 )
-from bench.pb2 import DatabaseData, RecordData
+from bench.pb2 import DatabaseData
 
 if TYPE_CHECKING:
-    from bench.language import Field, Record
+    from bench.language import Field
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -24,9 +24,7 @@ class Database(InlineSourceNode[DatabaseData]):
     """A Database of Records."""
 
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
-    records: RemoteNodeList["Record", RecordData] = p_node_children(
-        NodeType.RECORD, list=RemoteNodeList
-    )
+    records: RecordNodeList = p_node_children(NodeType.RECORD, list=RecordNodeList)
 
     def __content_str__(self):
         return ""

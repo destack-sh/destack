@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.19.4"
+VERSION = "2025.02.21.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1388,6 +1388,7 @@ THREAD_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
@@ -1435,6 +1436,8 @@ MESSAGE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),

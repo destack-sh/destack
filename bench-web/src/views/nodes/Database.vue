@@ -230,10 +230,11 @@ function getCellId(record: RecordData, column: ColumnView) {
 //  (right now, they only show up once committed in the backend and the search connection is updated from there)
 function createRecord() {
   if (database.value == null) throw new Error("no block to add record to");
+  const databasePtr = toNodeRef(database.value);
   const record = recordConnection.tx.create({
     metatype: NodeType.RECORD,
-    databasePtr: toNodeRef(database.value),
-    parentPtr: database.value.benchPtr,
+    parentPtr: databasePtr,
+    databasePtr,
     valuePacked: {},
   });
   canvas.inspect({ node: record, view: containerRef.value });
