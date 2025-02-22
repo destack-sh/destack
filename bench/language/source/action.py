@@ -71,46 +71,46 @@ _type = type
 @enum_(EnumType.ACTION_TYPE)
 class ActionType(BuiltinEnum):
     # flow
-    START = 1, "Begin the Flow"
-    COMPLETE = 10, "Complete the entire Flow"
-    FAIL = 11, "Fail the entire Flow"
+    START = 1, "Start", "Begin the Flow", "fas fa-circle-play"
+    COMPLETE = 10, "Complete", "Complete the entire Flow", "fas fa-flag-checkered"
+    FAIL = 11, "Fail", "Fail the entire Flow", "fas fa-triangle-exclamation"
     # ABORT?
 
     # tool
-    TOOL = 100, "Delegate to a tool"
-    CODE = 101, "Run some Code"
+    TOOL = 100, "Tool", "Delegate to a tool", "fas fa-screwdriver-wrench"
+    CODE = 101, "Code", "Run some Code", "fas fa-code"
 
     # dynamic
-    ACT = 200, "Perform an arbitrary action"
-    THINK = 201, "Reflect on the context"
-    ROUTE = 202, "Route between Actions"
-    GENERATE = 203, "Generate something new"
-    TRANSFORM = 204, "Change the form of something"
-    EXTRACT = 205, "Extract structured data"
-    CLASSIFY = 206, "Classify or categorize"
-    SUMMARIZE = 207, "Condense media content"
-    COMPARE = 208, "Compare multiple things"
-    TRANSLATE = 209, "Translate between languages"
-    CHANGE = 210, "Edit this Bench"
+    ACT = 200, "Act", "Perform an arbitrary action", "fas fa-hammer"
+    THINK = 201, "Think", "Reflect on the context", "fas fa-brain-circuit"
+    ROUTE = 202, "Route", "Route between Actions", "fas fa-split"
+    GENERATE = 203, "Generate", "Generate something new", "fas fa-wand-magic-sparkles"
+    TRANSFORM = 204, "Transform", "Change the form of something", "fas fa-arrows-rotate"
+    EXTRACT = 205, "Extract", "Extract structured data", "fas fa-filter"
+    CLASSIFY = 206, "Classify", "Classify or categorize", "fas fa-tags"
+    SUMMARIZE = 207, "Summarize", "Condense media content", "fas fa-file-lines"
+    COMPARE = 208, "Compare", "Compare multiple things", "fas fa-code-compare"
+    TRANSLATE = 209, "Translate", "Translate between languages", "fas fa-language"
+    CHANGE = 210, "Change", "Edit this Bench", "fas fa-pen-to-square"
 
     # read
-    GET = 300, "Get a Node"
-    SEARCH = 301, "Search for Nodes"
+    GET = 300, "Get", "Get a Node", "fas fa-magnifying-glass"
+    SEARCH = 301, "Search", "Search for Nodes", "fas fa-magnifying-glass"
     # AGGREGATE?
     # COPY?
 
     # write
-    CREATE = 400, "Create a Node"
-    DUPLICATE = 401, "Duplicate a Node"
-    UPDATE = 402, "Update a Node"
-    DELETE = 403, "Delete a Node"
+    CREATE = 400, "Create", "Create a Node", "fas fa-plus"
+    DUPLICATE = 401, "Duplicate", "Duplicate a Node", "fas fa-clone"
+    UPDATE = 402, "Update", "Update a Node", "fas fa-pencil"
+    DELETE = 403, "Delete", "Delete a Node", "fas fa-trash"
     # PASTE?
 
     # communicate
-    WAIT = 500, "Wait for some trigger"
-    SEND = 510, "Send a Message"
-    RECEIVE = 511, "Receive a Message"
-    YIELD = 520, "Defer to someone"
+    WAIT = 500, "Wait", "Wait for some trigger", "fas fa-clock"
+    SEND = 510, "Send", "Send a Message", "fas fa-inbox-out"
+    RECEIVE = 511, "Receive", "Receive a Message", "fas fa-inbox-in"
+    YIELD = 520, "Yield", "Defer to someone", "fas fa-hand"
     # NOTIFY?
 
     # resource
@@ -122,31 +122,31 @@ class ActionType(BuiltinEnum):
     # ...
 
     # environment
-    LOOK = 800, "Look at the environment"
+    LOOK = 800, "Look", "Look at the environment", "fas fa-eye"
     # LISTEN, ...
 
     # application
-    CLICK = 1000, "Click an element"
-    PRESS = 1001, "Press a key"
-    TYPE = 1002, "Type text"
-    SCROLL = 1003, "Scroll the mouse wheel"
-    SELECT = 1004, "Select an element"
-    DRAG = 1005, "Drag an element"
-    GO_BACKWARD = 1006, "Go back in history"
-    GO_FORWARD = 1007, "Go forward in history"
+    CLICK = 1000, "Click", "Click an element", "fas fa-arrow-pointer"
+    PRESS = 1001, "Press", "Press a key", "fas fa-keyboard"
+    TYPE = 1002, "Type", "Type text", "fas fa-keyboard"
+    SCROLL = 1003, "Scroll", "Scroll the mouse wheel", "fas fa-computer-mouse-scrollwheel"
+    SELECT = 1004, "Select", "Select an element", "fas fa-lasso"
+    DRAG = 1005, "Drag", "Drag an element", "fas fa-hand-pointer"
+    GO_BACKWARD = 1006, "Go back", "Go back in history", "fas fa-arrow-turn-left"
+    GO_FORWARD = 1007, "Go forward", "Go forward in history", "fas fa-arrow-turn-right"
 
     # web
-    GO_TO_URL = 1100, "Navigate to a URL"
-    GO_TO_TAB = 1101, "Switch to a tab"
-    OPEN_TAB = 1102, "Open a new tab"
-    CLOSE_TAB = 1103, "Close a tab"
+    GO_TO_URL = 1100, "Go to URL", "Navigate to a URL", "fas fa-link"
+    GO_TO_TAB = 1101, "Go to tab", "Switch to a tab", "fas fa-sidebar"
+    OPEN_TAB = 1102, "Open tab", "Open a new tab", "fas fa-plus"
+    CLOSE_TAB = 1103, "Close tab", "Close a tab", "fas fa-minus"
 
     # containers
     # GROUP = 8000, "Associate multiple Actions"
     # LOOP = 8001, "Repeat some Actions"
 
     # misc
-    TEXT = 9000, "Just some documentation"
+    TEXT = 9000, "Text", "Just some documentation", "fas fa-align-left"
 
     @property
     def is_boundary(self) -> bool:
@@ -167,13 +167,13 @@ class ActionType(BuiltinEnum):
 
 @enum_(EnumType.ACTION_CATEGORY)
 class ActionCategory(BuiltinEnum):
-    FLOW = 100
-    READ = 300
-    WRITE = 400
-    COMMUNICATE = 500
-    ENVIRONMENT = 800
-    APPLICATION = 1000
-    WEB = 1100
+    FLOW = 100, "Flow", "Control the Flow", "fas fa-diagram-project"
+    READ = 300, "Read", "Read Data", "fas fa-magnifying-glass"
+    WRITE = 400, "Write", "Write Data", "fas fa-pencil"
+    COMMUNICATE = 500, "Communicate", "Communicate with others", "fas fa-inbox"
+    ENVIRONMENT = 800, "Environment", "Interact with the Environment", "fas fa-island-tropical"
+    APPLICATION = 1000, "Application", "Interact with an Application", "fas fa-desktop"
+    WEB = 1100, "Web", "Interact with the Web", "fas fa-globe"
 
 
 DYNAMIC_ACTION_TYPES = [t for t in ActionType if t.is_dynamic]

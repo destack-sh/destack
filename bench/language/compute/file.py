@@ -94,16 +94,16 @@ class FileRetentionMode(BuiltinEnum):
 
 @enum_(EnumType.FILE_TYPE)
 class FileType(BuiltinEnum):
-    TEXT = 1
-    CODE = 2
-    IMAGE = 3
-    AUDIO = 4
-    VIDEO = 5
-    DOCUMENT = 6
-    DATA = 7
-    ARCHIVE = 8
-    EXECUTABLE = 9
-    GENERIC = 99
+    TEXT = 1, None, None, "fas fa-file-lines"
+    CODE = 2, None, None, "fas fa-file-code"
+    IMAGE = 3, None, None, "fas fa-image"
+    AUDIO = 4, None, None, "fas fa-volume"
+    VIDEO = 5, None, None, "fas fa-video"
+    DOCUMENT = 6, None, None, "fas fa-file-invoice"
+    DATA = 7, None, None, "fas fa-database"
+    ARCHIVE = 8, None, None, "fas fa-file-zipper"
+    EXECUTABLE = 9, None, None, "fas fa-file-binary"
+    GENERIC = 99, None, None, "fas fa-file"
 
 
 @enum_(EnumType.FILE_FORMAT)

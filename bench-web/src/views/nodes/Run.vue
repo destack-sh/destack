@@ -4,11 +4,21 @@ import { useSubnodeProperty } from "@/language/core/node";
 import { makeType } from "@/language/core/type";
 import { isRunnable, RunnableNode, VERB_BY_RUN_STATUS } from "@/language/runtime/run";
 import { getTransactionOptionsForType } from "@/language/runtime/transaction";
-import { ColorShade, FieldType, NodeType, RunData, RunStatus, TypeKind, ViewData, ViewType } from "@/proto/wire";
+import {
+  ColorShade,
+  FieldType,
+  NodeType,
+  RunData,
+  RunStatus,
+  RunStatusOptionInfo,
+  TypeKind,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { CLEAR_RUN_ACTION, getInputType, getOutputType, runtime } from "@/runtime/runtime";
 import { canvas, pkgGraph } from "@/system/space";
-import { ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
+import { IconInline, makeIcon } from "@/ui/icon";
 import { getRunColorHex } from "@/ui/style";
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate } from "@/utils/time";
@@ -41,7 +51,7 @@ const run = computed(() => {
   if (nodePtr.value != null && runtime.focusedRun != null && runtime.focusedRunTree.hasBase(nodePtr.value)) {
     return runtime.focusedRun;
   } else {
-    return null; 
+    return null;
   }
 });
 const runBasePtr = computed(() => (run.value != null ? getBaseFromNode(run.value) : nodePtr.value));
@@ -117,7 +127,7 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
         }"
       >
         <IconInline
-          v-bind="ICON_BY_RUN_STATUS[run.status]"
+          v-bind="makeIcon(RunStatusOptionInfo[run.status]!.icon!)"
           :style="{ color: getRunColorHex(run.status, ColorShade.S600) }"
           :class="[run.status == RunStatus.RUNNING ? 'animate-spin' : '']"
         />

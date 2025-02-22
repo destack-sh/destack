@@ -43,14 +43,14 @@ class ResourceStatus(BuiltinEnum):
     """Generalized status of a Resource in its lifecycle."""
 
     # definition
-    DECLARED = 1
+    DECLARED = 1, None, None, "fas fa-circle-dot"
     # extant
-    UP = 10
-    SLEEPING = 11
-    DOWN = 15
-    DEGRADED = 16
+    UP = 10, None, None, "fas fa-circle-check"
+    SLEEPING = 11, None, None, "fas fa-zzz"
+    DOWN = 15, None, None, "fas fa-circle-xmark"
+    DEGRADED = 16, None, None, "fas fa-circle-exclamation"
     # terminal
-    DECOMMISSIONED = 30
+    DECOMMISSIONED = 30, None, None, "fas fa-circle-slash"
 
     @property
     def is_extant(self) -> bool:

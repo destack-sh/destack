@@ -3,7 +3,7 @@ import { toCamelName } from "@/language/core/const";
 import { packSubnode, useSubnodeProperty } from "@/language/core/node";
 import { createChannel } from "@/language/source/channel";
 import { createPage } from "@/language/source/page";
-import { HubAspect, NodeType, Orientation, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
+import { HubAspect, NodeType, NodeTypeOptionInfo, Orientation, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import {
   bench,
@@ -18,7 +18,7 @@ import {
 import { isAuthenticated, user, userConnection } from "@/system/user";
 import { fireActionById } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
-import { AvatarInline, getNodeIcon, ICON_BY_HUB_ASPECT, ICON_BY_NODE_TYPE, IconInline } from "@/ui/icon";
+import { AvatarInline, getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
 import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
@@ -53,7 +53,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       id: "view",
       type: "generic",
       category: "main",
-      icon: ICON_BY_NODE_TYPE[NodeType.VIEW],
+      icon: "fas fa-window",
       title: "View",
       action: {
         items: menuActionsLike(["view.navigate.close*", "view.layout.*", "view.space.*"], { context: undefined }),
@@ -151,7 +151,7 @@ defineExpose<ViewExpose>({ self });
               onApply: (newIcon) => benchConnection.tx.update(bench!, { icon: newIcon }),
             })
           "
-          v-bind="bench != null ? getNodeIcon(bench) : ICON_BY_NODE_TYPE[NodeType.BENCH]!"
+          v-bind="bench != null ? getNodeIcon(bench) : makeIcon(NodeTypeOptionInfo[NodeType.BENCH]!.icon!)"
         />
         <span v-if="bench" class="font-medium"> {{ bench.slug }}'s Bench </span>
         <span v-else class="italic"> Bench </span>
@@ -237,7 +237,7 @@ defineExpose<ViewExpose>({ self });
                   }
                 "
               >
-                <IconInline v-bind="ICON_BY_NODE_TYPE[nodeType]" />
+                <IconInline v-bind="makeIcon(NodeTypeOptionInfo[nodeType]!.icon!)" />
               </button>
             </div>
           </div>
@@ -304,7 +304,7 @@ defineExpose<ViewExpose>({ self });
               onApply: (newIcon) => userConnection.tx.update(user!, { icon: newIcon }),
             })
           "
-          v-bind="user != null ? getNodeIcon(user) : ICON_BY_NODE_TYPE[NodeType.USER]!"
+          v-bind="user != null ? getNodeIcon(user) : makeIcon(NodeTypeOptionInfo[NodeType.USER]!.icon!)"
         />
         <div class="flex flex-col">
           <!-- Username -->

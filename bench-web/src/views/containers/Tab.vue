@@ -1,13 +1,13 @@
 <script lang="ts" setup>
 import { cloneNode } from "@/language/core/node";
 import { newChangeId } from "@/language/runtime/transaction";
-import { NodeType, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
+import { NodeType, NodeTypeOptionInfo, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/globals";
 import { canvas, spaceGraph } from "@/system/space";
 import { type Action, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";
-import { getNodeName, ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/ui/icon";
+import { getNodeIcon, getNodeName, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 import Empty from "@/views/builtins/Empty.vue";
@@ -220,7 +220,7 @@ defineExpose<ViewExpose>({ self, actions });
       >
         <!-- Tab header  -->
         <IconInline
-          v-bind="tab.icon ?? ICON_BY_VIEW_TYPE[tab.type] ?? ICON_BY_NODE_TYPE[NodeType.VIEW]"
+          v-bind="getNodeIcon(tab) ?? makeIcon(NodeTypeOptionInfo[NodeType.VIEW]!.icon!)"
           class="mr-1.5 w-5"
         />
         <span class="truncate" :class="[tabsNames[i] == tab.name ? 'italic' : '']">{{ tabsNames[i] }}</span>

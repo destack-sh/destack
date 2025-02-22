@@ -64,47 +64,47 @@ class ViewType(BuiltinEnum):
     COMPUTED_VALUE = 10005
 
     # helpers (20000-30000)
-    USER_WIZARD = 20001
-    BENCH_WIZARD = 20002
-    EMPTY = 20100
-    CREATE = 20201
-    CHAT = 20202
-    HUB = 20205
-    HELP = 20206
-    ACTIVITY = 20207
-    CATALOG = 20208
+    USER_WIZARD = 20001, "User wizard", "Sign up, login, etc.", "fas fa-user"
+    BENCH_WIZARD = 20002, "Bench wizard", None, "fas fa-circle-dot"
+    EMPTY = 20100, "Empty view", "For debugging", "fas fa-bug"
+    CREATE = 20201, None, None, "fas fa-plus"
+    CHAT = 20202, None, None, "fas fa-message"
+    HUB = 20205, None, None, "fas fa-object-group"
+    HELP = 20206, None, None, "fas fa-question"
+    ACTIVITY = 20207, None, None, "fas fa-list-timeline"
+    CATALOG = 20208, None, None, "fas fa-th-large"
 
     #
     # Organization (30000-31000)
     #
 
     # layout (30000-30100)
-    WINDOW = 30001
-    TAB = 30002
-    HISTORY = 30003
-    SPLIT = 30004
-    SPLIT_DRAWER = 30005
-    STACK = 30006
-    DRAWER = 30007
-    SCROLL = 30008
-    GRID = 30009
+    WINDOW = 30001, "Window", "Full window", "fas fa-window"
+    TAB = 30002, "Tab", "Tabbed interface", "fas fa-sidebar"
+    HISTORY = 30003, "History", "History of views", "fas fa-clock-rotate-left"
+    SPLIT = 30004, "Split", "Split view", "fas fa-split"
+    SPLIT_DRAWER = 30005, "Split drawer", "Split drawer view", "fas fa-split"
+    STACK = 30006, "Stack", "Stacked views", "fas fa-layer-group"
+    DRAWER = 30007, "Drawer", "Drawer view", "fas fa-square-minus"
+    SCROLL = 30008, "Scroll", "Scrollable view", "fas fa-arrows-alt-v"
+    GRID = 30009, "Grid", "Grid view", "fas fa-table-cells-large"
 
     # groups (30100-30200)
-    GROUP = 30100
-    SECTION = 30101
-    FORM = 30102
+    GROUP = 30100, "Group", "Grouped views", "fas fa-object-group"
+    SECTION = 30101, "Section", "Sectioned view", "fas fa-xmark-lines"
+    FORM = 30102, "Form", "Form view", "fas fa-clipboard-list"
 
     # presentation (30200-30300)
-    SPACER = 30200
-    DIVIDER = 30201
+    SPACER = 30200, "Spacer", "Spacer view", "fas fa-square-dashed"
+    DIVIDER = 30201, "Divider", "Divider view", "fas fa-horizontal-rule"
 
     # collections (30300-30400)
-    LIST = 30300
-    TABLE = 30301
-    TREE = 30302
-    FEED = 30303
-    GALLERY = 30304
-    BOARD = 30305
+    LIST = 30300, "List", "List view", "fas fa-list"
+    TABLE = 30301, "Table", "Table view", "fas fa-table"
+    TREE = 30302, "Tree", "Tree view", "fas fa-list-tree"
+    FEED = 30303, "Feed", "Feed view", "fas fa-list-timeline"
+    GALLERY = 30304, "Gallery", "Gallery view", "fas fa-th-large"
+    BOARD = 30305, "Board", "Board view", "fas fa-columns"
     # ROW, COLUMN, ...?
     # CALENDAR, MAP, ...?
 
@@ -113,53 +113,53 @@ class ViewType(BuiltinEnum):
     #
 
     # navigation (31000-31100)
-    BREADCRUMB = 31001
-    PROGRESS = 31002
-    AVATAR = 31003
-    BADGE = 31004
+    BREADCRUMB = 31001, "Breadcrumb", "Breadcrumb view", "fas fa-ellipsis-h"
+    PROGRESS = 31002, "Progress", "Progress view", "fas fa-spinner"
+    AVATAR = 31003, "Avatar", "Avatar view", "fas fa-user-circle"
+    BADGE = 31004, "Badge", "Badge view", "fas fa-badge"
     # illustration (31100-31200)
-    SHAPE = 31100
+    SHAPE = 31100, "Shape", "Shape view", "fas fa-shapes"
 
     # graphing (31200-31300)
-    CHART = 31200
+    CHART = 31200, "Chart", "Chart view", "fas fa-chart-pie"
 
     #
     # Action (32000-33000)
     #
 
     # controls (32000-32100)
-    BUTTON = 32001
-    MULTI_BUTTON = 32002
-    LINK = 32003
+    BUTTON = 32001, "Button", "Button view", "fas fa-hand-pointer"
+    MULTI_BUTTON = 32002, "Multi button", "Multi button view", "fas fa-hand-pointer"
+    LINK = 32003, "Link", "Link view", "fas fa-link"
 
     #
     # Content (35000-)
     #
 
     # numeric (35000-35100)
-    NUMBER = 35001
-    SLIDER = 35002
+    NUMBER = 35001, "Number", "Number view", "fas fa-hashtag"
+    SLIDER = 35002, "Slider", "Slider view", "fas fa-slider"
 
     # stringy (35100-35200)
-    STRING = 35101
-    TEXT = 35102
-    CODE = 35103
-    JSON = 35104
+    STRING = 35101, "String", "String view", "fas fa-font-case"
+    TEXT = 35102, "Text", "Text view", "fas fa-text"
+    CODE = 35103, "Code", "Code view", "fas fa-code"
+    JSON = 35104, "JSON", "JSON view", "fas fa-brackets-curly"
 
     # selection (35200-35300)
-    TOGGLE = 35201
-    PICKER = 35202
-    COLOR = 35203
-    ICON = 35204
-    DATETIME = 35205
-    DURATION = 35206
+    TOGGLE = 35201, "Toggle", "Toggle view", "fas fa-square-check"
+    PICKER = 35202, "Picker", "Picker view", "fas fa-caret-circle-down"
+    COLOR = 35203, "Color", "Color view", "fas fa-palette"
+    ICON = 35204, "Icon", "Icon view", "fas fa-icons"
+    DATETIME = 35205, "Datetime", "Datetime view", "fas fa-calendar-days"
+    DURATION = 35206, "Duration", "Duration view", "fas fa-stopwatch"
 
     # file (35300-35400)
-    FILE = 35301  # (generic file content according to file type)
-    IMAGE = 35302
-    AUDIO = 35303
-    VIDEO = 35304
-    DOCUMENT = 35305
+    FILE = 35301, "File", "File view", "fas fa-file"
+    IMAGE = 35302, "Image", "Image view", "fas fa-image"
+    AUDIO = 35303, "Audio", "Audio view", "fas fa-volume"
+    VIDEO = 35304, "Video", "Video view", "fas fa-video"
+    DOCUMENT = 35305, "Document", "Document view", "fas fa-file-alt"
 
     # expression
     # ...

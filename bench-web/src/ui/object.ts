@@ -88,7 +88,7 @@ import {
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { getNodeName, ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
+import { getNodeName, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
 import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
@@ -800,8 +800,8 @@ export class FlowLayout extends NodeLayout<NodeType.FLOW> {
         ],
         {
           actions: [
-            this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
-            this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
+            this.actionAddField(FieldType.INPUT, makeIcon("fas fa-arrow-down")),
+            this.actionAddField(FieldType.OUTPUT, makeIcon("fas fa-arrow-up")),
           ],
         },
       );
@@ -1003,9 +1003,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
       // flow inputs
       this.section("Schema", [{ type: "fields-list", fieldType: FieldType.INPUT, toolPtr: node.parentPtr }], {
         subtitle: "(Flow)",
-        actions: [
-          this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT], { toolPtr: node.parentPtr }),
-        ],
+        actions: [this.actionAddField(FieldType.INPUT, makeIcon("fas fa-arrow-down"), { toolPtr: node.parentPtr })],
       });
     } else if (node.type == ActionType.COMPLETE) {
       // ƒlow outputs as action inputs
@@ -1025,7 +1023,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
         {
           subtitle: "(Flow)",
           actions: [
-            this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT], {
+            this.actionAddField(FieldType.OUTPUT, makeIcon("fas fa-arrow-up"), {
               toolPtr: node.parentPtr,
             }),
           ],
@@ -1063,8 +1061,8 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
         {
           subtitle: "(Tool)",
           actions: [
-            this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
-            this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
+            this.actionAddField(FieldType.INPUT, makeIcon("fas fa-arrow-down")),
+            this.actionAddField(FieldType.OUTPUT, makeIcon("fas fa-arrow-up")),
           ],
         },
       );
@@ -1091,8 +1089,8 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
         ],
         {
           actions: [
-            this.actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
-            this.actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
+            this.actionAddField(FieldType.INPUT, makeIcon("fas fa-arrow-down")),
+            this.actionAddField(FieldType.OUTPUT, makeIcon("fas fa-arrow-up")),
           ],
         },
       );

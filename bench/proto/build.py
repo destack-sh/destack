@@ -665,8 +665,8 @@ export const NODE_SUBTYPE_PROPERTY_ID: Partial<Record<NodeType, number>> = {{
 export type EnumOptionInfo = {
     id: number;
     name: string;
-    text?: string;
     title?: string;
+    text?: string;
     color?: ColorType;
     icon?: string;
 }
@@ -690,6 +690,8 @@ export type EnumOptionInfo = {
                     option_str_parts.append(f"title: {option.title!r}")
                 if option.color:
                     option_str_parts.append(f"color: {option.color!r}")
+                if option.icon:
+                    option_str_parts.append(f"icon: {option.icon!r}")
                 option_info_parts.append(
                     f"  [{enum_cls.__name__}.{option.name}]: {{ {', '.join(option_str_parts)} }},"
                 )
