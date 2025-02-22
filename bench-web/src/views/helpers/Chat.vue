@@ -329,7 +329,7 @@ const bodyHeight = computed(() => {
     : undefined;
 });
 
-// automatically stick to end whenever we're at the end
+// automatically stick to end (whenever we're at the end)
 const stickToEnd: Ref<boolean> = ref(true);
 watchEffect(() => {
   if (bodyScrollRef.value?.isScrolling) {
@@ -639,7 +639,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
               <!-- Author for new groups -->
               <AvatarInline v-if="isNewGroup" class="mr-1 text-gray-700" size="medium" v-bind="authorIcon" />
               <!-- Time/edited otherwise -->
-              <div v-else class="pt-0.5 text-xs text-gray-400">
+              <div v-else class="pt-[4px] text-xs text-gray-400">
                 <!-- Time -->
                 <span class="hidden group-hover/message:inline">
                   {{ tsToDt(message.createdAt!).toLocaleString(DateTime.TIME_SIMPLE) }}

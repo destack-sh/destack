@@ -51,6 +51,8 @@ const { focus, actions: textActions } = useTextEditor({
   plugins,
   history: true,
 });
+// NOTE :Performance: maybe render simple Text into static DOM node (if readonly)?
+//  (see https://discuss.prosemirror.net/t/render-doc-content-to-html/4193)
 
 const actions: Partial<ActionMapImplementation<"space">> = {
   ...textActions,
