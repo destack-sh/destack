@@ -689,7 +689,7 @@ export type EnumOptionInfo = {
                 if option.title:
                     option_str_parts.append(f"title: {option.title!r}")
                 if option.color:
-                    option_str_parts.append(f"color: {option.color!r}")
+                    option_str_parts.append(f"color: ColorType.{option.color.name}")
                 if option.icon:
                     option_str_parts.append(f"icon: {option.icon!r}")
                 option_info_parts.append(

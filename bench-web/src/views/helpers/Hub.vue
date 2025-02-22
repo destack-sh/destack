@@ -3,7 +3,7 @@ import { toCamelName } from "@/language/core/const";
 import { packSubnode, useSubnodeProperty } from "@/language/core/node";
 import { createChannel } from "@/language/source/channel";
 import { createPage } from "@/language/source/page";
-import { HubAspect, NodeType, NodeTypeOptionInfo, Orientation, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
+import { HubAspect, IconData, NodeType, NodeTypeOptionInfo, Orientation, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import {
   bench,
@@ -103,6 +103,14 @@ const USER_MENU_ITEMS = computed(() => {
   items.push(...[menuItemFromAction("user.security.logout", { category: "secondary" })]);
   return items;
 });
+
+const ICON_BY_HUB_ASPECT: Record<HubAspect, IconData> = {
+  [HubAspect.UNSPECIFIED]: makeIcon("fas fa-sitemap"),
+  [HubAspect.BENCH]: makeIcon("fas fa-sitemap"),
+  [HubAspect.ACTIVITY]: makeIcon("fas fa-chart-line"),
+  [HubAspect.CATALOG]: makeIcon("fas fa-list"),
+  [HubAspect.LIBRARY]: makeIcon("fas fa-book"),
+};
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<

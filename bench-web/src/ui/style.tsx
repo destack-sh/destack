@@ -12,6 +12,10 @@ import {
   ActionType,
   EnumType,
   ActionCategory,
+  RunStatusOptionInfo,
+  BlockTypeOptionInfo,
+  ActionTypeOptionInfo,
+  NodeTypeOptionInfo,
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -95,7 +99,7 @@ export function getColorHex(color: ColorType | ColorData, shade?: ColorShade): s
 }
 
 export function getRunColorHex(status: RunStatus, shade?: ColorShade): string | undefined {
-  return getColorHex(COLOR_BY_RUN_STATUS[status], shade);
+  return getColorHex(RunStatusOptionInfo[status]!.color!, shade);
 }
 
 export function getColorTitle(color: ColorType | ColorData): string | null {
@@ -114,140 +118,19 @@ export function makeColor(type: ColorType, shade?: ColorShade): ColorData {
   return { metatype: ObjectType.COLOR, type, shade };
 }
 
-//
-//
-//
-
-export const COLOR_BY_NODE_TYPE: Partial<Record<NodeType, ColorType>> = {};
-
-export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {};
-
-export const COLOR_BY_ACTION_TYPE: Partial<Record<ActionType, ColorType>> = {
-  // flow
-  [ActionType.START]: ColorType.YELLOW,
-  [ActionType.COMPLETE]: ColorType.YELLOW,
-  [ActionType.FAIL]: ColorType.YELLOW,
-  // tool
-  [ActionType.CODE]: ColorType.SKY,
-  [ActionType.TOOL]: ColorType.SKY,
-  // generic
-  [ActionType.ACT]: ColorType.VIOLET,
-  [ActionType.THINK]: ColorType.VIOLET,
-  [ActionType.ROUTE]: ColorType.VIOLET,
-  [ActionType.GENERATE]: ColorType.VIOLET,
-  [ActionType.TRANSFORM]: ColorType.VIOLET,
-  [ActionType.EXTRACT]: ColorType.VIOLET,
-  [ActionType.CLASSIFY]: ColorType.VIOLET,
-  [ActionType.SUMMARIZE]: ColorType.VIOLET,
-  [ActionType.COMPARE]: ColorType.VIOLET,
-  [ActionType.TRANSLATE]: ColorType.VIOLET,
-  [ActionType.CHANGE]: ColorType.VIOLET,
-  // read
-  [ActionType.GET]: ColorType.SKY,
-  [ActionType.SEARCH]: ColorType.SKY,
-  // write
-  [ActionType.CREATE]: ColorType.SKY,
-  [ActionType.DUPLICATE]: ColorType.SKY,
-  [ActionType.UPDATE]: ColorType.SKY,
-  [ActionType.DELETE]: ColorType.SKY,
-  // async
-  [ActionType.WAIT]: ColorType.PINK,
-  [ActionType.SEND]: ColorType.PINK,
-  [ActionType.RECEIVE]: ColorType.PINK,
-  [ActionType.YIELD]: ColorType.PINK,
-  // environment
-  [ActionType.LOOK]: ColorType.EMERALD,
-  // application
-  [ActionType.CLICK]: ColorType.INDIGO,
-  [ActionType.PRESS]: ColorType.INDIGO,
-  [ActionType.TYPE]: ColorType.INDIGO,
-  [ActionType.SCROLL]: ColorType.INDIGO,
-  [ActionType.SELECT]: ColorType.INDIGO,
-  [ActionType.DRAG]: ColorType.INDIGO,
-  [ActionType.GO_BACKWARD]: ColorType.INDIGO,
-  [ActionType.GO_FORWARD]: ColorType.INDIGO,
-  // web
-  [ActionType.GO_TO_URL]: ColorType.INDIGO,
-  [ActionType.GO_TO_TAB]: ColorType.INDIGO,
-  [ActionType.OPEN_TAB]: ColorType.INDIGO,
-  [ActionType.CLOSE_TAB]: ColorType.INDIGO,
-  // containers
-  // ...
-  // misc
-  [ActionType.TEXT]: ColorType.GRAY,
-};
-
-export const COLOR_BY_ACTION_CATEGORY: Partial<Record<ActionCategory, ColorType>> = {
-  [ActionCategory.FLOW]: ColorType.YELLOW,
-  [ActionCategory.READ]: ColorType.SKY,
-  [ActionCategory.WRITE]: ColorType.SKY,
-  [ActionCategory.COMMUNICATE]: ColorType.PINK,
-  [ActionCategory.ENVIRONMENT]: ColorType.EMERALD,
-  [ActionCategory.APPLICATION]: ColorType.INDIGO,
-  [ActionCategory.WEB]: ColorType.INDIGO,
-};
-
-export const COLOR_BY_SEVERITY: Record<Severity, ColorType> = {
-  [Severity.UNSPECIFIED]: ColorType.GRAY,
-  [Severity.TRACE]: ColorType.GRAY,
-  [Severity.DEBUG]: ColorType.GRAY,
-  [Severity.INFO]: ColorType.GRAY,
-  [Severity.WARNING]: ColorType.ORANGE,
-  [Severity.ERROR]: ColorType.RED,
-  [Severity.PANIC]: ColorType.RED,
-};
-
-export const COLOR_BY_RUN_STATUS: Record<RunStatus, ColorType> = {
-  [RunStatus.UNSPECIFIED]: ColorType.GRAY,
-  [RunStatus.SCHEDULED]: ColorType.GRAY,
-  [RunStatus.QUEUED]: ColorType.GRAY,
-  [RunStatus.RUNNING]: ColorType.GREEN,
-  [RunStatus.PAUSED]: ColorType.PINK,
-  [RunStatus.YIELDED]: ColorType.PINK,
-  [RunStatus.WAITING]: ColorType.PINK,
-  [RunStatus.COMPLETED]: ColorType.GREEN,
-  [RunStatus.CANCELLED]: ColorType.RED,
-  [RunStatus.ABORTED]: ColorType.RED,
-  [RunStatus.FAILED]: ColorType.RED,
-};
-
-export const COLOR_BY_RESOURCE_STATUS: Record<ResourceStatus, ColorType> = {
-  [ResourceStatus.UNSPECIFIED]: ColorType.GRAY,
-  [ResourceStatus.DECLARED]: ColorType.GRAY,
-  [ResourceStatus.UP]: ColorType.GREEN,
-  [ResourceStatus.DOWN]: ColorType.RED,
-  [ResourceStatus.SLEEPING]: ColorType.YELLOW,
-  [ResourceStatus.DEGRADED]: ColorType.ORANGE,
-  [ResourceStatus.DECOMMISSIONED]: ColorType.GRAY,
-};
-
-export const COLORS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, ColorType>>> = {
-  [EnumType.NODE_TYPE]: COLOR_BY_NODE_TYPE,
-  [EnumType.BLOCK_TYPE]: COLOR_BY_BLOCK_TYPE,
-  [EnumType.ACTION_TYPE]: COLOR_BY_ACTION_TYPE,
-  [EnumType.ACTION_CATEGORY]: COLOR_BY_ACTION_CATEGORY,
-  [EnumType.SEVERITY]: COLOR_BY_SEVERITY,
-  [EnumType.RUN_STATUS]: COLOR_BY_RUN_STATUS,
-  [EnumType.RESOURCE_STATUS]: COLOR_BY_RESOURCE_STATUS,
-};
-
-export function getSeverityHex(level: Severity, shade?: ColorShade): string | undefined {
-  return getColorHex(COLOR_BY_SEVERITY[level], shade);
-}
-
 export function getNodeColor(node: AnyNodeData): ColorType | undefined {
   if (isNode(node, NodeType.BLOCK)) {
-    if (COLOR_BY_BLOCK_TYPE[node.type] != null) {
-      return COLOR_BY_BLOCK_TYPE[node.type]!;
+    if (BlockTypeOptionInfo[node.type] != null) {
+      return BlockTypeOptionInfo[node.type]!.color!;
     }
   } else if (isNode(node, NodeType.ACTION)) {
-    if (COLOR_BY_ACTION_TYPE[node.type] != null) {
-      return COLOR_BY_ACTION_TYPE[node.type]!;
+    if (ActionTypeOptionInfo[node.type] != null) {
+      return ActionTypeOptionInfo[node.type]!.color!;
     }
   }
 
-  if (COLOR_BY_NODE_TYPE[node.metatype as unknown as NodeType] != null) {
-    return COLOR_BY_NODE_TYPE[node.metatype as unknown as NodeType]!;
+  if (NodeTypeOptionInfo[node.metatype as unknown as NodeType] != null) {
+    return NodeTypeOptionInfo[node.metatype as unknown as NodeType]!.color!;
   }
 
   return undefined;

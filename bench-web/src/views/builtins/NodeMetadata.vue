@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import { isResourceNode } from "@/language/core/const";
-import { AnyNodeData, NodeType } from "@/proto/wire";
+import { AnyNodeData, NodeType, ResourceStatusOptionInfo, RunStatusOptionInfo } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
-import { COLOR_BY_RESOURCE_STATUS, COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
+import { getColorHex } from "@/ui/style";
 import { humanizeBytes } from "@/utils/string";
 import { computed } from "vue";
 
@@ -36,7 +36,7 @@ const textClass = computed(() => [
       <span
         class="fas fa-circle-small w-5 text-center"
         :class="iconClass"
-        :style="{ color: getColorHex(COLOR_BY_RESOURCE_STATUS[node.status]) }"
+        :style="{ color: getColorHex(ResourceStatusOptionInfo[node.status]!.color!) }"
       />
     </span>
     <span v-else-if="isNode(node, NodeType.RUN)">
@@ -44,7 +44,7 @@ const textClass = computed(() => [
       <span
         class="fas fa-circle-small w-5 text-center"
         :class="iconClass"
-        :style="{ color: getColorHex(COLOR_BY_RUN_STATUS[node.status]) }"
+        :style="{ color: getColorHex(RunStatusOptionInfo[node.status]!.color!) }"
       />
     </span>
     <!-- Node mode, ... -->

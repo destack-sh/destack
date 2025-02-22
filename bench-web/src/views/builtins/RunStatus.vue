@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/core/const";
 import { getRunDurationString, isRunActive, isRunInterrupted } from "@/language/runtime/run";
-import { ColorShade, Orientation, RunData, RunStatus } from "@/proto/wire";
-import { ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
+import { ColorShade, Orientation, RunData, RunStatus, RunStatusOptionInfo } from "@/proto/wire";
+import { IconInline, makeIcon } from "@/ui/icon";
 import { getRunColorHex } from "@/ui/style";
 
 const props = defineProps<{
@@ -37,7 +37,7 @@ const props = defineProps<{
     </template>
     <template v-else-if="icon != 'hide'">
       <IconInline
-        v-bind="ICON_BY_RUN_STATUS[run.status]"
+        v-bind="makeIcon(RunStatusOptionInfo[run.status]!.icon!)"
         :class="[isRunActive(run) ? 'animate-spin' : '']"
         :style="{ color: getRunColorHex(run.status) }"
         class=""
@@ -50,7 +50,7 @@ const props = defineProps<{
       v-if="isRunInterrupted(run)"
       v-tooltip="{ title: toCamelName(RunStatus, run.status), small: true, group: 'run.status' }"
       class="text-pink-500 transition-colors duration-150"
-      v-bind="ICON_BY_RUN_STATUS[run.status]"
+      v-bind="makeIcon(RunStatusOptionInfo[run.status]!.icon!)"
     />
   </div>
 </template>

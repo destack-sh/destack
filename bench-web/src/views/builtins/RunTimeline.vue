@@ -22,19 +22,22 @@ import {
   InterruptionStatus,
   NodeReferenceData,
   NodeType,
+  NodeTypeOptionInfo,
   Orientation,
   RunData,
   RunSpanData,
   RunSpanType,
+  RunSpanTypeOptionInfo,
   RunStatus,
+  RunStatusOptionInfo,
   Severity,
-  ViewData
+  ViewData,
 } from "@/proto/wire";
 import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { getInputType, getOutputType, getRunActions, runtime, RunTree } from "@/runtime/runtime";
 import { canvas } from "@/system/space";
-import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_SPAN_TYPE, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
-import { COLOR_BY_RUN_STATUS, getColorHex, getRunColorHex } from "@/ui/style";
+import { getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
+import { getColorHex, getRunColorHex } from "@/ui/style";
 import { assertNever } from "@/utils/functools";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import { formatDuration, getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
@@ -128,15 +131,15 @@ function makeTimeline(now: DateTime, root: RunData, maxDepth: number | undefined
     const basePtr = isNode(run, NodeType.RUN) ? getBaseFromNode(run) : null;
     const baseNode = basePtr != null ? props.graph.get(basePtr) : null;
     const color = !isNode(run, NodeType.RUN_SPAN)
-      ? getColorHex(COLOR_BY_RUN_STATUS[run.status], ColorShade.S500)!
+      ? getColorHex(RunStatusOptionInfo[run.status]!.color!, ColorShade.S500)!
       : getColorHex(ColorType.SUCCESS, ColorShade.S500)!;
     let icon: IconData;
     let name: string = "???";
     if (isNode(run, NodeType.RUN)) {
-      icon = (baseNode != null ? getNodeIcon(baseNode) : null) ?? ICON_BY_NODE_TYPE[NodeType.RUN]!;
+      icon = (baseNode != null ? getNodeIcon(baseNode) : null) ?? makeIcon(NodeTypeOptionInfo[NodeType.RUN]!.icon!);
       name = (baseNode as any)?.name ?? "Run";
     } else if (isNode(run, NodeType.RUN_SPAN)) {
-      icon = ICON_BY_RUN_SPAN_TYPE[run.type];
+      icon = makeIcon(RunSpanTypeOptionInfo[run.type]!.icon!);
       name = toCamelName(RunSpanType, run.type);
     } else {
       assertNever(run);
@@ -237,7 +240,7 @@ watchEffect(() => {
             <!-- Icon (from Run if active) -->
             <IconInline
               v-if="isRunActive(thing.span)"
-              v-bind="ICON_BY_RUN_STATUS[thing.span.status]"
+              v-bind="makeIcon(RunStatusOptionInfo[thing.span.status]!.icon!)"
               class="mr-1.5 w-5 text-center text-gray-700"
               :class="[thing.span.status == RunStatus.RUNNING ? 'animate-spin' : '']"
             />
@@ -247,7 +250,7 @@ watchEffect(() => {
             <!-- Icon -->
             <IconInline
               v-if="thing.isBad || thing.isInterrupted"
-              v-bind="ICON_BY_RUN_STATUS[thing.span.status]"
+              v-bind="makeIcon(RunStatusOptionInfo[thing.span.status]!.icon!)"
               :style="{ color: getRunColorHex(thing.span.status) }"
               class="ml-1 w-5 text-center"
             />
@@ -403,7 +406,7 @@ watchEffect(() => {
           @click.stop="isNode(span.baseNode) && canvas.goToNode(span.baseNode)"
         >
           <IconInline
-            v-bind="span.icon ?? ICON_BY_NODE_TYPE[NodeType.RUN]"
+            v-bind="span.icon ?? makeIcon(NodeTypeOptionInfo[NodeType.RUN]!.icon!)"
             class="mr-1.5 w-5 text-center text-gray-700 transition-colors duration-75"
           />
           <span class="truncate underline-offset-3 group-hover/node:underline">{{ span.name }}</span>

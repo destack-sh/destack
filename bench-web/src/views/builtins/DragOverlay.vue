@@ -1,11 +1,10 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
 import { toCamelName } from "@/language/core/const";
-import { unwrapBlockDefinition } from "@/language/source/block";
-import { AnyNodeData, NodeType } from "@/proto/wire";
+import { AnyNodeData, NodeType, NodeTypeOptionInfo } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { _setDragImage, activeDrag } from "@/ui/drag";
-import { ICON_BY_NODE_TYPE, IconInline } from "@/ui/icon";
+import { IconInline, makeIcon } from "@/ui/icon";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { computed } from "vue";
 
@@ -78,7 +77,10 @@ const dragInfo = computed<DragInfo | null>(() => {
           <span v-if="dragInfo.unnamedNodesByType[nodeType as unknown as NodeType]!.length > 0" class="">
             {{ dragInfo.unnamedNodesByType[nodeType as unknown as NodeType]!.length }}
           </span>
-          <IconInline v-bind="ICON_BY_NODE_TYPE[nodeType as unknown as NodeType]" class="text-gray-700" />
+          <IconInline
+            v-bind="makeIcon(NodeTypeOptionInfo[nodeType as unknown as NodeType]!.icon!)"
+            class="text-gray-700"
+          />
           <span class="">{{ toCamelName(NodeType, nodeType) }}</span>
         </div>
       </div>

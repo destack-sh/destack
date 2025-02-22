@@ -1,10 +1,19 @@
 <script lang="ts" setup>
-import { NodeType, ObjectType, PrimitiveType, RectangleData, ViewData, ViewType, type Timestamp } from "@/proto/wire";
+import {
+  NodeType,
+  ObjectType,
+  PrimitiveType,
+  PrimitiveTypeOptionInfo,
+  RectangleData,
+  ViewData,
+  ViewType,
+  type Timestamp,
+} from "@/proto/wire";
 import type { Date as ProtoDate } from "@/proto/wire/proto/google/type/date";
 import type { TimeOfDay } from "@/proto/wire/proto/google/type/timeofday";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import { ICON_BY_PRIMITIVE_TYPE, IconInline } from "@/ui/icon";
+import { IconInline, makeIcon } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { dtToTs, formatAbsoluteDate, tsToDt } from "@/utils/time";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -269,7 +278,7 @@ defineExpose<ViewExpose>({
     <template v-if="modelValue">
       <IconInline
         v-if="icon || !isMinimal"
-        v-bind="icon ?? ICON_BY_PRIMITIVE_TYPE[valueType?.primitiveType ?? PrimitiveType.DATETIME]"
+        v-bind="icon ?? makeIcon(PrimitiveTypeOptionInfo[valueType?.primitiveType ?? PrimitiveType.DATETIME]!.icon!)"
         class="w-5 text-center group-hover:text-gray-700"
         :class="dateString ? 'text-gray-700' : 'text-gray-400'"
       />
@@ -291,7 +300,7 @@ defineExpose<ViewExpose>({
     >
       <IconInline
         v-if="icon || !isMinimal"
-        v-bind="icon ?? ICON_BY_PRIMITIVE_TYPE[valueType?.primitiveType ?? PrimitiveType.DATETIME]"
+        v-bind="icon ?? makeIcon(PrimitiveTypeOptionInfo[valueType?.primitiveType ?? PrimitiveType.DATETIME]!.icon!)"
         class="mr-1.5 w-5"
       />
       <span>Select {{ unit }}</span>

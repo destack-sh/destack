@@ -1,18 +1,11 @@
-import {
-  COSMOS_NODE_TYPES,
-  FINANCE_NODE_TYPES,
-  isResourceNodeType,
-  isRuntimeNodeType,
-  RESOURCE_NODE_TYPES,
-  RUNTIME_NODE_TYPES,
-} from "@/language/core/const";
+import { canvas, space, supergraph } from "@/globals";
+import { COSMOS_NODE_TYPES, RESOURCE_NODE_TYPES, RUNTIME_NODE_TYPES } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
-import { NodeType, NodeTypeMapping, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
+import { NodeType, NodeTypeMapping, NodeTypeOptionInfo, type AnyNodeData, type IconData } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { isDeveloperMode } from "@/system/client";
 import type { ConnectionBase } from "@/system/connection";
-import { canvas, space, supergraph } from "@/globals";
-import { ICON_BY_NODE_TYPE, makeIcon } from "@/ui/icon";
+import { makeIcon } from "@/ui/icon";
 import { keytrap, type KeySignature } from "@/ui/keymap";
 import { toaster } from "@/ui/toast";
 import { collectViewComponentsUp } from "@/ui/view";
@@ -630,7 +623,7 @@ export function getNodeActions(node: AnyNodeData): Action[] {
 // flow
 declareActions<"flow">({
   "flow.edit.createAction": {
-    icon: ICON_BY_NODE_TYPE[NodeType.ACTION],
+    icon: makeIcon(NodeTypeOptionInfo[NodeType.ACTION]!.icon!),
     title: "Create Action",
     text: "Create a new action",
   },
