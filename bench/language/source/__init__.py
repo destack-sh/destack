@@ -44,7 +44,6 @@ from .database import Database
 from .dependency import Dependency
 from .field import Field
 from .flow import Flow
-from .identity import Identity
 from .option import Option
 from .package import Package, PackageType
 from .page import Page
@@ -130,7 +129,6 @@ __all__ = [
     "GoToTabAction",
     "GoToUrlAction",
     "HasApplicationContext",
-    "Identity",
     "Line",
     "LookAction",
     "MessageTrigger",

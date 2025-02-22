@@ -51,7 +51,7 @@ from .text import Text
 from .validation import NAME_CONSTRAINT, ValidationError
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Client, Identity, Machine, Organization, Query, User
+    from bench.language import Bench, Block, Client, Machine, Organization, Query, User
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -365,13 +365,6 @@ class Subject(Struct):
         server_id: Optional[UUID] = None
 
     # accessories
-    identity: Optional["Identity"] = p_system(
-        50,
-        default=None,
-        require=False,
-        array=False,
-        references=NodeType.IDENTITY,
-    )
     owned: list[Ownable] = p_system(
         52, array=True, require=False, references=OWNABLE_NODE_TYPES.tuple
     )
@@ -391,8 +384,6 @@ class Subject(Struct):
             content_parts.append(f"client={self.client}")
         elif self.user:
             content_parts.append(f"user={self.user}")
-        if self.identity:
-            content_parts.append(f"identity={self.identity}")
         return ", ".join(content_parts)
 
     @property
@@ -413,8 +404,6 @@ class Subject(Struct):
             subjects.append(Subject(is_staff=True))
         if self.user:
             subjects.append(Subject(user=self.user, _supergraph=self._supergraph))
-        if self.identity:
-            subjects.append(Subject(identity=self.identity, _supergraph=self._supergraph))
         for owner in self.owned or ():
             if str(owner.id) in graph:
                 subjects.append(Subject(owned=[owner], _supergraph=self._supergraph))

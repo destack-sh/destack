@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.21.0"
+VERSION = "2025.02.22.0"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -530,7 +530,7 @@ class NodeType(BuiltinEnum):
     DATABASE = 5090
     CHANNEL = 5100
     ROLE = 5110
-    IDENTITY = 5120
+    # IDENTITY?
     # BADGE? POLICY? (POLICY_)RULE?
     SPACE = 5200
 
@@ -664,7 +664,6 @@ INLINE_SOURCE_NODE_TYPES = bittuple(
     NodeType.CLASS,
     NodeType.DATABASE,
     NodeType.FLOW,
-    NodeType.IDENTITY,
     NodeType.PAGE,
     NodeType.ROLE,
     NodeType.VIEW,
