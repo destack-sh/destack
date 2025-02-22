@@ -178,7 +178,7 @@ const {
 // Interaction
 //
 
-const SUGGESTED_BLOCK_TYPES = [BlockType.PAGE, BlockType.FLOW, BlockType.DATABASE, BlockType.CHOICE];
+const SUGGESTED_BLOCK_TYPES = [BlockType.PAGE, BlockType.FLOW, BlockType.DATABASE];
 
 // selecting
 const selectionZone = useSelectionZone({ containerEl: contentRef, overlayEl: selectionOverlayRef });

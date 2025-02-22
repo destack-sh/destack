@@ -166,11 +166,11 @@ function apply(item: SearchItem) {
         tr.delete(linePos + 1, linePos + lineNode.nodeSize - 1);
         tr.setSelection(TextSelection.near(tr.doc.resolve(linePos)));
       } else {
-        tr.setBlockType(linePos, linePos + lineNode.nodeSize - 1, getPmLineType(textLineType), {
+        tr.setBlockType(linePos, linePos + lineNode.nodeSize - 2, getPmLineType(textLineType), {
           ...lineNode.attrs,
           type: textLineType,
         });
-        tr.delete(linePos, linePos + lineNode.nodeSize - 1);
+        tr.delete(linePos, linePos + lineNode.nodeSize - 2);
         tr.setSelection(TextSelection.near(tr.doc.resolve(linePos)));
         autoWrap(tr);
       }

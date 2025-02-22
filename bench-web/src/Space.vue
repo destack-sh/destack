@@ -238,10 +238,12 @@ mark {
 }
 
 /** Other lines */
-.pm-text blockquote.line {
+.pm-text blockquote.line,
+.pm-text.pm-compact blockquote.line {
   @apply my-2 border-l-4 border-gray-400 pl-2;
 }
-.pm-text p.line.callout {
+.pm-text p.line.callout,
+.pm-text.pm-compact p.line.callout {
   @apply my-2 rounded bg-gray-100 px-2 py-3;
 }
 .pm-text p.line.callout::before {
@@ -254,10 +256,10 @@ mark {
   @apply my-3 border-gray-200 focus:outline-none focus:ring-0;
 }
 .pm-text code.line {
-  @apply my-2 block w-full rounded bg-gray-100 px-3 py-2;
+  @apply my-2 block w-full rounded bg-gray-100 px-2.5 py-2 text-sm;
 }
 .pm-text.pm-compact code.line {
-  @apply my-1.5 py-1.5;
+  @apply my-1.5 px-2.5 py-1.5;
 }
 
 /** Line handles */

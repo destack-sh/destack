@@ -1,6 +1,6 @@
 import { TextLineType, TextSpanType } from "@/proto/wire";
 import { assertNever } from "@/utils/functools";
-import { Node as PmNode, Schema as PmSchema, type DOMOutputSpec } from "prosemirror-model";
+import { DOMSerializer, Node as PmNode, Schema as PmSchema, type DOMOutputSpec } from "prosemirror-model";
 
 //
 // PM Schema
@@ -283,6 +283,7 @@ export const PM_SCHEMA = new PmSchema({
     // TODO :Incomplete: Text foregroundColor, backgroundColor (for TextSpans and TextLines)
   },
 });
+export const PM_SERIALIZER = DOMSerializer.fromSchema(PM_SCHEMA);
 
 /** Get the PM node type for a given line type. */
 export function getPmLineType(type: TextLineType) {
