@@ -167,7 +167,7 @@ mark {
   @apply font-semibold;
 }
 .pm-text code {
-  @apply bg-gray-100 px-1 py-0.5 font-mono;
+  @apply bg-gray-100 px-1 py-0.5 font-mono text-sm;
 }
 .pm-text .line,
 .pm-text .line-block.page {

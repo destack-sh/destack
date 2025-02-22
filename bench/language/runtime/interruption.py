@@ -119,9 +119,9 @@ class Breakpoint(Struct):
 
 @enum_(EnumType.INTERRUPTION_TYPE)
 class InterruptionType(BuiltinEnum):
-    PAUSE = 10  # external pause
-    YIELD = 20  # voluntary yield
-    WAIT = 30  # wait on something
+    PAUSE = 10, None, None, "fas fa-pause"
+    YIELD = 20, None, None, "fas fa-hand"
+    WAIT = 30, None, None, "fas fa-hourglass-end"
 
 
 RUN_STATUS_BY_INTERRUPTION_TYPE: dict[InterruptionType, RunStatus] = {

@@ -51,7 +51,7 @@ class BenchStatus(BuiltinEnum):
 @node_(NodeType.BENCH, roots=())
 class Bench(BenchNode[BenchData]):
     """
-    A Bench is an AI-native operating system for a new generation of fully integrated, fluid software.
+    A Bench is an AI-native operating system for higher order software.
     """
 
     parent: None = p_node_parent(4)

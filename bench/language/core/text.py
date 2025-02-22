@@ -37,25 +37,25 @@ class TextOptionsBase(BuiltinObject):
 @enum_(EnumType.TEXT_LINE_TYPE)
 class TextLineType(BuiltinEnum):  # :TextLineType
     # basic
-    PARAGRAPH = 1, "Plain paragraph"
+    PARAGRAPH = 1, "Paragraph", "Plain paragraph", "fas fa-align-left   "
     # heading
-    HEADING_1 = 10, "Very big heading"
-    HEADING_2 = 11, "Big heading"
-    HEADING_3 = 12, "Medium heading"
-    HEADING_4 = 13, "Small heading"
+    HEADING_1 = 10, "Heading 1", "Very big heading", "fas fa-heading"
+    HEADING_2 = 11, "Heading 2", "Big heading", "fas fa-heading"
+    HEADING_3 = 12, "Heading 3", "Medium heading", "fas fa-heading"
+    HEADING_4 = 13, "Heading 4", "Small heading", "fas fa-heading"
     # highlight
-    CALLOUT = 20, "Callout"
-    QUOTE = 21, "Quote"
+    CALLOUT = 20, "Callout", "Callout", "fas fa-circle-exclamation"
+    QUOTE = 21, "Quote", "Quote", "fas fa-quote-left"
     # list
-    LIST_UNORDERED = 30, "Unorderd list"
-    LIST_ORDERED = 31, "Numbered list"
+    LIST_UNORDERED = 30, "Unorderd list", "Unorderd list", "fas fa-list-ul"
+    LIST_ORDERED = 31, "Numbered list", "Numbered list", "fas fa-list-ol"
     # divider
-    DIVIDER = 40, "Horizontal line"
+    DIVIDER = 40, "Horizontal line", "Horizontal line", "fas fa-horizontal-rule"
     # table
-    TABLE = 50, "Table"
-    TABLE_ROW = 51, "Table row"
+    TABLE = 50, "Table", "Table", "fas fa-table"
+    TABLE_ROW = 51, "Table row", "Table row", "fas fa-table-rows"
     # code
-    CODE = 60, "Code block"
+    CODE = 60, "Code block", "Code block", "fas fa-code"
     # reference
     # LINK, EMBED, ...
 

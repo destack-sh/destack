@@ -196,7 +196,6 @@ export const INLINE_SOURCE_NODE_TYPES = [
   NodeType.FLOW,
   NodeType.VIEW,
   NodeType.ROLE,
-  NodeType.IDENTITY,
 ];
 INLINE_SOURCE_NODE_TYPES.sort();
 export const STATE_NODE_TYPES = NODE_TYPES.filter(isStateNodeType);

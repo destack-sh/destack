@@ -83,20 +83,20 @@ BuiltinEnumT = TypeVar("BuiltinEnumT", bound="BuiltinEnum")
 
 
 class BuiltinEnum(enum.IntEnum):
-    id: int
     ord: int
-    text: str | None
+    id: int
     title: str | None
-    color: "ColorType | None"
+    text: str | None
     icon: str | None
+    color: "ColorType | None"
 
     def __new__(
         cls,
         id: int,
-        text: str | None = None,
         title: str | None = None,
-        color: "ColorType | None" = None,
+        text: str | None = None,
         icon: str | None = None,
+        color: "ColorType | None" = None,
     ):
         obj = int.__new__(cls, id)
         obj._value_ = id
@@ -104,8 +104,8 @@ class BuiltinEnum(enum.IntEnum):
         obj.id = id
         obj.text = text
         obj.title = title
-        obj.color = color
         obj.icon = icon
+        obj.color = color
         obj.__doc__ = text
 
         # check id
@@ -470,12 +470,12 @@ class NodeType(BuiltinEnum):
     #
 
     # cosmos
-    BENCH = 1
-    HANDLE = 2
-    USER = 10
-    ORGANIZATION = 20
-    TEAM = 30
-    CLIENT = 50
+    BENCH = 1, "Bench", None, "fas fa-volleyball"
+    HANDLE = 2, None, None, "fas fa-at"
+    USER = 10, None, None, "fas fa-user"
+    ORGANIZATION = 20, None, None, "fas fa-building"
+    TEAM = 30, None, None, "fas fa-users"
+    CLIENT = 50, None, None, "fas fa-desktop"
     # CHALLENGE?
 
     #
@@ -483,17 +483,17 @@ class NodeType(BuiltinEnum):
     #
 
     # compute
-    SCALER = 1000
-    STORE = 1001  # real database
+    SCALER = 1000, None, None, "fas fa-scale-unbalanced"
+    STORE = 1001, None, None, "fas fa-database"
     # RESOURCE_CLAIM?
     # CACHE?
-    MACHINE = 1100
-    BROWSER = 1110
+    MACHINE = 1100, None, None, "fas fa-computer-classic"
+    BROWSER = 1110, None, None, "fas fa-globe"
     # MODEL, ...
     # data?
-    FILE = 1200
-    STREAM = 1210
-    SECRET = 1220
+    FILE = 1200, None, None, "fas fa-file"
+    STREAM = 1210, None, None, "fas fa-stream"
+    SECRET = 1220, None, None, "fas fa-key"
 
     # finance
     # BALANCE, BUDGET, TRANSFER, GRANT, INVOICE, ...
@@ -513,47 +513,47 @@ class NodeType(BuiltinEnum):
     #
 
     # source (named, versioned, templatable)
-    PACKAGE = 5000
-    DEPENDENCY = 5010
-    PAGE = 5020
-    BLOCK = 5021
-    CHOICE = 5030
-    CLASS = 5031
+    PACKAGE = 5000, None, None, "fas fa-box-open"
+    DEPENDENCY = 5010, None, None, "fas fa-turn-down-right"
+    PAGE = 5020, None, None, "far fa-file"
+    BLOCK = 5021, None, None, "fas fa-cube"
+    CHOICE = 5030, None, None, "fas fa-circle-chevron-down"
+    CLASS = 5031, None, None, "fas fa-shapes"
     # UNION?
-    FIELD = 5035  # (based)
-    OPTION = 5036  # (based)
-    FLOW = 5050
-    ACTION = 5051
-    PIPE = 5052
-    TRIGGER = 5053
-    VIEW = 5080
-    DATABASE = 5090
-    CHANNEL = 5100
-    ROLE = 5110
+    FIELD = 5035, None, None, "fas fa-triangle"
+    OPTION = 5036, None, None, "far fa-square-check"
+    FLOW = 5050, None, None, "fas fa-diagram-project"
+    ACTION = 5051, None, None, "fas fa-step-forward"
+    PIPE = 5052, None, None, "fas fa-pipe-section"
+    TRIGGER = 5053, None, None, "fas fa-bolt"
+    VIEW = 5080, None, None, "fas fa-window-frame"
+    DATABASE = 5090, None, None, "fas fa-database"
+    CHANNEL = 5100, None, None, "fas fa-hashtag"
+    ROLE = 5110, None, None, "fas fa-user-tag"
     # IDENTITY?
     # BADGE? POLICY? (POLICY_)RULE?
-    SPACE = 5200
+    SPACE = 5200, None, None, "fas fa-space-between"
 
     # state
-    THREAD = 5501  # (timed)
-    MESSAGE = 5502  # (based, timed)
+    THREAD = 5501, None, None, "fas fa-reel"
+    MESSAGE = 5502, None, None, "fas fa-message"
     # POLL?
     # REACTION?
-    NOTIFICATION = 5540  # (timed)
-    RECORD = 5550  # (based)
+    NOTIFICATION = 5540, None, None, "fas fa-bell"
+    RECORD = 5550, None, None, "fas fa-database"
 
     # auth
-    MEMBERSHIP = 5600
-    INVITE = 5610
+    MEMBERSHIP = 5600, None, None, "fas fa-users"
+    INVITE = 5610, None, None, "fas fa-user-plus"
 
     # runtime
-    SESSION = 6000  # (timed)
-    RUN = 6010  # (based, timed)
-    RUN_SPAN = 6011  # (timed)
+    SESSION = 6000, None, None, "fas fa-circle-play"
+    RUN = 6010, None, None, "fas fa-play"
+    RUN_SPAN = 6011, None, None, "fas fa-play"
     # RUN_GROUP, RUN_QUEUE, ...?
-    INTERRUPTION = 6020  # (timed)
-    LOG = 6030  # (timed)
-    PLAN = 6040  # (timed)
+    INTERRUPTION = 6020, None, None, "fas fa-hand"
+    LOG = 6030, None, None, "fas fa-file-alt"
+    PLAN = 6040, None, None, "fas fa-diagram-project"
 
     # sync
     # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?
@@ -738,11 +738,11 @@ class StructType(BuiltinEnum):
     TEXT_CELL = 12004
 
     # code (12100-12199)
-    CODE = 12100
+    CODE = 12100, None, None, "fas fa-code"
     CODE_LINE = 12101
 
     # expression (12200-12699)
-    PATH = 12200
+    PATH = 12200, None, None, "fas fa-road"
     PATH_ELEMENT = 12201
     EXPRESSION = 12210
     AGGREGATION_RESULT = 12211
@@ -768,16 +768,16 @@ class StructType(BuiltinEnum):
     TOOL_SELECTION = 12900
 
     # space/views (13200-13699)
-    COLOR = 13200
-    FONT = 13201
-    RECTANGLE = 13202
-    OFFSET = 13203
-    TRANSFORM = 13204
-    VECTOR2 = 13205
-    VECTOR3 = 13206
-    VECTOR4 = 13207
-    LINE = 13208
-    RECTANGLE_CONSTRAINT = 13209
+    COLOR = 13200, None, None, "fas fa-palette"
+    FONT = 13201, None, None, "fas fa-font"
+    RECTANGLE = 13202, None, None, "fas fa-box"
+    OFFSET = 13203, None, None, "fas fa-arrows-alt"
+    TRANSFORM = 13204, None, None, "fas fa-transform"
+    VECTOR2 = 13205, None, None, "fas fa-vector-square"
+    VECTOR3 = 13206, None, None, "fas fa-vector-square"
+    VECTOR4 = 13207, None, None, "fas fa-vector-square"
+    LINE = 13208, None, None, "fas fa-bezier-curve"
+    RECTANGLE_CONSTRAINT = 13209, None, None, "fas fa-box-constraint"
 
     # browser/application (13700-13999)
     DOM_NODE = 13700
@@ -882,17 +882,17 @@ class RegionArea(BuiltinEnum):
     A larger RegionArea of Regions within a RegionContinent.
     """
 
-    EUROPE_CENTRAL = 1000
-    NORTH_AMERICA_EAST = 2000
-    NORTH_AMERICA_WEST = 2200
-    SOUTH_AMERICA_EAST = 3000
-    MIDDLE_EAST_CENTRAL = 4000
-    MIDDLE_EAST_WEST = 4200
-    AFRICA_SOUTH = 5000
+    EUROPE_CENTRAL = 1000, None, None, "🇪🇺"
+    NORTH_AMERICA_EAST = 2000, None, None, "🇺🇸"
+    NORTH_AMERICA_WEST = 2200, None, None, "🇺🇸"
+    SOUTH_AMERICA_EAST = 3000, None, None, "🇧🇷"
+    MIDDLE_EAST_CENTRAL = 4000, None, None, "🇸🇦"
+    MIDDLE_EAST_WEST = 4200, None, None, "🇸🇦"
+    AFRICA_SOUTH = 5000, None, None, "🇿🇦"
     ASIA_WEST = 6000
     ASIA_SOUTH = 6200
     ASIA_EAST = 6400
-    AUSTRALIA_SOUTH = 7000
+    AUSTRALIA_SOUTH = 7000, None, None, "🇦🇺"
 
     @property
     def continent(self) -> RegionContinent:
@@ -928,35 +928,35 @@ class Region(BuiltinEnum):
     """Regions in a RegionArea, comprising RegionZones."""
 
     # eu-central
-    ZURICH = 1000
-    FRANKFURT = 1010
+    ZURICH = 1000, None, None, "🇨🇭"
+    FRANKFURT = 1010, None, None, "🇩🇪"
 
     # na-east
-    VIRGINIA = 2000
-    OHIO = 2010
+    VIRGINIA = 2000, None, None, "🇺🇸"
+    OHIO = 2010, None, None, "🇺🇸"
 
     # na-west
-    OREGON = 2200
+    OREGON = 2200, None, None, "🇺🇸"
 
     # sa-east
-    SAO_PAULO = 3000
+    SAO_PAULO = 3000, None, None, "🇧🇷"
 
     ...
 
     # af-south
-    CAPE_TOWN = 5000
+    CAPE_TOWN = 5000, None, None, "🇿🇦"
 
     # as-east
-    MUMBAI = 6000
+    MUMBAI = 6000, None, None, "🇮🇳"
 
     # as-south
-    SINGAPORE = 6200
+    SINGAPORE = 6200, None, None, "🇸🇬"
 
     # as-east
-    TOKYO = 6400
+    TOKYO = 6400, None, None, "🇯🇵"
 
     # au-south
-    SYDNEY = 7000
+    SYDNEY = 7000, None, None, "🇦🇺"
 
     @property
     def continent(self) -> RegionContinent:
@@ -1153,13 +1153,13 @@ class AccessMode(BuiltinEnum):
 
 
 @enum_(EnumType.SEVERITY)
-class Severity(BuiltinEnum):  # :LogLevel
-    TRACE = 1
-    DEBUG = 2
-    INFO = 3
-    WARNING = 4
-    ERROR = 5
-    PANIC = 6
+class Severity(BuiltinEnum):
+    TRACE = 1, None, None, "fas fa-bug"
+    DEBUG = 2, None, None, "fas fa-bug"
+    INFO = 3, None, None, "fas fa-circle-check"
+    WARNING = 4, None, None, "fas fa-circle-exclamation"
+    ERROR = 5, None, None, "fas fa-circle-exclamation"
+    PANIC = 6, None, None, "fas fa-skull"
 
 
 @enum_(EnumType.LOG_TYPE)
@@ -1185,34 +1185,34 @@ class PrimitiveType(BuiltinEnum):
     NOTE: the ids here are used in type identity keys, so any change is breaking.
     """
 
-    BOOLEAN = 1
+    BOOLEAN = 1, "Boolean", "Yes or no", "fas fa-toggle-large-on"
     # ...
     # INT8? UINTs?
     # range: -32768 to 32767
-    INT16 = 4, "Integer", "Very small integer"
+    INT16 = 4, "Integer", "Very small integer", "fas fa-tally"
     # range: -2147483648 to 2147483647
-    INT32 = 6, "Integer", "Small integer"
+    INT32 = 6, "Integer", "Small integer", "fas fa-tally"
     # range: -9223372036854775808 to 9223372036854775807
-    INT64 = 8, "Integer", "Integer number"
+    INT64 = 8, "Integer", "Integer number", "fas fa-tally"
     # numeric(precision, scale)
-    DECIMAL = 10, "Decimal", "Decimal number"
+    DECIMAL = 10, "Decimal", "Decimal number", "fas fa-tally"
     # ...
     # FLOAT16?
     # range: 1.175494351e-38 to 3.402823466e+38
-    FLOAT32 = 16, "Float", "Small float"
+    FLOAT32 = 16, "Float", "Small float", "fas fa-hashtag"
     # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
-    FLOAT64 = 17, "Float", "Floating point number"
+    FLOAT64 = 17, "Float", "Floating point number", "fas fa-hashtag"
     # ...
-    STRING = 20
-    UUID = 21, "UUID", "UUID"
-    JSON = 22, "JSON", "JSON"
-    BYTES = 25
-    VECTOR = 26
+    STRING = 20, "String", "Plain text", "fas fa-font-case"
+    UUID = 21, "UUID", "UUID", "fas fa-fingerprint"
+    JSON = 22, "JSON", "JSON", "fas fa-brackets-curly"
+    BYTES = 25, "Bytes", "Binary data", "fas fa-file-lines"
+    VECTOR = 26, "Vector", "Vector", "fas fa-vector-square"
     # time
-    DATETIME = 30, "Date & Time"
-    DATE = 31
-    TIME = 32
-    DURATION = 33
+    DATETIME = 30, "Date & Time", "Date & time", "fas fa-calendar-days"
+    DATE = 31, "Date", "Date", "fas fa-calendar-days"
+    TIME = 32, "Time", "Time", "fas fa-clock"
+    DURATION = 33, "Duration", "Duration", "fas fa-stopwatch"
 
     @property
     def is_numeric(self) -> bool:
@@ -1266,11 +1266,11 @@ class TypeFormat(BuiltinEnum):  # :TypeFormat
     """The fine-grained format of some Type."""
 
     # strings
-    URL = 2000
-    EMAIL = 2001
-    EMOJI = 2002
-    PHONE_NUMBER = 2003
-    SLUG = 2004
+    URL = 2000, "fas fa-link"
+    EMAIL = 2001, "fas fa-at"
+    EMOJI = 2002, "fas fa-smile"
+    PHONE_NUMBER = 2003, "fas fa-phone"
+    SLUG = 2004, "fas fa-hashtag"
 
     @property
     def primitive_type(self) -> PrimitiveType:
@@ -1344,12 +1344,12 @@ class Month(BuiltinEnum):
 
 @enum_(EnumType.NODE_MODE)
 class NodeMode(BuiltinEnum):
-    BUILTIN = 1
-    PRODUCTION = 2
-    DEVELOPMENT = 4
-    TEST = 6
-    PREVIEW = 8
-    ARCHIVE = 10
+    BUILTIN = 1, None, None, "fas fa-cog"
+    PRODUCTION = 2, None, None, "fas fa-globe"
+    DEVELOPMENT = 4, None, None, "fas fa-bug"
+    TEST = 6, None, None, "fas fa-flask"
+    PREVIEW = 8, None, None, "fas fa-eye"
+    ARCHIVE = 10, None, None, "fas fa-box-archive"
 
 
 @enum_(EnumType.RUN_TYPE)
@@ -1363,25 +1363,25 @@ class RunType(BuiltinEnum):
 @enum_(EnumType.RUN_SPAN_TYPE)
 class RunSpanType(BuiltinEnum):
     # general
-    ATTEMPT = 1
-    WAIT = 2
-    ACQUIRE = 3
-    DELEGATE = 10
+    ATTEMPT = 1, None, None, "fas fa-play"
+    WAIT = 2, None, None, "fas fa-hourglass-end"
+    ACQUIRE = 3, None, None, "fas fa-toolbox"
+    DELEGATE = 10, None, None, "fas fa-play"
     # flow
-    FLOW_PLAN = 100
+    FLOW_PLAN = 100, None, None, "fas fa-hexagon-nodes"
     # action
     # ...
     # application (action)
     # ...
     # model
-    MODEL_PREPARE = 300
-    MODEL_GENERATE = 310
-    MODEL_PARSE = 320
+    MODEL_PREPARE = 300, None, None, "fas fa-hexagon-nodes"
+    MODEL_GENERATE = 310, None, None, "fas fa-hexagon-nodes"
+    MODEL_PARSE = 320, None, None, "fas fa-hexagon-nodes"
     # file
-    FILE_UPLOAD = 500
-    FILE_PREPARE_UPLOAD = 501
-    FILE_DOWNLOAD = 502
-    FILE_PREPARE_DOWNLOAD = 503
+    FILE_UPLOAD = 500, None, None, "fas fa-upload"
+    FILE_PREPARE_UPLOAD = 501, None, None, "fas fa-upload"
+    FILE_DOWNLOAD = 502, None, None, "fas fa-download"
+    FILE_PREPARE_DOWNLOAD = 503, None, None, "fas fa-download"
 
 
 @enum_(EnumType.ERROR_KIND)
@@ -1393,19 +1393,19 @@ class ErrorKind(BuiltinEnum):
 @enum_(EnumType.RUN_STATUS)
 class RunStatus(BuiltinEnum):
     # pre
-    SCHEDULED = 1
-    QUEUED = 2
+    SCHEDULED = 1, None, None, "fas fa-clock"
+    QUEUED = 2, None, None, "fas fa-hourglass"
     # active
-    RUNNING = 10
+    RUNNING = 10, None, None, "fas fa-circle-notch"
     # interrupted
-    PAUSED = 20
-    YIELDED = 21
-    WAITING = 22
+    PAUSED = 20, None, None, "fas fa-circle-pause"
+    YIELDED = 21, None, None, "fas fa-circle-pause"
+    WAITING = 22, None, None, "fas fa-circle-pause"
     # terminal
-    CANCELLED = 30
-    ABORTED = 31
-    FAILED = 32
-    COMPLETED = 33
+    CANCELLED = 30, None, None, "fas fa-circle-xmark"
+    ABORTED = 31, None, None, "fas fa-skull"
+    FAILED = 32, None, None, "fas fa-circle-exclamation"
+    COMPLETED = 33, None, None, "fas fa-circle-check"
 
     @property
     def is_active(self) -> bool:

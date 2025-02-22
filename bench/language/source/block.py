@@ -36,37 +36,37 @@ _type = type
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(BuiltinEnum):
     # NOTE: see NodeType
-    FILE = 1200, "Any File"
-    PAGE = 5020, "Page to write"
-    CHOICE = 5030, "Choice of options"
-    CLASS = 5031, "Class of Fields"
-    FLOW = 5050, "Flow to run"
-    VIEW = 5080, "Graphical Interface"
-    DATABASE = 5090, "Database to store"
-    CHANNEL = 5100, "Channel to send"
-    ROLE = 5110, "Role to assign"
+    FILE = 1200, "File", "Any File", "fas fa-file"
+    PAGE = 5020, "Page", "Page to write", "fas fa-page"
+    CHOICE = 5030, "Choice", "Choice of options", "fas fa-check-circle"
+    CLASS = 5031, "Class", "Class of Fields", "fas fa-boxes-stacked"
+    FLOW = 5050, "Flow", "Flow to run", "fas fa-play"
+    VIEW = 5080, "View", "Graphical Interface", "fas fa-eye"
+    DATABASE = 5090, "Database", "Database to store", "fas fa-database"
+    CHANNEL = 5100, "Channel", "Channel to send", "fas fa-envelope"
+    ROLE = 5110, "Role", "Role to assign", "fas fa-user-shield"
 
     # text
     # NOTE: text BlockTypes should align with :TextLineTypes
-    PARAGRAPH = 10001, "Line of rich Text"
+    PARAGRAPH = 10001, "Paragraph", "Line of rich Text", "fas fa-align-left"
     # heading
-    HEADING_1 = 10010, "Very big heading", "Heading 1"
-    HEADING_2 = 10011, "Big heading", "Heading 2"
-    HEADING_3 = 10012, "Medium heading", "Heading 3"
-    HEADING_4 = 10013, "Small heading", "Heading 4"
+    HEADING_1 = 10010, "Heading 1", "Very big heading", "fas fa-heading"
+    HEADING_2 = 10011, "Heading 2", "Big heading", "fas fa-heading"
+    HEADING_3 = 10012, "Heading 3", "Medium heading", "fas fa-heading"
+    HEADING_4 = 10013, "Heading 4", "Small heading", "fas fa-heading"
     # callout
-    CALLOUT = 10020, "Callout"
-    QUOTE = 10021, "Quote"
+    CALLOUT = 10020, "Callout", "Callout", "fas fa-circle-exclamation"
+    QUOTE = 10021, "Quote", "Quote", "fas fa-quote-left"
     # list
-    LIST_UNORDERED = 10030, "Unorderd list"
-    LIST_ORDERED = 10031, "Numbered list"
+    LIST_UNORDERED = 10030, "Unorderd list", "Unorderd list", "fas fa-list-ul"
+    LIST_ORDERED = 10031, "Numbered list", "Numbered list", "fas fa-list-ol"
     # presentation
-    DIVIDER = 10040, "Horizontal line"
+    DIVIDER = 10040, "Horizontal line", "Horizontal line", "fas fa-horizontal-rule"
     # table
-    TABLE = 10050, "Table of data"
-    TABLE_ROW = 10051, "Row of a table"
+    TABLE = 10050, "Table", "Table of data", "fas fa-table"
+    TABLE_ROW = 10051, "Table row", "Row of a table", "fas fa-table-rows"
     # code
-    CODE = 10060, "Code block"
+    CODE = 10060, "Code block", "Code block", "fas fa-code"
 
     # layout?
     # ROW
