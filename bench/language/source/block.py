@@ -45,7 +45,6 @@ class BlockType(BuiltinEnum):
     DATABASE = 5090, "Database to store"
     CHANNEL = 5100, "Channel to send"
     ROLE = 5110, "Role to assign"
-    IDENTITY = 5120, "Unique Identity"
 
     # text
     # NOTE: text BlockTypes should align with :TextLineTypes
